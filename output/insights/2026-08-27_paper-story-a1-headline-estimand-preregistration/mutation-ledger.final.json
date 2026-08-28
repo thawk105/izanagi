@@ -1,0 +1,836 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5edd7b6049d6c251f123d3f908f72899/izdw-5edd7b6049.o954429",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5edd7b6049d6c251f123d3f908f72899/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........                                                               [100%]\n10 passed in 6.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "179a16662951b123b40e9bc77c7d80eae8ce94e800caa77a2821512628494b63"
+    },
+    "artifact_error": null,
+    "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+    "duration_s": 32.116,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a7b9b00b5d1f4917781cc49fdaa2a9c3c1b2436eb39fae1e1704437dfb29436c",
+    "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+    "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+    "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+    "status": "PASSED",
+    "test_output_sha256": "179a16662951b123b40e9bc77c7d80eae8ce94e800caa77a2821512628494b63",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+  },
+  "date": "2026-08-28T00:26:52.050980+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8942c8d468ee8bc4ac19a11c6fe37202/izdw-8942c8d468.o954430",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8942c8d468ee8bc4ac19a11c6fe37202/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......F...                                                               [100%]\n=================================== FAILURES ===================================\n________ test_even_n_median_uses_arithmetic_mean_of_two_central_values _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_even_n_median_uses_arithmetic_mean_of_two_central_values():\n        baseline = list(range(1, 29))\n        variant = [2 * value for value in baseline]\n        result = headline.median_ratio_statistics(_bound(), \"read-heavy\", baseline, variant)\n>       assert result[\"baseline_median\"] == 14.5\nE       assert 14 == 14.5\n\norchestrator/tests/test_paper_story_a1_headline.py:450: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values\n1 failed, 9 passed in 6.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=449 retained_bytes=449 omitted_bytes=0 rendered_excerpt_bytes=470 sha256=17b3acfb18824662ef738a54afc7eccccdfbbd7aeafbc45f72b83cc5551b921c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_even_n_median_uses_arithmetic_mean_of_two_central_values():\n>         baseline = list(range(1, 29))\n>         variant = [2 * value for value in baseline]\n>         result = headline.median_ratio_statistics(_bound(), \"read-heavy\", baseline, variant)\n> >       assert result[\"baseline_median\"] == 14.5\n> E       assert 14 == 14.5\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:450: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=449 retained_bytes=449 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1206 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7ce023b8a652533d2d682c2f67a07a0c7ef9ccf470d9e7837e3c1bcc9abf80a1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.985,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m01-even-median",
+      "injection_diff_sha256": "b56e6042ad71f8d49a20de26581a06a40f16c9e7e9b4fde92a64a02b424a9459",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7ebed65ba3ec084c085e2436a36a5d38347513c9ab2fbb59c84f1210a2a867b3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "return ordered[middle - 1]",
+          "old": "return (ordered[middle - 1] + ordered[middle]) / 2"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "7ce023b8a652533d2d682c2f67a07a0c7ef9ccf470d9e7837e3c1bcc9abf80a1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9d8e698035210d4af4b183e48effeaf0/izdw-9d8e698035.o954431",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9d8e698035210d4af4b183e48effeaf0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......F...                                                               [100%]\n=================================== FAILURES ===================================\n____________ test_rectangle_ratio_uses_cross_arm_opposite_endpoints ____________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_rectangle_ratio_uses_cross_arm_opposite_endpoints():\n        baseline = list(range(1, 29))\n        variant = [2 * value for value in baseline]\n        result = headline.median_ratio_statistics(\n            _bound(), \"read-heavy\", baseline, variant\n        )\n        expected_lower = variant[6] / baseline[21]\n        expected_upper = variant[21] / baseline[6]\n        denominator_mutant_upper = variant[21] / baseline[21]\n        assert baseline[6] != baseline[21]\n        assert variant[6] != variant[21]\n>       assert result[\"ratio_interval\"] == (expected_lower, expected_upper)\nE       assert (0.6363636363636364, 2.0) == (0.6363636363...5714285714286)\nE         \nE         At index 1 diff: 2.0 != 6.285714285714286\nE         Use -v to get more diff\n\norchestrator/tests/test_paper_story_a1_headline.py:1227: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints\n1 failed, 9 passed in 6.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=886 retained_bytes=886 omitted_bytes=0 rendered_excerpt_bytes=927 sha256=ae7637ce6a13255bb0e414d0c23e7f94d162593f0382c2af92d56104b79f25e6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_rectangle_ratio_uses_cross_arm_opposite_endpoints():\n>         baseline = list(range(1, 29))\n>         variant = [2 * value for value in baseline]\n>         result = headline.median_ratio_statistics(\n>             _bound(), \"read-heavy\", baseline, variant\n>         )\n>         expected_lower = variant[6] / baseline[21]\n>         expected_upper = variant[21] / baseline[6]\n>         denominator_mutant_upper = variant[21] / baseline[21]\n>         assert baseline[6] != baseline[21]\n>         assert variant[6] != variant[21]\n> >       assert result[\"ratio_interval\"] == (expected_lower, expected_upper)\n> E       assert (0.6363636363636364, 2.0) == (0.6363636363...5714285714286)\n> E         \n> E         At index 1 diff: 2.0 != 6.285714285714286\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:1227: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=886 retained_bytes=886 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1656 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7c9efea47f05a4c6a3d1544029f2c29315d2f8cd4840f68d16176b188d3cfd7c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.966,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m02-rectangle-denominator",
+      "injection_diff_sha256": "c3c781d9e4cbe8523a88fe7ccfe84b85de306715140fafad0b3753d21c2e12f6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4427e7a2648ae0124c746f3e4fb35a0616679e4a6f98573bdc211b83f58e9eb6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "ratio_upper_exact = variant_ordered[upper_index] / baseline_ordered[upper_index]",
+          "old": "ratio_upper_exact = variant_ordered[upper_index] / baseline_ordered[lower_index]"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "7c9efea47f05a4c6a3d1544029f2c29315d2f8cd4840f68d16176b188d3cfd7c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c040bdd7a6fc44aa86ae2551bfb077d3/izdw-c040bdd7a6.o954445",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c040bdd7a6fc44aa86ae2551bfb077d3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F..                                                               [100%]\n=================================== FAILURES ===================================\n________ test_nonzero_effect_underflow_is_rejected_or_preserved_exactly ________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_nonzero_effect_underflow_is_rejected_or_preserved_exactly():\n        baseline_value = 10**400\n        variant_value = baseline_value + 1\n>       _assert_raises(\n            headline.HeadlineSpecError,\n            headline.median_ratio_statistics,\n            _bound(),\n            \"read-heavy\",\n            [baseline_value] * 28,\n            [variant_value] * 28,\n            match=\"point effect exact nonzero value underflows\",\n        )\n\norchestrator/tests/test_paper_story_a1_headline.py:1196: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexception_type = <class 'orchestrator.campaign.paper_story_a1_headline.HeadlineSpecError'>\nfunction = <function median_ratio_statistics at 0x154935569510>\nmatch = 'point effect exact nonzero value underflows'\nargs = (BoundSpec(canonical_document_path='output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/README...000000...0000000000000000001, 100000000000000000...0000000000000000001, 100000000000000000...0000000000000000001, ...])\nkwargs = {}\n\n    def _assert_raises(exception_type, function, *args, match: str | None = None, **kwargs):\n        try:\n            function(*args, **kwargs)\n        except exception_type as exc:\n            if match is not None and match not in str(exc):\n                raise AssertionError(f\"exception did not contain {match!r}: {exc}\") from exc\n            return exc\n        except BaseException as exc:\n            raise AssertionError(\n                f\"raised {type(exc).__name__}, expected {exception_type.__name__}\"\n            ) from exc\n>       raise AssertionError(f\"did not raise {exception_type.__name__}\")\nE       AssertionError: did not raise HeadlineSpecError\n\norchestrator/tests/test_paper_story_a1_headline.py:54: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly\n1 failed, 9 passed in 6.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1844 retained_bytes=1844 omitted_bytes=0 rendered_excerpt_bytes=1923 sha256=53d6f7c079dd1bcadfab350f16cc4cfc3b896c001a321944509e027c41dbf21e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_nonzero_effect_underflow_is_rejected_or_preserved_exactly():\n>         baseline_value = 10**400\n>         variant_value = baseline_value + 1\n> >       _assert_raises(\n>             headline.HeadlineSpecError,\n>             headline.median_ratio_statistics,\n>             _bound(),\n>             \"read-heavy\",\n>             [baseline_value] * 28,\n>             [variant_value] * 28,\n>             match=\"point effect exact nonzero value underflows\",\n>         )\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:1196: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exception_type = <class 'orchestrator.campaign.paper_story_a1_headline.HeadlineSpecError'>\n> function = <function median_ratio_statistics at 0x154935569510>\n> match = 'point effect exact nonzero value underflows'\n> args = (BoundSpec(canonical_document_path='output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/README...000000...0000000000000000001, 100000000000000000...0000000000000000001, 100000000000000000...0000000000000000001, ...])\n> kwargs = {}\n> \n>     def _assert_raises(exception_type, function, *args, match: str | None = None, **kwargs):\n>         try:\n>             function(*args, **kwargs)\n>         except exception_type as exc:\n>             if match is not None and match not in str(exc):\n>                 raise AssertionError(f\"exception did not contain {match!r}: {exc}\") from exc\n>             return exc\n>         except BaseException as exc:\n>             raise AssertionError(\n>                 f\"raised {type(exc).__name__}, expected {exception_type.__name__}\"\n>             ) from exc\n> >       raise AssertionError(f\"did not raise {exception_type.__name__}\")\n> E       AssertionError: did not raise HeadlineSpecError\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:54: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1844 retained_bytes=1844 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2665 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6ed52a58b17373ce58469c217f77524dcb6d79db95b310451722668714e45270"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 27.004,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m03-underflow",
+      "injection_diff_sha256": "e3aae2508b75e9bc3362aa7c033437ff5aace8cb442d54650eff4fbf568cc4c8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c5df7eaf75411cefad293391d74a62897c74ee51ebee800e2e312127b107ea07",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "if False and rendered == 0.0 and value != 0:",
+          "old": "if rendered == 0.0 and value != 0:"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "6ed52a58b17373ce58469c217f77524dcb6d79db95b310451722668714e45270",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1678fcb7531bbb5adecaac2b0aba8a3a/izdw-1678fcb753.o954446",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1678fcb7531bbb5adecaac2b0aba8a3a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F..                                                               [100%]\n=================================== FAILURES ===================================\n__________ test_registered_bound_spec_mutation_cannot_change_analysis __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registered_bound_spec_mutation_cannot_change_analysis():\n        bound = _parse_bundle(_bundle())\n        baseline = list(range(1, 29))\n        variant = [2 * value for value in baseline]\n        expected = headline.median_ratio_statistics(\n            bound, \"read-heavy\", baseline, variant\n        )\n    \n        workload = next(row for row in bound.workloads if row.name == \"read-heavy\")\n        object.__setattr__(workload, \"repetitions_per_arm\", 1)\n        object.__setattr__(workload, \"lower_index_1based\", 1)\n        object.__setattr__(workload, \"upper_index_1based\", 1)\n        estimand = bound.spec[\"analysis\"][\"estimand\"]\n        object.__setattr__(\n            estimand,\n            \"_items\",\n            tuple(\n                (key, \"unsupported-after-registration\" if key == \"even_sample_median\" else value)\n                for key, value in estimand._items\n            ),\n        )\n    \n>       assert headline.median_ratio_statistics(\n            bound, \"read-heavy\", baseline, variant\n        ) == expected\n\norchestrator/tests/test_paper_story_a1_headline.py:1083: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/paper_story_a1_headline.py:1740: in median_ratio_statistics\n    baseline_values = _validated_sample(baseline, workload.repetitions_per_arm, \"baseline\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nvalues = [1, 2, 3, 4, 5, 6, ...], n = 1, label = 'baseline'\n\n    def _validated_sample(values: object, n: int, label: str) -> list[Fraction]:\n        if isinstance(values, (str, bytes, bytearray, Mapping)) or not isinstance(values, Sequence):\n            raise HeadlineSpecError(f\"{label} must be a sized numeric sequence\")\n        if len(values) != n:\n>           raise HeadlineSpecError(f\"{label} length differs from the bound exact n\")\nE           orchestrator.campaign.paper_story_a1_headline.HeadlineSpecError: baseline length differs from the bound exact n\n\norchestrator/campaign/paper_story_a1_headline.py:1682: HeadlineSpecError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis\n1 failed, 9 passed in 6.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=2115 retained_bytes=2115 omitted_bytes=0 rendered_excerpt_bytes=2204 sha256=834a40491da8056adc843772693bf4f6a8cb24bfe1da40865c325ca245388766\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registered_bound_spec_mutation_cannot_change_analysis():\n>         bound = _parse_bundle(_bundle())\n>         baseline = list(range(1, 29))\n>         variant = [2 * value for value in baseline]\n>         expected = headline.median_ratio_statistics(\n>             bound, \"read-heavy\", baseline, variant\n>         )\n>     \n>         workload = next(row for row in bound.workloads if row.name == \"read-heavy\")\n>         object.__setattr__(workload, \"repetitions_per_arm\", 1)\n>         object.__setattr__(workload, \"lower_index_1based\", 1)\n>         object.__setattr__(workload, \"upper_index_1based\", 1)\n>         estimand = bound.spec[\"analysis\"][\"estimand\"]\n>         object.__setattr__(\n>             estimand,\n>             \"_items\",\n>             tuple(\n>                 (key, \"unsupported-after-registration\" if key == \"even_sample_median\" else value)\n>                 for key, value in estimand._items\n>             ),\n>         )\n>     \n> >       assert headline.median_ratio_statistics(\n>             bound, \"read-heavy\", baseline, variant\n>         ) == expected\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:1083: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/paper_story_a1_headline.py:1740: in median_ratio_statistics\n>     baseline_values = _validated_sample(baseline, workload.repetitions_per_arm, \"baseline\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> values = [1, 2, 3, 4, 5, 6, ...], n = 1, label = 'baseline'\n> \n>     def _validated_sample(values: object, n: int, label: str) -> list[Fraction]:\n>         if isinstance(values, (str, bytes, bytearray, Mapping)) or not isinstance(values, Sequence):\n>             raise HeadlineSpecError(f\"{label} must be a sized numeric sequence\")\n>         if len(values) != n:\n> >           raise HeadlineSpecError(f\"{label} length differs from the bound exact n\")\n> E           orchestrator.campaign.paper_story_a1_headline.HeadlineSpecError: baseline length differs from the bound exact n\n> \n> orchestrator/campaign/paper_story_a1_headline.py:1682: HeadlineSpecError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2115 retained_bytes=2115 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2942 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2be4f7cba2f828ac681298f274ae99eec2f985cf20e94333ac753af8f05a82e4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.931,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m04-snapshot-seal",
+      "injection_diff_sha256": "cf516cd9feeed429647f972f733f4674209a1264b45808c2405b4b9a76b6b81b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "80312337fc46d4fccd30da6b0ad37241744f8a80bb02bb59c13f188c036e5de4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "matches = tuple(row for row in bound_spec.workloads if row.name == workload_name)",
+          "old": "matches = tuple(row for row in snapshot.workloads if row.name == workload_name)"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "2be4f7cba2f828ac681298f274ae99eec2f985cf20e94333ac753af8f05a82e4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9abdf31c648f5e69f9a37f24db3ad907/izdw-9abdf31c64.o954447",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9abdf31c648f5e69f9a37f24db3ad907/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F.......                                                               [100%]\n=================================== FAILURES ===================================\n__ test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason __\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason():\n        class FixedBetaRng:\n            def __init__(self):\n                self._values = iter(\n                    (\n                        np.array([0.001, 0.5]),\n                        np.array([0.6, 0.2]),\n                        np.array([0.01, 0.01]),\n                    )\n                )\n    \n            def beta(self, _a, _b, *, size):\n                result = next(self._values).copy()\n                assert len(result) == size\n                return result\n    \n        generated = generator._joint_normal_minimum_and_interval(\n            FixedBetaRng(),\n            n=28,\n            lower_index=7,\n            trials=2,\n            median=1.0,\n            cv=0.5,\n        )\n        replayed = verifier.joint_minimum_and_interval(\n            FixedBetaRng(), 28, 7, 2, 1.0, 0.5\n        )\n        for minimum, lower, upper in (generated, replayed):\n            assert minimum[0] <= 0.0\n            assert np.all(np.isfinite(lower)) and np.all(lower > 0.0)\n            assert np.all(np.isfinite(upper)) and np.all(upper >= lower)\n        generated_counts = generator.count_outcomes(\n            *generated,\n            np.ones(2),\n            generated[1].copy(),\n            generated[2].copy(),\n            \"bounded-within-floor\",\n            None,\n        )\n        replayed_counts = verifier.replay_count(\n            replayed,\n            (np.ones(2), replayed[1].copy(), replayed[2].copy()),\n            \"bounded-within-floor\",\n            None,\n        )\n>       assert generated_counts[\"invalid\"] == replayed_counts[\"invalid\"] == 1\nE       assert 0 == 1\n\norchestrator/tests/test_paper_story_a1_headline_sizing.py:763: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason\n1 failed, 9 passed in 5.83s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason\" nodeid_bytes=133 nodeid_omitted_bytes=0 source_bytes=1791 retained_bytes=1791 omitted_bytes=0 rendered_excerpt_bytes=1894 sha256=57d63c745ab86c363cab4c30bcc0bd8a3141431ddd4b6896dccdc60f642d569f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason():\n>         class FixedBetaRng:\n>             def __init__(self):\n>                 self._values = iter(\n>                     (\n>                         np.array([0.001, 0.5]),\n>                         np.array([0.6, 0.2]),\n>                         np.array([0.01, 0.01]),\n>                     )\n>                 )\n>     \n>             def beta(self, _a, _b, *, size):\n>                 result = next(self._values).copy()\n>                 assert len(result) == size\n>                 return result\n>     \n>         generated = generator._joint_normal_minimum_and_interval(\n>             FixedBetaRng(),\n>             n=28,\n>             lower_index=7,\n>             trials=2,\n>             median=1.0,\n>             cv=0.5,\n>         )\n>         replayed = verifier.joint_minimum_and_interval(\n>             FixedBetaRng(), 28, 7, 2, 1.0, 0.5\n>         )\n>         for minimum, lower, upper in (generated, replayed):\n>             assert minimum[0] <= 0.0\n>             assert np.all(np.isfinite(lower)) and np.all(lower > 0.0)\n>             assert np.all(np.isfinite(upper)) and np.all(upper >= lower)\n>         generated_counts = generator.count_outcomes(\n>             *generated,\n>             np.ones(2),\n>             generated[1].copy(),\n>             generated[2].copy(),\n>             \"bounded-within-floor\",\n>             None,\n>         )\n>         replayed_counts = verifier.replay_count(\n>             replayed,\n>             (np.ones(2), replayed[1].copy(), replayed[2].copy()),\n>             \"bounded-within-floor\",\n>             None,\n>         )\n> >       assert generated_counts[\"invalid\"] == replayed_counts[\"invalid\"] == 1\n> E       assert 0 == 1\n> \n> orchestrator/tests/test_paper_story_a1_headline_sizing.py:763: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1791 retained_bytes=1791 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2655 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4878ceb6f188ea9b632409ce201fd3c6ac5d92de3131be6f39e326963180b587"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.93,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m05-hidden-nonpositive",
+      "injection_diff_sha256": "c1331df6147e4b1e0517893580abcd14118ffc65ba6c05ae560b7b9c68d3dc15",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "20e2d38bd62671ebde5246c8c214129925460bc4110c6da856f13e31a12a1e84",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "| (b_low <= 0.0)\n        | (b_low <= 0.0)",
+          "old": "| (b_minimum <= 0.0)\n        | (b_low <= 0.0)"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "4878ceb6f188ea9b632409ce201fd3c6ac5d92de3131be6f39e326963180b587",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0f7316105ba80dabac959501ed585d01/izdw-0f7316105b.o954448",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0f7316105ba80dabac959501ed585d01/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F....F..                                                               [100%]\n=================================== FAILURES ===================================\n_ test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending _\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending():\n        assert generator.STUDY_GENERATION == (\n            \"paper-story-a1-headline-estimand-20260828-v2\"\n        )\n        config = generator.SizingConfig(ROOT_SEED, 16, 32, 28, 30)\n    \n        def fake_simulation(**kwargs):\n            trials = kwargs[\"trials\"]\n            n = kwargs[\"n\"]\n            phase = kwargs[\"phase\"]\n            condition = kwargs[\"condition\"]\n            if phase == \"search\":\n                success = 0 if (n == 29 and condition == \"zero\") else trials\n            else:\n                success = 28 if (n == 28 and condition == \"zero\") else trials\n            outcomes = {\n                \"bounded-within-floor\": 0,\n                \"invalid\": 0,\n                \"resolved-beyond-floor\": {\"improvement\": 0, \"regression\": 0},\n                \"unresolved\": trials - success,\n            }\n            if kwargs[\"success_classification\"] == \"bounded-within-floor\":\n                outcomes[\"bounded-within-floor\"] = success\n            else:\n                outcomes[\"resolved-beyond-floor\"][kwargs[\"success_direction\"]] = success\n            return {\n                \"condition\": condition,\n                \"invalid\": 0,\n                \"outcomes\": outcomes,\n                \"seed\": generator.child_seed(\n                    config.root_seed,\n                    phase,\n                    kwargs[\"workload\"],\n                    condition,\n                    n,\n                    trials,\n                    kwargs.get(\"certification_attempt\"),\n                ),\n                \"success\": success,\n                \"trials\": trials,\n            }\n    \n>       result = generator.size_workload(\n            workload=\"balanced\",\n            planned_cv=generator.PLANNED_CVS[\"balanced\"],\n            config=config,\n            simulate=fake_simulation,\n        )\n\norchestrator/tests/test_paper_story_a1_headline_sizing.py:1006: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/size_paper_story_a1_headline.py:866: in size_workload\n    \"certification_alpha_spending\": _alpha_spending_summary(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nattempt_count = 2\n\n    def _alpha_spending_summary(attempt_count: int) -> dict[str, object]:\n        if type(attempt_count) is not int or attempt_count < 0:\n            raise SizingError(\"certification attempt count must be a nonnegative integer\")\n        spent = sum(\n            (\n                len(CONDITIONS) * certification_condition_alpha(attempt)\n                for attempt in range(1, attempt_count + 1)\n            ),\n            Fraction(0, 1),\n        )\n        if spent > FAMILY_ALPHA:\n>           raise SizingError(\"certification alpha spending exceeds family alpha\")\nE           tools.size_paper_story_a1_headline.SizingError: certification alpha spending exceeds family alpha\n\ntools/size_paper_story_a1_headline.py:154: SizingError\n________ test_replay_receipt_binds_tools_runtime_certificate_and_policy ________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_replay_receipt_binds_tools_runtime_certificate_and_policy():\n        with tempfile.TemporaryDirectory(prefix=\"a1-headline-sizing-receipt-\") as raw_dir:\n            directory = Path(raw_dir)\n            certificate = _write_certificate(\n                directory,\n                _small_certificate(),\n                \"certificate.json\",\n            )\n            receipt = directory / \"receipt.json\"\n>           assert verifier.main(_verifier_arguments(certificate, receipt)) == 0\nE           AssertionError: assert 1 == 0\nE            +  where 1 = <function main at 0x1477973ab7f0>(['--certificate', '/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json', ...])\nE            +    where <function main at 0x1477973ab7f0> = verifier.main\nE            +    and   ['--certificate', '/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json', ...] = _verifier_arguments(PosixPath('/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json'), PosixPath('/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json'))\n\norchestrator/tests/test_paper_story_a1_headline_sizing.py:1236: AssertionError\n----------------------------- Captured stderr call -----------------------------\nverification failed: certification condition alpha differs\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending\nFAILED orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\n2 failed, 8 passed in 6.19s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=3030 retained_bytes=3030 omitted_bytes=0 rendered_excerpt_bytes=3179 sha256=a2c5692c0d9bb02a7a59d59a96fb460f6aa0005192a2c513381aa413c365972d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending():\n>         assert generator.STUDY_GENERATION == (\n>             \"paper-story-a1-headline-estimand-20260828-v2\"\n>         )\n>         config = generator.SizingConfig(ROOT_SEED, 16, 32, 28, 30)\n>     \n>         def fake_simulation(**kwargs):\n>             trials = kwargs[\"trials\"]\n>             n = kwargs[\"n\"]\n>             phase = kwargs[\"phase\"]\n>             condition = kwargs[\"condition\"]\n>             if phase == \"search\":\n>                 success = 0 if (n == 29 and condition == \"zero\") else trials\n>             else:\n>                 success = 28 if (n == 28 and condition == \"zero\") else trials\n>             outcomes = {\n>                 \"bounded-within-floor\": 0,\n>                 \"invalid\": 0,\n>                 \"resolved-beyond-floor\": {\"improvement\": 0, \"regression\": 0},\n>                 \"unresolved\": trials - success,\n>             }\n>             if kwargs[\"success_classification\"] == \"bounded-within-floor\":\n>                 outcomes[\"bounded-within-floor\"] = success\n>             else:\n>                 outcomes[\"resolved-beyond-floor\"][kwargs[\"success_direction\"]] = success\n>             return {\n>                 \"condition\": condition,\n>                 \"invalid\": 0,\n>                 \"outcomes\": outcomes,\n>                 \"seed\": generator.child_seed(\n>                     config.root_seed,\n>                     phase,\n>                     kwargs[\"workload\"],\n>                     condition,\n>                     n,\n>                     trials,\n>                     kwargs.get(\"certification_attempt\"),\n>                 ),\n>                 \"success\": success,\n>                 \"trials\": trials,\n>             }\n>     \n> >       result = generator.size_workload(\n>             workload=\"balanced\",\n>             planned_cv=generator.PLANNED_CVS[\"balanced\"],\n>             config=config,\n>             simulate=fake_simulation,\n>         )\n> \n> orchestrator/tests/test_paper_story_a1_headline_sizing.py:1006: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/size_paper_story_a1_headline.py:866: in size_workload\n>     \"certification_alpha_spending\": _alpha_spending_summary(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> attempt_count = 2\n> \n>     def _alpha_spending_summary(attempt_count: int) -> dict[str, object]:\n>         if type(attempt_count) is not int or attempt_count < 0:\n>             raise SizingError(\"certification attempt count must be a nonnegative integer\")\n>         spent = sum(\n>             (\n>                 len(CONDITIONS) * certification_condition_alpha(attempt)\n>                 for attempt in range(1, attempt_count + 1)\n>             ),\n>             Fraction(0, 1),\n>         )\n>         if spent > FAMILY_ALPHA:\n> >           raise SizingError(\"certification alpha spending exceeds family alpha\")\n> E           tools.size_paper_story_a1_headline.SizingError: certification alpha spending exceeds family alpha\n> \n> tools/size_paper_story_a1_headline.py:154: SizingError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1465 retained_bytes=1465 omitted_bytes=0 rendered_excerpt_bytes=1502 sha256=8e906e805aeb3dbcf17575b917087830fd225a8c51747cb5022b0e3f62377700\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_replay_receipt_binds_tools_runtime_certificate_and_policy():\n>         with tempfile.TemporaryDirectory(prefix=\"a1-headline-sizing-receipt-\") as raw_dir:\n>             directory = Path(raw_dir)\n>             certificate = _write_certificate(\n>                 directory,\n>                 _small_certificate(),\n>                 \"certificate.json\",\n>             )\n>             receipt = directory / \"receipt.json\"\n> >           assert verifier.main(_verifier_arguments(certificate, receipt)) == 0\n> E           AssertionError: assert 1 == 0\n> E            +  where 1 = <function main at 0x1477973ab7f0>(['--certificate', '/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json', ...])\n> E            +    where <function main at 0x1477973ab7f0> = verifier.main\n> E            +    and   ['--certificate', '/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json', ...] = _verifier_arguments(PosixPath('/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json'), PosixPath('/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json'))\n> \n> orchestrator/tests/test_paper_story_a1_headline_sizing.py:1236: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4495 retained_bytes=4495 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5908 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "59556d5eaba885f8ed7b40fb22e79e63d2c569cc37b0a35e94566a8ac6a24992"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.945,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m06-alpha-spending",
+      "injection_diff_sha256": "b652c28c31ea242c6e0896310c31a4c700afdcc9087b1f2227847948b44c6838",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "1a47476a18471b3324723e9003a20dc003e05ac9a909d258195db2c7266fa22a",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "return Fraction(1, 30 * attempt * (attempt + 1))",
+          "old": "return Fraction(1, 60 * attempt * (attempt + 1))"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "MISMATCH",
+      "test_output_sha256": "59556d5eaba885f8ed7b40fb22e79e63d2c569cc37b0a35e94566a8ac6a24992",
+      "test_output_tail": [
+        ">                 \"bounded-within-floor\": 0,",
+        ">                 \"invalid\": 0,",
+        ">                 \"resolved-beyond-floor\": {\"improvement\": 0, \"regression\": 0},",
+        ">                 \"unresolved\": trials - success,",
+        ">             }",
+        ">             if kwargs[\"success_classification\"] == \"bounded-within-floor\":",
+        ">                 outcomes[\"bounded-within-floor\"] = success",
+        ">             else:",
+        ">                 outcomes[\"resolved-beyond-floor\"][kwargs[\"success_direction\"]] = success",
+        ">             return {",
+        ">                 \"condition\": condition,",
+        ">                 \"invalid\": 0,",
+        ">                 \"outcomes\": outcomes,",
+        ">                 \"seed\": generator.child_seed(",
+        ">                     config.root_seed,",
+        ">                     phase,",
+        ">                     kwargs[\"workload\"],",
+        ">                     condition,",
+        ">                     n,",
+        ">                     trials,",
+        ">                     kwargs.get(\"certification_attempt\"),",
+        ">                 ),",
+        ">                 \"success\": success,",
+        ">                 \"trials\": trials,",
+        ">             }",
+        ">     ",
+        "> >       result = generator.size_workload(",
+        ">             workload=\"balanced\",",
+        ">             planned_cv=generator.PLANNED_CVS[\"balanced\"],",
+        ">             config=config,",
+        ">             simulate=fake_simulation,",
+        ">         )",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a1_headline_sizing.py:1006: ",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> tools/size_paper_story_a1_headline.py:866: in size_workload",
+        ">     \"certification_alpha_spending\": _alpha_spending_summary(",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> ",
+        "> attempt_count = 2",
+        "> ",
+        ">     def _alpha_spending_summary(attempt_count: int) -> dict[str, object]:",
+        ">         if type(attempt_count) is not int or attempt_count < 0:",
+        ">             raise SizingError(\"certification attempt count must be a nonnegative integer\")",
+        ">         spent = sum(",
+        ">             (",
+        ">                 len(CONDITIONS) * certification_condition_alpha(attempt)",
+        ">                 for attempt in range(1, attempt_count + 1)",
+        ">             ),",
+        ">             Fraction(0, 1),",
+        ">         )",
+        ">         if spent > FAMILY_ALPHA:",
+        "> >           raise SizingError(\"certification alpha spending exceeds family alpha\")",
+        "> E           tools.size_paper_story_a1_headline.SizingError: certification alpha spending exceeds family alpha",
+        "> ",
+        "> tools/size_paper_story_a1_headline.py:154: SizingError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1465 retained_bytes=1465 omitted_bytes=0 rendered_excerpt_bytes=1502 sha256=8e906e805aeb3dbcf17575b917087830fd225a8c51747cb5022b0e3f62377700",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw8] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_replay_receipt_binds_tools_runtime_certificate_and_policy():",
+        ">         with tempfile.TemporaryDirectory(prefix=\"a1-headline-sizing-receipt-\") as raw_dir:",
+        ">             directory = Path(raw_dir)",
+        ">             certificate = _write_certificate(",
+        ">                 directory,",
+        ">                 _small_certificate(),",
+        ">                 \"certificate.json\",",
+        ">             )",
+        ">             receipt = directory / \"receipt.json\"",
+        "> >           assert verifier.main(_verifier_arguments(certificate, receipt)) == 0",
+        "> E           AssertionError: assert 1 == 0",
+        "> E            +  where 1 = <function main at 0x1477973ab7f0>(['--certificate', '/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json', ...])",
+        "> E            +    where <function main at 0x1477973ab7f0> = verifier.main",
+        "> E            +    and   ['--certificate', '/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json', ...] = _verifier_arguments(PosixPath('/tmp/a1-headline-sizing-receipt-dfs2bl33/certificate.json'), PosixPath('/tmp/a1-headline-sizing-receipt-dfs2bl33/receipt.json'))",
+        "> ",
+        "> orchestrator/tests/test_paper_story_a1_headline_sizing.py:1236: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4495 retained_bytes=4495 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5908 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fdb734f645b3e369a0b26b7db500d3a9/izdw-fdb734f645.o954449",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fdb734f645b3e369a0b26b7db500d3a9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n________ test_replay_receipt_binds_tools_runtime_certificate_and_policy ________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\npath = PosixPath('/tmp/a1-headline-sizing-receipt-dwggkyo9/receipt.json')\nlabel = 'replay receipt'\n\n    def _read_regular(path: Path, label: str) -> bytes:\n        \"\"\"Read one regular file through a held, no-follow directory chain.\"\"\"\n        nofollow = getattr(os, \"O_NOFOLLOW\", None)\n        directory = getattr(os, \"O_DIRECTORY\", None)\n        if nofollow is None or directory is None:\n            raise VerificationError(\n                \"O_NOFOLLOW and O_DIRECTORY are required for bound file reads\"\n            )\n        absolute = Path(os.path.abspath(path))\n        parts = absolute.parts\n        if (\n            not absolute.is_absolute()\n            or len(parts) < 2\n            or any(part in {\"\", \".\", \"..\"} for part in parts[1:])\n        ):\n            raise VerificationError(f\"{label} path is invalid: {path}\")\n    \n        open_directories: list[int] = []\n        descriptor: int | None = None\n        directory_flags = os.O_RDONLY | os.O_CLOEXEC | nofollow | directory\n        try:\n            open_directories.append(os.open(absolute.anchor, directory_flags))\n            for component in parts[1:-1]:\n                child = os.open(\n                    component,\n                    directory_flags,\n                    dir_fd=open_directories[-1],\n                )\n                open_directories.append(child)\n>           descriptor = os.open(\n                parts[-1],\n                os.O_RDONLY | os.O_CLOEXEC | nofollow,\n                dir_fd=open_directories[-1],\n            )\nE           FileNotFoundError: [Errno 2] No such file or directory: 'receipt.json'\n\ntools/verify_paper_story_a1_headline_sizing.py:206: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_replay_receipt_binds_tools_runtime_certificate_and_policy():\n        with tempfile.TemporaryDirectory(prefix=\"a1-headline-sizing-receipt-\") as raw_dir:\n            directory = Path(raw_dir)\n            certificate = _write_certificate(\n                directory,\n                _small_certificate(),\n                \"certificate.json\",\n            )\n            receipt = directory / \"receipt.json\"\n            assert verifier.main(_verifier_arguments(certificate, receipt)) == 0\n>           observed, raw = verifier.load_replay_receipt(receipt)\n\norchestrator/tests/test_paper_story_a1_headline_sizing.py:1237: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/verify_paper_story_a1_headline_sizing.py:349: in load_replay_receipt\n    raw = _read_regular(path, \"replay receipt\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npath = PosixPath('/tmp/a1-headline-sizing-receipt-dwggkyo9/receipt.json')\nlabel = 'replay receipt'\n\n    def _read_regular(path: Path, label: str) -> bytes:\n        \"\"\"Read one regular file through a held, no-follow directory chain.\"\"\"\n        nofollow = getattr(os, \"O_NOFOLLOW\", None)\n        directory = getattr(os, \"O_DIRECTORY\", None)\n        if nofollow is None or directory is None:\n            raise VerificationError(\n                \"O_NOFOLLOW and O_DIRECTORY are required for bound file reads\"\n            )\n        absolute = Path(os.path.abspath(path))\n        parts = absolute.parts\n        if (\n            not absolute.is_absolute()\n            or len(parts) < 2\n            or any(part in {\"\", \".\", \"..\"} for part in parts[1:])\n        ):\n            raise VerificationError(f\"{label} path is invalid: {path}\")\n    \n        open_directories: list[int] = []\n        descriptor: int | None = None\n        directory_flags = os.O_RDONLY | os.O_CLOEXEC | nofollow | directory\n        try:\n            open_directories.append(os.open(absolute.anchor, directory_flags))\n            for component in parts[1:-1]:\n                child = os.open(\n                    component,\n                    directory_flags,\n                    dir_fd=open_directories[-1],\n                )\n                open_directories.append(child)\n            descriptor = os.open(\n                parts[-1],\n                os.O_RDONLY | os.O_CLOEXEC | nofollow,\n                dir_fd=open_directories[-1],\n            )\n            mode = os.fstat(descriptor).st_mode\n            if not stat.S_ISREG(mode):\n                raise VerificationError(f\"{label} is not a regular non-symlink file\")\n            chunks: list[bytes] = []\n            while True:\n                chunk = os.read(descriptor, 1024 * 1024)\n                if not chunk:\n                    return b\"\".join(chunks)\n                chunks.append(chunk)\n        except OSError as exc:\n>           raise VerificationError(f\"cannot read {label}: {path}: {exc}\") from exc\nE           tools.verify_paper_story_a1_headline_sizing.VerificationError: cannot read replay receipt: /tmp/a1-headline-sizing-receipt-dwggkyo9/receipt.json: [Errno 2] No such file or directory: 'receipt.json'\n\ntools/verify_paper_story_a1_headline_sizing.py:221: VerificationError\n----------------------------- Captured stdout call -----------------------------\nsource-separated replay verified /tmp/a1-headline-sizing-receipt-dwggkyo9/certificate.json sha256=ae57415f714f393fdf545efbc9f821179e65ce3aa8cad9ef9c014016fc715b88 receipt=/tmp/a1-headline-sizing-receipt-dwggkyo9/receipt.json receipt_sha256=69370233fa1f98b10294570320c52e92529de59c4312911813300dd8f1f78a6f\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\n1 failed, 9 passed in 6.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=5005 retained_bytes=3919 omitted_bytes=1086 rendered_excerpt_bytes=4096 sha256=b24db63c69ca83a4a6d9ce8af310e46fb1dc5d769778aa2eeefddfe52d5ecafd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> .open(absolute.anchor, directory_flags))\n>             for component in parts[1:-1]:\n>                 child = os.open(\n>                     component,\n>                     directory_flags,\n>                     dir_fd=open_directories[-1],\n>                 )\n>                 open_directories.append(child)\n> >           descriptor = os.open(\n>                 parts[-1],\n>                 os.O_RDONLY | os.O_CLOEXEC | nofollow,\n>                 dir_fd=open_directories[-1],\n>             )\n> E           FileNotFoundError: [Errno 2] No such file or directory: 'receipt.json'\n> \n> tools/verify_paper_story_a1_headline_sizing.py:206: FileNotFoundError\n> \n> The above exception was the direct cause of the following exception:\n> \n>     def test_replay_receipt_binds_tools_runtime_certificate_and_policy():\n>         with tempfile.TemporaryDirectory(prefix=\"a1-headline-sizing-receipt-\") as raw_dir:\n>             directory = Path(raw_dir)\n>             certificate = _write_certificate(\n>                 directory,\n>                 _small_certificate(),\n>                 \"certificate.json\",\n>             )\n>             receipt = directory / \"receipt.json\"\n>             assert verifier.main(_verifier_arguments(certificate, receipt)) == 0\n> >           observed, raw = verifier.load_replay_receipt(receipt)\n> \n> orchestrator/tests/test_paper_story_a1_headline_sizing.py:1237: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/verify_paper_story_a1_headline_sizing.py:349: in load_replay_receipt\n>     raw = _read_regular(path, \"replay receipt\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> path = PosixPath('/tmp/a1-headline-sizing-receipt-dwggkyo9/receipt.json')\n> label = 'replay receipt'\n> \n>     def _read_regular(path: Path, label: str) -> bytes:\n>         \"\"\"Read one regular file through a held, no-follow directory chain.\"\"\"\n>         nofollow = getattr(os, \"O_NOFOLLOW\", None)\n>         directory = getattr(os, \"O_DIRECTORY\", None)\n>         if nofollow is None or directory is None:\n>             raise VerificationError(\n>                 \"O_NOFOLLOW and O_DIRECTORY are required for bound file reads\"\n>             )\n>         absolute = Path(os.path.abspath(path))\n>         parts = absolute.parts\n>         if (\n>             not absolute.is_absolute()\n>             or len(parts) < 2\n>             or any(part in {\"\", \".\", \"..\"} for part in parts[1:])\n>         ):\n>             raise VerificationError(f\"{label} path is invalid: {path}\")\n>     \n>         open_directories: list[int] = []\n>         descriptor: int | None = None\n>         directory_flags = os.O_RDONLY | os.O_CLOEXEC | nofollow | directory\n>         try:\n>             open_directories.append(os.open(absolute.anchor, directory_flags))\n>             for component in parts[1:-1]:\n>                 child = os.open(\n>                     component,\n>                     directory_flags,\n>                     dir_fd=open_directories[-1],\n>                 )\n>                 open_directories.append(child)\n>             descriptor = os.open(\n>                 parts[-1],\n>                 os.O_RDONLY | os.O_CLOEXEC | nofollow,\n>                 dir_fd=open_directories[-1],\n>             )\n>             mode = os.fstat(descriptor).st_mode\n>             if not stat.S_ISREG(mode):\n>                 raise VerificationError(f\"{label} is not a regular non-symlink file\")\n>             chunks: list[bytes] = []\n>             while True:\n>                 chunk = os.read(descriptor, 1024 * 1024)\n>                 if not chunk:\n>                     return b\"\".join(chunks)\n>                 chunks.append(chunk)\n>         except OSError as exc:\n> >           raise VerificationError(f\"cannot read {label}: {path}: {exc}\") from exc\n> E           tools.verify_paper_story_a1_headline_sizing.VerificationError: cannot read replay receipt: /tmp/a1-headline-sizing-receipt-dwggkyo9/receipt.json: [Errno 2] No such file or directory: 'receipt.json'\n> \n> tools/verify_paper_story_a1_headline_sizing.py:221: VerificationError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5005 retained_bytes=3919 omitted_bytes=1086 budget_bytes=49152 rendered_bytes=4851 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "be4c89470896cf0984a152426a2612164b980792160981b1ff70aec5b161f855"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.932,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m07-receipt-write",
+      "injection_diff_sha256": "e244c53ea30090f04668a817a8ce11b6d2fdfd82963d51020139788508d474b9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a27fcba1f0d61b10ab1248762b83c1170274194414ef78a3cbb0f045c61f10c0",
+      "replacements": [
+        {
+          "file": "tools/verify_paper_story_a1_headline_sizing.py",
+          "new": "receipt_raw = receipt_raw",
+          "old": "write_new_receipt(args.receipt, receipt_raw)"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "be4c89470896cf0984a152426a2612164b980792160981b1ff70aec5b161f855",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2d01a57098a48fbdf9ba3339eff9e518/izdw-2d01a57098.o954450",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2d01a57098a48fbdf9ba3339eff9e518/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F.......                                                               [100%]\n=================================== FAILURES ===================================\n_________ test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary _________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary():\n        pilot_raw = PILOT.read_bytes()\n        pilot_digest = hashlib.sha256(pilot_raw).hexdigest()\n        relative = Path(\"bound-parent/pilot.json\")\n        for module, read_pilot in (\n            (\n                generator,\n                lambda path: generator.derive_pilot(path, require_canonical=True),\n            ),\n            (verifier, verifier.rederive_pilot),\n        ):\n            with tempfile.TemporaryDirectory(\n                prefix=\"a1-headline-sizing-parent-swap-\"\n            ) as raw_dir:\n                repository = Path(raw_dir) / \"repo\"\n                original_parent = repository / relative.parent\n                attacker = repository / \"attacker\"\n                original_parent.mkdir(parents=True)\n                attacker.mkdir()\n                pilot_path = repository / relative\n                pilot_path.write_bytes(pilot_raw)\n                (attacker / relative.name).write_bytes(b'{\"attacker\":true}\\n')\n    \n                original_root = module.REPO_ROOT\n                original_relative = module.PILOT_RELATIVE_PATH\n                original_digest = module.PILOT_SHA256\n                real_open = module.os.open\n                opened: list[tuple[object, int, int | None]] = []\n                swapped = False\n    \n                def swapping_open(open_path, flags, mode=0o777, *, dir_fd=None):\n                    nonlocal swapped\n                    if dir_fd is None:\n                        descriptor = real_open(open_path, flags, mode)\n                    else:\n                        descriptor = real_open(\n                            open_path,\n                            flags,\n                            mode,\n                            dir_fd=dir_fd,\n                        )\n                    opened.append((open_path, flags, dir_fd))\n                    if (\n                        open_path == relative.parts[0]\n                        and dir_fd is not None\n                        and flags & module.os.O_DIRECTORY\n                        and not swapped\n                    ):\n                        held_parent = repository / \"held-parent\"\n                        original_parent.rename(held_parent)\n                        original_parent.symlink_to(attacker, target_is_directory=True)\n                        swapped = True\n                    return descriptor\n    \n                module.REPO_ROOT = repository\n                module.PILOT_RELATIVE_PATH = relative\n                module.PILOT_SHA256 = pilot_digest\n                module.os.open = swapping_open\n                try:\n                    observed = read_pilot(pilot_path)\n                finally:\n                    module.os.open = real_open\n                    module.REPO_ROOT = original_root\n                    module.PILOT_RELATIVE_PATH = original_relative\n                    module.PILOT_SHA256 = original_digest\n    \n>               assert swapped is True\nE               assert False is True\n\norchestrator/tests/test_paper_story_a1_headline_sizing.py:336: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary\n1 failed, 9 passed in 6.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=3147 retained_bytes=3147 omitted_bytes=0 rendered_excerpt_bytes=3295 sha256=afe1ebb5f0ccf66997c3a76f58a11fade206d2bded6b80ec3cc233b2bc25c91f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary():\n>         pilot_raw = PILOT.read_bytes()\n>         pilot_digest = hashlib.sha256(pilot_raw).hexdigest()\n>         relative = Path(\"bound-parent/pilot.json\")\n>         for module, read_pilot in (\n>             (\n>                 generator,\n>                 lambda path: generator.derive_pilot(path, require_canonical=True),\n>             ),\n>             (verifier, verifier.rederive_pilot),\n>         ):\n>             with tempfile.TemporaryDirectory(\n>                 prefix=\"a1-headline-sizing-parent-swap-\"\n>             ) as raw_dir:\n>                 repository = Path(raw_dir) / \"repo\"\n>                 original_parent = repository / relative.parent\n>                 attacker = repository / \"attacker\"\n>                 original_parent.mkdir(parents=True)\n>                 attacker.mkdir()\n>                 pilot_path = repository / relative\n>                 pilot_path.write_bytes(pilot_raw)\n>                 (attacker / relative.name).write_bytes(b'{\"attacker\":true}\\x5cn')\n>     \n>                 original_root = module.REPO_ROOT\n>                 original_relative = module.PILOT_RELATIVE_PATH\n>                 original_digest = module.PILOT_SHA256\n>                 real_open = module.os.open\n>                 opened: list[tuple[object, int, int | None]] = []\n>                 swapped = False\n>     \n>                 def swapping_open(open_path, flags, mode=0o777, *, dir_fd=None):\n>                     nonlocal swapped\n>                     if dir_fd is None:\n>                         descriptor = real_open(open_path, flags, mode)\n>                     else:\n>                         descriptor = real_open(\n>                             open_path,\n>                             flags,\n>                             mode,\n>                             dir_fd=dir_fd,\n>                         )\n>                     opened.append((open_path, flags, dir_fd))\n>                     if (\n>                         open_path == relative.parts[0]\n>                         and dir_fd is not None\n>                         and flags & module.os.O_DIRECTORY\n>                         and not swapped\n>                     ):\n>                         held_parent = repository / \"held-parent\"\n>                         original_parent.rename(held_parent)\n>                         original_parent.symlink_to(attacker, target_is_directory=True)\n>                         swapped = True\n>                     return descriptor\n>     \n>                 module.REPO_ROOT = repository\n>                 module.PILOT_RELATIVE_PATH = relative\n>                 module.PILOT_SHA256 = pilot_digest\n>                 module.os.open = swapping_open\n>                 try:\n>                     observed = read_pilot(pilot_path)\n>                 finally:\n>                     module.os.open = real_open\n>                     module.REPO_ROOT = original_root\n>                     module.PILOT_RELATIVE_PATH = original_relative\n>                     module.PILOT_SHA256 = original_digest\n>     \n> >               assert swapped is True\n> E               assert False is True\n> \n> orchestrator/tests/test_paper_story_a1_headline_sizing.py:336: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3147 retained_bytes=3147 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4042 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "59032b9948431e4935f9c4b5b91021f6146dd91bd19138a78ea20889f38c2704"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.938,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m08-dirfd-callsite",
+      "injection_diff_sha256": "3d9808419ba65b62c1154b6229a0373089ec2dda814cc73188f37b8877ca1680",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9e4df5f13f946ec27c1e6ad4fa231e99e49c7f0864d5b3ef5c1a69f77a194b1c",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "raw = _regular_file_bytes(path, \"pilot input\")",
+          "old": "raw = _canonical_pilot_bytes(path)"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "59032b9948431e4935f9c4b5b91021f6146dd91bd19138a78ea20889f38c2704",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/62588c367dd9ac6c3f73689a09d48ac6/izdw-62588c367d.o954452",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/62588c367dd9ac6c3f73689a09d48ac6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_____________ test_replay_receipt_rejects_tool_source_hash_tamper ______________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_replay_receipt_rejects_tool_source_hash_tamper():\n        def generator_hash(receipt):\n            receipt[\"sources\"][\"generator\"][\"sha256\"] = \"0\" * 64\n    \n        def verifier_hash(receipt):\n            receipt[\"sources\"][\"verifier\"][\"sha256\"] = \"0\" * 64\n    \n        for mutator, reason in (\n            (generator_hash, \"receipt/sources/generator/sha256\"),\n            (verifier_hash, \"receipt/sources/verifier/sha256\"),\n        ):\n>           _assert_raises(\n                headline.HeadlineSpecError,\n                _parse_bundle,\n                _bundle(receipt_mutator=mutator),\n                match=reason,\n            )\n\norchestrator/tests/test_paper_story_a1_headline.py:384: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexception_type = <class 'orchestrator.campaign.paper_story_a1_headline.HeadlineSpecError'>\nfunction = <function _parse_bundle at 0x14e76fbe5ab0>\nmatch = 'receipt/sources/generator/sha256'\nargs = ((b'# Paper-story A-1 headline estimand \\xe5\\x88\\xa5 study \\xe4\\xba\\x8b\\xe5\\x89\\x8d\\xe7\\x99\\xbb\\xe9\\x8c\\xb2\\n\\n\\xe3\\x8...on-even-block', 'block_count': 'selected-n-per-workload', 'build_type': 'Release', 'clocks_per_us': 1800, ...}, ...}),)\nkwargs = {}\n\n    def _assert_raises(exception_type, function, *args, match: str | None = None, **kwargs):\n        try:\n            function(*args, **kwargs)\n        except exception_type as exc:\n            if match is not None and match not in str(exc):\n                raise AssertionError(f\"exception did not contain {match!r}: {exc}\") from exc\n            return exc\n        except BaseException as exc:\n            raise AssertionError(\n                f\"raised {type(exc).__name__}, expected {exception_type.__name__}\"\n            ) from exc\n>       raise AssertionError(f\"did not raise {exception_type.__name__}\")\nE       AssertionError: did not raise HeadlineSpecError\n\norchestrator/tests/test_paper_story_a1_headline.py:54: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper\n1 failed, 9 passed in 6.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=2016 retained_bytes=2016 omitted_bytes=0 rendered_excerpt_bytes=2162 sha256=ba1b2017f80d8ef1fc79621a1c173303dcf844553fc4fbc0b8e39b6c6e12e8f3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_replay_receipt_rejects_tool_source_hash_tamper():\n>         def generator_hash(receipt):\n>             receipt[\"sources\"][\"generator\"][\"sha256\"] = \"0\" * 64\n>     \n>         def verifier_hash(receipt):\n>             receipt[\"sources\"][\"verifier\"][\"sha256\"] = \"0\" * 64\n>     \n>         for mutator, reason in (\n>             (generator_hash, \"receipt/sources/generator/sha256\"),\n>             (verifier_hash, \"receipt/sources/verifier/sha256\"),\n>         ):\n> >           _assert_raises(\n>                 headline.HeadlineSpecError,\n>                 _parse_bundle,\n>                 _bundle(receipt_mutator=mutator),\n>                 match=reason,\n>             )\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:384: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exception_type = <class 'orchestrator.campaign.paper_story_a1_headline.HeadlineSpecError'>\n> function = <function _parse_bundle at 0x14e76fbe5ab0>\n> match = 'receipt/sources/generator/sha256'\n> args = ((b'# Paper-story A-1 headline estimand \\x5cxe5\\x5cx88\\x5cxa5 study \\x5cxe4\\x5cxba\\x5cx8b\\x5cxe5\\x5cx89\\x5cx8d\\x5cxe7\\x5cx99\\x5cxbb\\x5cxe9\\x5cx8c\\x5cxb2\\x5cn\\x5cn\\x5cxe3\\x5cx8...on-even-block', 'block_count': 'selected-n-per-workload', 'build_type': 'Release', 'clocks_per_us': 1800, ...}, ...}),)\n> kwargs = {}\n> \n>     def _assert_raises(exception_type, function, *args, match: str | None = None, **kwargs):\n>         try:\n>             function(*args, **kwargs)\n>         except exception_type as exc:\n>             if match is not None and match not in str(exc):\n>                 raise AssertionError(f\"exception did not contain {match!r}: {exc}\") from exc\n>             return exc\n>         except BaseException as exc:\n>             raise AssertionError(\n>                 f\"raised {type(exc).__name__}, expected {exception_type.__name__}\"\n>             ) from exc\n> >       raise AssertionError(f\"did not raise {exception_type.__name__}\")\n> E       AssertionError: did not raise HeadlineSpecError\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:54: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2016 retained_bytes=2016 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2893 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "652eeb2bddeda4364d3c321b19fd9f9cd7ebe6a8f3262e413fdb24644a33beff"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.927,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m09-receipt-consume",
+      "injection_diff_sha256": "9981fc5cf043da966c87bacf3dda95075e50bb6b3710e6077fda8e1708e04a98",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e9dd0424a49c224f8e81d47dea5870a42c7a96154dbe9d01d7dcdc709fa32145",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "receipt = receipt",
+          "old": "_validate_replay_receipt(receipt, spec, certificate, certificate_digest)"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "652eeb2bddeda4364d3c321b19fd9f9cd7ebe6a8f3262e413fdb24644a33beff",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6e8fae32f9e5f1797f9742683b7ac4a8/izdw-6e8fae32f9.o954454",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6e8fae32f9e5f1797f9742683b7ac4a8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_______________ test_boundary_operator_rules_control_exact_edges _______________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_boundary_operator_rules_control_exact_edges():\n        canonical_positive = headline.median_ratio_statistics(\n            _bound(), \"read-heavy\", _constant(100.0), _constant(103.0)\n        )\n        canonical_negative = headline.median_ratio_statistics(\n            _bound(), \"read-heavy\", _constant(100.0), _constant(97.0)\n        )\n        assert canonical_positive[\"classification\"] == \"bounded-within-floor\"\n>       assert canonical_negative[\"classification\"] == \"bounded-within-floor\"\nE       AssertionError: assert 'resolved-beyond-floor' == 'bounded-within-floor'\nE         \nE         - bounded-within-floor\nE         + resolved-beyond-floor\n\norchestrator/tests/test_paper_story_a1_headline.py:540: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges\n1 failed, 9 passed in 6.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=780 retained_bytes=780 omitted_bytes=0 rendered_excerpt_bytes=815 sha256=13b3ae9b98eed6dd7c6370cab5f6cc2f804b3ff9fdb115f3ce24d52e5edf7a8e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_boundary_operator_rules_control_exact_edges():\n>         canonical_positive = headline.median_ratio_statistics(\n>             _bound(), \"read-heavy\", _constant(100.0), _constant(103.0)\n>         )\n>         canonical_negative = headline.median_ratio_statistics(\n>             _bound(), \"read-heavy\", _constant(100.0), _constant(97.0)\n>         )\n>         assert canonical_positive[\"classification\"] == \"bounded-within-floor\"\n> >       assert canonical_negative[\"classification\"] == \"bounded-within-floor\"\n> E       AssertionError: assert 'resolved-beyond-floor' == 'bounded-within-floor'\n> E         \n> E         - bounded-within-floor\n> E         + resolved-beyond-floor\n> \n> orchestrator/tests/test_paper_story_a1_headline.py:540: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=780 retained_bytes=780 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1538 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c2558ce6ee20024fcd9a1fbf793807947ec53f4782b828999576382325f2f94d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d2b3b058d729a919e30714cb74b31eb5797088bd2cc51966e190282fbafc4f4e",
+      "duration_s": 26.92,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m10-strict-boundary",
+      "injection_diff_sha256": "cb3ebf798a2b3b4c4e99bf01fefb15e1e5ada47957a95a1c0ffb9fcf3abe139c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "38bb328e731ba105fd5f3d717856b38205d9f6536c2d41b8e6a6a83e5a97c431",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "if operator == \"<\":\n        return left <= right",
+          "old": "if operator == \"<\":\n        return left < right"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "KILLED",
+      "test_output_sha256": "c2558ce6ee20024fcd9a1fbf793807947ec53f4782b828999576382325f2f94d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5100b458958c17fb79e544d0fe12a843/izdw-5100b45895.o954428",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5100b458958c17fb79e544d0fe12a843/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values\norchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints\norchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly\norchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis\norchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges\norchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper\norchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason\norchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending\norchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\norchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary\n\n10 tests collected in 0.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "a70433af122f3ff89f2f893156c1d9ec5ee3caf2fb2208441f4384d486947861"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values",
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints",
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly",
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis",
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges",
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary"
+      ],
+      "duration_s": 21.711,
+      "rc": 0,
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+      "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+      "status": "PASSED",
+      "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t1817-m01-even-median": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b56e6042ad71f8d49a20de26581a06a40f16c9e7e9b4fde92a64a02b424a9459",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_headline.py",
+            "new": "return ordered[middle - 1]",
+            "old": "return (ordered[middle - 1] + ordered[middle]) / 2"
+          }
+        ]
+      },
+      "t1817-m02-rectangle-denominator": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c3c781d9e4cbe8523a88fe7ccfe84b85de306715140fafad0b3753d21c2e12f6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_headline.py",
+            "new": "ratio_upper_exact = variant_ordered[upper_index] / baseline_ordered[upper_index]",
+            "old": "ratio_upper_exact = variant_ordered[upper_index] / baseline_ordered[lower_index]"
+          }
+        ]
+      },
+      "t1817-m03-underflow": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e3aae2508b75e9bc3362aa7c033437ff5aace8cb442d54650eff4fbf568cc4c8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_headline.py",
+            "new": "if False and rendered == 0.0 and value != 0:",
+            "old": "if rendered == 0.0 and value != 0:"
+          }
+        ]
+      },
+      "t1817-m04-snapshot-seal": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cf516cd9feeed429647f972f733f4674209a1264b45808c2405b4b9a76b6b81b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_headline.py",
+            "new": "matches = tuple(row for row in bound_spec.workloads if row.name == workload_name)",
+            "old": "matches = tuple(row for row in snapshot.workloads if row.name == workload_name)"
+          }
+        ]
+      },
+      "t1817-m05-hidden-nonpositive": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c1331df6147e4b1e0517893580abcd14118ffc65ba6c05ae560b7b9c68d3dc15",
+        "replacements": [
+          {
+            "file": "tools/size_paper_story_a1_headline.py",
+            "new": "| (b_low <= 0.0)\n        | (b_low <= 0.0)",
+            "old": "| (b_minimum <= 0.0)\n        | (b_low <= 0.0)"
+          }
+        ]
+      },
+      "t1817-m06-alpha-spending": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b652c28c31ea242c6e0896310c31a4c700afdcc9087b1f2227847948b44c6838",
+        "replacements": [
+          {
+            "file": "tools/size_paper_story_a1_headline.py",
+            "new": "return Fraction(1, 30 * attempt * (attempt + 1))",
+            "old": "return Fraction(1, 60 * attempt * (attempt + 1))"
+          }
+        ]
+      },
+      "t1817-m07-receipt-write": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e244c53ea30090f04668a817a8ce11b6d2fdfd82963d51020139788508d474b9",
+        "replacements": [
+          {
+            "file": "tools/verify_paper_story_a1_headline_sizing.py",
+            "new": "receipt_raw = receipt_raw",
+            "old": "write_new_receipt(args.receipt, receipt_raw)"
+          }
+        ]
+      },
+      "t1817-m08-dirfd-callsite": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3d9808419ba65b62c1154b6229a0373089ec2dda814cc73188f37b8877ca1680",
+        "replacements": [
+          {
+            "file": "tools/size_paper_story_a1_headline.py",
+            "new": "raw = _regular_file_bytes(path, \"pilot input\")",
+            "old": "raw = _canonical_pilot_bytes(path)"
+          }
+        ]
+      },
+      "t1817-m09-receipt-consume": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9981fc5cf043da966c87bacf3dda95075e50bb6b3710e6077fda8e1708e04a98",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_headline.py",
+            "new": "receipt = receipt",
+            "old": "_validate_replay_receipt(receipt, spec, certificate, certificate_digest)"
+          }
+        ]
+      },
+      "t1817-m10-strict-boundary": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cb3ebf798a2b3b4c4e99bf01fefb15e1e5ada47957a95a1c0ffb9fcf3abe139c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_headline.py",
+            "new": "if operator == \"<\":\n        return left <= right",
+            "old": "if operator == \"<\":\n        return left < right"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a7b9b00b5d1f4917781cc49fdaa2a9c3c1b2436eb39fae1e1704437dfb29436c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 180.0
+  },
+  "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges",
+      "orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "d2ff4c024db638f981e77e449ea8d758063d6bf9",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "026b9d6714e4ad1b7243283acc38931a4f00b1b398a182ca2de9c72d3351cf44",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 10,
+    "matching": 9,
+    "recorded": 10,
+    "registered": 10
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1817-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "e4673f8285fe5752f9d83b1c25bdab622fb9e2d65739b6bdd351f5f0bfd29cf2",
+  "updated_at": "2026-08-28T00:39:31.892019+00:00"
+}
