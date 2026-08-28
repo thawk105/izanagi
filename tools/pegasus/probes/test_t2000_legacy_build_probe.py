@@ -25,7 +25,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, MutableMapping
 
 from orchestrator.campaign import (
     build_admission,
@@ -997,6 +997,100 @@ def _tool_resolution(cc: str, cxx: str) -> dict[str, str]:
     return resolved
 
 
+def _pbs_job_basename(value: str) -> str:
+    if (
+        not value
+        or "\x00" in value
+        or "/" in value
+        or value in {".", ".."}
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", value) is None
+        or os.path.basename(value) != value
+    ):
+        raise RuntimeError("PBS job ID is not an allowed single basename")
+    return value
+
+
+def _bind_job_scratch(
+    scratch_root: Path, job: str, *, current_uid: int,
+    environment: MutableMapping[str, str],
+) -> str:
+    job_basename = _pbs_job_basename(job)
+    if type(current_uid) is not int or current_uid < 0:
+        raise RuntimeError("scratch owner identity is invalid")
+    try:
+        root_entry = scratch_root.lstat()
+        root_canonical = scratch_root.resolve(strict=True)
+    except OSError:
+        raise RuntimeError("scratch root cannot be resolved") from None
+    if (
+        not scratch_root.is_absolute()
+        or stat.S_ISLNK(root_entry.st_mode)
+        or not stat.S_ISDIR(root_entry.st_mode)
+        or root_canonical != scratch_root.absolute()
+    ):
+        raise RuntimeError("scratch root is not a real canonical directory")
+
+    directory_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    root_fd = job_fd = -1
+    created = False
+    expected = scratch_root / job_basename
+    try:
+        root_fd = os.open(scratch_root, directory_flags)
+        held_root = os.fstat(root_fd)
+        if (
+            not stat.S_ISDIR(held_root.st_mode)
+            or (held_root.st_dev, held_root.st_ino)
+            != (root_entry.st_dev, root_entry.st_ino)
+        ):
+            raise RuntimeError("scratch root identity changed")
+        try:
+            os.mkdir(job_basename, 0o700, dir_fd=root_fd)
+            created = True
+        except FileExistsError:
+            pass
+        except OSError:
+            raise RuntimeError("job scratch directory cannot be created") from None
+
+        try:
+            entry = os.stat(job_basename, dir_fd=root_fd, follow_symlinks=False)
+            job_fd = os.open(job_basename, directory_flags, dir_fd=root_fd)
+            held_job = os.fstat(job_fd)
+            path_entry = expected.lstat()
+            canonical = expected.resolve(strict=True)
+            job_after = expected.lstat()
+            root_after = scratch_root.lstat()
+            root_after_canonical = scratch_root.resolve(strict=True)
+        except OSError:
+            raise RuntimeError("job scratch directory cannot be resolved") from None
+        entry_identity = (entry.st_dev, entry.st_ino)
+        if (
+            not stat.S_ISDIR(entry.st_mode)
+            or not stat.S_ISDIR(held_job.st_mode)
+            or entry_identity != (held_job.st_dev, held_job.st_ino)
+            or entry_identity != (path_entry.st_dev, path_entry.st_ino)
+            or entry_identity != (job_after.st_dev, job_after.st_ino)
+            or entry.st_uid != current_uid
+            or canonical != expected.absolute()
+            or (created and stat.S_IMODE(entry.st_mode) != 0o700)
+            or (root_after.st_dev, root_after.st_ino)
+            != (held_root.st_dev, held_root.st_ino)
+            or root_after_canonical != scratch_root.absolute()
+        ):
+            raise RuntimeError("job scratch directory contract is invalid")
+    finally:
+        for fd in (job_fd, root_fd):
+            if fd >= 0:
+                os.close(fd)
+
+    scratch = os.fspath(expected)
+    environment["TMPDIR"] = scratch
+    return scratch
+
+
 def _require_compute_pbs() -> dict[str, str]:
     resolved_site = buildcache.require_heavy_work_site(None, "T-2000 build probe")
     if resolved_site != site_policy.PEGASUS_COMPUTE:
@@ -1019,13 +1113,10 @@ def _require_compute_pbs() -> dict[str, str]:
     observed = socket.gethostname().split(".")[0]
     if not nodes or set(nodes) != {observed} or not re.fullmatch(r"bnode[0-9]+", observed):
         raise RuntimeError("T-2000 probe requires one allocated compute node")
-    tmp_raw = os.environ.get("TMPDIR", "")
-    if not tmp_raw or not os.path.isabs(tmp_raw):
-        raise RuntimeError("T-2000 probe requires an absolute TMPDIR")
-    tmp = Path(tmp_raw)
-    if tmp.is_symlink() or not tmp.is_dir() or not os.fspath(tmp.resolve()).startswith("/scr/"):
-        raise RuntimeError("T-2000 probe requires job-local compute scratch")
-    return {"site": resolved_site, "job": job, "node": observed, "tmp": os.fspath(tmp)}
+    tmp = _bind_job_scratch(
+        Path("/scr"), job, current_uid=os.getuid(), environment=os.environ,
+    )
+    return {"site": resolved_site, "job": job, "node": observed, "tmp": tmp}
 
 
 def _source_evidence_hash(evidence: source_digest.SourceEvidence) -> str:
@@ -3055,6 +3146,96 @@ def test_t2000_identity_legacy_delta_and_git_guard_are_exact() -> None:
     assert {key for key in set(proxy) | set(no_proxy) if proxy.get(key) != no_proxy.get(key)} == {
         "http_proxy", "https_proxy",
     }
+
+
+def test_t2000_compute_scratch_binding_is_exact(
+    tmp_path: Path, monkeypatch: Any,
+) -> None:
+    scratch_root = tmp_path / "scr"
+    scratch_root.mkdir()
+
+    new_environment = {"TMPDIR": "/ambient/elsewhere"}
+    new_path = _bind_job_scratch(
+        scratch_root, "956796.nqsv", current_uid=os.getuid(),
+        environment=new_environment,
+    )
+    assert new_path == os.fspath(scratch_root / "956796.nqsv")
+    assert new_environment["TMPDIR"] == new_path
+    assert stat.S_IMODE((scratch_root / "956796.nqsv").stat().st_mode) == 0o700
+
+    existing = scratch_root / "956797.nqsv"
+    existing.mkdir(mode=0o700)
+    empty_environment = {"TMPDIR": ""}
+    existing_path = _bind_job_scratch(
+        scratch_root, existing.name, current_uid=os.getuid(),
+        environment=empty_environment,
+    )
+    assert existing_path == os.fspath(existing)
+    assert empty_environment["TMPDIR"] == existing_path
+
+    colon_environment: dict[str, str] = {}
+    colon_path = _bind_job_scratch(
+        scratch_root, "0:956795.nqsv", current_uid=os.getuid(),
+        environment=colon_environment,
+    )
+    assert colon_path == os.fspath(scratch_root / "0:956795.nqsv")
+    assert colon_environment["TMPDIR"] == colon_path
+
+    mkdir = os.mkdir
+    race_job = "956798.nqsv"
+
+    def create_during_race(
+        path: str, mode: int = 0o777, *, dir_fd: int | None = None,
+    ) -> None:
+        if path == race_job and dir_fd is not None:
+            mkdir(path, 0o700, dir_fd=dir_fd)
+            raise FileExistsError(path)
+        mkdir(path, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "mkdir", create_during_race)
+    race_environment = {"TMPDIR": "/ambient/race"}
+    assert _bind_job_scratch(
+        scratch_root, race_job, current_uid=os.getuid(),
+        environment=race_environment,
+    ) == os.fspath(scratch_root / race_job)
+    assert race_environment["TMPDIR"] == os.fspath(scratch_root / race_job)
+    monkeypatch.setattr(os, "mkdir", mkdir)
+
+    def rejected(root: Path, job: str, *, current_uid: int = os.getuid()) -> None:
+        environment = {"TMPDIR": "/ambient/unchanged"}
+        try:
+            _bind_job_scratch(
+                root, job, current_uid=current_uid, environment=environment,
+            )
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("invalid job scratch binding was accepted")
+        assert environment["TMPDIR"] == "/ambient/unchanged"
+
+    for invalid_job in ("", "\x00", ".", "..", "956799/nqsv", "bad job"):
+        rejected(scratch_root, invalid_job)
+
+    symlink_target = scratch_root / "symlink-target"
+    symlink_target.mkdir()
+    (scratch_root / "symlink-job").symlink_to(
+        symlink_target, target_is_directory=True,
+    )
+    rejected(scratch_root, "symlink-job")
+
+    (scratch_root / "file-job").write_bytes(b"not a directory\n")
+    rejected(scratch_root, "file-job")
+
+    wrong_owner = scratch_root / "wrong-owner"
+    wrong_owner.mkdir()
+    rejected(scratch_root, wrong_owner.name, current_uid=os.getuid() + 1)
+
+    root_link = tmp_path / "scr-link"
+    root_link.symlink_to(scratch_root, target_is_directory=True)
+    rejected(root_link, "root-link-job")
+    root_file = tmp_path / "scr-file"
+    root_file.write_bytes(b"not a scratch root\n")
+    rejected(root_file, "root-file-job")
 
 
 def test_t2000_configure_binding_is_exact_without_serializing_argv() -> None:
