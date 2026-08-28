@@ -1176,7 +1176,45 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
     assert "on_signal" in job_text
     assert "IZANAGI_RESERVATION_JOB_ID" in job_text
     assert '--phase "$IZANAGI_B10_PHASE"' in job_text
-    assert "b10_backoff_shape_sweep" in job_text
+    job_lines = job_text.splitlines()
+    driver_definition_lines = [
+        index for index, line in enumerate(job_lines) if line == "driver_argv=("
+    ]
+    assert len(driver_definition_lines) == 1
+    driver_definition_line = driver_definition_lines[0]
+    assert job_lines[driver_definition_line:driver_definition_line + 13] == [
+        "driver_argv=(",
+        '  "$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep',
+        '  --phase "$IZANAGI_B10_PHASE"',
+        '  --prereg-commit "$IZANAGI_B10_PREREG_COMMIT"',
+        '  --submission-receipt "$SUBMIT_RECEIPT"',
+        ")",
+        'if [[ -n "${IZANAGI_B10_WORKLOAD:-}" ]]; then',
+        '  driver_argv+=(--workload "$IZANAGI_B10_WORKLOAD")',
+        "fi",
+        'CURRENT_STAGE="driver-$IZANAGI_B10_PHASE"',
+        "driver_rc=0",
+        '(cd "$REPO_ROOT" && "${driver_argv[@]}") \\',
+        '  >"$ATTEMPT_DIR/driver.stdout" 2>"$ATTEMPT_DIR/driver.stderr" || driver_rc=$?',
+    ]
+    assert [line for line in job_lines if "driver_argv" in line] == [
+        "driver_argv=(",
+        '  driver_argv+=(--workload "$IZANAGI_B10_WORKLOAD")',
+        '(cd "$REPO_ROOT" && "${driver_argv[@]}") \\',
+    ]
+    assert [
+        line for line in job_lines
+        if "orchestrator.campaign.b10_backoff_shape_sweep" in line
+    ] == ['  "$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep']
+    assert [line for line in job_lines if '"$PY" -I -B - ' in line] == [
+        '    "$PY" -I -B - "$ATTEMPT_DIR/failure.json" "$PBS_JOBID" "$rc" "$stage" \\',
+        '  "$PY" -I -B - "$SUBMIT_RECEIPT" "$IZANAGI_B10_NONCE" "$PBS_JOBID" \\',
+        '  "$PY" -I -B - "$ATTEMPT_DIR/qstat-f.stdout" "$qstat_rc" \\',
+        '  readarray -t DEPENDENCY_VALUES < <("$PY" -I -B - "$REPO_ROOT/tools/pegasus/policy.json" <<\'PY\'',
+        '"$PY" -I -B - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$driver_rc" \\',
+    ]
+    assert '"$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep' in job_text
+    assert '"$PY" -I -B -m orchestrator.campaign.b10_backoff_shape_sweep' not in job_text
     assert "build|verify|perf|probe" in submit_text + job_text
     assert '[[ "$IZANAGI_B10_PHASE" != probe ]]' in job_text
 

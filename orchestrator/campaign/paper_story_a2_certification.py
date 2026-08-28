@@ -59,6 +59,8 @@ COMPILE_OUT_SCOPE = (
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _COMMIT_RE = re.compile(r"[0-9a-f]{7,64}")
+_SHORT_COMMIT_RE = re.compile(r"[0-9a-f]{7}")
+_FULL_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _ATTEMPT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 _REQUEST_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*")
 _QSUB_REQUEST_RE = re.compile(r"Request[ \t]+(\S+)[ \t]+submitted")
@@ -333,10 +335,11 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
     )
     for key in ("records", "threads", "extime", "reps"):
         _positive_int(common[key], f"performance_common.{key}")
-    if (common["wal"] != 0 or common["base"] != "L-W0"
-            or type(common["ccbench_protocol"]) is not str
-            or not common["ccbench_protocol"]):
+    if (common["wal"] != 0 or common["base"] != "L-W0"):
         raise CertificationError("policy must use L-W0 with WAL disabled")
+    if common["ccbench_protocol"] != "silo":
+        raise CertificationError(
+            "performance_common.ccbench_protocol must be exact lowercase silo")
     for key in ("skew", "rmw", "max_ope"):
         if type(common[key]) is not str or not common[key]:
             raise CertificationError(f"performance_common.{key} must be a string")
@@ -513,6 +516,20 @@ def _genome_for_cell(policy: Policy, cell: CellSpec):
         protocol=policy.document["performance_common"]["ccbench_protocol"],
         flags=flags,
     )
+
+
+def _generator_input_sha256(policy: Policy, workload_id: str,
+                            evidence_genome_sha256: str) -> str:
+    """Bind A-2 generator authority to its protocol, workload, and source genome."""
+    if workload_id not in workload_ids(policy):
+        raise CertificationError(f"unknown workload: {workload_id!r}")
+    genome_sha256 = _require_sha(
+        evidence_genome_sha256, "generator evidence genome sha256")
+    return _sha256_bytes(_canonical_json({
+        "policy_protocol_sha256": policy.protocol_sha256,
+        "workload_id": workload_id,
+        "evidence_genome_sha256": genome_sha256,
+    }))
 
 
 def campaign_preimage(policy: Policy, workload_id: str, attempt_id: str,
@@ -1329,6 +1346,48 @@ def record_submission_receipt(policy: Policy, attempt_root: Path | str,
     return path
 
 
+def record_scheduler_request_id(policy: Policy, attempt_root: Path | str,
+                                workload_id: str, request_id: str) -> Path:
+    """Durably retain a diagnostic request ID without making it a receipt."""
+    _, root = validate_attempt_root(policy, attempt_root)
+    normalized = _normalize_request_id(request_id)
+    scheduler_root = workload_job_root(
+        policy, root, workload_id) / "scheduler"
+    _reject_symlink_components(scheduler_root, "scheduler request directory")
+    if not scheduler_root.is_dir():
+        raise CertificationError("scheduler request directory is unavailable")
+    path = scheduler_root / "request-id"
+    _write_bytes_x(path, (normalized + "\n").encode("ascii"))
+    _fsync_dir(scheduler_root)
+    return path
+
+
+def durabilize_scheduler_qsub_diagnostics(
+        policy: Policy, attempt_root: Path | str, workload_id: str,
+) -> tuple[Path, Path]:
+    """Fsync pre-opened qsub diagnostics without making them receipts."""
+    _, root = validate_attempt_root(policy, attempt_root)
+    scheduler_root = workload_job_root(
+        policy, root, workload_id) / "scheduler"
+    _reject_symlink_components(scheduler_root, "qsub diagnostics directory")
+    if not scheduler_root.is_dir():
+        raise CertificationError("qsub diagnostics directory is unavailable")
+    paths = tuple(
+        scheduler_root / filename for filename in ("qsub.stdout", "qsub.stderr"))
+    for path in paths:
+        _reject_symlink_components(path, "qsub diagnostic")
+        if not path.is_file():
+            raise CertificationError("qsub diagnostic is not a regular file")
+        descriptor = os.open(
+            path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    _fsync_dir(scheduler_root)
+    return paths
+
+
 def record_completion_receipt(policy: Policy, attempt_root: Path | str,
                               current_pin: str,
                               payload: Mapping[str, Any]) -> Path:
@@ -1383,7 +1442,7 @@ def exact_qsub(argv: Sequence[str], *, runner=subprocess.run) -> object:
     if (type(argv) not in {list, tuple} or not argv or argv[0] != "qsub"
             or not all(type(token) is str and token for token in argv)):
         raise CertificationError("ratified qsub argv is not exact")
-    return runner(list(argv), check=False, capture_output=True, text=True)
+    return runner(list(argv), check=False)
 
 
 def _file_record(path: Path, attempt_root: Path) -> dict[str, Any]:
@@ -1404,7 +1463,6 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
     submission = _validate_submission_receipt(
         policy, submission_payload, attempt_id, root, current_pin)
     jobs: list[dict[str, Any]] = []
-    all_succeeded = True
     for workload_id, submitted in zip(workload_ids(policy), submission["jobs"]):
         request_id = submitted["request_id"]
         command = ["qstat", "-f", request_id]
@@ -1435,7 +1493,6 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
         driver_status = compute.get("driver_rc")
         if type(driver_status) is not int:
             raise CertificationError("compute result driver_rc is missing")
-        all_succeeded = all_succeeded and driver_status == 0
         jobs.append({
             "workload": workload_id,
             "request_id": request_id,
@@ -1459,6 +1516,17 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
             "scheduler_stderr": _file_record(
                 job_root / "scheduler" / "job.stderr", root),
         })
+    validated_jobs = [
+        _validate_completion_job(
+            policy, job, attempt_id, root, current_pin,
+            workload_id, submitted["request_id"], submitted,
+            submission["job_body_sha256"],
+        )
+        for workload_id, job, submitted in zip(
+            workload_ids(policy), jobs, submission["jobs"])
+    ]
+    all_succeeded = all(
+        binding["driver_rc"] == 0 for binding in validated_jobs)
     manifest_path = None
     manifest_sha = None
     if all_succeeded:
@@ -2445,8 +2513,12 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
                  dependency_prefix: Path | str, ccbench_dir: Path | str,
                  log=print) -> object:
     """Run one ordered stock/adopted workload pair through run_campaign()."""
-    from . import env_contract
-    from .build_admission import GeneratorId, build_run_context
+    from . import env_contract, pin
+    from .build_admission import (
+        GeneratorId,
+        attest_generator_output,
+        build_run_context,
+    )
     from .layout import (DurableRootPolicy, env_scope_dir,
                          resolve_campaign_output_root)
     from .loop import run_campaign
@@ -2465,15 +2537,34 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     source_root = Path(ccbench_dir).resolve(strict=True)
     if source_root.is_symlink() or not source_root.is_dir():
         raise CertificationError("CCBench source root is unavailable")
-    observed_pin = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=source_root, check=True,
-        capture_output=True, text=True,
-    ).stdout.strip()
-    dirty_source = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
-        cwd=source_root, check=True, capture_output=True, text=True,
-    ).stdout
-    if observed_pin != current_pin or dirty_source:
+    if (type(current_pin) is not str
+            or _SHORT_COMMIT_RE.fullmatch(current_pin) is None
+            or current_pin != pin.CURRENT_PIN):
+        raise CertificationError(
+            "CCBench current pin is not the repository canonical short pin")
+    try:
+        observed_pin = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+            cwd=source_root, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        resolved_pin = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{current_pin}^{{commit}}"],
+            cwd=source_root, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        dirty_source = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=source_root, check=True, capture_output=True, text=True,
+        ).stdout
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CertificationError(
+            "CCBench current pin resolver or clean-tree probe failed") from exc
+    if (_FULL_COMMIT_RE.fullmatch(observed_pin) is None
+            or _FULL_COMMIT_RE.fullmatch(resolved_pin) is None
+            or resolved_pin != observed_pin
+            or not observed_pin.startswith(current_pin)
+            or dirty_source):
         raise CertificationError("CCBench current pin or clean-tree binding failed")
     cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
     if len(cells) != 2 or [cell.role for cell in cells] != ["stock", "adopted"]:
@@ -2515,6 +2606,16 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
         resolved_cc, resolved_cxx,
     )
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
+
+    def capability_resolver(evidence):
+        return attest_generator_output(
+            build_context,
+            evidence,
+            generator_input_sha256=_generator_input_sha256(
+                policy, workload_id, evidence.genome_sha256),
+        )
+
     summary = run_campaign(
         cfg, genomes, perf, contract.env_tag, contract.clocks_per_us,
         numactl=contract.numactl, do_bench=True, output_root=str(output_root),
@@ -2522,7 +2623,8 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
         dependency_prefix=str(dependency),
         authorization_contract=authorization,
         cache_root=str(cache_root),
-        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_REPRO),
+        build_context=build_context,
+        capability_resolver=capability_resolver,
         declared_use_class="official",
         expected_toolchain_manifest=expected_toolchain_manifest,
         durable_root_policy=durable_policy,
@@ -2903,6 +3005,83 @@ def _rename_noreplace(source: Path, destination: Path) -> None:
         raise OSError(error_number, os.strerror(error_number), str(destination))
 
 
+def _rename_flags_zero(source: Path, destination: Path) -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is None:
+        raise CertificationError("renameat2(flags=0) is unavailable")
+    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p,
+                          ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    renameat2.restype = ctypes.c_int
+    at_fdcwd = -100
+    rc = renameat2(
+        at_fdcwd, os.fsencode(source), at_fdcwd, os.fsencode(destination), 0,
+    )
+    if rc != 0:
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number), str(destination))
+
+
+def _release_materialization_publish_claim(
+        claim: Path, identity: tuple[int, int]) -> None:
+    try:
+        info = claim.lstat()
+    except OSError as exc:
+        raise CertificationError(
+            f"fallback materialization publish claim stat failed: {exc}"
+        ) from exc
+    if (not stat.S_ISREG(info.st_mode)
+            or (info.st_dev, info.st_ino) != identity):
+        raise CertificationError(
+            "fallback materialization publish claim identity differs")
+    try:
+        claim.unlink()
+        _fsync_dir(claim.parent)
+    except OSError as exc:
+        raise CertificationError(
+            f"fallback materialization publish claim cleanup failed: {exc}"
+        ) from exc
+
+
+def _publish_staging_after_einval(staging: Path, destination: Path) -> None:
+    """Publish for cooperating A-2 writers after RENAME_NOREPLACE is EINVAL.
+
+    The exclusive sibling claim serializes cooperating A-2 publishers.  This
+    fallback is not atomic no-replace against a non-cooperating writer: an
+    empty type-compatible destination created after the existence check can be
+    replaced by the flags-zero renameat2 call.
+    """
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        claim_fd = os.open(claim, flags, 0o600)
+    except OSError as exc:
+        raise CertificationError(
+            f"exclusive fallback materialization publish claim failed: {exc}"
+        ) from exc
+    claim_identity = os.fstat(claim_fd)
+    try:
+        os.fsync(claim_fd)
+        _fsync_dir(destination.parent)
+        if os.path.lexists(destination):
+            raise CertificationError(
+                "fallback materialization publish refused: "
+                "destination already exists")
+        try:
+            _rename_flags_zero(staging, destination)
+        except OSError as exc:
+            raise CertificationError(
+                f"fallback materialization publish failed: {exc.strerror}"
+            ) from exc
+        _fsync_dir(destination.parent)
+    finally:
+        os.close(claim_fd)
+        _release_materialization_publish_claim(
+            claim, (claim_identity.st_dev, claim_identity.st_ino))
+
+
 _CERTIFICATION_RESULT_COMMON_KEYS = {
     "schema_version", "study", "protocol_schema", "protocol_sha256",
     "policy_sha256", "policy_bytes_base64", "attempt_id", "request_ids",
@@ -3040,7 +3219,12 @@ def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str
         }
         _write_bytes_x(stage / "COMPLETE.json", _canonical_json(marker))
         _fsync_dir(stage)
-        _rename_noreplace(stage, destination)
+        try:
+            _rename_noreplace(stage, destination)
+        except OSError as exc:
+            if exc.errno != errno.EINVAL:
+                raise
+            _publish_staging_after_einval(stage, destination)
         published = True
         _fsync_dir(parent)
         return destination
@@ -3231,6 +3415,20 @@ def _preregister_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _record_request_id_command(args: argparse.Namespace) -> int:
+    policy = load_policy()
+    print(record_scheduler_request_id(
+        policy, args.attempt_root, args.workload, args.request_id))
+    return 0
+
+
+def _durabilize_qsub_diagnostics_command(args: argparse.Namespace) -> int:
+    policy = load_policy()
+    durabilize_scheduler_qsub_diagnostics(
+        policy, args.attempt_root, args.workload)
+    return 0
+
+
 def _finalize_raw_command(args: argparse.Namespace) -> int:
     policy = load_policy()
     print(finalize_raw_manifest(policy, args.attempt_root, args.current_pin))
@@ -3242,8 +3440,6 @@ def _exact_qsub_command(args: argparse.Namespace) -> int:
     if argv and argv[0] == "--":
         argv = argv[1:]
     completed = exact_qsub(argv)
-    sys.stdout.write(completed.stdout or "")
-    sys.stderr.write(completed.stderr or "")
     return int(completed.returncode)
 
 
@@ -3291,6 +3487,15 @@ def _parser() -> argparse.ArgumentParser:
     preregister.add_argument("--attempt-id", required=True)
     preregister.add_argument("--current-pin", required=True)
     preregister.set_defaults(handler=_preregister_command)
+    request_id = sub.add_parser("record-request-id")
+    request_id.add_argument("--attempt-root", required=True)
+    request_id.add_argument("--workload", required=True)
+    request_id.add_argument("--request-id", required=True)
+    request_id.set_defaults(handler=_record_request_id_command)
+    diagnostics = sub.add_parser("durabilize-qsub-diagnostics")
+    diagnostics.add_argument("--attempt-root", required=True)
+    diagnostics.add_argument("--workload", required=True)
+    diagnostics.set_defaults(handler=_durabilize_qsub_diagnostics_command)
     run = sub.add_parser("run-workload")
     run.add_argument("--workload", required=True)
     run.add_argument("--attempt-root", required=True)

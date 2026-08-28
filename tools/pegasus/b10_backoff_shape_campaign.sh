@@ -325,7 +325,7 @@ fi
 
 mkdir -p "$REPO_ROOT/output/env/pegasus/claims"
 driver_argv=(
-  "$PY" -I -B -m orchestrator.campaign.b10_backoff_shape_sweep
+  "$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep
   --phase "$IZANAGI_B10_PHASE"
   --prereg-commit "$IZANAGI_B10_PREREG_COMMIT"
   --submission-receipt "$SUBMIT_RECEIPT"

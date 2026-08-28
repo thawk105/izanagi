@@ -1,8 +1,10 @@
 import base64
 import copy
+import errno
 import hashlib
 import inspect
 import json
+import os
 import socket
 import subprocess
 import time
@@ -10,8 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from orchestrator.campaign import buildcache, loop
-from orchestrator.campaign import campaign_lock, env_contract, ident, reservation, wal
+from orchestrator.campaign import build_admission, buildcache, loop, source_digest
+from orchestrator.campaign import (
+    campaign_lock,
+    env_contract,
+    ident,
+    pin,
+    reservation,
+    wal,
+)
 from orchestrator.campaign import paper_story_a2_certification as A2
 from orchestrator.campaign.model import (
     CampaignConfig,
@@ -36,6 +45,7 @@ from orchestrator.campaign.pipeline import (
 
 
 CURRENT_PIN = "1" * 40
+REPO_CURRENT_PIN = pin.CURRENT_PIN
 SOURCE_COMMIT = "2" * 40
 QSTAT_VISIBILITY_FIXTURE = (
     Path(__file__).parent / "fixtures" / "paper_story_a2"
@@ -163,7 +173,7 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
         for cell_index, cell in enumerate(cells):
             build_dir = attempt_root / "build" / cell.cell_id
             binary = (
-                build_dir / "cc" / "SILO" / "ycsb_SILO.exe")
+                build_dir / "cc" / "silo" / "ycsb_silo.exe")
             binary.parent.mkdir(parents=True)
             binary.write_bytes(("binary:" + cell.cell_id).encode("ascii"))
             perf_sha = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -460,6 +470,7 @@ def _write_receipt_bundle(
 
 def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     policy = _policy(tmp_path)
+    assert policy.document["performance_common"]["ccbench_protocol"] == "silo"
     assert [(cell.cell_id, cell.workload_id, cell.role, dict(cell.genome))
             for cell in policy.cells] == [
         ("rr5-stock", "rr5", "stock", {"BACK_OFF": 0, "BACKOFF_FIXED": -1}),
@@ -528,6 +539,51 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     decorative_changed.pop("certification_composition")
     assert hashlib.sha256(A2._canonical_json(decorative_original)).hexdigest() == \
         hashlib.sha256(A2._canonical_json(decorative_changed)).hexdigest()
+
+
+def test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts(
+        tmp_path):
+    policy = A2.load_policy()
+    genome = A2._genome_for_cell(policy, policy.cells[0])
+    repo_root = A2.POLICY_PATH.parents[2]
+    ccbench_root = repo_root / "external" / "ccbench"
+    source_relative = Path(
+        buildcache.source_digest._protocol_cmake_rel(genome.protocol))
+    protocol_source = ccbench_root / source_relative
+
+    assert genome.protocol == "silo"
+    assert source_relative == Path("cc/silo/CMakeLists.txt")
+    assert protocol_source.is_file()
+    assert "ccbench_add_protocol(silo" in protocol_source.read_text(
+        encoding="utf-8")
+
+    build_dir = tmp_path / "build"
+    toolchain = {
+        "cc": {"realpath": "/usr/bin/gcc"},
+        "cxx": {"realpath": "/usr/bin/g++"},
+        "cmake": {"realpath": "/usr/bin/cmake"},
+    }
+    _configure, build = buildcache._v2_commands(
+        genome, False, str(ccbench_root), str(build_dir), toolchain, jobs=48,
+        dependency_prefix="/pinned/dependencies",
+    )
+    assert build == [
+        "/usr/bin/cmake", "--build", str(build_dir),
+        "--target", "ycsb_silo.exe", "-j", "48",
+    ]
+    assert build_dir / "cc" / genome.protocol / f"ycsb_{genome.protocol}.exe" \
+        == build_dir / "cc" / "silo" / "ycsb_silo.exe"
+
+
+def test_uppercase_silo_protocol_is_rejected_by_policy_loader(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["performance_common"]["ccbench_protocol"] = "SILO"
+    path = tmp_path / "uppercase-policy.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+            A2.CertificationError, match="must be exact lowercase silo"):
+        A2.load_policy(path)
 
 
 def test_m1_closed_verify_mode_wires_performance_and_rejects_unknown():
@@ -780,6 +836,7 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
                        match="ratified qsub argv is not exact"):
         A2.exact_qsub(["not-qsub", "job.sh"], runner=runner)
     assert len(qsub_calls) == 1
+    assert qsub_calls[0] == (["qsub", "job.sh"], {"check": False})
 
     finish_root = A2.preregister_attempt(
         policy, "attempt-finish-group", CURRENT_PIN)
@@ -799,6 +856,179 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
         policy, finish_acquisition, current_pin=CURRENT_PIN)
     assert finish_evidence["driver_rcs"] == {"rr5": 0, "rr50": 0}
     assert finish_evidence["raw_manifest_valid"] is True
+
+
+def test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-request-sidecar", CURRENT_PIN)
+    scheduler = root / "jobs" / "rr5" / "scheduler"
+    fsync_calls = []
+    original_fsync_dir = A2._fsync_dir
+
+    def observed_fsync(path):
+        fsync_calls.append(path)
+        original_fsync_dir(path)
+
+    monkeypatch.setattr(A2, "_fsync_dir", observed_fsync)
+    sidecar = A2.record_scheduler_request_id(
+        policy, root, "rr5", "0:945411.nqsv.")
+    assert sidecar == scheduler / "request-id"
+    assert sidecar.is_file() and not sidecar.is_symlink()
+    assert sidecar.read_bytes() == b"945411.nqsv\n"
+    assert fsync_calls == [scheduler]
+    with pytest.raises(FileExistsError):
+        A2.record_scheduler_request_id(
+            policy, root, "rr5", "945411.nqsv")
+
+    second = A2.preregister_attempt(
+        policy, "attempt-request-sidecar-symlink", CURRENT_PIN)
+    linked = second / "jobs" / "rr5" / "scheduler" / "request-id"
+    linked.symlink_to(tmp_path / "decoy-request-id")
+    with pytest.raises(FileExistsError):
+        A2.record_scheduler_request_id(
+            policy, second, "rr5", "945411.nqsv")
+
+
+def test_qsub_diagnostics_fsync_both_files_then_scheduler_directory(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-qsub-diagnostics", CURRENT_PIN)
+    scheduler = root / "jobs" / "rr5" / "scheduler"
+    stdout_path = scheduler / "qsub.stdout"
+    stderr_path = scheduler / "qsub.stderr"
+    stdout_path.write_bytes(b"Request 945411.nqsv submitted\n")
+    stderr_path.write_bytes(b"")
+    fsync_targets = []
+    original_fsync = A2.os.fsync
+
+    def observed_fsync(descriptor):
+        fsync_targets.append(Path(f"/proc/self/fd/{descriptor}").resolve())
+        original_fsync(descriptor)
+
+    monkeypatch.setattr(A2.os, "fsync", observed_fsync)
+    assert A2.durabilize_scheduler_qsub_diagnostics(
+        policy, root, "rr5") == (stdout_path, stderr_path)
+    assert fsync_targets == [stdout_path, stderr_path, scheduler]
+
+
+def _terminal_qstat(command, **kwargs):
+    request_id = command[-1]
+    return subprocess.CompletedProcess(
+        command, 0,
+        f"Request ID: {request_id}\nRequest State = EXT\n", "")
+
+
+def test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest(
+        tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-prevalidate-m4", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    compute_path = root / "jobs" / "rr5" / "compute-result.json"
+    compute, _ = A2._read_json(compute_path)
+    compute["pbs_jobid"] = "945412.nqsv"
+    compute_path.write_bytes(A2._canonical_json(compute))
+
+    with pytest.raises(A2.CertificationError, match="compute result identity"):
+        A2.finish_group(
+            policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert not (root / "raw-manifest.json").exists()
+    assert not (root / "receipts" / "completion.json").exists()
+    assert not (root / "receipts" / "acquisition.json").exists()
+
+
+def test_m5_finish_prevalidates_each_job_against_its_own_request(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-prevalidate-m5", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    original_validate = A2._validate_completion_job
+    first_calls = []
+
+    def observed_validate(
+            observed_policy, payload, attempt_id, attempt_root, current_pin,
+            workload_id, request_id, submission, job_body_sha256):
+        if len(first_calls) < 2:
+            assert not (root / "raw-manifest.json").exists()
+            assert payload["workload"] == workload_id
+            assert payload["request_id"] == request_id
+            assert submission["request_id"] == request_id
+            first_calls.append((workload_id, request_id))
+        return original_validate(
+            observed_policy, payload, attempt_id, attempt_root, current_pin,
+            workload_id, request_id, submission, job_body_sha256)
+
+    monkeypatch.setattr(A2, "_validate_completion_job", observed_validate)
+    A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert first_calls == [
+        ("rr5", "945411.nqsv"), ("rr50", "945412.nqsv")]
+
+
+def test_pc2_canonical_finish_creates_manifest_completion_and_acquisition(
+        tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-positive-control", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    assert not any(
+        (root / "jobs" / workload / "scheduler" / "request-id").exists()
+        for workload in A2.workload_ids(policy))
+
+    completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert completion == root / "receipts" / "completion.json"
+    assert acquisition == root / "receipts" / "acquisition.json"
+    assert (root / "raw-manifest.json").is_file()
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["driver_rcs"] == {"rr5": 0, "rr50": 0}
+    assert evidence["raw_manifest_valid"] is True
+
+
+def test_failed_driver_production_finish_and_collect_are_indeterminate(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-failed-driver", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+
+    completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert completion == root / "receipts" / "completion.json"
+    assert acquisition == root / "receipts" / "acquisition.json"
+    assert not (root / "raw-manifest.json").exists()
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["driver_rcs"] == {"rr5": 7, "rr50": 0}
+    assert evidence["raw_manifest_valid"] is False
+    assert evidence["raw_manifest_reason"] == "driver-nonzero"
+
+    captured = {}
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+
+    def forbidden_positive_path(*args, **kwargs):
+        raise AssertionError("failed driver reached positive collector")
+
+    def materialize(_policy, report, _evidence, *, repo_root):
+        captured.update(report)
+        return Path(repo_root) / "captured"
+
+    monkeypatch.setattr(A2, "collect_results", forbidden_positive_path)
+    monkeypatch.setattr(A2, "materialize", materialize)
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(tmp_path),
+    ]) == 2
+    assert captured["status"] == "indeterminate"
+    assert "compute driver exited nonzero" in captured["reason"]
 
 
 @pytest.mark.parametrize("missing", ("qsub_argv", "qstat_visibility"))
@@ -1121,6 +1351,149 @@ def test_m11_materializer_stages_marker_before_single_noreplace_rename(
     assert not (v2_repo / policy.tracked_destination).exists()
 
 
+def _materialization_case(tmp_path, attempt_id):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(policy, attempt_id, CURRENT_PIN)
+    acquisition, _ = _write_receipt_bundle(policy, root)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2.collect_results(
+        policy, evidence["raw_results"], attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+        frozen_files=evidence["raw_files"], attempt_root=root)
+    report["source_commit"] = evidence["source_commit"]
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    return policy, report, evidence, repo
+
+
+def test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-positive")
+    destination = repo / policy.tracked_destination
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    rename_calls = []
+    fsync_calls = []
+    original_flags_zero = A2._rename_flags_zero
+    original_fsync_dir = A2._fsync_dir
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    def observed_flags_zero(source, target):
+        rename_calls.append((source, target))
+        assert claim.is_file() and not claim.is_symlink()
+        assert not target.exists()
+        original_flags_zero(source, target)
+
+    def observed_fsync(path):
+        fsync_calls.append(path)
+        original_fsync_dir(path)
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    monkeypatch.setattr(A2, "_rename_flags_zero", observed_flags_zero)
+    monkeypatch.setattr(A2, "_fsync_dir", observed_fsync)
+
+    assert A2.materialize(
+        policy, report, evidence, repo_root=repo) == destination
+    assert len(rename_calls) == 1
+    assert not claim.exists()
+    assert (destination / "COMPLETE.json").is_file()
+    assert fsync_calls.count(destination.parent) == 4
+
+
+def test_materialize_einval_refuses_destination_created_before_recheck(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-destination")
+    destination = repo / policy.tracked_destination
+    claim = destination.parent / f".{destination.name}.publish-claim"
+
+    def destination_race(_source, target):
+        target.mkdir()
+        (target / "non-cooperating-writer").write_text(
+            "preserve\n", encoding="utf-8")
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", destination_race)
+    with pytest.raises(
+            A2.CertificationError, match="destination already exists"):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert (destination / "non-cooperating-writer").read_text(
+        encoding="utf-8") == "preserve\n"
+    assert not claim.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_einval_fails_closed_on_publish_claim_collision(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-claim-collision")
+    destination = repo / policy.tracked_destination
+    destination.parent.mkdir(parents=True)
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    claim.write_text("other cooperating publisher\n", encoding="utf-8")
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    with pytest.raises(
+            A2.CertificationError, match="exclusive fallback.*claim failed"):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert claim.read_text(encoding="utf-8") == "other cooperating publisher\n"
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_non_einval_publish_error_does_not_enter_fallback(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-non-einval")
+    destination = repo / policy.tracked_destination
+
+    def failed_noreplace(_source, _destination):
+        raise OSError(errno.EIO, "I/O failure")
+
+    def forbidden_fallback(_source, _destination):
+        raise AssertionError("non-EINVAL entered fallback")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", failed_noreplace)
+    monkeypatch.setattr(A2, "_publish_staging_after_einval", forbidden_fallback)
+    with pytest.raises(OSError) as raised:
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert raised.value.errno == errno.EIO
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_noreplace_success_does_not_enter_fallback(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-noreplace-success")
+    destination = repo / policy.tracked_destination
+    rename_calls = []
+
+    def successful_noreplace(source, target):
+        rename_calls.append((source, target))
+        os.rename(source, target)
+
+    def forbidden_fallback(_source, _destination):
+        raise AssertionError("successful RENAME_NOREPLACE entered fallback")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", successful_noreplace)
+    monkeypatch.setattr(A2, "_publish_staging_after_einval", forbidden_fallback)
+
+    assert A2.materialize(
+        policy, report, evidence, repo_root=repo) == destination
+    assert len(rename_calls) == 1
+    assert (destination / "COMPLETE.json").is_file()
+
+
 def test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base(tmp_path):
     policy = _policy(tmp_path)
     outside = tmp_path / "arbitrary-repo-external" / "attempt"
@@ -1419,6 +1792,68 @@ def test_cli_has_no_policy_injection_surface():
         A2._parser().parse_args(["--policy", "/tmp/alternate.json", "preregister"])
 
 
+@pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
+def test_run_workload_production_pin_gate_rejects_noncanonical_source(
+        tmp_path, monkeypatch, mutation):
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "run-workload-pin-negative", REPO_CURRENT_PIN)
+    raw_root = A2.workload_job_root(policy, attempt, "rr5") / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+    canonical_full = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
+    wrong = ("0" if REPO_CURRENT_PIN[0] != "0" else "1") * 40
+
+    def git_run(command, **kwargs):
+        if command == ["git", "rev-parse", "--verify", "HEAD^{commit}"]:
+            value = wrong if mutation == "wrong-prefix" else canonical_full
+            return subprocess.CompletedProcess(command, 0, value + "\n", "")
+        if command == [
+                "git", "rev-parse", "--verify",
+                f"{REPO_CURRENT_PIN}^{{commit}}"]:
+            if mutation == "resolver-failure":
+                raise subprocess.CalledProcessError(41, command)
+            value = wrong if mutation == "wrong-prefix" else canonical_full
+            return subprocess.CompletedProcess(command, 0, value + "\n", "")
+        if command == [
+                "git", "status", "--porcelain", "--untracked-files=no"]:
+            value = " M tracked.cc\n" if mutation == "dirty" else ""
+            return subprocess.CompletedProcess(command, 0, value, "")
+        raise AssertionError(command)
+
+    monkeypatch.setattr(A2.subprocess, "run", git_run)
+    with pytest.raises(A2.CertificationError, match="CCBench current pin"):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            log=lambda *_args: None)
+
+
+@pytest.mark.parametrize("current_pin", ("1" * 40, "abcdef0"))
+def test_run_workload_requires_exact_repository_canonical_short_pin(
+        tmp_path, current_pin):
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "run-workload-noncanonical-pin", REPO_CURRENT_PIN)
+    raw_root = A2.workload_job_root(policy, attempt, "rr5") / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+
+    with pytest.raises(A2.CertificationError, match="canonical short pin"):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=current_pin,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            log=lambda *_args: None)
+
+
 def test_official_run_observes_and_passes_current_toolchain_manifest(
         tmp_path, monkeypatch):
     source = inspect.getsource(A2.run_workload)
@@ -1426,10 +1861,15 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     passed = "expected_toolchain_manifest=expected_toolchain_manifest"
     assert observed in source and passed in source
     assert source.index(observed) < source.index("summary = run_campaign(")
+    assert "capability_resolver=capability_resolver" in source
+    loop_source = inspect.getsource(loop.run_campaign)
+    assert "source_evidence = source_digest.resolve_evidence(" in loop_source
+    assert "capability_resolver=capability_resolver" in loop_source
+    assert "source_evidence=source_evidence" in loop_source
 
     policy = _policy(tmp_path)
     attempt = A2.preregister_attempt(
-        policy, "actual-run-workload-producer", CURRENT_PIN)
+        policy, "actual-run-workload-producer", REPO_CURRENT_PIN)
     job_root = A2.workload_job_root(policy, attempt, "rr5")
     raw_root = job_root / "raw"
     raw_root.mkdir()
@@ -1438,48 +1878,133 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     ccbench = tmp_path / "ccbench"
     ccbench.mkdir()
     calls = {}
+    resolved_repo_pin = subprocess.run(
+        ["git", "-C", str(A2.POLICY_PATH.parents[2] / "external/ccbench"),
+         "rev-parse", "--verify", f"{REPO_CURRENT_PIN}^{{commit}}"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
 
     def git_run(command, **kwargs):
-        if command[:3] == ["git", "rev-parse", "HEAD"]:
-            return subprocess.CompletedProcess(command, 0, CURRENT_PIN + "\n", "")
+        if command == ["git", "rev-parse", "--verify", "HEAD^{commit}"]:
+            return subprocess.CompletedProcess(
+                command, 0, resolved_repo_pin + "\n", "")
+        if command == [
+                "git", "rev-parse", "--verify",
+                f"{REPO_CURRENT_PIN}^{{commit}}"]:
+            return subprocess.CompletedProcess(
+                command, 0, resolved_repo_pin + "\n", "")
         if command[:3] == ["git", "status", "--porcelain"]:
             return subprocess.CompletedProcess(command, 0, "", "")
         raise AssertionError(command)
 
-    def producer(cfg, genomes, *args, output_root, **kwargs):
-        cfg = ident.bind_admission_policy(
-            cfg, kwargs["build_context"].policy)
-        layout = loop.campaign_layout(
-            str(ident.campaign_id(cfg)), output_root).ensure()
-        calls["output_root"] = Path(output_root)
-        calls["layout_root"] = Path(layout.root)
-        return A2.SimpleNamespace(
-            results=[A2.SimpleNamespace() for _ in genomes],
-            skipped=0, layout_root=layout.root)
+    def authorize(cfg, authorization_contract, **_kwargs):
+        calls["authorized"] = True
+        return loop._AuthorizationResult(
+            authorized_contract=authorization_contract,
+            execution_receipt=None,
+            bound_cfg=cfg,
+            campaign_identity=str(ident.campaign_id(cfg)),
+        )
+
+    def resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        index = len(calls.setdefault("evidences", []))
+        assert commit == REPO_CURRENT_PIN
+        assert Path(ccbench_dir) == ccbench
+        assert cxx == "g++"
+        evidence_root = tmp_path / f"source-evidence-{index}"
+        evidence_root.mkdir()
+        genome_sha256 = hashlib.sha256(
+            A2._canonical_json(genome.canonical())).hexdigest()
+        if index == 0:
+            evidence = source_digest.SourceEvidence(
+                source_digest.SOURCE_EVIDENCE_SCHEMA,
+                str(evidence_root), REPO_CURRENT_PIN, genome_sha256,
+                source_digest.STOCK, "a" * 64, True,
+                hashlib.sha256(b"").hexdigest(), (),
+            )
+        else:
+            evidence = source_digest.SourceEvidence(
+                source_digest.SOURCE_EVIDENCE_SCHEMA,
+                str(evidence_root), REPO_CURRENT_PIN, genome_sha256,
+                "b" * 64, "b" * 64, False, "c" * 64,
+                ("include/backoff.h",),
+            )
+        calls["evidences"].append(evidence)
+        return evidence
+
+    def evaluate(genome, _layout, _env_tag, _commit, _perf,
+                 _clocks_per_us, **kwargs):
+        evidence = kwargs["source_evidence"]
+        resolver = kwargs["capability_resolver"]
+        assert evidence is calls["evidences"][len(calls.setdefault(
+            "admissions", []))]
+        assert kwargs["src_token"] == evidence.src_token
+        assert callable(resolver)
+        receipt = resolver(evidence)
+        admission = build_admission.derive_build_admission(
+            kwargs["build_context"], evidence, generator_receipt=receipt)
+        calls["admissions"].append(admission)
+        calls.setdefault("generator_receipts", []).append(receipt)
+        calls["resolver"] = resolver
+        return loop.EvalResult(
+            genome=genome,
+            variant=variant_id(genome, evidence.src_token),
+            certified=True,
+            aborted=False,
+        )
 
     def raw_producer(_policy, cell, *, layout_root, **kwargs):
-        assert Path(layout_root) == calls["layout_root"]
+        calls.setdefault("layout_roots", []).append(Path(layout_root))
         return {"cell_id": cell.cell_id, "terminal": "commit"}
 
     monkeypatch.setattr(A2.subprocess, "run", git_run)
-    monkeypatch.setattr(loop, "run_campaign", producer)
     monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
+    monkeypatch.setattr(loop, "_authorize_measurement", authorize)
+    monkeypatch.setattr(
+        loop, "_perform_perf_preflight", lambda *_args, **_kwargs: (None, True))
+    monkeypatch.setattr(
+        loop.ident, "ensure_resumable_wal",
+        lambda *_args, **_kwargs: A2.SimpleNamespace(status="clean"))
+    monkeypatch.setattr(loop.wal, "replay", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", resolve_evidence)
+    monkeypatch.setattr(loop, "evaluate", evaluate)
     monkeypatch.setattr(
         buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
     monkeypatch.setattr(
         buildcache, "observed_toolchain_manifest",
         lambda *_args, **_kwargs: {"fixture": "toolchain"})
+    monkeypatch.setattr(
+        buildcache, "toolchain_compilers_from_manifest",
+        lambda _manifest: ("gcc", "g++"))
     monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
 
     A2.run_workload(
         policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
-        current_pin=CURRENT_PIN, dependency_prefix=dependency,
+        current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
         ccbench_dir=ccbench, log=lambda *_args: None)
-    assert calls["output_root"] == job_root
-    assert calls["layout_root"].parent == job_root / "campaigns"
+    assert calls["authorized"] is True
+    assert len(set(calls["layout_roots"])) == 1
+    assert calls["layout_roots"][0].parent == job_root / "campaigns"
     assert not (job_root / "campaigns" / "campaigns").exists()
     assert {path.name for path in raw_root.iterdir()} == {
         "rr5-stock.json", "rr5-fixed10.json"}
+    stock, adopted = calls["admissions"]
+    generator_receipts = calls["generator_receipts"]
+    calls["adopted_receipt"] = generator_receipts[1].as_receipt()
+    calls["adopted_receipt_repeat"] = calls["resolver"](
+        calls["evidences"][1]).as_receipt()
+    assert stock.provenance is build_admission.BuildProvenance.STOCK_BASELINE
+    assert adopted.provenance is build_admission.BuildProvenance.MACHINE_GENERATED
+    assert stock.as_wal_receipt()["generator_receipt"] is None
+    expected_generator_input = hashlib.sha256(A2._canonical_json({
+        "policy_protocol_sha256": policy.protocol_sha256,
+        "workload_id": "rr5",
+        "evidence_genome_sha256": calls[
+            "adopted_receipt"]["source"]["genome_sha256"],
+    })).hexdigest()
+    assert calls["adopted_receipt"]["generator_input_sha256"] \
+        == expected_generator_input
+    assert calls["adopted_receipt_repeat"] == calls["adopted_receipt"]
 
 
 def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields():
