@@ -24,6 +24,8 @@ import math
 import os
 import stat
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional
 
@@ -61,6 +63,7 @@ from ..verifier.commit_receipt import (
     RECEIPT_PAYLOAD_KEY,
     CommitReceiptError,
     campaign_lock_bytes_sha256,
+    validate_serialized_receipt,
     validate_live_campaign_wal_receipt,
 )
 
@@ -91,6 +94,40 @@ _ATTEMPT_SCHEMA_KEYS = frozenset({
 })
 INCOMPLETE_ATTEMPT_RECOVERY_LIMIT = 3
 _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
+_A1_IO_LAYOUT: ContextVar[str | None] = ContextVar(
+    "izanagi_a1_non_certifying_wal_layout", default=None,
+)
+
+
+def _has_exact_a1_non_certifying_marker(decoded: object) -> bool:
+    if type(decoded) is not campaign_lock_codec.DecodedNonCertifyingCampaignLock:
+        return False
+    identity = decoded.identity
+    search = identity.get("search_config") if type(identity) is dict else None
+    return (
+        type(search) is dict
+        and search.get("schema") == "paper-story-a1-paired-campaign/v1"
+        and search.get("study_id") == "paper-story-a1-20260826-sized-v1"
+        and search.get("formal") is False
+        and search.get("promotion_prohibited") is True
+        and search.get("pairing_design") == "arm-grouped-positional-v1"
+        and search.get("non_certifying_mode")
+        == "registered-formal-non-certifying"
+        and identity.get("trial") == "paper-story-a1-20260826-sized-v1"
+    )
+
+
+@contextmanager
+def a1_non_certifying_io(layout: CampaignLayout):
+    """loop の exact A-1 marker 区間だけ dedicated append を有効にする。"""
+    decoded = _campaign_lock_value(layout, allow_a1_non_certifying=True)
+    if not _has_exact_a1_non_certifying_marker(decoded):
+        raise AttemptTopologyError("A-1 non-certifying WAL marker が不正")
+    token = _A1_IO_LAYOUT.set(os.fspath(layout.root))
+    try:
+        yield
+    finally:
+        _A1_IO_LAYOUT.reset(token)
 
 
 # ---- シリアライズ ----
@@ -414,14 +451,21 @@ def _consumed_commit_receipt_ids(fd: int, size: int) -> set[str]:
     return consumed
 
 
-def _decode_lock_for_b4_classification(layout: CampaignLayout):
+def _decode_lock_for_b4_classification(
+        layout: CampaignLayout, *, allow_a1_non_certifying: bool = False,
+):
     """Return one raw/decoded snapshot, rejecting an unreadable lock."""
     if not os.path.lexists(layout.lock_file):
         return None, None
     try:
         with open(layout.lock_file, "rb") as stream:
             raw = stream.read()
-        decoded = campaign_lock_codec.decode_campaign_lock(raw.decode("utf-8"))
+        text = raw.decode("utf-8")
+        decoded = (
+            campaign_lock_codec.decode_non_certifying_campaign_lock(text)
+            if allow_a1_non_certifying
+            else campaign_lock_codec.decode_campaign_lock(text)
+        )
         return raw, decoded
     except (
         OSError,
@@ -537,16 +581,24 @@ def _b4_campaign_id_from_lock(decoded) -> str:
     ))
 
 
-def append(
+def _append_record(
         layout: CampaignLayout, record: WalRecord, *, commit_receipt=None,
+        allow_a1_non_certifying: bool = False,
 ) -> WalRecord:
     """WAL に 1 frame を排他追記し、file/dir を fsync する。"""
     # 拒否された record で directory/file 側の効果を起こさない。
     if record.stage != STAGE_COMMIT and commit_receipt is not None:
         raise CommitReceiptError("commit receipt supplied for non-COMMIT record")
     lock_snapshot = None
+    decoded_lock = None
+    if record.stage == STAGE_COMMIT or allow_a1_non_certifying:
+        lock_snapshot, decoded_lock = _decode_lock_for_b4_classification(
+            layout, allow_a1_non_certifying=allow_a1_non_certifying,
+        )
+    if allow_a1_non_certifying and not _has_exact_a1_non_certifying_marker(
+            decoded_lock):
+        raise AttemptTopologyError("A-1 dedicated append の exact marker が不正")
     if record.stage == STAGE_COMMIT:
-        lock_snapshot, decoded_lock = _decode_lock_for_b4_classification(layout)
         if _has_exact_b4_protocol_marker(decoded_lock):
             from .p3_b4_launcher import verify_b4_launch_context
             search_config = decoded_lock.identity["search_config"]
@@ -683,6 +735,29 @@ def append(
     return record
 
 
+def append_a1_non_certifying(
+        layout: CampaignLayout, record: WalRecord, *, commit_receipt=None,
+) -> WalRecord:
+    """A-1 non-certifying lock 専用の append entry。"""
+    return _append_record(
+        layout,
+        record,
+        commit_receipt=commit_receipt,
+        allow_a1_non_certifying=True,
+    )
+
+
+def append(
+        layout: CampaignLayout, record: WalRecord, *, commit_receipt=None,
+) -> WalRecord:
+    """通常 v1/v2 WAL append。A-1 は loop の専用 context だけへ分岐する。"""
+    if _A1_IO_LAYOUT.get() == os.fspath(layout.root):
+        return append_a1_non_certifying(
+            layout, record, commit_receipt=commit_receipt,
+        )
+    return _append_record(layout, record, commit_receipt=commit_receipt)
+
+
 def _digest_range(fd: int, start: int, size: int) -> tuple[str, bytes]:
     digest = hashlib.sha256()
     preview = bytearray()
@@ -753,8 +828,9 @@ def _write_receipt(layout: CampaignLayout, receipt: dict) -> str:
     return path
 
 
-def repair_truncated_tail(
+def _repair_truncated_tail(
         layout: CampaignLayout, *, reject_active_attempt: bool = False,
+        allow_a1_non_certifying: bool = False,
 ) -> WalTailRepairResult:
     """newline 終端後の tail だけを証拠 receipt 作成後に切り戻す。"""
     if type(reject_active_attempt) is not bool:
@@ -784,7 +860,11 @@ def repair_truncated_tail(
             _read_records_from_locked_fd(fd, final_size) if final_size else []
         )
         validate_commit_contract_bindings(
-            prefix_records, campaign_lock=_campaign_lock_value(layout),
+            prefix_records,
+            campaign_lock=_campaign_lock_value(
+                layout,
+                allow_a1_non_certifying=allow_a1_non_certifying,
+            ),
         )
         if reject_active_attempt and final_size:
             if any(
@@ -825,6 +905,26 @@ def repair_truncated_tail(
         )
     finally:
         os.close(fd)
+
+
+def repair_truncated_tail(
+        layout: CampaignLayout, *, reject_active_attempt: bool = False,
+) -> WalTailRepairResult:
+    """通常 v1/v2 lock の truncated tail を修復する。"""
+    return _repair_truncated_tail(
+        layout, reject_active_attempt=reject_active_attempt,
+    )
+
+
+def repair_truncated_tail_a1_non_certifying(
+        layout: CampaignLayout, *, reject_active_attempt: bool = False,
+) -> WalTailRepairResult:
+    """A-1 non-certifying lock 専用の truncated tail repair。"""
+    return _repair_truncated_tail(
+        layout,
+        reject_active_attempt=reject_active_attempt,
+        allow_a1_non_certifying=True,
+    )
 
 
 def log(layout: CampaignLayout, variant: str, stage: str, env_tag: str,
@@ -955,12 +1055,18 @@ def ordered_attempt_frames(
     return tuple(selected)
 
 
-def _campaign_lock_value(layout: CampaignLayout) -> object:
+def _campaign_lock_value(
+        layout: CampaignLayout, *, allow_a1_non_certifying: bool = False,
+) -> object:
     stored = read_lock(layout)
     if stored is None:
         return None
     try:
-        return campaign_lock_codec.decode_campaign_lock(stored)
+        return (
+            campaign_lock_codec.decode_non_certifying_campaign_lock(stored)
+            if allow_a1_non_certifying
+            else campaign_lock_codec.decode_campaign_lock(stored)
+        )
     except campaign_lock_codec.CampaignLockCodecError as exc:
         raise AttemptTopologyError(
             "campaign.lock が既知の v1/v2 wire contract を満たさない"
@@ -969,7 +1075,10 @@ def _campaign_lock_value(layout: CampaignLayout) -> object:
 
 def _decoded_campaign_lock_value(
         lock_value: object,
-) -> Optional[campaign_lock_codec.DecodedCampaignLock]:
+) -> Optional[
+    campaign_lock_codec.DecodedCampaignLock
+    | campaign_lock_codec.DecodedNonCertifyingCampaignLock
+]:
     """Normalize a decoded lock or a v2 object supplied by a direct caller.
 
     WAL file readers always pass a codec-validated ``DecodedCampaignLock``.
@@ -980,6 +1089,8 @@ def _decoded_campaign_lock_value(
     if lock_value is None:
         return None
     if type(lock_value) is campaign_lock_codec.DecodedCampaignLock:
+        return lock_value
+    if type(lock_value) is campaign_lock_codec.DecodedNonCertifyingCampaignLock:
         return lock_value
     if type(lock_value) is dict and "schema_version" not in lock_value:
         return None
@@ -1254,7 +1365,13 @@ def validate_commit_contract_bindings(
     search_config = (
         identity.get("search_config") if type(identity) is dict else None
     )
-    if decoded is not None and decoded.is_v2:
+    non_certifying = (
+        type(decoded)
+        is campaign_lock_codec.DecodedNonCertifyingCampaignLock
+    )
+    if non_certifying:
+        expected = decoded.common_record["environment_contract_sha256"]
+    elif decoded is not None and decoded.is_v2:
         if decoded.authority is None:  # codec contract 上は到達不能。防御的に閉じる。
             raise AttemptTopologyError("campaign-lock/v2 authority が欠落")
         expected = decoded.authority.environment_contract_sha256
@@ -1272,6 +1389,28 @@ def validate_commit_contract_bindings(
     for record in records:
         if record.stage != STAGE_COMMIT:
             continue
+        if non_certifying:
+            serialized = record.payload.get(RECEIPT_PAYLOAD_KEY)
+            if type(serialized) is not dict:
+                raise AttemptTopologyError(
+                    "A-1 commit: 保存済み verifier receipt が欠落"
+                )
+            terminal_payload = dict(record.payload)
+            terminal_payload.pop(RECEIPT_PAYLOAD_KEY, None)
+            try:
+                validate_serialized_receipt(
+                    serialized,
+                    sink_kind="campaign-wal",
+                    lock_identity_sha256=campaign_lock_bytes_sha256(
+                        decoded.original_text.encode("utf-8")
+                    ),
+                    variant=record.variant,
+                    terminal_payload=terminal_payload,
+                )
+            except CommitReceiptError as exc:
+                raise AttemptTopologyError(
+                    "A-1 commit receipt が現在の campaign.lock SHA と不一致"
+                ) from exc
         actual = record.payload.get(COMMIT_CONTRACT_SHA256_KEY)
         if (type(actual) is not str or len(actual) != 64
                 or any(ch not in "0123456789abcdef" for ch in actual)):
@@ -1618,8 +1757,9 @@ def _append_records_locked(
         raise _append_error(layout, total, written, "fsync", exc) from exc
 
 
-def recover_interrupted_attempts(
+def _recover_interrupted_attempts(
         layout: CampaignLayout, *, admission_policy: BuildAdmissionPolicy,
+        allow_a1_non_certifying: bool = False,
 ) -> List[WalRecord]:
     """Atomically terminate only the exact fail-open crash window.
 
@@ -1642,7 +1782,10 @@ def recover_interrupted_attempts(
         if not stat.S_ISREG(info.st_mode):
             raise OSError(errno.EINVAL, "WAL is not a regular file")
         records = _read_records_from_locked_fd(fd, info.st_size)
-        campaign_lock = _campaign_lock_value(layout)
+        campaign_lock = _campaign_lock_value(
+            layout,
+            allow_a1_non_certifying=allow_a1_non_certifying,
+        )
         identity = _campaign_lock_identity(campaign_lock)
         search_config = (
             identity.get("search_config") if type(identity) is dict else None
@@ -1784,6 +1927,26 @@ def recover_interrupted_attempts(
         os.close(fd)
 
 
+def recover_interrupted_attempts(
+        layout: CampaignLayout, *, admission_policy: BuildAdmissionPolicy,
+) -> List[WalRecord]:
+    """通常 v1/v2 lock の interrupted attempt recovery。"""
+    return _recover_interrupted_attempts(
+        layout, admission_policy=admission_policy,
+    )
+
+
+def recover_interrupted_attempts_a1_non_certifying(
+        layout: CampaignLayout, *, admission_policy: BuildAdmissionPolicy,
+) -> List[WalRecord]:
+    """A-1 non-certifying lock 専用 interrupted attempt recovery。"""
+    return _recover_interrupted_attempts(
+        layout,
+        admission_policy=admission_policy,
+        allow_a1_non_certifying=True,
+    )
+
+
 def replay_admitted_records(records: List[WalRecord]) -> Dict[str, EvalState]:
     """Project an already-read WAL snapshot without touching the live layout.
 
@@ -1844,13 +2007,21 @@ def replay_admitted_records(records: List[WalRecord]) -> Dict[str, EvalState]:
     return states
 
 
-def replay(
+def _replay(
         layout: CampaignLayout, *,
         admission_policy: Optional[BuildAdmissionPolicy] = None,
+        allow_a1_non_certifying: bool = False,
 ) -> Dict[str, EvalState]:
     """WAL をリプレイし、new-schema lock では attempt topology も検証する。"""
+    # schema classification must complete before the first WAL read.
+    campaign_lock = _campaign_lock_value(
+        layout,
+        allow_a1_non_certifying=allow_a1_non_certifying,
+    )
+    if allow_a1_non_certifying and not _has_exact_a1_non_certifying_marker(
+            campaign_lock):
+        raise AttemptTopologyError("A-1 dedicated replay の exact marker が不正")
     records = read_records(layout)
-    campaign_lock = _campaign_lock_value(layout)
     validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     validate_trigger_bindings(records, campaign_lock=campaign_lock)
     if admission_policy is None:
@@ -1875,10 +2046,23 @@ def replay(
     )
     orphan = _tail_trigger_orphan(records)
     if orphan is not None:
-        log(layout, orphan.variant, STAGE_ABORT, orphan.env_tag, {
+        payload = {
             "build_attempt_id": orphan.payload["build_attempt_id"],
             "reason": _TRIGGER_ORPHAN_RECOVERY_REASON,
-        })
+        }
+        if allow_a1_non_certifying:
+            append_a1_non_certifying(
+                layout,
+                WalRecord(
+                    variant=orphan.variant,
+                    stage=STAGE_ABORT,
+                    env_tag=orphan.env_tag,
+                    ts=time.time(),
+                    payload=payload,
+                ),
+            )
+        else:
+            log(layout, orphan.variant, STAGE_ABORT, orphan.env_tag, payload)
         records = read_records(layout)
         validate_trigger_bindings(records, campaign_lock=campaign_lock)
         attempts = (
@@ -1892,6 +2076,26 @@ def replay(
     for variant, variant_attempts in attempts.items():
         states.setdefault(variant, EvalState(variant=variant)).attempts = variant_attempts
     return states
+
+
+def replay(
+        layout: CampaignLayout, *,
+        admission_policy: Optional[BuildAdmissionPolicy] = None,
+) -> Dict[str, EvalState]:
+    """通常 v1/v2 replay。非認証 schema は WAL read 前に拒否する。"""
+    return _replay(layout, admission_policy=admission_policy)
+
+
+def replay_a1_non_certifying(
+        layout: CampaignLayout, *,
+        admission_policy: Optional[BuildAdmissionPolicy] = None,
+) -> Dict[str, EvalState]:
+    """A-1 exact marker の non-certifying lock 専用 replay。"""
+    return _replay(
+        layout,
+        admission_policy=admission_policy,
+        allow_a1_non_certifying=True,
+    )
 
 
 def records_by_stage(layout: CampaignLayout, variant: str) -> Dict[str, Dict]:

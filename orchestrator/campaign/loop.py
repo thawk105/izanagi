@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import secrets
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence
@@ -323,11 +324,15 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             receipt_path=perf_preflight_receipt_path,
         )
     layout = layout_constructor(cid, output_root).ensure()
-    with campaign_lock(campaign_lock_path(
-        layout,
-        declared_use_class=declared_use_class,
-        output_root=output_root,
-    )):
+    a1_non_certifying = ident.is_a1_non_certifying_config(cfg)
+    with ExitStack() as stack:
+        stack.enter_context(campaign_lock(campaign_lock_path(
+            layout,
+            declared_use_class=declared_use_class,
+            output_root=output_root,
+        )))
+        if a1_non_certifying:
+            stack.enter_context(wal.a1_non_certifying_io(layout))
 
         # 同一性を照合した後に限り、replay 前に無終端 tail を物理修復する。
         repair = ident.ensure_resumable_wal(
@@ -347,7 +352,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             }, ensure_ascii=False, sort_keys=True))
 
         # リカバリ: terminal な variant はスキップ
-        states = wal.replay(layout, admission_policy=build_context.policy)
+        replay = (
+            wal.replay_a1_non_certifying
+            if a1_non_certifying else wal.replay
+        )
+        states = replay(layout, admission_policy=build_context.policy)
         terminal = wal.terminal_variants(states)
         # transient infra 失敗による abort (identity-error = g++/git 一時失敗、*-probe-error =
         # 競合検知 pgrep 一時失敗) は genome-intrinsic な失敗 (verifier-red / build-error /
@@ -470,7 +479,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     # WAL I/O が壊れた同じ台帳へ診断を重ねない。元の構造化例外を保つ。
                     raise
                 abort_payload = {"reason": f"eval-exception: {type(e).__name__}: {e}"}
-                replayed = wal.replay(layout, admission_policy=build_context.policy).get(v)
+                replayed = replay(
+                    layout, admission_policy=build_context.policy,
+                ).get(v)
                 if replayed is not None:
                     active = [
                         attempt for attempt in replayed.attempts.values()

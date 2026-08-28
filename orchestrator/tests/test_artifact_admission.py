@@ -1338,6 +1338,72 @@ def test_lock_only_epoch_api_does_not_read_wal(
     assert epoch.campaign_verifier_epoch == _expected_fixture_epoch()
 
 
+def test_noncertifying_lock_is_rejected_by_lock_only_certified_gate_before_wal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = {
+        "spec_content": "A-1 fixture",
+        "ccbench_commit": "a" * 40,
+        "search_tag": "paired",
+        "search_config": {
+            "build_admission": {"schema": "fixture"},
+            "schema": "paper-story-a1-paired-campaign/v1",
+            "study_id": "paper-story-a1-20260826-sized-v1",
+            "formal": False,
+            "promotion_prohibited": True,
+            "pairing_design": "arm-grouped-positional-v1",
+            "workload": {"name": "write-heavy"},
+        },
+        "trial": "paper-story-a1-20260826-sized-v1",
+    }
+    common = {
+        "mode": "registered-formal-non-certifying",
+        "certifying": False,
+        "study_id": "paper-story-a1-20260826-sized-v1",
+        "policy_sha256": "1" * 64,
+        "preregistration_sha256": "2" * 64,
+        "source_commit": "3" * 40,
+        "source_binding_sha256": "4" * 64,
+        "environment_contract_sha256": "5" * 64,
+        "intent_sha256": "6" * 64,
+        "campaign_ids": ["campaign-a", "campaign-b", "campaign-c"],
+    }
+    campaign = tmp_path / "campaign-a"
+    (campaign / "runs").mkdir(parents=True)
+    (campaign / "campaign.lock").write_text(
+        campaign_lock.encode_non_certifying_campaign_lock(
+            _canonical_json(identity),
+            common_record=common,
+            workload_binding={
+                "workload": "write-heavy",
+                "campaign_id": "campaign-a",
+                "ordinal": 0,
+            },
+        ),
+        encoding="utf-8",
+    )
+    (campaign / "runs/wal.jsonl").write_bytes(b"must-not-be-read")
+    original = Path.read_bytes
+
+    def refuse_wal_read(path: Path) -> bytes:
+        if path == campaign / "runs/wal.jsonl":
+            pytest.fail("lock-only certified gate read the WAL")
+        return original(path)
+
+    monkeypatch.setattr(Path, "read_bytes", refuse_wal_read)
+    with pytest.raises(A.ArtifactAdmissionError):
+        A.require_campaign_verifier_epoch(campaign, purpose=CERTIFIED)
+
+    layout = CampaignLayout(root=str(campaign))
+    monkeypatch.setattr(
+        wal,
+        "read_records",
+        lambda _layout: pytest.fail("generic replay read non-certifying WAL"),
+    )
+    with pytest.raises(wal.AttemptTopologyError):
+        wal.replay(layout)
+
+
 def test_read_purpose_is_mandatory_and_exact() -> None:
     campaign = (
         ROOT
