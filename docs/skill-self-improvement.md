@@ -11,7 +11,7 @@ command 固有の実行手順や事故の物語はここへ置かない。
 - dev-wave は、作法の欠落・無駄・曖昧・失敗に気づいた時点で候補を記録する。
   事故や実害を伴わない手順の明確化・無駄取りも候補にできる。
 - cleanup-branches は、記載と実挙動の食い違い、新しい罠、手順不足を今回の実行で実測した場合だけ、
-  本文編集の gate が成立する。
+  final で候補を報告する gate が成立する。cleanup 本走中に本文編集の gate は成立しない。
 - rulings は、収集漏れ、正本との食い違い、誤解を招く出力規則を今回の実行で実測した場合だけ、
   本文編集の gate が成立する。
 
@@ -62,9 +62,8 @@ wave 開始時に専用 handoff へ「dev-wave 改善候補」節を作る。段
 
 ### cleanup-branches
 
-command と実挙動の食い違い、新しい罠、手順不足を実測した場合だけ適用する。
-新しい失敗または再発は failures 台帳と同時に更新し、command / reference の是正と台帳更新を
-1 commit にまとめ、worklog に残す。削除・push の権限境界は自己改善を理由に広げない。
+cleanup 本走は共有 command §0/§6 に従い final の候補報告だけで終え、同一実行・継続・自己 spawn では
+repo file/history を変更しない。後からユーザーが明示起動した別 dev-wave だけが再照合・routing・実装する。
 
 ### rulings
 
