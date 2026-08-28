@@ -2771,12 +2771,19 @@ def test_run_complete_uses_raw_sidecar_gate_then_enables_final_view(
     stdout = (
         f"Request ID: {request_id}\nState: EXT\nExit Status: 0\n"
     )
+    original_run = paired.subprocess.run
+
+    def run_with_terminal_qstat(argv, *args, **kwargs):
+        if list(argv) == ["qstat", "-f", request_id]:
+            return SimpleNamespace(
+                args=argv, returncode=0, stdout=stdout, stderr="",
+            )
+        return original_run(argv, *args, **kwargs)
+
     monkeypatch.setattr(
         paired.subprocess,
         "run",
-        lambda *args, **kwargs: SimpleNamespace(
-            args=args[0], returncode=0, stdout=stdout, stderr="",
-        ),
+        run_with_terminal_qstat,
     )
     assert paired.run_complete(SimpleNamespace(
         expected_head=common["source_commit"],

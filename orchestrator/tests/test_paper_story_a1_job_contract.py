@@ -44,6 +44,17 @@ EXPECTED_RESERVATION_EXPORTS = {
     "IZANAGI_RESERVATION_SCRIPT_SHA256": "$CURRENT_SCRIPT_SHA",
     "IZANAGI_RESERVATION_NONCE": "$IZANAGI_SUBMISSION_NONCE",
 }
+EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS = frozenset({
+    "orchestrator/campaign/paper_story_a1_paired.py",
+    "orchestrator/campaign/paper_story_a1_paired.v2.json",
+    "orchestrator/campaign/pipeline.py",
+    "tools/pegasus/paper_story_a1_paired.sh",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/trial_registry.py",
+})
 
 
 def _gate_args(tmp_path: Path) -> dict:
@@ -231,6 +242,10 @@ def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() 
         "orchestrator/campaign/pipeline.py",
         "tools/pegasus/paper_story_a1_paired.sh",
     )
+    assert frozenset(paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == (
+        EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    )
+    assert len(paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == 9
     script = JOB.read_text(encoding="utf-8")
     match = re.search(
         r"(?ms)^NON_CERTIFYING_SOURCE_RELATIVE_PATHS=\(\n(?P<body>.*?)^\)\s*$",
@@ -239,6 +254,7 @@ def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() 
     assert match is not None
     shell_paths = tuple(re.findall(r'^\s*"([^"]+)"\s*$', match["body"], re.M))
     assert shell_paths == paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    assert frozenset(shell_paths) == EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
     assert len(shell_paths) == 9
 
 
@@ -1178,6 +1194,12 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         encoding="utf-8",
     )
     job.chmod(JOB.stat().st_mode & 0o777)
+    for relative in paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS:
+        fixture_source = repo / relative
+        if fixture_source.exists():
+            continue
+        fixture_source.parent.mkdir(parents=True, exist_ok=True)
+        fixture_source.write_bytes((REPO_ROOT / relative).read_bytes())
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     head = "a" * 40
