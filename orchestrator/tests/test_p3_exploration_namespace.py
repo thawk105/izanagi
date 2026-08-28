@@ -639,10 +639,12 @@ def _install_paper_story_external_spies(
     policy_context = build_run_context(
         generator_id=driver_contract.expected_generator_id,
     )
+    expected_configs = tuple(
+        ident.bind_admission_policy(cfg, policy_context.policy)
+        for cfg in expected_configs
+    )
     expected_campaign_ids = tuple(
-        str(ident.campaign_id(
-            ident.bind_admission_policy(cfg, policy_context.policy)
-        ))
+        str(ident.campaign_id(cfg))
         for cfg in expected_configs
     )
     if pin_identity_oracle:
@@ -861,8 +863,7 @@ def _install_paper_story_external_spies(
     monkeypatch.setattr(module, "campaign_config", campaign_config_spy)
     monkeypatch.setattr(module, "default_campaign_configs", forbidden_default_configs)
 
-    def assert_complete(
-            expected_workload_calls: int, *, assert_workload_order: bool):
+    def assert_complete(expected_single_tenant_calls: int):
         assert calls["validate_acquisition_receipt"] and len(
             calls["validate_acquisition_receipt"]
         ) == 1
@@ -880,21 +881,11 @@ def _install_paper_story_external_spies(
             "observed_toolchain_manifest",
         ):
             assert calls[label] and len(calls[label]) == 1, label
-        assert len(calls["assert_single_tenant"]) == expected_workload_calls
-        if assert_workload_order:
-            assert calls["campaign_config"] == [
-                (workload_name, runtime_contract)
-                for workload_name in _PAPER_STORY_WORKLOAD_ORDER[
-                    :expected_workload_calls
-                ]
-            ]
-        else:
-            assert len(calls["campaign_config"]) == expected_workload_calls
-            assert all(
-                workload_name in _PAPER_STORY_WORKLOAD_ORDER
-                and contract is runtime_contract
-                for workload_name, contract in calls["campaign_config"]
-            )
+        assert len(calls["assert_single_tenant"]) == expected_single_tenant_calls
+        assert calls["campaign_config"] == [
+            (workload_name, runtime_contract)
+            for workload_name in _PAPER_STORY_WORKLOAD_ORDER
+        ]
         assert calls["default_campaign_configs"] == []
 
     return SimpleNamespace(
@@ -1035,11 +1026,11 @@ def test_driver_build_spy_receives_exact_run_context(
         assert len(seen) == 1
         assert seen[0]._authority_nonce is None
         assert seen[0]._coder_entrypoint_site is None
-        assert len(layout_calls) == 1
-        assert layout_calls[0][0][0] in harness.expected_campaign_ids
-        assert layout_calls[0][0][1] == str(harness.output_root)
-        assert layout_calls[0][1] == {}
-        harness.assert_complete(1, assert_workload_order=False)
+        assert layout_calls == [
+            ((campaign_id, str(harness.output_root)), {})
+            for campaign_id in harness.expected_campaign_ids
+        ]
+        harness.assert_complete(1)
         return
 
     def capture(*_args, **kwargs):
@@ -1403,10 +1394,7 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
             assert expected.is_dir()
             assert not (harness.output_root / "campaigns" / campaign_id).exists()
         assert len(run_calls) == contract.runtime_run_campaign_calls
-        harness.assert_complete(
-            contract.runtime_run_campaign_calls,
-            assert_workload_order=True,
-        )
+        harness.assert_complete(contract.runtime_run_campaign_calls)
         return
 
     roots, layout_calls = _spy_driver_layout(monkeypatch, tmp_path, module)
