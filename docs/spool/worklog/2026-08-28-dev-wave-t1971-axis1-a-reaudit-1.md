@@ -20,6 +20,9 @@ title: [T-1971] 軸1 pilot第25・26行の包含条件Aを一次資料で再監�
   検索framework、新分類schema、他論文、paper-story、規律2へscopeを広げていない。
 - Codex subprocessはplan 1本、敵対相談2本、完成差分review 2本、焦点再review 1本。
   親は一次資料取得、real/refuted裁定、docs編集、受入を担当した。
+- acceptance attempt 1はmain `5f0803010`をmerge commit `1ee0f9d15`で取り込んだtipを全走し、
+  `18609 passed / 62 skipped`、child rc 0、`child-green`。effective schedulerは`loadgroup`、
+  log SHA-256は`85d2db2134b0dd729b0cd34ae22678a35d92ce7dca295791ae7156482c18cd15`。
 
 ## 次の一手差分
 
