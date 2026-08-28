@@ -1,0 +1,110 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "SS-M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "old": "            or row[\"must_fix\"] is not True\n",
+          "new": "            or False\n"
+        },
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "old": "    digest = hashlib.sha256(canonical_bytes(value) + b\"\\n\").hexdigest()\n",
+          "new": "    normalized_for_digest = [dict(row, must_fix=True) for row in value]\n    digest = hashlib.sha256(canonical_bytes(normalized_for_digest) + b\"\\n\").hexdigest()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "SS-M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "old": "                if all(matrices[reader][(finding_id, stage)] == \"detected\" for reader in READER_PATHS)\n",
+          "new": "                if any(matrices[reader][(finding_id, stage)] == \"detected\" for reader in READER_PATHS)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "SS-M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "old": "            if all_reader_consensus_detected and primary_child_green\n",
+          "new": "            if all_reader_consensus_detected\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "SS-M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "old": "        if stored[field] != computed[field]:\n",
+          "new": "        if field != \"coverage\" and stored[field] != computed[field]:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "SS-M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "old": "        \"organizational_independence\": \"not-established\",\n        \"retrospective_task_output_acceptance_status\": \"not-evaluated\",\n        \"schema_version\": 1,\n",
+          "new": "        \"organizational_independence\": \"not-established\",\n        \"retrospective_task_output_acceptance_status\": \"not-accepted\",\n        \"schema_version\": 1,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "SS-M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "old": "    if hashlib.sha256(raw).hexdigest() != descriptor[\"sha256\"]:\n",
+          "new": "    if False and hashlib.sha256(raw).hexdigest() != descriptor[\"sha256\"]:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

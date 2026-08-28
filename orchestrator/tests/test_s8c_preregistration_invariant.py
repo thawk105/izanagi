@@ -23,6 +23,7 @@ sys.path.insert(0, str(TOOLS))
 import check_docs  # noqa: E402
 from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
 from orchestrator.campaign import s8c_preregistration as prereg  # noqa: E402
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 
 
 PREREG_DOC = ROOT / prereg.SOURCE_PATH
@@ -739,3 +740,6 @@ def test_s8c_living_doc_reference_negative_controls(monkeypatch, capsys) -> None
     assert returncode == 1
     assert f"実在しないパス参照: {missing!r}" in output
     assert f"docs の行番号参照 (腐敗する): {stale_line!r}" in output
+
+
+enforce_held_functions(globals(), __file__, plain_runner="none")

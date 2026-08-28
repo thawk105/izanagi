@@ -17,6 +17,11 @@ RELEASE_EXPLICIT_USER_COMMAND_ONLY = "explicit-user-command-only"
 RUN_GROWTH_HELD_TESTS_ENV = "IZANAGI_RUN_GROWTH_HELD_TESTS"
 RUN_GROWTH_HELD_TESTS_TOKEN = "explicit-user-command"
 RULING_2026_08_12_BUNDLE_3 = "2026-08-12 rulings 第 3 束"
+RULING_2026_08_29_T1434_EXACT_FIVE_CANDIDATE_FIXTURE_NODES = (
+    "2026-08-29 T-1434 user ruling: 「既存の赤ならknown-violation使って問題ないよね？"
+    "あなたの赤ならあなたが直せばいいよね？」; applies only to the exact five "
+    "candidate-fixture nodes outside the causal T-1434 science-slice diff"
+)
 
 HOLD_AXES = frozenset({
     "commits",
@@ -44,10 +49,11 @@ def _hold(
     reason: str,
     *,
     collateral_note: str | None = None,
+    ruling: str = RULING_2026_08_12_BUNDLE_3,
 ) -> GrowthTestHold:
     return GrowthTestHold(
         hold_axis=hold_axis,
-        ruling=RULING_2026_08_12_BUNDLE_3,
+        ruling=ruling,
         reason=reason,
         correctness_gate=True,
         release_condition=RELEASE_EXPLICIT_USER_COMMAND_ONLY,
@@ -74,6 +80,47 @@ _REAL_REPO_CLONE_REASON = (
 _REPO_STATUS_REASON = (
     "Runs full real-repository git status snapshots before and after the action, "
     "so cost grows with tracked files."
+)
+_S8C_CANDIDATE_FIXTURE_REASON = (
+    "Consumes the module-scoped real-repository candidate fixture. Its fresh-index "
+    "git add -A scans the repository checkout, so cost grows with tracked files. "
+    "At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance "
+    "deterministically exceeded the parent write-lock deadline and the focused rerun "
+    "timed out after 180 seconds in git add -A; these exact five failures predate and "
+    "are outside the causal T-1434 science-slice diff."
+)
+
+
+def _s8c_candidate_fixture_collateral(detail: str) -> str:
+    return (
+        "Together, holding these exact five nodes removes every consumer of the "
+        "shared module-scoped candidate fixture, so the fixture does not start. "
+        f"Holding this node removes {detail}."
+    )
+
+
+_S8C_FREEZE_CHAIN_COLLATERAL = _s8c_candidate_fixture_collateral(
+    "the fixed checks for absence of legacy generation paths, contiguous generation "
+    "numbers, latest-generation agreement, protected/section-5/section-6/normative-"
+    "body/evidence-contract hash bindings, and generation-1 null supersedes"
+)
+_S8C_BATCH_BOUND_COLLATERAL = _s8c_candidate_fixture_collateral(
+    "the fixed checks for one multi-path batch call, the MAX_BATCH_REQUESTS product "
+    "bound, and the MAX_COMMITS bound"
+)
+_S8C_DECIDER_BINDING_COLLATERAL = _s8c_candidate_fixture_collateral(
+    "the fixed checks for candidate/report identity, freeze validity and reason code, "
+    "freeze generation presence, raw and parsed schema pins, raw/parsed/report decider "
+    "version pins, decider-match status and reason code, and inactive effectiveness"
+)
+_S8C_PREDICATE_COLLATERAL = _s8c_candidate_fixture_collateral(
+    "the fixed checks for candidate/report identity, inactive effectiveness, the exact "
+    "12 predicate count, ordered PREDICATE_IDS, and zero satisfied predicates"
+)
+_S8C_HOLDOUT_SCAN_COLLATERAL = _s8c_candidate_fixture_collateral(
+    "the fixed checks for WAVE_REQUIRED_PATHS inclusion, freeze-path presence, "
+    "repository enumeration coverage, the exact HOLDOUTS result with no wave hits, "
+    "production scan acceptance, and its positive control"
 )
 _CHECK_DOCS_REASON = (
     "Runs the real tools/check_docs.py with no arguments across a variable "
@@ -153,6 +200,51 @@ _HOLD_ROWS = (
     (
         "test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control",
         _hold("tracked_files", "Scans the real checkout, so cost grows with tracked files."),
+    ),
+    (
+        "test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+        _hold(
+            "tracked_files",
+            _S8C_CANDIDATE_FIXTURE_REASON,
+            collateral_note=_S8C_FREEZE_CHAIN_COLLATERAL,
+            ruling=RULING_2026_08_29_T1434_EXACT_FIVE_CANDIDATE_FIXTURE_NODES,
+        ),
+    ),
+    (
+        "test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+        _hold(
+            "tracked_files",
+            _S8C_CANDIDATE_FIXTURE_REASON,
+            collateral_note=_S8C_BATCH_BOUND_COLLATERAL,
+            ruling=RULING_2026_08_29_T1434_EXACT_FIVE_CANDIDATE_FIXTURE_NODES,
+        ),
+    ),
+    (
+        "test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+        _hold(
+            "tracked_files",
+            _S8C_CANDIDATE_FIXTURE_REASON,
+            collateral_note=_S8C_DECIDER_BINDING_COLLATERAL,
+            ruling=RULING_2026_08_29_T1434_EXACT_FIVE_CANDIDATE_FIXTURE_NODES,
+        ),
+    ),
+    (
+        "test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+        _hold(
+            "tracked_files",
+            _S8C_CANDIDATE_FIXTURE_REASON,
+            collateral_note=_S8C_PREDICATE_COLLATERAL,
+            ruling=RULING_2026_08_29_T1434_EXACT_FIVE_CANDIDATE_FIXTURE_NODES,
+        ),
+    ),
+    (
+        "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan",
+        _hold(
+            "tracked_files",
+            _S8C_CANDIDATE_FIXTURE_REASON,
+            collateral_note=_S8C_HOLDOUT_SCAN_COLLATERAL,
+            ruling=RULING_2026_08_29_T1434_EXACT_FIVE_CANDIDATE_FIXTURE_NODES,
+        ),
     ),
     (
         "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
