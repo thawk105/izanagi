@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -535,10 +537,39 @@ def test_verifier_runs_rejects_json_boolean(tmp_path: Path) -> None:
 
 
 def test_transaction_watermark_surface_is_trace_guarded_and_post_store() -> None:
-    source = (
-        Path(__file__).resolve().parents[2]
-        / "external/ccbench/cc/mocc/transaction.cc"
-    ).read_text(encoding="utf-8")
+    repo_root = Path(__file__).resolve().parents[2]
+    policy = json.loads(
+        (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(policy, dict)
+    mocc_trace = policy.get("mocc_trace")
+    assert isinstance(mocc_trace, dict)
+    new_oid = mocc_trace.get("new_oid")
+    assert isinstance(new_oid, str)
+    assert re.fullmatch(r"[0-9a-f]{40}", new_oid) is not None
+
+    submodule_repo = repo_root / "external/ccbench"
+    commit_type = subprocess.run(
+        ["git", "cat-file", "-t", new_oid],
+        cwd=submodule_repo,
+        capture_output=True,
+        check=False,
+    )
+    assert commit_type.returncode == 0, commit_type
+    assert commit_type.stdout == b"commit\n", commit_type
+    assert commit_type.stderr == b"", commit_type
+    source_blob = subprocess.run(
+        ["git", "cat-file", "blob", f"{new_oid}:cc/mocc/transaction.cc"],
+        cwd=submodule_repo,
+        capture_output=True,
+        check=False,
+    )
+    assert source_blob.returncode == 0, source_blob
+    assert source_blob.stdout, source_blob
+    assert source_blob.stderr == b"", source_blob
+    source = source_blob.stdout.decode("utf-8")
     assert "#include <cstring>" not in source
     assert "#include <cstdlib>" not in source
     trace_depth = 0
