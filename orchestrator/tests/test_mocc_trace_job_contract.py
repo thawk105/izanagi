@@ -26,7 +26,7 @@ PILOT = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
 CHECKER = REPO_ROOT / "tools/check_trace0_preprocess_identity.py"
 VERIFIER = REPO_ROOT / "orchestrator/verifier/__main__.py"
 FETCH_THIRD_PARTY = REPO_ROOT / "tools/pegasus/fetch_third_party.py"
-NEW_OID = "058d0c4e5f237d88ec1c2ebe0739113d82906e47"
+NEW_OID = "e9e477ca1b55348ab4530de0b1cf663ce4555290"
 BASE_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 
 
@@ -36,10 +36,20 @@ def _make_executable(path: Path, contents: str) -> None:
 
 
 def _fake_git(
-    bin_dir: Path, source_commit: str, *, status_path: Path | None = None
+    bin_dir: Path,
+    source_commit: str,
+    *,
+    status_path: Path | None = None,
+    gitlink_oid: str = BASE_OID,
+    new_oid_available: bool = True,
 ) -> None:
     status_command = (
         f"cat {shlex.quote(str(status_path))}" if status_path is not None else ":"
+    )
+    new_oid_resolution = (
+        f"printf '%s\\n' '{NEW_OID}'; exit 0"
+        if new_oid_available
+        else "exit 128"
     )
     _make_executable(
         bin_dir / "git",
@@ -57,13 +67,19 @@ def _fake_git(
               exit 0
             fi
             if [[ "$2" == "{NEW_OID}^{{commit}}" && "$repo" == *"external/ccbench" ]]; then
-              printf '%s\\n' '{NEW_OID}'
-              exit 0
+              {new_oid_resolution}
             fi
             ;;
           status)
             {status_command}
             exit 0
+            ;;
+          ls-tree)
+            if [[ "$2" == "{source_commit}" && "$3" == "--" &&
+                  "$4" == "external/ccbench" ]]; then
+              printf '160000 commit %s\texternal/ccbench\n' '{gitlink_oid}'
+              exit 0
+            fi
             ;;
         esac
         echo "unexpected fake git argv: $*" >&2
@@ -233,6 +249,7 @@ def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> No
     for document in (pre_submit, receipt):
         assert document["dry_run"] is True
         assert document["mocc_trace"]["trace_mode"] == 1
+        assert "t1943_g2_discriminator" not in document["mocc_trace"]
         assert document["mocc_trace"]["workload"] == policy["mocc_trace"]["workload"]
         assert document["mocc_trace"]["workload"]["ycsb_max_ope"] == 10
 
@@ -246,6 +263,10 @@ def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> No
     assert f"IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT={attempts_root.resolve()}" in (
         export_spec.split(",")
     )
+    assert not any(
+        item.startswith("IZANAGI_MOCC_G2_DISCRIMINATOR=")
+        for item in export_spec.split(",")
+    )
     assert qsub_argv[qsub_argv.index("-o") + 1] == str(
         submission / "pbs-job.stdout"
     )
@@ -255,6 +276,358 @@ def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> No
     assert receipt["qsub"]["request_id"].startswith("dry-run-")
     assert receipt["qsub"]["argv"] == pre_submit["request"]["qsub_argv"]
     assert (submission / "qsub.rc").read_text(encoding="utf-8").strip() == "0"
+
+
+def test_t1943_submit_dry_run_has_dedicated_fields(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    attempts_root = tmp_path / "attempts"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    source_commit = "0123456789abcdef0123456789abcdef01234567"
+    _fake_git(bin_dir, source_commit)
+    qsub_marker = tmp_path / "qsub-called"
+    _make_executable(
+        bin_dir / "qsub",
+        f"""
+        #!/bin/sh
+        touch {shlex.quote(str(qsub_marker))}
+        exit 99
+        """,
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    environment["IZANAGI_PEGASUS_THIRDPARTY_CACHE"] = str(tmp_path / "cache")
+    command = [
+        "bash",
+        str(SUBMITTER),
+        "--dry-run",
+        "--repo-root",
+        str(repo_root),
+        "--attempts-root",
+        str(attempts_root),
+        "--job-script",
+        str(PILOT),
+        "--t1943-g2-discriminator",
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not qsub_marker.exists()
+    submission = next((attempts_root / "submissions").iterdir())
+    for name in ("pre-submit.json", "submit-receipt.json"):
+        document = _load_json(submission / name)
+        assert document["mocc_trace"]["t1943_g2_discriminator"] is True
+    qsub_argv = _load_json(submission / "pre-submit.json")["request"]["qsub_argv"]
+    export_spec = qsub_argv[qsub_argv.index("-v") + 1]
+    assert "IZANAGI_MOCC_G2_DISCRIMINATOR=1" in export_spec.split(",")
+
+
+def test_t1943_submit_real_qsub_publishes_completed_receipt(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    attempts_root = tmp_path / "attempts"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(bin_dir, "2" * 40)
+    for name in ("qstat", "pegasusinfo", "rbudgetcheck", "check_quota"):
+        _make_executable(bin_dir / name, "#!/bin/sh\nexit 0\n")
+    qsub_calls = tmp_path / "qsub-calls"
+    _make_executable(
+        bin_dir / "qsub",
+        f"""
+        #!/bin/sh
+        printf '%s\n' called >>{shlex.quote(str(qsub_calls))}
+        printf '%s\n' 'Request 12345.pegasus submitted.'
+        """,
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    environment["IZANAGI_PEGASUS_THIRDPARTY_CACHE"] = str(tmp_path / "cache")
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(PILOT),
+            "--t1943-g2-discriminator",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert qsub_calls.read_text(encoding="utf-8").splitlines() == ["called"]
+    submission = next((attempts_root / "submissions").iterdir())
+    receipt = _load_json(submission / "submit-receipt.json")
+    assert receipt["dry_run"] is False
+    assert receipt["qsub"]["request_id"] == "12345.pegasus"
+    assert receipt["mocc_trace"]["t1943_g2_discriminator"] is True
+
+
+def test_t1943_build_run_and_rc1_discriminator_order_is_fail_closed() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    dedicated_branch = source.index(
+        'if [[ "$TRACE_MODE" -eq 0 || "$T1943_G2" -eq 1 ]]; then'
+    )
+    trace0_build = source.index("  build_mode 0", dedicated_branch)
+    preprocess_gate = source.index(
+        '"$REPO_ROOT/tools/check_trace0_preprocess_identity.py"', trace0_build
+    )
+    absence_gate = source.index(
+        '"$ATTEMPT_DIR/trace0-watermark-absence.json"', preprocess_gate
+    )
+    absence_end = source.index("\nPY_T1943_TRACE0", absence_gate)
+    absence_block = source[absence_gate:absence_end]
+    for token in (
+        "IZANAGI_MOCC_G2_WITNESS",
+        "IZANAGI_MOCC_G2_WITNESS_DIR",
+        "IZANAGI_MOCC_G2_WATERMARK_V1",
+        "izanagi_mocc_g2",
+        "witness_",
+    ):
+        assert token in absence_block
+    assert "os.O_RDONLY | os.O_NOFOLLOW" in absence_block
+    assert "pass_fds=(binary_fd,)" in absence_block
+    assert '"binary_tokens_absent": not present_tokens' in absence_block
+    trace1_build = source.index("    build_mode 1", absence_gate)
+    workload_window = source.index("check_window before-workload", trace1_build)
+    workload_start = source.index("RUN_START_NS=", workload_window)
+    assert dedicated_branch < trace0_build < preprocess_gate < absence_gate
+    assert absence_gate < trace1_build < workload_window < workload_start
+
+    verifier_rc = source.index('VERIFIER_RC=$verifier_rc', workload_start)
+    infra_stop = source.index(
+        'if [[ "$VERIFIER_RC" -ne 0 && "$VERIFIER_RC" -ne 1 ]]; then',
+        verifier_rc,
+    )
+    completed_json = source.index("\nPY_T1943_VERIFIER_COMPLETE", infra_stop)
+    discriminator = source.index("DISCRIMINATOR_TOOL_PATH=", completed_json)
+    assert verifier_rc < infra_stop < completed_json < discriminator
+
+    submit_source = SUBMITTER.read_text(encoding="utf-8")
+    qsub = submit_source.index('  "${qsub_cmd[@]}"')
+    receipt_bytes = submit_source.index("receipt_bytes = (", qsub)
+    fsync = submit_source.index("os.fsync(handle.fileno())", receipt_bytes)
+    atomic_publish = submit_source.index(
+        "os.link(temporary, target, follow_symlinks=False)", fsync
+    )
+    assert qsub < receipt_bytes < fsync < atomic_publish
+    assert 'with open(target, "x"' not in submit_source
+
+    pin_start = source.index("SUBMIT_RECEIPT_SHA=$(python3 -")
+    no_follow = source.index("os.O_RDONLY | os.O_NOFOLLOW", pin_start)
+    regular = source.index("stat.S_ISREG(source_info.st_mode)", no_follow)
+    digest = source.index("hashlib.sha256(receipt_bytes).hexdigest()", regular)
+    copy = source.index("target_fd = os.open(", digest)
+    parse = source.index("receipt = json.loads(receipt_bytes.decode", digest)
+    assert pin_start < no_follow < regular < digest < copy < parse
+    assert 'cp "$SUBMIT_SOURCE"' not in source
+    assert "submit_receipt_sha != pinned_submit_receipt_sha" in source
+
+    assert 'ls-tree "$SOURCE_COMMIT"' not in submit_source
+    assert 'ls-tree "$CURRENT_COMMIT"' not in source
+    assert "OUTER_GITLINK_ADVANCED" not in source
+
+    submit_resolution = submit_source.index(
+        'rev-parse "$NEW_OID^{commit}"'
+    )
+    submit_exact = submit_source.index(
+        'if [[ "$CCBENCH_RESOLVED" != "$NEW_OID" ]]', submit_resolution
+    )
+    submit_qsub = submit_source.index('  "${qsub_cmd[@]}"', submit_exact)
+    job_resolution = source.index(
+        'RESOLVED_NEW=$(git -C "$CCBENCH_BASE" rev-parse "$NEW_OID^{commit}")'
+    )
+    job_exact = source.index(
+        'if [[ "$RESOLVED_NEW" != "$NEW_OID" ]]', job_resolution
+    )
+    materialize = source.index(
+        'git -C "$CCBENCH_BASE" worktree add --detach "$BUILD_SOURCE" "$NEW_OID"',
+        job_exact,
+    )
+    assert submit_resolution < submit_exact < submit_qsub
+    assert job_resolution < job_exact < materialize
+    assert '"outer_gitlink_advanced": False' in source
+
+
+def test_t1943_submit_rejects_nonfixed_workload_before_submission(
+    tmp_path: Path,
+) -> None:
+    for field, replacement in (("threads", 47), ("ycsb_rmw", 1)):
+        case_root = tmp_path / field
+        repo_root = case_root / "repo"
+        (repo_root / "tools/pegasus").mkdir(parents=True)
+        (repo_root / "external/ccbench").mkdir(parents=True)
+        policy = json.loads(POLICY.read_text(encoding="utf-8"))
+        policy["mocc_trace"]["workload"][field] = replacement
+        (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_text(
+            json.dumps(policy, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+        )
+        bin_dir = case_root / "bin"
+        bin_dir.mkdir()
+        _fake_git(bin_dir, "1" * 40)
+        environment = os.environ.copy()
+        environment["PATH"] = os.pathsep.join(
+            (str(bin_dir), environment["PATH"])
+        )
+        result = subprocess.run(
+            [
+                "bash",
+                str(SUBMITTER),
+                "--dry-run",
+                "--repo-root",
+                str(repo_root),
+                "--attempts-root",
+                str(case_root / "attempts"),
+                "--job-script",
+                str(PILOT),
+                "--t1943-g2-discriminator",
+            ],
+            cwd=REPO_ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 1
+        assert "T-1943 workload tuple differs" in result.stderr
+        assert not (case_root / "attempts/submissions").exists()
+
+
+def test_t1943_submit_accepts_base_gitlink_with_available_new_object(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(bin_dir, "1" * 40, gitlink_oid=BASE_OID)
+    modeled_gitlink = subprocess.run(
+        [
+            str(bin_dir / "git"),
+            "-C",
+            str(repo_root),
+            "ls-tree",
+            "1" * 40,
+            "--",
+            "external/ccbench",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert modeled_gitlink.returncode == 0, modeled_gitlink.stderr
+    assert modeled_gitlink.stdout == (
+        f"160000 commit {BASE_OID}\texternal/ccbench\n"
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    attempts_root = tmp_path / "attempts"
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(PILOT),
+            "--t1943-g2-discriminator",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    submission = next((attempts_root / "submissions").iterdir())
+    receipt = _load_json(submission / "submit-receipt.json")
+    assert receipt["source_commit"] == "1" * 40
+    assert receipt["mocc_trace"]["base_oid"] == BASE_OID
+    assert receipt["mocc_trace"]["new_oid"] == NEW_OID
+
+
+def test_t1943_submit_rejects_absent_new_oid_before_submission(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(
+        bin_dir,
+        "1" * 40,
+        gitlink_oid=BASE_OID,
+        new_oid_available=False,
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    attempts_root = tmp_path / "attempts"
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(PILOT),
+            "--t1943-g2-discriminator",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "required Mocc trace commit is absent" in result.stderr
+    assert not (attempts_root / "submissions").exists()
 
 
 @pytest.mark.parametrize(
@@ -1689,6 +2062,7 @@ def _run_mocc_trace_finalization(
     tmp_path: Path,
     *,
     trace_mode: int = 0,
+    t1943_g2: bool = False,
     report_changes: dict[str, object] | None = None,
     report_bytes: bytes | None = None,
     report_encoding: str = "compact",
@@ -1701,6 +2075,8 @@ def _run_mocc_trace_finalization(
     tamper_receipt_after_shell_hash: bool = False,
     tamper_schema_and_rebind_after_write: bool = False,
     swap_report_to_symlink_before_open: bool = False,
+    tamper_trace0_binary_after_absence: bool = False,
+    tamper_manifest_leaf_after_discriminator: str | None = None,
     current_script_sha: str = "fixture-script-sha",
 ) -> tuple[subprocess.CompletedProcess[str], Path, bytes]:
     attempt_dir = tmp_path / "attempt"
@@ -1729,7 +2105,12 @@ def _run_mocc_trace_finalization(
 
     report_path = attempt_dir / "trace0-preprocess-identity.json"
     if report_mode == "file":
-        if trace_mode == 0 or report_changes is not None or report_bytes is not None:
+        if (
+            trace_mode == 0
+            or t1943_g2
+            or report_changes is not None
+            or report_bytes is not None
+        ):
             report_path.write_bytes(report_bytes)
     elif report_mode == "symlink":
         target = tmp_path / "valid-report-target.json"
@@ -1742,11 +2123,39 @@ def _run_mocc_trace_finalization(
     else:
         raise AssertionError(f"unsupported report mode: {report_mode}")
 
+    current_commit = "a" * 40
+    submission_nonce = "fixture-nonce"
+    submit_epoch = 1234567890
+    fixture_workload = (
+        {
+            "extime_s": 3,
+            "records": 10000,
+            "threads": 48,
+            "ycsb_max_ope": 10,
+            "ycsb_rmw": 0,
+            "ycsb_rratio": 50,
+            "zipf_skew": 0.9,
+        }
+        if t1943_g2
+        else {"records": 7}
+    )
+    submit_mocc_trace: dict[str, object] = {
+        "base_oid": BASE_OID,
+        "new_oid": NEW_OID,
+        "trace_mode": trace_mode,
+        "workload": fixture_workload,
+    }
+    if t1943_g2:
+        submit_mocc_trace["t1943_g2_discriminator"] = True
     submit_receipt_path = attempt_dir / "submit-receipt.json"
     submit_receipt_path.write_text(
         json.dumps(
             {
-                "mocc_trace": {},
+                "schema_version": "pegasus-submit-receipt/v2",
+                "submission_nonce": submission_nonce,
+                "source_commit": current_commit,
+                "qsub": {"submit_epoch": submit_epoch},
+                "mocc_trace": submit_mocc_trace,
                 "policy": {"expected_cpu_model": "fixture cpu"},
             }
         ),
@@ -1760,7 +2169,6 @@ def _run_mocc_trace_finalization(
     (attempt_dir / "compiler-used.version").write_text(
         "fixture compiler version\n", encoding="utf-8"
     )
-    current_commit = "a" * 40
     judgment_capture_paths: dict[str, Path] = {}
     judgment_capture_shas: dict[str, str] = {}
     for short_phase, capture_phase in (
@@ -1811,26 +2219,180 @@ def _run_mocc_trace_finalization(
     evidence_name = "throughput.json" if trace_mode == 0 else "verifier.json"
     evidence_bytes = (f'{{"fixture_mode":{trace_mode}}}\n').encode("utf-8")
     (attempt_dir / evidence_name).write_bytes(evidence_bytes)
+    fixture_binary = tmp_path / "fixture-binary"
+    fixture_binary.write_bytes(b"executed fixture binary\n")
+    fixture_binary_sha = hashlib.sha256(fixture_binary.read_bytes()).hexdigest()
 
     if checker_report_sha is None:
         checker_report_sha = (
-            hashlib.sha256(report_bytes).hexdigest() if trace_mode == 0 else ""
+            hashlib.sha256(report_bytes).hexdigest()
+            if trace_mode == 0 or t1943_g2
+            else ""
         )
-    checker_py = str(interpreter) if trace_mode == 0 else ""
+    checker_selected = _production_selected_tool_path("CHECKER_TOOL_PATH")
+    verifier_selected = _production_selected_tool_path("VERIFIER_TOOL_PATH")
+    checker_py = str(interpreter) if trace_mode == 0 or t1943_g2 else ""
     verifier_py = str(interpreter) if trace_mode == 1 else ""
-    selected_tool_path = _production_selected_tool_path(
-        "CHECKER_TOOL_PATH" if trace_mode == 0 else "VERIFIER_TOOL_PATH"
+    checker_tool_path = (
+        str(checker_selected) if trace_mode == 0 or t1943_g2 else ""
     )
-    checker_tool_path = str(selected_tool_path) if trace_mode == 0 else ""
-    verifier_tool_path = str(selected_tool_path) if trace_mode == 1 else ""
-    tool_sha = hashlib.sha256(selected_tool_path.read_bytes()).hexdigest()
-    checker_rc = "0" if trace_mode == 0 else "not-run"
-    verifier_rc = "not-run" if trace_mode == 0 else "0"
+    verifier_tool_path = str(verifier_selected) if trace_mode == 1 else ""
+    checker_tool_sha = (
+        hashlib.sha256(checker_selected.read_bytes()).hexdigest()
+        if checker_tool_path
+        else ""
+    )
+    verifier_tool_sha = (
+        hashlib.sha256(verifier_selected.read_bytes()).hexdigest()
+        if verifier_tool_path
+        else ""
+    )
+    checker_rc = "0" if trace_mode == 0 or t1943_g2 else "not-run"
+    verifier_rc = "1" if t1943_g2 else ("not-run" if trace_mode == 0 else "0")
+    trace_manifest_sha = witness_manifest_sha = ""
+    discriminator_tool_path = discriminator_tool_sha = ""
+    discriminator_result_sha = ""
+    discriminator_result = discriminator_rc = "not-run"
+    trace0_absence_sha = ""
+    if t1943_g2:
+        run_dir = tmp_path / "run"
+        trace_root = run_dir / "trace"
+        witness_root = run_dir / "witness"
+        trace_root.mkdir(parents=True)
+        witness_root.mkdir()
+        trace_leaf = trace_root / "trace_0.log"
+        witness_leaf = witness_root / "witness_0.log"
+        trace_leaf.write_bytes(b"fixture trace leaf\n")
+        witness_leaf.write_bytes(b"fixture witness leaf\n")
+        trace_manifest = attempt_dir / "trace-manifest.json"
+        witness_manifest = attempt_dir / "witness-manifest.json"
+        for manifest_path, root, leaf, schema, kind in (
+            (
+                trace_manifest,
+                trace_root,
+                trace_leaf,
+                "mocc-g2-standard-trace-manifest/v1",
+                "standard-trace",
+            ),
+            (
+                witness_manifest,
+                witness_root,
+                witness_leaf,
+                "mocc-g2-payload-witness-manifest/v1",
+                "payload-witness",
+            ),
+        ):
+            leaf_bytes = leaf.read_bytes()
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": schema,
+                        "artifact_kind": kind,
+                        "root_dir": str(root),
+                        "source_oid": NEW_OID,
+                        "binary_sha256": fixture_binary_sha,
+                        "workload": fixture_workload,
+                        "files": [
+                            {
+                                "name": leaf.name,
+                                "sha256": hashlib.sha256(leaf_bytes).hexdigest(),
+                                "size_bytes": len(leaf_bytes),
+                            }
+                        ],
+                    },
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        trace_manifest_sha = hashlib.sha256(trace_manifest.read_bytes()).hexdigest()
+        witness_manifest_sha = hashlib.sha256(witness_manifest.read_bytes()).hexdigest()
+        trace0_binary = (
+            Path(str(build_source) + "-build-trace0") / "cc/mocc/mocc"
+        )
+        trace0_binary.parent.mkdir(parents=True)
+        trace0_binary.write_bytes(b"fixture TRACE=0 binary\n")
+        trace0_binary_sha = hashlib.sha256(trace0_binary.read_bytes()).hexdigest()
+        (attempt_dir / "binary-trace0.sha256").write_text(
+            trace0_binary_sha + "\n", encoding="ascii"
+        )
+        absence = attempt_dir / "trace0-watermark-absence.json"
+        absence.write_text(
+            json.dumps(
+                {
+                    "schema_version": "mocc-g2-trace0-watermark-absence/v1",
+                    "binary_sha256": trace0_binary_sha,
+                    "marker_absent": True,
+                    "symbol_absent": True,
+                    "binary_tokens_absent": True,
+                    "present_binary_tokens": [],
+                    "forbidden_binary_tokens": [
+                        "directory_env",
+                        "enable_env",
+                        "marker",
+                        "symbol",
+                        "witness_file_prefix",
+                    ],
+                    "nm_rc": 0,
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        trace0_absence_sha = hashlib.sha256(absence.read_bytes()).hexdigest()
+        if tamper_trace0_binary_after_absence:
+            trace0_binary.write_bytes(b"swapped TRACE=0 binary\n")
+        discriminator_tool = (
+            REPO_ROOT / "orchestrator/campaign/mocc_g2_discriminator.py"
+        ).resolve(strict=True)
+        discriminator_tool_path = str(discriminator_tool)
+        discriminator_tool_sha = hashlib.sha256(
+            discriminator_tool.read_bytes()
+        ).hexdigest()
+        discriminator_payload = {
+            "schema_version": "mocc-g2-payload-discriminator/v1",
+            "conclusion": "supported",
+            "bindings": {
+                "source_oid": NEW_OID,
+                "binary_sha256": fixture_binary_sha,
+                "workload": fixture_workload,
+                "trace_manifest_sha256": trace_manifest_sha,
+                "witness_manifest_sha256": witness_manifest_sha,
+                "verifier_sha256": hashlib.sha256(evidence_bytes).hexdigest(),
+            },
+        }
+        discriminator_path = attempt_dir / "discriminator.json"
+        discriminator_path.write_text(
+            json.dumps(discriminator_payload, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        discriminator_result_sha = hashlib.sha256(
+            discriminator_path.read_bytes()
+        ).hexdigest()
+        discriminator_result = "supported"
+        discriminator_rc = "0"
+        if tamper_manifest_leaf_after_discriminator == "trace":
+            trace_leaf.write_bytes(b"swapped trace leaf\n")
+        elif tamper_manifest_leaf_after_discriminator == "witness":
+            witness_leaf.write_bytes(b"swapped witness leaf\n")
+        elif tamper_manifest_leaf_after_discriminator == "trace-file-set":
+            (trace_root / "trace_1.log").write_bytes(b"unexpected trace leaf\n")
+        elif tamper_manifest_leaf_after_discriminator == "witness-file-set":
+            (witness_root / "witness_1.log").write_bytes(
+                b"unexpected witness leaf\n"
+            )
+        elif tamper_manifest_leaf_after_discriminator is not None:
+            raise AssertionError(tamper_manifest_leaf_after_discriminator)
     failure_path = attempt_dir / "fragment-failure.txt"
 
     variables = {
         "ATTEMPT_DIR": str(attempt_dir),
         "ATTEMPT_RECEIPT": str(submit_receipt_path),
+        "SUBMIT_RECEIPT_SHA": hashlib.sha256(
+            submit_receipt_path.read_bytes()
+        ).hexdigest(),
         "CURRENT_COMMIT": current_commit,
         "CURRENT_SCRIPT_SHA": current_script_sha,
         "PBS_JOBID": "fixture-job",
@@ -1842,8 +2404,8 @@ def _run_mocc_trace_finalization(
         "BASE_OID": BASE_OID,
         "NEW_OID": NEW_OID,
         "BUILD_DIR": str(tmp_path / "build"),
-        "BINARY": str(tmp_path / "fixture-binary"),
-        "BINARY_SHA": "fixture-binary-sha",
+        "BINARY": str(fixture_binary),
+        "BINARY_SHA": fixture_binary_sha,
         "RUN_DIR": str(tmp_path / "run"),
         "TRACE_DIR": str(tmp_path / "run/trace"),
         "RUN_ARGV_JSON": str(attempt_dir / "run-argv.json"),
@@ -1854,22 +2416,31 @@ def _run_mocc_trace_finalization(
         "RUN_RC": "0",
         "qstat_final_rc": "0",
         "qstat_accounting_rc": "0",
-        "WORKLOAD_JSON": json.dumps({"records": 7}),
+        "WORKLOAD_JSON": json.dumps(fixture_workload),
         "CMAKE_TARGET": "mocc",
         "BUILD_SOURCE": str(build_source),
         "CHECKER_PY": checker_py,
         "VERIFIER_PY": verifier_py,
         "CHECKER_REPORT_SHA": checker_report_sha,
         "CHECKER_TOOL_PATH": checker_tool_path,
-        "CHECKER_TOOL_SHA": tool_sha if trace_mode == 0 else "",
+        "CHECKER_TOOL_SHA": checker_tool_sha,
         "VERIFIER_TOOL_PATH": verifier_tool_path,
-        "VERIFIER_TOOL_SHA": tool_sha if trace_mode == 1 else "",
+        "VERIFIER_TOOL_SHA": verifier_tool_sha,
         "JUDGMENT_PRE_CAPTURE": str(judgment_capture_paths["pre"]),
         "JUDGMENT_PRE_SHA": judgment_capture_shas["pre"],
         "JUDGMENT_POST_CAPTURE": str(judgment_capture_paths["post"]),
         "JUDGMENT_POST_SHA": judgment_capture_shas["post"],
         "CCBENCH_BASE": str(tmp_path / "ccbench-base"),
         "FAILURE_PATH": str(failure_path),
+        "T1943_G2": "1" if t1943_g2 else "0",
+        "TRACE_MANIFEST_SHA": trace_manifest_sha,
+        "WITNESS_MANIFEST_SHA": witness_manifest_sha,
+        "DISCRIMINATOR_TOOL_PATH": discriminator_tool_path,
+        "DISCRIMINATOR_TOOL_SHA": discriminator_tool_sha,
+        "DISCRIMINATOR_RESULT_SHA": discriminator_result_sha,
+        "DISCRIMINATOR_RESULT": discriminator_result,
+        "DISCRIMINATOR_RC": discriminator_rc,
+        "TRACE0_WATERMARK_ABSENCE_SHA": trace0_absence_sha,
     }
     prefix_lines = ["set -Eeuo pipefail"]
     prefix_lines.extend(
@@ -1971,6 +2542,7 @@ def _run_mocc_trace_artifact_manifest_fragment(
     attempt_dir: Path,
     trace_mode: int,
     *,
+    t1943_g2: bool = False,
     write_manifest: bool,
     validate_manifest: bool,
 ) -> subprocess.CompletedProcess[str]:
@@ -1991,6 +2563,7 @@ def _run_mocc_trace_artifact_manifest_fragment(
                     "set -Eeuo pipefail",
                     f"ATTEMPT_DIR={shlex.quote(str(attempt_dir))}",
                     f"TRACE_MODE={trace_mode}",
+                    f"T1943_G2={1 if t1943_g2 else 0}",
                     fragment,
                     suffix,
                 )
@@ -2045,12 +2618,17 @@ def _pilot_durable_output_path_patterns() -> set[tuple[str, str]]:
     assert trace_globs == ["trace_*.log"]
     patterns.add(("attempt_dir", f"run/trace/{trace_globs[0]}"))
 
+    witness_globs = re.findall(r'root\.glob\("(witness_[^"\n]+)"\)', source)
+    assert witness_globs == ["witness_*.log"]
+    patterns.add(("attempt_dir", f"run/witness/{witness_globs[0]}"))
+
     submission_outputs = re.findall(
         r'os\.path\.join\(submission_dir, "(pbs-job\.(?:stdout|stderr))"\)',
         source,
     )
     assert set(submission_outputs) == {"pbs-job.stdout", "pbs-job.stderr"}
     patterns.update(("submission_dir", value) for value in submission_outputs)
+
     return patterns
 
 
@@ -2125,7 +2703,109 @@ def test_mocc_trace_artifact_manifest_covers_job_output_path_set(
                 _load_json(attempt_dir / "artifact-classification-manifest.json")
             )
         )
+    t1943_attempt = tmp_path / "attempt-t1943"
+    (t1943_attempt / "run/witness").mkdir(parents=True)
+    result = _run_mocc_trace_artifact_manifest_fragment(
+        t1943_attempt,
+        1,
+        t1943_g2=True,
+        write_manifest=True,
+        validate_manifest=True,
+    )
+    assert result.returncode == 0, result.stderr
+    manifest_patterns.update(
+        _artifact_manifest_entries(
+            _load_json(t1943_attempt / "artifact-classification-manifest.json")
+        )
+    )
     assert manifest_patterns == _pilot_durable_output_path_patterns()
+
+
+def test_t1943_artifact_paths_are_absent_from_general_manifests(
+    tmp_path: Path,
+) -> None:
+    general_attempt = tmp_path / "general"
+    general_attempt.mkdir()
+    general = _run_mocc_trace_artifact_manifest_fragment(
+        general_attempt,
+        1,
+        write_manifest=True,
+        validate_manifest=True,
+    )
+    assert general.returncode == 0, general.stderr
+    general_entries = _artifact_manifest_entries(
+        _load_json(general_attempt / "artifact-classification-manifest.json")
+    )
+    dedicated_paths = {
+        "run/witness",
+        "run/witness/witness_*.log",
+        "witness-manifest.json",
+        "trace0-watermark-absence.json",
+        "discriminator.json",
+        "discriminator.stderr",
+        "discriminator.rc",
+    }
+    assert not any(path in dedicated_paths for _scope, path in general_entries)
+
+    t1943_attempt = tmp_path / "t1943"
+    (t1943_attempt / "run/witness").mkdir(parents=True)
+    dedicated = _run_mocc_trace_artifact_manifest_fragment(
+        t1943_attempt,
+        1,
+        t1943_g2=True,
+        write_manifest=True,
+        validate_manifest=True,
+    )
+    assert dedicated.returncode == 0, dedicated.stderr
+    dedicated_entries = _artifact_manifest_entries(
+        _load_json(t1943_attempt / "artifact-classification-manifest.json")
+    )
+    assert dedicated_paths <= {path for _scope, path in dedicated_entries}
+
+
+@pytest.mark.parametrize(
+    ("witness_root_kind", "expected_rc"),
+    (
+        pytest.param("directory", 0, id="real-directory"),
+        pytest.param("symlink", 1, id="symlink"),
+        pytest.param("file", 1, id="non-directory"),
+    ),
+)
+def test_t1943_artifact_manifest_requires_real_witness_directory(
+    tmp_path: Path, witness_root_kind: str, expected_rc: int
+) -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    assert ".stat(follow_symlinks=False)" not in source
+    assert "witness_info = os.lstat(witness_root)" in source
+
+    case_root = tmp_path / witness_root_kind
+    attempt_dir = case_root / "attempt"
+    run_dir = attempt_dir / "run"
+    run_dir.mkdir(parents=True)
+    witness_root = run_dir / "witness"
+    if witness_root_kind == "directory":
+        witness_root.mkdir()
+    elif witness_root_kind == "symlink":
+        target = case_root / "witness-target"
+        target.mkdir()
+        witness_root.symlink_to(target, target_is_directory=True)
+    elif witness_root_kind == "file":
+        witness_root.write_bytes(b"not a directory\n")
+    else:
+        raise AssertionError(witness_root_kind)
+
+    result = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        1,
+        t1943_g2=True,
+        write_manifest=True,
+        validate_manifest=True,
+    )
+    if expected_rc == 0:
+        assert result.returncode == 0, result.stderr
+    else:
+        assert result.returncode != 0
+        assert "witness" in result.stderr
 
 
 def test_mocc_trace_artifact_manifest_names_performance_derivation_routes(
@@ -2256,6 +2936,48 @@ def test_mocc_trace_artifact_manifest_validation_follows_final_output() -> None:
     )
     final_exit = source.index("\nexit 0", validation)
     assert job_result < worktree_remove < validation < final_exit
+
+
+def test_t1943_artifact_classification_precedes_durable_completed_json() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    t1943_branch = source.index('if [[ "$T1943_G2" -eq 1 ]]; then', source.index(
+        'printf \'%s\\n\' "$qstat_accounting_rc"'
+    ))
+    early_validation = source.index(
+        "if ! validate_artifact_classification_manifest; then", t1943_branch
+    )
+    receipt = source.index(
+        'RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json"',
+        early_validation,
+    )
+    job_result = source.index('python3 - "$ATTEMPT_DIR/job-result.json"', receipt)
+    assert t1943_branch < early_validation < receipt < job_result
+
+
+def test_t1943_artifact_classification_failure_leaves_no_completed_json(
+    tmp_path: Path,
+) -> None:
+    attempt = tmp_path / "attempt"
+    (attempt / "run/witness").mkdir(parents=True)
+    written = _run_mocc_trace_artifact_manifest_fragment(
+        attempt,
+        1,
+        t1943_g2=True,
+        write_manifest=True,
+        validate_manifest=False,
+    )
+    assert written.returncode == 0, written.stderr
+    (attempt / "unclassified-after-discriminator.bin").write_bytes(b"bad\n")
+    rejected = _run_mocc_trace_artifact_manifest_fragment(
+        attempt,
+        1,
+        t1943_g2=True,
+        write_manifest=False,
+        validate_manifest=True,
+    )
+    assert rejected.returncode != 0
+    assert not (attempt / "mocc-trace-pilot-receipt.json").exists()
+    assert not (attempt / "job-result.json").exists()
 
 
 def _assert_receipt_binding_rejected(
@@ -2647,6 +3369,78 @@ def test_mocc_trace_binding_uses_v4_pilot_and_v2_job_result_schemas(
     assert job_result["schema_version"] == "mocc-trace-pilot-job-result/v2"
 
 
+def test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path,
+        trace_mode=1,
+        t1943_g2=True,
+    )
+    assert result.returncode == 0, result.stderr
+    receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
+    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/t1943-g2-v1"
+    binding = receipt["t1943_g2_discriminator"]
+    assert binding["discriminator_result"]["conclusion"] == "supported"
+    for name, artifact in (
+        ("trace-manifest.json", binding["trace_manifest"]),
+        ("witness-manifest.json", binding["witness_manifest"]),
+        (
+            "trace0-watermark-absence.json",
+            binding["trace0_watermark_absence"],
+        ),
+        ("discriminator.json", binding["discriminator_result"]),
+    ):
+        assert artifact["path"] == name
+        assert artifact["sha256"] == hashlib.sha256(
+            (attempt_dir / name).read_bytes()
+        ).hexdigest()
+    assert receipt["artifacts"]["submit_receipt_sha256"] == hashlib.sha256(
+        (attempt_dir / "submit-receipt.json").read_bytes()
+    ).hexdigest()
+    assert receipt["source"]["outer_gitlink_advanced"] is False
+    tools = receipt["correctness_tools"]
+    assert set(tools) == {
+        "trace0_preprocess_identity_checker",
+        "verifier",
+        "payload_discriminator",
+    }
+    assert receipt["gates"]["verifier_rc"] == "1"
+    assert receipt["gates"]["discriminator_rc"] == "0"
+    assert receipt["gates"]["discriminator_conclusion"] == "supported"
+
+
+def test_t1943_receipt_rejects_trace0_binary_swap_after_absence(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path,
+        trace_mode=1,
+        t1943_g2=True,
+        tamper_trace0_binary_after_absence=True,
+    )
+    assert result.returncode == 2, result.stderr
+    assert not (attempt_dir / "mocc-trace-pilot-receipt.json").exists()
+    assert not (attempt_dir / "job-result.json").exists()
+
+
+@pytest.mark.parametrize(
+    "leaf_kind", ("trace", "witness", "trace-file-set", "witness-file-set")
+)
+def test_t1943_receipt_rejects_leaf_swap_after_discriminator(
+    tmp_path: Path, leaf_kind: str
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path,
+        trace_mode=1,
+        t1943_g2=True,
+        tamper_manifest_leaf_after_discriminator=leaf_kind,
+    )
+    assert result.returncode == 2, result.stderr
+    assert not (attempt_dir / "mocc-trace-pilot-receipt.json").exists()
+    assert not (attempt_dir / "job-result.json").exists()
+
+
 def test_mocc_trace_job_result_rejects_rebound_non_v4_receipt(
     tmp_path: Path,
 ) -> None:
@@ -2673,6 +3467,10 @@ def test_mocc_trace_job_result_accepts_exact_v4_receipt(tmp_path: Path) -> None:
     receipt = _load_json(receipt_path)
     job_result = _load_json(attempt_dir / "job-result.json")
     assert receipt["schema_version"] == "mocc-trace-pilot-receipt/v4"
+    assert receipt["source"]["outer_gitlink_advanced"] is False
+    assert "t1943_g2_discriminator" not in receipt
+    assert "t1943_g2_discriminator" not in receipt["mocc_trace"]
+    assert "submit_receipt_sha256" not in receipt["artifacts"]
     assert job_result["receipt_sha256"] == hashlib.sha256(
         receipt_path.read_bytes()
     ).hexdigest()
