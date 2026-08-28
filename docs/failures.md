@@ -8567,6 +8567,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   独立の裏取りとして [T-1434] が同時間帯に `0-948349.nqsv--bnode053` で同じ因果を観測している。
   既載の再発は並行 launcher 数と load average の 1 分平均だけを記録していたが、
   **本件は待ち手・runner・codex 子の内訳を持つ**点が新しい。
+
+- **再発: 2026-08-28** — T-1958 の受入 attempt 1 で
+  `test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]` が唯一の赤になった。
+  failure signature は `subprocess 出力が空による JSONDecodeError` で、同一 tip の exact node 単独走は
+  `1 passed in 5.60s`、次の全走は `18499 passed / 62 skipped` で緑。赤時の login node load average は
+  `133.54 / 92.32 / 60.27`、並行 `codex_worker_launch.py run` は 4 本だった。原因は未確定のまま、
+  ユーザー指示により exact-node hold を先行し、後続で原因分析・修理・再導入する。registry validator は
+  evidence section に exact function 名を要求するため、D95 author は本再発の fold 前には正しく停止した。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
