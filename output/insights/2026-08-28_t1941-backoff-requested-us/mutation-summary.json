@@ -1,6 +1,6 @@
 {
   "schema_version": "t1941-mutation-summary/v1",
-  "implementation_anchor": "a4b87728908451986e172c1e29741a40f6a630bd",
+  "implementation_anchor": "5d278c612ac30a6969d57f4c8237bbcb03960e9e",
   "baseline_status": "PASSED",
   "effective_matrix": {
     "killed": 13,
