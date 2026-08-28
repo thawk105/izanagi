@@ -10011,6 +10011,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `619 passed, 9 skipped in 140.01s` が読めた。再走せずに済んだ。
   親は手動 qdel をしていない (hold の `manual-qdel-warning` どおり、手動 qdel は F47 の
   `submission-disabled.json` を武装させ、その解除もユーザー手番になるため)。
+
+- **再発: 2026-08-28** — T-1934の段7でcommitとfull-history provenanceを同じ短い前景commandへ繋ぎ、dispatch親だけを打ち切ってrequest `953513.nqsv`とorphan holdを残した。qdelせず終端を待ち、child未起動のqueue-wait-timeoutとsource clean/HEAD不変を確認した。holdは回復処理が解除し、監査は単独commandで再走して新規違反なしを得た。既存恒久対応に修正すべき新事実はない。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
