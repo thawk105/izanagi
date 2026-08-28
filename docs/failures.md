@@ -6000,6 +6000,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同型 (harness の mode 宣言と runner の実経路の不一致) が別の runner で再現したら、
   runner 側に「dispatch mode で呼ばれたら local へ落ちない」検査を足すことを裁定へ返す。
 
+
+- **再発: 2026-08-28** — `--runner-mode dispatch`へ`--force-dispatch`を付けず、baseline test rc=0をreceipt表示0件のPARSE_ERRORとして停止した。DW-M07の既存recipeを読み直して別out/spec履歴のattemptで再走し、最終8/8 KILLEDを得た。
 ### F167. 受入全走が計算ノードの既定 walltime 30 分を超えて SIGKILL された [観測]
 
 - 事象: 受入全走が約 99% まで進んだところで
