@@ -142,6 +142,7 @@ MACHINE_CALLERS = {
     "backoff_extended_sweep.py": "BACKOFF_SWEEP",
     "backoff_overthrottle.py": "BACKOFF_OVERTHROTTLE",
     "backoff_profile.py": "BACKOFF_PROFILE",
+    "backoff_requested_us.py": "BACKOFF_PROFILE",
     "backoff_repro.py": "BACKOFF_REPRO",
     "backoff_sweep.py": "BACKOFF_SWEEP",
     "s1_verify_extime_calibration.py": "S1_EXTIME_CALIBRATION",

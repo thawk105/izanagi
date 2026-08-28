@@ -57,6 +57,9 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
+    # Fixed balanced argv under the compute-site bench lock, shell disabled,
+    # and a mandatory timeout; stdout is diagnostic-only requested-us data.
+    ("campaign/backoff_requested_us.py", "<module>._run_rep"): 1,
     # Correctness trace witness owned by pipeline's verifier path.
     ("campaign/pipeline.py", "<module>._run_trace"): 1,
     # Fixed rr50 permutation-coverage correctness trace.

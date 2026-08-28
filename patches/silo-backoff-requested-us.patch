@@ -1,0 +1,187 @@
+diff --git a/cmake/Options.cmake b/cmake/Options.cmake
+--- a/cmake/Options.cmake
++++ b/cmake/Options.cmake
+@@ -25,6 +25,9 @@ set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING "izanagi: static backoff us (-1=stock
+ # izanagi (P2-4 profiler): 1 = backoff() を noinline 化し perf record で spin を独立シンボルに。
+ # 有用 IPC (spin を除いた cycle/instruction) を分離する診断専用。0 (default) = inert (stock 不変)。
+ set(CCBENCH_BACKOFF_NOINLINE 0 CACHE STRING "izanagi: noinline backoff() for perf attribution (0=inert)")
++# izanagi T-1941: Silo adaptive backoff requested-us counters.  Diagnostic only;
++# default 0 removes every declaration, update, registry, aggregation, and output.
++set(CCBENCH_BACKOFF_REQUESTED_US 0 CACHE STRING "izanagi: Silo requested-us diagnostic (0=inert)")
+ set(CCBENCH_KEY_SIZE      8 CACHE STRING "key size in bytes (YCSB)")
+ set(CCBENCH_MASSTREE_USE  1 CACHE STRING "use Masstree as the index")
+ set(CCBENCH_VAL_SIZE      4 CACHE STRING "value size in bytes (YCSB)")
+@@ -70,6 +73,7 @@ function(ccbench_universal_definitions out_var)
+     BACK_OFF=${CCBENCH_BACK_OFF}
+     BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}
+     BACKOFF_NOINLINE=${CCBENCH_BACKOFF_NOINLINE}
++    BACKOFF_REQUESTED_US=${CCBENCH_BACKOFF_REQUESTED_US}
+     KEY_SIZE=${CCBENCH_KEY_SIZE}
+     MASSTREE_USE=${CCBENCH_MASSTREE_USE}
+     VAL_SIZE=${CCBENCH_VAL_SIZE}
+diff --git a/include/backoff.hh b/include/backoff.hh
+--- a/include/backoff.hh
++++ b/include/backoff.hh
+@@ -106,7 +106,11 @@ public:
+ #if BACKOFF_NOINLINE
+   __attribute__((noinline))
+ #endif
++#if BACKOFF_REQUESTED_US
++  static double backoff(size_t clocks_per_us) {
++#else
+   static void backoff(size_t clocks_per_us) {
++#endif
+     uint64_t start(rdtscp()), stop;
+     // EVOLVE-BLOCK-BEGIN silo-backoff-magnitude
+     // izanagi Phase 3 (D22/phase3.md): この条件コンパイル骨格 (if/else/endif の三枝) だけが
+@@ -134,9 +138,12 @@ public:
+                                            now_backoff)))
+         break;
+     }
++#if BACKOFF_REQUESTED_US
++    return now_backoff;
++#endif
+   }
+ };
+-
++
+ [[maybe_unused]] inline void
+ leaderBackoffWork([[maybe_unused]] Backoff& backoff,
+                   [[maybe_unused]] std::vector<Result>& res) {
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -6,7 +6,117 @@
+ #include "include/transaction.hh"
+ #include "include/scan_callback.hh"
+ #include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
+-
++
++#if BACKOFF_REQUESTED_US
++// T1941_BACKOFF_REQUESTED_US_COUNTER_BEGIN
++namespace {
++class IzanagiBackoffRequestedUsCounter {
++public:
++  static constexpr std::uint64_t states_[11] = {
++      0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000};
++
++  std::uint64_t call_count_ = 0;
++  std::uint64_t requested_us_sum_ = 0;
++  std::uint64_t bucket_counts_[11] = {0};
++  std::uint64_t unknown_state_call_count_ = 0;
++  bool counter_overflowed_ = false;
++
++  void record(double requested_us) {
++    add(call_count_, 1);
++    if (!std::isfinite(requested_us)) {
++      add(unknown_state_call_count_, 1);
++      return;
++    }
++    for (std::size_t index = 0; index < 11; ++index) {
++      if (requested_us == static_cast<double>(states_[index])) {
++        add(bucket_counts_[index], 1);
++        add(requested_us_sum_, states_[index]);
++        return;
++      }
++    }
++    add(unknown_state_call_count_, 1);
++  }
++
++  void merge(const IzanagiBackoffRequestedUsCounter& other) {
++    add(call_count_, other.call_count_);
++    add(requested_us_sum_, other.requested_us_sum_);
++    for (std::size_t index = 0; index < 11; ++index)
++      add(bucket_counts_[index], other.bucket_counts_[index]);
++    add(unknown_state_call_count_, other.unknown_state_call_count_);
++    counter_overflowed_ = counter_overflowed_ || other.counter_overflowed_;
++  }
++
++private:
++  void add(std::uint64_t& target, std::uint64_t amount) {
++    const std::uint64_t maximum = ~std::uint64_t{0};
++    if (amount > maximum - target) {
++      target = maximum;
++      counter_overflowed_ = true;
++      return;
++    }
++    target += amount;
++  }
++};
++
++class IzanagiBackoffRequestedUsRegistry {
++public:
++  IzanagiBackoffRequestedUsCounter* register_worker() {
++    auto* counter = new IzanagiBackoffRequestedUsCounter();
++    while (registration_lock_.test_and_set(std::memory_order_acquire))
++      _mm_pause();
++    workers_.push_back(counter);
++    registration_lock_.clear(std::memory_order_release);
++    return counter;
++  }
++
++  ~IzanagiBackoffRequestedUsRegistry() {
++    IzanagiBackoffRequestedUsCounter total;
++    for (const auto* worker : workers_) total.merge(*worker);
++    fprintf(
++        stdout,
++        "IZANAGI_" "BACKOFF_REQUESTED_US_V1 call_count=%llu "
++        "requested_us_sum=%llu state_0_call_count=%llu "
++        "state_100_call_count=%llu state_200_call_count=%llu "
++        "state_300_call_count=%llu state_400_call_count=%llu "
++        "state_500_call_count=%llu state_600_call_count=%llu "
++        "state_700_call_count=%llu state_800_call_count=%llu "
++        "state_900_call_count=%llu state_1000_call_count=%llu "
++        "unknown_state_call_count=%llu counter_overflowed=%u\n",
++        static_cast<unsigned long long>(total.call_count_),
++        static_cast<unsigned long long>(total.requested_us_sum_),
++        static_cast<unsigned long long>(total.bucket_counts_[0]),
++        static_cast<unsigned long long>(total.bucket_counts_[1]),
++        static_cast<unsigned long long>(total.bucket_counts_[2]),
++        static_cast<unsigned long long>(total.bucket_counts_[3]),
++        static_cast<unsigned long long>(total.bucket_counts_[4]),
++        static_cast<unsigned long long>(total.bucket_counts_[5]),
++        static_cast<unsigned long long>(total.bucket_counts_[6]),
++        static_cast<unsigned long long>(total.bucket_counts_[7]),
++        static_cast<unsigned long long>(total.bucket_counts_[8]),
++        static_cast<unsigned long long>(total.bucket_counts_[9]),
++        static_cast<unsigned long long>(total.bucket_counts_[10]),
++        static_cast<unsigned long long>(total.unknown_state_call_count_),
++        total.counter_overflowed_ ? 1U : 0U);
++    fflush(stdout);
++  }
++
++private:
++  std::atomic_flag registration_lock_ = ATOMIC_FLAG_INIT;
++  std::vector<IzanagiBackoffRequestedUsCounter*> workers_;
++};
++
++IzanagiBackoffRequestedUsRegistry izanagi_backoff_requested_us_registry;
++
++IzanagiBackoffRequestedUsCounter&
++izanagi_backoff_requested_us_worker_counter() {
++  thread_local IzanagiBackoffRequestedUsCounter* const counter =
++      izanagi_backoff_requested_us_registry.register_worker();
++  return *counter;
++}
++}  // namespace
++// T1941_BACKOFF_REQUESTED_US_COUNTER_END
++#endif
++
+ extern void displayDB();
+ extern void siloLeaderWork(uint64_t& epoch_timer_start,
+                            uint64_t& epoch_timer_stop);
+@@ -42,7 +152,12 @@ void TxExecutor::abort() {
+   std::uint64_t start(rdtscp());
+ #endif
+-
++
++#if BACKOFF_REQUESTED_US
++  izanagi_backoff_requested_us_worker_counter().record(
++      Backoff::backoff(FLAGS_clocks_per_us));
++#else
+   Backoff::backoff(FLAGS_clocks_per_us);
++#endif
+-
++
+ #if ADD_ANALYSIS
+   result_->local_backoff_latency_ += rdtscp() - start;
