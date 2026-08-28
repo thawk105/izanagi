@@ -6428,6 +6428,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   回しており、往復の中央値から決めた値だった。F185 は「local 実測から決めて dispatch 下限を
   割った」型として記録されているが、**dispatch 実測から決めても混雑で割れる** —
   下限は往復時間ではなく queue 混雑で決まるため、実測の倍数ではなく混雑時の最悪値で取る。
+
+- **再発: 2026-08-28** — final mutationの180秒timeoutをdispatch queue / Pre-runningだけで超え、
+  M03 sourceを変異したままrequest `954432.nqsv` のorphan-holdへ到達した。job実行のTIMEOUTとは
+  読まず、request不在確認後に復旧して完走した。
 ### F186. 受入 lease の状態判定を逐語一致で書き、取得済みのまま lease を握り続けた [手順漏れ]
 
 - 事象: 受入 lease の待ち手スクリプトが `state=acquired` という文字列一致で判定していたが、
@@ -12762,6 +12766,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   待ち時間は約 40 分。`DW-M06` は「timeout は証拠として記録し harness 全体を落とさない」と
   定めるが、**dispatch 経路では job の終端証拠が取れず結果として全体が止まる**。
   本 wave は hang 変異を本 matrix から外し、TIMEOUT 観測だけを証拠として残して本走を通した。
+
+- **再発: 2026-08-28** — repo内root holdとrequest holdを削除してresumeしたが、job-dir側
+  `mutation-ledger-final.json.orphan-stop.json`を最初の復旧で見落とし、resumeがrc=125で即停止した。
+  source clean / HEADとrequest不在を再照合し、3 sidecar全てを除去して再開した。
 ### F454. resume classifier とは独立した第2の journal 検証機構を consumer 探索で見落とした [設計調査漏れ]
 
 - 事象: 受入全走2回目で `test_degraded_launch_threads_expected_use_perf_to_every_consumer` が

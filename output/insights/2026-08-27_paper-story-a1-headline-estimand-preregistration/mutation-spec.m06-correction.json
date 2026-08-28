@@ -1,0 +1,25 @@
+{
+  "estimated_run_seconds": 900,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m06-alpha-spending-correction",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "return Fraction(1, 30 * attempt * (attempt + 1))",
+          "old": "return Fraction(1, 60 * attempt * (attempt + 1))"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 180
+}
