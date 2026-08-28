@@ -2375,8 +2375,12 @@ def _real_invocation_allowed(
 ) -> bool:
     if "--collect-only" in argv or "--co" in argv:
         return False
-    current_node = current_test.rsplit(" ", 1)[0]
-    return argv.count(_REAL_NODEID) == 1 and current_node == _REAL_NODEID
+    if current_test != f"{_REAL_NODEID} (call)":
+        return False
+    absolute_nodeid = (
+        f"{Path.cwd() / _PROBE_RELATIVE_PATH}::test_t2000_legacy_build_probe"
+    )
+    return sum(argv.count(nodeid) for nodeid in (_REAL_NODEID, absolute_nodeid)) == 1
 
 
 def _sentinel_sha256(label: str) -> str:
@@ -3174,19 +3178,49 @@ def test_t2000_real_invocation_gate_accepts_exact_nodeid() -> None:
     binding = _bind_execution_root()
     assert binding.repo_root == Path.cwd()
     assert binding.artifact_root == Path.cwd() / _ARTIFACT_RELATIVE_PATH
+    current = f"{_REAL_NODEID} (call)"
+    absolute_nodeid = (
+        f"{Path.cwd() / _PROBE_RELATIVE_PATH}::test_t2000_legacy_build_probe"
+    )
     assert _real_invocation_allowed(
-        (_REAL_NODEID, "-q"), f"{_REAL_NODEID} (call)",
+        (_REAL_NODEID, "-q"), current,
+    )
+    assert _real_invocation_allowed(
+        ("-n", "0", absolute_nodeid, "-q"), current,
     )
 
 
 def test_t2000_real_invocation_gate_rejects_implicit_selection(tmp_path: Path) -> None:
     current = f"{_REAL_NODEID} (call)"
+    absolute_nodeid = (
+        f"{Path.cwd() / _PROBE_RELATIVE_PATH}::test_t2000_legacy_build_probe"
+    )
+    other_root_nodeid = (
+        f"{tmp_path / _PROBE_RELATIVE_PATH}::test_t2000_legacy_build_probe"
+    )
+    noncanonical_nodeid = (
+        f"{Path.cwd()}/tools/pegasus/probes/../probes/"
+        "test_t2000_legacy_build_probe.py::test_t2000_legacy_build_probe"
+    )
+    symlink_root = tmp_path / "repo-link"
+    symlink_root.symlink_to(Path.cwd(), target_is_directory=True)
+    symlink_nodeid = (
+        f"{symlink_root / _PROBE_RELATIVE_PATH}::test_t2000_legacy_build_probe"
+    )
     for argv in (
         (),
         ("tools/pegasus/probes/test_t2000_legacy_build_probe.py",),
         ("tools/pegasus/probes",),
         (".",),
+        ("test_t2000_legacy_build_probe",),
+        (other_root_nodeid,),
+        (noncanonical_nodeid,),
+        (symlink_nodeid,),
+        (_REAL_NODEID, absolute_nodeid),
+        (_REAL_NODEID, _REAL_NODEID),
+        (absolute_nodeid, absolute_nodeid),
         (_REAL_NODEID, "--collect-only"),
+        (absolute_nodeid, "--co"),
     ):
         assert not _real_invocation_allowed(argv, current)
     assert not _real_invocation_allowed(
