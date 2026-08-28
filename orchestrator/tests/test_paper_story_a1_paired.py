@@ -2759,6 +2759,47 @@ def test_final_noncertifying_view_requires_real_terminal_receipt_chain(
         paired.consume_non_certifying_observation(sidecar)
 
 
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("request", "Request ID: 54321.nqsv"),
+        ("state", "State: RUN"),
+        ("exit", "Exit Status: 1"),
+    ],
+)
+def test_final_noncertifying_view_reparses_scheduler_terminal_stdout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    replacement: str,
+) -> None:
+    sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    receipt = json.loads(Path(value["receipt"]["path"]).read_bytes())
+    completion_path = Path(receipt["roots"]["completion_receipt"])
+    completion = json.loads(completion_path.read_bytes())
+    terminal = completion["scheduler_terminal"]
+    request_id = completion["request_id"]
+    original = {
+        "request": f"Request ID: {request_id}",
+        "state": "State: EXT",
+        "exit": "Exit Status: 0",
+    }[field]
+    terminal["qstat_stdout"] = terminal["qstat_stdout"].replace(
+        original, replacement,
+    )
+    terminal["qstat_stdout_sha256"] = hashlib.sha256(
+        terminal["qstat_stdout"].encode()
+    ).hexdigest()
+    completion_path.write_bytes(paired._canonical_json_bytes(completion))
+
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="visible scheduler terminal observation differs",
+    ):
+        paired.consume_non_certifying_observation(sidecar)
+
+
 def test_run_complete_uses_raw_sidecar_gate_then_enables_final_view(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:

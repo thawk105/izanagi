@@ -210,6 +210,12 @@ _REQUEST_RE = re.compile(r"Request\s+(\S+)\s+submitted")
 _QSTAT_REQUEST_ID_RE = re.compile(
     r"(?im)^\s*Request\s+ID\s*[:=]\s*(\S+)\s*$"
 )
+_QSTAT_STATE_RE = re.compile(
+    r"(?im)^\s*(?:job_state|State)\s*[:=]\s*([A-Za-z]+)\s*$"
+)
+_QSTAT_EXIT_STATUS_RE = re.compile(
+    r"(?im)^\s*(?:exit_status|Exit Status)\s*[:=]\s*(-?\d+)\s*$"
+)
 _PBS_QUEUE = "gen_S"
 NQSV_QSTAT_STATES = frozenset({
     "ARR",
@@ -428,6 +434,26 @@ def _qstat_mentions_request(stdout: str, request_id: str) -> bool:
         except PaperStoryError:
             continue
     return False
+
+
+def _parse_qstat_terminal(stdout: str) -> tuple[str, str, int]:
+    """Parse the request ID, state, and exit status from terminal qstat output."""
+    if type(stdout) is not str:
+        raise PaperStoryError("qstat stdout is not a string")
+    request_matches = _QSTAT_REQUEST_ID_RE.findall(stdout)
+    state_matches = _QSTAT_STATE_RE.findall(stdout)
+    exit_matches = _QSTAT_EXIT_STATUS_RE.findall(stdout)
+    if (
+        len(request_matches) != 1
+        or len(state_matches) != 1
+        or len(exit_matches) != 1
+    ):
+        raise PaperStoryError("visible scheduler request is not terminal")
+    return (
+        _validated_request_id(request_matches[0], "observed qstat request ID"),
+        state_matches[0],
+        int(exit_matches[0]),
+    )
 
 
 def _validate_reservation_binding_document(value: object) -> dict[str, object]:
@@ -1455,6 +1481,9 @@ def validate_completion_receipt(
     state = terminal.get("state")
     exit_status = terminal.get("exit_status")
     if terminal_reason == "scheduler-end-state":
+        parsed_request_id, parsed_state, parsed_exit_status = (
+            _parse_qstat_terminal(qstat_stdout)
+        )
         if (
             terminal.get("qstat_visible") is not True
             or type(state) is not dict
@@ -1466,6 +1495,12 @@ def validate_completion_receipt(
             or exit_status.get("observed") is not True
             or type(exit_status.get("value")) is not int
             or exit_status.get("value") != 0
+            or parsed_request_id
+            != _validated_request_id(
+                receipt.get("request_id"), "completion request ID"
+            )
+            or parsed_state != state.get("value")
+            or parsed_exit_status != exit_status.get("value")
         ):
             raise PaperStoryError("visible scheduler terminal observation differs")
     elif terminal_reason == "request-disappeared-after-visibility":
@@ -1516,24 +1551,19 @@ def _observe_scheduler_terminal(
             "qstat_stdout": stdout,
             "qstat_stdout_sha256": _sha256_bytes(stdout.encode("utf-8")),
         }
-    state_match = re.search(
-        r"(?im)^\s*(?:job_state|State)\s*[:=]\s*([A-Za-z]+)\s*$", stdout,
-    )
-    exit_match = re.search(
-        r"(?im)^\s*(?:exit_status|Exit Status)\s*[:=]\s*(-?\d+)\s*$", stdout,
-    )
+    parsed_request_id, state, exit_status = _parse_qstat_terminal(stdout)
     if (
-        state_match is None
-        or state_match.group(1) not in NQSV_QSTAT_TERMINAL_STATES
-        or exit_match is None
+        parsed_request_id
+        != _validated_request_id(request_id, "completion request ID")
+        or state not in NQSV_QSTAT_TERMINAL_STATES
     ):
         raise PaperStoryError("visible scheduler request is not terminal")
     return {
         "terminal_reason": "scheduler-end-state",
         "qstat_visible": True,
         "qstat_rc": completed.returncode,
-        "state": {"observed": True, "value": state_match.group(1)},
-        "exit_status": {"observed": True, "value": int(exit_match.group(1))},
+        "state": {"observed": True, "value": state},
+        "exit_status": {"observed": True, "value": exit_status},
         "observed_epoch": observed_epoch,
         "qstat_stdout": stdout,
         "qstat_stdout_sha256": _sha256_bytes(stdout.encode("utf-8")),
