@@ -11317,6 +11317,42 @@ def test_source_digest_source_protocol_registry_is_exact_and_unknown_is_runtime_
             assert "不一致" in str(exc)
 
 
+def test_source_digest_effective_define_adapter_preserves_owner_and_rhs_mapping():
+    options = (
+        'set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING "fixed")\n'
+        'set(CCBENCH_BACKOFF_ALT 17 CACHE STRING "wrong rhs")\n'
+        'function(ccbench_universal_definitions out_var)\n'
+        '  set(${out_var}\n'
+        '    BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\n'
+        '    PARENT_SCOPE)\n'
+        'endfunction()\n'
+    )
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    resolved = source_digest.resolve_effective_defines_from_cmake_sources(
+        "include/backoff.hh",
+        genome,
+        options_text=options,
+        protocol_cmake_text=_FAKE_SILO_CMAKE,
+    )
+    assert resolved.owner_protocol == "silo"
+    assert resolved.cache_name("BACKOFF_FIXED") == "BACKOFF_FIXED"
+    assert resolved.effective_value("BACKOFF_FIXED") == "5"
+
+    wrong_rhs = options.replace(
+        "BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}",
+        "BACKOFF_FIXED=${CCBENCH_BACKOFF_ALT}",
+    )
+    wrong = source_digest.resolve_effective_defines_from_cmake_sources(
+        "include/backoff.hh",
+        genome,
+        options_text=wrong_rhs,
+        protocol_cmake_text=_FAKE_SILO_CMAKE,
+    )
+    assert wrong.cache_name("BACKOFF_FIXED") == "BACKOFF_ALT"
+    assert wrong.effective_value("BACKOFF_FIXED") == "17"
+    assert genome.cmake_defines() == ["-DCCBENCH_BACKOFF_FIXED=5"]
+
+
 def test_source_digest_real_mocc_resolve_succeeds_with_source_owned_defines():
     """実 mocc positive control:裸 RWLOCK と MQLOCK absent registry を実 source で通す。"""
     cxx = _any_cxx()

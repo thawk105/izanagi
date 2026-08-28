@@ -1,0 +1,142 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "t2018.final.supply-all-guards",
+      "category": "both-layers",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        if MACRO not in resolution.supplied_macros:\n            raise ConditionMeaningGateError(\n                \"macro-not-supplied\", \"BACKOFF_FIXED cache-to-TU mapping is absent\",\n                define_value=value,\n            )\n        effective = resolution.effective_value(MACRO)\n        if cache_name != MACRO or effective != str(value):\n            route = \"bare define without a cache mapping\" if cache_name is None \\\n                else f\"CCBENCH_{cache_name}\"\n            if cache_name != MACRO:\n                route += f\", not CCBENCH_{MACRO}\"\n            raise ConditionMeaningGateError(\n                \"supply-value-mismatch\",\n                f\"BACKOFF_FIXED maps through {route}, to {effective!r}\",\n                define_value=value,\n                expected=str(value),\n                observed=effective,\n            )\n",
+          "new": "        effective = resolution.effective_value(MACRO)\n"
+        }
+      ]
+    },
+    {
+      "id": "t2018.final.marker-unique",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/evolve_block.py",
+          "old": "    if len(begins) != 1 or len(ends) != 1 or not begins[0] < ends[0]:\n        raise ValueError(\"materialized marker boundary is not unique\")\n",
+          "new": "    if not begins or not ends or not begins[0] < ends[0]:\n        raise ValueError(\"materialized marker boundary is not unique\")\n"
+        }
+      ]
+    },
+    {
+      "id": "t2018.final.result-exact-double",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "                f\"    static_assert(std::is_same_v<decltype({RESULT_IDENTIFIER}), double>);\",\n",
+          "new": "                \"    static_assert(true);\",\n"
+        }
+      ]
+    },
+    {
+      "id": "t2018.final.pointwise-meaning",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            if observed_bits != expected_bits:\n",
+          "new": "            if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "t2018.final.process-return-code",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if completed.returncode != 0:\n",
+          "new": "    if False and completed.returncode != 0:\n"
+        }
+      ]
+    },
+    {
+      "id": "t2018.final.compiler-after-version",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    compiler_identities.append(_capture_compiler_identity(compiler, \"after-version\"))\n    _require_same_compiler(compiler_identities[0], compiler_identities[-1])\n    try:\n",
+          "new": "    compiler_identities.append(_capture_compiler_identity(compiler, \"after-version\"))\n    try:\n"
+        }
+      ]
+    },
+    {
+      "id": "t2018.final.compiler-after-compile",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        compiler_identities.append(_capture_compiler_identity(compiler, \"after-compile\"))\n        _require_same_compiler(compiler_identities[0], compiler_identities[-1])\n        run_argv = (os.fspath(binary_path),)\n",
+          "new": "        compiler_identities.append(_capture_compiler_identity(compiler, \"after-compile\"))\n        run_argv = (os.fspath(binary_path),)\n"
+        }
+      ]
+    },
+    {
+      "id": "t2018.final.missing-rows",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if set(observed) != expected_rows:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    }
+  ]
+}

@@ -17,7 +17,7 @@
     "reps": 5,
     "base": "L-W0",
     "wal": 0,
-    "ccbench_protocol": "SILO"
+    "ccbench_protocol": "silo"
   },
   "legacy_correctness": {
     "ycsb_tuple_num": "200",

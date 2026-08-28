@@ -1675,6 +1675,8 @@
   対象に含めず、親の段6 focused run も同様に対象外だった。恒久対応 (DW-S05-C の指示文言) は
   存在するが、対象 meta-test 発見の実効性までは担保しなかった。fix 2件 (両登録先へ1行ずつ)
   で解消、340 passed 確認。
+
+- **再発: 2026-08-28** — 新production process site `condition_meaning_gate._run_process` を実装したが、親の焦点走は新test・直接consumer・plain-runner/duration metaまでで、repo-wide `test_ccbench_spawn_sites.py` のreviewed inventoryを落とした。最終受入で18,326 passed / 61 skipped後に2赤となり露出し、explicit non-CCBench siteへexact 1件を追加して2 node緑を確認した。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -1737,6 +1739,8 @@
   今回も prose 追記はしない — 親検収で拾えており実害は子 1 本の再投入に留まる (near-miss)。
   併せて実測: 停止時に launcher script の process group へ `kill -TERM` を送っても
   **codex 本体は孤児として生き残り**、本体 pid を直接 kill するまで走り続けた。
+
+- **再発: 2026-08-28** — 段5 Codex authorがコードと有効な最終報告を残してexit 0だったが、fence外のexact `## 総括` が無くvalidator rc=1 / failure_class=f43_fragmentになった。差分と未受理報告を保全し、別authorが同じdirty treeを再監査してaccepted outputを発行するまで採用しなかった。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -7982,6 +7986,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **工数・資源の集計前に rollout の失敗行を必ず見る。**
 - **supersede: 2026-08-12** — 恒久対応の D342 (生存判定に `/proc/*/cmdline` を含める) を入口へ反映した。`.claude/commands/cleanup-branches.md` §2 の使用中判定を `/proc/*/cwd` の readlink 走査だけから cwd と cmdline の両走査へ是正し、再発検知が求めていた「掃除手順の生存判定に cmdline 走査が含まれること」を手順側で満たした (branch `worktree-cleanup-branches-cherry-3stage`)。同事象を削除された側から観測した独立実測 (撤去された 5 本すべてで cwd 一致 0 件・cmdline 一致 2〜4 件) も F251 の実測と一致しており、新規 F は起票しない。機械強制の checker を作るかは裁定へ返す。
 
+
+- **再発: 2026-08-28** — pre-existing A-2 attempt `t2022-20260827`はcompute preflight通過後に束縛先worktreeが消え、2 workloadともsource path不在でidentity-error。新waveはworktreeをlockし、finish/collect完了まで保持した。
 ### F252. 汚染判定器が sandbox の方針拒否を誤検知した [計測汚染]
 
 - 事象: 上記の汚染を検出する判定器で `Rejected(...)` を徴候に使ったところ、第 2 走の 1 cell を
@@ -14290,6 +14296,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   isolated mode で import graph 全体が解決できるかを先に実測する。**
   焦点走の緑は受入 launcher 配下の緑を含意しない。
 
+
+- **再発: 2026-08-28** — B-10の初回compute jobが `python3 -I -B -m orchestrator...` でrepo rootをimport pathから外し、envelope全通過後にprobe 0 cellで停止した。既に実走済みのA-2は `-B -m` だった。commit `8df4fa25d` でmodule起動だけを修理し、exact job contract testと `-I` 復帰変異1/1 KILLEDで再発検知を固定した。
 ### F511. 裁定本文を行範囲で切り出して子へ渡し、実装条件の後半が欠けたまま段 3 を走らせた [手順漏れ]
 
 - 事象: 親が `docs/decisions.md` の裁定を `sed -n '<開始>,<終了>p'` で job dir へ切り出し、
@@ -14885,6 +14893,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   共有木観測の走行が 0 本であることを確かめ、撤去は削除でなく退避とする 5 点検査を記録する。
   再発検知: `shared_snapshot_matches=false` は既に `MUT_RC=125` で fails-closed に落ちるが、
   それは被害が出た後の検知である。事前の防壁は本エントリと当該 memory だけで、機械検査は持たない。
+
+- **再発: 2026-08-28** — 変異finalを共有primaryのwave worktreeから2回走らせ、childは両回baseline PASSED・8/8 KILLEDだったが、primaryの `.codex/worktrees/` untracked集合変動でwrapperがshared_snapshot_matches=false / rc125に倒れた。結果を不受理にし、既存手順どおり独立common-dir cloneへ切り替えてrc0を取り直した。
 ### F538. 停止 wave の棚卸しを 20 分前のスナップショットで提示し、6 件すべてが空振りになった [観測] [手順漏れ]
 
 - 事象: 死んだ codex の worktree を巻き取る作業で、親が停止中の wave を棚卸しし、
@@ -15803,6 +15813,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 計測 wave の段 1 brief で、同種の既存 job body を 1 本名指しして「そこが行っていて
   自分が行っていない手順」を列挙する。0 件と書くならその根拠を示す。
 
+
+- **再発: 2026-08-28** — 有効なA-2 4-cell acquisitionのtracked publishがLustre上の`RENAME_NOREPLACE` EINVALで停止。A-1既存先例と同じEINVAL限定exclusive-claim fallbackをA-2へ実装し、同じacquisitionの再提示でpublishした。
 ### F581. 敵対レビュー 2 巡を通過した実装に発火しない保証が 2 件残っていた [恒真ゲート] [テスト代表性]
 
 - 事象: 段 6 の変異 matrix 第 1 巡 (22 件) で SURVIVED が 6 件出た。うち 2 件は実欠落だった。
@@ -16228,6 +16240,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   緩いほうの通過を厳しいほうの根拠にしない。**
 - 再発検知: pin を渡す全呼び出しで、渡す値の桁数と受け手の照合方法を対で確認する。
 
+
+- **再発: 2026-08-28** — A-2 submitterがfull 40桁HEADをreceiptへ渡し、build admissionのshort `pin.CURRENT_PIN`完全一致でstock/adopted全cellが拒否された。submit/compute/Pythonをcanonical short + resolved full HEAD + literal prefixへ統一した。
 ### F602. 読んだ docstring に書かれていた防壁を、brief の閉塞列挙へ入れ損ねた [手順漏れ]
 
 - 事象: 段 1 brief が床値 official の閉塞を 2 つ (入場鍵の衝突、seam 分類) と列挙したが、
@@ -16591,6 +16605,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-08-28** — 固定 commit の変異 matrix が全件完走した後、並行 session の main land により共有木事後検査が2回 rc=125。land lease取得後の同一matrix再走で閉じた。
+
+- **再発: 2026-08-28** — 共有checkoutを観測rootに含むfinal変異1走目が並行landでrc125になった。terminal ledgerとteardown完了を確認しても8/8を採用せず、local submodule sourceをno-fetchで初期化した独立cloneをsource-repoに使い、shared_snapshot_matches=trueを再取得した。
 ### F619. 収集段で落ちた変異走行が resume も fresh 走も塞ぐ [手順漏れ]
 
 - 事象: 変異本走が収集段で `rc=16` (`receipt scheduler_logs.stdout.path がない`、
@@ -19063,3 +19079,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異が**全件 MISMATCH** で、かつ増えた node が**どの変異でも同一**なら、
   変異の失敗ではなく runner 対象の汚染を疑う。増えた node が作業ツリーの状態を assert する
   検査かどうかを最初に見る。
+
+### F744. build targetの表記をsource directoryの表記に使い、A-2全cellがidentity前に止まった [ドリフト] [テスト代表性]
+
+- 事象: policy `ccbench_protocol="SILO"`から`cc/SILO/CMakeLists.txt`を構成したが、実submoduleは`cc/silo/CMakeLists.txt`で、4 cellすべてidentity-errorになった。
+- 根本原因: synthetic fixtureも`cc/SILO/ycsb_SILO.exe`を作り、production policyと同じ誤ったcaseを再演していた。実submodule layoutを通す正例が無かった。
+- 恒久対応: `paper_story_a2_certification.v2.json`とloaderをexact lowercase`silo`へ固定し、production policy→Genome→実CMake path→target/binaryを通すtestとM7を追加した。
+- 再発検知: protocol文字列をsource pathとbuild targetへ使うdriverは、実submoduleのCMakeListsと生成targetの双方をproduction helperで照合する。
+
+### F745. GeneratorIdだけを作ってcapability resolverを接続せず、A-2 adopted全点がadmission前に止まった [恒真ゲート] [テスト代表性]
+
+- 事象: A-2は`GeneratorId.BACKOFF_REPRO`のBuildRunContextを作ったが`attest_generator_output`を渡さず、adoptedだけでなくfull pin不一致に隠れたstockも含め全cellがadmission-errorになった。
+- 根本原因: unit positiveが`run_campaign`を丸ごとmockし、source evidence→resolver→derive admissionのproduction forwardingを通していなかった。
+- 恒久対応: A-2 run_workloadへpolicy/workload/genome-boundなBACKOFF_REPRO resolverを接続し、actual loopと既存deriveを通すPC4、M9を追加した。
+- 再発検知: BuildRunContextのgenerator IDを持つdriverは、stock/adoptedをactual loop経由でstock-baseline/machine-generatedへ分類する正例を持つ。
+
+### F746. plan-onlyが存在しないdispatch evidenceを要求し、preflight失敗containerをresumeでも閉じられなかった [手順不整合]
+
+- 事象: `mutation_worktree.py --plan-only`が変異0件の後に`退避 dispatch evidence が通常 directory でない`でrc=125。spec hash転記誤りで保全されたcontainerへ正しいhashでresumeしても同じ終端になった。
+- 根本原因: plan-only/preflight失敗と実dispatch後で、wrapper teardownが同じdispatch evidence directory必須条件を使う。前者にはdirectoryが構造上存在しない。
+- 恒久対応: 本waveでは実装せず、`tools/mutation_worktree.py`のplan-only/preflight-failure分岐と`docs/dev-wave/mutation.md`の回復契約を同時に直す候補として専用handoffへ記録した。
+- 再発検知: fresh scratchでplan-only、およびspec hash不一致後の正しいresumeを実行し、job未投入・container teardown・rcの意味が一致することを検査する。

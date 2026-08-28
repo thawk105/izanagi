@@ -10,12 +10,14 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import paper_story_a2_certification as A2
+from orchestrator.campaign import pin
 
 
 REPO = Path(__file__).resolve().parents[2]
 JOB = REPO / "tools/pegasus/paper_story_a2_certification.sh"
 SUBMITTER = REPO / "tools/pegasus/submit_paper_story_a2_certification.sh"
 REGISTRY = REPO / "tools/pegasus/admission_registry.json"
+CANONICAL_PIN = pin.CURRENT_PIN
 
 
 def _policy(tmp_path):
@@ -30,7 +32,22 @@ def _assert_static_job_contract(source):
     required = {
         "compute-only": "^bnode[0-9]+([.].*)?$",
         "expected-head": "git rev-parse HEAD",
-        "ccbench-pin": "git -C \"$ccbench_root\" rev-parse HEAD",
+        "ccbench-head": (
+            "git -C \"$ccbench_root\" rev-parse --verify 'HEAD^{commit}'"),
+        "ccbench-pin-resolver": (
+            'git -C "$ccbench_root" rev-parse --verify '
+            '"${IZANAGI_A2_CURRENT_PIN}^{commit}"'),
+        "repository-canonical-pin": (
+            "'from orchestrator.campaign.pin import CURRENT_PIN; "
+            "print(CURRENT_PIN)'"),
+        "ccbench-short-pin": (
+            '"$IZANAGI_A2_CURRENT_PIN" =~ ^[0-9a-f]{7}$'),
+        "ccbench-repository-pin": (
+            '"$IZANAGI_A2_CURRENT_PIN" != "$repository_current_pin"'),
+        "ccbench-exact-pin": (
+            '"$ccbench_full_head" != "$resolved_current_pin"'),
+        "ccbench-literal-prefix": (
+            '"$ccbench_full_head" != "$IZANAGI_A2_CURRENT_PIN"*'),
         "clean-tree": "git status --porcelain --untracked-files=no",
         "pbs-job": "PBS_JOBID PBS_NODEFILE PBS_O_WORKDIR",
         "reservation": 'export IZANAGI_RESERVATION_DEADLINE_EPOCH="$deadline_epoch"',
@@ -76,12 +93,43 @@ def _assert_static_job_contract(source):
         raise AssertionError("compute body must not finalize the group manifest")
 
 
+def _assert_static_submitter_pin_contract(source):
+    required = {
+        "canonical-pin": (
+            "CURRENT_PIN=$(\"$PYTHON_BIN\" -B -c "
+            "'from orchestrator.campaign.pin import CURRENT_PIN; "
+            "print(CURRENT_PIN)')"),
+        "short-pin": '"$CURRENT_PIN" =~ ^[0-9a-f]{7}$',
+        "full-head": (
+            "git -C \"$CCBENCH_ROOT\" rev-parse --verify 'HEAD^{commit}'"),
+        "pin-resolver": (
+            'git -C "$CCBENCH_ROOT" rev-parse --verify '
+            '"${CURRENT_PIN}^{commit}"'),
+        "exact-resolution": (
+            '"$CCBENCH_FULL_HEAD" == "$CANONICAL_FULL_HEAD"'),
+        "literal-prefix": '"$CCBENCH_FULL_HEAD" == "$CURRENT_PIN"*',
+        "prereg-short": '--current-pin "$CURRENT_PIN"',
+        "qsub-short": "IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN",
+        "receipt-short": '"current_pin": current',
+    }
+    missing = [label for label, fragment in required.items() if fragment not in source]
+    if missing:
+        raise AssertionError(
+            "submitter pin contract missing: " + ",".join(missing))
+
+
 def test_job_body_is_compute_only_sequential_and_never_submits():
     _assert_static_job_contract(JOB.read_text(encoding="utf-8"))
     submitter = SUBMITTER.read_text(encoding="utf-8")
+    _assert_static_submitter_pin_contract(submitter)
     assert "WORKLOADS=(rr5 rr50)" in submitter
     assert "IZANAGI_A2_WORKLOAD=$workload" in submitter
     assert "exact-qsub -- qsub" in submitter
+    assert "set -o noclobber" in submitter
+    assert 'exec {qsub_stdout_fd}>"$qsub_stdout_path"' in submitter
+    assert 'exec {qsub_stderr_fd}>"$qsub_stderr_path"' in submitter
+    assert submitter.index("durabilize-qsub-diagnostics") < submitter.index(
+        'request_id=$("$PYTHON_BIN"')
     assert "finish-group" in submitter
     assert "submission-precheck" not in submitter
     finish_start = submitter.index('if [[ "$MODE" == finish-group ]]')
@@ -92,6 +140,47 @@ def test_job_body_is_compute_only_sequential_and_never_submits():
             'git status --porcelain --untracked-files=no'):
         assert finish_exit < submitter.index(submit_only_gate)
     assert not hasattr(A2, "submission_ratification_precheck")
+
+
+def test_m8_full_pin_forwarding_and_missing_exact_resolver_are_killed():
+    submitter = SUBMITTER.read_text(encoding="utf-8")
+    _assert_static_submitter_pin_contract(submitter)
+    full_pin_mutant = submitter.replace(
+        "CURRENT_PIN=$(\"$PYTHON_BIN\" -B -c "
+        "'from orchestrator.campaign.pin import CURRENT_PIN; "
+        "print(CURRENT_PIN)')",
+        'CURRENT_PIN=$(git -C "$CCBENCH_ROOT" rev-parse --verify '
+        "'HEAD^{commit}')",
+        1,
+    )
+    with pytest.raises(AssertionError, match="canonical-pin"):
+        _assert_static_submitter_pin_contract(full_pin_mutant)
+    submitter_prefix_mutant = submitter.replace(
+        '    && "$CCBENCH_FULL_HEAD" == "$CURRENT_PIN"*',
+        "",
+        1,
+    )
+    with pytest.raises(AssertionError, match="literal-prefix"):
+        _assert_static_submitter_pin_contract(submitter_prefix_mutant)
+
+    job = JOB.read_text(encoding="utf-8")
+    _assert_static_job_contract(job)
+    resolver_mutant = job.replace(
+        'git -C "$ccbench_root" rev-parse --verify '
+        '"${IZANAGI_A2_CURRENT_PIN}^{commit}"',
+        'printf "%s\\n" "$IZANAGI_A2_CURRENT_PIN"',
+        1,
+    )
+    with pytest.raises(AssertionError, match="ccbench-pin-resolver"):
+        _assert_static_job_contract(resolver_mutant)
+
+    prefix_mutant = job.replace(
+        '   || "$ccbench_full_head" != "$IZANAGI_A2_CURRENT_PIN"*',
+        "",
+        1,
+    )
+    with pytest.raises(AssertionError, match="ccbench-literal-prefix"):
+        _assert_static_job_contract(prefix_mutant)
 
 
 def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
@@ -251,6 +340,542 @@ def test_job_body_is_registered_only_as_dispatch_required():
 
 def _completed(command, stdout="", returncode=0):
     return subprocess.CompletedProcess(command, returncode, stdout=stdout, stderr="")
+
+
+def _write_executable(path, source):
+    path.write_text(source, encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _run_submitter_harness(
+        tmp_path, *, inventory_rc=0, stop_at_preregister=False,
+        visibility_rc=23, visibility_fail_workload="rr5",
+        inventory_text="unrelated-request", inventory_stderr="",
+        qsub_fail_workload="", qsub_rc=29,
+        qsub_stderr_workload="", qsub_stderr_text="qsub diagnostic\n",
+        precreate_diagnostic="", ccbench_head=None, resolved_pin=None,
+        resolver_rc=0, tracked_dirty=False):
+    policy = _policy(tmp_path)
+    attempt_id = "submitter-harness"
+    attempt_root = policy.durable_base / attempt_id
+    ccbench = tmp_path / "ccbench"
+    dependency = tmp_path / "dependency"
+    ccbench.mkdir()
+    dependency.mkdir()
+    binary_dir = tmp_path / "bin"
+    binary_dir.mkdir()
+    driver_log = tmp_path / "driver.log"
+    event_log = tmp_path / "event.log"
+    qsub_log_dir = tmp_path / "qsub-log"
+    qsub_log_dir.mkdir()
+    driver_log.touch()
+    event_log.touch()
+    if ccbench_head is None:
+        ccbench_head = CANONICAL_PIN + "1" * (40 - len(CANONICAL_PIN))
+    if resolved_pin is None:
+        resolved_pin = ccbench_head
+
+    _write_executable(binary_dir / "hostname", r"""#!/bin/bash
+printf '%s\n' pegasus01
+""")
+    _write_executable(binary_dir / "check_quota", r"""#!/bin/bash
+exit 0
+""")
+    _write_executable(binary_dir / "git", fr"""#!/bin/bash
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == 'HEAD^{{commit}}' ]]; then
+  printf '%s\n' "$A2_TEST_CCBENCH_HEAD"
+  exit 0
+fi
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == '{CANONICAL_PIN}^{{commit}}' ]]; then
+  if [[ "$A2_TEST_RESOLVER_RC" -ne 0 ]]; then
+    exit "$A2_TEST_RESOLVER_RC"
+  fi
+  printf '%s\n' "$A2_TEST_RESOLVED_PIN"
+  exit 0
+fi
+if [[ ${{1:-}} == rev-parse && ${{2:-}} == HEAD ]]; then
+  printf '%s\n' {'2' * 40}
+  exit 0
+fi
+if [[ $* == *status* ]]; then
+  if [[ ${{1:-}} == -C && "$A2_TEST_TRACKED_DIRTY" == 1 ]]; then
+    printf '%s\n' ' M tracked.cc'
+  fi
+  exit 0
+fi
+exit 97
+""")
+    _write_executable(binary_dir / "grep", r"""#!/bin/bash
+exit 77
+""")
+    _write_executable(binary_dir / "qsub", r"""#!/bin/bash
+workload=""
+previous=""
+for argument in "$@"; do
+  if [[ "$previous" == -v ]]; then
+    case "$argument" in
+      *IZANAGI_A2_WORKLOAD=rr5,*) workload=rr5 ;;
+      *IZANAGI_A2_WORKLOAD=rr50,*) workload=rr50 ;;
+    esac
+  fi
+  previous=$argument
+done
+[[ -n "$workload" ]] || exit 93
+printf 'qsub:%s\n' "$workload" >>"$A2_TEST_EVENT_LOG"
+printf '%s\0' "$@" >"$A2_TEST_QSUB_LOG_DIR/$workload.argv"
+scheduler="$A2_TEST_ATTEMPT_ROOT/jobs/$workload/scheduler"
+[[ -f "$scheduler/qsub.stdout" && ! -L "$scheduler/qsub.stdout" \
+    && -f "$scheduler/qsub.stderr" && ! -L "$scheduler/qsub.stderr" \
+    && /proc/$$/fd/1 -ef "$scheduler/qsub.stdout" \
+    && /proc/$$/fd/2 -ef "$scheduler/qsub.stderr" ]] || exit 92
+if [[ "$A2_TEST_QSUB_FAIL_WORKLOAD" == "$workload" ]]; then
+  printf '%s' "$A2_TEST_QSUB_STDERR_TEXT" >&2
+  exit "$A2_TEST_QSUB_RC"
+fi
+request=945411.nqsv
+[[ "$workload" == rr5 ]] || request=945412.nqsv
+printf 'Request %s submitted\n' "$request"
+if [[ "$A2_TEST_QSUB_STDERR_WORKLOAD" == "$workload" ]]; then
+  printf '%s' "$A2_TEST_QSUB_STDERR_TEXT" >&2
+fi
+exit 0
+""")
+    _write_executable(binary_dir / "qstat", r"""#!/bin/bash
+if [[ ${1:-} == -Q ]]; then
+  printf '%s\n' 'gen_S ENA ACT'
+  exit 0
+fi
+if [[ $# -eq 0 ]]; then
+  printf '%s\n' inventory >>"$A2_TEST_EVENT_LOG"
+  printf '%s\n' "$A2_TEST_INVENTORY_TEXT"
+  printf '%s' "$A2_TEST_INVENTORY_STDERR" >&2
+  exit "$A2_TEST_INVENTORY_RC"
+fi
+if [[ ${1:-} == -f ]]; then
+  request=${2#0:}
+  request=${request%.}
+  workload=rr5
+  [[ "$request" == 945411.nqsv ]] || workload=rr50
+  scheduler="$A2_TEST_ATTEMPT_ROOT/jobs/$workload/scheduler"
+  sidecar="$scheduler/request-id"
+  if [[ ! -f "$sidecar" || -L "$sidecar" ]]; then
+    printf '%s\n' 'request ID sidecar was absent before visibility' >&2
+    exit 91
+  fi
+  if [[ ! -f "$scheduler/qsub.stdout" || ! -f "$scheduler/qsub.stderr" ]]; then
+    printf '%s\n' 'qsub diagnostics were absent before visibility' >&2
+    exit 90
+  fi
+  printf 'visibility:%s\n' "$workload" >>"$A2_TEST_EVENT_LOG"
+  if [[ "$A2_TEST_VISIBILITY_FAIL_WORKLOAD" == "$workload" ]]; then
+    printf '%s\n' 'visibility unavailable' >&2
+    exit "$A2_TEST_VISIBILITY_RC"
+  fi
+  exec /bin/cat "$A2_TEST_QSTAT_FIXTURES/qstat-visibility-fanout-${request%%.*}.stdout"
+fi
+exit 96
+""")
+    python_wrapper = binary_dir / "a2-python"
+    _write_executable(python_wrapper, r"""#!/usr/bin/env python3
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+with Path(os.environ["A2_TEST_DRIVER_LOG"]).open("a", encoding="utf-8") as stream:
+    stream.write(" ".join(args) + "\n")
+
+def production_a2():
+    sys.path.insert(0, os.environ["A2_TEST_REPO"])
+    from orchestrator.campaign import paper_story_a2_certification as a2
+    original_load_policy = a2.load_policy
+    policy_path = Path(os.environ["A2_TEST_POLICY"])
+    a2.load_policy = lambda path=a2.POLICY_PATH: original_load_policy(policy_path)
+    a2.socket.gethostname = lambda: "pegasus01"
+    return a2
+
+if "-m" in args:
+    module_index = args.index("-m")
+    if (module_index + 1 < len(args) and args[module_index + 1]
+            == "orchestrator.campaign.paper_story_a2_certification"):
+        command_argv = args[module_index + 2:]
+        if (command_argv and command_argv[0] == "preregister"
+                and os.environ["A2_TEST_STOP_AT_PREREGISTER"] == "1"):
+            raise SystemExit(37)
+        a2 = production_a2()
+        rc = a2.main(command_argv)
+        if (rc == 0 and command_argv and command_argv[0] == "preregister"
+                and os.environ["A2_TEST_PRECREATE_DIAGNOSTIC"]):
+            target = (Path(os.environ["A2_TEST_ATTEMPT_ROOT"])
+                      / "jobs" / "rr5" / "scheduler"
+                      / os.environ["A2_TEST_PRECREATE_DIAGNOSTIC"])
+            target.write_text("sentinel\n", encoding="utf-8")
+        raise SystemExit(rc)
+
+if "-" in args:
+    script_index = args.index("-")
+    if any(value.endswith("/qsub.stdout") for value in args[script_index + 1:]):
+        driver_lines = Path(os.environ["A2_TEST_DRIVER_LOG"]).read_text(
+            encoding="utf-8").splitlines()
+        if (len(driver_lines) < 2
+                or "durabilize-qsub-diagnostics" not in driver_lines[-2]):
+            raise SystemExit(94)
+    source = sys.stdin.read()
+    production_a2()
+    sys.argv = ["-", *args[script_index + 1:]]
+    namespace = {"__name__": "__main__", "__file__": "<stdin>"}
+    exec(compile(source, "<stdin>", "exec"), namespace, namespace)
+    raise SystemExit(0)
+
+os.execv(sys.executable, [sys.executable, *args])
+""")
+    environment = dict(os.environ)
+    environment.update({
+        "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+        "PYTHON": str(python_wrapper),
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "A2_TEST_REPO": str(REPO),
+        "A2_TEST_POLICY": str(policy.path),
+        "A2_TEST_ATTEMPT_ROOT": str(attempt_root),
+        "A2_TEST_DRIVER_LOG": str(driver_log),
+        "A2_TEST_INVENTORY_RC": str(inventory_rc),
+        "A2_TEST_INVENTORY_TEXT": inventory_text,
+        "A2_TEST_INVENTORY_STDERR": inventory_stderr,
+        "A2_TEST_STOP_AT_PREREGISTER": (
+            "1" if stop_at_preregister else "0"),
+        "A2_TEST_VISIBILITY_RC": str(visibility_rc),
+        "A2_TEST_VISIBILITY_FAIL_WORKLOAD": visibility_fail_workload,
+        "A2_TEST_QSTAT_FIXTURES": str(
+            REPO / "orchestrator/tests/fixtures/paper_story_a2"),
+        "A2_TEST_QSUB_FAIL_WORKLOAD": qsub_fail_workload,
+        "A2_TEST_QSUB_RC": str(qsub_rc),
+        "A2_TEST_QSUB_STDERR_WORKLOAD": qsub_stderr_workload,
+        "A2_TEST_QSUB_STDERR_TEXT": qsub_stderr_text,
+        "A2_TEST_QSUB_LOG_DIR": str(qsub_log_dir),
+        "A2_TEST_EVENT_LOG": str(event_log),
+        "A2_TEST_PRECREATE_DIAGNOSTIC": precreate_diagnostic,
+        "A2_TEST_CCBENCH_HEAD": ccbench_head,
+        "A2_TEST_RESOLVED_PIN": resolved_pin,
+        "A2_TEST_RESOLVER_RC": str(resolver_rc),
+        "A2_TEST_TRACKED_DIRTY": "1" if tracked_dirty else "0",
+    })
+    completed = subprocess.run(
+        [
+            str(SUBMITTER), "--attempt-id", attempt_id,
+            "--ccbench-root", str(ccbench),
+            "--dependency-prefix-source", str(dependency),
+        ],
+        cwd=REPO, env=environment, capture_output=True, text=True, check=False,
+    )
+    return completed, attempt_root, driver_log.read_text(encoding="utf-8")
+
+
+def _run_compute_pin_harness(
+        tmp_path, *, ccbench_head=None, resolved_pin=None, resolver_rc=0,
+        tracked_dirty=False, current_pin=CANONICAL_PIN):
+    attempt_root = tmp_path / "attempt"
+    job_root = attempt_root / "jobs" / "rr5"
+    for child in (
+            job_root, job_root / "campaigns", job_root / "cache",
+            job_root / "scheduler"):
+        child.mkdir(parents=True, exist_ok=True)
+    ccbench = tmp_path / "ccbench"
+    dependency = tmp_path / "dependency"
+    ccbench.mkdir()
+    dependency.mkdir()
+    binary_dir = tmp_path / "compute-bin"
+    binary_dir.mkdir()
+    if ccbench_head is None:
+        ccbench_head = CANONICAL_PIN + "1" * (40 - len(CANONICAL_PIN))
+    if resolved_pin is None:
+        resolved_pin = ccbench_head
+
+    _write_executable(binary_dir / "hostname", r"""#!/bin/bash
+printf '%s\n' bnode001
+""")
+    _write_executable(binary_dir / "qstat", r"""#!/bin/bash
+[[ ${1:-} == -f ]] || exit 91
+printf '%s\n' \
+  'Request ID: 945411.nqsv' \
+  '(Per-Req) Elapse Time Limit = Max: 21600S' \
+  'Started Request Time = 1700000000'
+""")
+    _write_executable(binary_dir / "git", fr"""#!/bin/bash
+if [[ ${{1:-}} == rev-parse && ${{2:-}} == HEAD ]]; then
+  printf '%s\n' {'2' * 40}
+  exit 0
+fi
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == 'HEAD^{{commit}}' ]]; then
+  printf '%s\n' "$A2_TEST_CCBENCH_HEAD"
+  exit 0
+fi
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == '{CANONICAL_PIN}^{{commit}}' ]]; then
+  if [[ "$A2_TEST_RESOLVER_RC" -ne 0 ]]; then
+    exit "$A2_TEST_RESOLVER_RC"
+  fi
+  printf '%s\n' "$A2_TEST_RESOLVED_PIN"
+  exit 0
+fi
+if [[ $* == *status* ]]; then
+  if [[ ${{1:-}} == -C && "$A2_TEST_TRACKED_DIRTY" == 1 ]]; then
+    printf '%s\n' ' M tracked.cc'
+  fi
+  exit 0
+fi
+exit 97
+""")
+    _write_executable(binary_dir / "python3.10", (
+        "#!/bin/bash\n"
+        f"exec {shlex.quote(sys.executable)} \"$@\"\n"
+    ))
+    environment = dict(os.environ)
+    environment.update({
+        "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PBS_JOBID": "0:945411.nqsv",
+        "PBS_NODEFILE": str(tmp_path / "nodefile"),
+        "PBS_O_WORKDIR": str(REPO),
+        "IZANAGI_A2_REPO_ROOT": str(REPO),
+        "IZANAGI_A2_EXPECTED_HEAD": "2" * 40,
+        "IZANAGI_A2_CURRENT_PIN": current_pin,
+        "IZANAGI_A2_CCBENCH_ROOT": str(ccbench),
+        "IZANAGI_A2_ATTEMPT_ROOT": str(attempt_root),
+        "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": str(dependency),
+        "IZANAGI_A2_WORKLOAD": "rr5",
+        "A2_TEST_CCBENCH_HEAD": ccbench_head,
+        "A2_TEST_RESOLVED_PIN": resolved_pin,
+        "A2_TEST_RESOLVER_RC": str(resolver_rc),
+        "A2_TEST_TRACKED_DIRTY": "1" if tracked_dirty else "0",
+    })
+    completed = subprocess.run(
+        [str(JOB)], cwd=REPO, env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    return completed, job_root
+
+
+@pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
+def test_submitter_production_path_rejects_noncanonical_ccbench_source(
+        tmp_path, mutation):
+    kwargs = {}
+    if mutation == "wrong-prefix":
+        wrong = ("0" if CANONICAL_PIN[0] != "0" else "1") * 40
+        kwargs.update(ccbench_head=wrong, resolved_pin=wrong)
+    elif mutation == "resolver-failure":
+        kwargs["resolver_rc"] = 41
+    else:
+        kwargs["tracked_dirty"] = True
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, **kwargs)
+    assert completed.returncode == 2
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
+@pytest.mark.parametrize(
+    "mutation", ("wrong-prefix", "resolver-failure", "dirty", "ambient-pin"),
+)
+def test_compute_job_production_path_rejects_noncanonical_ccbench_source(
+        tmp_path, mutation):
+    kwargs = {}
+    if mutation == "wrong-prefix":
+        wrong = ("0" if CANONICAL_PIN[0] != "0" else "1") * 40
+        kwargs.update(ccbench_head=wrong, resolved_pin=wrong)
+    elif mutation == "resolver-failure":
+        kwargs["resolver_rc"] = 42
+    elif mutation == "ambient-pin":
+        kwargs["current_pin"] = (
+            ("0" if CANONICAL_PIN[0] != "0" else "1") + CANONICAL_PIN[1:]
+        )
+    else:
+        kwargs["tracked_dirty"] = True
+    completed, job_root = _run_compute_pin_harness(tmp_path, **kwargs)
+    assert completed.returncode == 2
+    result = json.loads((job_root / "compute-result.json").read_text())
+    assert result["driver_rc"] == 2
+    assert not (job_root / "raw").exists()
+
+
+def test_prereg_m1_submitter_fails_closed_when_inventory_qstat_fails(tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, inventory_rc=19)
+    assert completed.returncode == 2
+    assert "cannot inventory existing A-2" in completed.stderr
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
+def test_submitter_fails_closed_when_inventory_qstat_writes_stderr(tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, inventory_stderr="partial inventory warning\n")
+    assert completed.returncode == 2
+    assert "cannot inventory existing A-2" in completed.stderr
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
+def test_prereg_pc1_submitter_continues_after_empty_request_inventory(tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, inventory_rc=0, stop_at_preregister=True)
+    assert completed.returncode == 37
+    assert "preregister --attempt-id submitter-harness" in driver_log
+    assert "cannot inventory existing A-2" not in completed.stderr
+    assert not attempt_root.exists()
+
+
+def test_submitter_rejects_an_existing_a2_request_before_preregistration(
+        tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, inventory_text="945410 paper-a2-cert RUN")
+    assert completed.returncode == 2
+    assert "already visible" in completed.stderr
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
+def test_prereg_m2_m3_request_is_durable_before_visibility_failure(tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, inventory_rc=0, visibility_rc=23)
+    scheduler = attempt_root / "jobs" / "rr5" / "scheduler"
+    sidecar = scheduler / "request-id"
+    assert completed.returncode == 23
+    assert (scheduler / "qsub.stdout").read_bytes() == (
+        b"Request 945411.nqsv submitted\n")
+    assert (scheduler / "qsub.stderr").read_bytes() == b""
+    assert sidecar.is_file() and not sidecar.is_symlink()
+    assert sidecar.read_bytes() == b"945411.nqsv\n"
+    assert "exact-qsub -- qsub" in driver_log
+    assert driver_log.index("durabilize-qsub-diagnostics") < driver_log.index(
+        "record-request-id")
+    assert not (
+        attempt_root / "jobs" / "rr50" / "scheduler" / "request-id"
+    ).exists()
+    assert not (attempt_root / "receipts" / "submission.json").exists()
+
+
+def test_submitter_retains_both_sidecars_on_rr50_visibility_failure(tmp_path):
+    completed, attempt_root, _ = _run_submitter_harness(
+        tmp_path, visibility_fail_workload="rr50", visibility_rc=31)
+    assert completed.returncode == 31
+    for workload, request_id in (
+            ("rr5", "945411.nqsv"), ("rr50", "945412.nqsv")):
+        scheduler = attempt_root / "jobs" / workload / "scheduler"
+        assert (scheduler / "qsub.stdout").read_bytes() == (
+            f"Request {request_id} submitted\n".encode("ascii"))
+        assert (scheduler / "qsub.stderr").read_bytes() == b""
+        assert (scheduler / "request-id").read_bytes() == (
+            f"{request_id}\n".encode("ascii"))
+    assert not (attempt_root / "receipts" / "submission.json").exists()
+    assert (tmp_path / "event.log").read_text(encoding="utf-8").splitlines() == [
+        "inventory", "qsub:rr5", "visibility:rr5", "qsub:rr50",
+        "visibility:rr50",
+    ]
+
+
+@pytest.mark.parametrize("workload", ("rr5", "rr50"))
+def test_submitter_durably_records_each_qsub_failure_before_stopping(
+        tmp_path, workload):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, visibility_fail_workload="", qsub_fail_workload=workload,
+        qsub_rc=29, qsub_stderr_text="scheduler rejected request\n")
+    scheduler = attempt_root / "jobs" / workload / "scheduler"
+    assert completed.returncode == 29
+    assert (scheduler / "qsub.stdout").is_file()
+    assert (scheduler / "qsub.stderr").read_bytes() == (
+        b"scheduler rejected request\n")
+    assert not (scheduler / "request-id").exists()
+    assert driver_log.rindex("durabilize-qsub-diagnostics") < len(driver_log)
+    if workload == "rr50":
+        assert (attempt_root / "jobs" / "rr5" / "scheduler"
+                / "request-id").read_bytes() == b"945411.nqsv\n"
+    assert not (attempt_root / "receipts" / "submission.json").exists()
+
+
+def test_submitter_rejects_clean_rc_with_qsub_stderr_after_durability(tmp_path):
+    completed, attempt_root, _ = _run_submitter_harness(
+        tmp_path, visibility_fail_workload="", qsub_stderr_workload="rr5",
+        qsub_stderr_text="qsub warning\n")
+    scheduler = attempt_root / "jobs" / "rr5" / "scheduler"
+    assert completed.returncode == 2
+    assert (scheduler / "qsub.stdout").read_bytes() == (
+        b"Request 945411.nqsv submitted\n")
+    assert (scheduler / "qsub.stderr").read_bytes() == b"qsub warning\n"
+    assert not (scheduler / "request-id").exists()
+    assert not (attempt_root / "receipts" / "submission.json").exists()
+
+
+def test_submitter_qsub_diagnostics_are_create_only(tmp_path):
+    completed, attempt_root, _ = _run_submitter_harness(
+        tmp_path, visibility_fail_workload="",
+        precreate_diagnostic="qsub.stdout")
+    diagnostic = (
+        attempt_root / "jobs" / "rr5" / "scheduler" / "qsub.stdout")
+    assert completed.returncode == 2
+    assert "qsub diagnostics already exist for rr5" in completed.stderr
+    assert diagnostic.read_bytes() == b"sentinel\n"
+    assert not (tmp_path / "qsub-log" / "rr5.argv").exists()
+
+
+def test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract(
+        tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, visibility_fail_workload="")
+    receipt_path = attempt_root / "receipts" / "submission.json"
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stderr == ""
+    assert completed.stdout.splitlines() == [
+        str(receipt_path), "945411.nqsv", "945412.nqsv"]
+    assert receipt_path.is_file()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["current_pin"] == CANONICAL_PIN
+    assert len(receipt["current_pin"]) < 40
+    assert (tmp_path / "event.log").read_text(encoding="utf-8").splitlines() == [
+        "inventory", "qsub:rr5", "visibility:rr5", "qsub:rr50",
+        "visibility:rr50",
+    ]
+    cli_commands = []
+    module = "orchestrator.campaign.paper_story_a2_certification "
+    for line in driver_log.splitlines():
+        if module in line:
+            cli_commands.append(line.split(module, 1)[1].split()[0])
+    assert cli_commands == [
+        "preregister",
+        "exact-qsub", "durabilize-qsub-diagnostics", "record-request-id",
+        "exact-qsub", "durabilize-qsub-diagnostics", "record-request-id",
+        "record-submission",
+    ]
+    for workload, request_id in (
+            ("rr5", "945411.nqsv"), ("rr50", "945412.nqsv")):
+        scheduler = attempt_root / "jobs" / workload / "scheduler"
+        assert (scheduler / "qsub.stdout").read_bytes() == (
+            f"Request {request_id} submitted\n".encode("ascii"))
+        assert (scheduler / "qsub.stderr").read_bytes() == b""
+        assert (scheduler / "request-id").read_bytes() == (
+            f"{request_id}\n".encode("ascii"))
+        argv = (tmp_path / "qsub-log" / f"{workload}.argv").read_bytes()
+        argv = [part.decode("utf-8") for part in argv.split(b"\0") if part]
+        variable_arg = (
+            f"IZANAGI_A2_ATTEMPT_ROOT={attempt_root},"
+            f"IZANAGI_A2_WORKLOAD={workload},"
+            f"IZANAGI_A2_EXPECTED_HEAD={'2' * 40},"
+            f"IZANAGI_A2_CURRENT_PIN={CANONICAL_PIN},"
+            f"IZANAGI_A2_CCBENCH_ROOT={tmp_path / 'ccbench'},"
+            f"IZANAGI_A2_REPO_ROOT={REPO},"
+            f"IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE={tmp_path / 'dependency'}")
+        assert argv == [
+            "-A", "SFC", "-q", "gen_S", "-b", "1", "-l",
+            "elapstim_req=06:00:00", "-N", "paper-a2-cert", "-v",
+            variable_arg, "-o", str(scheduler / "job.stdout"), "-e",
+            str(scheduler / "job.stderr"), str(
+                REPO / "tools/pegasus/paper_story_a2_certification.sh"),
+        ]
+    receipt_text = receipt_path.read_text(encoding="utf-8")
+    assert str(attempt_root / "jobs" / "rr5" / "scheduler" / "qsub.stdout") \
+        not in receipt_text
 
 
 def _reservation_environment(repo, *, job_id="123.nqsv"):
