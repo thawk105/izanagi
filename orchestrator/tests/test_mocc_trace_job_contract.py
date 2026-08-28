@@ -2678,6 +2678,51 @@ def test_t1943_artifact_paths_are_absent_from_general_manifests(
     assert dedicated_paths <= {path for _scope, path in dedicated_entries}
 
 
+@pytest.mark.parametrize(
+    ("witness_root_kind", "expected_rc"),
+    (
+        pytest.param("directory", 0, id="real-directory"),
+        pytest.param("symlink", 1, id="symlink"),
+        pytest.param("file", 1, id="non-directory"),
+    ),
+)
+def test_t1943_artifact_manifest_requires_real_witness_directory(
+    tmp_path: Path, witness_root_kind: str, expected_rc: int
+) -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    assert ".stat(follow_symlinks=False)" not in source
+    assert "witness_info = os.lstat(witness_root)" in source
+
+    case_root = tmp_path / witness_root_kind
+    attempt_dir = case_root / "attempt"
+    run_dir = attempt_dir / "run"
+    run_dir.mkdir(parents=True)
+    witness_root = run_dir / "witness"
+    if witness_root_kind == "directory":
+        witness_root.mkdir()
+    elif witness_root_kind == "symlink":
+        target = case_root / "witness-target"
+        target.mkdir()
+        witness_root.symlink_to(target, target_is_directory=True)
+    elif witness_root_kind == "file":
+        witness_root.write_bytes(b"not a directory\n")
+    else:
+        raise AssertionError(witness_root_kind)
+
+    result = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        1,
+        t1943_g2=True,
+        write_manifest=True,
+        validate_manifest=True,
+    )
+    if expected_rc == 0:
+        assert result.returncode == 0, result.stderr
+    else:
+        assert result.returncode != 0
+        assert "witness" in result.stderr
+
+
 def test_mocc_trace_artifact_manifest_names_performance_derivation_routes(
     tmp_path: Path,
 ) -> None:

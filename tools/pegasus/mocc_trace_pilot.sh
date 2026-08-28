@@ -601,7 +601,7 @@ if unclassified:
 if int(t1943_g2):
     witness_root = root / "run/witness"
     try:
-        witness_info = witness_root.stat(follow_symlinks=False)
+        witness_info = os.lstat(witness_root)
     except OSError as exc:
         raise ValueError("T-1943 witness root is unavailable") from exc
     if not witness_root.is_dir() or witness_root.is_symlink():
