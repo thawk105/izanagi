@@ -19108,3 +19108,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: plan-only/preflight失敗と実dispatch後で、wrapper teardownが同じdispatch evidence directory必須条件を使う。前者にはdirectoryが構造上存在しない。
 - 恒久対応: 本waveでは実装せず、`tools/mutation_worktree.py`のplan-only/preflight-failure分岐と`docs/dev-wave/mutation.md`の回復契約を同時に直す候補として専用handoffへ記録した。
 - 再発検知: fresh scratchでplan-only、およびspec hash不一致後の正しいresumeを実行し、job未投入・container teardown・rcの意味が一致することを検査する。
+
+### F747. cleanup のクラス 2 が repo 記録と commit の変更権限へ拡張された [権限] [手順漏れ]
+
+- 事象: cleanup 対象の branch/worktree 削除が 0 件だった実行で、一般クラス 2 の worklog 規律を適用し、cleanup 結果だけの spool fragment 1 file を main へ直接 commit した。
+- 根本原因: cleanup 固有の mutation allowlist/default-deny と一般クラス 2 規律への優先例外がなく、削除権限と repo file/history の記録権限を合成した。
+- 影響: cleanup が local main、surviving tracked/untracked contents、Git history を非 cleanup mutation で汚し、削除 0・罠発見・検査赤でも自己改善 commit へ移行できた。
+- 恒久対応: `.claude/commands/cleanup-branches.md` §0/§6 を共有境界とし、`.agents/skills/cleanup-branches/SKILL.md` は全文不可分適用と安全側 overlay だけを持つ。`docs/skill-self-improvement.md` は cleanup 本走を final 候補報告で終端し、実装・記録を後続の明示 dev-wave に限定する。
+- 再発検知: `tools/check_docs.py` の whole-file pin、`orchestrator/tests/test_check_docs.py` の独立 fixture/byte/1-byte 負例、および command 単体と command+skill の敵対読解で、削除 0・罠・検査赤・外側クラス 2 の各終端を判定する。
+- 家族: F599 と同じく cleanup が共有 main を動かす型だが、F599 は status の見た目を目的化した観測面変更であり、本件は作業種別規律から mutation 権限を誤導出した別原因である。
