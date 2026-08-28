@@ -734,7 +734,11 @@ def _scheduler_completion_fixture(
     terminal_path = Path(trusted["raw_root"]) / "job-terminal.json"
     terminal_path.parent.mkdir(parents=True)
     terminal_path.write_bytes(b"terminal\n")
-    qstat_stdout = f"Job Id: {request_id}\n    job_state = F\n"
+    qstat_stdout = (
+        f"Request ID: {request_id}\n"
+        "    job_state = F\n"
+        "    exit_status = 0\n"
+    )
 
     def binding(path: str | Path) -> dict:
         candidate = Path(path)
