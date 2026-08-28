@@ -109,6 +109,7 @@ class GeneratorId(str, Enum):
 
     BACKOFF_OVERTHROTTLE = "backoff-overthrottle"
     BACKOFF_PROFILE = "backoff-profile"
+    BACKOFF_REQUESTED_US = "backoff-requested-us"
     BACKOFF_REPRO = "backoff-repro"
     BACKOFF_SWEEP = "backoff-sweep"
     S1_EXTIME_CALIBRATION = "s1-extime-calibration"
@@ -475,6 +476,26 @@ def resolve_current_build_admission_policy() -> BuildAdmissionPolicy:
     """
 
     return _new_policy()
+
+
+def resolve_immediate_predecessor_build_admission_policy(
+        *, added_generator_id: GeneratorId) -> BuildAdmissionPolicy:
+    """Rebuild only the policy immediately before one registered generator.
+
+    This is a read-only historical verification seam.  It does not alter the
+    current policy or admit arbitrary recorded preimages: callers must compare
+    the returned exact preimage with the frozen artifact before using it.
+    """
+    if type(added_generator_id) is not GeneratorId:
+        raise BuildAdmissionError("added_generator_id は exact GeneratorId が必要")
+    preimage = dict(_new_policy().as_preimage())
+    registry = preimage.get("generator_registry")
+    if type(registry) is not list or registry.count(added_generator_id.value) != 1:
+        raise BuildAdmissionError("current policy に追加 generator が一意に存在しない")
+    preimage["generator_registry"] = [
+        value for value in registry if value != added_generator_id.value
+    ]
+    return BuildAdmissionPolicy(preimage, _seal=_SEAL)
 
 
 def build_run_context(
