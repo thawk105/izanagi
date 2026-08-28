@@ -299,6 +299,7 @@ def _paper_story_expected_configs(module, runtime_contract):
         assert default_cfg.search_tag == "paired"
         cfg = module.campaign_config(
             policy, workload_name, contract=runtime_contract,
+            non_certifying=True,
         )
         assert cfg.spec_slug == f"paper-story-a1-{workload_name}"
         assert cfg.search_tag == "paired"
@@ -625,6 +626,7 @@ def _install_paper_story_external_spies(
             p2_2._campaign_cfg_for_site(
                 module.campaign_config(
                     policy, workload_name, contract=runtime_contract,
+                    non_certifying=True,
                 ),
                 site_policy.PEGASUS_COMPUTE,
                 runtime_contract,
