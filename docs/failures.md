@@ -16389,6 +16389,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   今回の差分は**「repo 外 job directory」が単一の場所ではない**ことである。
   背景 job として走る wave は、共有 job root へ書き始める前の期間、
   セッション側の job directory にしか痕跡を持たない。走査は両方を対象にする。
+
+- **再発: 2026-08-28** — T-1934の開始handoffは、約40分前から存在してlockedだったT-1933専用worktreeとrepo外job directoryを「専用worktree/branch/processは無く、ownerなし」と記録した。両waveとも実装面0 byteで対象2 test fileの直接重複はなく実害は無かったが、段1の稼働wave inventoryが既存ownerを落としたnear missである。T-1933再開時はworktree list、repo外handoff/job directory、process、未commit差分を再走査して訂正した。F606の恒久対応がこの走査面を既に要求するためreferenceは変更しない。
 ### F607. workspace-write の子が親の未追跡成果物を一時コピーと誤認して消した [権限逸脱] [手順漏れ]
 
 - 事象: 段 6 の fix 子が作業終了時に「insights の一時コピー」として
