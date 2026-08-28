@@ -1,0 +1,168 @@
+{
+  "estimated_run_seconds": 900,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_even_n_median_uses_arithmetic_mean_of_two_central_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m01-even-median",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "return ordered[middle - 1]",
+          "old": "return (ordered[middle - 1] + ordered[middle]) / 2"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_rectangle_ratio_uses_cross_arm_opposite_endpoints"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m02-rectangle-denominator",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "ratio_upper_exact = variant_ordered[upper_index] / baseline_ordered[upper_index]",
+          "old": "ratio_upper_exact = variant_ordered[upper_index] / baseline_ordered[lower_index]"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_nonzero_effect_underflow_is_rejected_or_preserved_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m03-underflow",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "if False and rendered == 0.0 and value != 0:",
+          "old": "if rendered == 0.0 and value != 0:"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_registered_bound_spec_mutation_cannot_change_analysis"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m04-snapshot-seal",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "matches = tuple(row for row in bound_spec.workloads if row.name == workload_name)",
+          "old": "matches = tuple(row for row in snapshot.workloads if row.name == workload_name)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_joint_sampler_rejects_hidden_nonpositive_observation_as_single_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m05-hidden-nonpositive",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "| (b_low <= 0.0)\n        | (b_low <= 0.0)",
+          "old": "| (b_minimum <= 0.0)\n        | (b_low <= 0.0)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m06-alpha-spending",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "return Fraction(1, 30 * attempt * (attempt + 1))",
+          "old": "return Fraction(1, 60 * attempt * (attempt + 1))"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m07-receipt-write",
+      "replacements": [
+        {
+          "file": "tools/verify_paper_story_a1_headline_sizing.py",
+          "new": "receipt_raw = receipt_raw",
+          "old": "write_new_receipt(args.receipt, receipt_raw)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m08-dirfd-callsite",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "raw = _regular_file_bytes(path, \"pilot input\")",
+          "old": "raw = _canonical_pilot_bytes(path)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_replay_receipt_rejects_tool_source_hash_tamper"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m09-receipt-consume",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "receipt = receipt",
+          "old": "_validate_replay_receipt(receipt, spec, certificate, certificate_digest)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline.py::test_boundary_operator_rules_control_exact_edges"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1817-m10-strict-boundary",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_headline.py",
+          "new": "if operator == \"<\":\n        return left <= right",
+          "old": "if operator == \"<\":\n        return left < right"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 180
+}

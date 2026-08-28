@@ -1,0 +1,184 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e8bd2cf9ecd9db1c24592de75c14382f/izdw-e8bd2cf9ec.o954461",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e8bd2cf9ecd9db1c24592de75c14382f/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 6.12s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "472f0852b14fc05559f473221b6e3151b7d6c2ba71e0ba5b355ba8e2ff7e4b8f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "1cea48d6c4d1e596ae1c1a34d3b924390a1a1365c26acc1d903fb4bc6119253c",
+    "duration_s": 26.956,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "66ae48c745c962bc51908b128d16bfe78fb70db609a12ae99493df6a8281b055",
+    "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+    "runner_sha256": "dbed61b38d248b3748358aae48de89c6c2a49d95addfc8c58e4d8f95311b9b8e",
+    "spec_sha256": "d48c7cb2fb4e551f67da131053d73131be0a242471ce020d42c965618f2a0fd2",
+    "status": "PASSED",
+    "test_output_sha256": "472f0852b14fc05559f473221b6e3151b7d6c2ba71e0ba5b355ba8e2ff7e4b8f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "1a787d413d094d1cb236710362145a14bd8c7c435678d9dc1733e32077d1d409"
+  },
+  "date": "2026-08-28T00:42:10.403797+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/60de3f0cee41d098c72ce4879f3aafe8/izdw-60de3f0cee.o954462",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/60de3f0cee41d098c72ce4879f3aafe8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nFF                                                                       [100%]\n=================================== FAILURES ===================================\n_ test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending _\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending():\n        assert generator.STUDY_GENERATION == (\n            \"paper-story-a1-headline-estimand-20260828-v2\"\n        )\n        config = generator.SizingConfig(ROOT_SEED, 16, 32, 28, 30)\n    \n        def fake_simulation(**kwargs):\n            trials = kwargs[\"trials\"]\n            n = kwargs[\"n\"]\n            phase = kwargs[\"phase\"]\n            condition = kwargs[\"condition\"]\n            if phase == \"search\":\n                success = 0 if (n == 29 and condition == \"zero\") else trials\n            else:\n                success = 28 if (n == 28 and condition == \"zero\") else trials\n            outcomes = {\n                \"bounded-within-floor\": 0,\n                \"invalid\": 0,\n                \"resolved-beyond-floor\": {\"improvement\": 0, \"regression\": 0},\n                \"unresolved\": trials - success,\n            }\n            if kwargs[\"success_classification\"] == \"bounded-within-floor\":\n                outcomes[\"bounded-within-floor\"] = success\n            else:\n                outcomes[\"resolved-beyond-floor\"][kwargs[\"success_direction\"]] = success\n            return {\n                \"condition\": condition,\n                \"invalid\": 0,\n                \"outcomes\": outcomes,\n                \"seed\": generator.child_seed(\n                    config.root_seed,\n                    phase,\n                    kwargs[\"workload\"],\n                    condition,\n                    n,\n                    trials,\n                    kwargs.get(\"certification_attempt\"),\n                ),\n                \"success\": success,\n                \"trials\": trials,\n            }\n    \n>       result = generator.size_workload(\n            workload=\"balanced\",\n            planned_cv=generator.PLANNED_CVS[\"balanced\"],\n            config=config,\n            simulate=fake_simulation,\n        )\n\norchestrator/tests/test_paper_story_a1_headline_sizing.py:1006: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/size_paper_story_a1_headline.py:866: in size_workload\n    \"certification_alpha_spending\": _alpha_spending_summary(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nattempt_count = 2\n\n    def _alpha_spending_summary(attempt_count: int) -> dict[str, object]:\n        if type(attempt_count) is not int or attempt_count < 0:\n            raise SizingError(\"certification attempt count must be a nonnegative integer\")\n        spent = sum(\n            (\n                len(CONDITIONS) * certification_condition_alpha(attempt)\n                for attempt in range(1, attempt_count + 1)\n            ),\n            Fraction(0, 1),\n        )\n        if spent > FAMILY_ALPHA:\n>           raise SizingError(\"certification alpha spending exceeds family alpha\")\nE           tools.size_paper_story_a1_headline.SizingError: certification alpha spending exceeds family alpha\n\ntools/size_paper_story_a1_headline.py:154: SizingError\n________ test_replay_receipt_binds_tools_runtime_certificate_and_policy ________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_replay_receipt_binds_tools_runtime_certificate_and_policy():\n        with tempfile.TemporaryDirectory(prefix=\"a1-headline-sizing-receipt-\") as raw_dir:\n            directory = Path(raw_dir)\n            certificate = _write_certificate(\n                directory,\n                _small_certificate(),\n                \"certificate.json\",\n            )\n            receipt = directory / \"receipt.json\"\n>           assert verifier.main(_verifier_arguments(certificate, receipt)) == 0\nE           AssertionError: assert 1 == 0\nE            +  where 1 = <function main at 0x1456b10b51b0>(['--certificate', '/tmp/a1-headline-sizing-receipt-z4n9vcep/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-z4n9vcep/receipt.json', ...])\nE            +    where <function main at 0x1456b10b51b0> = verifier.main\nE            +    and   ['--certificate', '/tmp/a1-headline-sizing-receipt-z4n9vcep/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-z4n9vcep/receipt.json', ...] = _verifier_arguments(PosixPath('/tmp/a1-headline-sizing-receipt-z4n9vcep/certificate.json'), PosixPath('/tmp/a1-headline-sizing-receipt-z4n9vcep/receipt.json'))\n\norchestrator/tests/test_paper_story_a1_headline_sizing.py:1236: AssertionError\n----------------------------- Captured stderr call -----------------------------\nverification failed: certification condition alpha differs\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending\nFAILED orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\n2 failed in 6.23s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=3030 retained_bytes=3030 omitted_bytes=0 rendered_excerpt_bytes=3179 sha256=e83b482e59fc8de3337d4a3dd570fd06d7a774e7ce355949cef50893191fc2ab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending():\n>         assert generator.STUDY_GENERATION == (\n>             \"paper-story-a1-headline-estimand-20260828-v2\"\n>         )\n>         config = generator.SizingConfig(ROOT_SEED, 16, 32, 28, 30)\n>     \n>         def fake_simulation(**kwargs):\n>             trials = kwargs[\"trials\"]\n>             n = kwargs[\"n\"]\n>             phase = kwargs[\"phase\"]\n>             condition = kwargs[\"condition\"]\n>             if phase == \"search\":\n>                 success = 0 if (n == 29 and condition == \"zero\") else trials\n>             else:\n>                 success = 28 if (n == 28 and condition == \"zero\") else trials\n>             outcomes = {\n>                 \"bounded-within-floor\": 0,\n>                 \"invalid\": 0,\n>                 \"resolved-beyond-floor\": {\"improvement\": 0, \"regression\": 0},\n>                 \"unresolved\": trials - success,\n>             }\n>             if kwargs[\"success_classification\"] == \"bounded-within-floor\":\n>                 outcomes[\"bounded-within-floor\"] = success\n>             else:\n>                 outcomes[\"resolved-beyond-floor\"][kwargs[\"success_direction\"]] = success\n>             return {\n>                 \"condition\": condition,\n>                 \"invalid\": 0,\n>                 \"outcomes\": outcomes,\n>                 \"seed\": generator.child_seed(\n>                     config.root_seed,\n>                     phase,\n>                     kwargs[\"workload\"],\n>                     condition,\n>                     n,\n>                     trials,\n>                     kwargs.get(\"certification_attempt\"),\n>                 ),\n>                 \"success\": success,\n>                 \"trials\": trials,\n>             }\n>     \n> >       result = generator.size_workload(\n>             workload=\"balanced\",\n>             planned_cv=generator.PLANNED_CVS[\"balanced\"],\n>             config=config,\n>             simulate=fake_simulation,\n>         )\n> \n> orchestrator/tests/test_paper_story_a1_headline_sizing.py:1006: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/size_paper_story_a1_headline.py:866: in size_workload\n>     \"certification_alpha_spending\": _alpha_spending_summary(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> attempt_count = 2\n> \n>     def _alpha_spending_summary(attempt_count: int) -> dict[str, object]:\n>         if type(attempt_count) is not int or attempt_count < 0:\n>             raise SizingError(\"certification attempt count must be a nonnegative integer\")\n>         spent = sum(\n>             (\n>                 len(CONDITIONS) * certification_condition_alpha(attempt)\n>                 for attempt in range(1, attempt_count + 1)\n>             ),\n>             Fraction(0, 1),\n>         )\n>         if spent > FAMILY_ALPHA:\n> >           raise SizingError(\"certification alpha spending exceeds family alpha\")\n> E           tools.size_paper_story_a1_headline.SizingError: certification alpha spending exceeds family alpha\n> \n> tools/size_paper_story_a1_headline.py:154: SizingError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1465 retained_bytes=1465 omitted_bytes=0 rendered_excerpt_bytes=1502 sha256=807b9d3f217b81689c14fe40972315332477ffdb1eb5076998d77967cb037354\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_replay_receipt_binds_tools_runtime_certificate_and_policy():\n>         with tempfile.TemporaryDirectory(prefix=\"a1-headline-sizing-receipt-\") as raw_dir:\n>             directory = Path(raw_dir)\n>             certificate = _write_certificate(\n>                 directory,\n>                 _small_certificate(),\n>                 \"certificate.json\",\n>             )\n>             receipt = directory / \"receipt.json\"\n> >           assert verifier.main(_verifier_arguments(certificate, receipt)) == 0\n> E           AssertionError: assert 1 == 0\n> E            +  where 1 = <function main at 0x1456b10b51b0>(['--certificate', '/tmp/a1-headline-sizing-receipt-z4n9vcep/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-z4n9vcep/receipt.json', ...])\n> E            +    where <function main at 0x1456b10b51b0> = verifier.main\n> E            +    and   ['--certificate', '/tmp/a1-headline-sizing-receipt-z4n9vcep/certificate.json', '--pilot', '/work/1/SFC/tanab/mutation-...26-08-24_paper-story-a1-paired/result.json', '--receipt', '/tmp/a1-headline-sizing-receipt-z4n9vcep/receipt.json', ...] = _verifier_arguments(PosixPath('/tmp/a1-headline-sizing-receipt-z4n9vcep/certificate.json'), PosixPath('/tmp/a1-headline-sizing-receipt-z4n9vcep/receipt.json'))\n> \n> orchestrator/tests/test_paper_story_a1_headline_sizing.py:1236: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4495 retained_bytes=4495 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5908 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "34eeb6255d140286bd5f17b11b0dcb2559f2a37592f88c8ddee1a5be5927a241"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1cea48d6c4d1e596ae1c1a34d3b924390a1a1365c26acc1d903fb4bc6119253c",
+      "duration_s": 26.983,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "hang_risk": false,
+      "id": "t1817-m06-alpha-spending-correction",
+      "injection_diff_sha256": "b652c28c31ea242c6e0896310c31a4c700afdcc9087b1f2227847948b44c6838",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4f72314d003ce9f93239e7f0ec75d947e1f6453f28f5534188f5f02e824147f4",
+      "replacements": [
+        {
+          "file": "tools/size_paper_story_a1_headline.py",
+          "new": "return Fraction(1, 30 * attempt * (attempt + 1))",
+          "old": "return Fraction(1, 60 * attempt * (attempt + 1))"
+        }
+      ],
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "dbed61b38d248b3748358aae48de89c6c2a49d95addfc8c58e4d8f95311b9b8e",
+      "spec_sha256": "d48c7cb2fb4e551f67da131053d73131be0a242471ce020d42c965618f2a0fd2",
+      "status": "KILLED",
+      "test_output_sha256": "34eeb6255d140286bd5f17b11b0dcb2559f2a37592f88c8ddee1a5be5927a241",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1a787d413d094d1cb236710362145a14bd8c7c435678d9dc1733e32077d1d409"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/68c21f59e97525e0f43092cf8f0bca7c/izdw-68c21f59e9.o954457",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/68c21f59e97525e0f43092cf8f0bca7c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending\norchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy\n\n2 tests collected in 0.83s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "8a909f57f3bb13cd8174af207d904a92f127b2c21336db325914a4f462aa4e2f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+        "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+      ],
+      "duration_s": 21.749,
+      "rc": 0,
+      "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+      "runner_sha256": "dbed61b38d248b3748358aae48de89c6c2a49d95addfc8c58e4d8f95311b9b8e",
+      "spec_sha256": "d48c7cb2fb4e551f67da131053d73131be0a242471ce020d42c965618f2a0fd2",
+      "status": "PASSED",
+      "tool_sha256": "1a787d413d094d1cb236710362145a14bd8c7c435678d9dc1733e32077d1d409"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t1817-m06-alpha-spending-correction": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+          "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b652c28c31ea242c6e0896310c31a4c700afdcc9087b1f2227847948b44c6838",
+        "replacements": [
+          {
+            "file": "tools/size_paper_story_a1_headline.py",
+            "new": "return Fraction(1, 30 * attempt * (attempt + 1))",
+            "old": "return Fraction(1, 60 * attempt * (attempt + 1))"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "66ae48c745c962bc51908b128d16bfe78fb70db609a12ae99493df6a8281b055",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 180.0
+  },
+  "repo_head": "cb9eeb4b6824249cc4c350ad46639e81ec493ee8",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_v2_attempt_one_failure_then_attempt_two_passes_with_exact_family_spending",
+      "orchestrator/tests/test_paper_story_a1_headline_sizing.py::test_replay_receipt_binds_tools_runtime_certificate_and_policy",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "d2ff4c024db638f981e77e449ea8d758063d6bf9",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "dbed61b38d248b3748358aae48de89c6c2a49d95addfc8c58e4d8f95311b9b8e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "d48c7cb2fb4e551f67da131053d73131be0a242471ce020d42c965618f2a0fd2",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1817-m06-correction/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "1a787d413d094d1cb236710362145a14bd8c7c435678d9dc1733e32077d1d409",
+  "updated_at": "2026-08-28T00:43:09.588338+00:00"
+}
