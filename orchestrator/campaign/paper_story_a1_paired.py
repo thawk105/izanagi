@@ -565,6 +565,19 @@ def _exclusive_write(path: Path, value: object) -> None:
             os.close(fd)
 
 
+def _publish_submission_receipt(path: Path, value: object) -> None:
+    raw = _canonical_json_bytes(value)
+    staging = path.parent / f".{path.name}.staging-{os.getpid()}"
+    _exclusive_write_bytes(staging, raw)
+    try:
+        _renameat2_directory(staging, path, _RENAME_NOREPLACE)
+    except OSError as exc:
+        raise PaperStoryError(
+            f"no-replace submission receipt publish failed: {exc.strerror}"
+        ) from exc
+    _fsync_directory(path.parent)
+
+
 def _exclusive_write_text(path: Path, value: str) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     if hasattr(os, "O_NOFOLLOW"):
@@ -1100,6 +1113,12 @@ def run_submit(args) -> int:
         )
     if os.path.lexists(attempt):
         raise PaperStoryError("submit attempt root must not already exist")
+    if os.path.lexists(Path(evidence["completion_receipt"])):
+        raise PaperStoryError("completion receipt already exists")
+    if os.path.lexists(Path(evidence["stdout_path"])):
+        raise PaperStoryError("stdout already exists")
+    if os.path.lexists(Path(evidence["stderr_path"])):
+        raise PaperStoryError("stderr already exists")
     argv, options = _canonical_qsub_contract(
         repo_root=repo_root,
         study_id=STUDY_ID,
@@ -1147,8 +1166,7 @@ def run_submit(args) -> int:
             "qstat_visibility": visibility,
         },
     }
-    _exclusive_write(submission_path, receipt)
-    _fsync_directory(submission_path.parent)
+    _publish_submission_receipt(submission_path, receipt)
     return 0
 
 
