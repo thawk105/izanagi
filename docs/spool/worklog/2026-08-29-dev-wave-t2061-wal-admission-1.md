@@ -45,6 +45,12 @@ title: [T-2061] 保存済み実行記録の判定と受領証を共通 admission
   混雑下では選べない。混雑が引くまで自動で投げ直して通した。
 - 非帰属の赤を 3 種計測した。未 commit の enforcement closure member による drift、
   `/tmp/.git` の点滅生成、一時領域を `.git` 祖先のある場所に置いたこと。
+- **受入全走 1 回目が 30 件の赤を返し、全件が本 wave 帰属だった。** 29 件は fixture が
+  「同一 attempt の verify 記録を持たない COMMIT」を作っており、新しい関門が正しく発火したもの。
+  1 件は epoch 判定の mock 対象が旧経路のままで発火しておらず、判定が確定に至らなかったもの。
+  いずれも production を変えずに fixture 側で閉じた。
+  **段 2 プラン、段 3 の 2 レンズ、段 6 の 2 レビューのいずれもこの 3 file を追随対象に
+  挙げていなかった。共通入口へ関門を置く変更の波及は、静的レビューだけでは尽くせない。**
 - 正式 qsub、正式測定、push、次 wave 起動は行っていない。
 - 一次資料は `output/insights/2026-08-29_t2061-persisted-wal-admission/`。
 

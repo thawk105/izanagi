@@ -165,6 +165,26 @@ A-2 が元から持つ意味を変えることではない。外すと A-2 の�
   適格性・attempt 束縛・COMMIT の一意性・既存の指摘なしをすべて要求する形へ絞った。
 - **11 件 + 18 件 + 229 件 (非帰属):** 環境要因。詳細は下記。
 
+## 受入全走で出た赤 30 件 (本 wave 帰属、実装の回帰ではない)
+
+1 回目の受入全走は **18868 passed / 67 skipped / 30 failed**。全件が本 wave 帰属だった。
+
+- **29 件** (`test_autonomous_trial_completeness.py` 27、`test_trial_registry.py` 2):
+  `ArtifactAdmissionError: persisted COMMIT has no preceding verify_done for its attempt`
+  が共通入口の呼び出し位置から出ている。fixture が「同一 attempt の verify 記録を持たない COMMIT」を
+  作っており、**新しい関門が正しく発火した**。fixture に正常な verify と受領証を足して閉じた。
+- **1 件** (`test_s8b_oracle_driver.py`): `assert 'indeterminate' == 'determinate'`。
+  **COMMIT の証拠不足ではない。** epoch 判定を差し替える mock の対象が旧経路のままで、
+  現行の実装が呼ぶ入口には効いていなかった。実 bytes が v1 lock
+  (`state=E0`、`reason_code=v1-authority-absent`、`certified_eligible=False`) と判定され、
+  判定が確定に至らなかった。mock の対象を現行の入口へ付け替えて閉じた。
+
+いずれも production を 1 行も変えずに fixture 側で閉じた。
+
+**段 2 プラン、段 3 の 2 レンズ、段 6 の 2 レビューのいずれもこの 3 file を追随対象として
+挙げていなかった。共通入口へ関門を置く変更の波及は、静的レビューだけでは尽くせない。**
+受入全走が唯一これを見つけた。
+
 ## 非帰属の赤 3 種 (次の wave が踏むもの)
 
 1. **未 commit の enforcement closure member。** `artifact_admission.py` は
