@@ -1918,6 +1918,237 @@ def _refinalize_test_bundle(bundle: Path, catalog: Any, catalog_path: Path) -> N
     )
 
 
+def _build_partial_bundle(
+    tmp_path: Path, *, with_checkpoint: bool
+) -> tuple[Path, Any, Path, str, str]:
+    import xml.sax.saxutils
+
+    from orchestrator.axis1_search.catalog import build_request, load_catalog
+
+    relative_catalog = Path(
+        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+    )
+    catalog_path = ROOT / relative_catalog
+    real = load_catalog(str(catalog_path))
+    complete_query = next(
+        query
+        for query in real.logical_queries
+        if query.kind == "leaf" and query.index == "arxiv" and query.branch == "Q1"
+    )
+    partial_query = next(
+        query
+        for query in real.logical_queries
+        if query.kind == "leaf" and query.index == "openalex" and query.branch == "Q1"
+    )
+    complete_query = SimpleNamespace(
+        **{**complete_query.__dict__, "independent_pass_required": False}
+    )
+    partial_query = SimpleNamespace(
+        **{**partial_query.__dict__, "independent_pass_required": False}
+    )
+    catalog = replace(real, logical_queries=(complete_query, partial_query))
+    request = build_request(catalog, complete_query.query_id, 0, None)
+    body = (
+        '<feed xmlns="http://www.w3.org/2005/Atom" '
+        'xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">'
+        f"<title>{xml.sax.saxutils.escape(request.expected_interpreted_query)}</title>"
+        "<opensearch:totalResults>0</opensearch:totalResults>"
+        "<opensearch:startIndex>0</opensearch:startIndex>"
+        "<opensearch:itemsPerPage>200</opensearch:itemsPerPage>"
+        "</feed>"
+    ).encode()
+    bundle = tmp_path / "bundle"
+    complete = _run_leaf_for_test(
+        catalog,
+        complete_query.query_id,
+        run_id="run-partial",
+        registration_commit="0" * 40,
+        catalog_path=relative_catalog.as_posix(),
+        bundle_root=bundle,
+        transport=_FakeTransport(
+            [
+                Response(
+                    200,
+                    (("Content-Type", "application/atom+xml"),),
+                    body,
+                    request.encoded_url,
+                    0.1,
+                )
+            ]
+        ),
+        preflight=True,
+        clock=lambda: 0.0,
+        sleeper=lambda seconds: None,
+    )
+    assert complete.state == "branch_complete"
+
+    if with_checkpoint:
+        _persist_quota(
+            bundle / "state" / "runtime.json",
+            "openalex",
+            QuotaObservation(
+                "2026-08-30T00:00:00Z",
+                "2026-08-30T09:00:00+09:00",
+                1000,
+                35,
+                10,
+                80000,
+                "window-1-anchor",
+                0.001,
+                (),
+            ),
+        )
+        paused = _run_leaf_for_test(
+            catalog,
+            partial_query.query_id,
+            run_id="run-partial",
+            registration_commit="0" * 40,
+            catalog_path=relative_catalog.as_posix(),
+            bundle_root=bundle,
+            transport=_FakeTransport([]),
+            preflight=True,
+            clock=lambda: 1.0,
+            sleeper=lambda seconds: None,
+        )
+        assert paused.state == "paused_quota"
+        assert paused.request_count == 0
+        assert paused.pages == ()
+        assert paused.checkpoint_path is not None
+
+    return (
+        bundle,
+        catalog,
+        catalog_path,
+        complete_query.query_id,
+        partial_query.query_id,
+    )
+
+
+def test_partial_bundle_reports_checkpointed_leaf_and_completes_validation(
+    tmp_path: Path,
+) -> None:
+    bundle, catalog, catalog_path, complete_leaf, partial_leaf = _build_partial_bundle(
+        tmp_path, with_checkpoint=True
+    )
+
+    verification = verify_bundle(
+        bundle, catalog=catalog, catalog_path=catalog_path
+    )
+
+    assert not verification.passed
+    assert verification.reason_code == "leaf_page_evidence_missing"
+    assert verification.status is not None
+    assert verification.status["bundle_validation_complete"] is True
+    assert verification.status["retrieval_complete"] is False
+    assert verification.status["axis_complete"] is False
+    assert verification.status["leaf_state_counts"] == {
+        "complete": 1,
+        "incomplete_with_evidence": 0,
+        "incomplete_without_complete_pass": 1,
+    }
+    assert verification.status["incomplete_checkpoint_counts"] == {
+        "present": 1,
+        "missing": 0,
+        "not_run": 0,
+    }
+    assert verification.status["leaf_diagnostics"][complete_leaf]["state"] == "complete"
+    partial = verification.status["leaf_diagnostics"][partial_leaf]
+    assert partial["state"] == "incomplete_without_complete_pass"
+    assert partial["checkpoint_present"] is True
+    assert partial["checkpoint_state"] == "paused_quota"
+    assert partial["resume_action"] == "continue_cursor"
+    assert partial["not_run"] is False
+
+
+def test_partial_bundle_reports_registered_leaf_without_evidence_as_not_run(
+    tmp_path: Path,
+) -> None:
+    bundle, catalog, catalog_path, _complete_leaf, missing_leaf = _build_partial_bundle(
+        tmp_path, with_checkpoint=False
+    )
+
+    verification = verify_bundle(
+        bundle, catalog=catalog, catalog_path=catalog_path
+    )
+
+    assert not verification.passed
+    assert verification.reason_code == "leaf_not_run"
+    assert verification.status is not None
+    assert verification.status["bundle_validation_complete"] is True
+    missing = verification.status["leaf_diagnostics"][missing_leaf]
+    assert missing["state"] == "incomplete_without_complete_pass"
+    assert missing["checkpoint_present"] is False
+    assert missing["resume_action"] is None
+    assert missing["not_run"] is True
+    assert verification.status["incomplete_checkpoint_counts"] == {
+        "present": 0,
+        "missing": 1,
+        "not_run": 1,
+    }
+
+
+def test_partial_bundle_keeps_condition_specific_rejection_for_completed_leaf(
+    tmp_path: Path,
+) -> None:
+    import gzip
+    import xml.etree.ElementTree as ET
+
+    bundle, catalog, catalog_path, complete_leaf, _missing_leaf = _build_partial_bundle(
+        tmp_path, with_checkpoint=False
+    )
+    catalog = replace(
+        catalog,
+        logical_queries=tuple(
+            query
+            for query in catalog.logical_queries
+            if query.query_id == complete_leaf
+        ),
+    )
+    page_path = next(
+        path
+        for path in bundle.glob("pages/*.json")
+        if json.loads(path.read_text(encoding="utf-8"))["identity"]["leaf_query_id"]
+        == complete_leaf
+    )
+    evidence = json.loads(page_path.read_text(encoding="utf-8"))
+    raw_path = bundle / evidence["response"]["body_path"]
+    root = ET.fromstring(gzip.decompress(raw_path.read_bytes()))
+    root.find("{http://www.w3.org/2005/Atom}title").text = "wrong registered echo"
+    changed_body = ET.tostring(root, encoding="utf-8")
+    raw_path.write_bytes(gzip.compress(changed_body, mtime=0))
+    evidence["response"]["byte_count"] = len(changed_body)
+    evidence["response"]["sha256"] = hashlib.sha256(changed_body).hexdigest()
+    evidence["parse"]["interpreted_query"] = "wrong registered echo"
+    condition1 = next(
+        item for item in evidence["completion"] if item["condition"] == 1
+    )
+    condition1["passed"] = False
+    condition1["reason_code"] = "interpreted_query_mismatch"
+    condition1["detail"] = "index query echo differs from the registered query"
+    _write_json_document(page_path, evidence)
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+
+    verification = verify_bundle(
+        bundle, catalog=catalog, catalog_path=catalog_path
+    )
+
+    assert not verification.passed
+    assert verification.reason_code == "interpreted_query_mismatch"
+    assert verification.status is not None
+    assert verification.status["bundle_validation_complete"] is True
+    assert verification.status["leaf_state_counts"] == {
+        "complete": 0,
+        "incomplete_with_evidence": 1,
+        "incomplete_without_complete_pass": 0,
+    }
+    assert verification.status["leaf_diagnostics"][complete_leaf]["state"] == (
+        "incomplete_with_evidence"
+    )
+    assert verification.status["leaf_diagnostics"][complete_leaf]["reason_code"] == (
+        "interpreted_query_mismatch"
+    )
+
+
 def _build_retry_then_success_dblp_bundle(
     tmp_path: Path,
 ) -> tuple[Path, Any, Path, list[tuple[Path, dict[str, Any]]]]:

@@ -1036,6 +1036,7 @@ def verify_bundle(
         documents: dict[str, Mapping[str, Any]] = {}
         ledgers: dict[str, Mapping[str, Any]] = {}
         pages: list[Mapping[str, Any]] = []
+        checkpoints: list[tuple[str, Mapping[str, Any]]] = []
         for relative in sorted(entries):
             if relative.endswith(".jsonl"):
                 if not relative.startswith("wal/"):
@@ -1069,12 +1070,100 @@ def verify_bundle(
                 from .checkpoint import validate_checkpoint
 
                 validate_checkpoint(document)
+                checkpoints.append((relative, document))
             elif relative == "state/runtime.json":
                 if document.get("schema_version") != "izanagi-axis1-search-runtime-state/v1":
                     return VerificationResult(False, "runtime_state_invalid", relative)
             else:
                 return VerificationResult(False, "unregistered_json_document", relative)
             documents[relative] = document
+
+        queries = tuple(_get(catalog, "logical_queries", ()) or ())
+        leaves = [query for query in queries if _get(query, "kind") == "leaf"]
+        aggregates = [query for query in queries if _get(query, "kind") == "aggregate"]
+        leaves_by_id = {str(_get(query, "query_id")): query for query in leaves}
+        checkpoints_by_leaf: dict[
+            str, list[tuple[str, Mapping[str, Any]]]
+        ] = {}
+        for relative, checkpoint in checkpoints:
+            if Path(relative).stem != checkpoint["checkpoint_id"]:
+                return VerificationResult(
+                    False, "checkpoint_id_mismatch", relative
+                )
+            leaf_id = str(checkpoint["leaf_query_id"])
+            query = leaves_by_id.get(leaf_id)
+            if query is None:
+                return VerificationResult(
+                    False, "checkpoint_leaf_unregistered", leaf_id
+                )
+            logical_query_id = str(_get(query, "parent_id") or leaf_id)
+            registered_required = _get(query, "independent_pass_required")
+            if (
+                checkpoint["registration_epoch"]
+                != str(_get(catalog, "registration_epoch"))
+                or checkpoint["registration_epoch"] != value["registration_epoch"]
+                or checkpoint["registration_commit"] != value["registration_commit"]
+                or checkpoint["catalog_sha256"] != catalog_sha
+                or checkpoint["catalog_sha256"] != value["catalog_sha256"]
+                or Path(checkpoint["catalog_path"]).resolve()
+                != registered_catalog_path.resolve()
+                or Path(checkpoint["bundle_root"]).resolve() != root.resolve()
+                or checkpoint["query_id"] != logical_query_id
+                or checkpoint["index"] != _get(query, "index")
+                or checkpoint["second_pass"]["required"] is not registered_required
+            ):
+                return VerificationResult(
+                    False, "checkpoint_registration_mismatch", relative
+                )
+            if not registered_required and checkpoint["pass_number"] > 1:
+                return VerificationResult(
+                    False, "checkpoint_pass_mismatch", relative
+                )
+            for role, request in checkpoint["requests"].items():
+                if (
+                    request["request_role"] != role
+                    or request["leaf_query_id"] != leaf_id
+                    or request["logical_query_id"] != logical_query_id
+                    or request["index"] != _get(query, "index")
+                    or request["target_run_id"] != checkpoint["run_id"]
+                ):
+                    return VerificationResult(
+                        False, "checkpoint_request_mismatch", f"{relative}:{role}"
+                    )
+            completed = checkpoint["completed_ledger"]
+            ledger_relative = _safe_bundle_relative(completed["path"]).as_posix()
+            ledger = ledgers.get(ledger_relative)
+            if ledger is None:
+                return VerificationResult(
+                    False, "checkpoint_ledger_missing", f"{relative}:{ledger_relative}"
+                )
+            ledger_raw = (root / ledger_relative).read_bytes()
+            ledger_work_ids = [
+                str(item["index_work_id"])
+                for item in ledger["occurrences"]
+                if item.get("index_work_id")
+            ]
+            primary = "".join(
+                f"{item}\n" for item in sorted(set(ledger_work_ids))
+            ).encode("utf-8")
+            if (
+                ledger.get("leaf_query_id") != leaf_id
+                or ledger.get("logical_query_id") != logical_query_id
+                or ledger.get("index") != _get(query, "index")
+                or ledger.get("run_id") != checkpoint["run_id"]
+                or completed["ledger_sha256"]
+                != hashlib.sha256(ledger_raw).hexdigest()
+                or completed["primary_key_digest"]
+                != hashlib.sha256(primary).hexdigest()
+                or completed["row_count"] != len(ledger["occurrences"])
+                or completed["distinct_count"] != len(set(ledger_work_ids))
+            ):
+                return VerificationResult(
+                    False, "checkpoint_ledger_mismatch", relative
+                )
+            checkpoints_by_leaf.setdefault(leaf_id, []).append(
+                (relative, checkpoint)
+            )
 
         referenced_raw = {
             str(evidence["response"]["body_path"]) for evidence in pages
@@ -1100,10 +1189,18 @@ def verify_bundle(
                 ]
             ],
         ] = {}
+        page_condition_attempts: dict[
+            tuple[str, int, int],
+            list[tuple[int, bool, tuple[ConditionResult, ...]]],
+        ] = {}
+        observed_page_evidence: set[tuple[str, int]] = set()
         seen_request_ids: set[tuple[str, int, str, int]] = set()
         seen_page_identities: set[tuple[str, int, int, int]] = set()
         for evidence in pages:
             identity = evidence["identity"]
+            observed_page_evidence.add(
+                (identity["leaf_query_id"], identity["pass_number"])
+            )
             request_id = identity["request_id"]
             attempt_number = identity["attempt_number"]
             request_identity = (
@@ -1246,6 +1343,14 @@ def verify_bundle(
                 )
                 context["actual_interpreted_structure"] = _openalex_structure(body)
             results = evaluate_page(page, page_size=int(_get(_get(catalog, "index_policies")[identity["index"]], "page_size")), **context)
+            page_condition_attempts.setdefault(
+                (
+                    identity["leaf_query_id"],
+                    identity["pass_number"],
+                    identity["page_number"],
+                ),
+                [],
+            ).append((attempt_number, response_doc["status"] == 200, results))
             completion = evidence.get("completion")
             if completion is not None:
                 claims = _completion_claims(completion)
@@ -1256,9 +1361,6 @@ def verify_bundle(
                     return VerificationResult(
                         False, "stored_completion_mismatch", identity["request_id"]
                     )
-            if evidence.get("failure") is None and not all(item.passed for item in results):
-                failure = next(item for item in results if not item.passed)
-                return VerificationResult(False, failure.reason_code, identity["request_id"])
             page_attempts.setdefault(
                 (
                     identity["leaf_query_id"],
@@ -1282,11 +1384,20 @@ def verify_bundle(
             _attempt_number, accepted = max(attempts, key=lambda item: item[0])
             if accepted is not None:
                 accepted_pages.setdefault((leaf_id, pass_number), []).append(accepted)
+        condition_evidence_by_leaf: dict[str, list[ConditionResult]] = {}
+        for (leaf_id, _pass_number, _page_number), attempts in sorted(
+            page_condition_attempts.items()
+        ):
+            _attempt_number, eligible, results = max(
+                attempts, key=lambda item: item[0]
+            )
+            if eligible:
+                condition_evidence_by_leaf.setdefault(leaf_id, []).extend(
+                    result for result in results if not result.passed
+                )
 
-        queries = tuple(_get(catalog, "logical_queries", ()) or ())
-        leaves = [query for query in queries if _get(query, "kind") == "leaf"]
-        aggregates = [query for query in queries if _get(query, "kind") == "aggregate"]
         leaf_results: dict[str, Any] = {}
+        leaf_diagnostics: dict[str, dict[str, Any]] = {}
         states: dict[str, str] = {
             str(_get(query, "query_id")): "not_applicable"
             for query in queries
@@ -1299,12 +1410,33 @@ def verify_bundle(
                 return VerificationResult(False, "independent_pass_registration_missing", leaf_id)
             pass_numbers = (1, 2) if registered_required else (1,)
             pass_evaluations: list[tuple[ConditionResult, ...]] = []
-            pass_digests: list[str] = []
+            pass_digests: dict[int, str] = {}
+            pass_terminal: dict[int, bool] = {}
             final_work_ids: set[str] = set()
             for pass_number in pass_numbers:
                 values = accepted_pages.get((leaf_id, pass_number), [])
                 if not values:
-                    return VerificationResult(False, "leaf_page_evidence_missing", f"{leaf_id}:pass{pass_number}")
+                    pass_terminal[pass_number] = False
+                    pass_evaluations.append(
+                        evaluate_leaf(
+                            (),
+                            page_size=int(
+                                _get(
+                                    _get(catalog, "index_policies")[_get(query, "index")],
+                                    "page_size",
+                                )
+                            ),
+                            pagination_kind=(
+                                "cursor" if _get(query, "index") == "openalex" else "offset"
+                            ),
+                            shard_lower=_get(query, "shard_lower"),
+                            shard_upper=_get(query, "shard_upper"),
+                            state="not_started",
+                            second_pass_required=registered_required and pass_number == 2,
+                            second_pass_digest_matches=False if pass_number == 2 else None,
+                        )
+                    )
+                    continue
                 values.sort(key=lambda item: item[0]["identity"]["page_number"])
                 page_numbers = [
                     item[0]["identity"]["page_number"] for item in values
@@ -1384,27 +1516,156 @@ def verify_bundle(
                 digest = hashlib.sha256(
                     "".join(f"{item}\n" for item in sorted(work_ids)).encode("utf-8")
                 ).hexdigest()
-                pass_digests.append(digest)
+                pass_digests[pass_number] = digest
                 final_work_ids = work_ids
+                pass_terminal[pass_number] = _get(page_values[-1], "position_out") is None
                 evaluation = evaluate_leaf(
                     page_values,
                     page_size=int(_get(_get(catalog, "index_policies")[_get(query, "index")], "page_size")),
                     pagination_kind=("cursor" if _get(query, "index") == "openalex" else "offset"),
                     shard_lower=_get(query, "shard_lower"),
                     shard_upper=_get(query, "shard_upper"),
-                    state="branch_complete",
+                    state=(
+                        "branch_complete"
+                        if pass_terminal[pass_number]
+                        else "paused_quota"
+                    ),
                     second_pass_required=registered_required and pass_number == 2,
                     second_pass_digest_matches=(
-                        pass_digests[0] == digest if pass_number == 2 else None
+                        pass_digests.get(1) == digest if pass_number == 2 else None
                     ),
                     page_contexts=contexts,
                 )
                 pass_evaluations.append(evaluation)
-            final_evaluation = pass_evaluations[-1]
+
+            combined_evaluation: list[ConditionResult] = []
+            for condition in range(1, 7):
+                results = [
+                    result
+                    for evaluation in pass_evaluations
+                    for result in evaluation
+                    if result.condition == condition
+                ]
+                failure = next(
+                    (
+                        result
+                        for result in condition_evidence_by_leaf.get(leaf_id, ())
+                        if result.condition == condition
+                    ),
+                    None,
+                ) or next((result for result in results if not result.passed), None)
+                combined_evaluation.append(failure or results[-1])
+            final_evaluation = tuple(combined_evaluation)
+            incomplete_passes = [
+                pass_number
+                for pass_number in pass_numbers
+                if not pass_terminal.get(pass_number, False)
+            ]
+            all_passes_terminal = not incomplete_passes
+            condition_failure = next(
+                (item for item in final_evaluation if not item.passed), None
+            )
+            direct_condition_failure = next(
+                iter(condition_evidence_by_leaf.get(leaf_id, ())), None
+            )
+            matching_checkpoint: tuple[str, Mapping[str, Any]] | None = None
+            if incomplete_passes:
+                for relative, checkpoint in sorted(
+                    checkpoints_by_leaf.get(leaf_id, ()),
+                    key=lambda item: item[1]["checkpoint_id"],
+                    reverse=True,
+                ):
+                    action = checkpoint["resume_action"]
+                    selected = checkpoint["requests"].get(action)
+                    target_pass = (
+                        selected.get("target_pass_number")
+                        if isinstance(selected, Mapping)
+                        else checkpoint["pass_number"]
+                    )
+                    if (
+                        target_pass in incomplete_passes
+                        or checkpoint["pass_number"] in incomplete_passes
+                    ):
+                        matching_checkpoint = (relative, checkpoint)
+                        break
+
+            if direct_condition_failure is not None:
+                diagnostic_state = "incomplete_with_evidence"
+                reason_code = direct_condition_failure.reason_code
+                execution_state = "blocked_on_ruling"
+            elif all_passes_terminal and condition_failure is None:
+                diagnostic_state = "complete"
+                reason_code = None
+                execution_state = "branch_complete"
+            elif all_passes_terminal:
+                diagnostic_state = "incomplete_with_evidence"
+                reason_code = condition_failure.reason_code
+                execution_state = "blocked_on_ruling"
+            else:
+                diagnostic_state = "incomplete_without_complete_pass"
+                has_any_evidence = any(
+                    (leaf_id, pass_number) in observed_page_evidence
+                    for pass_number in pass_numbers
+                )
+                if not has_any_evidence and matching_checkpoint is None:
+                    reason_code = "leaf_not_run"
+                    execution_state = "not_started"
+                else:
+                    reason_code = (
+                        "leaf_page_evidence_missing"
+                        if any(
+                            not accepted_pages.get((leaf_id, pass_number))
+                            for pass_number in incomplete_passes
+                        )
+                        else "leaf_pass_incomplete"
+                    )
+                    execution_state = (
+                        str(matching_checkpoint[1]["state"])
+                        if matching_checkpoint is not None
+                        else "outcome_unknown"
+                    )
+
+            checkpoint_relative = (
+                matching_checkpoint[0] if matching_checkpoint is not None else None
+            )
+            checkpoint_value = (
+                matching_checkpoint[1] if matching_checkpoint is not None else None
+            )
+            leaf_diagnostics[leaf_id] = {
+                "state": diagnostic_state,
+                "reason_code": reason_code,
+                "expected_passes": list(pass_numbers),
+                "completed_passes": [
+                    number for number in pass_numbers if pass_terminal.get(number, False)
+                ],
+                "evidence_passes": [
+                    number
+                    for number in pass_numbers
+                    if (leaf_id, number) in observed_page_evidence
+                ],
+                "checkpoint_present": checkpoint_value is not None,
+                "checkpoint_path": checkpoint_relative,
+                "checkpoint_state": (
+                    checkpoint_value["state"] if checkpoint_value is not None else None
+                ),
+                "resume_action": (
+                    checkpoint_value["resume_action"]
+                    if checkpoint_value is not None
+                    else None
+                ),
+                "not_run": (
+                    diagnostic_state == "incomplete_without_complete_pass"
+                    and not any(
+                        (leaf_id, number) in observed_page_evidence
+                        for number in pass_numbers
+                    )
+                    and checkpoint_value is None
+                ),
+            }
             leaf_results[leaf_id] = {
                 "condition_results": final_evaluation,
                 "work_ids": final_work_ids,
-                "state": "branch_complete" if all(item.passed for item in final_evaluation) else "blocked_on_ruling",
+                "state": execution_state,
             }
             states[leaf_id] = leaf_results[leaf_id]["state"]
 
@@ -1433,8 +1694,83 @@ def verify_bundle(
             aggregate_results=aggregate_results,
             states=states,
         )
+        leaf_state_counts = Counter(
+            diagnostic["state"] for diagnostic in leaf_diagnostics.values()
+        )
+        partial_diagnostics = [
+            diagnostic
+            for diagnostic in leaf_diagnostics.values()
+            if diagnostic["state"] == "incomplete_without_complete_pass"
+        ]
+        status = {
+            **status,
+            "bundle_validation_complete": True,
+            "leaf_state_counts": {
+                state: leaf_state_counts.get(state, 0)
+                for state in (
+                    "complete",
+                    "incomplete_with_evidence",
+                    "incomplete_without_complete_pass",
+                )
+            },
+            "incomplete_checkpoint_counts": {
+                "present": sum(
+                    item["checkpoint_present"] is True
+                    for item in partial_diagnostics
+                ),
+                "missing": sum(
+                    item["checkpoint_present"] is False
+                    for item in partial_diagnostics
+                ),
+                "not_run": sum(item["not_run"] is True for item in partial_diagnostics),
+            },
+            "leaf_diagnostics": leaf_diagnostics,
+        }
         if not status["retrieval_complete"]:
-            return VerificationResult(False, "retrieval_incomplete", "exact leaf/aggregate gate is false", status)
+            failed_leaf = next(
+                (
+                    (leaf_id, diagnostic)
+                    for leaf_id, diagnostic in leaf_diagnostics.items()
+                    if diagnostic["state"] != "complete"
+                ),
+                None,
+            )
+            if failed_leaf is not None:
+                leaf_id, diagnostic = failed_leaf
+                return VerificationResult(
+                    False,
+                    diagnostic["reason_code"] or "retrieval_incomplete",
+                    f"{leaf_id}: {diagnostic['state']}",
+                    status,
+                )
+            aggregate_failure = next(
+                (
+                    failure
+                    for result in aggregate_results.values()
+                    if (
+                        failure := next(
+                            (
+                                item
+                                for item in result["condition_results"]
+                                if not item.passed
+                            ),
+                            None,
+                        )
+                    )
+                    is not None
+                ),
+                None,
+            )
+            return VerificationResult(
+                False,
+                (
+                    aggregate_failure.reason_code
+                    if aggregate_failure is not None
+                    else "retrieval_incomplete"
+                ),
+                "exact leaf/aggregate gate is false",
+                status,
+            )
     except (OSError, ValueError, json.JSONDecodeError, IndexError, KeyError, TypeError) as exc:
         return VerificationResult(False, "bundle_check_error", str(exc))
     return VerificationResult(
