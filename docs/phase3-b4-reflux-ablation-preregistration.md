@@ -220,9 +220,12 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   `未記入` のままにする。** 部分記入の例外は「実行責任者・開始時刻」欄だけであり、本欄へ広げない。
   記入は固定順・固定 tag・区切り `; ` の次の形に限る。
   `expected_claude_model_snapshot=<slug>` に続けて
-  `expected_effective_critic_prompt_sha256=<64 hex>`、
-  `expected_closed_critic_projection_closure_sha256[base]=<64 hex>`、
+  `expected_effective_critic_prompt_sha256=<hash>`、
+  `expected_closed_critic_projection_closure_sha256[base]=<hash>`、
   同 `[sort]`、同 `[trigger]` を並べる。
+  `<slug>` は `claude-opus-` で始まり、以降が英数字と `.` `_` `-` の区切りだけからなる文字列。
+  `<hash>` は小文字 16 進 64 桁。**大文字・全角・互換文字を使わない** — 値セルの raw bytes が
+  この形と一致しない行は、正規化後に一致して見えても実走前検査が拒否する。
   - **projection は 3 driver 分をすべて書く。** 1 driver 分だけを書ける形にすると、どの driver で
     走るかを結果を見た後に選べる。値は `p3_b4_closed_critic.projection_sha256(kind)` が
     記入時点の checkout から機械導出したものを base / sort / trigger の順で書く。
@@ -785,8 +788,13 @@ next synthesis・primary outcome・secondary outcome を新たに生成も閲覧
   識別子、宣言の時点、観測 slug が食い違ったときの扱い — は**人間の指名を含むため AI が確定できない。**
   §0 の原子性により、同じセルに入る prompt hash と projection hash も同時に記入できない。
   **したがって 3 driver の projection closure hash は、機構と規範が揃っても値としては未登録である。**
-  機構の側 (3 driver 分を要求する行の文法、記入された 3 値すべてを実走前に live 値と照合する関門) は
-  2026-08-29 に閉じた。**残るのは値の指名だけである。**
+  機構の側 (3 driver 分を要求する行の文法、記入された 3 値すべてを起動器の bootstrap 経路と
+  pair 生成点で実走前に live 値と照合する関門、invoke と最終 certification での 3 件再照合) は
+  2026-08-29 に閉じた。**閉じたのは機構だけである。** 本欄が埋まるまでに残るのは、
+  (i) §5.1 の 4 点を別 commit で固定すること、(ii) model・prompt・3 driver の projection を
+  同じセルへ原子的に記入すること、(iii) その版を commit すること、(iv) その版へ束縛した
+  admission record を driver ごとに発行することである。**本書の発効にはさらに §5 の他 9 欄と
+  §6 の前提条件が要る** — 本項はそれらを一つも充足しない。
 - 対象 driver と軸の選定そのもの (§5.1 の手順)。
 - 旧登録の B-4 記述を本書が supersede するかどうかのユーザー裁定。
 - **critic の決定と proposal 本文の因果的束縛。** 2026-08-26 の必須配線は、閉じた critic

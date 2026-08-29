@@ -317,25 +317,74 @@ def test_closed_critic_expectation_row_accepts_fixed_driver_tags_and_rejects_alt
         )
 
 
-def test_closed_critic_expectation_row_uses_slug_and_ascii_hex_lexemes():
-    uppercase_projections = {
-        kind: C.projection_sha256(kind).upper()
+def test_closed_critic_expectation_row_requires_claude_opus_slug_and_lowercase_ascii_hex():
+    lowercase_projections = {
+        kind: C.projection_sha256(kind)
         for kind in A.B4_PROJECTION_DRIVER_KINDS
     }
+    lowercase_prompt = C.projection_sha256("base")
+    valid_model = "claude-opus-snapshot_1.2"
     parsed = A._parse_closed_critic_expectation_row(_expectation_row(
-        model="model-snapshot-1",
-        prompt=C.projection_sha256("base").upper(),
-        projections=uppercase_projections,
+        model=valid_model,
+        prompt=lowercase_prompt,
+        projections=lowercase_projections,
     ))
-    assert parsed.expected_claude_model_snapshot == "model-snapshot-1"
+    assert parsed.expected_claude_model_snapshot == valid_model
+    assert parsed.expected_effective_critic_prompt_sha256 == lowercase_prompt
     assert dict(
         parsed.expected_closed_critic_projection_closure_sha256_by_driver
-    ) == uppercase_projections
-    for model in ("model snapshot", "model--snapshot", "model_snapshot-"):
+    ) == lowercase_projections
+
+    for model in (
+        "model-snapshot-1",
+        "model snapshot",
+        "model--snapshot",
+        "model_snapshot-",
+        "claude-opus-",
+        "claude-opus-snapshot-",
+        "claude-opus-model--snapshot",
+    ):
         _raises(
             A.B4AdmissionRecordError,
             lambda model=model: A._parse_closed_critic_expectation_row(
-                _expectation_row(model=model)
+                _expectation_row(
+                    model=model,
+                    prompt=lowercase_prompt,
+                    projections=lowercase_projections,
+                )
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+    uppercase_prompt = lowercase_prompt.upper()
+    assert uppercase_prompt != lowercase_prompt
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A._parse_closed_critic_expectation_row(_expectation_row(
+            model=valid_model,
+            prompt=uppercase_prompt,
+            projections=lowercase_projections,
+        )),
+        exact=_SECTION5_ERROR,
+    )
+
+    for uppercase_kind in A.B4_PROJECTION_DRIVER_KINDS:
+        uppercase_projections = dict(lowercase_projections)
+        uppercase_projections[uppercase_kind] = (
+            C.projection_sha256(uppercase_kind).upper()
+        )
+        assert (
+            uppercase_projections[uppercase_kind]
+            != lowercase_projections[uppercase_kind]
+        )
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda uppercase_projections=uppercase_projections: (
+                A._parse_closed_critic_expectation_row(_expectation_row(
+                    model=valid_model,
+                    prompt=lowercase_prompt,
+                    projections=uppercase_projections,
+                ))
             ),
             exact=_SECTION5_ERROR,
         )

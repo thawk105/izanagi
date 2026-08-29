@@ -82,14 +82,14 @@ B4_PROJECTION_DRIVER_KINDS: Final[tuple[B4ProjectionDriverKind, ...]] = (
 )
 _EXPECTATION_ROW_RE = re.compile(
     r"expected_claude_model_snapshot="
-    r"(?P<model>[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*); "
-    r"expected_effective_critic_prompt_sha256=(?P<prompt>[0-9A-Fa-f]{64}); "
+    r"(?P<model>claude-opus-[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*); "
+    r"expected_effective_critic_prompt_sha256=(?P<prompt>[0-9a-f]{64}); "
     r"expected_closed_critic_projection_closure_sha256\[base\]="
-    r"(?P<projection_base>[0-9A-Fa-f]{64}); "
+    r"(?P<projection_base>[0-9a-f]{64}); "
     r"expected_closed_critic_projection_closure_sha256\[sort\]="
-    r"(?P<projection_sort>[0-9A-Fa-f]{64}); "
+    r"(?P<projection_sort>[0-9a-f]{64}); "
     r"expected_closed_critic_projection_closure_sha256\[trigger\]="
-    r"(?P<projection_trigger>[0-9A-Fa-f]{64})"
+    r"(?P<projection_trigger>[0-9a-f]{64})"
 )
 _RESERVED_SENTINEL_RE = re.compile(
     r"(?:未記入|要記入|(?<!\w)"
