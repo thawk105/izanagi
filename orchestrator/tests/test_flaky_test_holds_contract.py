@@ -52,8 +52,12 @@ _LIVE_HELD_NODE = (
     "orchestrator/tests/test_dev_wave_land.py::"
     "test_exploration_external_root_keeps_wave_clean"
 )
+_LIVE_CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE = (
+    "orchestrator/tests/test_codex_worker_launch.py::"
+    "test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]"
+)
 _LIVE_REGISTRY_SHA256 = (
-    "ed7b4d7e4e5eafe836f11397da6b596d2c04d227996a8a217aa5970b6e117be2"
+    "84d60604a9176b0a7d5f9b19aada9154c09cdbcdd18a187e51ee5d5e0f24070f"
 )
 
 
@@ -292,15 +296,48 @@ def _expected_flaky_summary_line(
 
 
 def test_live_registry_exports_exact_registered_hold_and_digest() -> None:
-    assert len(REG._FLAKY_TEST_HOLD_ROWS) == 1
+    assert len(REG._FLAKY_TEST_HOLD_ROWS) == 2
     assert tuple(node_id for node_id, _ in REG._FLAKY_TEST_HOLD_ROWS) == (
         _LIVE_HELD_NODE,
+        _LIVE_CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE,
     )
-    assert tuple(REG.FLAKY_TEST_HOLDS) == (_LIVE_HELD_NODE,)
+    assert tuple(REG.FLAKY_TEST_HOLDS) == (
+        _LIVE_HELD_NODE,
+        _LIVE_CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE,
+    )
     hold = REG.FLAKY_TEST_HOLDS[_LIVE_HELD_NODE]
     assert hold.known_failure_node_ids == frozenset({_LIVE_HELD_NODE})
     assert hold.evidence_id == "F57"
     assert hold.reintroduction_task_id == "t-1079"
+    new_hold = REG.FLAKY_TEST_HOLDS[
+        _LIVE_CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE
+    ]
+    assert new_hold.known_failure_node_ids == frozenset(
+        {_LIVE_CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE}
+    )
+    assert new_hold.same_tree is True
+    assert new_hold.green_observation == (
+        "同一 tip の exact node 単独走は 1 passed in 5.60s で、"
+        "直後の受入全走は 18499 passed / 62 skipped で緑だった"
+    )
+    assert new_hold.green_collection_condition == (
+        "exact-node-single-run + acceptance-full-suite"
+    )
+    assert new_hold.green_run_count == 2
+    assert new_hold.red_observation == (
+        "同一 tip の受入 attempt 1 で当該 exact node が唯一の赤だった"
+    )
+    assert new_hold.red_collection_condition == REG.ACCEPTANCE_COLLECTION
+    assert new_hold.failure_signature == (
+        "subprocess 出力が空による JSONDecodeError"
+    )
+    assert new_hold.cause == (
+        "launcher プロセス全体の実時間が admission 上限を超えると v1 "
+        "判定表が拒否する経路を実測で再現した。当時の receipt と stderr は"
+        "残っておらず、当該赤がこの経路だった直接証拠は無い"
+    )
+    assert new_hold.evidence_id == "F273"
+    assert new_hold.reintroduction_task_id == "t-2073"
     assert _HELD_NODE not in REG.FLAKY_TEST_HOLDS
     assert _SIBLING_NODE not in REG.FLAKY_TEST_HOLDS
     assert REG.FLAKY_TEST_HOLD_NODE_IDS == frozenset(REG.FLAKY_TEST_HOLDS)
@@ -1009,7 +1046,7 @@ def test_live_flaky_summary_derives_exact_count_and_digest_from_registry() -> No
     assert len(summary_lines) == 1
     payload = json.loads(summary_lines[0].split(" ", 1)[1])
     expected_payload = {
-        "registered_node_count": 1,
+        "registered_node_count": 2,
         "matched_node_count": 1,
         "skipped_node_count": 1,
         "registry_sha256": _LIVE_REGISTRY_SHA256,
