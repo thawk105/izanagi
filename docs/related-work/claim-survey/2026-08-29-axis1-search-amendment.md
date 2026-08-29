@@ -130,8 +130,9 @@ arXiv の `Q1`〜`Q5`、OpenAlex の `Q1` / `Q2` / `Q4` / `Q5`、DBLP の `T01`�
 
 ### 3.4 固定日付 shard
 
-**shard の境界は結果を見る前に固定する。** 導出関数は cutoff だけを引数に取り、
-件数・応答・環境変数・現在時刻を一切参照しない。**件数を見てからの再分割・境界移動は禁止する。**
+**shard の境界は結果を見る前に固定する。** 導出関数が受け取るのは索引・枝・cutoff だけであり、
+**境界を動かしうる入力は cutoff だけ**である。件数・応答・環境変数・現在時刻を一切参照しない。
+**件数を見てからの再分割・境界移動は禁止する。**
 
 | 枝 | shard |
 |---|---|
@@ -159,6 +160,11 @@ shard の和は元の枝と同じ日付域を過不足なく覆う。この選�
 
 **OpenAlex に shard を置く理由は結果窓ではない。** OpenAlex は cursor で歩ける。
 shard の目的は、無償枠の窓をまたぐときの cursor 失効を避け、再開点の粒度を leaf に揃えることである。
+
+**独立第 2 走の要否は登録事項である。** 各 logical query に `independent_pass_required` を登録し、
+**無償枠の窓数から導出してはならない** (窓数は実行時の事情であって契約ではない)。
+本改訂は shard を持つ 3 枝 (`Q6@arxiv`、`Q3@openalex`、`Q6@openalex`) を `true`、
+それ以外を `false` として登録する。
 
 ### 3.5 DBLP の期待 echo — 索引の実測トークン化に合わせる
 
@@ -246,11 +252,30 @@ opensearch:startIndex   : 0
 **`itemsPerPage` は要求値のエコーである。** この probe は満頁なので実要素数と一致するが、
 旧記録 §4.1 の実測では最終頁で要求 200 / 宣言 200 / 実数 105 になっている。
 
-### 4.4 OpenAlex の応答の形
+### 4.4 OpenAlex の応答の形と、複合 filter の echo
 
-`meta` は `count` / `per_page` / `next_cursor` / `x_query.oql` / `cost_usd` を持つ。
-`results[].id` は `https://openalex.org/W...` の URL 形、`doi` は `https://doi.org/10.xxxx/...` の
-小文字形で返る。
+`meta` は `count` / `per_page` / `page` / `next_cursor` / `x_query.oql` / `x_query.oqo` /
+`cost_usd` を持つ。`results[].id` は `https://openalex.org/W...` の URL 形、
+`doi` は `https://doi.org/10.xxxx/...` の小文字形で返る。
+**cursor で歩くとき `meta.page` は `null` である** — 頁番号は応答から復元できないので、
+発行した request 側の頁番号を occurrence へ当てる。
+
+**複合 filter の echo を中立語で測った。** 送信したのは
+`title_and_abstract.search:("alpha beta" OR "gamma delta") AND ("epsilon zeta" OR "eta theta"),
+to_publication_date:2026-12-31` である。返った `meta.x_query.oql` は次のとおり。
+
+```
+works where date <= (2026-12-31)
+  and title/abstract has (
+    (stemmed "alpha beta" or stemmed "gamma delta")
+    and (stemmed "epsilon zeta" or stemmed "eta theta")
+  )
+```
+
+**日付が先に来る。改行とインデントを含む整形済み文字列である。**
+同じ応答の `meta.x_query.oqo` は、`filter_rows` に `to_publication_date` を先頭とし、
+続けて各概念ブロックを `{"join": "or", "filters": [...]}` の形で持つ構造を返す。
+**§7 の条件 1 が OpenAlex について構造比較を採るのは、この実測による。**
 
 ### 4.5 引き継ぐ実測 (旧契約 §4.1〜§4.3、§4.5 — 再測していない)
 
@@ -324,9 +349,17 @@ occurrence ごとに、索引固有の日付欄の**生値**と、そこから�
 各 leaf について、次の全部が成立したときに限り `完走` とする。
 
 1. **解釈照合。** catalog から生成した正規化 request と、索引が返した解釈後 query が、
-   登録した期待値と一致する。比較は正規化後に行う — 連続空白を 1 個へ、URL エンコードを復号、
-   arXiv の `submittedDate` の角括弧と二重引用符の差だけを許容する。それ以外の差異は不一致とする。
-   DBLP の期待 echo は §3.5 の決定的規則で生成する。
+   登録した期待値と一致する。**比較の方法は索引ごとに違う。**
+   - **arXiv と DBLP は文字列比較**とし、正規化は 3 つだけ許す — 連続空白を 1 個へ、
+     URL エンコードを復号、arXiv の `submittedDate` の角括弧と二重引用符の差。
+     それ以外の差異は不一致とする。DBLP の期待 echo は §3.5 の決定的規則で生成する。
+   - **OpenAlex は `meta.x_query.oqo` の構造比較**とする。登録した構造 (`filter_rows` の順序、
+     各 row の `column_id` / `operator` / `value`、ブロックの `join`) との完全一致を要求する。
+     `meta.x_query.oql` の生文字列は証拠として保存するが**判定には使わない** — 実測 (§4.4) の
+     とおり、複合 filter の `oql` は改行とインデントを含む整形済み文字列であり、
+     空白正規化だけで安定に一致させられないためである。
+   - **頁ごとに期待値が違う場合は頁ごとに比較する。** arXiv の echo は `start` を含むので、
+     最終頁の期待値を全頁へ当ててはならない。
 
 2. **ページングの連続性と黙った切り詰めの検出。** offset 方式は直前の位置と実要素数から、
    cursor 方式は直前の頁の `next_cursor` とその応答本文の SHA-256 からのみ次 request を生成する。
