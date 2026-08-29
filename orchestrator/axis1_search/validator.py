@@ -816,6 +816,7 @@ def _logical_query(catalog: Any, query_id: str) -> Any:
 def _expected_openalex_structure(query: Any) -> Any:
     marker = object()
     for field in (
+        "expected_openalex_oqo",
         "expected_interpreted_query_structure",
         "expected_x_query_oqo",
         "expected_oqo",

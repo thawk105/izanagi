@@ -380,6 +380,197 @@ def test_production_status_requires_all_263_leaves_and_3_aggregates() -> None:
     assert status["retrieval_complete"] is False
 
 
+@pytest.mark.parametrize(
+    ("index", "leaf_query_id"),
+    (
+        ("arxiv", "AX1-20260829-E1-Q1@arxiv"),
+        ("openalex", "AX1-20260829-E1-Q1@openalex"),
+        ("dblp", "AX1-20260829-E1-T01@dblp"),
+    ),
+)
+def test_real_catalog_leaf_resolves_every_runner_field(
+    index: str, leaf_query_id: str
+) -> None:
+    from orchestrator.axis1_search import runner as runner_module
+    from orchestrator.axis1_search import validator as validator_module
+    from orchestrator.axis1_search.catalog import build_request, load_catalog
+
+    catalog_path = (
+        ROOT
+        / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+    )
+    schema_path = ROOT / "orchestrator/schemas/axis1_search_catalog.schema.json"
+    document = json.loads(catalog_path.read_text(encoding="utf-8"))
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    catalog = load_catalog(str(catalog_path))
+
+    catalog_fields = {
+        "registration_epoch",
+        "index_policies",
+        "logical_queries",
+        "controls",
+    }
+    policy_fields = {
+        "content_types",
+        "minimum_interval_s",
+        "page_size",
+        "pagination_kind",
+        "retry_delays_s",
+    }
+    query_fields = {
+        "query_id",
+        "kind",
+        "index",
+        "branch",
+        "parent_id",
+        "shard_lower",
+        "shard_upper",
+        "independent_pass_required",
+        "expected_openalex_oqo",
+    }
+    request_fields = {
+        "request_id",
+        "leaf_query_id",
+        "logical_query_id",
+        "index",
+        "method",
+        "scheme",
+        "host",
+        "path",
+        "query_parameters",
+        "encoded_url",
+        "headers",
+        "timeout_s",
+        "page_number",
+        "position_in",
+        "expected_interpreted_query",
+    }
+
+    assert catalog_fields <= document.keys()
+    assert catalog_fields <= schema["properties"].keys()
+    assert catalog_fields <= set(schema["required"])
+    assert policy_fields <= document["index_policies"][index].keys()
+    assert policy_fields <= schema["definitions"]["index_policy"]["properties"].keys()
+    assert policy_fields <= set(schema["definitions"]["index_policy"]["required"])
+    raw_query = next(
+        item for item in document["logical_queries"] if item["query_id"] == leaf_query_id
+    )
+    assert query_fields <= raw_query.keys()
+    assert query_fields <= schema["definitions"]["logical_query"]["properties"].keys()
+    assert query_fields <= set(schema["definitions"]["logical_query"]["required"])
+    assert {"control_id", "indexes"} <= document["controls"][0].keys()
+    assert {"control_id", "indexes"} <= schema["definitions"]["control"]["properties"].keys()
+    assert {"control_id", "indexes"} <= set(
+        schema["definitions"]["control"]["required"]
+    )
+
+    query = runner_module._logical_query(catalog, leaf_query_id)
+    request = build_request(catalog, leaf_query_id, 0, None)
+    assert query.query_id == leaf_query_id
+    assert query.index == index
+    assert request_fields == set(request.__dict__)
+    assert (
+        runner_module._independent_pass_required(catalog, leaf_query_id)
+        is query.independent_pass_required
+    )
+    assert runner_module._registered_content_types(catalog, index) == frozenset(
+        document["index_policies"][index]["content_types"]
+    )
+    assert runner_module._minimum_interval(catalog, index) >= float(
+        document["index_policies"][index]["minimum_interval_s"]
+    )
+    assert (
+        runner_module._page_size(catalog, index)
+        == document["index_policies"][index]["page_size"]
+    )
+    assert (
+        runner_module._pagination_kind(catalog, index)
+        == document["index_policies"][index]["pagination_kind"]
+    )
+    assert runner_module._retry_delays(catalog, index) == tuple(
+        document["index_policies"][index]["retry_delays_s"]
+    )
+    if index == "openalex":
+        assert query.expected_openalex_oqo is not None
+        assert (
+            runner_module._expected_openalex_oqo(catalog, leaf_query_id)
+            == query.expected_openalex_oqo
+        )
+        assert (
+            validator_module._expected_openalex_structure(query)
+            == query.expected_openalex_oqo
+        )
+
+
+@pytest.mark.parametrize(
+    ("index", "fixture_name"),
+    (
+        ("arxiv", "f1_arxiv_terminal.xml"),
+        ("openalex", "f2_openalex_terminal.json"),
+        ("dblp", "f6_dblp_terminal.json"),
+    ),
+)
+def test_registered_parser_output_fields_match_evidence_schema(
+    index: str, fixture_name: str
+) -> None:
+    from orchestrator.axis1_search import parsers
+
+    parser = {
+        "arxiv": parsers.parse_arxiv_page,
+        "openalex": parsers.parse_openalex_page,
+        "dblp": parsers.parse_dblp_page,
+    }[index]
+    body = (ROOT / "orchestrator/tests/fixtures/axis1_search" / fixture_name).read_bytes()
+    page = parser(body, 0)
+    schema = json.loads(
+        (
+            ROOT / "orchestrator/schemas/axis1_search_page_evidence.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    parse_fields = schema["definitions"]["parse"]["properties"].keys()
+    occurrence_fields = schema["definitions"]["occurrence"]["properties"].keys()
+
+    assert page.index == index
+    assert set(parse_fields) == set(schema["definitions"]["parse"]["required"])
+    assert set(occurrence_fields) == set(
+        schema["definitions"]["occurrence"]["required"]
+    )
+    assert set(page.__dict__) == set(parse_fields) | {"index", "occurrences"}
+    assert page.occurrences
+    assert set(page.occurrences[0].__dict__) == set(occurrence_fields)
+
+
+def test_page_evidence_fields_read_during_resume_exist_in_schema() -> None:
+    schema = json.loads(
+        (
+            ROOT / "orchestrator/schemas/axis1_search_page_evidence.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    definitions = schema["definitions"]
+    expected = {
+        "page_evidence": {
+            "document_type",
+            "identity",
+            "failure",
+            "parse",
+            "request",
+            "response",
+        },
+        "identity": {
+            "leaf_query_id",
+            "pass_number",
+            "page_number",
+            "attempt_number",
+            "index",
+        },
+        "request": {"expected_interpreted_query", "position_in", "encoded_url"},
+        "response": {"status", "content_type", "final_url", "body_path"},
+    }
+    for definition, fields in expected.items():
+        assert fields <= definitions[definition]["properties"].keys()
+        assert fields <= set(definitions[definition]["required"])
+
+
 def test_manifest_files_mapping_is_not_accepted() -> None:
     with pytest.raises(ValueError, match="files/entries collection"):
         _manifest_entries({"files": {"raw/page.gz": {"sha256": "0" * 64}}})

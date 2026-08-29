@@ -454,6 +454,7 @@ def _openalex_oqo(body: bytes) -> Any:
 def _expected_openalex_oqo(catalog: Any, leaf_query_id: str) -> Any:
     query = _logical_query(catalog, leaf_query_id)
     for field in (
+        "expected_openalex_oqo",
         "expected_interpreted_query_structure",
         "expected_x_query_oqo",
         "expected_oqo",
