@@ -161,6 +161,81 @@ certifying 経路における承認権限とも、claim-evidence の分類語 `[
 従属する下流症状を指す。bench 到達の観測、正式系列の未完走、D930 の経路別挙動は動かず、
 新しい実証も増えていない。一次資料: `docs/decisions.md` の D959 / D1204。
 
+**§8 の A-2 (性能 workload そのものでの certification) — 正式 protocol は outer certification
+status `reject` で完走した (2026-08-28)。** 2026-08-26 版は A-2 を「未取得」と書き、その根拠に
+「正式 protocol (`legacy+performance`) が要求する 5 反復 × 4 cell と、小構成 correctness との AND」の
+未完走を挙げた。**この「未完走」は、A-2 が定義した write-heavy (rratio=5) と balanced (rratio=50) の
+exact 4 cell について stale になった** — attempt `t2022-20260828c` が outer certification status
+`reject` で完走している。**A-2 が性能について出した判定は `reject` であり、完走は成功ではない。**
+
+- 現行 Pegasus・CCBench pin `511c953` で、rr5 は無 backoff 対照 2,527,542 TPS に対し採用静的
+  backoff (`fixed10`) が 1,355,011 TPS、効果は **-46.3902%**。rr50 は無 backoff 対照
+  3,662,448 TPS に対し `fixed5` が 1,248,603 TPS、効果は **-65.9080%**。
+- 4 cell の correctness status は protocol 上すべて `certified` (legacy 1 回と full-scale 5 回が
+  すべて pass、anomaly 0) である。**これは outer の性能成功を意味しない。**
+- 構成は D1169 の exact 2 workload である。workload ごとに独立に環境契約された campaign を
+  1 本ずつ取り、outer は policy の workload 順の論理積で決まる。**「4-cell run」という短縮は
+  この構成を隠すので、一度は分割の形を書く。**
+
+**旧環境の正の効果と、この負の効果を 1 つの時系列や再現判定へ畳んではならない。**
+旧 `linux-baremetal`・CCBench `6656e931…` の記述的 sweep は、公称上同じ処理と対照の組
+(分母 `BACK_OFF=0` / `BACKOFF_FIXED=-1`、処理 `BACKOFF_FIXED` 10 または 5) に対して
++38.3% / +11.3% を観測した。重なる 2 workload では records 1,000,000・threads 48・skew 0.9・
+rmw 0・extime 3・`CCBENCH_TRACE=0`・反復 5・各側 median の比まで一致する。
+**一致しないのは** CCBench commit、環境、toolchain (gcc/g++-13 対 GCC 11)、
+`clocks_per_us` (1800 対 2100)、numactl (`--interleave=all` 対 なし)、計装 (旧 sweep は
+`perf stat` 下、A-2 は perf 無し)、workload 被覆 (旧は read-heavy を含む 3、A-2 は 2) である。
+`max_ope` は A-2 policy が 10 とするが、旧 sweep の条件表に欄が無く一致を確認できない。
+**したがってこれは headline の覆しでも、旧結果の反証でも、再現失敗でも、Pegasus で一般に
+効かないことの証明でもない。符号差の原因は同定されていない。**「環境依存である」も原因としては
+未実証なので断定しない。A-2 policy 自身が旧 commit の役割を
+`"originating historical campaign only; never a current comparison value"` と限定しているので、
+**旧値を現行値の comparator に据えて効果を計算し直してはならない。**
+
+**A-2 は A-1 の対測定契約ではない。** したがって 2026-08-26 版 §8 の exact claim に付いた
+**〔但し書き 1〕(D496 以前の記述的な結果であって現行の対測定契約の下で測り直したものではない) は
+外れない。**
+
+**残る限定。** read-heavy (fixed 2µs) は 4 cell に含まれないので、同一 workload certification の
+空白と機序論証による外挿はそのまま残る。各 cell の `workload_argv_observation` は
+`not-independently-recorded-by-existing-pipeline` であり、correctness の実 argv と executable hash は
+独立記録されていない (D1257)。legacy correctness の観測反復は各 cell 1 回である。
+`a4_noise_floor_status` は `open`、`global_minimality_established` は `false`、
+`smallest_observed_sufficient_in_this_two_point_protocol` は `null` で、成果物に信頼区間も
+有意差判定も無い。**`L01` の verifier 保証範囲は 1 ミリも広がらない。**
+
+**凍結済み文書はこう読み替える。** `2026-08-26.md` では §0 の A-2 の項、§2 第 3 幕 (f) の
+A-2 の項、§5、§6 (「言えること」の限定付き観測と「言えないこと」の「certified なまま
++38.3% / +11.3%」)、§7、§8 の exact claim〔但し書き 2〕と A-2 欄、§9 の分類表が
+「正式 protocol 未完走」「単回 4 cell」を指す箇所である。
+`claim-evidence/2026-08-26.md` では C2、C12、§2.4 の拒否文、`L02`、`L24`、§4.2 の A-2 行、
+§5.1、§5.2 が対応する。**ただし動くのは部分だけである。**
+
+- **`L01` は不変。**
+- **`L02` は分割する。** 「write-heavy / balanced の正式な性能 workload protocol が未完走」の
+  部分だけ stale。「certified なまま +38.3% / +11.3% を無条件に書かない」規律は残る —
+  旧効果量と現行 certification は別環境・別 source・別 run だからである。read-heavy の外挿も残る。
+- **`L24` は分割する。** C12 の**単回** 4 cell を「正式な certification」と呼ばない歴史的規律は
+  今も正しい。現在地としての「正式 protocol 未完走」だけが stale。後継の規律は
+  「正式 A-2 protocol は `reject` で完走した。cell の correctness certified を outer の成功と
+  呼ばない」である。
+- **§2.4 の拒否文は拒否のまま残り、理由が変わる。** 「正式 certification が未取得だから」ではなく、
+  「旧の正効果と現行の cell certification は同一の環境・source・run・契約の証拠ではなく、
+  現行 A-2 の性能効果自体が負で outer は `reject` だから」である。
+  条件欄を「A-2 達成済み」として閉じると過大主張になる。
+- **C12 の単回コスト観測は歴史値として残る。** A-2 の現在地ではない。
+- **A-2 の ID 自体は、定義された 2 workload の protocol を outer `reject` の判定で完了している。**
+  read-heavy の空白は A-2 の未完了ではなく被覆の限界である。後継項目を新設するか
+  A-2 を部分被覆で完了とするかは、次の全面再導出版で裁定する。
+
+一次資料: `output/insights/2026-08-24_paper-story-a2-certification/certification.json`
+(status・cell・effect の権威 bytes。埋め込み policy を含む)、
+`output/insights/2026-08-28_t2022-a2-certification-run/README.md` (実走の索引)、
+`docs/decisions.md` の D1169 / D1257 / D1258 / D1259。旧環境の値は
+`output/insights/2026-08-25_paper-story-a3-gain-unification/README.md` を導出索引とする
+(同 report は冒頭で `authority: none` を宣言する)。権威 bytes は旧 campaign の
+`campaign.lock` と WAL にある。
+
 **恒久の erratum は別の場所にある。**
 `figures/fig2_backoff_mechanism.png` の baseline 誤 label（横破線に `stock adaptive backoff` と
 書いてあるが、その値は無 backoff）と後継図 `figures/fig2b_backoff_sweep_3workload` への
