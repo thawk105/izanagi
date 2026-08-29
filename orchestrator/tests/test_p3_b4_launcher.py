@@ -248,6 +248,7 @@ def test_m15_real_production_pair_factory_rejects_cross_driver_context(
     on_cfg, off_cfg = _marked_base_pair()
     admission = _committed_admission_fixture(
         expected_model="claude-opus-5-m15",
+        driver_kind="sort",
     )
     context = _with_campaign_id(
         _production_context(driver_kind="sort", admission=admission),
