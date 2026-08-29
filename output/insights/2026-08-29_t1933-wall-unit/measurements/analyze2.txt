@@ -1,0 +1,56 @@
+
+## all: n=484
+   wall median 270.4   nworkers [48]
+   max_items on busiest worker: [(2, 82), (3, 63), (5, 58), (6, 2), (7, 1), (8, 1), (9, 1), (17, 1)]
+   longest_node / max_occ  median 0.774
+   wall ~ max_occ       slope=1.018 intercept=  75.2 r=0.884
+   wall ~ longest_node  slope=0.815 intercept= 158.0 r=0.760
+   wall ~ ideal         slope=0.747 intercept= 175.0 r=0.649
+   wall - max_occ  median 70.9  IQR 65.0-78.4
+   top node:
+      180 orchestrator.tests.test_p3_autonomous_workload_trial::test_role_sink_bytes_vary_only_at_declared_declassifications
+      134 orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       99 orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+       27 orchestrator.tests.test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+
+## K=3: n=191
+   wall median 245.0   nworkers [48]
+   max_items on busiest worker: [(2, 70), (3, 62), (5, 56), (29, 1), (31, 1), (54, 1)]
+   longest_node / max_occ  median 0.849
+   wall ~ max_occ       slope=1.455 intercept=  10.7 r=0.837
+   wall ~ longest_node  slope=1.450 intercept=  47.0 r=0.730
+   wall ~ ideal         slope=0.966 intercept= 143.2 r=0.374
+   wall - max_occ  median 74.9  IQR 70.0-87.9
+   top node:
+       95 orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+       60 orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       27 orchestrator.tests.test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+        4 orchestrator.tests.test_trial_registry::test_t822_acceptance_reports_changed_layer3_snapshot_identity
+
+## K=2: n=293
+   wall median 275.7   nworkers [48]
+   max_items on busiest worker: [(2, 12), (3, 1), (5, 2), (6, 2), (7, 1), (8, 1), (9, 1), (17, 1)]
+   longest_node / max_occ  median 0.654
+   wall ~ max_occ       slope=0.983 intercept=  75.3 r=0.965
+   wall ~ longest_node  slope=0.717 intercept= 183.4 r=0.874
+   wall ~ ideal         slope=0.707 intercept= 184.0 r=0.797
+   wall - max_occ  median 67.1  IQR 63.0-74.0
+   top node:
+      176 orchestrator.tests.test_p3_autonomous_workload_trial::test_role_sink_bytes_vary_only_at_declared_declassifications
+       74 orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       16 orchestrator.tests.test_codex_reasoning_ab::test_verify_replays_complete_fake_codex_experiment@real-repo
+       14 orchestrator.tests.test_trial_registry::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads
+
+## K=3 and mtime >= 2026-08-28: n=117
+   wall median 256.6   nworkers [48]
+   max_items on busiest worker: [(2, 26), (3, 41), (5, 50)]
+   longest_node / max_occ  median 0.838
+   wall ~ max_occ       slope=1.540 intercept=  -0.5 r=0.798
+   wall ~ longest_node  slope=1.460 intercept=  56.2 r=0.682
+   wall ~ ideal         slope=0.947 intercept= 168.5 r=0.333
+   wall - max_occ  median 77.3  IQR 71.9-103.3
+   top node:
+       79 orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+       25 orchestrator.tests.test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+       12 orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+        1 orchestrator.tests.test_trial_registry::test_t822_acceptance_reports_changed_layer3_snapshot_identity

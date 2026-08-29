@@ -1,0 +1,30 @@
+run 9c62f3e9
+skipped total: 67
+
+by hold axis / reason:
+    23  output_artifacts
+    18  tracked_files
+     7  commits
+     3  (no growth hold) bundled Codex/bwrap/busybox required
+     3  docs_bytes
+     2  (no growth hold) IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT is not configured
+     1  (no growth hold) 条件付き未実走: template patch 未適用: backoff.hh に #if BACKOFF_FIXED
+     1  (no growth hold) 条件付き未実走: template patch 未適用: Options.cmake に BACKOFF_FIXED 既
+     1  (no growth hold) 条件付き未実走: template patch 未適用: backoff.hh に BACKOFF_FIXED 骨格なし
+     1  (no growth hold) 条件付き未実走: template patch 未適用: backoff.hh に EVOLVE-BLOCK marke
+     1  (no growth hold) gnuplot 無し
+     1  (no growth hold) 実 dispatch は環境許可時に親が実走する
+
+by test file:
+    11  test_s1_measurement_freeze
+     9  test_s1_known_axes_freeze
+     6  test_campaign_import_invariant
+     6  test_s8b_oracle_driver
+     5  test_s8c_preregistration_invariant
+     4  test_codex_role_runtime
+     3  test_campaign
+     3  test_s8b_floor_campaign
+     3  test_check_docs
+     2  test_s8b_binding_driftguards
+     2  test_codex_reasoning_ab
+     2  test_s8b_protocol_builder
