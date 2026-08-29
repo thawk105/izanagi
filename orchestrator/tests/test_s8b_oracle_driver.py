@@ -5276,7 +5276,9 @@ def test_session_issuer_alias_and_append_use_model_authority(tmp_path, monkeypat
 def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5):
     """E3a production-emitter bytes から oracle 実走 fixture を返す。"""
     def fill_execution_snapshot(g1):
-        v2_fixture.fill(
+        # emitter が result.floors から独立投影した floor は保持し、
+        # oracle 実走 fixture に必要な budget だけを追加する。
+        g1["budget"] = v2_fixture.budget(
             g1, total_bench_s=1000.0, per_holdout_bench_s=1000.0,
         )
 

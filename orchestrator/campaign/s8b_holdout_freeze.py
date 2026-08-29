@@ -50,6 +50,7 @@ V2_CANDIDATE_REL = "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
 BUDGET_APPROVAL_REL = "output/s8b-freeze-budget-approvals/g1.json"
 BUDGET_APPROVAL_SCOPE = "s8b-holdout-freeze/v2:g1-budget"
 BUDGET_APPROVAL_SHA256: Optional[str] = None
+_FLOOR_SELECTION_RULE_VERSION = "earliest-eligible-official-run-id/v1"
 V2_ADDED_KEYS = frozenset({
     "generation_number", "supersedes_sha256", "env_tag",
     "floor_protocol", "floor_source", "measurement_closure",
@@ -1345,9 +1346,33 @@ def _load_repo_object(root: Path, raw_path, *, label: str) -> Tuple[str, bytes, 
     return rel, raw, _strict_load_object_bytes(raw, label)
 
 
+def _project_floor_for_freeze(
+    result: Mapping, *, expected_holdouts: Optional[Sequence[str]] = None,
+) -> Dict:
+    """floor result の diagnostics を除いた凍結投影を構築する。"""
+    floors = result.get("floors")
+    if not isinstance(floors, Mapping):
+        raise FreezeError("floor result.floors が object でない")
+    holdout_ids = tuple(floors) if expected_holdouts is None else tuple(expected_holdouts)
+    if expected_holdouts is not None and set(floors) != set(holdout_ids):
+        raise FreezeError("floor result.floors の holdout 集合が不一致")
+    projected = {}
+    for holdout_id in holdout_ids:
+        value = floors.get(holdout_id)
+        if (not isinstance(value, Mapping)
+                or set(value) != {"pairs", "scale_ref", "scalar_alt", "diagnostics"}):
+            raise FreezeError(f"floor result.floors.{holdout_id} の schema が不一致")
+        projected[holdout_id] = {
+            "pairs": copy.deepcopy(value["pairs"]),
+            "scale_ref": copy.deepcopy(value["scale_ref"]),
+            "scalar_alt": copy.deepcopy(value["scalar_alt"]),
+        }
+    return {"by_holdout": projected}
+
+
 def _validate_floor_inputs(
     *, root: Path, head: str, floor_result_path, v1: Mapping,
-) -> Tuple[str, bytes, Dict, bytes, Dict, Dict]:
+) -> Tuple[str, bytes, Dict, bytes, Dict, Dict, Dict]:
     # v1 API の import・実行境界を v2 専用依存の import-time validation や
     # process-wide callback 登録から分離する。
     from . import env_contract
@@ -1617,24 +1642,325 @@ def _validate_floor_inputs(
     if result.get("eligible_for_refreeze") is not True:
         raise FreezeError("floor result.eligible_for_refreeze が true でない")
 
-    floors = result.get("floors")
-    if not isinstance(floors, Mapping) or set(floors) != set(expected_holdouts):
-        raise FreezeError("floor result.floors の holdout 集合が不一致")
-    projected = {}
-    for holdout_id in expected_holdouts:
-        value = floors.get(holdout_id)
-        if (not isinstance(value, Mapping)
-                or set(value) != {"pairs", "scale_ref", "scalar_alt", "diagnostics"}):
-            raise FreezeError(f"floor result.floors.{holdout_id} の schema が不一致")
-        projected[holdout_id] = {
-            "pairs": copy.deepcopy(value["pairs"]),
-            "scale_ref": copy.deepcopy(value["scale_ref"]),
-            "scalar_alt": copy.deepcopy(value["scalar_alt"]),
-        }
+    floor = _project_floor_for_freeze(
+        result, expected_holdouts=expected_holdouts,
+    )
     return (
         result_rel, result_raw, result, protocol_raw, protocol,
-        {"by_holdout": projected},
+        floor, path_info,
     )
+
+
+def _validate_selected_floor_launch_certificate(
+    *, namespace_fd: int, result_rel: str, protocol: Mapping, path_info: Mapping,
+) -> None:
+    """selected result の certificate と official path の起動秒を束縛する。"""
+    from . import s8b_floor_contract
+    from .s8b_launch_cert import LaunchCertError, validate_launch_certificate
+
+    run_name = result_rel.rsplit("/", 2)[-2]
+    run_fd = None
+    try:
+        run_fd = _open_nofollow_child_directory(
+            namespace_fd, run_name, label="floor result selected run",
+        )
+        cert_raw = _capture_regular_nofollow_at(
+            run_fd, "launch_certificate.json",
+            label="floor result launch certificate",
+        )
+        if cert_raw is None:
+            raise FreezeError("floor result launch certificate が存在しない")
+        cert = _strict_load_object_bytes(cert_raw, "floor result launch certificate")
+        validate_launch_certificate(
+            cert,
+            expected_v1_freeze_sha256=t080_freeze_migration.HOLDOUT_RAW_SHA256,
+            expected_protocol_sha256=(
+                s8b_floor_contract.canonical_protocol_sha256(protocol)
+            ),
+            expected_run_id=path_info["run_id"],
+        )
+    except (FreezeError, LaunchCertError, KeyError, TypeError) as exc:
+        raise FreezeError(f"floor-launch-certificate-invalid: {exc}") from exc
+    finally:
+        if run_fd is not None:
+            os.close(run_fd)
+
+
+def _open_nofollow_directory_chain(
+    root: Path, rel: str, *, label: str,
+) -> int:
+    """root から rel までを dirfd で辿り、束縛済み leaf directory fd を返す。"""
+    rel = _canonical_relative_path(rel, label=label)
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        raise FreezeError(
+            "O_NOFOLLOW/O_DIRECTORY が利用できないため安全に directory を開けない"
+        )
+    flags = os.O_RDONLY | nofollow | directory
+    current_fd = None
+    try:
+        root_before = root.lstat()
+        current_fd = os.open(root, flags)
+        root_after = os.fstat(current_fd)
+        if (
+            not stat.S_ISDIR(root_before.st_mode)
+            or not stat.S_ISDIR(root_after.st_mode)
+            or (root_before.st_dev, root_before.st_ino)
+            != (root_after.st_dev, root_after.st_ino)
+        ):
+            raise FreezeError(f"{label} repo root が同一 non-symlink directory でない")
+        for component in rel.split("/"):
+            next_fd = os.open(component, flags, dir_fd=current_fd)
+            next_stat = os.fstat(next_fd)
+            if not stat.S_ISDIR(next_stat.st_mode):
+                os.close(next_fd)
+                raise FreezeError(
+                    f"{label} component が non-symlink directory でない: {component}"
+                )
+            os.close(current_fd)
+            current_fd = next_fd
+        return current_fd
+    except FreezeError:
+        if current_fd is not None:
+            os.close(current_fd)
+        raise
+    except OSError as exc:
+        if current_fd is not None:
+            os.close(current_fd)
+        raise FreezeError(
+            f"{label} non-symlink directory chain を開けない: {exc}"
+        ) from exc
+
+
+def _open_nofollow_child_directory(
+    parent_fd: int, component: str, *, label: str,
+) -> int:
+    """束縛済み parent fd から同一 inode の child directory を開く。"""
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        raise FreezeError(
+            "O_NOFOLLOW/O_DIRECTORY が利用できないため安全に directory を開けない"
+        )
+    flags = os.O_RDONLY | nofollow | directory
+    child_fd = None
+    try:
+        before = os.stat(component, dir_fd=parent_fd, follow_symlinks=False)
+        child_fd = os.open(component, flags, dir_fd=parent_fd)
+        after = os.fstat(child_fd)
+        if (
+            not stat.S_ISDIR(before.st_mode)
+            or not stat.S_ISDIR(after.st_mode)
+            or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+        ):
+            raise FreezeError(
+                f"{label} が同一 non-symlink directory でない: {component}"
+            )
+        return child_fd
+    except FreezeError:
+        if child_fd is not None:
+            os.close(child_fd)
+        raise
+    except OSError as exc:
+        if child_fd is not None:
+            os.close(child_fd)
+        raise FreezeError(
+            f"{label} が non-symlink directory でない: {component}: {exc}"
+        ) from exc
+
+
+def _capture_regular_nofollow_at(
+    parent_fd: int, leaf: str, *, label: str, missing_ok: bool = False,
+) -> Optional[bytes]:
+    """束縛済み directory fd から同一 regular leaf を nofollow で捕捉する。"""
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise FreezeError("O_NOFOLLOW が利用できないため安全に capture できない")
+    flags = os.O_RDONLY | nofollow | getattr(os, "O_NONBLOCK", 0)
+    fd = None
+    try:
+        before = os.stat(leaf, dir_fd=parent_fd, follow_symlinks=False)
+        fd = os.open(leaf, flags, dir_fd=parent_fd)
+        after = os.fstat(fd)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or not stat.S_ISREG(after.st_mode)
+            or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+        ):
+            raise FreezeError(f"{label} が同一 non-symlink regular file でない")
+        chunks = []
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                return b"".join(chunks)
+            chunks.append(chunk)
+    except FileNotFoundError:
+        if missing_ok:
+            return None
+        raise FreezeError(f"{label} が存在しない")
+    except FreezeError:
+        raise
+    except OSError as exc:
+        raise FreezeError(
+            f"{label} が同じ dirfd 上の non-symlink regular file でない: {exc}"
+        ) from exc
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def _official_earlier_floor_results(
+    *, root: Path, selected_rel: str, selected_path_info: Mapping,
+    protocol: Mapping, v1: Mapping, namespace_fd: int, namespace_rel: str,
+) -> Tuple[Tuple[str, Dict, bool], ...]:
+    """束縛済み namespace fd から earlier result と適格性を捕捉する。"""
+    from .s8b_launch_cert import LaunchCertError, parse_official_run_path
+
+    try:
+        entries = tuple(os.listdir(namespace_fd))
+    except OSError as exc:
+        raise FreezeError(f"floor selection namespace を列挙できない: {exc}") from exc
+
+    earlier = []
+    for entry_name in entries:
+        candidate_rel = f"{namespace_rel}/{entry_name}/result.json"
+        try:
+            path_info = parse_official_run_path(
+                candidate_rel, expected_basename="result.json",
+            )
+        except LaunchCertError:
+            continue
+        if (path_info["env_tag"] != selected_path_info["env_tag"]
+                or path_info["proto8"] != selected_path_info["proto8"]
+                or path_info["ts"] >= selected_path_info["ts"]):
+            continue
+        run_fd = _open_nofollow_child_directory(
+            namespace_fd, entry_name, label="floor selection earlier run",
+        )
+        try:
+            result_before = _capture_regular_nofollow_at(
+                run_fd, "result.json", label="floor selection earlier result",
+                missing_ok=True,
+            )
+            if result_before is None:
+                continue
+            try:
+                derived = _derive_floor_selection_eligibility(
+                    root=root, run_fd=run_fd, result_rel=candidate_rel,
+                    result_before=result_before, path_info=path_info,
+                    protocol=protocol, v1=v1,
+                )
+            except FreezeError as exc:
+                raise FreezeError(
+                    "floor-selection-eligibility-underivable: "
+                    f"{candidate_rel}: {exc}"
+                ) from exc
+            earlier.append((candidate_rel, path_info, derived))
+        finally:
+            os.close(run_fd)
+    return tuple(sorted(earlier, key=lambda item: item[1]["run_id"]))
+
+
+def _derive_floor_selection_eligibility(
+    *, root: Path, run_fd: int, result_rel: str, result_before: bytes,
+    path_info: Mapping, protocol: Mapping, v1: Mapping,
+) -> bool:
+    """earlier run の適格性を共有 admission 台帳だけから再導出する。"""
+    from . import s8b_floor_contract
+    from .s8b_holdout_admission import (
+        FloorHoldoutEvidenceError,
+        FloorHoldoutEvidenceInspection,
+        inspect_floor_holdout_admission_evidence,
+    )
+
+    run_dir = result_rel.rsplit("/", 1)[0]
+    manifest_before = _capture_regular_nofollow_at(
+        run_fd, "manifest.json", label="floor selection earlier manifest",
+    )
+    journal_before = _capture_regular_nofollow_at(
+        run_fd, "journal.jsonl", label="floor selection earlier journal",
+    )
+    if manifest_before is None or journal_before is None:
+        raise FreezeError("earlier manifest/journal が存在しない")
+    journal_records = _strict_load_jsonl_objects(
+        journal_before, "floor selection earlier journal",
+    )
+    attempt_lifecycle = [
+        record for record in journal_records
+        if record.get("event") in {"session-start", "session"}
+    ]
+    try:
+        cells = s8b_floor_contract.enumerate_cells(
+            v1, stock_configuration=protocol["stock_configuration"],
+        )
+        schedule = s8b_floor_contract.build_schedule(
+            cells=cells, master_seed=protocol["master_seed"],
+            n_sessions=protocol["n_sessions"],
+        )
+        inspection = inspect_floor_holdout_admission_evidence(
+            repo_root=root, protocol=protocol,
+            verified_freeze_document=v1,
+            freeze_sha256=t080_freeze_migration.HOLDOUT_RAW_SHA256,
+            manifest_sha256=_sha256_bytes(manifest_before),
+            campaign_run_id=path_info["run_id"],
+            run_relpath=run_dir.removeprefix("output/"), mode="official",
+            cells=cells, schedule=schedule, sessions=attempt_lifecycle,
+        )
+    except (KeyError, TypeError, ValueError, s8b_floor_contract.FloorContractError,
+            FloorHoldoutEvidenceError) as exc:
+        raise FreezeError(str(exc)) from exc
+    if not isinstance(inspection, FloorHoldoutEvidenceInspection):
+        raise FreezeError("admission inspector の戻り値が契約外")
+    for leaf, before, label in (
+        ("result.json", result_before, "result"),
+        ("manifest.json", manifest_before, "manifest"),
+        ("journal.jsonl", journal_before, "journal"),
+    ):
+        after = _capture_regular_nofollow_at(
+            run_fd, leaf, label=f"floor selection earlier {label} recapture",
+        )
+        if after != before:
+            raise FreezeError(f"earlier {label} が適格性導出中に変化")
+    return inspection.derived_eligible_for_refreeze
+
+
+def _assert_floor_selection_identity(
+    *, root: Path, selected_rel: str, selected_path_info: Mapping,
+    protocol: Mapping, v1: Mapping, validate_selected_certificate: bool = False,
+) -> None:
+    """selected が earliest derived-eligible official run であることを要求する。"""
+    namespace_rel = (
+        f"output/env/{selected_path_info['env_tag']}/calibration/"
+        "s8b-floor-official"
+    )
+    if not selected_rel.startswith(f"{namespace_rel}/"):
+        raise FreezeError("floor selection selected path が namespace と不一致")
+    namespace_fd = _open_nofollow_directory_chain(
+        root, namespace_rel, label="floor selection namespace",
+    )
+    try:
+        if validate_selected_certificate:
+            _validate_selected_floor_launch_certificate(
+                namespace_fd=namespace_fd, result_rel=selected_rel,
+                protocol=protocol, path_info=selected_path_info,
+            )
+        eligible = [(selected_path_info["run_id"], selected_rel)]
+        for earlier_rel, earlier_info, derived in _official_earlier_floor_results(
+                root=root, selected_rel=selected_rel,
+                selected_path_info=selected_path_info, protocol=protocol, v1=v1,
+                namespace_fd=namespace_fd, namespace_rel=namespace_rel):
+            if derived:
+                eligible.append((earlier_info["run_id"], earlier_rel))
+    finally:
+        os.close(namespace_fd)
+    required_run_id, _required_rel = min(eligible, key=lambda item: item[0])
+    selected_run_id = selected_path_info["run_id"]
+    if required_run_id != selected_run_id:
+        raise FreezeError(
+            f"floor-selection-rule-mismatch: {_FLOOR_SELECTION_RULE_VERSION}: "
+            f"selected_run_id={selected_run_id} required_run_id={required_run_id}"
+        )
 
 
 def _measurement_closure(
@@ -1720,8 +2046,13 @@ def build_v2_g1_candidate(
 
     (
         result_rel, result_raw, _result, protocol_raw, protocol, floor,
+        path_info,
     ) = _validate_floor_inputs(
         root=root, head=head, floor_result_path=floor_result_path, v1=v1,
+    )
+    _assert_floor_selection_identity(
+        root=root, selected_rel=result_rel, selected_path_info=path_info,
+        protocol=protocol, v1=v1, validate_selected_certificate=True,
     )
     known_axes = _v1_source_record_at_head(
         v1, "known_axes_freeze", head=head, root=root,

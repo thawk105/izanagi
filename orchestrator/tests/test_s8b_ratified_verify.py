@@ -641,6 +641,7 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
         "supersedes_sha256": M.V1_FREEZE_SHA256, "env_tag": protocol["env_tag"],
         "floor_protocol": {"path": paths["protocol"], "sha256": _lsha(protocol_record_raw)},
         "floor_source": {"path": paths["result"], "sha256": result_record_sha},
+        "floor": B._independent_floor_projection(result),
         "measurement_closure": [
             {"canonical_path": paths["closure80"], "sha256": _lsha(closure80_record_raw)},
             {"canonical_path": paths["closure20"], "sha256": _lsha(B._RR20_PARAMS)},
@@ -828,6 +829,70 @@ def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
     assert lv.floor_artifact.path.endswith("/result.json")
     assert lv.floor_artifact.sha256 == _lsha(lv.floor_artifact.raw_bytes)
     assert set(lv.binaries_by_cell) == set(topology["manifest"]["binaries"])
+
+
+def _with_earlier_floor_result_at_head(
+        root: Path, freeze: M.RatifiedFreeze) -> tuple[M.RatifiedFreeze, str]:
+    selected_rel = freeze.document["floor_source"]["path"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    earlier_rel = selected_rel.replace(
+        selected_run_id, f"20260718T115959Z-{proto8}",
+    )
+    B._write(root, earlier_rel, b"{}")
+    activation_head = B._fixed_commit_all(
+        root, "earlier official result", "fixture",
+    )
+    return M.RatifiedFreeze(
+        document=freeze.document, sha256=freeze.sha256,
+        generation_number=freeze.generation_number,
+        activation_head=activation_head,
+        generation_commit=freeze.generation_commit,
+    ), earlier_rel
+
+
+def test_launch_validate_rejects_floor_selection_rule_mismatch(
+        tmp_path, monkeypatch):
+    root, freeze, _topology = _build_launch_repo(tmp_path)
+    freeze, earlier_rel = _with_earlier_floor_result_at_head(root, freeze)
+    calls = []
+
+    def derived_eligible(**kwargs):
+        calls.append(kwargs["result_rel"])
+        return True
+
+    monkeypatch.setattr(HF, "_derive_floor_selection_eligibility", derived_eligible)
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.launch_validate(freeze, root)
+    assert caught.value.reason == "floor-selection-rule-mismatch"
+    assert caught.value.cause == "earliest-eligible-official-run-id/v1"
+    assert calls == [earlier_rel]
+
+
+def test_launch_validate_preserves_floor_selection_path_failure_reason(
+        tmp_path, monkeypatch):
+    root, freeze, _topology = _build_launch_repo(tmp_path)
+
+    def path_failure(**_kwargs):
+        raise HF.FreezeError(
+            "floor selection namespace non-symlink directory chain を開けない"
+        )
+
+    monkeypatch.setattr(HF, "_assert_floor_selection_identity", path_failure)
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.launch_validate(freeze, root)
+    assert caught.value.reason == "floor-selection-unverifiable"
+    assert caught.value.cause == (
+        "floor selection namespace non-symlink directory chain を開けない"
+    )
+
+
+def test_historical_reverify_does_not_apply_current_floor_selection(
+        tmp_path):
+    root, freeze, _topology = _build_launch_repo(tmp_path)
+    freeze, _earlier_rel = _with_earlier_floor_result_at_head(root, freeze)
+    reverified = M.reverify_published_freeze(freeze, root)
+    assert type(reverified) is M.ReverifiedFreeze
 
 
 def test_reverify_rejects_unreachable_admission_root(tmp_path):

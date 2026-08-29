@@ -8456,6 +8456,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   memory `measure-state-dont-infer-from-proxy` の射程は自作の近似計算にも及ぶ。
   同 wave で構造的結論 (unit 内順序が保存される) だけは proxy でなく実装から得ており、
   こちらは撤回していない。
+
+- **再発: 2026-08-29** — 四度目。救出 wave で、対象 3 branch がいずれも `git merge-base
+  --is-ancestor <branch> main` rc=0 だった。ancestry だけを読めば「全部着地済み、救出対象なし」で
+  終わる形であり、`git cherry main <branch>` も全 commit を `-` にし、三点 diff
+  `git diff main...<branch>` は空を返す。**しかし救出材料は commit ではなく worktree の未 commit
+  差分であり、これら 3 手はいずれも構造的にそれを見ない。** 実際に 11 file 中 2 file
+  (`orchestrator/tests/conftest.py`、`orchestrator/tests/test_real_repo_serialization.py`) は main
+  未変更の実質的な差分を持っており、ancestry で打ち切っていれば中身を一度も見ずに捨てていた。
+  F270 本体および 2026-08-16 の再発が挙げる反転手 (patch-id 照合、タスク ID での台帳検索) は
+  どちらも commit を対象にするため、この面には効かない。族としては本体と同じ
+  「安価に測れる量を状態の代わりに読む」で、今回は代理指標が ancestry である。
+- 併記する実測: 判定を反転させたのは 1 手だった。**救出 file の追加行のうち、main の当該 file に
+  1 行も存在しないものだけを残余として数える行単位照合。** 11 file・約 4100 行の差分が、残余
+  0 行 (6 file)、数行 (3 file)、13 行 (2 file) に落ちた。読む対象が 4100 行から数十行になり、
+  かつ「main が同じ内容を別の書き方で持っているだけ」の見かけの差分を自動的に外せた。
+  なお残余ありの 3 file についても、内容を読むと main の後退 (旧名への改名、resume 再開支援の
+  撤去、main の現行意味と逆を主張する試験) であり、行単位照合は着地判定の**入口**であって
+  結論ではない — 残余が出た file は必ず中身を読む必要がある。
+- 恒久対応: 新規の機械検査は本 wave では入れない。memory `three-dot-diff-is-not-unlanded-volume`
+  と `cherry-plus-judged-by-content-not-path` に ancestry 面を追記し、救出 wave の入口で
+  「branch が main の祖先でも worktree の未 commit 差分は残りうる」を先に確認する規律とする。
+  lint 化の可否は F270 本体の恒久対応と同じく [T-1239] が持つ。
 ### F271. 複数 branch を 1 commit で束ねた land が全 wave の受入を決定的に赤にした [手順漏れ]
 
 - 事象: 2026-08-13 00:45:56 JST、rulings 系の land wave が **4 親の merge commit `d1de13ad`**
@@ -17404,6 +17426,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   入れる。本件は 2 本のうち 1 本 (運用レンズ) だけが検出し、正しさレンズは見落とした。
   変異では検出できない — stub 版でも制御フローの変異は正しく KILLED になるためである。
 
+
+- **再発: 2026-08-29** — 段 4 裁定が最重要と位置づけた正例 (resume 由来の不適格な earlier があっても
+  later の適格 run から candidate を作れる) を、段 5 実装子が earlier の `result.json` だけ複製し
+  `_derive_floor_selection_eligibility` を monkeypatch で False へ差し替えて書いた。導出不能時の
+  fail-closed 負例も実際の台帳破損ではなく例外 stub だった。段 6 の敵対レビュー 2 本のうち
+  運用レンズだけが検出し、正しさレンズは見落とした (F649 初出と同じ検出比)。恒久対応の
+  `DW-S05-C` への収容が現行 main に存在しないことを実測したため、本 wave で同節へ収容した。
 ### F650. 共有 hydrate 先を job が in-place でビルドし、2 本目以降が必ず fail-closed する [手順漏れ] [計測汚染]
 
 - 事象: mocc trace pilot の 2 本目が build 前に rc=1 で止まった。message は
@@ -19418,3 +19447,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave は `.done` で判定していたため誤判定には至っていない。
 - 再発検知: 待ち手を張った直後に receipt file の実在を確かめる。receipt が無いまま rc=0 で
   戻ったら待ち手が走っていない。
+
+### F761. 救出 manifest の分類語を一次資料と読み違え、着地可能な変更を破棄しかけた [捏造/幻覚] [手順漏れ]
+
+- 事象: 救出 manifest が `docs/related-work/README.md` と `docs/related-work/claim-survey/README.md` に
+  付けた `situation: UNTOUCHED_SINCE` を、親が「worktree はこの file を編集していない = 古い複製で
+  あって着地対象ではない」と読み、段 1 brief に実測事実として書いた。実際には両 file とも worktree が
+  編集した未着地の変更で、うち一方は着地済みの裁定 4 件を規則の正本へ書き下ろした 38 行だった。
+  この読みのまま進んでいれば、本 wave で唯一着地できた変更を破棄していた。
+- 根本原因: 道具が付けた**分類語の意味を、道具の定義に当たらずに文脈から推測した**。
+  `UNTOUCHED_SINCE` は「main 側がその path を base 以降さわっていない」ことしか言わず、worktree が
+  編集したかは言わない。manifest は sha256 も持っていたのに、親は blob 照合をせず語だけで判定した。
+- 恒久対応: 救出物・棚卸し道具の出力にある分類語は、それ自体を一次資料として扱わない。
+  「変更か否か」は worktree の bytes を **その worktree 自身の base commit の blob** と照合して決める。
+  main との差だけでは、main が先に進んだのか worktree が編集したのかを区別できない。
+- 再発検知: 本 wave では 2 経路で捕まえた。(i) 親が撤去前に `git status --porcelain` を 4 worktree で
+  走らせ、両 file が `M` として現れたことに気づいて blob 照合へ進んだ。(ii) 独立コンテキストの段 3
+  敵対検査が、同じ事実を独立に `REFUTED` として返した。分類語を根拠にした主張には、blob 照合か
+  独立検査のどちらかを必ず付ける。
