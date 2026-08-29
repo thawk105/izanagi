@@ -1918,6 +1918,151 @@ def _refinalize_test_bundle(bundle: Path, catalog: Any, catalog_path: Path) -> N
     )
 
 
+def _build_retry_then_success_dblp_bundle(
+    tmp_path: Path,
+) -> tuple[Path, Any, Path, list[tuple[Path, dict[str, Any]]]]:
+    from orchestrator.axis1_search.catalog import build_request, load_catalog
+
+    relative_catalog = Path(
+        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+    )
+    catalog_path = ROOT / relative_catalog
+    real = load_catalog(str(catalog_path))
+    original = next(
+        query for query in real.logical_queries if query.kind == "leaf" and query.index == "dblp"
+    )
+    query = SimpleNamespace(**{**original.__dict__, "independent_pass_required": False})
+    catalog = replace(real, logical_queries=(query,))
+    request = build_request(catalog, query.query_id, 0, None)
+    terminal = json.loads(
+        (ROOT / "orchestrator/tests/fixtures/axis1_search/f6_dblp_terminal.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    terminal["result"]["query"] = request.expected_interpreted_query
+    terminal_hits = terminal["result"]["hits"]
+    terminal_hits["@computed"] = terminal_hits["@sent"]
+    terminal_hits["@first"] = "0"
+    terminal_hits["@total"] = terminal_hits["@sent"]
+    success_body = json.dumps(terminal).encode()
+    bundle = tmp_path / "bundle"
+    result = _run_leaf_for_test(
+        catalog,
+        query.query_id,
+        run_id="run-retry-evidence",
+        registration_commit="0" * 40,
+        catalog_path=relative_catalog.as_posix(),
+        bundle_root=bundle,
+        transport=_FakeTransport(
+            [
+                Response(
+                    503,
+                    (("Content-Type", "application/json"),),
+                    b"{}",
+                    request.encoded_url,
+                    0.1,
+                ),
+                Response(
+                    200,
+                    (("Content-Type", "application/json"),),
+                    success_body,
+                    request.encoded_url,
+                    0.1,
+                ),
+            ]
+        ),
+        preflight=True,
+        clock=lambda: 0.0,
+        sleeper=lambda seconds: None,
+    )
+    assert result.state == "branch_complete"
+    assert result.request_count == 2
+    assert len(result.pages) == 1
+    page_documents = [
+        (path, json.loads(path.read_text(encoding="utf-8")))
+        for path in bundle.glob("pages/*.json")
+    ]
+    page_documents.sort(key=lambda item: item[1]["identity"]["attempt_number"])
+    return bundle, catalog, catalog_path, page_documents
+
+
+def test_retry_attempt_evidence_does_not_prevent_leaf_completion(tmp_path: Path) -> None:
+    bundle, catalog, catalog_path, pages = _build_retry_then_success_dblp_bundle(
+        tmp_path
+    )
+
+    assert [page["identity"]["attempt_number"] for _path, page in pages] == [1, 2]
+    assert pages[0][1]["failure"]["reason_code"] == "status_not_200"
+    assert pages[1][1]["failure"] is None
+    assert all(
+        {item["condition"] for item in page["completion"]} == set(range(1, 7))
+        for _path, page in pages
+    )
+    assert {page["response"]["body_path"] for _path, page in pages} == {
+        path.relative_to(bundle).as_posix() for path in bundle.glob("raw/*.gz")
+    }
+    verification = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+    assert verification.passed, (verification.reason_code, verification.detail)
+
+
+def test_bundle_rejects_orphan_raw_from_failed_retry_attempt(tmp_path: Path) -> None:
+    bundle, catalog, catalog_path, pages = _build_retry_then_success_dblp_bundle(
+        tmp_path
+    )
+    failed_path, failed_evidence = pages[0]
+    orphan_raw = failed_evidence["response"]["body_path"]
+    failed_path.unlink()
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+
+    result = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+
+    assert not result.passed
+    assert result.reason_code == "raw_path_set_mismatch"
+    assert result.detail == f"missing=[], extra={[orphan_raw]}"
+
+
+def test_latest_failed_attempt_does_not_fall_back_to_earlier_success(
+    tmp_path: Path,
+) -> None:
+    bundle, catalog, catalog_path, pages = _build_retry_then_success_dblp_bundle(
+        tmp_path
+    )
+    failed_path, failed_evidence = pages[0]
+    successful_path, successful_evidence = pages[1]
+    failed_evidence["identity"]["attempt_number"] = 2
+    successful_evidence["identity"]["attempt_number"] = 1
+    _write_json_document(failed_path, failed_evidence)
+    _write_json_document(successful_path, successful_evidence)
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+
+    verification = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+    assert not verification.passed
+    assert verification.reason_code == "leaf_page_evidence_missing"
+
+    ledger_path = bundle / successful_evidence["records"]["occurrence_ledger_path"]
+    ledger_raw = ledger_path.read_bytes()
+    checkpoint = {
+        "leaf_query_id": successful_evidence["identity"]["leaf_query_id"],
+        "completed_ledger": {
+            "path": ledger_path.relative_to(bundle).as_posix(),
+            "ledger_sha256": hashlib.sha256(ledger_raw).hexdigest(),
+            "primary_key_digest": successful_evidence["records"][
+                "index_work_id_digest"
+            ],
+        },
+    }
+
+    with pytest.raises(PreflightError, match="prefix page evidence is incomplete"):
+        _load_completed_prefix(
+            checkpoint,
+            bundle,
+            catalog=catalog,
+            leaf_query_id=checkpoint["leaf_query_id"],
+            pass_number=1,
+            next_page_number=1,
+        )
+
+
 def _build_two_page_dblp_bundle(
     tmp_path: Path,
 ) -> tuple[Path, Any, Path, list[tuple[Path, dict[str, Any]]]]:

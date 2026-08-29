@@ -1091,19 +1091,32 @@ def verify_bundle(
 
         from .catalog import build_request
 
-        accepted_pages: dict[tuple[str, int], list[tuple[Mapping[str, Any], Any, dict[str, Any]]]] = {}
-        seen_request_ids: set[tuple[str, int, str]] = set()
-        seen_page_identities: set[tuple[str, int, int]] = set()
+        page_attempts: dict[
+            tuple[str, int, int],
+            list[
+                tuple[
+                    int,
+                    tuple[Mapping[str, Any], Any, dict[str, Any]] | None,
+                ]
+            ],
+        ] = {}
+        seen_request_ids: set[tuple[str, int, str, int]] = set()
+        seen_page_identities: set[tuple[str, int, int, int]] = set()
         for evidence in pages:
             identity = evidence["identity"]
             request_id = identity["request_id"]
+            attempt_number = identity["attempt_number"]
             request_identity = (
-                identity["leaf_query_id"], identity["pass_number"], request_id
+                identity["leaf_query_id"],
+                identity["pass_number"],
+                request_id,
+                attempt_number,
             )
             page_identity = (
                 identity["leaf_query_id"],
                 identity["pass_number"],
                 identity["page_number"],
+                attempt_number,
             )
             if (
                 request_identity in seen_request_ids
@@ -1151,47 +1164,66 @@ def verify_bundle(
             }
             if any(evidence["request"].get(key) != expected_value for key, expected_value in request_fields.items()):
                 return VerificationResult(False, "request_registration_mismatch", identity["request_id"])
-            parsed = _parse_stored_page(
-                _parser_for_index(identity["index"]), body, identity["page_number"]
-            )
-            if evidence.get("failure") is not None:
-                continue
-            parsed_fields = {
-                "interpreted_query": _get(parsed, "interpreted_query"),
-                "declared_total": _get(parsed, "declared_total"),
-                "capacity_echo": _get(parsed, "capacity_echo"),
-                "actual_count": _get(parsed, "actual_count"),
-                "position_in": _get(parsed, "position_in"),
-                "position_out": _get(parsed, "position_out"),
-                "parse_errors": list(tuple(_get(parsed, "parse_errors", ()) or ())),
-            }
-            if evidence["parse"] != parsed_fields:
-                return VerificationResult(False, "stored_parse_mismatch", identity["request_id"])
-            parsed_occurrences = [
-                {
-                    key: _get(item, key)
-                    for key in (
-                        "index_work_id",
-                        "page_number",
-                        "ordinal",
-                        "raw_date_value",
-                        "interpreted_date",
-                        "date_missing_reason",
-                        "family_keys",
-                    )
+            parsed_occurrences: list[dict[str, Any]] | None = None
+            if evidence.get("failure") is None:
+                parsed = _parse_stored_page(
+                    _parser_for_index(identity["index"]), body, identity["page_number"]
+                )
+                parsed_fields = {
+                    "interpreted_query": _get(parsed, "interpreted_query"),
+                    "declared_total": _get(parsed, "declared_total"),
+                    "capacity_echo": _get(parsed, "capacity_echo"),
+                    "actual_count": _get(parsed, "actual_count"),
+                    "position_in": _get(parsed, "position_in"),
+                    "position_out": _get(parsed, "position_out"),
+                    "parse_errors": list(tuple(_get(parsed, "parse_errors", ()) or ())),
                 }
-                for item in tuple(_get(parsed, "occurrences", ()) or ())
-            ]
+                if evidence["parse"] != parsed_fields:
+                    return VerificationResult(False, "stored_parse_mismatch", identity["request_id"])
+                parsed_occurrences = [
+                    {
+                        key: _get(item, key)
+                        for key in (
+                            "index_work_id",
+                            "page_number",
+                            "ordinal",
+                            "raw_date_value",
+                            "interpreted_date",
+                            "date_missing_reason",
+                            "family_keys",
+                        )
+                    }
+                    for item in tuple(_get(parsed, "occurrences", ()) or ())
+                ]
             ledger_occurrences = [
                 dict(item)
                 for item in ledger["occurrences"]
                 if item["page_number"] == identity["page_number"]
             ]
-            for item in parsed_occurrences:
-                item["family_keys"] = list(item["family_keys"])
-            if parsed_occurrences != ledger_occurrences:
+            if parsed_occurrences is not None:
+                for item in parsed_occurrences:
+                    item["family_keys"] = list(item["family_keys"])
+            if parsed_occurrences is not None and parsed_occurrences != ledger_occurrences:
                 return VerificationResult(False, "stored_occurrence_mismatch", identity["request_id"])
             page = _page_from_evidence(evidence, ledger)
+            work_ids = [
+                str(item["index_work_id"])
+                for item in ledger_occurrences
+                if item.get("index_work_id")
+            ]
+            primary = "".join(f"{item}\n" for item in sorted(set(work_ids))).encode(
+                "utf-8"
+            )
+            records = evidence["records"]
+            if (
+                records["index_work_ids"] != work_ids
+                or records["index_work_id_digest"] != hashlib.sha256(primary).hexdigest()
+                or records["occurrence_count"] != len(ledger_occurrences)
+                or records["duplicate_occurrences"] != len(work_ids) - len(set(work_ids))
+            ):
+                return VerificationResult(
+                    False, "stored_occurrence_mismatch", identity["request_id"]
+                )
             expected_types = _registered_content_types(catalog, identity["index"])
             context: dict[str, Any] = {
                 "expected_interpreted_query": _get(request, "expected_interpreted_query"),
@@ -1227,9 +1259,29 @@ def verify_bundle(
             if evidence.get("failure") is None and not all(item.passed for item in results):
                 failure = next(item for item in results if not item.passed)
                 return VerificationResult(False, failure.reason_code, identity["request_id"])
-            accepted_pages.setdefault(
-                (identity["leaf_query_id"], identity["pass_number"]), []
-            ).append((evidence, page, context))
+            page_attempts.setdefault(
+                (
+                    identity["leaf_query_id"],
+                    identity["pass_number"],
+                    identity["page_number"],
+                ),
+                [],
+            ).append(
+                (
+                    attempt_number,
+                    None
+                    if evidence.get("failure") is not None
+                    else (evidence, page, context),
+                )
+            )
+
+        accepted_pages: dict[
+            tuple[str, int], list[tuple[Mapping[str, Any], Any, dict[str, Any]]]
+        ] = {}
+        for (leaf_id, pass_number, _page_number), attempts in page_attempts.items():
+            _attempt_number, accepted = max(attempts, key=lambda item: item[0])
+            if accepted is not None:
+                accepted_pages.setdefault((leaf_id, pass_number), []).append(accepted)
 
         queries = tuple(_get(catalog, "logical_queries", ()) or ())
         leaves = [query for query in queries if _get(query, "kind") == "leaf"]

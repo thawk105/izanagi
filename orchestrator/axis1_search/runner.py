@@ -1285,7 +1285,6 @@ def _load_completed_prefix(
                 and _get(identity, "pass_number") == pass_number
                 and isinstance(_get(identity, "page_number"), int)
                 and _get(identity, "page_number") < next_page_number
-                and _get(evidence, "failure") is None
             ):
                 page_number = int(_get(identity, "page_number"))
                 attempt = int(_get(identity, "attempt_number", 0))
@@ -1293,6 +1292,8 @@ def _load_completed_prefix(
                     selected[page_number] = evidence
         for page_number in sorted(selected):
             evidence = selected[page_number]
+            if _get(evidence, "failure") is not None:
+                continue
             parse_value = dict(_get(evidence, "parse", {}))
             page_occurrences = [
                 dict(item)
@@ -1781,6 +1782,60 @@ def _run_leaf_impl(
                 failure = f"http_status_{response.status}"
                 wal_times["parsed"] = append_attempt_state(wal_path, request_id, attempt_number, "parsed", payload={"parse_skipped": True}, clock=clock)["at"]
                 wal_times["terminal"] = append_attempt_state(wal_path, request_id, attempt_number, "terminal", payload={"outcome": "retryable_failure", "reason_code": failure}, clock=clock)["at"]
+                failed_page = {
+                    "index": index,
+                    "declared_total": None,
+                    "capacity_echo": None,
+                    "actual_count": 0,
+                    "interpreted_query": "",
+                    "position_in": _get(request, "position_in"),
+                    "position_out": None,
+                    "occurrences": (),
+                    "parse_errors": (failure,),
+                }
+                failed_results = evaluate_page(
+                    failed_page,
+                    page_size=page_size,
+                    expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
+                    expected_position_in=_get(request, "position_in"),
+                    expected_page_number=int(_get(request, "page_number")),
+                    pagination_kind=pagination_kind,
+                    response_ok=False,
+                    evidence_complete=True,
+                )
+                ledger_path, *_ = _write_ledger(
+                    bundle,
+                    leaf_query_id,
+                    pass_number,
+                    occurrences,
+                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                    registration_commit=registration_commit,
+                    catalog_sha256=catalog_sha256,
+                    run_id=run_id,
+                    logical_query_id=str(_get(request, "logical_query_id")),
+                    index=index,
+                )
+                _write_page_evidence(
+                    bundle,
+                    catalog=catalog,
+                    request=request,
+                    response=response,
+                    parsed=failed_page,
+                    raw_path=raw_path,
+                    ledger_path=ledger_path,
+                    registration_commit=registration_commit,
+                    catalog_path=catalog_path,
+                    catalog_sha256=catalog_sha256,
+                    run_id=run_id,
+                    pass_number=pass_number,
+                    window_number=window_number,
+                    attempt_number=attempt_number,
+                    parent_response_sha256=parent_response_sha,
+                    quota=latest_quota,
+                    wal_times=wal_times,
+                    conditions=failed_results,
+                    failure={"reason_code": "status_not_200", "detail": failure},
+                )
                 if response.status == 429:
                     break
             except Exception as exc:  # transport boundary; issued remains durable
@@ -1855,61 +1910,6 @@ def _run_leaf_impl(
 
         if response is None or response.status != 200:
             first = builder(catalog, leaf_query_id, 0, None)
-            if response is not None and raw_path is not None:
-                failed_page = {
-                    "index": index,
-                    "declared_total": None,
-                    "capacity_echo": None,
-                    "actual_count": 0,
-                    "interpreted_query": "",
-                    "position_in": _get(request, "position_in"),
-                    "position_out": None,
-                    "occurrences": (),
-                    "parse_errors": (failure or "status_not_200",),
-                }
-                failed_results = evaluate_page(
-                    failed_page,
-                    page_size=page_size,
-                    expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
-                    expected_position_in=_get(request, "position_in"),
-                    expected_page_number=int(_get(request, "page_number")),
-                    pagination_kind=pagination_kind,
-                    response_ok=False,
-                    evidence_complete=True,
-                )
-                ledger_path, *_ = _write_ledger(
-                    bundle,
-                    leaf_query_id,
-                    pass_number,
-                    occurrences,
-                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
-                    registration_commit=registration_commit,
-                    catalog_sha256=catalog_sha256,
-                    run_id=run_id,
-                    logical_query_id=str(_get(request, "logical_query_id")),
-                    index=index,
-                )
-                _write_page_evidence(
-                    bundle,
-                    catalog=catalog,
-                    request=request,
-                    response=response,
-                    parsed=failed_page,
-                    raw_path=raw_path,
-                    ledger_path=ledger_path,
-                    registration_commit=registration_commit,
-                    catalog_path=catalog_path,
-                    catalog_sha256=catalog_sha256,
-                    run_id=run_id,
-                    pass_number=pass_number,
-                    window_number=window_number,
-                    attempt_number=attempts_by_request[request_id],
-                    parent_response_sha256=parent_response_sha,
-                    quota=latest_quota,
-                    wal_times=wal_times,
-                    conditions=failed_results,
-                    failure={"reason_code": "status_not_200", "detail": failure or "non-200 response"},
-                )
             paused_429 = response is not None and response.status == 429
             payload = _checkpoint_payload(
                 catalog=catalog,
