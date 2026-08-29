@@ -32,6 +32,7 @@ from orchestrator.campaign.model import (
     STAGE_VERIFY_DONE,
     WalRecord,
 )
+from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.calibrator.runner import PERF_EVENTS
 from orchestrator.campaign.pipeline import (
     LEGACY_TAG,
@@ -43,6 +44,7 @@ from orchestrator.campaign.pipeline import (
     s2_correctness_workload,
     variant_id,
 )
+from orchestrator.tests import commit_receipt_support as receipt_support
 
 
 CURRENT_PIN = "1" * 40
@@ -128,7 +130,10 @@ def _campaign_lock_text(policy, workload_id, attempt_id):
     return campaign_lock.encode_campaign_lock_v2(identity_preimage, authority)
 
 
-def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
+def _positive_results(
+        policy, attempt_root, *, adopted_gain=1.1,
+        invalid_persisted_cell=None,
+):
     results = []
     contract = env_contract.lookup("pegasus")
     toolchain = {
@@ -165,11 +170,11 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
         layout_root = job_root / "campaigns" / campaign_id
         runs = layout_root / "runs"
         runs.mkdir(parents=True)
+        layout = CampaignLayout(str(layout_root))
         (layout_root / "campaign.lock").write_text(
             lock_text,
             encoding="utf-8",
         )
-        records = []
         cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
         for cell_index, cell in enumerate(cells):
             build_dir = attempt_root / "build" / cell.cell_id
@@ -235,18 +240,26 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
                 }),
                 (STAGE_COMMIT, {"build_attempt_id": build_attempt_id}),
             ])
-            records.extend(
-                WalRecord(
-                    variant=variant, stage=stage, env_tag="pegasus",
-                    ts=float(cell_index + offset + 1), payload=payload,
-                )
-                for offset, (stage, payload) in enumerate(payloads)
-            )
+            if cell.cell_id == invalid_persisted_cell:
+                payloads[2][1]["anomalies"] = 1
+            for offset, (stage, payload) in enumerate(payloads):
+                timestamp = float(cell_index * 100 + offset + 1)
+                if stage == STAGE_COMMIT:
+                    receipt_support.log_receipted_commit(
+                        layout, variant, "pegasus", payload,
+                        operation_identity=build_attempt_id,
+                        tags=(
+                            LEGACY_TAG,
+                            *([PERFORMANCE_TAG] * cell.perf["reps"]),
+                        ),
+                        ts=timestamp,
+                    )
+                else:
+                    wal.log(
+                        layout, variant, stage, "pegasus", payload,
+                        ts=timestamp,
+                    )
         wal_path = runs / "wal.jsonl"
-        wal_path.write_text(
-            "".join(wal._record_to_line(record) + "\n" for record in records),
-            encoding="utf-8",
-        )
         claim_path = A2.raw_result_claim_path(
             policy, workload_id, attempt_root, campaign_id)
         claim_path.parent.mkdir(parents=True, exist_ok=True)
@@ -284,6 +297,21 @@ def _raw_cell(policy, cell, root, *, adopted_gain=1.1):
             policy, root, adopted_gain=adopted_gain)
         if raw["cell_id"] == cell.cell_id
     )
+
+
+@pytest.mark.parametrize("consumer", ["a2"], ids=["a2"])
+def test_raw_cell_requires_persisted_certification(tmp_path, consumer):
+    policy = _policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-persisted-certification")
+
+    with pytest.raises(
+            A2.CertificationError,
+            match="persisted campaign certification is invalid"):
+        _positive_results(
+            policy, root, invalid_persisted_cell="rr5-stock",
+        )
+
+    assert consumer == "a2"
 
 
 def _write_receipt_bundle(
@@ -500,6 +528,7 @@ def _rewrite_first_cell_science_from_wal(
     rewritten = []
     mutation_written = False
     target_build_attempt = None
+    replacement_commit = None
     for record in records:
         if record.variant != target_variant:
             rewritten.append(record)
@@ -509,6 +538,9 @@ def _rewrite_first_cell_science_from_wal(
                 and record.payload.get("workload", {}).get("tag")
                 == PERFORMANCE_TAG and not mutation_written):
             mutation_written = True
+            continue
+        if outcome == "inconclusive" and record.stage == STAGE_COMMIT:
+            replacement_commit = record
             continue
         if outcome == "inconclusive":
             rewritten.append(record)
@@ -555,6 +587,28 @@ def _rewrite_first_cell_science_from_wal(
         encoding="utf-8",
     )
     layout_root = wal_path.parents[1]
+    if outcome == "inconclusive":
+        assert replacement_commit is not None
+        terminal_payload = {
+            key: value
+            for key, value in replacement_commit.payload.items()
+            if key != receipt_support.RECEIPT_PAYLOAD_KEY
+        }
+        evidence_tags = tuple(
+            record.payload["workload"]["tag"]
+            for record in rewritten
+            if record.variant == target_variant
+            and record.stage == STAGE_VERIFY_DONE
+        )
+        receipt_support.log_receipted_commit(
+            CampaignLayout(str(layout_root)),
+            replacement_commit.variant,
+            replacement_commit.env_tag,
+            terminal_payload,
+            operation_identity=terminal_payload["build_attempt_id"],
+            tags=evidence_tags,
+            ts=replacement_commit.ts,
+        )
     regenerated = []
     for cell in cells:
         raw = A2._raw_cell_from_wal(

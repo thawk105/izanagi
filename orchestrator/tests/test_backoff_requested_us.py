@@ -20,10 +20,13 @@ _ROOT = _HERE.parents[1]
 sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import backoff_requested_us as M
+from orchestrator.campaign import wal
 from orchestrator.campaign.build_admission import (
     GeneratorId,
     resolve_current_build_admission_policy,
 )
+from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.tests import commit_receipt_support as receipt_support
 from tools.pegasus import dispatch_compute as DISPATCH
 
 
@@ -37,6 +40,57 @@ def _diagnostic_line(**overrides: int) -> str:
         **overrides,
     }
     return M.PREFIX + " " + " ".join(f"{key}={values[key]}" for key in M.FIELD_NAMES)
+
+
+@pytest.mark.parametrize(
+    "consumer", ["backoff-requested-us"], ids=["backoff-requested-us"],
+)
+def test_reference_records_requires_persisted_certification(
+        tmp_path, monkeypatch, consumer):
+    layout = CampaignLayout(str(tmp_path / "reference-campaign")).ensure()
+    lock_bytes = json.dumps({"fixture": "reference"}).encode("utf-8")
+    Path(layout.lock_file).write_bytes(lock_bytes)
+    lock_sha256 = hashlib.sha256(lock_bytes).hexdigest()
+    attempt_id = "reference-attempt"
+    wal.log(layout, "v", "verify_done", "test", {
+        "build_attempt_id": attempt_id,
+        "verdict": "serializable",
+        "certified": True,
+        "anomalies": 1,
+        "workload": {"tag": "legacy"},
+    })
+    receipt_support.log_receipted_commit(
+        layout, "v", "test", {"build_attempt_id": attempt_id},
+        operation_identity=attempt_id,
+    )
+    records = wal.read_records(layout)
+
+    monkeypatch.setattr(
+        M.artifact_admission, "_decode_campaign_lock", lambda raw: object(),
+    )
+    monkeypatch.setattr(
+        M.artifact_admission, "_recorded_campaign_verifier_epoch",
+        lambda decoded: object(),
+    )
+    monkeypatch.setattr(
+        M.artifact_admission, "_require_verifier_epoch_for_purpose",
+        lambda recorded, purpose: object(),
+    )
+    monkeypatch.setattr(
+        M.artifact_admission, "classify_campaign",
+        lambda campaign: SimpleNamespace(admitted=True),
+    )
+    monkeypatch.setattr(M.wal, "_validate_attempt_topology", lambda *args, **kwargs: None)
+    monkeypatch.setattr(M.wal, "validate_trigger_bindings", lambda *args, **kwargs: None)
+
+    with pytest.raises(RuntimeError, match="persisted certification"):
+        M._reference_records(
+            Path(layout.root), {}, SimpleNamespace(identity={}), records,
+            lock_bytes=lock_bytes,
+            campaign_lock_sha256=lock_sha256,
+        )
+
+    assert consumer == "backoff-requested-us"
 
 
 def _copy_patch_surface(destination: Path) -> None:
