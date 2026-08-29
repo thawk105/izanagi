@@ -664,7 +664,9 @@ def require_persisted_certified_commit(
         raise TypeError("COMMIT record must belong to the supplied WAL records")
     attempt_id = commit_record.payload.get("build_attempt_id")
     if type(attempt_id) is not str or not attempt_id:
-        raise TypeError("COMMIT build_attempt_id must be a non-empty exact str")
+        raise ArtifactAdmissionError(
+            "COMMIT build_attempt_id must be a non-empty exact str"
+        )
 
     verifies = [
         record

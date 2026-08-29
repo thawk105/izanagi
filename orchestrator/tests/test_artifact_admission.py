@@ -1447,6 +1447,29 @@ def test_persisted_commit_helper_accepts_immutable_view(tmp_path: Path) -> None:
     ) is commit
 
 
+def test_persisted_commit_missing_attempt_is_artifact_admission_error(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    records = wal.read_records(layout)
+    commit = next(record for record in records if record.stage == "commit")
+    commit.payload.pop("build_attempt_id")
+    lock_sha256 = hashlib.sha256(
+        Path(layout.lock_file).read_bytes()
+    ).hexdigest()
+
+    with pytest.raises(
+        A.ArtifactAdmissionError,
+        match="build_attempt_id must be a non-empty exact str",
+    ):
+        A.require_persisted_certified_commit(
+            records,
+            commit,
+            campaign_lock_sha256=lock_sha256,
+        )
+
+
 def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
