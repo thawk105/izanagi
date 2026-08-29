@@ -47,7 +47,7 @@ STATE_RESUME_ACTIONS: dict[str, frozenset[str]] = {
     "response_stored": frozenset({"continue_cursor"}),
     "parsed": frozenset({"continue_cursor"}),
     "paused_quota": frozenset({"continue_cursor"}),
-    "pass_complete": frozenset({"start_independent_pass", "not_applicable"}),
+    "pass_complete": frozenset({"start_independent_pass"}),
     "branch_complete": frozenset({"not_applicable"}),
     "outcome_unknown": frozenset({"restart_branch"}),
     "blocked_on_ruling": frozenset({"blocked_on_ruling"}),
@@ -401,6 +401,11 @@ def validate_checkpoint(value: Mapping[str, Any]) -> None:
         isinstance(arg, str) and arg for arg in argv
     ):
         raise CheckpointError("canonical_runner_argv must be a nonempty string array")
+    if argv.count("--checkpoint") != 1 or "--query-id" in argv:
+        raise CheckpointError("canonical_runner_argv must encode the checkpoint resume action")
+    checkpoint_argv_index = argv.index("--checkpoint")
+    if checkpoint_argv_index + 1 >= len(argv):
+        raise CheckpointError("canonical_runner_argv lacks the checkpoint path")
 
     state = value.get("state")
     action = value.get("resume_action")
@@ -474,6 +479,8 @@ def validate_checkpoint(value: Mapping[str, Any]) -> None:
     _validate_sha(cursor["parent_response_sha256"], "cursor_state.parent_response_sha256", nullable=True)
 
     ledger = _require_type(value, "completed_ledger", dict)
+    if not isinstance(ledger.get("path"), str) or not ledger["path"].endswith(".json"):
+        raise CheckpointError("completed_ledger.path must name a JSON object")
     if ledger.get("primary_key_kind") != "index_work_id":
         raise CheckpointError("completed_ledger.primary_key_kind must be index_work_id")
     _validate_sha(ledger.get("ledger_sha256"), "completed_ledger.ledger_sha256")
@@ -610,8 +617,13 @@ def write_checkpoint(
         if "checkpoint_id" in value and value["checkpoint_id"] != checkpoint_id:
             raise CheckpointError("checkpoint_id does not match destination sequence")
         value["checkpoint_id"] = checkpoint_id
-        validate_checkpoint(value)
         target = destination_path if explicit else directory / f"{checkpoint_id}.json"
+        argv = value.get("canonical_runner_argv")
+        if isinstance(argv, (list, tuple)):
+            value["canonical_runner_argv"] = [
+                os.fspath(target) if item == "{checkpoint_path}" else item for item in argv
+            ]
+        validate_checkpoint(value)
         try:
             _publish_create_only(target, _canonical_bytes(value))
             return target

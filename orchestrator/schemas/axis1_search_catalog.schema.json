@@ -63,13 +63,46 @@
       ],
       "properties": {
         "arxiv": {
-          "$ref": "#/definitions/index_policy"
+          "allOf": [
+            {
+              "$ref": "#/definitions/index_policy"
+            },
+            {
+              "properties": {
+                "minimum_interval_s": {
+                  "const": 3.0
+                }
+              }
+            }
+          ]
         },
         "openalex": {
-          "$ref": "#/definitions/index_policy"
+          "allOf": [
+            {
+              "$ref": "#/definitions/index_policy"
+            },
+            {
+              "properties": {
+                "minimum_interval_s": {
+                  "const": 1.0
+                }
+              }
+            }
+          ]
         },
         "dblp": {
-          "$ref": "#/definitions/index_policy"
+          "allOf": [
+            {
+              "$ref": "#/definitions/index_policy"
+            },
+            {
+              "properties": {
+                "minimum_interval_s": {
+                  "const": 45.0
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -342,6 +375,98 @@
         }
       }
     },
+    "openalex_oqo_date_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "column_id",
+        "value"
+      ],
+      "properties": {
+        "column_id": {
+          "enum": [
+            "from_publication_date",
+            "to_publication_date"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "openalex_oqo_term_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "column_id",
+        "operator",
+        "value"
+      ],
+      "properties": {
+        "column_id": {
+          "const": "title_and_abstract.search"
+        },
+        "operator": {
+          "const": "has"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^\".+\"$"
+        }
+      }
+    },
+    "openalex_oqo_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "join",
+        "filters"
+      ],
+      "properties": {
+        "join": {
+          "const": "or"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/openalex_oqo_term_filter"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "openalex_oqo_filter_row": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/openalex_oqo_date_filter"
+        },
+        {
+          "$ref": "#/definitions/openalex_oqo_group"
+        }
+      ]
+    },
+    "openalex_oqo": {
+      "description": "Acceptance oracle compared structurally with meta.x_query.oqo; array order is significant.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "get_rows",
+        "filter_rows"
+      ],
+      "properties": {
+        "get_rows": {
+          "const": "works"
+        },
+        "filter_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/openalex_oqo_filter_row"
+          },
+          "minItems": 2
+        }
+      }
+    },
     "logical_query": {
       "type": "object",
       "additionalProperties": false,
@@ -352,7 +477,10 @@
         "branch",
         "parent_id",
         "shard_lower",
-        "shard_upper"
+        "shard_upper",
+        "independent_pass_required",
+        "expected_openalex_oqo",
+        "reference_openalex_oql"
       ],
       "properties": {
         "query_id": {
@@ -392,8 +520,99 @@
         },
         "shard_upper": {
           "$ref": "#/definitions/nullable_date"
+        },
+        "independent_pass_required": {
+          "type": "boolean"
+        },
+        "expected_openalex_oqo": {
+          "description": "Structural OpenAlex meta.x_query.oqo oracle; null for every non-OpenAlex-leaf query.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/openalex_oqo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reference_openalex_oql": {
+          "description": "Non-normative OpenAlex oql reference retained as evidence only; never an acceptance oracle.",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "query_id": {
+                "pattern": "^AX1-20260829-E1-(?:Q6(?:-S(?:Y[0-9]{4}|M[0-9]{6}))?@arxiv|Q[36](?:-S(?:Y[0-9]{4}|PRE1991))?@openalex)$"
+              }
+            },
+            "required": [
+              "query_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "independent_pass_required": {
+                "const": true
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "independent_pass_required": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "index": {
+                "const": "openalex"
+              },
+              "kind": {
+                "const": "leaf"
+              }
+            },
+            "required": [
+              "index",
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "expected_openalex_oqo": {
+                "$ref": "#/definitions/openalex_oqo"
+              },
+              "reference_openalex_oql": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "expected_openalex_oqo": {
+                "type": "null"
+              },
+              "reference_openalex_oql": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
     },
     "ordered_pair": {
       "type": "array",
@@ -471,6 +690,7 @@
           "exclusiveMinimum": 0
         },
         "expected_interpreted_query_template": {
+          "description": "For OpenAlex this is canonical JSON for expected_openalex_oqo, not an oql string; arXiv and DBLP retain their registered string echoes.",
           "type": "string",
           "minLength": 1
         }

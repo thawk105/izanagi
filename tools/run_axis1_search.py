@@ -22,6 +22,7 @@ from orchestrator.axis1_search.runner import (
     Transport,
     resume_from_checkpoint,
     run_leaf,
+    control_leaf_query_id,
 )
 from orchestrator.axis1_search.validator import verify_registration
 
@@ -44,6 +45,8 @@ def build_parser() -> argparse.ArgumentParser:
     operation = parser.add_mutually_exclusive_group(required=True)
     operation.add_argument("--query-id", help="registered catalog ID (start only)")
     operation.add_argument("--checkpoint", type=Path, help="checkpoint (resume/independent pass only)")
+    operation.add_argument("--control-id", help="registered control descriptor")
+    parser.add_argument("--control-index", choices=("arxiv", "openalex", "dblp"))
     return parser
 
 
@@ -69,6 +72,7 @@ def _registered_paths(catalog: Path) -> tuple[str, ...]:
         "tools/check_axis1_search.py",
         "orchestrator/tests/test_axis1_search_catalog.py",
         "orchestrator/tests/test_axis1_search_runner.py",
+        "orchestrator/tests/fixtures/axis1_search",
     )
 
 
@@ -87,6 +91,8 @@ def _canonical_argv(args: argparse.Namespace) -> tuple[str, ...]:
     ]
     if args.checkpoint is not None:
         result.extend(("--checkpoint", args.checkpoint.as_posix()))
+    elif args.control_id is not None:
+        result.extend(("--control-id", args.control_id, "--control-index", args.control_index))
     else:
         result.extend(("--query-id", args.query_id))
     return tuple(result)
@@ -104,6 +110,8 @@ def _load_catalog(path: Path) -> Any:
 
 def main(argv: Sequence[str] | None = None, *, transport: Transport | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if (args.control_id is None) != (args.control_index is None):
+        raise PreflightError("--control-id and --control-index must be supplied together")
     checkpoint: dict[str, Any] | None = None
     if args.checkpoint is not None:
         checkpoint = load_checkpoint(args.checkpoint)
@@ -133,9 +141,14 @@ def main(argv: Sequence[str] | None = None, *, transport: Transport | None = Non
     actual_transport = transport or HTTPSOnlyTransport()
     canonical = _canonical_argv(args)
     if checkpoint is None:
+        query_id = (
+            control_leaf_query_id(catalog, args.control_id, args.control_index)
+            if args.control_id is not None
+            else args.query_id
+        )
         result = run_leaf(
             catalog,
-            args.query_id,
+            query_id,
             run_id=args.run_id,
             registration_commit=args.registration_commit,
             catalog_path=args.catalog.as_posix(),

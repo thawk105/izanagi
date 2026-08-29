@@ -130,7 +130,17 @@ def _empty_page(index: str, error: str) -> ParsedPage:
     return ParsedPage(index, None, None, 0, "", None, None, (), (error,))
 
 
-def parse_arxiv_page(body: bytes) -> ParsedPage:
+def _require_page_number(page_number: int) -> None:
+    if (
+        isinstance(page_number, bool)
+        or not isinstance(page_number, int)
+        or page_number < 0
+    ):
+        raise ValueError("invalid_page_number")
+
+
+def parse_arxiv_page(body: bytes, page_number: int) -> ParsedPage:
+    _require_page_number(page_number)
     errors: list[str] = []
     try:
         root = ET.fromstring(body)
@@ -153,7 +163,6 @@ def parse_arxiv_page(body: bytes) -> ParsedPage:
         errors,
     )
     entries = list(root.findall(f"{{{_ATOM}}}entry"))
-    page_number = start // capacity if start is not None and capacity not in (None, 0) else 0
     occurrences: list[Occurrence] = []
     for ordinal, entry in enumerate(entries):
         work_id = (entry.findtext(f"{{{_ATOM}}}id") or "").strip()
@@ -217,7 +226,8 @@ def _openalex_position_in(meta: MappingLike) -> str | None:
 MappingLike = dict[str, Any]
 
 
-def parse_openalex_page(body: bytes) -> ParsedPage:
+def parse_openalex_page(body: bytes, page_number: int) -> ParsedPage:
+    _require_page_number(page_number)
     payload, failure = _json_object(body, "openalex")
     if failure is not None or payload is None:
         return failure or _empty_page("openalex", "json_root_not_object")
@@ -234,8 +244,6 @@ def parse_openalex_page(body: bytes) -> ParsedPage:
         results = results_value
     total = _parse_int(meta.get("count"), "meta.count", errors)
     capacity = _parse_int(meta.get("per_page"), "meta.per_page", errors)
-    meta_page = meta.get("page")
-    page_number = meta_page - 1 if isinstance(meta_page, int) and meta_page > 0 else 0
     occurrences: list[Occurrence] = []
     for ordinal, result in enumerate(results):
         if not isinstance(result, dict):
@@ -267,9 +275,16 @@ def parse_openalex_page(body: bytes) -> ParsedPage:
             )
         )
     x_query = meta.get("x_query")
-    interpreted_query = x_query.get("oql", "") if isinstance(x_query, dict) else ""
-    if not isinstance(interpreted_query, str):
-        errors.append("invalid_string:meta.x_query.oql")
+    oqo = x_query.get("oqo") if isinstance(x_query, dict) else None
+    if isinstance(oqo, dict):
+        interpreted_query = json.dumps(
+            oqo,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    else:
+        errors.append("missing_object:meta.x_query.oqo")
         interpreted_query = ""
     next_cursor = meta.get("next_cursor")
     if next_cursor is not None and not isinstance(next_cursor, str):
@@ -311,7 +326,8 @@ def _flatten_strings(value: Any) -> Iterable[str]:
                 yield from _flatten_strings(value[key])
 
 
-def parse_dblp_page(body: bytes) -> ParsedPage:
+def parse_dblp_page(body: bytes, page_number: int) -> ParsedPage:
+    _require_page_number(page_number)
     payload, failure = _json_object(body, "dblp")
     if failure is not None or payload is None:
         return failure or _empty_page("dblp", "json_root_not_object")
@@ -328,7 +344,6 @@ def parse_dblp_page(body: bytes) -> ParsedPage:
     capacity = _parse_int(hits.get("@sent"), "result.hits.@sent", errors)
     first = _parse_int(hits.get("@first"), "result.hits.@first", errors)
     hit_list = _as_hit_list(hits.get("hit"), errors)
-    page_number = first // 100 if first is not None else 0
     occurrences: list[Occurrence] = []
     for ordinal, hit in enumerate(hit_list):
         if not isinstance(hit, dict):

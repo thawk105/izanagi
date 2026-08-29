@@ -40,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--checkpoint", type=Path)
     bundle = subparsers.add_parser("bundle", help="verify manifest exact-set and digests")
     bundle.add_argument("--bundle", required=True, type=Path)
+    bundle.add_argument(
+        "--catalog",
+        type=Path,
+        default=REPO_ROOT / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    )
     return parser
 
 
@@ -61,18 +66,24 @@ def _default_registered_paths(catalog: Path) -> tuple[str, ...]:
         "tools/check_axis1_search.py",
         "orchestrator/tests/test_axis1_search_catalog.py",
         "orchestrator/tests/test_axis1_search_runner.py",
+        "orchestrator/tests/fixtures/axis1_search",
     )
 
 
 def _print(result: VerificationResult) -> int:
-    print(json.dumps({"passed": result.passed, "reason_code": result.reason_code, "detail": result.detail}, sort_keys=True))
+    print(json.dumps({
+        "passed": result.passed,
+        "reason_code": result.reason_code,
+        "detail": result.detail,
+        "status": result.status,
+    }, sort_keys=True))
     return 0 if result.passed else 2
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "bundle":
-        return _print(verify_bundle(args.bundle))
+        return _print(verify_bundle(args.bundle, catalog_path=args.catalog))
     try:
         paths = _default_registered_paths(args.catalog)
     except ValueError:

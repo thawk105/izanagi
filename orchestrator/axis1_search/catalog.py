@@ -53,6 +53,9 @@ class LogicalQuery:
     parent_id: str | None
     shard_lower: str | None
     shard_upper: str | None
+    independent_pass_required: bool
+    expected_openalex_oqo: Mapping[str, Any] | None
+    reference_openalex_oql: str | None
 
 
 @dataclass(frozen=True)
@@ -195,7 +198,7 @@ _INDEX_POLICIES: Mapping[str, Mapping[str, Any]] = MappingProxyType(
                 "page_size": 200,
                 "pagination_kind": "cursor",
                 "initial_position": "*",
-                "minimum_interval_s": 0.0,
+                "minimum_interval_s": 1.0,
                 "timeout_s": 60.0,
                 "retry_delays_s": [3.0, 6.0, 12.0],
                 "response_byte_limit": 16_777_216,
@@ -312,12 +315,97 @@ def derive_expected_logical_ids(cutoff: str) -> tuple[str, ...]:
     return tuple(sorted(ids))
 
 
+def _independent_pass_required(index: str, branch: str, kind: str) -> bool:
+    return kind in {"aggregate", "leaf"} and (
+        (index == "arxiv" and branch == "Q6")
+        or (index == "openalex" and branch in {"Q3", "Q6"})
+    )
+
+
+def _openalex_expected_oqo(
+    branch: str, shard_lower: str | None, shard_upper: str | None
+) -> dict[str, Any]:
+    if shard_upper is None:
+        raise ValueError("openalex_leaf_missing_upper_bound")
+    filter_rows: list[dict[str, Any]] = []
+    if shard_lower is not None:
+        filter_rows.append(
+            {"column_id": "from_publication_date", "value": shard_lower}
+        )
+    filter_rows.append(
+        {"column_id": "to_publication_date", "value": shard_upper}
+    )
+    filter_rows.extend(
+        {
+            "join": "or",
+            "filters": [
+                {
+                    "column_id": "title_and_abstract.search",
+                    "value": json.dumps(term, ensure_ascii=False),
+                    "operator": "has",
+                }
+                for term in _TERMS[block]
+            ],
+        }
+        for block in _BRANCH_BLOCKS[branch]
+    )
+    return {"get_rows": "works", "filter_rows": filter_rows}
+
+
+def _openalex_reference_oql(
+    branch: str, shard_lower: str | None, shard_upper: str | None
+) -> str:
+    logical = " and ".join(
+        "(" + " or ".join(f'stemmed "{term}"' for term in _TERMS[block]) + ")"
+        for block in _BRANCH_BLOCKS[branch]
+    )
+    date_parts: list[str] = []
+    if shard_lower is not None:
+        date_parts.append(f"date >= ({shard_lower})")
+    if shard_upper is None:
+        raise ValueError("openalex_leaf_missing_upper_bound")
+    date_parts.append(f"date <= ({shard_upper})")
+    return f"works where {' and '.join(date_parts)} and title/abstract has ({logical})"
+
+
+def _make_logical_query(
+    query_id: str,
+    kind: str,
+    index: str,
+    branch: str,
+    parent_id: str | None,
+    shard_lower: str | None,
+    shard_upper: str | None,
+) -> LogicalQuery:
+    is_openalex_leaf = index == "openalex" and kind == "leaf"
+    return LogicalQuery(
+        query_id=query_id,
+        kind=kind,
+        index=index,
+        branch=branch,
+        parent_id=parent_id,
+        shard_lower=shard_lower,
+        shard_upper=shard_upper,
+        independent_pass_required=_independent_pass_required(index, branch, kind),
+        expected_openalex_oqo=(
+            _openalex_expected_oqo(branch, shard_lower, shard_upper)
+            if is_openalex_leaf
+            else None
+        ),
+        reference_openalex_oql=(
+            _openalex_reference_oql(branch, shard_lower, shard_upper)
+            if is_openalex_leaf
+            else None
+        ),
+    )
+
+
 def _logical_queries(cutoff: str) -> tuple[LogicalQuery, ...]:
     _validate_cutoff(cutoff)
     queries: list[LogicalQuery] = []
     for branch in ("Q1", "Q2", "Q3", "Q4", "Q5"):
         queries.append(
-            LogicalQuery(
+            _make_logical_query(
                 f"{REGISTRATION_EPOCH}-{branch}@arxiv",
                 "leaf",
                 "arxiv",
@@ -328,9 +416,13 @@ def _logical_queries(cutoff: str) -> tuple[LogicalQuery, ...]:
             )
         )
     arxiv_parent = f"{REGISTRATION_EPOCH}-Q6@arxiv"
-    queries.append(LogicalQuery(arxiv_parent, "aggregate", "arxiv", "Q6", None, None, None))
+    queries.append(
+        _make_logical_query(
+            arxiv_parent, "aggregate", "arxiv", "Q6", None, None, None
+        )
+    )
     queries.extend(
-        LogicalQuery(
+        _make_logical_query(
             f"{REGISTRATION_EPOCH}-Q6-{shard.shard_id}@arxiv",
             "leaf",
             "arxiv",
@@ -344,7 +436,7 @@ def _logical_queries(cutoff: str) -> tuple[LogicalQuery, ...]:
 
     for branch in ("Q1", "Q2", "Q4", "Q5"):
         queries.append(
-            LogicalQuery(
+            _make_logical_query(
                 f"{REGISTRATION_EPOCH}-{branch}@openalex",
                 "leaf",
                 "openalex",
@@ -356,9 +448,13 @@ def _logical_queries(cutoff: str) -> tuple[LogicalQuery, ...]:
         )
     for branch in ("Q3", "Q6"):
         parent = f"{REGISTRATION_EPOCH}-{branch}@openalex"
-        queries.append(LogicalQuery(parent, "aggregate", "openalex", branch, None, None, None))
+        queries.append(
+            _make_logical_query(
+                parent, "aggregate", "openalex", branch, None, None, None
+            )
+        )
         queries.extend(
-            LogicalQuery(
+            _make_logical_query(
                 f"{REGISTRATION_EPOCH}-{branch}-{shard.shard_id}@openalex",
                 "leaf",
                 "openalex",
@@ -371,7 +467,7 @@ def _logical_queries(cutoff: str) -> tuple[LogicalQuery, ...]:
         )
 
     queries.extend(
-        LogicalQuery(
+        _make_logical_query(
             f"{REGISTRATION_EPOCH}-T{ordinal:02d}@dblp",
             "leaf",
             "dblp",
@@ -383,7 +479,7 @@ def _logical_queries(cutoff: str) -> tuple[LogicalQuery, ...]:
         for ordinal in range(1, 13)
     )
     queries.append(
-        LogicalQuery(
+        _make_logical_query(
             f"{REGISTRATION_EPOCH}-Q6-EXCLUSION@dblp",
             "exclusion",
             "dblp",
@@ -404,10 +500,6 @@ def _openalex_block(block: str) -> str:
     return "(" + " OR ".join(f'"{term}"' for term in _TERMS[block]) + ")"
 
 
-def _openalex_oql_block(block: str) -> str:
-    return "(" + " or ".join(f'stemmed "{term}"' for term in _TERMS[block]) + ")"
-
-
 def _query_text(query: LogicalQuery) -> str:
     if query.index == "arxiv":
         blocks = " AND ".join(_arxiv_block(block) for block in _BRANCH_BLOCKS[query.branch])
@@ -418,12 +510,13 @@ def _query_text(query: LogicalQuery) -> str:
         return f"{blocks} AND submittedDate:[{lower} TO {upper}]"
     if query.index == "openalex":
         blocks = " AND ".join(_openalex_block(block) for block in _BRANCH_BLOCKS[query.branch])
-        filters = [f"title_and_abstract.search:{blocks}"]
+        filters: list[str] = []
         if query.shard_lower is not None:
             filters.append(f"from_publication_date:{query.shard_lower}")
         if query.shard_upper is None:
             raise ValueError("openalex_leaf_missing_upper_bound")
         filters.append(f"to_publication_date:{query.shard_upper}")
+        filters.append(f"title_and_abstract.search:{blocks}")
         return ",".join(filters)
     if query.index == "dblp":
         try:
@@ -440,17 +533,15 @@ def _dblp_expected_echo(registered_phrase: str) -> str:
     return " ".join(f"{token}*" for token in tokens)
 
 
-def _openalex_expected_echo(query: LogicalQuery) -> str:
-    logical = " and ".join(
-        _openalex_oql_block(block) for block in _BRANCH_BLOCKS[query.branch]
+def _canonical_query_object(value: Mapping[str, Any] | None) -> str:
+    if value is None:
+        raise ValueError("missing_structured_expected_query")
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
     )
-    date_parts: list[str] = []
-    if query.shard_lower is not None:
-        date_parts.append(f"date >= ({query.shard_lower})")
-    if query.shard_upper is None:
-        raise ValueError("openalex_leaf_missing_upper_bound")
-    date_parts.append(f"date <= ({query.shard_upper})")
-    return f"works where {' and '.join(date_parts)} and title/abstract has ({logical})"
 
 
 def _headers(index: str) -> tuple[tuple[str, str], ...]:
@@ -525,7 +616,7 @@ def build_request(
             ("per-page", str(page_size)),
             ("cursor", effective_position),
         )
-        expected_echo = _openalex_expected_echo(query)
+        expected_echo = _canonical_query_object(query.expected_openalex_oqo)
     else:
         expected_offset = str(page_number * page_size)
         if position_in is not None and position_in != expected_offset:
@@ -584,7 +675,7 @@ def _template_for(query: LogicalQuery) -> dict[str, Any]:
             ["per-page", str(policy["page_size"])],
             ["cursor", "{position_in}"],
         ]
-        expected = _openalex_expected_echo(query)
+        expected = _canonical_query_object(query.expected_openalex_oqo)
     else:
         parameters = [
             ["q", query_text],
@@ -679,6 +770,9 @@ def build_catalog_document(cutoff: str = REGISTERED_CUTOFF) -> dict[str, Any]:
                 "parent_id": query.parent_id,
                 "shard_lower": query.shard_lower,
                 "shard_upper": query.shard_upper,
+                "independent_pass_required": query.independent_pass_required,
+                "expected_openalex_oqo": query.expected_openalex_oqo,
+                "reference_openalex_oql": query.reference_openalex_oql,
             }
             for query in queries
         ],

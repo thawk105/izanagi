@@ -205,6 +205,7 @@
           "$ref": "#/definitions/nullable_string"
         },
         "expected_interpreted_query": {
+          "description": "For OpenAlex this is canonical JSON for the registered meta.x_query.oqo structure; it is never a hand-written oql oracle.",
           "type": "string",
           "minLength": 1
         },
@@ -360,6 +361,153 @@
         }
       }
     },
+    "condition_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "condition",
+        "passed",
+        "reason_code",
+        "detail"
+      ],
+      "properties": {
+        "condition": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "passed": {
+                "const": true
+              }
+            },
+            "required": [
+              "passed"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason_code": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "reason_code": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "completion": {
+      "description": "Exactly one result for each registered completion condition 1 through 6.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/condition_result"
+      },
+      "minItems": 6,
+      "maxItems": 6,
+      "allOf": [
+        {
+          "contains": {
+            "properties": {
+              "condition": {
+                "const": 1
+              }
+            },
+            "required": [
+              "condition"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "condition": {
+                "const": 2
+              }
+            },
+            "required": [
+              "condition"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "condition": {
+                "const": 3
+              }
+            },
+            "required": [
+              "condition"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "condition": {
+                "const": 4
+              }
+            },
+            "required": [
+              "condition"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "condition": {
+                "const": 5
+              }
+            },
+            "required": [
+              "condition"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "condition": {
+                "const": 6
+              }
+            },
+            "required": [
+              "condition"
+            ]
+          }
+        }
+      ]
+    },
     "occurrence": {
       "type": "object",
       "additionalProperties": false,
@@ -452,6 +600,7 @@
       ],
       "properties": {
         "interpreted_query": {
+          "description": "For OpenAlex this is canonical JSON decoded from meta.x_query.oqo; the raw oql remains in the stored response body.",
           "type": "string"
         },
         "declared_total": {
@@ -509,6 +658,7 @@
           "minimum": 0
         },
         "occurrence_ledger_path": {
+          "description": "Path to one JSON document containing a single record_occurrence_ledger object; JSON Lines and .jsonl are forbidden.",
           "type": "string",
           "pattern": "^[^/].*\\.json$"
         }
@@ -565,6 +715,7 @@
         "quota",
         "parse",
         "records",
+        "completion",
         "failure"
       ],
       "properties": {
@@ -595,12 +746,16 @@
         "records": {
           "$ref": "#/definitions/records"
         },
+        "completion": {
+          "$ref": "#/definitions/completion"
+        },
         "failure": {
           "$ref": "#/definitions/failure"
         }
       }
     },
     "record_occurrence_ledger": {
+      "description": "One complete document containing a single JSON object stored in a .json file. This is not JSON Lines and never uses a .jsonl path.",
       "type": "object",
       "additionalProperties": false,
       "required": [

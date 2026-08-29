@@ -131,7 +131,7 @@
         "primary_key_digest"
       ],
       "properties": {
-        "path": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "pattern": "^[^/].*\\.json$"},
         "primary_key_kind": {"const": "index_work_id"},
         "row_count": {"type": "integer", "minimum": 0},
         "distinct_count": {"type": "integer", "minimum": 0},
@@ -218,7 +218,7 @@
     {"properties": {"state": {"const": "response_stored"}, "resume_action": {"const": "continue_cursor"}}},
     {"properties": {"state": {"const": "parsed"}, "resume_action": {"const": "continue_cursor"}}},
     {"properties": {"state": {"const": "paused_quota"}, "resume_action": {"const": "continue_cursor"}}},
-    {"properties": {"state": {"const": "pass_complete"}, "resume_action": {"enum": ["start_independent_pass", "not_applicable"]}}},
+    {"properties": {"state": {"const": "pass_complete"}, "resume_action": {"const": "start_independent_pass"}}},
     {"properties": {"state": {"const": "branch_complete"}, "resume_action": {"const": "not_applicable"}}},
     {"properties": {"state": {"const": "outcome_unknown"}, "resume_action": {"const": "restart_branch"}}},
     {"properties": {"state": {"const": "blocked_on_ruling"}, "resume_action": {"const": "blocked_on_ruling"}}},

@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime, timedelta, timezone
+import fcntl
 import gzip
 import hashlib
 import json
@@ -19,13 +20,18 @@ import tempfile
 import time
 from typing import Any, Protocol
 from urllib import error, request as urllib_request
-from urllib.parse import urlsplit
+from urllib.parse import quote_plus, urlencode, urlsplit
 
 from .checkpoint import append_attempt_state, load_checkpoint, write_checkpoint
 from .validator import ConditionResult, VerificationResult, evaluate_leaf, evaluate_page
 
 
 ALLOWED_HOSTS = frozenset({"export.arxiv.org", "api.openalex.org", "dblp.org"})
+REGISTERED_ENDPOINTS = {
+    "export.arxiv.org": ("/api/query", "application/atom+xml"),
+    "api.openalex.org": ("/works", "application/json"),
+    "dblp.org": ("/search/publ/api", "application/json"),
+}
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 DEFAULT_MINIMUM_INTERVALS = {
     "arxiv": 3.0,
@@ -35,6 +41,7 @@ DEFAULT_MINIMUM_INTERVALS = {
 QUOTA_RESERVE_CREDITS = 30
 DBLP_RESTART_COOLDOWN_S = 45 * 60
 EMPTY_BODY_SHA256 = hashlib.sha256(b"").hexdigest()
+_UNSET_VALUE = object()
 
 
 @dataclass(frozen=True)
@@ -102,8 +109,22 @@ class HTTPSOnlyTransport:
             or parsed.fragment
         ):
             raise TransportError("encoded_url does not match the registered HTTPS authority")
-        if parsed.path != _get(spec, "path"):
-            raise TransportError("encoded_url path differs from the registered path")
+        registered_path, registered_accept = REGISTERED_ENDPOINTS[host]
+        if parsed.path != registered_path or _get(spec, "path") != registered_path:
+            raise TransportError("request path is not the registered path for this host")
+        parameters = tuple(_get(spec, "query_parameters", ()) or ())
+        if any(
+            not isinstance(pair, (list, tuple))
+            or len(pair) != 2
+            or not all(isinstance(item, str) for item in pair)
+            for pair in parameters
+        ):
+            raise TransportError("query_parameters must be ordered string pairs")
+        expected_query = urlencode(parameters, doseq=False, quote_via=quote_plus)
+        if parsed.query != expected_query:
+            raise TransportError("encoded_url query differs from the registered ordered parameters")
+        if tuple(_get(spec, "headers", ()) or ()) != (("Accept", registered_accept),):
+            raise TransportError("only the registered Accept header is permitted")
 
     def _bounded_read(self, stream: Any) -> bytes:
         body = stream.read(self._max_response_bytes + 1)
@@ -150,25 +171,43 @@ class HostLimiter:
         *,
         clock: Callable[[], float] = time.monotonic,
         sleeper: Callable[[float], None] = time.sleep,
+        state_path: str | os.PathLike[str] | None = None,
     ) -> None:
         self._clock = clock
         self._sleeper = sleeper
         self._last_issued: dict[str, float] = {}
         self._logical_now = float("-inf")
+        self._state_path = Path(state_path) if state_path is not None else None
 
     def acquire(self, host: str, minimum_interval_s: float) -> float:
         if minimum_interval_s < 0:
             raise ValueError("minimum interval cannot be negative")
-        observed = float(self._clock())
-        now = max(observed, self._logical_now)
-        previous = self._last_issued.get(host)
-        wait_s = 0.0 if previous is None else max(0.0, previous + minimum_interval_s - now)
-        if wait_s:
-            self._sleeper(wait_s)
-        issued = now + wait_s
-        self._logical_now = issued
-        self._last_issued[host] = issued
-        return wait_s
+        if self._state_path is None:
+            observed = float(self._clock())
+            now = max(observed, self._logical_now)
+            previous = self._last_issued.get(host)
+            wait_s = 0.0 if previous is None else max(0.0, previous + minimum_interval_s - now)
+            if wait_s:
+                self._sleeper(wait_s)
+            issued = now + wait_s
+            self._logical_now = issued
+            self._last_issued[host] = issued
+            return wait_s
+
+        def update(state: dict[str, Any]) -> float:
+            hosts = state.setdefault("hosts", {})
+            observed = float(self._clock())
+            previous_value = _get(hosts.get(host, {}), "last_issued")
+            previous = float(previous_value) if isinstance(previous_value, (int, float)) else None
+            wait_s = 0.0 if previous is None else max(
+                0.0, previous + minimum_interval_s - observed
+            )
+            if wait_s:
+                self._sleeper(wait_s)
+            hosts[host] = {"last_issued": observed + wait_s}
+            return wait_s
+
+        return _locked_runtime_update(self._state_path, update)
 
 
 @dataclass(frozen=True)
@@ -217,6 +256,15 @@ class _StoredRequest:
     page_number: int
     position_in: str | None
     expected_interpreted_query: str
+
+
+@dataclass(frozen=True)
+class _PageRecord:
+    page: Any
+    request: Any
+    response: Response
+    raw_path: Path
+    conditions: tuple[ConditionResult, ...]
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -271,9 +319,58 @@ def _retry_delays(catalog: Any, index: str) -> tuple[float, ...]:
     return tuple(float(value) for value in raw)
 
 
-def _independent_pass_required(catalog: Any, index: str, window_number: int) -> bool:
-    registered = _policy(catalog, index).get("independent_pass_required")
-    return bool(registered) if registered is not None else window_number > 1
+def _logical_query(catalog: Any, query_id: str) -> Any:
+    resolver = _get(catalog, "logical_query")
+    if callable(resolver):
+        return resolver(query_id)
+    for query in tuple(_get(catalog, "logical_queries", ()) or ()):
+        if _get(query, "query_id") == query_id:
+            return query
+    raise ValueError(f"catalog lacks logical query {query_id!r}")
+
+
+def control_leaf_query_id(catalog: Any, control_id: str, index: str) -> str:
+    """Resolve a registered control descriptor to a deterministic executable probe.
+
+    The request remains a catalog-built leaf request; callers cannot supply a
+    filter, URL, or header.  Block controls select their corresponding branch,
+    while operational controls use Q1 as the smallest common probe.
+    """
+
+    controls = tuple(_get(catalog, "controls", ()) or ())
+    descriptor = next(
+        (item for item in controls if _get(item, "control_id") == control_id), None
+    )
+    if descriptor is None or index not in tuple(_get(descriptor, "indexes", ()) or ()):
+        raise ValueError("control/index pair is not registered")
+    branch = {
+        "C-BLK-T": "Q1",
+        "C-BLK-M": "Q2",
+        "C-BLK-O": "Q4",
+        "C-BLK-V": "Q5",
+        "C-BLK-W": "Q6",
+    }.get(control_id, "Q1")
+    candidates = sorted(
+        (
+            query
+            for query in tuple(_get(catalog, "logical_queries", ()) or ())
+            if _get(query, "kind") == "leaf"
+            and _get(query, "index") == index
+            and _get(query, "branch") == branch
+        ),
+        key=lambda item: str(_get(item, "query_id")),
+    )
+    if not candidates:
+        raise ValueError("registered control has no executable leaf probe")
+    return str(_get(candidates[0], "query_id"))
+
+
+def _independent_pass_required(catalog: Any, leaf_query_id: str) -> bool:
+    query = _logical_query(catalog, leaf_query_id)
+    registered = _get(query, "independent_pass_required")
+    if not isinstance(registered, bool):
+        raise ValueError("logical query lacks registered independent_pass_required")
+    return registered
 
 
 def _default_request_builder(catalog: Any, leaf: str, page: int, position: str | None) -> Any:
@@ -290,6 +387,41 @@ def _default_parser(index: str) -> Callable[[bytes], Any]:
         "openalex": parse_openalex_page,
         "dblp": parse_dblp_page,
     }[index]
+
+
+def _parse_registered_page(parser: Callable[..., Any], body: bytes, page_number: int) -> Any:
+    """Pass request context to the registered parser (with transition fallback)."""
+
+    try:
+        return parser(body, page_number)
+    except TypeError as exc:
+        # Kept only so an author-B checkout remains diagnosable while fix-A is
+        # being integrated.  The registered production parsers use two args.
+        try:
+            return parser(body)
+        except TypeError:
+            raise exc
+
+
+def _openalex_oqo(body: bytes) -> Any:
+    try:
+        value = json.loads(body)
+        return value["meta"]["x_query"]["oqo"]
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, KeyError):
+        return None
+
+
+def _expected_openalex_oqo(catalog: Any, leaf_query_id: str) -> Any:
+    query = _logical_query(catalog, leaf_query_id)
+    for field in (
+        "expected_interpreted_query_structure",
+        "expected_x_query_oqo",
+        "expected_oqo",
+    ):
+        value = _get(query, field, _UNSET_VALUE)
+        if value is not _UNSET_VALUE:
+            return value
+    raise ValueError("OpenAlex logical query lacks registered meta.x_query.oqo expectation")
 
 
 def _header_map(headers: Sequence[tuple[str, str]]) -> dict[str, str]:
@@ -350,6 +482,24 @@ def _safe_component(value: str) -> str:
     return safe[:180] or "request"
 
 
+def _attempt_counts(wal_path: Path) -> dict[str, int]:
+    if not wal_path.exists():
+        return {}
+    result: dict[str, int] = {}
+    for line in wal_path.read_bytes().splitlines():
+        if not line:
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise PreflightError("existing WAL is malformed") from exc
+        request_id = _get(value, "request_id")
+        attempt = _get(value, "attempt_number")
+        if isinstance(request_id, str) and isinstance(attempt, int):
+            result[request_id] = max(result.get(request_id, 0), attempt)
+    return result
+
+
 def _atomic_create(path: Path, payload: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
@@ -378,10 +528,171 @@ def _atomic_create(path: Path, payload: bytes) -> None:
             pass
 
 
+def _atomic_replace(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        view = memoryview(payload)
+        while view:
+            written = os.write(fd, view)
+            view = view[written:]
+        os.fsync(fd)
+        os.close(fd)
+        fd = -1
+        os.replace(temporary, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _runtime_default() -> dict[str, Any]:
+    return {
+        "schema_version": "izanagi-axis1-search-runtime-state/v1",
+        "hosts": {},
+        "quota": {},
+        "dblp_restart_count": 0,
+    }
+
+
+def _locked_runtime_update(path: Path, operation: Callable[[dict[str, Any]], Any]) -> Any:
+    """Serialize bundle-wide pacing, quota, and DBLP restart observations."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        os.lseek(fd, 0, os.SEEK_SET)
+        raw = b""
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            raw += chunk
+        if raw:
+            try:
+                state = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError("bundle runtime state is malformed") from exc
+            if not isinstance(state, dict) or state.get("schema_version") != _runtime_default()["schema_version"]:
+                raise ValueError("bundle runtime state has an unsupported schema")
+        else:
+            state = _runtime_default()
+        result = operation(state)
+        payload = json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.ftruncate(fd, 0)
+        view = memoryview(payload)
+        while view:
+            written = os.write(fd, view)
+            view = view[written:]
+        os.fsync(fd)
+        return result
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+
+def _quota_from_mapping(value: Mapping[str, Any] | None) -> QuotaObservation | None:
+    if not value or not value.get("observed_request_id"):
+        return None
+    return QuotaObservation(
+        observed_at_utc=str(value["observed_at_utc"]),
+        observed_at_jst=str(value["observed_at_jst"]),
+        limit=value.get("limit"),
+        remaining=value.get("remaining"),
+        credits_per_request=value.get("credits_per_request"),
+        reset_seconds=value.get("reset_seconds"),
+        observed_request_id=str(value["observed_request_id"]),
+        cost_usd=value.get("cost_usd"),
+        header_evidence=tuple(tuple(item) for item in value.get("header_evidence", ())),
+    )
+
+
+def _merge_quota(
+    previous: QuotaObservation | None, current: QuotaObservation
+) -> QuotaObservation:
+    """Keep the newest evidence while never replacing a known numeric value by absence."""
+
+    return QuotaObservation(
+        observed_at_utc=current.observed_at_utc,
+        observed_at_jst=current.observed_at_jst,
+        limit=current.limit if current.limit is not None else (previous.limit if previous else None),
+        remaining=(
+            current.remaining if current.remaining is not None else (previous.remaining if previous else None)
+        ),
+        credits_per_request=(
+            current.credits_per_request
+            if current.credits_per_request is not None
+            else (previous.credits_per_request if previous else None)
+        ),
+        reset_seconds=(
+            current.reset_seconds
+            if current.reset_seconds is not None
+            else (previous.reset_seconds if previous else None)
+        ),
+        observed_request_id=current.observed_request_id,
+        cost_usd=current.cost_usd if current.cost_usd is not None else (previous.cost_usd if previous else None),
+        header_evidence=current.header_evidence or (previous.header_evidence if previous else ()),
+    )
+
+
+def _load_persisted_quota(path: Path, index: str) -> QuotaObservation | None:
+    return _locked_runtime_update(
+        path,
+        lambda state: _quota_from_mapping(_get(state.get("quota", {}), index)),
+    )
+
+
+def _persist_quota(path: Path, index: str, observation: QuotaObservation) -> None:
+    def update(state: dict[str, Any]) -> None:
+        state.setdefault("quota", {})[index] = {
+            **asdict(observation),
+            "header_evidence": [list(item) for item in observation.header_evidence],
+        }
+
+    _locked_runtime_update(path, update)
+
+
+def _reserve_dblp_restart(path: Path) -> bool:
+    def update(state: dict[str, Any]) -> bool:
+        count = state.get("dblp_restart_count", 0)
+        if not isinstance(count, int) or count < 0:
+            raise ValueError("invalid persistent DBLP restart count")
+        if count >= 1:
+            return False
+        state["dblp_restart_count"] = count + 1
+        return True
+
+    return _locked_runtime_update(path, update)
+
+
 def _store_raw_body(bundle: Path, request_id: str, attempt_number: int, body: bytes) -> Path:
     relative = Path("raw") / f"{_safe_component(request_id)}.a{attempt_number:02d}.body.gz"
     _atomic_create(bundle / relative, gzip.compress(body, compresslevel=9, mtime=0))
     return relative
+
+
+def _read_stored_raw(path: Path) -> bytes:
+    with gzip.open(path, "rb") as handle:
+        body = handle.read(MAX_RESPONSE_BYTES + 1)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise PreflightError("stored raw response exceeds the 16 MiB limit")
+    return body
 
 
 def _occurrence_dict(occurrence: Any) -> dict[str, Any]:
@@ -403,20 +714,48 @@ def _occurrence_dict(occurrence: Any) -> dict[str, Any]:
     }
 
 
-def _write_ledger(bundle: Path, leaf_query_id: str, pass_number: int, occurrences: Sequence[Any]) -> tuple[str, str, str, int, int]:
-    lines = [
-        json.dumps(_occurrence_dict(item), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+def _write_ledger(
+    bundle: Path,
+    leaf_query_id: str,
+    pass_number: int,
+    occurrences: Sequence[Any],
+    *,
+    registration_epoch: str,
+    registration_commit: str,
+    catalog_sha256: str,
+    run_id: str,
+    logical_query_id: str,
+    index: str,
+) -> tuple[str, str, str, int, int]:
+    occurrence_values = [_occurrence_dict(item) for item in occurrences]
+    work_ids = [
+        str(_get(item, "index_work_id"))
         for item in occurrences
+        if _get(item, "index_work_id")
     ]
-    payload = (("\n".join(lines) + "\n") if lines else "").encode("utf-8")
+    value = {
+        "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1",
+        "document_type": "record_occurrence_ledger",
+        "registration_epoch": registration_epoch,
+        "registration_commit": registration_commit,
+        "catalog_sha256": catalog_sha256,
+        "run_id": run_id,
+        "logical_query_id": logical_query_id,
+        "leaf_query_id": leaf_query_id,
+        "index": index,
+        "primary_key_kind": "index_work_id",
+        "occurrence_count": len(occurrence_values),
+        "distinct_index_work_id_count": len(set(work_ids)),
+        "occurrences": occurrence_values,
+    }
+    payload = json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
     digest_suffix = hashlib.sha256(payload).hexdigest()[:12]
-    relative = Path("ledgers") / f"{_safe_component(leaf_query_id)}.pass{pass_number}.{digest_suffix}.jsonl"
+    relative = Path("ledgers") / f"{_safe_component(leaf_query_id)}.pass{pass_number}.{digest_suffix}.json"
     target = bundle / relative
     if not target.exists():
         _atomic_create(target, payload)
     elif target.read_bytes() != payload:
         raise FileExistsError(target)
-    work_ids = [str(_get(item, "index_work_id")) for item in occurrences if _get(item, "index_work_id")]
     primary_payload = "".join(f"{item}\n" for item in sorted(set(work_ids))).encode("utf-8")
     return (
         relative.as_posix(),
@@ -425,6 +764,330 @@ def _write_ledger(bundle: Path, leaf_query_id: str, pass_number: int, occurrence
         len(occurrences),
         len(set(work_ids)),
     )
+
+
+def _content_type(headers: Sequence[tuple[str, str]]) -> str | None:
+    raw = _header_map(headers).get("content-type")
+    return raw.split(";", 1)[0].strip().lower() if raw else None
+
+
+def _response_context(
+    catalog: Any,
+    request: Any,
+    response: Response,
+    raw_path: Path,
+    *,
+    actual_structure: Any = _UNSET_VALUE,
+) -> dict[str, Any]:
+    index = str(_get(request, "index"))
+    expected_type = REGISTERED_ENDPOINTS[str(_get(request, "host"))][1]
+    actual_type = _content_type(response.headers)
+    stored = raw_path.suffix == ".gz"
+    context: dict[str, Any] = {
+        "expected_interpreted_query": str(_get(request, "expected_interpreted_query")),
+        "expected_position_in": _get(request, "position_in"),
+        "expected_page_number": int(_get(request, "page_number")),
+        "pagination_kind": _pagination_kind(catalog, index),
+        "response_ok": (
+            response.status == 200
+            and actual_type == expected_type
+            and response.final_url == str(_get(request, "encoded_url"))
+        ),
+        "evidence_complete": stored,
+    }
+    if index == "openalex":
+        context["expected_interpreted_structure"] = _expected_openalex_oqo(
+            catalog, str(_get(request, "leaf_query_id"))
+        )
+        context["actual_interpreted_structure"] = (
+            _openalex_oqo(response.body)
+            if actual_structure is _UNSET_VALUE
+            else actual_structure
+        )
+    return context
+
+
+def _safe_response_headers(headers: Sequence[tuple[str, str]]) -> list[list[str]]:
+    allowed = {
+        "content-type",
+        "x-ratelimit-limit",
+        "x-ratelimit-remaining",
+        "x-ratelimit-credits-used",
+        "x-ratelimit-reset",
+        "x-ratelimit-cost-usd",
+    }
+    seen: set[tuple[str, str]] = set()
+    values: list[list[str]] = []
+    for key, value in headers:
+        if key.lower() in allowed and (key.lower(), value) not in seen:
+            seen.add((key.lower(), value))
+            values.append([key, value])
+    return values
+
+
+def _condition_documents(results: Sequence[ConditionResult]) -> list[dict[str, Any]]:
+    return [
+        {
+            "condition": item.condition,
+            "passed": item.passed,
+            "reason_code": item.reason_code,
+            "detail": item.detail,
+        }
+        for item in results
+    ]
+
+
+def _schema_node(root: Mapping[str, Any], node: Mapping[str, Any]) -> Mapping[str, Any]:
+    reference = node.get("$ref")
+    if isinstance(reference, str) and reference.startswith("#/definitions/"):
+        return root["definitions"][reference.rsplit("/", 1)[-1]]
+    return node
+
+
+def _condition_for_schema(
+    root: Mapping[str, Any], node: Mapping[str, Any], result: ConditionResult
+) -> Any:
+    node = _schema_node(root, node)
+    if node.get("type") == "boolean":
+        return result.passed
+    properties = node.get("properties", {})
+    if not isinstance(properties, Mapping):
+        properties = {}
+    required = set(node.get("required", ()))
+    allowed = set(properties) if node.get("additionalProperties") is False else {
+        "condition",
+        "passed",
+        "reason_code",
+        "detail",
+    }
+    values: dict[str, Any] = {}
+    for key in allowed | required:
+        if key in {"condition", "condition_number", "number"}:
+            values[key] = result.condition
+        elif key == "passed":
+            values[key] = result.passed
+        elif key == "reason_code":
+            values[key] = result.reason_code
+        elif key == "detail":
+            values[key] = result.detail
+        elif key == "status":
+            status_schema = _schema_node(root, properties.get(key, {}))
+            enum = status_schema.get("enum", ())
+            values[key] = (
+                "passed"
+                if result.passed and "passed" in enum
+                else "failed"
+                if not result.passed and "failed" in enum
+                else result.passed
+            )
+    return values
+
+
+def _completion_for_schema(
+    root: Mapping[str, Any], node: Mapping[str, Any], results: Sequence[ConditionResult]
+) -> Any:
+    node = _schema_node(root, node)
+    if node.get("type") == "array" or "items" in node:
+        item_schema = node.get("items", {})
+        return [_condition_for_schema(root, item_schema, result) for result in results]
+    properties = node.get("properties", {})
+    required = set(node.get("required", ()))
+    if not isinstance(properties, Mapping):
+        properties = {}
+    value: dict[str, Any] = {}
+    for key in set(properties) | required:
+        child = _schema_node(root, properties.get(key, {}))
+        if key in {"conditions", "condition_results", "results"}:
+            value[key] = _completion_for_schema(root, child, results)
+        elif key in {"all_passed", "passed"}:
+            value[key] = all(result.passed for result in results)
+        else:
+            import re
+
+            match = re.search(r"([1-6])$", key)
+            if match:
+                result = next(item for item in results if item.condition == int(match.group(1)))
+                value[key] = _condition_for_schema(root, child, result)
+    if not required.issubset(value):
+        raise ValueError("unsupported completion schema shape")
+    return value
+
+
+def _write_page_evidence(
+    bundle: Path,
+    *,
+    catalog: Any,
+    request: Any,
+    response: Response,
+    parsed: Any,
+    raw_path: Path,
+    ledger_path: str,
+    registration_commit: str,
+    catalog_path: str,
+    catalog_sha256: str,
+    run_id: str,
+    pass_number: int,
+    window_number: int,
+    attempt_number: int,
+    parent_response_sha256: str | None,
+    quota: QuotaObservation | None,
+    wal_times: Mapping[str, str | None],
+    conditions: Sequence[ConditionResult],
+    failure: Mapping[str, Any] | None,
+) -> Path:
+    occurrences = tuple(_get(parsed, "occurrences", ()) or ())
+    work_ids = [str(_get(item, "index_work_id")) for item in occurrences if _get(item, "index_work_id")]
+    primary = "".join(f"{item}\n" for item in sorted(set(work_ids))).encode("utf-8")
+    observed = quota if str(_get(request, "index")) == "openalex" else None
+    value: dict[str, Any] = {
+        "schema_version": "izanagi-axis1-search-page-evidence/v1",
+        "document_type": "page_evidence",
+        "identity": {
+            "registration_epoch": str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+            "registration_commit": registration_commit,
+            "catalog_path": catalog_path,
+            "catalog_sha256": catalog_sha256,
+            "run_id": run_id,
+            "pass_number": pass_number,
+            "window_number": window_number,
+            "logical_query_id": str(_get(request, "logical_query_id")),
+            "leaf_query_id": str(_get(request, "leaf_query_id")),
+            "request_id": str(_get(request, "request_id")),
+            "attempt_number": attempt_number,
+            "page_number": int(_get(request, "page_number")),
+            "index": str(_get(request, "index")),
+        },
+        "request": {
+            "method": str(_get(request, "method")),
+            "scheme": str(_get(request, "scheme")),
+            "host": str(_get(request, "host")),
+            "path": str(_get(request, "path")),
+            "query_parameters": [list(item) for item in tuple(_get(request, "query_parameters", ()))],
+            "encoded_url": str(_get(request, "encoded_url")),
+            "headers": [list(item) for item in tuple(_get(request, "headers", ()))],
+            "timeout_s": float(_get(request, "timeout_s")),
+            "position_in": _get(request, "position_in"),
+            "expected_interpreted_query": str(_get(request, "expected_interpreted_query")),
+            "parent_response_sha256": parent_response_sha256,
+        },
+        "wal": {
+            "state": "terminal" if wal_times["terminal"] is not None else "issued",
+            "prepared_at": wal_times["prepared"],
+            "issued_at": wal_times["issued"],
+            "response_stored_at": wal_times["response_stored"],
+            "parsed_at": wal_times["parsed"],
+            "terminal_at": wal_times["terminal"],
+        },
+        "response": {
+            "status": response.status,
+            "safe_headers": _safe_response_headers(response.headers),
+            "content_type": _content_type(response.headers) or "application/octet-stream",
+            "final_url": response.final_url,
+            "body_path": raw_path.as_posix(),
+            "byte_count": len(response.body),
+            "sha256": hashlib.sha256(response.body).hexdigest(),
+            "redirect_chain": [],
+            "elapsed_s": response.elapsed_s,
+        },
+        "quota": {
+            "limit": observed.limit if observed else None,
+            "remaining": observed.remaining if observed else None,
+            "credits_used": observed.credits_per_request if observed else None,
+            "cost_usd": observed.cost_usd if observed else None,
+            "reset_observation": str(observed.reset_seconds) if observed and observed.reset_seconds is not None else None,
+            "observed_at": observed.observed_at_utc if observed else None,
+        },
+        "parse": {
+            "interpreted_query": str(_get(parsed, "interpreted_query", "")),
+            "declared_total": _get(parsed, "declared_total"),
+            "capacity_echo": _get(parsed, "capacity_echo"),
+            "actual_count": int(_get(parsed, "actual_count", 0)),
+            "position_in": _get(parsed, "position_in"),
+            "position_out": _get(parsed, "position_out"),
+            "parse_errors": list(tuple(_get(parsed, "parse_errors", ()) or ())),
+        },
+        "records": {
+            "index_work_ids": work_ids,
+            "index_work_id_digest": hashlib.sha256(primary).hexdigest(),
+            "occurrence_count": len(occurrences),
+            "duplicate_occurrences": len(work_ids) - len(set(work_ids)),
+            "occurrence_ledger_path": ledger_path,
+        },
+        "failure": dict(failure) if failure is not None else None,
+    }
+    # fix-A owns the page-evidence schema.  During parallel integration it adds
+    # the six-condition field; emit it exactly when that schema advertises it.
+    schema_path = Path(__file__).resolve().parents[1] / "schemas" / "axis1_search_page_evidence.schema.json"
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        page_definition = schema["definitions"]["page_evidence"]
+        if "completion" in page_definition.get("required", ()):
+            value["completion"] = _completion_for_schema(
+                schema,
+                page_definition["properties"]["completion"],
+                conditions,
+            )
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError):
+        pass
+    payload = json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
+    relative = Path("pages") / (
+        f"{_safe_component(str(_get(request, 'request_id')))}.a{attempt_number:02d}.json"
+    )
+    target = bundle / relative
+    if target.exists():
+        if target.read_bytes() != payload:
+            raise FileExistsError(target)
+    else:
+        _atomic_create(target, payload)
+    return relative
+
+
+def finalize_bundle(
+    bundle_root: str | os.PathLike[str],
+    *,
+    registration_epoch: str,
+    registration_commit: str,
+    catalog_sha256: str,
+) -> Path:
+    """Publish the exact-set manifest and its self digest after durable artifacts."""
+
+    root = Path(bundle_root)
+    excluded = {"manifest.json", "MANIFEST.sha256", "README.md"}
+    regular: list[str] = []
+    for current_root, dirnames, filenames in os.walk(root, followlinks=False):
+        current = Path(current_root)
+        if any((current / name).is_symlink() for name in dirnames):
+            raise ValueError("bundle contains a symlinked directory")
+        for filename in filenames:
+            path = current / filename
+            if path.is_symlink() or not path.is_file():
+                raise ValueError("bundle contains a non-regular file")
+            relative = path.relative_to(root).as_posix()
+            if relative not in excluded:
+                regular.append(relative)
+    regular.sort()
+    entries = []
+    for relative in regular:
+        raw = (root / relative).read_bytes()
+        entries.append({"path": relative, "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()})
+    manifest = {
+        "schema_version": "izanagi-axis1-search-bundle-manifest/v1",
+        "document_type": "bundle_manifest",
+        "registration_epoch": registration_epoch,
+        "registration_commit": registration_commit,
+        "catalog_sha256": catalog_sha256,
+        "bundle_root": ".",
+        "path_set_rule": "manifest paths == bundle regular files - {manifest.json, MANIFEST.sha256, README.md}",
+        "excluded_paths": ["manifest.json", "MANIFEST.sha256", "README.md"],
+        "regular_file_paths": regular,
+        "files": entries,
+    }
+    payload = json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
+    target = root / "manifest.json"
+    _atomic_replace(target, payload)
+    digest = hashlib.sha256(payload).hexdigest().encode("ascii") + b"  manifest.json\n"
+    _atomic_replace(root / "MANIFEST.sha256", digest)
+    return target
 
 
 def _request_template_sha(request: Any) -> str:
@@ -518,6 +1181,116 @@ def _first_pass_digest(
     return _get(_get(value, "second_pass", {}), "first_primary_key_digest")
 
 
+def _load_completed_prefix(
+    previous: str | os.PathLike[str] | Mapping[str, Any] | None,
+    bundle_root: Path,
+    *,
+    leaf_query_id: str,
+    pass_number: int,
+    next_page_number: int,
+) -> tuple[list[Any], list[Any], list[dict[str, Any]]]:
+    checkpoint = _previous_checkpoint_value(previous)
+    if checkpoint is None or checkpoint.get("leaf_query_id") != leaf_query_id:
+        return [], [], []
+    completed = checkpoint.get("completed_ledger")
+    if not isinstance(completed, Mapping):
+        raise PreflightError("checkpoint lacks completed ledger metadata")
+    relative = Path(str(completed.get("path", "")))
+    if relative.is_absolute() or ".." in relative.parts:
+        raise PreflightError("checkpoint ledger path is unsafe")
+    target = bundle_root / relative
+    raw = target.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != completed.get("ledger_sha256"):
+        raise PreflightError("checkpoint completed ledger digest mismatch")
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise PreflightError("checkpoint completed ledger is malformed") from exc
+    if not isinstance(value, dict) or value.get("document_type") != "record_occurrence_ledger":
+        raise PreflightError("checkpoint completed ledger is not a ledger object")
+    if value.get("leaf_query_id") != leaf_query_id:
+        raise PreflightError("checkpoint completed ledger names another leaf")
+    occurrences_value = value.get("occurrences")
+    if not isinstance(occurrences_value, list):
+        raise PreflightError("checkpoint completed ledger occurrences are malformed")
+    primary = "".join(
+        f"{item}\n"
+        for item in sorted(
+            {
+                str(row.get("index_work_id"))
+                for row in occurrences_value
+                if isinstance(row, Mapping) and row.get("index_work_id")
+            }
+        )
+    ).encode("utf-8")
+    if hashlib.sha256(primary).hexdigest() != completed.get("primary_key_digest"):
+        raise PreflightError("checkpoint primary-key digest mismatch")
+
+    pages: list[Any] = []
+    contexts: list[dict[str, Any]] = []
+    pages_dir = bundle_root / "pages"
+    if pages_dir.is_dir():
+        selected: dict[int, Mapping[str, Any]] = {}
+        for path in pages_dir.glob("*.json"):
+            try:
+                evidence = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                continue
+            identity = _get(evidence, "identity", {})
+            if (
+                _get(evidence, "document_type") == "page_evidence"
+                and _get(identity, "leaf_query_id") == leaf_query_id
+                and _get(identity, "pass_number") == pass_number
+                and isinstance(_get(identity, "page_number"), int)
+                and _get(identity, "page_number") < next_page_number
+                and _get(evidence, "failure") is None
+            ):
+                page_number = int(_get(identity, "page_number"))
+                attempt = int(_get(identity, "attempt_number", 0))
+                if attempt >= int(_get(_get(selected.get(page_number, {}), "identity", {}), "attempt_number", -1)):
+                    selected[page_number] = evidence
+        for page_number in sorted(selected):
+            evidence = selected[page_number]
+            parse_value = dict(_get(evidence, "parse", {}))
+            page_occurrences = [
+                dict(item)
+                for item in occurrences_value
+                if isinstance(item, Mapping) and item.get("page_number") == page_number
+            ]
+            parse_value.update(
+                {
+                    "index": _get(_get(evidence, "identity", {}), "index"),
+                    "occurrences": tuple(page_occurrences),
+                }
+            )
+            pages.append(parse_value)
+            request_value = _get(evidence, "request", {})
+            response_value = _get(evidence, "response", {})
+            context: dict[str, Any] = {
+                "expected_interpreted_query": _get(request_value, "expected_interpreted_query"),
+                "expected_position_in": _get(request_value, "position_in"),
+                "expected_page_number": page_number,
+                "response_ok": (
+                    _get(response_value, "status") == 200
+                    and _get(response_value, "content_type")
+                    == REGISTERED_ENDPOINTS[str(_get(request_value, "host"))][1]
+                    and _get(response_value, "final_url") == _get(request_value, "encoded_url")
+                ),
+                "evidence_complete": True,
+            }
+            if _get(_get(evidence, "identity", {}), "index") == "openalex":
+                raw_relative = Path(str(_get(response_value, "body_path")))
+                try:
+                    body = _read_stored_raw(bundle_root / raw_relative)
+                except (OSError, gzip.BadGzipFile, PreflightError) as exc:
+                    raise PreflightError("checkpoint prefix raw evidence is unreadable") from exc
+                context["actual_interpreted_structure"] = _openalex_oqo(body)
+            contexts.append(context)
+    if len(pages) != next_page_number:
+        raise PreflightError("checkpoint prefix page evidence is incomplete")
+    return pages, [dict(item) for item in occurrences_value], contexts
+
+
 def _quota_dict(index: str, quota: QuotaObservation | None) -> dict[str, Any]:
     if quota is None:
         return {
@@ -568,7 +1341,16 @@ def _checkpoint_payload(
     index = str(_get(current_request, "index"))
     first = request_builder(catalog, leaf, 0, None)
     ledger_path, ledger_sha, primary_digest, row_count, distinct_count = _write_ledger(
-        bundle_root, leaf, pass_number, occurrences
+        bundle_root,
+        leaf,
+        pass_number,
+        occurrences,
+        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+        registration_commit=registration_commit,
+        catalog_sha256=catalog_sha256,
+        run_id=run_id,
+        logical_query_id=str(_get(current_request, "logical_query_id")),
+        index=index,
     )
     continue_object = _complete_request(
         continuation_request,
@@ -604,7 +1386,20 @@ def _checkpoint_payload(
         "catalog_path": catalog_path,
         "catalog_sha256": catalog_sha256,
         "bundle_root": os.fspath(bundle_root),
-        "canonical_runner_argv": list(canonical_runner_argv),
+        "canonical_runner_argv": [
+            "python3",
+            "tools/run_axis1_search.py",
+            "--registration-commit",
+            registration_commit,
+            "--catalog",
+            catalog_path,
+            "--bundle",
+            os.fspath(bundle_root),
+            "--run-id",
+            run_id,
+            "--checkpoint",
+            "{checkpoint_path}",
+        ],
         "previous_checkpoint": _previous_checkpoint(previous_checkpoint),
         "query_id": str(_get(current_request, "logical_query_id")),
         "leaf_query_id": leaf,
@@ -632,7 +1427,7 @@ def _checkpoint_payload(
             "primary_key_kind": "index_work_id",
             "row_count": row_count,
             "distinct_count": distinct_count,
-            "canonicalization": "utf8-jsonl-v1; primary digest is sorted unique index_work_id lines",
+            "canonicalization": "canonical JSON object v1; primary digest is sorted unique index_work_id lines",
             "ledger_sha256": ledger_sha,
             "primary_key_digest": primary_digest,
         },
@@ -711,7 +1506,7 @@ def _requests_identical(left: Any, right: Any) -> bool:
     return True
 
 
-def run_leaf(
+def _run_leaf_impl(
     catalog: Any,
     leaf_query_id: str,
     *,
@@ -748,7 +1543,10 @@ def run_leaf(
     bundle.mkdir(parents=True, exist_ok=True)
     catalog_bytes = Path(catalog_path).read_bytes()
     catalog_sha256 = hashlib.sha256(catalog_bytes).hexdigest()
-    host_limiter = limiter or HostLimiter(clock=clock, sleeper=sleeper)
+    runtime_state_path = bundle / "state" / "runtime.json"
+    host_limiter = limiter or HostLimiter(
+        clock=clock, sleeper=sleeper, state_path=runtime_state_path
+    )
     request = initial_request or builder(catalog, leaf_query_id, 0, None)
     index = str(_get(request, "index"))
     if index not in DEFAULT_MINIMUM_INTERVALS:
@@ -757,19 +1555,47 @@ def run_leaf(
     page_size = _page_size(catalog, index)
     pagination_kind = _pagination_kind(catalog, index)
     retry_delays = _retry_delays(catalog, index)
+    logical_query = _logical_query(catalog, leaf_query_id)
+    shard_lower = _get(logical_query, "shard_lower")
+    shard_upper = _get(logical_query, "shard_upper")
+    requires_independent = _independent_pass_required(catalog, leaf_query_id)
     wal_path = bundle / "wal" / f"{_safe_component(leaf_query_id)}.jsonl"
-    pages: list[Any] = []
-    occurrences: list[Any] = []
+    if initial_request is not None and int(_get(initial_request, "page_number")) > 0:
+        pages, occurrences, page_contexts = _load_completed_prefix(
+            previous_checkpoint,
+            bundle,
+            leaf_query_id=leaf_query_id,
+            pass_number=pass_number,
+            next_page_number=int(_get(initial_request, "page_number")),
+        )
+    else:
+        pages, occurrences, page_contexts = [], [], []
+    if index == "openalex":
+        expected_structure = _expected_openalex_oqo(catalog, leaf_query_id)
+        for context in page_contexts:
+            context["expected_interpreted_structure"] = expected_structure
     request_count = 0
-    attempts_by_request: dict[str, int] = {}
-    latest_quota: QuotaObservation | None = None
-    parent_response_sha: str | None = None
-    restarted_dblp = False
+    attempts_by_request = _attempt_counts(wal_path)
+    latest_quota = _load_persisted_quota(runtime_state_path, index) if index == "openalex" else None
+    previous_value = _previous_checkpoint_value(previous_checkpoint)
+    parent_response_sha = (
+        _get(_get(previous_value, "cursor_state", {}), "parent_response_sha256")
+        if pages and previous_value is not None
+        else None
+    )
     checkpoint_path: str | None = None
 
     while True:
         if max_pages is not None and len(pages) >= max_pages:
             break
+        registered_request = builder(
+            catalog,
+            leaf_query_id,
+            int(_get(request, "page_number")),
+            _get(request, "position_in"),
+        )
+        if not _requests_identical(request, registered_request):
+            raise PreflightError("issuance request differs from the registered catalog request")
         if index == "openalex" and latest_quota is not None and not latest_quota.permits_next():
             next_request = request
             payload = _checkpoint_payload(
@@ -792,9 +1618,15 @@ def run_leaf(
                 previous_checkpoint=previous_checkpoint,
                 last_attempt={"state": "terminal", "request_id": latest_quota.observed_request_id, "attempt_number": attempts_by_request.get(latest_quota.observed_request_id, 1), "failure": None, "raw_evidence_path": None},
                 parent_response_sha256=parent_response_sha,
-                second_pass_required=True,
+                second_pass_required=requires_independent,
             )
             checkpoint = write_checkpoint(bundle / "checkpoints", payload)
+            finalize_bundle(
+                bundle,
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_commit=registration_commit,
+                catalog_sha256=catalog_sha256,
+            )
             return RunResult("paused_quota", request_count, tuple(pages), (), os.fspath(checkpoint), latest_quota, "quota_reserve")
 
         response: Response | None = None
@@ -802,16 +1634,75 @@ def run_leaf(
         raw_path: Path | None = None
         request_id = str(_get(request, "request_id"))
         for retry_ordinal in range(len(retry_delays) + 1):
+            raw_path = None
+            if index == "openalex":
+                latest_quota = _load_persisted_quota(runtime_state_path, index) or latest_quota
+                if latest_quota is not None and not latest_quota.permits_next():
+                    payload = _checkpoint_payload(
+                        catalog=catalog,
+                        request_builder=builder,
+                        current_request=request,
+                        continuation_request=request,
+                        registration_commit=registration_commit,
+                        catalog_path=catalog_path,
+                        catalog_sha256=catalog_sha256,
+                        bundle_root=bundle,
+                        run_id=run_id,
+                        pass_number=pass_number,
+                        window_number=window_number,
+                        state="paused_quota",
+                        resume_action="continue_cursor",
+                        occurrences=occurrences,
+                        quota=latest_quota,
+                        canonical_runner_argv=canonical_runner_argv,
+                        previous_checkpoint=previous_checkpoint,
+                        last_attempt={
+                            "state": "terminal",
+                            "request_id": latest_quota.observed_request_id,
+                            "attempt_number": attempts_by_request.get(latest_quota.observed_request_id, 0),
+                            "failure": "quota_reserve",
+                            "raw_evidence_path": None,
+                        },
+                        parent_response_sha256=parent_response_sha,
+                        second_pass_required=requires_independent,
+                    )
+                    checkpoint = write_checkpoint(bundle / "checkpoints", payload)
+                    finalize_bundle(
+                        bundle,
+                        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                        registration_commit=registration_commit,
+                        catalog_sha256=catalog_sha256,
+                    )
+                    return RunResult(
+                        "paused_quota",
+                        request_count,
+                        tuple(pages),
+                        (),
+                        os.fspath(checkpoint),
+                        latest_quota,
+                        "quota_reserve",
+                    )
             attempt_number = attempts_by_request.get(request_id, 0) + 1
             attempts_by_request[request_id] = attempt_number
-            append_attempt_state(wal_path, request_id, attempt_number, "prepared", clock=clock)
+            wal_times: dict[str, str | None] = {
+                "prepared": None,
+                "issued": None,
+                "response_stored": None,
+                "parsed": None,
+                "terminal": None,
+            }
+            wal_times["prepared"] = append_attempt_state(
+                wal_path, request_id, attempt_number, "prepared", clock=clock
+            )["at"]
             host_limiter.acquire(str(_get(request, "host")), _minimum_interval(catalog, index))
-            append_attempt_state(wal_path, request_id, attempt_number, "issued", clock=clock)
+            wal_times["issued"] = append_attempt_state(
+                wal_path, request_id, attempt_number, "issued", clock=clock
+            )["at"]
             request_count += 1
             try:
                 response = transport.get(request)
                 raw_path = _store_raw_body(bundle, request_id, attempt_number, response.body)
-                append_attempt_state(
+                wal_times["response_stored"] = append_attempt_state(
                     wal_path,
                     request_id,
                     attempt_number,
@@ -823,25 +1714,158 @@ def run_leaf(
                         "final_url": response.final_url,
                     },
                     clock=clock,
-                )
+                )["at"]
                 if index == "openalex":
-                    latest_quota = observe_quota(response, request_id, clock())
+                    observed_quota = observe_quota(response, request_id, clock())
+                    has_quota_evidence = any(
+                        value is not None
+                        for value in (
+                            observed_quota.limit,
+                            observed_quota.remaining,
+                            observed_quota.credits_per_request,
+                            observed_quota.reset_seconds,
+                            observed_quota.cost_usd,
+                        )
+                    )
+                    if response.status == 200 or has_quota_evidence:
+                        latest_quota = _merge_quota(latest_quota, observed_quota)
+                        _persist_quota(runtime_state_path, index, latest_quota)
                 if response.status == 200:
                     failure = None
                     break
                 failure = f"http_status_{response.status}"
-                append_attempt_state(wal_path, request_id, attempt_number, "parsed", payload={"parse_skipped": True}, clock=clock)
-                append_attempt_state(wal_path, request_id, attempt_number, "terminal", payload={"outcome": "retryable_failure", "reason_code": failure}, clock=clock)
+                wal_times["parsed"] = append_attempt_state(wal_path, request_id, attempt_number, "parsed", payload={"parse_skipped": True}, clock=clock)["at"]
+                wal_times["terminal"] = append_attempt_state(wal_path, request_id, attempt_number, "terminal", payload={"outcome": "retryable_failure", "reason_code": failure}, clock=clock)["at"]
+                if response.status == 429:
+                    break
             except Exception as exc:  # transport boundary; issued remains durable
                 if isinstance(exc, (KeyboardInterrupt, SystemExit)):
                     raise
                 response = None
                 failure = "transport_exception"
+                raw_path = _store_raw_body(bundle, request_id, attempt_number, b"")
+                failed_page = {
+                    "index": index,
+                    "declared_total": None,
+                    "capacity_echo": None,
+                    "actual_count": 0,
+                    "interpreted_query": "",
+                    "position_in": _get(request, "position_in"),
+                    "position_out": None,
+                    "occurrences": (),
+                    "parse_errors": ("transport_error",),
+                }
+                failed_results = evaluate_page(
+                    failed_page,
+                    page_size=page_size,
+                    expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
+                    expected_position_in=_get(request, "position_in"),
+                    expected_page_number=int(_get(request, "page_number")),
+                    pagination_kind=pagination_kind,
+                    response_ok=False,
+                    evidence_complete=True,
+                )
+                ledger_path, *_ = _write_ledger(
+                    bundle,
+                    leaf_query_id,
+                    pass_number,
+                    occurrences,
+                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                    registration_commit=registration_commit,
+                    catalog_sha256=catalog_sha256,
+                    run_id=run_id,
+                    logical_query_id=str(_get(request, "logical_query_id")),
+                    index=index,
+                )
+                synthetic = Response(
+                    599,
+                    (("Content-Type", "application/octet-stream"),),
+                    b"",
+                    str(_get(request, "encoded_url")),
+                    0.0,
+                )
+                _write_page_evidence(
+                    bundle,
+                    catalog=catalog,
+                    request=request,
+                    response=synthetic,
+                    parsed=failed_page,
+                    raw_path=raw_path,
+                    ledger_path=ledger_path,
+                    registration_commit=registration_commit,
+                    catalog_path=catalog_path,
+                    catalog_sha256=catalog_sha256,
+                    run_id=run_id,
+                    pass_number=pass_number,
+                    window_number=window_number,
+                    attempt_number=attempt_number,
+                    parent_response_sha256=parent_response_sha,
+                    quota=latest_quota,
+                    wal_times=wal_times,
+                    conditions=failed_results,
+                    failure={"reason_code": "transport_error", "detail": str(exc) or "transport error"},
+                )
             if retry_ordinal < len(retry_delays):
                 sleeper(retry_delays[retry_ordinal])
 
         if response is None or response.status != 200:
             first = builder(catalog, leaf_query_id, 0, None)
+            if response is not None and raw_path is not None:
+                failed_page = {
+                    "index": index,
+                    "declared_total": None,
+                    "capacity_echo": None,
+                    "actual_count": 0,
+                    "interpreted_query": "",
+                    "position_in": _get(request, "position_in"),
+                    "position_out": None,
+                    "occurrences": (),
+                    "parse_errors": (failure or "status_not_200",),
+                }
+                failed_results = evaluate_page(
+                    failed_page,
+                    page_size=page_size,
+                    expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
+                    expected_position_in=_get(request, "position_in"),
+                    expected_page_number=int(_get(request, "page_number")),
+                    pagination_kind=pagination_kind,
+                    response_ok=False,
+                    evidence_complete=True,
+                )
+                ledger_path, *_ = _write_ledger(
+                    bundle,
+                    leaf_query_id,
+                    pass_number,
+                    occurrences,
+                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                    registration_commit=registration_commit,
+                    catalog_sha256=catalog_sha256,
+                    run_id=run_id,
+                    logical_query_id=str(_get(request, "logical_query_id")),
+                    index=index,
+                )
+                _write_page_evidence(
+                    bundle,
+                    catalog=catalog,
+                    request=request,
+                    response=response,
+                    parsed=failed_page,
+                    raw_path=raw_path,
+                    ledger_path=ledger_path,
+                    registration_commit=registration_commit,
+                    catalog_path=catalog_path,
+                    catalog_sha256=catalog_sha256,
+                    run_id=run_id,
+                    pass_number=pass_number,
+                    window_number=window_number,
+                    attempt_number=attempts_by_request[request_id],
+                    parent_response_sha256=parent_response_sha,
+                    quota=latest_quota,
+                    wal_times=wal_times,
+                    conditions=failed_results,
+                    failure={"reason_code": "status_not_200", "detail": failure or "non-200 response"},
+                )
+            paused_429 = response is not None and response.status == 429
             payload = _checkpoint_payload(
                 catalog=catalog,
                 request_builder=builder,
@@ -854,63 +1878,191 @@ def run_leaf(
                 run_id=run_id,
                 pass_number=pass_number,
                 window_number=window_number,
-                state="outcome_unknown",
-                resume_action="restart_branch",
+                state="paused_quota" if paused_429 else "outcome_unknown",
+                resume_action="continue_cursor" if paused_429 else "restart_branch",
                 occurrences=occurrences,
                 quota=latest_quota,
                 canonical_runner_argv=canonical_runner_argv,
                 previous_checkpoint=previous_checkpoint,
                 last_attempt={"state": "issued" if response is None else "terminal", "request_id": request_id, "attempt_number": attempts_by_request[request_id], "failure": failure, "raw_evidence_path": raw_path.as_posix() if raw_path else None},
                 parent_response_sha256=parent_response_sha,
-                second_pass_required=_independent_pass_required(catalog, index, window_number) or pass_number > 1,
+                second_pass_required=requires_independent,
             )
             checkpoint = write_checkpoint(bundle / "checkpoints", payload)
             checkpoint_path = os.fspath(checkpoint)
-            if index == "dblp" and not restarted_dblp:
+            restart_dblp = index == "dblp" and _reserve_dblp_restart(runtime_state_path)
+            finalize_bundle(
+                bundle,
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_commit=registration_commit,
+                catalog_sha256=catalog_sha256,
+            )
+            if restart_dblp:
                 sleeper(DBLP_RESTART_COOLDOWN_S)
-                restarted_dblp = True
                 pages.clear()
                 occurrences.clear()
+                page_contexts.clear()
                 parent_response_sha = None
                 previous_checkpoint = checkpoint
                 request = first
                 continue
-            return RunResult("outcome_unknown", request_count, tuple(pages), (), checkpoint_path, latest_quota, failure)
+            return RunResult(
+                "paused_quota" if paused_429 else "outcome_unknown",
+                request_count,
+                tuple(pages),
+                (),
+                checkpoint_path,
+                latest_quota,
+                "http_status_429" if paused_429 else failure,
+            )
 
         try:
-            parsed = parse(response.body)
+            parsed = _parse_registered_page(
+                parse, response.body, int(_get(request, "page_number"))
+            )
         except Exception as exc:
-            append_attempt_state(wal_path, request_id, attempts_by_request[request_id], "parsed", payload={"parse_error": str(exc)}, clock=clock)
-            append_attempt_state(wal_path, request_id, attempts_by_request[request_id], "terminal", payload={"outcome": "failed", "reason_code": "parse_error"}, clock=clock)
+            wal_times["parsed"] = append_attempt_state(wal_path, request_id, attempts_by_request[request_id], "parsed", payload={"parse_error": str(exc)}, clock=clock)["at"]
+            wal_times["terminal"] = append_attempt_state(wal_path, request_id, attempts_by_request[request_id], "terminal", payload={"outcome": "failed", "reason_code": "parse_error"}, clock=clock)["at"]
+            failed_page = {
+                "index": index,
+                "declared_total": None,
+                "capacity_echo": None,
+                "actual_count": 0,
+                "interpreted_query": "",
+                "position_in": _get(request, "position_in"),
+                "position_out": None,
+                "occurrences": (),
+                "parse_errors": (f"parse_error:{exc}",),
+            }
+            failed_results = evaluate_page(
+                failed_page,
+                page_size=page_size,
+                expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
+                expected_position_in=_get(request, "position_in"),
+                expected_page_number=int(_get(request, "page_number")),
+                pagination_kind=pagination_kind,
+                response_ok=True,
+                evidence_complete=True,
+            )
+            ledger_path, *_ = _write_ledger(
+                bundle,
+                leaf_query_id,
+                pass_number,
+                occurrences,
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_commit=registration_commit,
+                catalog_sha256=catalog_sha256,
+                run_id=run_id,
+                logical_query_id=str(_get(request, "logical_query_id")),
+                index=index,
+            )
+            _write_page_evidence(
+                bundle,
+                catalog=catalog,
+                request=request,
+                response=response,
+                parsed=failed_page,
+                raw_path=raw_path,
+                ledger_path=ledger_path,
+                registration_commit=registration_commit,
+                catalog_path=catalog_path,
+                catalog_sha256=catalog_sha256,
+                run_id=run_id,
+                pass_number=pass_number,
+                window_number=window_number,
+                attempt_number=attempts_by_request[request_id],
+                parent_response_sha256=parent_response_sha,
+                quota=latest_quota,
+                wal_times=wal_times,
+                conditions=failed_results,
+                failure={"reason_code": "parse_error", "detail": str(exc) or "parse error"},
+            )
+            finalize_bundle(
+                bundle,
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_commit=registration_commit,
+                catalog_sha256=catalog_sha256,
+            )
             return RunResult("outcome_unknown", request_count, tuple(pages), (), checkpoint_path, latest_quota, "parse_error")
 
-        append_attempt_state(wal_path, request_id, attempts_by_request[request_id], "parsed", clock=clock)
+        wal_times["parsed"] = append_attempt_state(wal_path, request_id, attempts_by_request[request_id], "parsed", clock=clock)["at"]
+        page_context = _response_context(catalog, request, response, raw_path)
         page_results = evaluate_page(
             parsed,
             page_size=page_size,
-            expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
-            pagination_kind=pagination_kind,
+            **page_context,
         )
         failure_result = next((item for item in page_results if not item.passed), None)
-        append_attempt_state(
+        wal_times["terminal"] = append_attempt_state(
             wal_path,
             request_id,
             attempts_by_request[request_id],
             "terminal",
             payload={"outcome": "success" if failure_result is None else "failed", "reason_code": failure_result.reason_code if failure_result else None},
             clock=clock,
-        )
+        )["at"]
         pages.append(parsed)
         occurrences.extend(tuple(_get(parsed, "occurrences", ()) or ()))
+        page_contexts.append(page_context)
+        ledger_path, *_ = _write_ledger(
+            bundle,
+            leaf_query_id,
+            pass_number,
+            occurrences,
+            registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+            registration_commit=registration_commit,
+            catalog_sha256=catalog_sha256,
+            run_id=run_id,
+            logical_query_id=str(_get(request, "logical_query_id")),
+            index=index,
+        )
+        _write_page_evidence(
+            bundle,
+            catalog=catalog,
+            request=request,
+            response=response,
+            parsed=parsed,
+            raw_path=raw_path,
+            ledger_path=ledger_path,
+            registration_commit=registration_commit,
+            catalog_path=catalog_path,
+            catalog_sha256=catalog_sha256,
+            run_id=run_id,
+            pass_number=pass_number,
+            window_number=window_number,
+            attempt_number=attempts_by_request[request_id],
+            parent_response_sha256=parent_response_sha,
+            quota=latest_quota,
+            wal_times=wal_times,
+            conditions=page_results,
+            failure=(
+                {"reason_code": failure_result.reason_code, "detail": failure_result.detail}
+                if failure_result is not None
+                and failure_result.reason_code
+                in {
+                    "parse_error",
+                    "actual_count_mismatch",
+                    "capacity_echo_mismatch",
+                    "interpreted_query_mismatch",
+                    "silent_truncation",
+                    "missing_index_work_id",
+                }
+                else {"reason_code": "parse_error", "detail": failure_result.detail}
+                if failure_result is not None
+                else None
+            ),
+        )
         parent_response_sha = hashlib.sha256(response.body).hexdigest()
         if failure_result is not None:
+            finalize_bundle(
+                bundle,
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_commit=registration_commit,
+                catalog_sha256=catalog_sha256,
+            )
             return RunResult("blocked_on_ruling", request_count, tuple(pages), tuple(page_results), checkpoint_path, latest_quota, failure_result.reason_code)
         position_out = _get(parsed, "position_out")
         if position_out is None:
-            requires_independent = (
-                _independent_pass_required(catalog, index, window_number)
-                or pass_number > 1
-            )
             current_ids = sorted(
                 {
                     str(_get(item, "index_work_id"))
@@ -930,11 +2082,13 @@ def run_leaf(
             leaf_results = evaluate_leaf(
                 pages,
                 page_size=page_size,
-                expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
                 pagination_kind=pagination_kind,
+                shard_lower=shard_lower,
+                shard_upper=shard_upper,
                 state="branch_complete",
                 second_pass_required=requires_independent and pass_number > 1,
                 second_pass_digest_matches=digest_matches,
+                page_contexts=page_contexts,
             )
             if pass_number == 1 and requires_independent and all(item.passed for item in leaf_results):
                 payload = _checkpoint_payload(
@@ -966,6 +2120,12 @@ def run_leaf(
                     second_pass_required=True,
                 )
                 checkpoint = write_checkpoint(bundle / "checkpoints", payload)
+                finalize_bundle(
+                    bundle,
+                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                    registration_commit=registration_commit,
+                    catalog_sha256=catalog_sha256,
+                )
                 return RunResult(
                     "pass_complete",
                     request_count,
@@ -976,20 +2136,34 @@ def run_leaf(
                 )
             state = "branch_complete" if all(item.passed for item in leaf_results) else "blocked_on_ruling"
             reason = next((item.reason_code for item in leaf_results if not item.passed), None)
+            finalize_bundle(
+                bundle,
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_commit=registration_commit,
+                catalog_sha256=catalog_sha256,
+            )
             return RunResult(state, request_count, tuple(pages), tuple(leaf_results), checkpoint_path, latest_quota, reason)
         request = builder(catalog, leaf_query_id, int(_get(request, "page_number")) + 1, str(position_out))
 
     leaf_results = evaluate_leaf(
         pages,
         page_size=page_size,
-        expected_interpreted_query=str(_get(request, "expected_interpreted_query")),
         pagination_kind=pagination_kind,
+        shard_lower=shard_lower,
+        shard_upper=shard_upper,
         state="paused_quota",
+        page_contexts=page_contexts,
+    )
+    finalize_bundle(
+        bundle,
+        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+        registration_commit=registration_commit,
+        catalog_sha256=catalog_sha256,
     )
     return RunResult("paused_quota", request_count, tuple(pages), tuple(leaf_results), checkpoint_path, latest_quota, "page_limit")
 
 
-def resume_from_checkpoint(
+def _resume_from_checkpoint_impl(
     checkpoint_path: str | os.PathLike[str],
     catalog: Any,
     *,
@@ -1028,7 +2202,7 @@ def resume_from_checkpoint(
     )
     if not _requests_identical(initial, registered):
         raise PreflightError("checkpoint-selected request differs from the registered catalog request")
-    return run_leaf(
+    return _run_leaf_impl(
         catalog,
         checkpoint["leaf_query_id"],
         run_id=selected["target_run_id"],
@@ -1050,6 +2224,90 @@ def resume_from_checkpoint(
     )
 
 
+def run_leaf(
+    catalog: Any,
+    leaf_query_id: str,
+    *,
+    run_id: str,
+    registration_commit: str,
+    catalog_path: str,
+    bundle_root: str | os.PathLike[str],
+    transport: Transport,
+    preflight: bool | VerificationResult | Callable[[], Any],
+    clock: Callable[[], float] = time.time,
+    sleeper: Callable[[float], None] = time.sleep,
+    limiter: HostLimiter | None = None,
+    pass_number: int = 1,
+    window_number: int = 1,
+    canonical_runner_argv: Sequence[str] = ("tools/run_axis1_search.py",),
+    previous_checkpoint: str | os.PathLike[str] | Mapping[str, Any] | None = None,
+    max_pages: int | None = None,
+) -> RunResult:
+    """Production leaf path; requests and parsers come only from the catalog."""
+
+    return _run_leaf_impl(
+        catalog,
+        leaf_query_id,
+        run_id=run_id,
+        registration_commit=registration_commit,
+        catalog_path=catalog_path,
+        bundle_root=bundle_root,
+        transport=transport,
+        preflight=preflight,
+        clock=clock,
+        sleeper=sleeper,
+        limiter=limiter,
+        pass_number=pass_number,
+        window_number=window_number,
+        canonical_runner_argv=canonical_runner_argv,
+        previous_checkpoint=previous_checkpoint,
+        max_pages=max_pages,
+    )
+
+
+def _run_leaf_for_test(
+    catalog: Any,
+    leaf_query_id: str,
+    **kwargs: Any,
+) -> RunResult:
+    """Internal deterministic seam for fixture transports/builders/parsers."""
+
+    return _run_leaf_impl(catalog, leaf_query_id, **kwargs)
+
+
+def resume_from_checkpoint(
+    checkpoint_path: str | os.PathLike[str],
+    catalog: Any,
+    *,
+    transport: Transport,
+    preflight: bool | VerificationResult | Callable[[], Any],
+    clock: Callable[[], float] = time.time,
+    sleeper: Callable[[float], None] = time.sleep,
+    limiter: HostLimiter | None = None,
+    canonical_runner_argv: Sequence[str] = ("tools/run_axis1_search.py",),
+) -> RunResult:
+    """Production resume path bound to the checkpoint and registered catalog."""
+
+    return _resume_from_checkpoint_impl(
+        checkpoint_path,
+        catalog,
+        transport=transport,
+        preflight=preflight,
+        clock=clock,
+        sleeper=sleeper,
+        limiter=limiter,
+        canonical_runner_argv=canonical_runner_argv,
+    )
+
+
+def _resume_from_checkpoint_for_test(
+    checkpoint_path: str | os.PathLike[str],
+    catalog: Any,
+    **kwargs: Any,
+) -> RunResult:
+    return _resume_from_checkpoint_impl(checkpoint_path, catalog, **kwargs)
+
+
 __all__ = [
     "ALLOWED_HOSTS",
     "DBLP_RESTART_COOLDOWN_S",
@@ -1059,11 +2317,14 @@ __all__ = [
     "MAX_RESPONSE_BYTES",
     "PreflightError",
     "QUOTA_RESERVE_CREDITS",
+    "REGISTERED_ENDPOINTS",
     "QuotaObservation",
     "Response",
     "RunResult",
     "Transport",
     "TransportError",
+    "control_leaf_query_id",
+    "finalize_bundle",
     "observe_quota",
     "resume_from_checkpoint",
     "run_leaf",
