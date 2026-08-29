@@ -576,24 +576,30 @@ probe の結果を見て変更していない。
       }
     ]
   },
-  "external_floor_reference_widths": [
-    {
-      "workload": "write-heavy",
-      "reference_floor_pct": 0.67,
-      "source_environment": "linux-baremetal"
-    },
-    {
-      "workload": "balanced",
-      "reference_floor_pct": 1.07,
-      "source_environment": "linux-baremetal"
-    },
-    {
-      "workload": "read-heavy",
-      "reference_floor_pct": 0.22,
-      "source_environment": "pegasus"
-    }
-  ],
-  "power_guarantee": false
+  "external_floor_reference_widths": {
+    "terminology": "external-floor-derived-reference-width",
+    "power_guarantee": false,
+    "values": [
+      {
+        "workload": "write-heavy",
+        "between_run_cv_pct": 0.67,
+        "reference_width_pct": 1.9,
+        "source_environment": "linux-baremetal"
+      },
+      {
+        "workload": "balanced",
+        "between_run_cv_pct": 1.07,
+        "reference_width_pct": 3.0,
+        "source_environment": "linux-baremetal"
+      },
+      {
+        "workload": "read-heavy",
+        "between_run_cv_pct": 0.22,
+        "reference_width_pct": 0.62,
+        "source_environment": "pegasus"
+      }
+    ]
+  }
 }
 ```
 <!-- IZANAGI-B10-SPEC-END -->
