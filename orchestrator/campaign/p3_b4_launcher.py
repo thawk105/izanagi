@@ -352,6 +352,10 @@ def _build_launcher_closure():
         verified = verify_b4_admission_record(
             admission_record_path,
             repository_root=p3_b4_closed_critic.REPOSITORY_ROOT,
+            driver_kind=driver_kind,
+        )
+        p3_b4_closed_critic.assert_b4_document_projection_closures_are_live(
+            verified
         )
         return new_context(
             seal=production_seal,

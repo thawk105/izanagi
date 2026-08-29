@@ -1,0 +1,12 @@
+pooled non-critical shards: n=675
+universe range 15063 - 18895 items
+floor ~ universe: slope 0.00245 s/item  intercept 10.5  r 0.490
+  => 2.45 s per 1000 collected items
+
+floor by (universe bucket, K):
+   universe ~ 15000  K=2  n= 62  median floor   46.1
+   universe ~ 16000  K=2  n= 85  median floor   48.5
+   universe ~ 17000  K=2  n=134  median floor   52.0
+   universe ~ 18000  K=2  n= 11  median floor   53.0
+   universe ~ 18000  K=3  n=212  median floor   52.3
+   universe ~ 19000  K=3  n=166  median floor   54.7

@@ -1051,6 +1051,39 @@ def _verify_generation_semantics(document: Mapping, resolution: "ActiveResolutio
         if kind == "floor_protocol":
             _strict_load(g_blob, what="floor_protocol")
 
+    # g1 の凍結 floor は、記録された floor_source blob の diagnostics 除外投影に限る。
+    # current policy や worktree namespace は参照せず、loader を H-pure に保つ。
+    if resolution.generation_number == 1:
+        floor_source_path, _floor_source_sha = _source_record_path_sha(
+            document, "floor_source",
+        )
+        floor_source_blob = _blob_at_or_fail(
+            gen_commit, floor_source_path, root, reason="closure-not-in-generation",
+        )
+        try:
+            floor_source_document = _strict_load(
+                floor_source_blob, what="floor_source",
+            )
+            projected_floor = _hf._project_floor_for_freeze(  # noqa: SLF001
+                floor_source_document,
+            )
+            projection_matches = (
+                _canonical_bytes(projected_floor)
+                == _canonical_bytes(document.get("floor"))
+            )
+        except (RatifiedFreezeError, _hf.FreezeError, TypeError, ValueError) as exc:
+            raise RatifiedFreezeError(
+                "floor-source-projection-mismatch",
+                f"floor_source の凍結投影を検証できない: {exc}",
+                cause="floor-source-projection",
+            ) from exc
+        if not projection_matches:
+            raise RatifiedFreezeError(
+                "floor-source-projection-mismatch",
+                "generation.floor が floor_source.result.floors の投影と不一致",
+                cause="floor-source-projection",
+            )
+
     # --- V2: transition table (v1→g1→…→gN、F5 JSON Pointer 完全列挙) ---
     _verify_chain_transitions(document, resolution, head, root)
 
@@ -3267,6 +3300,25 @@ def _launch_validate(
         expected_perf_preflight=expected_perf_preflight,
         expected_perf_observation=expected_perf_observation,
     )
+    if result_type is LaunchValidatedFreeze:
+        try:
+            _hf._assert_floor_selection_identity(  # noqa: SLF001
+                root=root, selected_rel=result_path,
+                selected_path_info=result_path_info, protocol=protocol,
+                v1=ratified.document,
+            )
+        except _hf.FreezeError as exc:
+            detail = str(exc)
+            if detail.startswith("floor-selection-eligibility-underivable:"):
+                reason = "floor-selection-eligibility-underivable"
+                cause = detail
+            elif detail.startswith("floor-selection-rule-mismatch:"):
+                reason = "floor-selection-rule-mismatch"
+                cause = _hf._FLOOR_SELECTION_RULE_VERSION  # noqa: SLF001
+            else:
+                reason = "floor-selection-unverifiable"
+                cause = detail
+            raise RatifiedFreezeError(reason, detail, cause=cause) from exc
 
     # --- 5: §8.4 binding graph (adjacency list の全辺) ---
     wall_campaigns = [row for row in result_doc["wall_ledger"]

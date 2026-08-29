@@ -1,0 +1,248 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-anomalies-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        anomalies = payload.get(\"anomalies\")\n        if type(anomalies) is not int or anomalies != 0:\n            raise ArtifactAdmissionError(\n                \"persisted COMMIT verify anomalies must be exact int zero\"\n            )\n",
+          "new": "        anomalies = payload.get(\"anomalies\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_rejects[anomalies-positive]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-receipt-validator",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        validated_receipt = validate_serialized_receipt(\n            serialized_receipt,\n            sink_kind=\"campaign-wal\",\n            lock_identity_sha256=campaign_lock_sha256,\n            variant=commit_record.variant,\n            terminal_payload=commit_payload,\n        )\n",
+          "new": "        validated_receipt = dict(serialized_receipt)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_rejects[receipt-terminal-mismatch]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-receipt-operation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    if validated_receipt[\"operation_identity\"] != attempt_id:\n        raise ArtifactAdmissionError(\n            \"persisted COMMIT receipt operation does not match its attempt\"\n        )\n",
+          "new": "    if False:\n        raise ArtifactAdmissionError(\n            \"persisted COMMIT receipt operation does not match its attempt\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_rejects[receipt-operation-mismatch]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-receipt-evidence",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    if receipt_evidence != wal_evidence:\n        raise ArtifactAdmissionError(\n            \"persisted COMMIT receipt evidence does not match WAL verifies\"\n        )\n",
+          "new": "    if False:\n        raise ArtifactAdmissionError(\n            \"persisted COMMIT receipt evidence does not match WAL verifies\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_rejects[receipt-evidence-mismatch]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-verify-attempt-binding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        and record.payload.get(\"build_attempt_id\") == attempt_id\n    ]\n    if not verifies:\n",
+          "new": "    ]\n    if not verifies:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_rejects[verify-attempt-mismatch]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-chokepoint-first-commit-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        for record in records:\n            if record.stage == STAGE_COMMIT:\n                require_persisted_certified_commit(\n                    records,\n                    record,\n                    campaign_lock_sha256=decision.campaign_lock_sha256,\n                )\n",
+          "new": "        for record in records:\n            if record.stage == STAGE_COMMIT:\n                require_persisted_certified_commit(\n                    records,\n                    record,\n                    campaign_lock_sha256=decision.campaign_lock_sha256,\n                )\n                break\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_certified_view_checks_every_commit[second-commit-invalid]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-s1-wiring",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "old": "        artifact_admission.require_persisted_certified_commit(\n            campaign_records, commits[0],\n            campaign_lock_sha256=campaign_lock_sha256,\n        )\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_persisted_certification_invalidates_sample[s1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-a2-wiring",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "            artifact_admission.require_persisted_certified_commit(\n                all_records, commit_record,\n                campaign_lock_sha256=campaign_evidence[\"lock_sha256\"],\n            )\n",
+          "new": "            pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_cell_requires_persisted_certification[a2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-s6-resume-wiring",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s6_sort_sweep.py",
+          "old": "        require_persisted_certified_commit(\n            records, commit_record,\n            campaign_lock_sha256=campaign_lock_sha256,\n        )\n        return \"replayed-certified\"\n",
+          "new": "        return \"replayed-certified\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s6_sort_sweep.py::test_replay_outcome_requires_persisted_certification[s6]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-all-verifies-must-be-clean",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    wal_evidence: list[tuple[str, str, bool]] = []\n",
+          "new": "    for scanned in records:\n        if (scanned.stage == STAGE_VERIFY_DONE\n                and scanned.variant == commit_record.variant\n                and scanned.payload.get(\"certified\") is not True):\n            raise ArtifactAdmissionError(\n                \"campaign variant contains an uncertified verify\"\n            )\n    wal_evidence: list[tuple[str, str, bool]] = []\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_accepts[aborted-red-attempt-coexists]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-commit-required",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        for record in records:\n            if record.stage == STAGE_COMMIT:\n                require_persisted_certified_commit(\n                    records,\n                    record,\n                    campaign_lock_sha256=decision.campaign_lock_sha256,\n                )\n",
+          "new": "        if not any(record.stage == STAGE_COMMIT for record in records):\n            raise ArtifactAdmissionError(\n                \"certified campaign must contain a COMMIT\"\n            )\n        for record in records:\n            if record.stage == STAGE_COMMIT:\n                require_persisted_certified_commit(\n                    records,\n                    record,\n                    campaign_lock_sha256=decision.campaign_lock_sha256,\n                )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_accepts[no-commit-campaign]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-historical-raw-also-gated",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    if purpose is CampaignReadPurpose.CERTIFIED_ACCEPTANCE:\n        for record in records:\n            if record.stage == STAGE_COMMIT:\n",
+          "new": "    if purpose is not None:\n        for record in records:\n            if record.stage == STAGE_COMMIT:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_raw_unaffected[incomplete-receipt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-aborts-must-be-zero",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        workload = payload.get(\"workload\")\n        workload_tag = (\n",
+          "new": "        if payload.get(\"aborts\") != 0:\n            raise ArtifactAdmissionError(\n                \"persisted COMMIT verify aborts must be zero\"\n            )\n        workload = payload.get(\"workload\")\n        workload_tag = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_persisted_commit_gate_accepts[nonzero-aborts]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-resolve-duplicate-wiring",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        except ArtifactAdmissionError:\n            snapshot_rejected = True\n        else:\n            commit_admitted = True\n",
+          "new": "        except ArtifactAdmissionError:\n            commit_admitted = True\n        else:\n            commit_admitted = True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_resolve_duplicate_rejects_uncertified_commit_without_success_checkpoint[invalid-receipt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-s8a-resume-wiring",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8a_trigger_sweep.py",
+          "old": "        require_persisted_certified_commit(\n            records, commit_record,\n            campaign_lock_sha256=campaign_lock_sha256,\n        )\n        return \"replayed-certified\"\n",
+          "new": "        return \"replayed-certified\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_replay_outcome_requires_persisted_certification[s8a]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

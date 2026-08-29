@@ -1,0 +1,28 @@
+runs: 30 nodes present in every run: 3786
+
+T-080 oracle-driver plateau nodes with median > 50 s: 10
+
+correlation of each plateau node with the heaviest plateau node,
+and its ratio to that node (median, min, max):
+  r=+1.000  ratio med 1.000 [1.000,1.000]  med  114.3  test_t080_stub_free_e2e_single_defects_have_single_exact_rea
+  r=+0.999  ratio med 0.977 [0.958,0.995]  med  111.8  test_t080_stub_free_draft_finalize_commit_and_public_gate_e2
+  r=+0.999  ratio med 0.944 [0.913,0.964]  med  108.0  test_t080_stub_free_e2e_single_defects_have_single_exact_rea
+  r=+0.999  ratio med 0.935 [0.908,0.961]  med  106.5  test_t080_full_valid_history_defects_have_one_baseline_reaso
+  r=+0.999  ratio med 0.929 [0.904,0.956]  med  106.1  test_t080_stub_free_e2e_single_defects_have_single_exact_rea
+  r=+0.999  ratio med 0.928 [0.910,0.955]  med  105.8  test_t080_stub_free_e2e_single_defects_have_single_exact_rea
+  r=+0.999  ratio med 0.929 [0.916,0.955]  med  105.7  test_t080_full_valid_history_defects_have_one_baseline_reaso
+  r=+0.999  ratio med 0.926 [0.913,0.957]  med  105.1  test_t080_full_valid_history_defects_have_one_baseline_reaso
+  r=+0.999  ratio med 0.923 [0.904,0.953]  med  104.9  test_t080_full_valid_post_r_delete_blocks_draft_as_single_pr
+  r=+0.999  ratio med 0.910 [0.901,0.945]  med  103.8  test_t080_stub_free_e2e_remaining_section_1_4_defects_are_ex
+
+control: mid-weight nodes from other files, correlation with the same reference:
+  r=+0.053  med   83.1  test_repository_candidate_uses_real_s8c_budget_module
+  r=+0.985  med   80.6  test_pilot_path_has_no_launch_certificate_changes
+  r=+0.980  med   80.0  test_official_build_failure_leaves_durable_launch_start
+  r=+0.982  med   79.7  test_official_fresh_issues_certificate_and_binds_wall_ledger
+  r=+0.977  med   78.7  test_official_resume_validates_certificate_and_completes
+  r=+0.962  med   77.8  test_pilot_resume_rejects_launch_certificate_contamination[c
+  r=+0.971  med   77.6  test_pilot_resume_rejects_launch_certificate_contamination[l
+  r=+0.970  med   77.4  test_official_resume_rejects_renamed_run_dir
+  r=+0.980  med   77.3  test_official_resume_rejects_certificate_time_not_bound_to_r
+  r=+0.969  med   77.2  test_official_scan_rejection_has_zero_filesystem_side_effect

@@ -57,6 +57,7 @@ from orchestrator.campaign.model import (                                       
     COMMIT_CONTRACT_SHA256_KEY,
     STAGE_BUILD_START,
 )
+from orchestrator.campaign.layout import CampaignLayout                         # noqa: E402
 from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from orchestrator.campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
@@ -747,17 +748,59 @@ def test_load_effective_reasons_rejects_mismatched_receipts(
 def test_replay_outcome_distinguishes_commit_and_abort(monkeypatch):
     context = W.build_run_context(generator_id=W.GeneratorId.S8A_TRIGGER_SWEEP)
     states = {
-        "c": SimpleNamespace(committed=True, aborted=False),
-        "a": SimpleNamespace(committed=False, aborted=True),
+        "c": SimpleNamespace(
+            committed=True, aborted=False, last_terminal=object()),
+        "a": SimpleNamespace(
+            committed=False, aborted=True, last_terminal=object()),
     }
+    records = [SimpleNamespace(variant="c", stage=W.STAGE_COMMIT)]
     monkeypatch.setattr(
-        W.wal, "replay",
-        lambda _layout, *, admission_policy: (
-            states if admission_policy == context.policy else {}),
+        W, "_replay_snapshot",
+        lambda _layout, observed: (
+            records, states if observed.policy == context.policy else {}, "a" * 64,
+        ),
+    )
+    monkeypatch.setattr(
+        W, "require_persisted_certified_commit",
+        lambda records, commit, *, campaign_lock_sha256: commit,
     )
     assert W._replay_outcome(None, "c", context) == "replayed-certified"
     assert W._replay_outcome(None, "a", context) == "replayed-aborted"
     assert W._replay_outcome(None, "u", context) == "replayed-unknown"
+
+
+@pytest.mark.parametrize("consumer", ["s8a"], ids=["s8a"])
+def test_replay_outcome_requires_persisted_certification(
+        tmp_path, monkeypatch, consumer):
+    layout = CampaignLayout(str(tmp_path / "s8a-replay")).ensure()
+    Path(layout.lock_file).write_text(
+        json.dumps({"fixture": "s8a replay"}), encoding="utf-8",
+    )
+    attempt_id = "s8a-replay-attempt"
+    W.wal.log(layout, "v", "verify_done", W.ENV_TAG, {
+        "build_attempt_id": attempt_id,
+        "verdict": "serializable",
+        "certified": True,
+        "anomalies": 1,
+        "workload": {"tag": "legacy"},
+    })
+    receipt_support.log_receipted_commit(
+        layout, "v", W.ENV_TAG, {"build_attempt_id": attempt_id},
+        operation_identity=attempt_id,
+    )
+    records = W.wal.read_records(layout)
+    states = W.wal.replay_admitted_records(records)
+    lock_sha256 = hashlib.sha256(Path(layout.lock_file).read_bytes()).hexdigest()
+    monkeypatch.setattr(
+        W, "_replay_snapshot",
+        lambda _layout, _context: (records, states, lock_sha256),
+    )
+    context = W.build_run_context(generator_id=W.GeneratorId.S8A_TRIGGER_SWEEP)
+
+    with pytest.raises(W.ArtifactAdmissionError, match="anomalies"):
+        W._replay_outcome(layout, "v", context)
+
+    assert consumer == "s8a"
 
 
 class _FakeLayout:
@@ -966,6 +1009,13 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(
             "ipc": 0.98,
             "llc_miss_rate": 0.21,
         },
+    })
+    W.wal.log(layout, certified_variant, "verify_done", W.ENV_TAG, {
+        "build_attempt_id": certified_attempt,
+        "verdict": "serializable",
+        "certified": True,
+        "anomalies": 0,
+        "workload": {"tag": "legacy"},
     })
     # post-policy COMMIT は attempt と receipt SHA を必須にする。
     receipt_support.log_receipted_commit(

@@ -1,0 +1,260 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 35,
+  "timeout_seconds": 180,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "MUT-T2049-M01-PRECURSOR-SOURCE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "        \"manifest_sha256\": publication.manifest.sha256,\n        \"precursor_hash\": registry_attempt.initial_proposal_sha256,\n        \"reference_tps\": reference_token,\n",
+          "new": "        \"manifest_sha256\": publication.manifest.sha256,\n        \"precursor_hash\": on_receipt.terminal.digest_sha256,\n        \"reference_tps\": reference_token,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M02-PLANNED-PATH",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "            \"attempt has no unique issuer-planned result path\",\n        )\n    return rows[0]\n",
+          "new": "            \"attempt has no unique issuer-planned result path\",\n        )\n    return os.path.join(os.path.dirname(rows[0]), \"mutant-unplanned-result.json\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M03-ASSIGNMENT-ORDER",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    assignment = [\"on\", \"off\"] if on.wal_first_ts < off.wal_first_ts else [\"off\", \"on\"]\n",
+          "new": "    assignment = [\"on\", \"off\"]\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M04-PAIR-ID",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "            if by_arm[\"on\"][\"identity\"].get(\"pair_id\") != by_arm[\"off\"][\"identity\"].get(\"pair_id\"):\n                _issue(path, \"pair_id\", B4RawRecordIssueCode.EVIDENCE_BINDING, \"on/off pair_id differs at final assembly\")\n",
+          "new": "            if False:\n                _issue(path, \"pair_id\", B4RawRecordIssueCode.EVIDENCE_BINDING, \"on/off pair_id differs at final assembly\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M05-LOCK-DOUBLE-READ",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "                    sink_kind=CAMPAIGN_WAL_SINK,\n                    lock_identity_sha256=campaign_lock_bytes_sha256(lock_snapshot.data),\n                    variant=terminal_record.variant,\n",
+          "new": "                    sink_kind=CAMPAIGN_WAL_SINK,\n                    lock_identity_sha256=campaign_lock_bytes_sha256(\n                        _snapshot_regular(\n                            lock_snapshot.path,\n                            artifact=label,\n                            field=\"campaign.lock:receipt\",\n                        ).data\n                    ),\n                    variant=terminal_record.variant,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M06-WAL-STAGE-PASSTHROUGH",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "        terminal_stage = \"COMMIT\" if terminal_record.stage == STAGE_COMMIT else \"ABORT\"\n",
+          "new": "        terminal_stage = terminal_record.stage\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M07-THROUGHPUT-FLOAT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "            throughput = raw_tps\n",
+          "new": "            throughput = _DecimalToken(str(semantic_tps))\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M08-ASSEMBLY-IDENTITY-UNIQUE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "                if type(triple[0]) is not str or type(triple[1]) is not int or triple in triples:\n                    _issue(path, \"campaign_id,iteration,arm\", B4RawRecordIssueCode.PUBLICATION_CONFLICT, \"publication identity tuple is duplicated or invalid\")\n",
+          "new": "                if type(triple[0]) is not str or type(triple[1]) is not int:\n                    _issue(path, \"campaign_id,iteration,arm\", B4RawRecordIssueCode.PUBLICATION_CONFLICT, \"publication identity tuple is duplicated or invalid\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M09-NONTERMINAL-EXECUTED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "        execution_disposition = \"terminal-record-absent\"\n",
+          "new": "        execution_disposition = \"executed\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M10-RED-DETAIL-GATE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    if not on_red_detail:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M11-UNPROVED-CRASH",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "        execution_disposition = \"terminal-record-absent\"\n",
+          "new": "        execution_disposition = \"crash\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M12-ROUND-REFERENCE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    if denominator != 1:\n        raise ArithmeticError(\"reference_tps has no finite decimal expansion\")\n",
+          "new": "    if denominator != 1:\n        return _DecimalToken(str(float(exact)))\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M13-INTEGER-OVERREJECT",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    if exponent == 0:\n        return scaled\n",
+          "new": "    if exponent == 0:\n        raise ArithmeticError(\"integer reference_tps rejected by mutant\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M14-BUSY-AS-FINISHED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "        except CampaignBusy:\n            lock_acquired = False\n",
+          "new": "        except CampaignBusy:\n            lock_acquired = True\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M15-ALWAYS-DEFER-MISSING",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    busy = tuple(\n        item.source[\"evidence\"][\"campaign_lock\"][\"path\"].rsplit(\"/campaign.lock\", 1)[0]\n        for item in observations\n        if not item.terminal_present\n        and item.source[\"evidence\"][\"execution_lock\"][\"acquired\"] is False\n    )\n",
+          "new": "    busy = tuple(\n        item.source[\"evidence\"][\"campaign_lock\"][\"path\"].rsplit(\"/campaign.lock\", 1)[0]\n        for item in observations\n        if not item.terminal_present\n    )\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M16-OPEN-JUDGMENT-INPUT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    unknown = set(value) - _REQUEST_KEYS\n",
+          "new": "    unknown = set(value) - _REQUEST_KEYS - _JUDGMENT_FIELDS\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M17-REOPEN-TERMINAL-RECEIPT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "        terminal_value = _strict_json(terminal_snapshot.data)\n",
+          "new": "        terminal_value = _strict_json(Path(path).read_bytes())\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049-M18-FOLLOW-SYMLINK",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "            leaf_fd = os.open(\n                components[-1],\n                os.O_RDONLY | getattr(os, \"O_NOFOLLOW\", 0),\n                dir_fd=directory_fd,\n            )\n",
+          "new": "            leaf_fd = os.open(\n                components[-1],\n                os.O_RDONLY,\n                dir_fd=directory_fd,\n            )\n"
+        }
+      ]
+    }
+  ]
+}

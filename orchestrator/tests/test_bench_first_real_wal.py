@@ -30,6 +30,7 @@ from orchestrator.campaign import (                                             
     wal,
 )
 from orchestrator.campaign.artifact_admission import (                                      # noqa: E402
+    ArtifactAdmissionError,
     CampaignReadPurpose,
     CampaignVerifierEpochRejected,
     require_admitted_campaign,
@@ -46,6 +47,7 @@ from orchestrator.campaign.model import (                                       
     STAGE_ABORT,
     STAGE_BENCH_DONE,
     STAGE_COMMIT,
+    STAGE_VERIFY_DONE,
 )
 from orchestrator.campaign.pin import CURRENT_PIN                                       # noqa: E402
 from orchestrator.campaign.source_digest import (                                       # noqa: E402
@@ -54,6 +56,7 @@ from orchestrator.campaign.source_digest import (                               
 )
 from orchestrator.critic.digest import load_screen_rejections, load_workload            # noqa: E402
 from campaign_lock_test_support import build_v2_lock                                    # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support                # noqa: E402
 
 _FIXTURE = _HERE / "fixtures" / "bench_first_screen_reject_6f169f90.jsonl"
 _BASELINE = "84319b1127a6"
@@ -206,10 +209,25 @@ def _upgrade_to_fixed_e1(
             record["payload"][COMMIT_CONTRACT_SHA256_KEY] = (
                 decoded.authority.environment_contract_sha256
             )
+    commit_index = next(
+        index for index, record in enumerate(records)
+        if record["stage"] == "commit"
+    )
+    commit = records[commit_index]
     Path(layout.wal_file).write_text(
-        "".join(json.dumps(record) + "\n" for record in records),
+        "".join(json.dumps(record) + "\n" for record in records[:commit_index]),
         encoding="utf-8",
     )
+    receipt_support.log_receipted_commit(
+        layout, commit["variant"], commit["env_tag"], commit["payload"],
+        operation_identity=commit["payload"]["build_attempt_id"],
+        tags=tuple(commit["payload"]["verify_configs"]), ts=commit["ts"],
+    )
+    for record in records[commit_index + 1:]:
+        wal.log(
+            layout, record["variant"], record["stage"], record["env_tag"],
+            record["payload"], ts=record["ts"],
+        )
     return layout
 
 
@@ -419,6 +437,55 @@ def test_p2_report_declares_historical_purpose(monkeypatch):
         p2_2_report.report_workload("fixture", {})
 
 
-def test_real_wal_backoff_repro_bench_tps_requires_commit(real_screen_layout):
-    assert _bench_tps(real_screen_layout, _BASELINE) == 8470959.0
+def test_real_wal_backoff_repro_bench_tps_requires_certified_commit_receipt(
+    real_screen_layout,
+):
+    """Legacy receiptless COMMIT is not promoted to certified throughput."""
+    with pytest.raises(
+        ArtifactAdmissionError,
+        match="build_attempt_id must be a non-empty exact str",
+    ):
+        _bench_tps(real_screen_layout, _BASELINE)
     assert _bench_tps(real_screen_layout, _REJECTED) is None
+
+
+def test_synthetic_wal_backoff_repro_bench_tps_accepts_certified_commit_receipt(
+    tmp_path,
+):
+    """A matching persisted verify and receipt retains certified throughput."""
+    layout = CampaignLayout(str(tmp_path / "certified-campaign")).ensure()
+    Path(layout.lock_file).write_text(
+        json.dumps({"search_config": {}}), encoding="utf-8",
+    )
+    variant = "certified-bench-variant"
+    attempt_id = "certified-bench-attempt"
+    expected_tps = 8470959.0
+    wal.log(
+        layout,
+        variant,
+        STAGE_VERIFY_DONE,
+        "test",
+        {
+            "build_attempt_id": attempt_id,
+            "verdict": "serializable",
+            "certified": True,
+            "anomalies": 0,
+            "workload": {"tag": "legacy"},
+        },
+    )
+    wal.log(
+        layout,
+        variant,
+        STAGE_BENCH_DONE,
+        "test",
+        {"build_attempt_id": attempt_id, "median_tps": expected_tps},
+    )
+    receipt_support.log_receipted_commit(
+        layout,
+        variant,
+        "test",
+        {"build_attempt_id": attempt_id, "fitness_tps": expected_tps},
+        operation_identity=attempt_id,
+    )
+
+    assert _bench_tps(layout, variant) == expected_tps

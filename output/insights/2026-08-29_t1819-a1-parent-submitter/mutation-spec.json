@@ -1,0 +1,193 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 30,
+ "timeout_seconds": 900,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "t1819.m1.staging-is-final",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m1_submission_receipt_is_complete_before_final_path_is_visible",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m2_submission_receipt_publish_is_no_replace",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m3_submit_rejects_existing_completion_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m4_submit_rejects_existing_stdout_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m5_submit_rejects_existing_stderr_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m6_submit_accepts_clean_evidence_namespace",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m7_submit_creates_missing_durable_base",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_cleanup_preserves_replaced_staging",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_rename_failure_removes_owned_staging[oserror]",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_rename_failure_removes_owned_staging[paper-story-error]",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_accepts_clean_evidence_and_staging_namespace",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_accepts_name_max_submission_basename",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_create_only_intent_precedes_qsub_and_receipt",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_rejects_foreign_staging_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_runs_real_qsub_call_from_repository_root"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    staging = _submission_receipt_staging_path(path)\n",
+     "new": "    staging = path\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m2.rename-replaces",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m1_submission_receipt_is_complete_before_final_path_is_visible",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m2_submission_receipt_publish_is_no_replace"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "            _renameat2_directory(staging, path, _RENAME_NOREPLACE)\n",
+     "new": "            _renameat2_directory(staging, path, 0)\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m3.drop-completion-check",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m3_submit_rejects_existing_completion_before_intent_and_qsub"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    if os.path.lexists(Path(evidence[\"completion_receipt\"])):\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m4.drop-stdout-check",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m4_submit_rejects_existing_stdout_before_intent_and_qsub"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    if os.path.lexists(Path(evidence[\"stdout_path\"])):\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m5.drop-stderr-check",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m5_submit_rejects_existing_stderr_before_intent_and_qsub"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    if os.path.lexists(Path(evidence[\"stderr_path\"])):\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m6.over-reject-stderr-check",
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m1_submission_receipt_is_complete_before_final_path_is_visible",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m3_submit_rejects_existing_completion_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m4_submit_rejects_existing_stdout_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m5_submit_rejects_existing_stderr_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m6_submit_accepts_clean_evidence_namespace",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m7_submit_creates_missing_durable_base",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_accepts_clean_evidence_and_staging_namespace",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_accepts_name_max_submission_basename",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_create_only_intent_precedes_qsub_and_receipt",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_rejects_foreign_staging_before_intent_and_qsub",
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_runs_real_qsub_call_from_repository_root"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    if os.path.lexists(Path(evidence[\"stderr_path\"])):\n",
+     "new": "    if True:\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m7.drop-base-mkdir",
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m7_submit_creates_missing_durable_base"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    base.mkdir(parents=True, exist_ok=True)\n",
+     "new": "    pass\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m8.drop-staging-collision-check",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_rejects_foreign_staging_before_intent_and_qsub"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    if os.path.lexists(submission_staging_path):\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m9.blind-staging-cleanup",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submission_receipt_cleanup_preserves_replaced_staging"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "        raise PaperStoryError(\"submission receipt staging cleanup identity differs\")\n",
+     "new": "        pass\n"
+    }
+   ]
+  },
+  {
+   "id": "t1819.m10.unbounded-staging-name",
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_submit_accepts_name_max_submission_basename"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    while stem and len(os.fsencode(stem)) > stem_budget:\n",
+     "new": "    while False:\n"
+    }
+   ]
+  }
+ ]
+}

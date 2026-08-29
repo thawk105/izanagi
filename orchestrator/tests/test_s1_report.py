@@ -33,8 +33,8 @@ def _certified_epoch_fixture(monkeypatch):
     """既存 S1 fixture を固定 E1 の lock-only 境界へ適合させる。"""
     monkeypatch.setattr(
         report,
-        "require_campaign_verifier_epoch",
-        lambda _campaign, *, purpose: E1_EPOCH,
+        "_campaign_verifier_epoch_from_lock_bytes",
+        lambda _lock_bytes: E1_EPOCH,
     )
 
 
@@ -98,6 +98,14 @@ def _write_session(layout, item, role: str, *, fitness: float,
     cell_display = item.cell_id
     if mutate_order:
         cell_display = "tampered/order"
+    lock_path = Path(layout.lock_file)
+    if not lock_path.exists():
+        lock_path.write_text(
+            json.dumps({"fixture": "s1 campaign"}), encoding="utf-8",
+        )
+    build_attempt_id = (
+        f"s1-{role}-{item.schedule_index}-{item.lap}-{item.freeze_cell_id}"
+    )
     common = {
         "schedule_index": item.schedule_index, "campaign_role": role,
         "lap": item.lap, "cell_id": cell_display, "variant": variant,
@@ -106,19 +114,27 @@ def _write_session(layout, item, role: str, *, fitness: float,
     wal.log(layout, variant, driver.SESSION_STAGE, driver.ENV_TAG,
             {"event": "session-start", **common})
     wal.log(layout, variant, "build_start", driver.ENV_TAG,
-            {"genome": "silo|BACK_OFF=1", "src_token": f"src-{item.freeze_cell_id}"})
+            {"genome": "silo|BACK_OFF=1", "src_token": f"src-{item.freeze_cell_id}",
+             "build_attempt_id": build_attempt_id})
     if commit:
         payload = {
             "fitness_tps": None if role == "develop" else fitness,
             "verify_configs": verify_configs,
+            "build_attempt_id": build_attempt_id,
         }
         if role != "develop":
             payload.update({"cv": 0.01, "high_variance": False, "unstable": False})
+        for tag in verify_configs:
+            wal.log(layout, variant, "verify_done", driver.ENV_TAG, {
+                "build_attempt_id": build_attempt_id,
+                "verdict": "serializable",
+                "certified": True,
+                "anomalies": 0,
+                "workload": {"tag": tag},
+            })
         receipt_support.log_receipted_commit(
             layout, variant, driver.ENV_TAG, payload,
-            operation_identity=(
-                f"s1-{role}-{item.schedule_index}-{item.lap}-{item.freeze_cell_id}"
-            ),
+            operation_identity=build_attempt_id,
             tags=tuple(verify_configs),
         )
     else:
@@ -145,6 +161,9 @@ def _fixture(
 
     for role in report.ROLES:
         layout = driver.layout_for(document, role, output_root=str(output_root)).ensure()
+        Path(layout.lock_file).write_text(
+            json.dumps({"fixture": "s1", "role": role}), encoding="utf-8",
+        )
         schedule = driver.schedule_for_role(document, role)
         wal.log(layout, "s1-campaign", driver.SESSION_STAGE, driver.ENV_TAG, {
             "event": "campaign-start", "campaign_role": role,
@@ -274,6 +293,57 @@ def test_oracle_reject_terminal_never_becomes_success_sample(tmp_path):
     )
     assert sample is None
     assert issue is None
+
+
+@pytest.mark.parametrize("consumer", ["s1"], ids=["s1"])
+def test_persisted_certification_invalidates_sample(tmp_path, consumer):
+    item = driver.schedule_for_role(_freeze(), "develop")[0]
+    layout = driver.layout_for(
+        _freeze(), "develop", output_root=str(tmp_path / "output"),
+    ).ensure()
+    _write_session(
+        layout, item, "develop", fitness=0.0,
+        verify_configs=[pipeline.LEGACY_TAG, pipeline.S2_TAG],
+    )
+    records = wal.read_records(layout)
+    verify = next(record for record in records if record.stage == "verify_done")
+    verify.payload["anomalies"] = 1
+
+    sample, issue = report._sample_from_segment(
+        "develop", item, report._session_segments(records)[0],
+        campaign_records=records,
+        campaign_lock_sha256=report.hashlib.sha256(
+            Path(layout.lock_file).read_bytes()
+        ).hexdigest(),
+    )
+
+    assert consumer == "s1"
+    assert sample is None
+    assert issue["code"] == "persisted_certification_invalid"
+
+
+def test_lock_replacement_during_wal_read_invalidates_persisted_samples(
+        tmp_path, monkeypatch):
+    document, _freeze_path, _budget_path = _fixture(tmp_path)
+    role = "develop"
+    layout = driver.layout_for(
+        document, role, output_root=str(tmp_path / "output"),
+    )
+    original = Path(layout.lock_file).read_bytes()
+    reads = iter((original, original + b"replaced\n"))
+    monkeypatch.setattr(
+        report, "_read_campaign_lock_bytes", lambda _layout: next(reads),
+    )
+
+    assessment = report._assess_campaign(
+        document, role, str(tmp_path / "output"),
+    )
+
+    assert assessment.samples == {}
+    assert assessment.sample_issues
+    assert {
+        issue["code"] for issue in assessment.sample_issues
+    } == {"persisted_certification_invalid"}
 
 
 @pytest.mark.parametrize("unknown_status", ["future-status", ["not", "hashable"]])
@@ -439,9 +509,10 @@ def test_non_e1_campaign_is_structured_and_wal_is_not_read(
     original_read = report.wal.read_records_collected
     read_roots = []
 
-    def epoch_gate(campaign, *, purpose):
-        assert purpose is report.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
-        if campaign.root == rejected_layout.root:
+    rejected_lock = Path(rejected_layout.lock_file).read_bytes()
+
+    def epoch_gate(lock_bytes):
+        if lock_bytes == rejected_lock:
             raise report.CampaignVerifierEpochRejected(e0)
         return E1_EPOCH
 
@@ -450,7 +521,7 @@ def test_non_e1_campaign_is_structured_and_wal_is_not_read(
         read_roots.append(layout.root)
         return original_read(layout)
 
-    monkeypatch.setattr(report, "require_campaign_verifier_epoch", epoch_gate)
+    monkeypatch.setattr(report, "_campaign_verifier_epoch_from_lock_bytes", epoch_gate)
     monkeypatch.setattr(report.wal, "read_records_collected", observed_read)
 
     result = _generate(tmp_path, document, freeze_path, budget_path)

@@ -1,0 +1,129 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "head": null,
+  "spec_sha256": "7b98a6534504f72392a19b403be1e1eeba92d7e2c883848c17eb831a8c0064e2",
+  "baseline_status": "PASSED",
+  "note": "probe run: expected_nodes were single-node; recorded to derive the complete sets for v2 (DW-M08)",
+  "mutations": [
+    {
+      "id": "M1-anomalies-zero",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 62,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M2-receipt-validator",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 58,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M3-receipt-operation",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 57,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M4-receipt-evidence",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 57,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M5-verify-attempt-binding",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 66,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M6-chokepoint-first-commit-only",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 57,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M7-s1-wiring",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "rc": 1,
+      "failed_node_count": 1,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M8-a2-wiring",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "rc": 1,
+      "failed_node_count": 1,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M9-s6-resume-wiring",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "rc": 1,
+      "failed_node_count": 1,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M10-all-verifies-must-be-clean",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 58,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M11-commit-required",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 57,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M12-historical-raw-also-gated",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 83,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M13-aborts-must-be-zero",
+      "expected_status": "KILLED",
+      "status": "MISMATCH",
+      "rc": 1,
+      "failed_node_count": 161,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M14-resolve-duplicate-wiring",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "rc": 1,
+      "failed_node_count": 1,
+      "expected_node_hit": true
+    },
+    {
+      "id": "M15-s8a-resume-wiring",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "rc": 1,
+      "failed_node_count": 1,
+      "expected_node_hit": true
+    }
+  ]
+}

@@ -2580,13 +2580,14 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
     from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_DONE,
                         STAGE_BUILD_START, STAGE_COMMIT, STAGE_VERIFY_DONE)
     from .pipeline import variant_id
-    from . import wal
+    from . import artifact_admission, wal
 
     lock_bytes = wal_bytes = claim_bytes = None
+    layout = CampaignLayout(layout_root)
+    lock_rel = None
     if frozen_files is not None:
         if attempt_root is None:
             raise CertificationError("frozen campaign bytes need an attempt root")
-        layout = CampaignLayout(layout_root)
         try:
             lock_rel = Path(layout.lock_file).relative_to(attempt_root).as_posix()
             wal_rel = Path(layout.wal_file).relative_to(attempt_root).as_posix()
@@ -2599,21 +2600,36 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
             claim_bytes = frozen_files[claim_rel]
         except (KeyError, ValueError) as exc:
             raise CertificationError("frozen campaign lock/WAL bytes are missing") from exc
+    else:
+        try:
+            lock_bytes = Path(layout.lock_file).read_bytes()
+            wal_bytes = Path(layout.wal_file).read_bytes()
+        except OSError as exc:
+            raise CertificationError("campaign lock or WAL cannot be read") from exc
     observed_preimage, campaign_evidence = _campaign_observation(
         policy, cell, layout_root, attempt_id, current_pin,
         lock_bytes=lock_bytes, wal_bytes=wal_bytes, claim_bytes=claim_bytes)
-    if wal_bytes is None:
-        all_records = wal.read_records(CampaignLayout(layout_root))
-    else:
-        if wal_bytes and not wal_bytes.endswith(b"\n"):
-            raise CertificationError("frozen campaign WAL is not newline terminated")
-        try:
-            all_records = [
-                wal.parse_line(frame.decode("utf-8"))
-                for frame in wal_bytes.splitlines(keepends=True)
-            ]
-        except (UnicodeError, ValueError) as exc:
-            raise CertificationError("frozen campaign WAL cannot be parsed") from exc
+    try:
+        lock_bytes_after_records = (
+            frozen_files[lock_rel]
+            if frozen_files is not None
+            else Path(layout.lock_file).read_bytes()
+        )
+    except (KeyError, OSError) as exc:
+        raise CertificationError(
+            "campaign lock cannot be revalidated after WAL read"
+        ) from exc
+    if _sha256_bytes(lock_bytes_after_records) != campaign_evidence["lock_sha256"]:
+        raise CertificationError("campaign lock changed while reading WAL")
+    if wal_bytes and not wal_bytes.endswith(b"\n"):
+        raise CertificationError("campaign WAL is not newline terminated")
+    try:
+        all_records = [
+            wal.parse_line(frame.decode("utf-8"))
+            for frame in wal_bytes.splitlines(keepends=True)
+        ]
+    except (UnicodeError, ValueError) as exc:
+        raise CertificationError("campaign WAL cannot be parsed") from exc
     expected_genome = _genome_for_cell(policy, cell)
     expected_variant = variant_id(expected_genome)
     if result.variant != expected_variant:
@@ -2666,6 +2682,21 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
             if stage == STAGE_VERIFY_DONE]
         if bench_positions and verify_positions and max(verify_positions) > min(bench_positions):
             raise CertificationError("WAL verify evidence appears after benchmark evidence")
+    if commit is not None:
+        commit_record = next(
+            record for record in records
+            if record.stage == STAGE_COMMIT
+            and record.payload.get("build_attempt_id") == build_attempt_id
+        )
+        try:
+            artifact_admission.require_persisted_certified_commit(
+                all_records, commit_record,
+                campaign_lock_sha256=campaign_evidence["lock_sha256"],
+            )
+        except (artifact_admission.ArtifactAdmissionError, TypeError) as exc:
+            raise CertificationError(
+                "persisted campaign certification is invalid"
+            ) from exc
     verify_payloads = [record.payload for record in records
                        if record.stage == STAGE_VERIFY_DONE
                        and record.payload.get("build_attempt_id") == build_attempt_id]
