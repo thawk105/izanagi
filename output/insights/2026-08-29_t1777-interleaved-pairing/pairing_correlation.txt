@@ -1,0 +1,21 @@
+=== write-heavy: distinct tps series = 2
+    n=5 first=1404385.0 label=None
+    n=5 first=1324098.0 label=None
+    n=5  mean_diff=-5698.0
+    paired SD=43649.1  independent-approx SD=34940.4
+    corr(arm_a, arm_b) at matched positions = -0.591
+    paired/independent SD ratio = 1.249
+=== balanced: distinct tps series = 2
+    n=5 first=1140625.0 label=None
+    n=5 first=1329253.0 label=None
+    n=5  mean_diff=70800.8
+    paired SD=66139.4  independent-approx SD=53029.6
+    corr(arm_a, arm_b) at matched positions = -0.563
+    paired/independent SD ratio = 1.247
+=== read-heavy: distinct tps series = 2
+    n=5 first=2325976.0 label=None
+    n=5 first=2342053.0 label=None
+    n=5  mean_diff=5611.0
+    paired SD=25453.5  independent-approx SD=19185.8
+    corr(arm_a, arm_b) at matched positions = -0.765
+    paired/independent SD ratio = 1.327
