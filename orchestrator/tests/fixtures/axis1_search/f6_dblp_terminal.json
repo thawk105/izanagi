@@ -1,0 +1,449 @@
+{
+  "result": {
+    "hits": {
+      "@computed": "136",
+      "@first": "100",
+      "@sent": "36",
+      "@total": "136",
+      "hit": [
+        {
+          "@id": "100",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.100",
+            "ee": "https://doi.org/10.9999/FIXTURE.100",
+            "key": "conf/fixture/Work100",
+            "title": "Fixture publication 100",
+            "year": "2020"
+          },
+          "url": "URL#100"
+        },
+        {
+          "@id": "101",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.101",
+            "ee": "https://doi.org/10.9999/FIXTURE.101",
+            "key": "conf/fixture/Work101",
+            "title": "Fixture publication 101",
+            "year": "2020"
+          },
+          "url": "URL#101"
+        },
+        {
+          "@id": "102",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.102",
+            "ee": "https://doi.org/10.9999/FIXTURE.102",
+            "key": "conf/fixture/Work102",
+            "title": "Fixture publication 102",
+            "year": "2020"
+          },
+          "url": "URL#102"
+        },
+        {
+          "@id": "103",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.103",
+            "ee": "https://doi.org/10.9999/FIXTURE.103",
+            "key": "conf/fixture/Work103",
+            "title": "Fixture publication 103",
+            "year": "2020"
+          },
+          "url": "URL#103"
+        },
+        {
+          "@id": "104",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.104",
+            "ee": "https://doi.org/10.9999/FIXTURE.104",
+            "key": "conf/fixture/Work104",
+            "title": "Fixture publication 104",
+            "year": "2020"
+          },
+          "url": "URL#104"
+        },
+        {
+          "@id": "105",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.105",
+            "ee": "https://doi.org/10.9999/FIXTURE.105",
+            "key": "conf/fixture/Work105",
+            "title": "Fixture publication 105",
+            "year": "2020"
+          },
+          "url": "URL#105"
+        },
+        {
+          "@id": "106",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.106",
+            "ee": "https://doi.org/10.9999/FIXTURE.106",
+            "key": "conf/fixture/Work106",
+            "title": "Fixture publication 106",
+            "year": "2020"
+          },
+          "url": "URL#106"
+        },
+        {
+          "@id": "107",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.107",
+            "ee": "https://doi.org/10.9999/FIXTURE.107",
+            "key": "conf/fixture/Work107",
+            "title": "Fixture publication 107",
+            "year": "2020"
+          },
+          "url": "URL#107"
+        },
+        {
+          "@id": "108",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.108",
+            "ee": "https://doi.org/10.9999/FIXTURE.108",
+            "key": "conf/fixture/Work108",
+            "title": "Fixture publication 108",
+            "year": "2020"
+          },
+          "url": "URL#108"
+        },
+        {
+          "@id": "109",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.109",
+            "ee": "https://doi.org/10.9999/FIXTURE.109",
+            "key": "conf/fixture/Work109",
+            "title": "Fixture publication 109",
+            "year": "2020"
+          },
+          "url": "URL#109"
+        },
+        {
+          "@id": "110",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.110",
+            "ee": "https://doi.org/10.9999/FIXTURE.110",
+            "key": "conf/fixture/Work110",
+            "title": "Fixture publication 110",
+            "year": "2020"
+          },
+          "url": "URL#110"
+        },
+        {
+          "@id": "111",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.111",
+            "ee": "https://doi.org/10.9999/FIXTURE.111",
+            "key": "conf/fixture/Work111",
+            "title": "Fixture publication 111",
+            "year": "2020"
+          },
+          "url": "URL#111"
+        },
+        {
+          "@id": "112",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.112",
+            "ee": "https://doi.org/10.9999/FIXTURE.112",
+            "key": "conf/fixture/Work112",
+            "title": "Fixture publication 112",
+            "year": "2020"
+          },
+          "url": "URL#112"
+        },
+        {
+          "@id": "113",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.113",
+            "ee": "https://doi.org/10.9999/FIXTURE.113",
+            "key": "conf/fixture/Work113",
+            "title": "Fixture publication 113",
+            "year": "2020"
+          },
+          "url": "URL#113"
+        },
+        {
+          "@id": "114",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.114",
+            "ee": "https://doi.org/10.9999/FIXTURE.114",
+            "key": "conf/fixture/Work114",
+            "title": "Fixture publication 114",
+            "year": "2020"
+          },
+          "url": "URL#114"
+        },
+        {
+          "@id": "115",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.115",
+            "ee": "https://doi.org/10.9999/FIXTURE.115",
+            "key": "conf/fixture/Work115",
+            "title": "Fixture publication 115",
+            "year": "2020"
+          },
+          "url": "URL#115"
+        },
+        {
+          "@id": "116",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.116",
+            "ee": "https://doi.org/10.9999/FIXTURE.116",
+            "key": "conf/fixture/Work116",
+            "title": "Fixture publication 116",
+            "year": "2020"
+          },
+          "url": "URL#116"
+        },
+        {
+          "@id": "117",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.117",
+            "ee": "https://doi.org/10.9999/FIXTURE.117",
+            "key": "conf/fixture/Work117",
+            "title": "Fixture publication 117",
+            "year": "2020"
+          },
+          "url": "URL#117"
+        },
+        {
+          "@id": "118",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.118",
+            "ee": "https://doi.org/10.9999/FIXTURE.118",
+            "key": "conf/fixture/Work118",
+            "title": "Fixture publication 118",
+            "year": "2020"
+          },
+          "url": "URL#118"
+        },
+        {
+          "@id": "119",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.119",
+            "ee": "https://doi.org/10.9999/FIXTURE.119",
+            "key": "conf/fixture/Work119",
+            "title": "Fixture publication 119",
+            "year": "2020"
+          },
+          "url": "URL#119"
+        },
+        {
+          "@id": "120",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.120",
+            "ee": "https://doi.org/10.9999/FIXTURE.120",
+            "key": "conf/fixture/Work120",
+            "title": "Fixture publication 120",
+            "year": "2020"
+          },
+          "url": "URL#120"
+        },
+        {
+          "@id": "121",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.121",
+            "ee": "https://doi.org/10.9999/FIXTURE.121",
+            "key": "conf/fixture/Work121",
+            "title": "Fixture publication 121",
+            "year": "2020"
+          },
+          "url": "URL#121"
+        },
+        {
+          "@id": "122",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.122",
+            "ee": "https://doi.org/10.9999/FIXTURE.122",
+            "key": "conf/fixture/Work122",
+            "title": "Fixture publication 122",
+            "year": "2020"
+          },
+          "url": "URL#122"
+        },
+        {
+          "@id": "123",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.123",
+            "ee": "https://doi.org/10.9999/FIXTURE.123",
+            "key": "conf/fixture/Work123",
+            "title": "Fixture publication 123",
+            "year": "2020"
+          },
+          "url": "URL#123"
+        },
+        {
+          "@id": "124",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.124",
+            "ee": "https://doi.org/10.9999/FIXTURE.124",
+            "key": "conf/fixture/Work124",
+            "title": "Fixture publication 124",
+            "year": "2020"
+          },
+          "url": "URL#124"
+        },
+        {
+          "@id": "125",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.125",
+            "ee": "https://doi.org/10.9999/FIXTURE.125",
+            "key": "conf/fixture/Work125",
+            "title": "Fixture publication 125",
+            "year": "2020"
+          },
+          "url": "URL#125"
+        },
+        {
+          "@id": "126",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.126",
+            "ee": "https://doi.org/10.9999/FIXTURE.126",
+            "key": "conf/fixture/Work126",
+            "title": "Fixture publication 126",
+            "year": "2020"
+          },
+          "url": "URL#126"
+        },
+        {
+          "@id": "127",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.127",
+            "ee": "https://doi.org/10.9999/FIXTURE.127",
+            "key": "conf/fixture/Work127",
+            "title": "Fixture publication 127",
+            "year": "2020"
+          },
+          "url": "URL#127"
+        },
+        {
+          "@id": "128",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.128",
+            "ee": "https://doi.org/10.9999/FIXTURE.128",
+            "key": "conf/fixture/Work128",
+            "title": "Fixture publication 128",
+            "year": "2020"
+          },
+          "url": "URL#128"
+        },
+        {
+          "@id": "129",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.129",
+            "ee": "https://doi.org/10.9999/FIXTURE.129",
+            "key": "conf/fixture/Work129",
+            "title": "Fixture publication 129",
+            "year": "2020"
+          },
+          "url": "URL#129"
+        },
+        {
+          "@id": "130",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.130",
+            "ee": "https://doi.org/10.9999/FIXTURE.130",
+            "key": "conf/fixture/Work130",
+            "title": "Fixture publication 130",
+            "year": "2020"
+          },
+          "url": "URL#130"
+        },
+        {
+          "@id": "131",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.131",
+            "ee": "https://doi.org/10.9999/FIXTURE.131",
+            "key": "conf/fixture/Work131",
+            "title": "Fixture publication 131",
+            "year": "2020"
+          },
+          "url": "URL#131"
+        },
+        {
+          "@id": "132",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.132",
+            "ee": "https://doi.org/10.9999/FIXTURE.132",
+            "key": "conf/fixture/Work132",
+            "title": "Fixture publication 132",
+            "year": "2020"
+          },
+          "url": "URL#132"
+        },
+        {
+          "@id": "133",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.133",
+            "ee": "https://doi.org/10.9999/FIXTURE.133",
+            "key": "conf/fixture/Work133",
+            "title": "Fixture publication 133",
+            "year": "2020"
+          },
+          "url": "URL#133"
+        },
+        {
+          "@id": "134",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.134",
+            "ee": "https://doi.org/10.9999/FIXTURE.134",
+            "key": "conf/fixture/Work134",
+            "title": "Fixture publication 134",
+            "year": "2020"
+          },
+          "url": "URL#134"
+        },
+        {
+          "@id": "135",
+          "@score": "1",
+          "info": {
+            "doi": "10.9999/FIXTURE.135",
+            "ee": "https://doi.org/10.9999/FIXTURE.135",
+            "key": "conf/fixture/Work135",
+            "title": "Fixture publication 135",
+            "year": "2020"
+          },
+          "url": "URL#135"
+        }
+      ]
+    },
+    "query": "fixture*",
+    "status": {
+      "@code": "200",
+      "text": "OK"
+    }
+  }
+}

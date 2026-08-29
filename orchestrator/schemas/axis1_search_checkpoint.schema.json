@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/schemas/axis1_search_checkpoint.schema.json",
+  "title": "Izanagi axis-1 search checkpoint v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_id",
+    "previous_checkpoint",
+    "registration_epoch",
+    "registration_commit",
+    "catalog_path",
+    "catalog_sha256",
+    "bundle_root",
+    "canonical_runner_argv",
+    "query_id",
+    "leaf_query_id",
+    "index",
+    "run_id",
+    "pass_number",
+    "window_number",
+    "state",
+    "resume_action",
+    "requests",
+    "cursor_state",
+    "completed_ledger",
+    "second_pass",
+    "waiting_ruling_ids",
+    "quota",
+    "last_attempt"
+  ],
+  "properties": {
+    "schema_version": {"const": "izanagi-axis1-search-checkpoint/v2"},
+    "checkpoint_id": {"type": "string", "pattern": "^[0-9]{6}$"},
+    "previous_checkpoint": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "bytes", "sha256"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "bytes": {"type": "integer", "minimum": 0},
+            "sha256": {"$ref": "#/definitions/sha256"}
+          }
+        }
+      ]
+    },
+    "registration_epoch": {"const": "AX1-20260829-E1"},
+    "registration_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "catalog_path": {"type": "string", "minLength": 1},
+    "catalog_sha256": {"$ref": "#/definitions/sha256"},
+    "bundle_root": {"type": "string", "minLength": 1},
+    "canonical_runner_argv": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "query_id": {"type": "string", "minLength": 1},
+    "leaf_query_id": {"type": "string", "minLength": 1},
+    "index": {"enum": ["arxiv", "openalex", "dblp"]},
+    "run_id": {"type": "string", "minLength": 1},
+    "pass_number": {"type": "integer", "minimum": 0},
+    "window_number": {"type": "integer", "minimum": 0},
+    "state": {
+      "enum": [
+        "not_started",
+        "prepared",
+        "issued",
+        "response_stored",
+        "parsed",
+        "paused_quota",
+        "pass_complete",
+        "branch_complete",
+        "outcome_unknown",
+        "blocked_on_ruling",
+        "superseded"
+      ]
+    },
+    "resume_action": {
+      "enum": [
+        "continue_cursor",
+        "start_independent_pass",
+        "restart_branch",
+        "blocked_on_ruling",
+        "not_applicable"
+      ]
+    },
+    "requests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continue_cursor", "start_independent_pass"],
+      "properties": {
+        "continue_cursor": {"$ref": "#/definitions/completeRequest"},
+        "start_independent_pass": {"$ref": "#/definitions/completeRequest"},
+        "restart_branch": {"$ref": "#/definitions/completeRequest"}
+      }
+    },
+    "cursor_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previous_request_id",
+        "parent_response_sha256",
+        "position_in",
+        "position_out",
+        "page_number",
+        "leaf_ordinal"
+      ],
+      "properties": {
+        "previous_request_id": {"type": ["string", "null"]},
+        "parent_response_sha256": {"$ref": "#/definitions/nullableSha256"},
+        "position_in": {"type": ["string", "null"]},
+        "position_out": {"type": ["string", "null"]},
+        "page_number": {"type": "integer", "minimum": 0},
+        "leaf_ordinal": {"type": "integer", "minimum": 0}
+      }
+    },
+    "completed_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "primary_key_kind",
+        "row_count",
+        "distinct_count",
+        "canonicalization",
+        "ledger_sha256",
+        "primary_key_digest"
+      ],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "primary_key_kind": {"const": "index_work_id"},
+        "row_count": {"type": "integer", "minimum": 0},
+        "distinct_count": {"type": "integer", "minimum": 0},
+        "canonicalization": {"type": "string", "minLength": 1},
+        "ledger_sha256": {"$ref": "#/definitions/sha256"},
+        "primary_key_digest": {"$ref": "#/definitions/sha256"}
+      }
+    },
+    "second_pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "state",
+        "ledger_path",
+        "primary_key_digest",
+        "first_primary_key_digest",
+        "matches_first",
+        "accepted"
+      ],
+      "properties": {
+        "required": {"type": "boolean"},
+        "state": {"type": "string", "minLength": 1},
+        "ledger_path": {"type": ["string", "null"]},
+        "primary_key_digest": {"$ref": "#/definitions/nullableSha256"},
+        "first_primary_key_digest": {"$ref": "#/definitions/nullableSha256"},
+        "matches_first": {"type": ["boolean", "null"]},
+        "accepted": {"type": ["boolean", "null"]}
+      }
+    },
+    "waiting_ruling_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^(D[0-9]+|T-[0-9]+)$"}
+    },
+    "quota": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "observed_at_utc",
+        "observed_at_jst",
+        "limit",
+        "remaining",
+        "credits_per_request",
+        "reset_seconds",
+        "observed_request_id",
+        "cost_usd",
+        "header_evidence"
+      ],
+      "properties": {
+        "index": {"enum": ["arxiv", "openalex", "dblp"]},
+        "observed_at_utc": {"type": ["string", "null"]},
+        "observed_at_jst": {"type": ["string", "null"]},
+        "limit": {"type": ["integer", "null"], "minimum": 0},
+        "remaining": {"type": ["integer", "null"], "minimum": 0},
+        "credits_per_request": {"type": ["integer", "null"], "minimum": 0},
+        "reset_seconds": {"type": ["integer", "null"], "minimum": 0},
+        "observed_request_id": {"type": ["string", "null"]},
+        "cost_usd": {"type": ["number", "null"], "minimum": 0},
+        "header_evidence": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/stringPair"}
+        }
+      }
+    },
+    "last_attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "request_id", "attempt_number", "failure", "raw_evidence_path"],
+      "properties": {
+        "state": {"type": "string", "minLength": 1},
+        "request_id": {"type": ["string", "null"]},
+        "attempt_number": {"type": "integer", "minimum": 0},
+        "failure": {"type": ["string", "null"]},
+        "raw_evidence_path": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "oneOf": [
+    {"properties": {"state": {"const": "not_started"}, "resume_action": {"const": "restart_branch"}}},
+    {"properties": {"state": {"const": "prepared"}, "resume_action": {"const": "continue_cursor"}}},
+    {"properties": {"state": {"const": "issued"}, "resume_action": {"const": "restart_branch"}}},
+    {"properties": {"state": {"const": "response_stored"}, "resume_action": {"const": "continue_cursor"}}},
+    {"properties": {"state": {"const": "parsed"}, "resume_action": {"const": "continue_cursor"}}},
+    {"properties": {"state": {"const": "paused_quota"}, "resume_action": {"const": "continue_cursor"}}},
+    {"properties": {"state": {"const": "pass_complete"}, "resume_action": {"enum": ["start_independent_pass", "not_applicable"]}}},
+    {"properties": {"state": {"const": "branch_complete"}, "resume_action": {"const": "not_applicable"}}},
+    {"properties": {"state": {"const": "outcome_unknown"}, "resume_action": {"const": "restart_branch"}}},
+    {"properties": {"state": {"const": "blocked_on_ruling"}, "resume_action": {"const": "blocked_on_ruling"}}},
+    {"properties": {"state": {"const": "superseded"}, "resume_action": {"const": "restart_branch"}}}
+  ],
+  "allOf": [
+    {
+      "if": {"properties": {"resume_action": {"const": "restart_branch"}}},
+      "then": {"properties": {"requests": {"required": ["restart_branch"]}}}
+    }
+  ],
+  "definitions": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullableSha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/definitions/sha256"}
+      ]
+    },
+    "stringPair": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"type": "string"}
+    },
+    "completeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_id",
+        "leaf_query_id",
+        "logical_query_id",
+        "index",
+        "request_role",
+        "executable",
+        "method",
+        "scheme",
+        "host",
+        "path",
+        "query_parameters",
+        "encoded_url",
+        "headers",
+        "empty_body_sha256",
+        "timeout_s",
+        "page_number",
+        "position_in",
+        "expected_interpreted_query",
+        "target_run_id",
+        "target_pass_number",
+        "target_window_number",
+        "parent_response_sha256",
+        "catalog_template_sha256"
+      ],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "leaf_query_id": {"type": "string", "minLength": 1},
+        "logical_query_id": {"type": "string", "minLength": 1},
+        "index": {"enum": ["arxiv", "openalex", "dblp"]},
+        "request_role": {"enum": ["continue_cursor", "start_independent_pass", "restart_branch"]},
+        "executable": {"type": "boolean"},
+        "method": {"const": "GET"},
+        "scheme": {"const": "https"},
+        "host": {"enum": ["export.arxiv.org", "api.openalex.org", "dblp.org"]},
+        "path": {"type": "string", "pattern": "^/"},
+        "query_parameters": {"type": "array", "items": {"$ref": "#/definitions/stringPair"}},
+        "encoded_url": {"type": "string", "pattern": "^https://"},
+        "headers": {"type": "array", "items": {"$ref": "#/definitions/stringPair"}},
+        "empty_body_sha256": {"const": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+        "timeout_s": {"type": "number", "exclusiveMinimum": 0},
+        "page_number": {"type": "integer", "minimum": 0},
+        "position_in": {"type": ["string", "null"]},
+        "expected_interpreted_query": {"type": "string"},
+        "target_run_id": {"type": "string", "minLength": 1},
+        "target_pass_number": {"type": "integer", "minimum": 1},
+        "target_window_number": {"type": "integer", "minimum": 1},
+        "parent_response_sha256": {"$ref": "#/definitions/nullableSha256"},
+        "catalog_template_sha256": {"$ref": "#/definitions/sha256"}
+      }
+    }
+  }
+}

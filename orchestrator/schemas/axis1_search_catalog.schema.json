@@ -1,0 +1,511 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/schemas/axis1_search_catalog.schema.json",
+  "title": "Izanagi Axis 1 deterministic search catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registration_epoch",
+    "outcome_informed",
+    "amendment_path",
+    "supersedes",
+    "cutoff",
+    "proof_scope",
+    "index_policies",
+    "shard_policies",
+    "logical_queries",
+    "request_templates",
+    "controls",
+    "expected_cardinalities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "izanagi-axis1-search-catalog/v1"
+    },
+    "registration_epoch": {
+      "const": "AX1-20260829-E1"
+    },
+    "outcome_informed": {
+      "const": true
+    },
+    "amendment_path": {
+      "const": "docs/related-work/claim-survey/2026-08-29-axis1-search-amendment.md"
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "cutoff": {
+      "const": "2026-12-31"
+    },
+    "proof_scope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "index_policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arxiv",
+        "openalex",
+        "dblp"
+      ],
+      "properties": {
+        "arxiv": {
+          "$ref": "#/definitions/index_policy"
+        },
+        "openalex": {
+          "$ref": "#/definitions/index_policy"
+        },
+        "dblp": {
+          "$ref": "#/definitions/index_policy"
+        }
+      }
+    },
+    "shard_policies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/shard_policy"
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true
+    },
+    "logical_queries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/logical_query"
+      },
+      "minItems": 267,
+      "maxItems": 267,
+      "uniqueItems": true
+    },
+    "request_templates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/request_template"
+      },
+      "minItems": 263,
+      "maxItems": 263,
+      "uniqueItems": true
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/control"
+      },
+      "minItems": 9,
+      "maxItems": 9,
+      "uniqueItems": true
+    },
+    "expected_cardinalities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_queries",
+        "aggregate_queries",
+        "executable_leaves",
+        "declared_exclusions",
+        "arxiv_q6_leaves",
+        "openalex_q3_leaves",
+        "openalex_q6_leaves"
+      ],
+      "properties": {
+        "logical_queries": {
+          "const": 267
+        },
+        "aggregate_queries": {
+          "const": 3
+        },
+        "executable_leaves": {
+          "const": 263
+        },
+        "declared_exclusions": {
+          "const": 1
+        },
+        "arxiv_q6_leaves": {
+          "const": 168
+        },
+        "openalex_q3_leaves": {
+          "const": 37
+        },
+        "openalex_q6_leaves": {
+          "const": 37
+        }
+      }
+    }
+  },
+  "definitions": {
+    "nonnegative_number": {
+      "type": "number",
+      "minimum": 0
+    },
+    "index_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint",
+        "scheme",
+        "host",
+        "path",
+        "method",
+        "page_size",
+        "pagination_kind",
+        "initial_position",
+        "minimum_interval_s",
+        "timeout_s",
+        "retry_delays_s",
+        "response_byte_limit",
+        "content_types",
+        "id_extractor",
+        "total_field",
+        "capacity_field"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "pattern": "^https://(export\\.arxiv\\.org|api\\.openalex\\.org|dblp\\.org)/"
+        },
+        "scheme": {
+          "const": "https"
+        },
+        "host": {
+          "enum": [
+            "export.arxiv.org",
+            "api.openalex.org",
+            "dblp.org"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "method": {
+          "const": "GET"
+        },
+        "page_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "pagination_kind": {
+          "enum": [
+            "offset",
+            "cursor"
+          ]
+        },
+        "initial_position": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimum_interval_s": {
+          "$ref": "#/definitions/nonnegative_number"
+        },
+        "timeout_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "retry_delays_s": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonnegative_number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "response_byte_limit": {
+          "const": 16777216
+        },
+        "content_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "id_extractor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "total_field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capacity_field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "quota_credit_reserve": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cooldown_after_exhaustion_s": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "nullable_date": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "shard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shard_id",
+        "shard_lower",
+        "shard_upper"
+      ],
+      "properties": {
+        "shard_id": {
+          "type": "string",
+          "pattern": "^S(?:Y[0-9]{4}|M[0-9]{6}|PRE1991)$"
+        },
+        "shard_lower": {
+          "$ref": "#/definitions/nullable_date"
+        },
+        "shard_upper": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "shard_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "logical_query_id",
+        "generator",
+        "first_boundary",
+        "last_boundary",
+        "observed_count_is_input",
+        "adaptive_split",
+        "shards"
+      ],
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "logical_query_id": {
+          "type": "string",
+          "pattern": "^AX1-20260829-E1-Q[36]@(arxiv|openalex)$"
+        },
+        "generator": {
+          "enum": [
+            "fixed_calendar_years_then_months_v1",
+            "fixed_pre1991_and_calendar_years_v1"
+          ]
+        },
+        "first_boundary": {
+          "$ref": "#/definitions/nullable_date"
+        },
+        "last_boundary": {
+          "const": "2026-12-31"
+        },
+        "observed_count_is_input": {
+          "const": false
+        },
+        "adaptive_split": {
+          "const": "forbidden"
+        },
+        "shards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/shard"
+          },
+          "minItems": 37,
+          "maxItems": 168,
+          "uniqueItems": true
+        }
+      }
+    },
+    "logical_query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_id",
+        "kind",
+        "index",
+        "branch",
+        "parent_id",
+        "shard_lower",
+        "shard_upper"
+      ],
+      "properties": {
+        "query_id": {
+          "type": "string",
+          "pattern": "^AX1-20260829-E1-(?:Q[1-6]|T(?:0[1-9]|1[0-2]))(?:-S(?:Y[0-9]{4}|M[0-9]{6}|PRE1991)|-EXCLUSION)?@(arxiv|openalex|dblp)$"
+        },
+        "kind": {
+          "enum": [
+            "aggregate",
+            "leaf",
+            "exclusion"
+          ]
+        },
+        "index": {
+          "enum": [
+            "arxiv",
+            "openalex",
+            "dblp"
+          ]
+        },
+        "branch": {
+          "pattern": "^(?:Q[1-6]|T(?:0[1-9]|1[0-2]))$"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^AX1-20260829-E1-Q[36]@(arxiv|openalex)$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shard_lower": {
+          "$ref": "#/definitions/nullable_date"
+        },
+        "shard_upper": {
+          "$ref": "#/definitions/nullable_date"
+        }
+      }
+    },
+    "ordered_pair": {
+      "type": "array",
+      "items": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "additionalItems": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "request_template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leaf_query_id",
+        "logical_query_id",
+        "method",
+        "scheme",
+        "host",
+        "path",
+        "query_parameters",
+        "headers",
+        "timeout_s",
+        "expected_interpreted_query_template"
+      ],
+      "properties": {
+        "leaf_query_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "logical_query_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "const": "GET"
+        },
+        "scheme": {
+          "const": "https"
+        },
+        "host": {
+          "enum": [
+            "export.arxiv.org",
+            "api.openalex.org",
+            "dblp.org"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "query_parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ordered_pair"
+          },
+          "minItems": 3,
+          "maxItems": 4
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ordered_pair"
+          },
+          "minItems": 1
+        },
+        "timeout_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "expected_interpreted_query_template": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "indexes",
+        "role"
+      ],
+      "properties": {
+        "control_id": {
+          "type": "string",
+          "pattern": "^C-(?:OP-[1-4]|BLK-[TMOVW])$"
+        },
+        "indexes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "arxiv",
+              "openalex",
+              "dblp"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

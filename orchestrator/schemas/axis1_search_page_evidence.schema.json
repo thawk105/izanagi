@@ -1,0 +1,762 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://izanagi.invalid/schemas/axis1_search_page_evidence.schema.json",
+  "title": "Izanagi Axis 1 page evidence, occurrence ledger, or bundle manifest",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/page_evidence"
+    },
+    {
+      "$ref": "#/definitions/record_occurrence_ledger"
+    },
+    {
+      "$ref": "#/definitions/bundle_manifest"
+    }
+  ],
+  "definitions": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "registration_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "index": {
+      "enum": [
+        "arxiv",
+        "openalex",
+        "dblp"
+      ]
+    },
+    "nullable_nonnegative_integer": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_string": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_datetime": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ordered_pair": {
+      "type": "array",
+      "items": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "additionalItems": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registration_epoch",
+        "registration_commit",
+        "catalog_path",
+        "catalog_sha256",
+        "run_id",
+        "pass_number",
+        "window_number",
+        "logical_query_id",
+        "leaf_query_id",
+        "request_id",
+        "attempt_number",
+        "page_number",
+        "index"
+      ],
+      "properties": {
+        "registration_epoch": {
+          "const": "AX1-20260829-E1"
+        },
+        "registration_commit": {
+          "$ref": "#/definitions/registration_commit"
+        },
+        "catalog_path": {
+          "const": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        },
+        "catalog_sha256": {
+          "$ref": "#/definitions/sha256"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "pass_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "window_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "logical_query_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "leaf_query_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^AX1-20260829-E1-.+#p[0-9]+$"
+        },
+        "attempt_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "page_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "index": {
+          "$ref": "#/definitions/index"
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "scheme",
+        "host",
+        "path",
+        "query_parameters",
+        "encoded_url",
+        "headers",
+        "timeout_s",
+        "position_in",
+        "expected_interpreted_query",
+        "parent_response_sha256"
+      ],
+      "properties": {
+        "method": {
+          "const": "GET"
+        },
+        "scheme": {
+          "const": "https"
+        },
+        "host": {
+          "enum": [
+            "export.arxiv.org",
+            "api.openalex.org",
+            "dblp.org"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "query_parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ordered_pair"
+          },
+          "minItems": 3,
+          "maxItems": 4
+        },
+        "encoded_url": {
+          "type": "string",
+          "pattern": "^https://(export\\.arxiv\\.org|api\\.openalex\\.org|dblp\\.org)/"
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ordered_pair"
+          },
+          "minItems": 1
+        },
+        "timeout_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "position_in": {
+          "$ref": "#/definitions/nullable_string"
+        },
+        "expected_interpreted_query": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_response_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "wal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "prepared_at",
+        "issued_at",
+        "response_stored_at",
+        "parsed_at",
+        "terminal_at"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "prepared",
+            "issued",
+            "response_stored",
+            "parsed",
+            "terminal"
+          ]
+        },
+        "prepared_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "issued_at": {
+          "$ref": "#/definitions/nullable_datetime"
+        },
+        "response_stored_at": {
+          "$ref": "#/definitions/nullable_datetime"
+        },
+        "parsed_at": {
+          "$ref": "#/definitions/nullable_datetime"
+        },
+        "terminal_at": {
+          "$ref": "#/definitions/nullable_datetime"
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "safe_headers",
+        "content_type",
+        "final_url",
+        "body_path",
+        "byte_count",
+        "sha256",
+        "redirect_chain",
+        "elapsed_s"
+      ],
+      "properties": {
+        "status": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        },
+        "safe_headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ordered_pair"
+          },
+          "uniqueItems": true
+        },
+        "content_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "final_url": {
+          "type": "string",
+          "pattern": "^https://(export\\.arxiv\\.org|api\\.openalex\\.org|dblp\\.org)/"
+        },
+        "body_path": {
+          "type": "string",
+          "pattern": "^[^/].*\\.gz$"
+        },
+        "byte_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16777216
+        },
+        "sha256": {
+          "$ref": "#/definitions/sha256"
+        },
+        "redirect_chain": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "maxItems": 0
+        },
+        "elapsed_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "quota": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "limit",
+        "remaining",
+        "credits_used",
+        "cost_usd",
+        "reset_observation",
+        "observed_at"
+      ],
+      "properties": {
+        "limit": {
+          "$ref": "#/definitions/nullable_nonnegative_integer"
+        },
+        "remaining": {
+          "$ref": "#/definitions/nullable_nonnegative_integer"
+        },
+        "credits_used": {
+          "$ref": "#/definitions/nullable_nonnegative_integer"
+        },
+        "cost_usd": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reset_observation": {
+          "$ref": "#/definitions/nullable_string"
+        },
+        "observed_at": {
+          "$ref": "#/definitions/nullable_datetime"
+        }
+      }
+    },
+    "occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index_work_id",
+        "page_number",
+        "ordinal",
+        "raw_date_value",
+        "interpreted_date",
+        "date_missing_reason",
+        "family_keys"
+      ],
+      "properties": {
+        "index_work_id": {
+          "description": "Empty only when extraction failed; the parser must retain the occurrence and record a missing_index_work_id parse error.",
+          "type": "string"
+        },
+        "page_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "raw_date_value": {
+          "$ref": "#/definitions/nullable_string"
+        },
+        "interpreted_date": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "date_missing_reason": {
+          "$ref": "#/definitions/nullable_string"
+        },
+        "family_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(arxiv|doi):.+$"
+          },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "interpreted_date": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "date_missing_reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "date_missing_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "parse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "interpreted_query",
+        "declared_total",
+        "capacity_echo",
+        "actual_count",
+        "position_in",
+        "position_out",
+        "parse_errors"
+      ],
+      "properties": {
+        "interpreted_query": {
+          "type": "string"
+        },
+        "declared_total": {
+          "$ref": "#/definitions/nullable_nonnegative_integer"
+        },
+        "capacity_echo": {
+          "$ref": "#/definitions/nullable_nonnegative_integer"
+        },
+        "actual_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "position_in": {
+          "$ref": "#/definitions/nullable_string"
+        },
+        "position_out": {
+          "$ref": "#/definitions/nullable_string"
+        },
+        "parse_errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "records": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index_work_ids",
+        "index_work_id_digest",
+        "occurrence_count",
+        "duplicate_occurrences",
+        "occurrence_ledger_path"
+      ],
+      "properties": {
+        "index_work_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "index_work_id_digest": {
+          "$ref": "#/definitions/sha256"
+        },
+        "occurrence_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate_occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "occurrence_ledger_path": {
+          "type": "string",
+          "pattern": "^[^/].*\\.json$"
+        }
+      }
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason_code",
+            "detail"
+          ],
+          "properties": {
+            "reason_code": {
+              "enum": [
+                "transport_error",
+                "status_not_200",
+                "empty_body",
+                "oversize_body",
+                "parse_error",
+                "actual_count_mismatch",
+                "capacity_echo_mismatch",
+                "interpreted_query_mismatch",
+                "silent_truncation",
+                "position_discontinuity",
+                "missing_index_work_id",
+                "outcome_unknown",
+                "digest_mismatch"
+              ]
+            },
+            "detail": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "page_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_type",
+        "identity",
+        "request",
+        "wal",
+        "response",
+        "quota",
+        "parse",
+        "records",
+        "failure"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "izanagi-axis1-search-page-evidence/v1"
+        },
+        "document_type": {
+          "const": "page_evidence"
+        },
+        "identity": {
+          "$ref": "#/definitions/identity"
+        },
+        "request": {
+          "$ref": "#/definitions/request"
+        },
+        "wal": {
+          "$ref": "#/definitions/wal"
+        },
+        "response": {
+          "$ref": "#/definitions/response"
+        },
+        "quota": {
+          "$ref": "#/definitions/quota"
+        },
+        "parse": {
+          "$ref": "#/definitions/parse"
+        },
+        "records": {
+          "$ref": "#/definitions/records"
+        },
+        "failure": {
+          "$ref": "#/definitions/failure"
+        }
+      }
+    },
+    "record_occurrence_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_type",
+        "registration_epoch",
+        "registration_commit",
+        "catalog_sha256",
+        "run_id",
+        "logical_query_id",
+        "leaf_query_id",
+        "index",
+        "primary_key_kind",
+        "occurrence_count",
+        "distinct_index_work_id_count",
+        "occurrences"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "izanagi-axis1-search-record-occurrence-ledger/v1"
+        },
+        "document_type": {
+          "const": "record_occurrence_ledger"
+        },
+        "registration_epoch": {
+          "const": "AX1-20260829-E1"
+        },
+        "registration_commit": {
+          "$ref": "#/definitions/registration_commit"
+        },
+        "catalog_sha256": {
+          "$ref": "#/definitions/sha256"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "logical_query_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "leaf_query_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "index": {
+          "$ref": "#/definitions/index"
+        },
+        "primary_key_kind": {
+          "const": "index_work_id"
+        },
+        "occurrence_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "distinct_index_work_id_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "occurrences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/occurrence"
+          }
+        }
+      }
+    },
+    "manifest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/definitions/sha256"
+        }
+      }
+    },
+    "bundle_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_type",
+        "registration_epoch",
+        "registration_commit",
+        "catalog_sha256",
+        "bundle_root",
+        "path_set_rule",
+        "excluded_paths",
+        "regular_file_paths",
+        "files"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "izanagi-axis1-search-bundle-manifest/v1"
+        },
+        "document_type": {
+          "const": "bundle_manifest"
+        },
+        "registration_epoch": {
+          "const": "AX1-20260829-E1"
+        },
+        "registration_commit": {
+          "$ref": "#/definitions/registration_commit"
+        },
+        "catalog_sha256": {
+          "$ref": "#/definitions/sha256"
+        },
+        "bundle_root": {
+          "const": "."
+        },
+        "path_set_rule": {
+          "const": "manifest paths == bundle regular files - {manifest.json, MANIFEST.sha256, README.md}"
+        },
+        "excluded_paths": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "manifest.json",
+              "MANIFEST.sha256",
+              "README.md"
+            ]
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "regular_file_paths": {
+          "description": "The exact regular-file path set after excluded_paths is subtracted; a cross-field checker equates this set with files[].path.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+          },
+          "uniqueItems": true
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/manifest_entry"
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

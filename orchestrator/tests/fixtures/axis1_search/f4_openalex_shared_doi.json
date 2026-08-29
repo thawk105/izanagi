@@ -1,0 +1,42 @@
+{
+  "group_by": [],
+  "meta": {
+    "cost_usd": 0.001,
+    "count": 2,
+    "db_response_time_ms": 1,
+    "groups_count": null,
+    "next_cursor": null,
+    "page": null,
+    "per_page": 200,
+    "x_query": {
+      "oql": "works where date <= (2026-12-31) and title has (fixture)",
+      "oqo": {
+        "filter_rows": [],
+        "get_rows": "works"
+      },
+      "url": "/works?filter=display_name.search:fixture&per_page=200&cursor=%2A"
+    }
+  },
+  "results": [
+    {
+      "display_name": "Fixture work 400001",
+      "doi": "https://doi.org/10.9999/shared",
+      "id": "https://openalex.org/W400001",
+      "ids": {
+        "doi": "https://doi.org/10.9999/shared",
+        "openalex": "https://openalex.org/W400001"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 400002",
+      "doi": "https://doi.org/10.9999/shared",
+      "id": "https://openalex.org/W400002",
+      "ids": {
+        "doi": "https://doi.org/10.9999/shared",
+        "openalex": "https://openalex.org/W400002"
+      },
+      "publication_date": "2026-08-01"
+    }
+  ]
+}
