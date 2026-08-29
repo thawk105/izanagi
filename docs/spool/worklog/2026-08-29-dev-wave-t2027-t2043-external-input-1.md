@@ -44,6 +44,12 @@ title: [T-2027] compiler input を根分類 + 根相対 path へ移し現 canoni
   helper 既定の 10.0 秒は他 11 呼び出しのために据え置いた。受理集合は不変で、真の hang には
   従来どおり fail-closed する。
 - **前 wave が中断した構造的理由**は {{F:hold-evidence-circularity}} に記録した。
+- **受入 attempt 1 で別の非帰属赤を 1 件引いた**。予算を広げた node は緑になり、代わりに
+  `test_mocc_g2_discriminator.py::test_transaction_watermark_surface_is_trace_guarded_and_post_store`
+  が落ちた (1 failed / 18846 passed / 67 skipped)。原因は本 wave の差分ではなく、
+  worktree ごとに submodule の object store が分かれていることだった。詳細は
+  {{F:worktree-submodule-missing-policy-oid}}。object を持ってきて復旧し、同 file 単独走
+  22 passed / rc=0 を確認してから受入を投げ直した。
 - **子の工数**: Codex `role=fix` 1 本 (`gpt-5.6-sol` / xhigh / workspace-write) で
   outcome=accepted、validator rc=0。子は login node の scheduler preflight 拒否で
   dispatch できず「implemented, not run」を正しく申告し、実測は親が行った。
@@ -85,3 +91,12 @@ title: [T-2027] compiler input を根分類 + 根相対 path へ移し現 canoni
   ため「治す」側へ抜けられたが、性質そのものが破れる node では抜け道が無い。
   受入 1 回分と wave 1 本を実際に失っているので、契約の境界をどう変えるかを裁定へ返す。
   詳細は {{F:hold-evidence-circularity}}。
+
+- {{T:witness-oid-provisioning}} **P2・新規・ユーザー裁定候補**:
+  `tools/pegasus/mocc_trace_v1_policy.json` の `mocc_trace.new_oid` は、pin 済み submodule commit
+  から到達せず、主 checkout の submodule にある push 済みでないローカル branch 1 本からしか
+  到達できない。worktree の submodule は object store が別で、init tool は仕様上 fetch しないため、
+  当該 oid の実在を assert するテストは**主 checkout でだけ通り、どの wave worktree でも落ちる**。
+  恒久策は (a) oid を pin 済み commit から到達可能にする、(b) init tool に provisioning を持たせる、
+  (c) witness を upstream へ出す、のいずれかで、外部 repo の扱いと受理集合に関わる。
+  テストを緩める案は採らない。詳細は {{F:worktree-submodule-missing-policy-oid}}。
