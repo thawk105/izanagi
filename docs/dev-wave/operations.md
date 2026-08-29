@@ -13,7 +13,7 @@ wait側`--receipt-file`はworker launcher receiptと別pathにする（同じpat
 完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
 `<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。
-`--artifact-root`の親を先に作る。出力は`<root>/<wave>/`だけ、親不在はrc=2。
+`--artifact-root`自身を先に作る。出力は`<root>/<wave>/`だけ、不在はrc=2。
 `--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。
 中断子は未完了と記して保全し、次の子に監査させる。
 
