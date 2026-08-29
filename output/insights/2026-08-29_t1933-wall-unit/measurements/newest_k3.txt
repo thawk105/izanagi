@@ -1,0 +1,40 @@
+9c62f3e9 08-29 02:36 shard0 wall=  204.8 host=bnode003 maxocc= 127.6(2it) gap=  77.2 ideal= 101.2 ncases=6299
+          126.6  orchestrator.tests.test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+          107.3  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          104.7  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+6fbbc43d 08-29 02:24 shard0 wall=  200.2 host=bnode001 maxocc= 122.6(2it) gap=  77.7 ideal= 104.2 ncases=6299
+          111.8  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          109.1  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+          105.5  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+96dd3976 08-29 02:05 shard0 wall=  224.3 host=bnode022 maxocc= 145.3(2it) gap=  78.9 ideal= 117.7 ncases=6277
+          120.5  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          118.3  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+          113.5  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+ef85f4f2 08-29 01:52 shard0 wall=  216.5 host=bnode007 maxocc= 141.1(3it) gap=  75.4 ideal= 113.5 ncases=6277
+          116.0  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          112.2  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+          108.9  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+204f307e 08-29 01:43 shard0 wall=  258.1 host=bnode010 maxocc= 158.7(5it) gap=  99.5 ideal= 119.4 ncases=6285
+          125.3  orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+          122.4  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          120.0  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+c575a368 08-29 00:07 shard0 wall=  232.6 host=bnode015 maxocc= 148.2(5it) gap=  84.5 ideal= 111.0 ncases=6263
+          119.4  orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+          113.1  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          110.2  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+44eb8970 08-28 23:05 shard0 wall=  232.6 host=bnode018 maxocc= 148.4(3it) gap=  84.2 ideal= 112.5 ncases=6263
+          116.1  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          112.9  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+          111.4  orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+9bf410d1 08-28 22:49 shard0 wall=  257.9 host=bnode021 maxocc= 177.4(5it) gap=  80.6 ideal= 112.6 ncases=6252
+          149.2  orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+          112.1  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          110.2  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+f0c6845b 08-28 22:42 shard0 wall=  326.0 host=bnode047 maxocc= 228.5(3it) gap=  97.5 ideal= 182.7 ncases=6252
+          190.7  orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+          177.9  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          175.7  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+3483b54b 08-28 22:40 shard0 wall=  379.5 host=bnode015 maxocc= 241.8(5it) gap= 137.7 ideal= 183.6 ncases=6263
+          213.8  orchestrator.tests.test_s8c_preregistration_invariant::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate
+          183.3  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+          180.7  orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
