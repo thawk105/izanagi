@@ -1,0 +1,13 @@
+critical shards analysed: 40 (K=3, newest first)
+LPT makespan reduction from zeroing the heaviest unit:
+   median +42.1 s   p90 +86.8 s   max +139.1 s
+from zeroing the 3 heaviest:  median +63.3 s
+from zeroing the 8 heaviest:  median +66.2 s
+plateau size (units within 25% of the heaviest): median 2  min 1  max 19
+implied fixed floor (shard wall - LPT makespan): median 143.4  min 68.7  max 354.8
+
+plateau membership by test file (unit-occurrences over 40 runs):
+      97  test_s8b_oracle_driver
+      36  s8c-preregistration-candidate
+      12  test_s8c_preregistration_predicates
+      10  test_s8b_floor_campaign

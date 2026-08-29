@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import errno
 import hashlib
 import json
 import os
@@ -1692,6 +1693,7 @@ def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> N
 
 def _submit_cli_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    *, create_base: bool = True,
 ) -> tuple[Path, Path, str]:
     policy, policy_sha = paired.load_policy()
     repo = tmp_path / "submit-repo"
@@ -1700,7 +1702,8 @@ def _submit_cli_fixture(
         source.parent.mkdir(parents=True, exist_ok=True)
         source.write_text(f"fixture source: {relative}\n", encoding="utf-8")
     base = (tmp_path / "measurement-submit").resolve()
-    base.mkdir()
+    if create_base:
+        base.mkdir()
     attempt = base / "attempt"
     head = "a" * 40
     monkeypatch.setattr(paired, "_repo_root", lambda: repo)
@@ -1719,6 +1722,352 @@ def _submit_cli_fixture(
 
     monkeypatch.setattr(paired, "_run_git", run_git)
     return repo, attempt, head
+
+
+def _stub_successful_submit(
+    monkeypatch: pytest.MonkeyPatch, calls: list[list[str]],
+) -> None:
+    def qsub(argv, *, cwd):
+        calls.append(list(argv))
+        return subprocess.CompletedProcess(argv, 0, "12345.nqsv\n", "")
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(
+        paired,
+        "_observe_qstat_visibility",
+        lambda request_id: {
+            "request_id": request_id,
+            "visible": True,
+            "state": "QUE",
+            "queue": "gen_S",
+            "observed_epoch": 2,
+        },
+    )
+
+
+def test_m1_submission_receipt_is_complete_before_final_path_is_visible(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: complete staged receipt bytes publish successfully.
+    Rejection implication: direct final-path writing cannot satisfy the publish boundary.
+    """
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    evidence = paired._attempt_evidence_paths(attempt)
+    submission_path = Path(evidence["submission_receipt"])
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+    real_rename = paired._renameat2_directory
+    publish_boundaries = []
+
+    def inspect_publish(staging, destination, flags):
+        if destination == submission_path:
+            raw = staging.read_bytes()
+            document = json.loads(raw)
+            assert staging != destination
+            assert not os.path.lexists(destination)
+            assert raw == paired._canonical_json_bytes(document)
+            assert set(document) == paired._SUBMISSION_RECEIPT_KEYS
+            assert flags == paired._RENAME_NOREPLACE
+            publish_boundaries.append((staging, destination))
+        return real_rename(staging, destination, flags)
+
+    monkeypatch.setattr(paired, "_renameat2_directory", inspect_publish)
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    assert len(publish_boundaries) == 1
+    assert len(qsub_calls) == 1
+    assert json.loads(submission_path.read_bytes())["request_id"] == "12345.nqsv"
+
+
+def test_m2_submission_receipt_publish_is_no_replace(
+    tmp_path: Path,
+) -> None:
+    """Acceptance implication: an unused final path accepts one complete receipt.
+    Rejection implication: an existing final path is never replaced by publication.
+    """
+    occupied = tmp_path / "occupied.submission.json"
+    occupied.write_bytes(b"existing receipt\n")
+    with pytest.raises(paired.PaperStoryError, match="no-replace"):
+        paired._publish_submission_receipt(occupied, {"value": "replacement"})
+    assert occupied.read_bytes() == b"existing receipt\n"
+
+    clean = tmp_path / "clean.submission.json"
+    paired._publish_submission_receipt(clean, {"value": "accepted"})
+    assert clean.read_bytes() == paired._canonical_json_bytes({"value": "accepted"})
+
+
+def test_m3_submit_rejects_existing_completion_before_intent_and_qsub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: a clean sibling attempt still submits successfully.
+    Rejection implication: an existing completion receipt blocks intent and qsub.
+    """
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    evidence = paired._attempt_evidence_paths(attempt)
+    Path(evidence["completion_receipt"]).write_text("stale\n", encoding="utf-8")
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+    with pytest.raises(paired.PaperStoryError, match="completion receipt already exists"):
+        paired.run_submit(SimpleNamespace(
+            expected_head=head, attempt_root=str(attempt),
+        ))
+    assert not paired._attempt_intent_path(attempt).exists()
+    assert qsub_calls == []
+
+    clean = attempt.with_name("clean-completion-positive")
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(clean),
+    )) == 0
+    assert len(qsub_calls) == 1
+
+
+def test_m4_submit_rejects_existing_stdout_before_intent_and_qsub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: a clean sibling attempt still submits successfully.
+    Rejection implication: an existing stdout path blocks intent and qsub.
+    """
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    evidence = paired._attempt_evidence_paths(attempt)
+    Path(evidence["stdout_path"]).write_text("stale\n", encoding="utf-8")
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+    with pytest.raises(paired.PaperStoryError, match="stdout already exists"):
+        paired.run_submit(SimpleNamespace(
+            expected_head=head, attempt_root=str(attempt),
+        ))
+    assert not paired._attempt_intent_path(attempt).exists()
+    assert qsub_calls == []
+
+    clean = attempt.with_name("clean-stdout-positive")
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(clean),
+    )) == 0
+    assert len(qsub_calls) == 1
+
+
+def test_m5_submit_rejects_existing_stderr_before_intent_and_qsub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: a clean sibling attempt still submits successfully.
+    Rejection implication: an existing stderr path blocks intent and qsub.
+    """
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    evidence = paired._attempt_evidence_paths(attempt)
+    Path(evidence["stderr_path"]).write_text("stale\n", encoding="utf-8")
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+    with pytest.raises(paired.PaperStoryError, match="stderr already exists"):
+        paired.run_submit(SimpleNamespace(
+            expected_head=head, attempt_root=str(attempt),
+        ))
+    assert not paired._attempt_intent_path(attempt).exists()
+    assert qsub_calls == []
+
+    clean = attempt.with_name("clean-stderr-positive")
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(clean),
+    )) == 0
+    assert len(qsub_calls) == 1
+
+
+def test_m6_submit_accepts_clean_evidence_namespace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: a wholly unused evidence namespace submits once.
+    Rejection implication: an unconditional freshness refusal fails this positive case.
+    """
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    evidence = paired._attempt_evidence_paths(attempt)
+    assert all(not os.path.lexists(path) for path in evidence.values())
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    assert len(qsub_calls) == 1
+    assert paired._attempt_intent_path(attempt).is_file()
+    assert Path(evidence["submission_receipt"]).is_file()
+
+
+def test_m7_submit_creates_missing_durable_base(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: submit creates a missing durable base before intent.
+    Rejection implication: omitting base creation prevents the first valid submit.
+    Positive example: a clean attempt below an absent base submits once.
+    """
+    _repo, attempt, head = _submit_cli_fixture(
+        tmp_path, monkeypatch, create_base=False,
+    )
+    assert not attempt.parent.exists()
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    assert attempt.parent.is_dir()
+    assert not attempt.exists()
+    assert paired._attempt_intent_path(attempt).is_file()
+    assert Path(
+        paired._attempt_evidence_paths(attempt)["submission_receipt"]
+    ).is_file()
+    assert len(qsub_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "rename_failure",
+    [
+        OSError(errno.EIO, "input/output error"),
+        paired.PaperStoryError("renameat2 no-replace is unavailable"),
+    ],
+    ids=("oserror", "paper-story-error"),
+)
+def test_submission_receipt_rename_failure_removes_owned_staging(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    rename_failure: Exception,
+) -> None:
+    """Acceptance implication: cleanup leaves the namespace reusable after failure.
+    Rejection implication: either rename failure path must remove its owned staging file.
+    Positive example: a later clean destination publishes after the failed attempt.
+    """
+    destination = tmp_path / "failed.submission.json"
+    staging = paired._submission_receipt_staging_path(destination)
+
+    def fail_rename(_staging, _destination, _flags):
+        raise rename_failure
+
+    with monkeypatch.context() as patch:
+        patch.setattr(paired, "_renameat2_directory", fail_rename)
+        with pytest.raises(paired.PaperStoryError):
+            paired._publish_submission_receipt(destination, {"value": "failed"})
+    assert not os.path.lexists(staging)
+    assert not os.path.lexists(destination)
+
+    clean = tmp_path / "clean-after-failure.submission.json"
+    paired._publish_submission_receipt(clean, {"value": "accepted"})
+    assert clean.read_bytes() == paired._canonical_json_bytes(
+        {"value": "accepted"}
+    )
+
+
+def test_submission_receipt_cleanup_preserves_replaced_staging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: owned staging cleanup remains available after failure.
+    Rejection implication: cleanup must not unlink a different inode at the staging path.
+    Positive example: an unrelated clean destination still publishes normally.
+    """
+    destination = tmp_path / "replaced.submission.json"
+    staging = paired._submission_receipt_staging_path(destination)
+    replacement = tmp_path / "foreign-staging"
+    replacement.write_bytes(b"foreign staging\n")
+
+    def replace_then_fail(active_staging, _destination, _flags):
+        active_staging.unlink()
+        replacement.rename(active_staging)
+        raise paired.PaperStoryError("renameat2 no-replace is unavailable")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(paired, "_renameat2_directory", replace_then_fail)
+        with pytest.raises(
+            paired.PaperStoryError, match="staging cleanup identity differs",
+        ):
+            paired._publish_submission_receipt(destination, {"value": "failed"})
+    assert staging.read_bytes() == b"foreign staging\n"
+
+    clean = tmp_path / "clean-after-replacement.submission.json"
+    paired._publish_submission_receipt(clean, {"value": "accepted"})
+    assert clean.is_file()
+
+
+def test_submit_rejects_foreign_staging_before_intent_and_qsub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: removing a foreign staging collision permits submit.
+    Rejection implication: an existing unowned staging path blocks intent and qsub.
+    Positive example: the same clean attempt submits once after the collision is removed.
+    """
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    evidence = paired._attempt_evidence_paths(attempt)
+    staging = paired._submission_receipt_staging_path(
+        Path(evidence["submission_receipt"])
+    )
+    staging.write_bytes(b"foreign staging\n")
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+
+    with pytest.raises(
+        paired.PaperStoryError, match="submission receipt staging already exists",
+    ):
+        paired.run_submit(SimpleNamespace(
+            expected_head=head, attempt_root=str(attempt),
+        ))
+    assert not paired._attempt_intent_path(attempt).exists()
+    assert qsub_calls == []
+
+    staging.unlink()
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    assert len(qsub_calls) == 1
+
+
+def test_submit_accepts_clean_evidence_and_staging_namespace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: unused evidence and staging paths permit one submit.
+    Rejection implication: a blanket staging refusal would reject this clean namespace.
+    Positive example: the clean attempt creates intent and a final receipt once.
+    """
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    evidence = paired._attempt_evidence_paths(attempt)
+    staging = paired._submission_receipt_staging_path(
+        Path(evidence["submission_receipt"])
+    )
+    assert all(not os.path.lexists(path) for path in evidence.values())
+    assert not os.path.lexists(staging)
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    assert len(qsub_calls) == 1
+    assert paired._attempt_intent_path(attempt).is_file()
+    assert Path(evidence["submission_receipt"]).is_file()
+    assert not os.path.lexists(staging)
+
+
+def test_submit_accepts_name_max_submission_basename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Acceptance implication: a valid NAME_MAX final receipt name remains submittable.
+    Rejection implication: staging suffix growth must not reject that valid final name.
+    Positive example: an ASCII attempt at the final-name boundary submits once.
+    """
+    _repo, seed_attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    final_suffix = ".submission.json"
+    name_max = os.pathconf(seed_attempt.parent, "PC_NAME_MAX")
+    attempt = seed_attempt.with_name("a" * (name_max - len(final_suffix)))
+    evidence = paired._attempt_evidence_paths(attempt)
+    submission = Path(evidence["submission_receipt"])
+    staging = paired._submission_receipt_staging_path(submission)
+    assert len(os.fsencode(submission.name)) == name_max
+    assert len(os.fsencode(staging.name)) <= name_max
+    qsub_calls: list[list[str]] = []
+    _stub_successful_submit(monkeypatch, qsub_calls)
+
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    assert len(qsub_calls) == 1
+    assert submission.is_file()
+    assert not os.path.lexists(staging)
 
 
 def test_submit_create_only_intent_precedes_qsub_and_receipt(

@@ -1328,6 +1328,19 @@
   収集側で再現する。恒久対応 1 の「実測で照合し既実行なら stale と裁定する」を、
   wave の brief だけでなく **rulings の台帳走査にも適用する**。実際に適用した結果、
   真に未着手だったのは 3 件 (F35 項 2 / F36 項 2 / F472) だけだった。
+
+- **再発: 2026-08-29** — [T-1819] (2026-08-26 起票) の依頼文が、同日 land した [T-2006] によって
+  既に実装済みの機構を「無く、投入経路が塞がっている」と主張し続けた。従来の 3 形態
+  (承認記録側の照合漏れ / 起票から投入までの約 12 時間差 / 完了節への自 ID 明示漏れ) と異なる
+  新しい角度は、**既裁定が 2 つの task item を 1 つの変更単位へ併合したのに、完了節が
+  どちらの ID も閉じなかった**ことにある。D1028 が「A-1 の投入は非認証成果物型と投入器を
+  1 つの変更単位で作る」と定め、[T-2006] は実際にその両方を実装したが、次の一手台帳では
+  [T-1818] (型) と [T-1819] (投入器) の**両方が stale carry のまま**残った。carry stub
+  `- [T-NNN] (N)` は本文を持たないため、描画された worklog を読む限り前提の陳腐化は見えない。
+  検出は dev-wave 段 1 の前提実測 (`DW-S01`) で、実装子を 1 本も起動する前に止まった。
+  恒久対応 1 は今回も投入前の防壁として機能したが、**併合された相方 ([T-1818]) は
+  本 wave の scope 外**であり、本 wave では `更新` として要照合を記録するに留めた。
+  機械防壁は無いままである。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -8577,6 +8590,47 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `133.54 / 92.32 / 60.27`、並行 `codex_worker_launch.py run` は 4 本だった。原因は未確定のまま、
   ユーザー指示により exact-node hold を先行し、後続で原因分析・修理・再導入する。registry validator は
   evidence section に exact function 名を要求するため、D95 author は本再発の fold 前には正しく停止した。
+
+- **再発ではなく解消の記録: 2026-08-29** — 2026-08-28 の再発
+  (`test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]` が
+  空 stdout の `JSONDecodeError` で落ちた件) について、**空 stdout を生む経路を実測で特定し、
+  その経路を閉じた。** 機序はこうである。checker の判定表は `schema_version` が 4 / 5 の
+  ときだけ `preparation_wall_clock_s` と `finalization_wall_clock_s` を引き、
+  v1 / v2 / v3 では **launcher プロセス全体の実時間**をそのまま
+  `wall_clock_admission_bound_s` と比べる。互換テストの上限は 3 秒だった。
+  同一 receipt の `actuals.wall_clock_s` **だけ**を変えた 7 点の制御実験で、
+  3.0 秒までは rc=0 で 202 byte の JSON、3.001 秒からは rc=2・stdout 0 byte・
+  stderr `NG: receipt truth table が不正` になることを確かめた。無負荷の計算ノードでの
+  内訳は attempt 0.211 秒・全体 0.681 秒で、差の 0.470 秒 (全体の 69%) が
+  引き算されない準備・後始末である。実受入負荷下では準備だけで 1.926 秒、全体 5.290 秒に
+  達した実測が別 wave の failure archive に残っていた
+  (`0-948382.nqsv--bnode033`、2026-08-26、v4 receipt)。
+- **原因確定ではなく再現である。** T-1958 の赤の junit は残っており `s = ''` で stdout が
+  空だったことは確定するが、`checked.stderr` と当時の receipt は残っていない。
+  `NG: receipt truth table が不正` は複数の述語が共有する最終例外なので、同じ stderr を
+  再現しても経路を一意に識別しない。当該 node の junit `time` は 5.368 秒で、
+  `acceptance_duration_ledger.json` の公称 1.3 秒に対し 4.1 倍という状況証拠が加わるだけである。
+- 恒久対応は 2 つある。第一に、この赤が長く診断不能だった直接の原因は、テストが
+  `json.loads(checked.stdout)` を `assert checked.returncode == 0, checked.stderr` より
+  **先**に置いていたことである。rc と stderr が捨てられ JSONDecodeError だけが残っていた。
+  該当 2 箇所の順序を入れ替えた (`orchestrator/tests/test_codex_worker_launch.py` の
+  `test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectations` と
+  `test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics`)。
+  第二に、露出する 3 関数 (v1 / v2 / v3 の各 2 param、計 6 node) の fixture 上限を
+  10 秒 subprocess watchdog より大きい値へ上げ、**測定値は 1 byte も書き換えずに**
+  admission 上限を判定の律速から外した。予算変更が効いていることは、receipt 上限が
+  watchdog 秒数を上回るという定数比較の assert が固定する。
+  上限超過の legacy receipt がなお拒否されることは、新設した決定的な
+  `at-bound` / `over-bound` の 2 node が両側から固定する。
+- **修理後の再発検知条件を署名別に分ける。** legacy 降格後の truth-table rejection
+  (`NG: receipt truth table が不正`) が上記 6 node で再び出た場合、**単独再走が緑でも
+  負荷 flake と断じてはならない。** 修理差分からの到達性、checker の stderr 本文、receipt の
+  総 wall・phase wall・attempt wall を検査する。従来の「単独再走が緑なら差分へ帰属させない」
+  条件は、child pid・manifest・producer の max-wall 系の署名に限って残す。
+- **本 wave が閉じたのは、accepted v5 receipt を v1 / v2 / v3 へ降格して検査する
+  legacy 6 node の 3 秒 admission 経路だけである。** launcher と checker の 10 秒 watchdog、
+  child pid の 2 秒 deadline、manifest 観測の 3 秒、late rollout の 3 秒、fake barrier の 5 秒は
+  残存する。file 全体の flake 解消は主張しない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -13328,6 +13382,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   母集合と除外を再現コマンドで確かめる」を含める。本 wave では段 2 の子と
   段 3 レンズ B が実際にこの検査で 3 件を検出し、並行セッションが 1 件を検出した。
 
+
+- **再発: 2026-08-29** — 受入 wall の律速同定で、親が `collections.Counter` の
+  `most_common(8)` 出力をそのまま「最 busy worker の item 数分布」として引用した。
+  484 走のうち 209 走しか写っておらず、実際の分布は中央値 72 の二峰性で、
+  「2〜5 node」が成り立つのは K=3 の直近 117 走に限られていた。段 3 レンズが
+  「合計は 209 で 275 走が未記載」と指摘し、全件列挙で確認して訂正した。
+  同じ走で universe 件数を `login-collection.log` の行数 18,954 と取り違え
+  (実際は `observed_universe` の 18,895)、collection 回数から login collection 1 回を落として
+  144 回と書いた。いずれも母集合と除外を 1 行で言わずに数値を出した F473 の型である。
+  F473 の恒久対応 (memory `tool-filtered-view-is-not-the-total`) を変更しない。
 ### F474. registry の期待表を literal 複製する consumer が識別子 grep から漏れた [手順漏れ] [テスト代表性]
 
 - 事象: 親は保留 registry を編集する前に pin 閉包を監査し、`key_sha256` /
@@ -16931,6 +16995,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   自分の wave のものでないなら本件である。単独再走で緑になり、
   `git worktree list` の顔ぶれが投入前後で変わっていることで裏が取れる。
 
+
+- **再発: 2026-08-29** — 掃除側で踏んだ。棚卸しで作った撤去リスト 56 本のうち **24 本が、
+  実行が対象へ到達する前に別 session の撤去で消えていた** (`git worktree list` は走行中に
+  116 → 61 本へ動き、私自身の撤去は 32 本、branch 削除は 0 件)。本件は F633 の未実施対応が
+  挙げる「生きた登録でなく走行開始時の snapshot を読む形へ変えれば構造的に閉じる」を反証する。
+  snapshot は列挙時点の一貫性を与えるだけで、列挙から個々の対象へ着手するまでの窓
+  (本件は数十分) を閉じない。閉じたのは対象ごとの実行直前検査
+  `tools/check_worktree_occupancy.py` で、消えた対象に `status=invalid-target` (rc=2) を返し、
+  detach と削除の前で fail-closed した。裁定に要るのは snapshot 化ではなく、
+  一括操作の各要素へ実行直前の再検査を義務づける形である。
 ### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
 
 - 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
@@ -19199,3 +19273,71 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 関門が要求する実在 path のうち、producer が同じ処理の中で削除・改名する場所に
   属するものが 1 件でもあること。cold cache の 1 回走行を positive control として、
   受領書発行段まで到達するかで判定する。
+
+### F755. 導出していない境界の向きを、結論を否定する含意として使った [捏造/幻覚] [計測汚染]
+
+- 事象: 受入 wall の律速同定で、親が境界の向きを 2 箇所で取り違えた。
+  1. `wall − max_occ` を「全 worker がテストを走らせていない時間の**下限**」と brief と
+     measurements へ書いた。実際は**上界**である。`tools/acceptance_shards.py` の
+     `worker_occupancy` は phase の duration を node ごとに加算するだけで、全 worker の phase
+     区間の和集合は必ず max_occ 以上になる。`orchestrator/tests/conftest.py` の real-repo lock 待ちが
+     `yield` の外側にあることも見ていなかった。
+  2. 反実仮想の LPT 詰め直しについて「LPT は最適 makespan の近似なので、実 scheduler の
+     makespan はこれ以上になる。したがって LPT でも縮まないなら実 scheduler でも縮まない」と書いた。
+     LPT makespan は実行可能解であって下界ではなく、xdist の動的補充 scheduler との大小関係は
+     定まらない。段 3 の 2 レンズが独立に同じ反例を構成した。
+  どちらも「単一処理は wall を決めていない」という結論の**主根拠**として使っていた。
+  結論自体は `makespan >= 最長 unit の所要` という定理へ置き換えて維持できたが、
+  置き換えるまでの根拠は誤りだった。
+- 根本原因: 不等号の向きを一度も導出せず、直観の言い換えで進めた。1 は
+  「差分だから下限だろう」、2 は「近似アルゴリズムだから下界だろう」という語感である。
+  どちらも 2 行の導出で判定できた。数値の母集合を確かめる規律 (F473) は数値には効いたが、
+  **数値ではなく関係の向き**には発火していない。
+- 恒久対応: memory `bound-direction-must-be-derived-not-assumed`
+  (上界・下界・単調性・含意の向きを結論の根拠に使うときは、値を出す前にその向きを 2 行で導出して
+  併記する。導出できないなら向きに依存しない量へ言い換える)。
+  本件では `wall − max_occ` を上界と明示し、反実仮想を
+  `makespan >= 最長 unit` という向きの要らない定理へ置き換えた。
+- 再発検知: 敵対レビューのレンズに「親が使った不等号・含意それぞれについて、
+  向きの導出が本文にあるかを確かめ、無ければ反例を構成する」を含める。
+  本 wave では段 3 の両レンズが実際にこの検査で 2 件とも検出した。
+
+### F756. 腐らない入口のはずの stale 注記が、同じ日のうちに偽になった [ドリフト]
+
+- 事象: `docs/paper-story/README.md` の「最新スナップショット以後に確定したこと」は、凍結
+  スナップショットが腐ることに対する腐らない入口として置かれている。その C-4 注記
+  (2026-08-27) が「登録であって実行ではない — 本検索は 1 本も走らせていない。」と書いたが、
+  同じ 2026-08-27 の worklog 1049 [T-1969] が事前登録検索を実行し、DBLP 12 枝が完走、
+  arXiv 6 枝で 2 走目の主キー digest 一致まで取っていた。**注記は書かれた日のうちに偽になり、
+  2 日後の本 wave が別件 (A-2) の調査中に偶然見つけるまで、誰も検知しなかった。**
+- 根本原因: 注記機構は「スナップショットが腐る」ことだけを想定し、**注記自身が腐ることを
+  想定していない**。注記には base commit も digest も紐づいておらず、後続 wave が同じ主題を
+  進めても注記の再照合が発火しない。注記を書いた wave と実行した wave が同日並行だったため、
+  どちらも相手の成果を見ていない。
+- 恒久対応: 本 wave では機構を足さない (`DW-G05` の要求外実装禁止、および同型の独立 2 例が
+  未確認のため `DW-G03` の族一般化条件を満たさない)。当面の防壁は、注記の主題を進める wave が
+  着手時に同主題の既存注記を読み直す規律 —
+  `CLAUDE.md`「絶対規律 7」の「測定時点の事実と現行コードへの適合を分ける」と、
+  memory `rulings-must-match-decisions-by-subject` (既裁定照合は T-ID でなく主題でやる) が
+  既に同じ向きを指している。注記本文の是正は
+  [T-2080] が負う。**同型が別の producer で
+  もう 1 件再現したら、注記への base 束縛か再照合 gate を裁定パッケージへ送る。**
+- 再発検知: 注記の主題を進める wave の段 1 で、同主題の既存注記の本文を一次資料へ突き合わせる
+  (現状は人手。機械検査は未実装であり、恒真な保証として数えない)。
+
+### F757. 段 6 の fix 変異を登録する時期が定められておらず、実装後に登録した [手順漏れ]
+
+- 事象: [T-1819] wave で、段 6 の敵対レビューが real / must-fix と裁定した 3 件 (staging の
+  後始末欠落、staging 衝突による過剰拒否、staging basename の長さ上限) について、
+  親はそれを殺す変異を fix 子へ指示を出す時点で登録できたのに登録せず、fix の実装が済んだ後に
+  登録した。結果は 3 件とも KILLED だったが、実装を見てから変異を選んだ以上、
+  実装前に登録した 7 件と同じ重みの証拠にはならない。
+- 根本原因: `docs/dev-wave/mutation.md` の `DW-M01` は「段 4 で B-057 の変異を実装前に登録する」
+  としか書いておらず、**段 6 で新たに real と裁定した所見の変異をいつ登録するか**を定めていない。
+  段 4 の時点では存在しない所見なので、段 4 の規則だけでは射程外になる。
+- 恒久対応: 未実施。`DW-M01` へ「段 6 で real と裁定した所見の変異は、fix 子を起動する前に
+  登録する」を統合する案を段 8 の routing へ送った。dev-wave docs の byte 予算に収まるかの
+  判定が要るため、本 wave では実装せずユーザー裁定へ返す。
+- 再発検知: 段 7 の記録で、変異の登録時期を「事前登録」と「事後登録」に分けて書く。
+  分けずに合算した件数だけを書いた wave が再発である。本 wave の worklog エントリと
+  `stage4-ruling-addendum3.md` が最初の実施例。
