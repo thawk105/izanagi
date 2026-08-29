@@ -1,0 +1,31 @@
+K=2: n=293 non-critical shards
+   item count range 7531 - 9335
+   floor median 50.2  IQR 47.7 - 52.3
+   floor ~ items: slope 0.00675 s/item  intercept -4.4  r 0.569
+   floor by item-count bucket:
+       7500 items  n=  4  median floor   45.9
+       7600 items  n= 32  median floor   45.7
+       7700 items  n= 26  median floor   46.8
+       7800 items  n=  9  median floor   47.4
+       7900 items  n= 16  median floor   47.3
+       8000 items  n= 38  median floor   48.3
+       8100 items  n= 12  median floor   50.3
+       8200 items  n= 10  median floor   50.1
+       8300 items  n= 49  median floor   50.3
+       8400 items  n=  7  median floor   51.0
+       8500 items  n= 11  median floor   51.1
+       8600 items  n= 29  median floor   52.2
+       8700 items  n= 38  median floor   52.6
+       8800 items  n=  8  median floor   52.5
+
+K=3: n=382 non-critical shards
+   item count range 5818 - 6298
+   floor median 53.4  IQR 52.1 - 55.4
+   floor ~ items: slope 0.00468 s/item  intercept 26.6  r 0.112
+   floor by item-count bucket:
+       5800 items  n=  4  median floor   49.5
+       5900 items  n= 74  median floor   51.3
+       6000 items  n= 82  median floor   52.1
+       6100 items  n= 50  median floor   52.6
+       6200 items  n=120  median floor   54.1
+       6300 items  n= 52  median floor   55.4

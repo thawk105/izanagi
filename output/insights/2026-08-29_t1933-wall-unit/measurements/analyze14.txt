@@ -1,0 +1,70 @@
+(a) items on the busiest worker of the wall-setting shard, ALL 484 runs:
+        2 items :  82 runs
+        3 items :  63 runs
+        5 items :  58 runs
+        6 items :   2 runs
+        7 items :   1 runs
+        8 items :   1 runs
+        9 items :   1 runs
+       17 items :   1 runs
+       23 items :   1 runs
+       29 items :   2 runs
+       31 items :   1 runs
+       33 items :   1 runs
+       34 items :   1 runs
+       36 items :   1 runs
+       37 items :   1 runs
+       38 items :   1 runs
+       39 items :   1 runs
+       40 items :   2 runs
+       45 items :   1 runs
+       48 items :   1 runs
+       53 items :   1 runs
+       54 items :   1 runs
+       55 items :   1 runs
+       56 items :   1 runs
+       58 items :   1 runs
+       64 items :   1 runs
+       65 items :   1 runs
+       66 items :   1 runs
+       70 items :   1 runs
+       72 items :  61 runs
+       73 items :   1 runs
+       74 items : 120 runs
+       75 items :   4 runs
+       76 items :  41 runs
+       79 items :   1 runs
+       80 items :   1 runs
+       81 items :   1 runs
+       83 items :   1 runs
+       84 items :   2 runs
+       89 items :   1 runs
+       90 items :   1 runs
+       92 items :   1 runs
+       93 items :   1 runs
+       95 items :   1 runs
+       98 items :   1 runs
+       99 items :   2 runs
+      104 items :   1 runs
+      106 items :   2 runs
+      110 items :   1 runs
+      114 items :   1 runs
+      118 items :   1 runs
+      132 items :   1 runs
+      136 items :   1 runs
+      172 items :   1 runs
+      180 items :   1 runs
+      327 items :   1 runs
+    total 484 (must equal 484)
+    median 72.0
+
+(b) non-critical shard floor (wall - max_occ), K=3, newest 60 runs:
+    shard-1 n=60  min 52.7  p25 54.6  median 55.1  p75 56.2  max 78.7
+    shard-2 n=60  min 53.1  p25 54.4  median 54.9  p75 55.6  max 67.0
+
+(c) unit-duration frontier of the wall-setting shard, hold-active runs only
+    (makespan >= longest unit is a theorem; no scheduling model needed)
+    9c62f3e9 wall= 204.8  max_occ= 127.6  units>=97s: 11  units>=77s: 11  top5: 126.6 107.3 104.7 100.7 99.5
+    6fbbc43d wall= 200.2  max_occ= 122.6  units>=97s: 10  units>=77s: 12  top5: 111.8 109.1 105.5 104.9 103.8
+    96dd3976 wall= 224.3  max_occ= 145.3  units>=97s: 10  units>=77s: 20  top5: 120.5 118.3 113.5 113.0 112.7
+    ef85f4f2 wall= 216.5  max_occ= 141.1  units>=97s: 10  units>=77s: 22  top5: 116.0 112.2 108.9 107.4 107.2

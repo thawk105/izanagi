@@ -13328,6 +13328,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   母集合と除外を再現コマンドで確かめる」を含める。本 wave では段 2 の子と
   段 3 レンズ B が実際にこの検査で 3 件を検出し、並行セッションが 1 件を検出した。
 
+
+- **再発: 2026-08-29** — 受入 wall の律速同定で、親が `collections.Counter` の
+  `most_common(8)` 出力をそのまま「最 busy worker の item 数分布」として引用した。
+  484 走のうち 209 走しか写っておらず、実際の分布は中央値 72 の二峰性で、
+  「2〜5 node」が成り立つのは K=3 の直近 117 走に限られていた。段 3 レンズが
+  「合計は 209 で 275 走が未記載」と指摘し、全件列挙で確認して訂正した。
+  同じ走で universe 件数を `login-collection.log` の行数 18,954 と取り違え
+  (実際は `observed_universe` の 18,895)、collection 回数から login collection 1 回を落として
+  144 回と書いた。いずれも母集合と除外を 1 行で言わずに数値を出した F473 の型である。
+  F473 の恒久対応 (memory `tool-filtered-view-is-not-the-total`) を変更しない。
 ### F474. registry の期待表を literal 複製する consumer が識別子 grep から漏れた [手順漏れ] [テスト代表性]
 
 - 事象: 親は保留 registry を編集する前に pin 閉包を監査し、`key_sha256` /
@@ -18932,6 +18942,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   帰属は main 単独で再現するかで決める — 本件は main (`98f61815c`) 単独の job `952631` が
   62 秒で**本文・失敗段ともに一致**する赤を出したため、wave の回帰ではないと確定した。
 - 再発検知: 撤去 wave の終端実測が、撤去対象と無関係な段で落ちること。
+- **supersede: 2026-08-29** — 「同日中に環境か main が変わった」の未特定部分を特定した。環境ではなく main で、`0bc33ba8f` (2026-08-27 06:19) が `_external_entry` を新規導入したことが原因である。あわせて、この赤は cache 再利用の条件付きではなく無条件であり、cold cache の初回実行でも落ちる (F754)。
 
 ### F732. 同じ値域を複数 module が実装して食い違った [ドリフト] [手順漏れ]
 
@@ -19173,3 +19184,56 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: DW-O17の「赤なら止める」を、複数commandを含むshellの終了制御へ写像していなかった。
 - 恒久対応: `docs/dev-wave/operations.md` DW-O17へcompound shellの先頭`set -e`、またはtool call分離を追加した。
 - 再発検知: commit前tool callの先頭と実行結果を確認し、preflight非0後にHEADが進んでいないことを照合する。
+
+### F754. 検証が要求する入力を、その入力を記録した producer 自身が検証前に削除していた [ドリフト] [手順漏れ]
+
+- 事象: 床値実測の主経路が binary admission receipt の発行段で
+  `compiler input manifest の完全検証に失敗: external compiler input is unavailable` で落ち続けた。
+  cache 再利用の副作用と読まれていたが、実測では **cache が空の初回実行でも落ちる**。
+  記録された入力 588 件のうち 38 件が、1 回の実行かぎりで消える場所の絶対 path だった
+  (build cache の作業用 directory `.staging-<PID>-<nonce>/_deps/…` が 31 件、
+  job 専用作業領域 `/scr/0_<jobid>.nqsv/{gflags,glog}-install/include/…` が 7 件)。
+- 根本原因: 記録側と検証側が別の生存期間を前提にしていた。`buildcache.py:2690-2712` は
+  compiler input manifest を `completion.json` へ確定した**直後に**
+  `_discard_build_dir(staging)` で作業用 directory を破棄し、その後 publish する。
+  一方 `s8b_compiler_input.py:632-639` の検証は、記録された全 path を
+  `resolve(strict=True)` で再解決することを要求する。**producer が消した path を
+  consumer が実在要求する**構図なので、関門は原理的に一度も通らない。
+  `_external_entry` を導入した `0bc33ba8f` は、この検証を追加した際に主経路を
+  実機で最後まで通しておらず、次の実投入 (同日 14:02) で初めて露出した。
+- 恒久対応: D1192 が是正の正本 (根の分類 + 根相対 path + 使用時の再束縛)。ただし裁定文は
+  build cache 側の 1 クラスしか名指ししていないため、job 専用作業領域を含む 2 クラスへ
+  射程を広げるかをユーザー裁定へ返した ([T-2027])。手順面は `DW-G01` の生死実験先行に加え、
+  F731 の恒久対応「関門 X を外せば主経路が通るを実装だけで閉じない。外した後に実機で
+  最後まで通すことを終端条件にする」を、**関門を足す変更にも同じく適用する**。
+- 再発検知: 関門が要求する実在 path のうち、producer が同じ処理の中で削除・改名する場所に
+  属するものが 1 件でもあること。cold cache の 1 回走行を positive control として、
+  受領書発行段まで到達するかで判定する。
+
+### F755. 導出していない境界の向きを、結論を否定する含意として使った [捏造/幻覚] [計測汚染]
+
+- 事象: 受入 wall の律速同定で、親が境界の向きを 2 箇所で取り違えた。
+  1. `wall − max_occ` を「全 worker がテストを走らせていない時間の**下限**」と brief と
+     measurements へ書いた。実際は**上界**である。`tools/acceptance_shards.py` の
+     `worker_occupancy` は phase の duration を node ごとに加算するだけで、全 worker の phase
+     区間の和集合は必ず max_occ 以上になる。`orchestrator/tests/conftest.py` の real-repo lock 待ちが
+     `yield` の外側にあることも見ていなかった。
+  2. 反実仮想の LPT 詰め直しについて「LPT は最適 makespan の近似なので、実 scheduler の
+     makespan はこれ以上になる。したがって LPT でも縮まないなら実 scheduler でも縮まない」と書いた。
+     LPT makespan は実行可能解であって下界ではなく、xdist の動的補充 scheduler との大小関係は
+     定まらない。段 3 の 2 レンズが独立に同じ反例を構成した。
+  どちらも「単一処理は wall を決めていない」という結論の**主根拠**として使っていた。
+  結論自体は `makespan >= 最長 unit の所要` という定理へ置き換えて維持できたが、
+  置き換えるまでの根拠は誤りだった。
+- 根本原因: 不等号の向きを一度も導出せず、直観の言い換えで進めた。1 は
+  「差分だから下限だろう」、2 は「近似アルゴリズムだから下界だろう」という語感である。
+  どちらも 2 行の導出で判定できた。数値の母集合を確かめる規律 (F473) は数値には効いたが、
+  **数値ではなく関係の向き**には発火していない。
+- 恒久対応: memory `bound-direction-must-be-derived-not-assumed`
+  (上界・下界・単調性・含意の向きを結論の根拠に使うときは、値を出す前にその向きを 2 行で導出して
+  併記する。導出できないなら向きに依存しない量へ言い換える)。
+  本件では `wall − max_occ` を上界と明示し、反実仮想を
+  `makespan >= 最長 unit` という向きの要らない定理へ置き換えた。
+- 再発検知: 敵対レビューのレンズに「親が使った不等号・含意それぞれについて、
+  向きの導出が本文にあるかを確かめ、無ければ反例を構成する」を含める。
+  本 wave では段 3 の両レンズが実際にこの検査で 2 件とも検出した。

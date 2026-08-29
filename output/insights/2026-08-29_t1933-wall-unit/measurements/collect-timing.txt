@@ -1,0 +1,4 @@
+collect-only run 1: wall 42.78 s  maxrss 265984 KB
+collect-only run 2: wall 16.16 s  maxrss 240188 KB
+collect-only run 3: wall 11.37 s  maxrss 240052 KB
+import pytest only: wall 0.16 s
