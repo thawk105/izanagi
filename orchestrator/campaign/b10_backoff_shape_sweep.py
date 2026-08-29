@@ -88,16 +88,17 @@ PREREG_REL = "docs/b10-backoff-shape-preregistration.md"
 MARKER_ID = "silo-backoff-magnitude"
 EXPECTED_PATCH_PATHS = frozenset({OPTIONS_REL, SOURCE_REL})
 MEANS_US = (2, 5, 10, 25, 50, 100)
-SHAPES = (("constant", 0), ("symmetric-modulo", 1), ("binary", 2))
+SHAPES = (("constant", 0), ("symmetric-modulo", 1))
 SHAPE_CODES = {name: code for name, code in SHAPES}
 SHAPE_NAMES = {code: name for name, code in SHAPES}
+POINTS_PER_BLOCK = 3 + len(MEANS_US) * len(SHAPES)
 BLOCK_IDS = ("block-1", "block-2", "block-3")
 THREADS = 48
 EXTIME = 3
 REPS = 5
 RUN_PHASES = ("build", "verify", "perf", "probe")
 PROBE_CALLS_PER_CELL = 100_000
-PROBE_SCHEMA = "izanagi-b10-backoff-shape-probe/v1"
+PROBE_SCHEMA = "izanagi-b10-backoff-shape-probe/v2"
 MIXER = 0x9E3779B97F4A7C15
 _MASK64 = (1 << 64) - 1
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
@@ -150,7 +151,7 @@ B10_BUILD_START_BINDING_KEY = "b10_preregistration_binding"
 _WAL_BINDING_LOCK = threading.Lock()
 _SPEC_BEGIN = "<!-- IZANAGI-B10-SPEC-BEGIN -->"
 _SPEC_END = "<!-- IZANAGI-B10-SPEC-END -->"
-_SPEC_SCHEMA = "izanagi-b10-backoff-shape-preregistration/v3"
+_SPEC_SCHEMA = "izanagi-b10-backoff-shape-preregistration/v4"
 _SPEC_BLOCK_RE = re.compile(
     re.escape(_SPEC_BEGIN)
     + r"[ \t]*\r?\n```json[ \t]*\r?\n(.*?)\r?\n```[ \t]*\r?\n"
@@ -219,6 +220,7 @@ class PreregistrationSpec:
     spec_sha256: str
     patch_sha256: str
     formula_sha256: str
+    registration_rules: tuple[tuple[str, str], ...]
     means_us: tuple[int, ...]
     shapes: tuple[tuple[str, int, str], ...]
     references: tuple[tuple[str, int, int], ...]
@@ -252,6 +254,7 @@ class PreregistrationSpec:
     decision_procedure: tuple[str, ...]
     physical_residual_measurement: str
     maximum_absolute_deviation_pct_exclusive: float
+    physical_residual_provenance: tuple[tuple[str, str | int], ...]
     physical_residual_values: tuple[tuple[str, int, float, float, float], ...]
     reference_width_terminology: str
     reference_width_power_guarantee: bool
@@ -527,8 +530,11 @@ def factorial_genomes() -> tuple[tuple[str, Genome], ...]:
 
 def named_genomes() -> tuple[tuple[str, Genome], ...]:
     points = reference_genomes() + factorial_genomes()
-    if len(points) != 21 or len({genome.canonical() for _name, genome in points}) != 21:
-        raise AssertionError("B10 genome grid must contain exactly 21 unique points")
+    if len(points) != POINTS_PER_BLOCK \
+            or len({genome.canonical() for _name, genome in points}) != POINTS_PER_BLOCK:
+        raise AssertionError(
+            f"B10 genome grid must contain exactly {POINTS_PER_BLOCK} unique points",
+        )
     return points
 
 
@@ -549,8 +555,11 @@ def block_run_order(block_id: str) -> tuple[str, ...]:
         offset = (block_index + mean_index) % len(shape_names)
         rotated = shape_names[offset:] + shape_names[:offset]
         order.extend(f"{shape}-mu{mean_us}" for shape in rotated)
-    if len(order) != 21 or set(order) != {name for name, _genome in named_genomes()}:
-        raise AssertionError("B10 block order must be a permutation of all 21 points")
+    if len(order) != POINTS_PER_BLOCK \
+            or set(order) != {name for name, _genome in named_genomes()}:
+        raise AssertionError(
+            f"B10 block order must be a permutation of all {POINTS_PER_BLOCK} points",
+        )
     return tuple(order)
 
 
@@ -800,9 +809,9 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
     document = _exact_object(
         _strict_json(matches[0], label="machine spec"),
         {
-            "schema_version", "artifacts", "grid", "blocks", "workloads",
-            "execution", "analysis", "physical_residual",
-            "external_floor_reference_widths",
+            "schema_version", "artifacts", "registration_rules", "grid",
+            "blocks", "workloads", "execution", "analysis",
+            "physical_residual", "external_floor_reference_widths",
         },
         "machine spec",
     )
@@ -819,6 +828,38 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
     if type(formula_sha) is not str or _SHA256_RE.fullmatch(formula_sha) is None:
         raise PreflightError("prereg-spec", "artifacts.formula_sha256 が不正")
 
+    registration_rules = _exact_object(
+        document["registration_rules"],
+        {
+            "shape_eligibility_criterion", "shape_eligibility_evidence",
+            "shape_exclusion_granularity", "means_us_and_cell_partition",
+            "physical_residual_cell_policy", "throughput_decision_procedure",
+            "a2_material_role", "shape_rule_formulation_timing",
+        },
+        "registration_rules",
+    )
+    expected_registration_rules = {
+        "shape_eligibility_criterion": (
+            "symbolic-mean-deviation-has-no-unsuppressed-mu-coefficient-"
+            "on-mixer-high-bit-frequency"
+        ),
+        "shape_eligibility_evidence": "formula-only-not-observed-deviation",
+        "shape_exclusion_granularity": "whole-shape-only",
+        "means_us_and_cell_partition": "unchanged",
+        "physical_residual_cell_policy": (
+            "evaluate-all-registered-cells-without-exemption"
+        ),
+        "throughput_decision_procedure": "unchanged-and-independent-of-a2",
+        "a2_material_role": (
+            "motivation-and-prior-evidence-not-parameter-selection"
+        ),
+        "shape_rule_formulation_timing": (
+            "after-physical-residual-probe-before-shape-grid-throughput"
+        ),
+    }
+    if registration_rules != expected_registration_rules:
+        raise PreflightError("prereg-spec", "registration_rules が v4 閉集合と不一致")
+
     grid = _exact_object(
         document["grid"], {"means_us", "shapes", "encoding", "references"}, "grid",
     )
@@ -831,7 +872,6 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
     expected_supports = {
         "constant": "mu",
         "symmetric-modulo": "closed-half-width-mu/2-through-3mu/2",
-        "binary": "two-point-mu/2-or-3mu/2",
     }
     if type(shape_rows) is not list or len(shape_rows) != len(SHAPES):
         raise PreflightError("prereg-spec", "grid.shapes 件数不一致")
@@ -918,7 +958,7 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
     expected_families = tuple(
         (workload, shape)
         for workload in WORKLOADS
-        for shape in ("symmetric-modulo", "binary")
+        for shape in ("symmetric-modulo",)
     )
     if type(family_rows) is not list or len(family_rows) != len(expected_families):
         raise PreflightError("prereg-spec", "analysis.holm_families 件数不一致")
@@ -988,7 +1028,7 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
         "mark-family-indeterminate-on-any-unusable-pair",
         "enumerate-two-sided-sign-flip-pvalue-for-each-testable-family",
         "set-indeterminate-family-pvalue-to-1",
-        "holm-adjust-all-six-families",
+        "holm-adjust-all-three-families",
         "different-iff-testable-and-holm-p-less-than-or-equal-alpha",
         "otherwise-not-detected",
         "report-all-cell-effects-confidence-intervals-and-equivalence-relations",
@@ -1000,7 +1040,8 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
     residual = _exact_object(
         document["physical_residual"],
         {
-            "measurement", "maximum_absolute_deviation_pct_exclusive", "values",
+            "measurement", "maximum_absolute_deviation_pct_exclusive",
+            "provenance", "values",
         },
         "physical_residual",
     )
@@ -1011,9 +1052,85 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
         residual["maximum_absolute_deviation_pct_exclusive"],
         "maximum absolute deviation",
     )
-    if maximum_absolute_deviation <= 0:
+    if maximum_absolute_deviation != 1.0:
         raise PreflightError(
-            "prereg-spec", "physical residual 上限は正の有限実数が必要",
+            "prereg-spec", "physical residual 上限は exact 1.0 が必要",
+        )
+    residual_provenance = _exact_object(
+        residual["provenance"],
+        {
+            "probe_schema_version", "probe_result_sha256",
+            "probe_source_commit", "placeholder_preregistration_commit",
+            "probe_request_id", "probe_nonce", "submission_receipt_sha256",
+            "probe_host", "probe_measured_at_utc", "probe_clocks_per_us",
+            "probe_calls_per_cell", "probe_cells_total", "extraction_rule",
+        },
+        "physical_residual.provenance",
+    )
+    expected_residual_provenance = {
+        "probe_schema_version": "izanagi-b10-backoff-shape-probe/v1",
+        "probe_result_sha256": (
+            "6e7d8ed7d27be091ce94de4b85ac61a50e99d97167e75c4328e8a54982224bc3"
+        ),
+        "probe_source_commit": "8df4fa25da01311e887336b6f454f6d33ec28a2c",
+        "placeholder_preregistration_commit": (
+            "1549bd92794d72e05aeafe5903568f7d9023614d"
+        ),
+        "probe_request_id": "953543.nqsv",
+        "probe_nonce": "6f8cea40fcf2193f4e4157e9c89adde1",
+        "submission_receipt_sha256": (
+            "782b25fc0aecf78d0aa9dfa36ef2d036c777eb171b3ebe654405b7364dc7eb54"
+        ),
+        "probe_host": "bnode142",
+        "probe_measured_at_utc": "2026-08-27T16:26:55.628726Z",
+        "probe_clocks_per_us": 2100,
+        "probe_calls_per_cell": 100000,
+        "probe_cells_total": 18,
+        "extraction_rule": (
+            "select-probe-rows-whose-shape-is-in-the-registered-grid"
+        ),
+    }
+    if residual_provenance["probe_schema_version"] \
+            != "izanagi-b10-backoff-shape-probe/v1" \
+            or residual_provenance["extraction_rule"] \
+            != "select-probe-rows-whose-shape-is-in-the-registered-grid":
+        raise PreflightError("prereg-spec", "physical residual provenance 規則が不一致")
+    for key in ("probe_result_sha256", "submission_receipt_sha256"):
+        value = residual_provenance[key]
+        if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+            raise PreflightError("prereg-spec", f"physical residual {key} が不正")
+    for key in ("probe_source_commit", "placeholder_preregistration_commit"):
+        value = residual_provenance[key]
+        if type(value) is not str or _COMMIT_RE.fullmatch(value) is None:
+            raise PreflightError("prereg-spec", f"physical residual {key} が不正")
+    if type(residual_provenance["probe_request_id"]) is not str \
+            or re.fullmatch(
+                r"[A-Za-z0-9:._-]+", residual_provenance["probe_request_id"],
+            ) is None \
+            or type(residual_provenance["probe_nonce"]) is not str \
+            or re.fullmatch(r"[0-9a-f]{32}", residual_provenance["probe_nonce"]) is None \
+            or type(residual_provenance["probe_host"]) is not str \
+            or not residual_provenance["probe_host"]:
+        raise PreflightError("prereg-spec", "physical residual probe identity が不正")
+    measured_at = residual_provenance["probe_measured_at_utc"]
+    if type(measured_at) is not str:
+        raise PreflightError("prereg-spec", "physical residual probe timestamp が不正")
+    try:
+        measured_timestamp = dt.datetime.fromisoformat(measured_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise PreflightError(
+            "prereg-spec", "physical residual probe timestamp が ISO-8601 でない",
+        ) from exc
+    if measured_timestamp.tzinfo is None \
+            or measured_timestamp.utcoffset() != dt.timedelta(0):
+        raise PreflightError("prereg-spec", "physical residual probe timestamp が UTC でない")
+    _positive_int(residual_provenance["probe_clocks_per_us"], "probe clocks_per_us")
+    _positive_int(residual_provenance["probe_calls_per_cell"], "probe calls_per_cell")
+    if _positive_int(residual_provenance["probe_cells_total"], "probe cells total") != 18:
+        raise PreflightError("prereg-spec", "転記元 probe は exact 18 cell が必要")
+    if residual_provenance != expected_residual_provenance:
+        raise PreflightError(
+            "prereg-spec", "physical residual provenance が v4 正本値と不一致",
         )
     residual_rows = residual["values"]
     expected_residual_cells = tuple(
@@ -1103,6 +1220,7 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
         spec_sha256=_sha256_bytes(canonical.encode("utf-8")),
         patch_sha256=patch_sha,
         formula_sha256=formula_sha,
+        registration_rules=tuple(expected_registration_rules.items()),
         means_us=tuple(means_raw),
         shapes=tuple(shapes),
         references=tuple(references),
@@ -1136,6 +1254,7 @@ def parse_preregistration(raw: bytes) -> PreregistrationSpec:
         decision_procedure=expected_decision,
         physical_residual_measurement=residual_measurement,
         maximum_absolute_deviation_pct_exclusive=maximum_absolute_deviation,
+        physical_residual_provenance=tuple(residual_provenance.items()),
         physical_residual_values=tuple(residual_values),
         reference_width_terminology=terminology,
         reference_width_power_guarantee=False,
@@ -1150,6 +1269,8 @@ def validate_runtime_physical_residual(
         raise TypeError("spec は exact PreregistrationSpec が必要")
     if type(clocks_per_us) is not int or clocks_per_us <= 0:
         raise PreflightError("physical-residual", "clocks_per_us は正整数が必要")
+    if spec.maximum_absolute_deviation_pct_exclusive != 1.0:
+        raise PreflightError("physical-residual", "事前登録上限は exact 1.0 が必要")
     absolute_deviations = []
     expected_cells = tuple(
         (shape, mean_us)
@@ -1372,7 +1493,7 @@ def config_for(
         search_tag="formal",
         spec_content=(
             "B-10 registered equal-target-mean backoff-shape comparison; "
-            "21 genomes, three independent paired blocks, no screening; "
+            "15 genomes, three independent paired blocks, no screening; "
             f"workload={workload_tag}"
         ),
         ccbench_commit=PIN,
@@ -1824,7 +1945,7 @@ def _compile_probe_harnesses(
     except (OSError, UnicodeError) as exc:
         raise PreflightError("probe-build", "compile_commands.json を読めない") from exc
     if type(commands) is not list or len(commands) != len(targets):
-        raise PreflightError("probe-build", "probe compile command 数が 18 でない")
+        raise PreflightError("probe-build", "probe compile command 数が登録 grid と不一致")
     required_flags = ("-O3", "-DNDEBUG", "-Wall", "-Wextra", "-Werror", "-std=c++20")
     for command in commands:
         if type(command) is not dict or type(command.get("command")) is not str:
@@ -1924,7 +2045,7 @@ def _shape_differences(cells: Sequence[Mapping[str, object]]) -> list[dict[str, 
     differences = []
     for mean_us in MEANS_US:
         constant = indexed[("constant", mean_us)]
-        for shape in ("symmetric-modulo", "binary"):
+        for shape in ("symmetric-modulo",):
             difference = indexed[(shape, mean_us)] - constant
             differences.append({
                 "shape": shape,
@@ -2009,7 +2130,7 @@ def _validate_probe_result(result: object) -> dict[str, object]:
     cells = result["cells"]
     expected_cells = tuple((shape, mean_us) for mean_us in MEANS_US for shape, _ in SHAPES)
     if type(cells) is not list or len(cells) != len(expected_cells):
-        raise PreflightError("probe-schema", "probe cell 数が 18 でない")
+        raise PreflightError("probe-schema", "probe cell 数が登録 grid と不一致")
     for index, (shape, mean_us) in enumerate(expected_cells):
         row = _exact_object(
             cells[index],
@@ -2214,7 +2335,7 @@ def _read_block_records(root: Path) -> list[dict[str, object]]:
 
 def _block_record_filename(block_id: str, schedule_index: int, point: str) -> str:
     if block_id not in BLOCK_IDS or type(schedule_index) is not int \
-            or schedule_index < 0 or schedule_index >= 21 \
+            or schedule_index < 0 or schedule_index >= POINTS_PER_BLOCK \
             or re.fullmatch(r"[a-z0-9-]+", point or "") is None:
         raise PreflightError("measurement-record", "block record cell identity が不正")
     return f"{block_id}--{schedule_index:02d}--{point}.json"
@@ -2261,6 +2382,18 @@ def _validate_prior_block_records(
                 or index < 0 or index >= len(expected_order[block_id]) \
                 or expected_order[block_id][index] != point:
             raise PreflightError("resume-binding", "既存 block record の束縛/identity が不一致")
+        expected_shape, expected_mean_us, expected_encoded = _name_metadata(point)
+        expected_genome = dict(named_genomes())[point].canonical()
+        if (
+            row.get("shape"), row.get("mean_us"),
+            row.get("encoded"), row.get("genome"),
+        ) != (
+            expected_shape, expected_mean_us, expected_encoded, expected_genome,
+        ):
+            raise PreflightError(
+                "resume-binding",
+                "既存 block record の point/metadata が正規 grid と不一致",
+            )
         receipt_path = Path(row["submission_receipt"])
         try:
             receipt_bytes = receipt_path.read_bytes()
@@ -2398,7 +2531,7 @@ def _name_metadata(name: str) -> tuple[Optional[str], Optional[int], Optional[in
         return None, None, None
     if name == "zero-loop":
         return "constant", 0, 0
-    match = re.fullmatch(r"(constant|symmetric-modulo|binary)-mu([0-9]+)", name)
+    match = re.fullmatch(r"(constant|symmetric-modulo)-mu([0-9]+)", name)
     if match is None:
         raise ValueError(f"未知 B10 point name: {name}")
     shape, mean_text = match.groups()
@@ -2749,7 +2882,8 @@ def run_formal(
                         ),
                         declared_use_class="official",
                     )
-                if summary.committed + summary.skipped + summary.aborted != 21:
+                if summary.committed + summary.skipped + summary.aborted \
+                        != POINTS_PER_BLOCK:
                     raise RuntimeError(
                         f"correctness campaign incomplete: workload={workload} "
                         f"committed={summary.committed} skipped={summary.skipped} aborted={summary.aborted}"
@@ -2901,7 +3035,8 @@ def run_formal(
                 and row.get("performance_binary_sha256") is not None
                 and row.get("missing") is False
                 for row in current_records
-            ) and len(current_records) == len(prereg.spec.block_ids) * 21
+            ) and len(current_records) \
+                == len(prereg.spec.block_ids) * POINTS_PER_BLOCK
             return json_path, markdown_path, execution_complete
 
 

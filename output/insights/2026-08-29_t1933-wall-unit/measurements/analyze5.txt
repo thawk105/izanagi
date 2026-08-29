@@ -1,0 +1,104 @@
+
+== 9c62f3e9 shard0 host=bnode003  wall=204.8  observed max_occ=127.6  nworkers=48  total=4859  total/nw=101.2
+   LPT makespan (all units)          =    126.6
+   implied fixed floor (wall - LPT)  =     78.2
+   heaviest units:
+       126.6  node:orchestrator.tests.test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+       107.3  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       104.7  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+       100.7  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+        99.5  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+        99.2  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]
+        99.0  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+        98.8  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]
+        98.6  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+        97.4  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+        97.2  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+        72.5  node:orchestrator.tests.test_s8b_oracle_driver::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+   counterfactual: zero the N heaviest units
+     zero top- 1: makespan    107.3  (delta   +19.3, removed   126.6s of work)
+     zero top- 2: makespan    104.7  (delta   +21.9, removed   233.9s of work)
+     zero top- 3: makespan    100.7  (delta   +25.9, removed   338.6s of work)
+     zero top- 5: makespan     99.2  (delta   +27.4, removed   538.8s of work)
+     zero top- 8: makespan     98.6  (delta   +28.0, removed   835.8s of work)
+     zero top-12: makespan     76.2  (delta   +50.4, removed  1201.6s of work)
+     zero whole T-080 oracle-driver family (21 units, 1072s): makespan    126.6 (delta    +0.0)
+     zero every s8c unit (295 units, 226s): makespan    107.3 (delta   +19.3)
+
+== 6fbbc43d shard0 host=bnode001  wall=200.2  observed max_occ=122.6  nworkers=48  total=5000  total/nw=104.2
+   LPT makespan (all units)          =    111.8
+   implied fixed floor (wall - LPT)  =     88.5
+   heaviest units:
+       111.8  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       109.1  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+       105.5  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+       104.9  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+       103.8  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]
+       103.7  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+       103.6  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+       103.5  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]
+       102.8  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+       102.0  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+        83.4  node:orchestrator.tests.test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+        77.7  node:orchestrator.tests.test_s8b_oracle_driver::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+   counterfactual: zero the N heaviest units
+     zero top- 1: makespan    109.1  (delta    +2.7, removed   111.8s of work)
+     zero top- 2: makespan    105.5  (delta    +6.3, removed   220.9s of work)
+     zero top- 3: makespan    104.9  (delta    +6.9, removed   326.4s of work)
+     zero top- 5: makespan    103.7  (delta    +8.1, removed   535.0s of work)
+     zero top- 8: makespan    102.8  (delta    +9.0, removed   845.9s of work)
+     zero top-12: makespan     78.9  (delta   +32.9, removed  1211.8s of work)
+     zero whole T-080 oracle-driver family (21 units, 1130s): makespan     83.4 (delta   +28.4)
+     zero every s8c unit (295 units, 182s): makespan    111.8 (delta    +0.0)
+
+== 96dd3976 shard0 host=bnode022  wall=224.3  observed max_occ=145.3  nworkers=48  total=5652  total/nw=117.7
+   LPT makespan (all units)          =    120.5
+   implied fixed floor (wall - LPT)  =    103.7
+   heaviest units:
+       120.5  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       118.3  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+       113.5  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+       113.0  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+       112.7  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+       111.7  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]
+       111.7  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+       111.7  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+       111.2  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+       111.2  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]
+        88.3  node:orchestrator.tests.test_s8b_oracle_driver::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+        83.4  node:orchestrator.tests.test_s8b_floor_campaign::test_pilot_resume_rejects_launch_certificate_contamination[campaign-key]
+   counterfactual: zero the N heaviest units
+     zero top- 1: makespan    118.3  (delta    +2.3, removed   120.5s of work)
+     zero top- 2: makespan    113.5  (delta    +7.0, removed   238.8s of work)
+     zero top- 3: makespan    113.0  (delta    +7.5, removed   352.3s of work)
+     zero top- 5: makespan    111.7  (delta    +8.9, removed   578.1s of work)
+     zero top- 8: makespan    111.2  (delta    +9.3, removed   913.1s of work)
+     zero top-12: makespan     90.5  (delta   +30.0, removed  1307.2s of work)
+     zero whole T-080 oracle-driver family (21 units, 1218s): makespan     92.4 (delta   +28.2)
+     zero every s8c unit (225 units, 121s): makespan    120.5 (delta    +0.0)
+
+== ef85f4f2 shard0 host=bnode007  wall=216.5  observed max_occ=141.1  nworkers=48  total=5447  total/nw=113.5
+   LPT makespan (all units)          =    116.0
+   implied fixed floor (wall - LPT)  =    100.5
+   heaviest units:
+       116.0  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       112.2  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+       108.9  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+       107.4  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+       107.2  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+       106.6  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+       106.2  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]
+       106.1  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+       106.1  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]
+       105.1  node:orchestrator.tests.test_s8b_oracle_driver::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+        83.5  node:orchestrator.tests.test_s8b_oracle_driver::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+        82.1  node:orchestrator.tests.test_s8b_floor_campaign::test_pilot_path_has_no_launch_certificate_changes
+   counterfactual: zero the N heaviest units
+     zero top- 1: makespan    112.2  (delta    +3.8, removed   116.0s of work)
+     zero top- 2: makespan    108.9  (delta    +7.1, removed   228.2s of work)
+     zero top- 3: makespan    107.4  (delta    +8.6, removed   337.1s of work)
+     zero top- 5: makespan    106.6  (delta    +9.4, removed   551.6s of work)
+     zero top- 8: makespan    106.1  (delta    +9.9, removed   870.6s of work)
+     zero top-12: makespan     87.5  (delta   +28.5, removed  1247.4s of work)
+     zero whole T-080 oracle-driver family (21 units, 1159s): makespan     89.3 (delta   +26.6)
+     zero every s8c unit (225 units, 121s): makespan    116.0 (delta    +0.0)

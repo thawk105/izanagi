@@ -1328,6 +1328,19 @@
   収集側で再現する。恒久対応 1 の「実測で照合し既実行なら stale と裁定する」を、
   wave の brief だけでなく **rulings の台帳走査にも適用する**。実際に適用した結果、
   真に未着手だったのは 3 件 (F35 項 2 / F36 項 2 / F472) だけだった。
+
+- **再発: 2026-08-29** — [T-1819] (2026-08-26 起票) の依頼文が、同日 land した [T-2006] によって
+  既に実装済みの機構を「無く、投入経路が塞がっている」と主張し続けた。従来の 3 形態
+  (承認記録側の照合漏れ / 起票から投入までの約 12 時間差 / 完了節への自 ID 明示漏れ) と異なる
+  新しい角度は、**既裁定が 2 つの task item を 1 つの変更単位へ併合したのに、完了節が
+  どちらの ID も閉じなかった**ことにある。D1028 が「A-1 の投入は非認証成果物型と投入器を
+  1 つの変更単位で作る」と定め、[T-2006] は実際にその両方を実装したが、次の一手台帳では
+  [T-1818] (型) と [T-1819] (投入器) の**両方が stale carry のまま**残った。carry stub
+  `- [T-NNN] (N)` は本文を持たないため、描画された worklog を読む限り前提の陳腐化は見えない。
+  検出は dev-wave 段 1 の前提実測 (`DW-S01`) で、実装子を 1 本も起動する前に止まった。
+  恒久対応 1 は今回も投入前の防壁として機能したが、**併合された相方 ([T-1818]) は
+  本 wave の scope 外**であり、本 wave では `更新` として要照合を記録するに留めた。
+  機械防壁は無いままである。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -6356,6 +6369,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   降格した ID は上書き退行を疑い原文 entry へ遡る。同 commit で追加)。
 - 再発検知: /rulings 毎実行の pending 差分照合。
 
+
+- **再発: 2026-08-29** — [T-1905] wave で親が事前登録 §5 の機械可読 spec を v4 へ書き直す際、
+  末尾の `external_floor_reference_widths` を原文を読まずに再構成し、登録済みの
+  `terminology` と `reference_width_pct` (write-heavy 1.9、balanced 3.0、read-heavy 0.62) を
+  落として top-level に `power_guarantee` を新設していた。F182 と同型 (対象の現本文を読まず
+  自 wave の関心事だけで再構成し、内容を狭める変更が機械検出されない) であり、producer は
+  worklog fragment でなく事前登録 spec、consumer は fold でなく driver の parser である。
+  段 5 実装子は誤った文書に忠実に追随したため、driver と test も同時に狭まっていた。
+  **新版だけを検証する検査 (JSON 妥当性・block 15 点・残差 12 cell・上限判定) は全項目緑で通過した。**
+  捕捉したのは新旧 spec の構造比較 (旧版を `git show HEAD~1:<path>` で取り出し、
+  key の追加・削除・値の変化を再帰列挙する使い捨て script) だけである。
+  恒久対応として、機械可読 spec を書き直す wave では新版の自己検証に加えて
+  **旧版との構造 diff を意図した変更 (この wave では schema 版・grid・族・残差表・新設 field) の
+  閉集合と突き合わせる**手順を段 7 の記録前に置く。実体は
+  `output/insights/2026-08-29_t1905-b10-prereg-v2/README.md` の「親の誤りと訂正」節と、
+  同 wave の commit `c0a2689da` (訂正) である。
+  再発検知は、意図した変更の閉集合を裁定に書いてから diff と突き合わせること。
 ### F183. 曖昧さ検出が同じ lookahead で無力化され、相反する総括を 13/18 受理していた [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/codex_reasoning_ab.py` の `score_text` は「総括に GO と NO-GO が併記されていたら
@@ -8577,6 +8607,47 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `133.54 / 92.32 / 60.27`、並行 `codex_worker_launch.py run` は 4 本だった。原因は未確定のまま、
   ユーザー指示により exact-node hold を先行し、後続で原因分析・修理・再導入する。registry validator は
   evidence section に exact function 名を要求するため、D95 author は本再発の fold 前には正しく停止した。
+
+- **再発ではなく解消の記録: 2026-08-29** — 2026-08-28 の再発
+  (`test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]` が
+  空 stdout の `JSONDecodeError` で落ちた件) について、**空 stdout を生む経路を実測で特定し、
+  その経路を閉じた。** 機序はこうである。checker の判定表は `schema_version` が 4 / 5 の
+  ときだけ `preparation_wall_clock_s` と `finalization_wall_clock_s` を引き、
+  v1 / v2 / v3 では **launcher プロセス全体の実時間**をそのまま
+  `wall_clock_admission_bound_s` と比べる。互換テストの上限は 3 秒だった。
+  同一 receipt の `actuals.wall_clock_s` **だけ**を変えた 7 点の制御実験で、
+  3.0 秒までは rc=0 で 202 byte の JSON、3.001 秒からは rc=2・stdout 0 byte・
+  stderr `NG: receipt truth table が不正` になることを確かめた。無負荷の計算ノードでの
+  内訳は attempt 0.211 秒・全体 0.681 秒で、差の 0.470 秒 (全体の 69%) が
+  引き算されない準備・後始末である。実受入負荷下では準備だけで 1.926 秒、全体 5.290 秒に
+  達した実測が別 wave の failure archive に残っていた
+  (`0-948382.nqsv--bnode033`、2026-08-26、v4 receipt)。
+- **原因確定ではなく再現である。** T-1958 の赤の junit は残っており `s = ''` で stdout が
+  空だったことは確定するが、`checked.stderr` と当時の receipt は残っていない。
+  `NG: receipt truth table が不正` は複数の述語が共有する最終例外なので、同じ stderr を
+  再現しても経路を一意に識別しない。当該 node の junit `time` は 5.368 秒で、
+  `acceptance_duration_ledger.json` の公称 1.3 秒に対し 4.1 倍という状況証拠が加わるだけである。
+- 恒久対応は 2 つある。第一に、この赤が長く診断不能だった直接の原因は、テストが
+  `json.loads(checked.stdout)` を `assert checked.returncode == 0, checked.stderr` より
+  **先**に置いていたことである。rc と stderr が捨てられ JSONDecodeError だけが残っていた。
+  該当 2 箇所の順序を入れ替えた (`orchestrator/tests/test_codex_worker_launch.py` の
+  `test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectations` と
+  `test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics`)。
+  第二に、露出する 3 関数 (v1 / v2 / v3 の各 2 param、計 6 node) の fixture 上限を
+  10 秒 subprocess watchdog より大きい値へ上げ、**測定値は 1 byte も書き換えずに**
+  admission 上限を判定の律速から外した。予算変更が効いていることは、receipt 上限が
+  watchdog 秒数を上回るという定数比較の assert が固定する。
+  上限超過の legacy receipt がなお拒否されることは、新設した決定的な
+  `at-bound` / `over-bound` の 2 node が両側から固定する。
+- **修理後の再発検知条件を署名別に分ける。** legacy 降格後の truth-table rejection
+  (`NG: receipt truth table が不正`) が上記 6 node で再び出た場合、**単独再走が緑でも
+  負荷 flake と断じてはならない。** 修理差分からの到達性、checker の stderr 本文、receipt の
+  総 wall・phase wall・attempt wall を検査する。従来の「単独再走が緑なら差分へ帰属させない」
+  条件は、child pid・manifest・producer の max-wall 系の署名に限って残す。
+- **本 wave が閉じたのは、accepted v5 receipt を v1 / v2 / v3 へ降格して検査する
+  legacy 6 node の 3 秒 admission 経路だけである。** launcher と checker の 10 秒 watchdog、
+  child pid の 2 秒 deadline、manifest 観測の 3 秒、late rollout の 3 秒、fake barrier の 5 秒は
+  残存する。file 全体の flake 解消は主張しない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -13328,6 +13399,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   母集合と除外を再現コマンドで確かめる」を含める。本 wave では段 2 の子と
   段 3 レンズ B が実際にこの検査で 3 件を検出し、並行セッションが 1 件を検出した。
 
+
+- **再発: 2026-08-29** — 受入 wall の律速同定で、親が `collections.Counter` の
+  `most_common(8)` 出力をそのまま「最 busy worker の item 数分布」として引用した。
+  484 走のうち 209 走しか写っておらず、実際の分布は中央値 72 の二峰性で、
+  「2〜5 node」が成り立つのは K=3 の直近 117 走に限られていた。段 3 レンズが
+  「合計は 209 で 275 走が未記載」と指摘し、全件列挙で確認して訂正した。
+  同じ走で universe 件数を `login-collection.log` の行数 18,954 と取り違え
+  (実際は `observed_universe` の 18,895)、collection 回数から login collection 1 回を落として
+  144 回と書いた。いずれも母集合と除外を 1 行で言わずに数値を出した F473 の型である。
+  F473 の恒久対応 (memory `tool-filtered-view-is-not-the-total`) を変更しない。
 ### F474. registry の期待表を literal 複製する consumer が識別子 grep から漏れた [手順漏れ] [テスト代表性]
 
 - 事象: 親は保留 registry を編集する前に pin 閉包を監査し、`key_sha256` /
@@ -16931,6 +17012,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   自分の wave のものでないなら本件である。単独再走で緑になり、
   `git worktree list` の顔ぶれが投入前後で変わっていることで裏が取れる。
 
+
+- **再発: 2026-08-29** — 掃除側で踏んだ。棚卸しで作った撤去リスト 56 本のうち **24 本が、
+  実行が対象へ到達する前に別 session の撤去で消えていた** (`git worktree list` は走行中に
+  116 → 61 本へ動き、私自身の撤去は 32 本、branch 削除は 0 件)。本件は F633 の未実施対応が
+  挙げる「生きた登録でなく走行開始時の snapshot を読む形へ変えれば構造的に閉じる」を反証する。
+  snapshot は列挙時点の一貫性を与えるだけで、列挙から個々の対象へ着手するまでの窓
+  (本件は数十分) を閉じない。閉じたのは対象ごとの実行直前検査
+  `tools/check_worktree_occupancy.py` で、消えた対象に `status=invalid-target` (rc=2) を返し、
+  detach と削除の前で fail-closed した。裁定に要るのは snapshot 化ではなく、
+  一括操作の各要素へ実行直前の再検査を義務づける形である。
 ### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
 
 - 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
@@ -18932,6 +19023,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   帰属は main 単独で再現するかで決める — 本件は main (`98f61815c`) 単独の job `952631` が
   62 秒で**本文・失敗段ともに一致**する赤を出したため、wave の回帰ではないと確定した。
 - 再発検知: 撤去 wave の終端実測が、撤去対象と無関係な段で落ちること。
+- **supersede: 2026-08-29** — 「同日中に環境か main が変わった」の未特定部分を特定した。環境ではなく main で、`0bc33ba8f` (2026-08-27 06:19) が `_external_entry` を新規導入したことが原因である。あわせて、この赤は cache 再利用の条件付きではなく無条件であり、cold cache の初回実行でも落ちる (F754)。
 
 ### F732. 同じ値域を複数 module が実装して食い違った [ドリフト] [手順漏れ]
 
@@ -19173,3 +19265,147 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: DW-O17の「赤なら止める」を、複数commandを含むshellの終了制御へ写像していなかった。
 - 恒久対応: `docs/dev-wave/operations.md` DW-O17へcompound shellの先頭`set -e`、またはtool call分離を追加した。
 - 再発検知: commit前tool callの先頭と実行結果を確認し、preflight非0後にHEADが進んでいないことを照合する。
+
+### F754. 検証が要求する入力を、その入力を記録した producer 自身が検証前に削除していた [ドリフト] [手順漏れ]
+
+- 事象: 床値実測の主経路が binary admission receipt の発行段で
+  `compiler input manifest の完全検証に失敗: external compiler input is unavailable` で落ち続けた。
+  cache 再利用の副作用と読まれていたが、実測では **cache が空の初回実行でも落ちる**。
+  記録された入力 588 件のうち 38 件が、1 回の実行かぎりで消える場所の絶対 path だった
+  (build cache の作業用 directory `.staging-<PID>-<nonce>/_deps/…` が 31 件、
+  job 専用作業領域 `/scr/0_<jobid>.nqsv/{gflags,glog}-install/include/…` が 7 件)。
+- 根本原因: 記録側と検証側が別の生存期間を前提にしていた。`buildcache.py:2690-2712` は
+  compiler input manifest を `completion.json` へ確定した**直後に**
+  `_discard_build_dir(staging)` で作業用 directory を破棄し、その後 publish する。
+  一方 `s8b_compiler_input.py:632-639` の検証は、記録された全 path を
+  `resolve(strict=True)` で再解決することを要求する。**producer が消した path を
+  consumer が実在要求する**構図なので、関門は原理的に一度も通らない。
+  `_external_entry` を導入した `0bc33ba8f` は、この検証を追加した際に主経路を
+  実機で最後まで通しておらず、次の実投入 (同日 14:02) で初めて露出した。
+- 恒久対応: D1192 が是正の正本 (根の分類 + 根相対 path + 使用時の再束縛)。ただし裁定文は
+  build cache 側の 1 クラスしか名指ししていないため、job 専用作業領域を含む 2 クラスへ
+  射程を広げるかをユーザー裁定へ返した ([T-2027])。手順面は `DW-G01` の生死実験先行に加え、
+  F731 の恒久対応「関門 X を外せば主経路が通るを実装だけで閉じない。外した後に実機で
+  最後まで通すことを終端条件にする」を、**関門を足す変更にも同じく適用する**。
+- 再発検知: 関門が要求する実在 path のうち、producer が同じ処理の中で削除・改名する場所に
+  属するものが 1 件でもあること。cold cache の 1 回走行を positive control として、
+  受領書発行段まで到達するかで判定する。
+
+### F755. 導出していない境界の向きを、結論を否定する含意として使った [捏造/幻覚] [計測汚染]
+
+- 事象: 受入 wall の律速同定で、親が境界の向きを 2 箇所で取り違えた。
+  1. `wall − max_occ` を「全 worker がテストを走らせていない時間の**下限**」と brief と
+     measurements へ書いた。実際は**上界**である。`tools/acceptance_shards.py` の
+     `worker_occupancy` は phase の duration を node ごとに加算するだけで、全 worker の phase
+     区間の和集合は必ず max_occ 以上になる。`orchestrator/tests/conftest.py` の real-repo lock 待ちが
+     `yield` の外側にあることも見ていなかった。
+  2. 反実仮想の LPT 詰め直しについて「LPT は最適 makespan の近似なので、実 scheduler の
+     makespan はこれ以上になる。したがって LPT でも縮まないなら実 scheduler でも縮まない」と書いた。
+     LPT makespan は実行可能解であって下界ではなく、xdist の動的補充 scheduler との大小関係は
+     定まらない。段 3 の 2 レンズが独立に同じ反例を構成した。
+  どちらも「単一処理は wall を決めていない」という結論の**主根拠**として使っていた。
+  結論自体は `makespan >= 最長 unit の所要` という定理へ置き換えて維持できたが、
+  置き換えるまでの根拠は誤りだった。
+- 根本原因: 不等号の向きを一度も導出せず、直観の言い換えで進めた。1 は
+  「差分だから下限だろう」、2 は「近似アルゴリズムだから下界だろう」という語感である。
+  どちらも 2 行の導出で判定できた。数値の母集合を確かめる規律 (F473) は数値には効いたが、
+  **数値ではなく関係の向き**には発火していない。
+- 恒久対応: memory `bound-direction-must-be-derived-not-assumed`
+  (上界・下界・単調性・含意の向きを結論の根拠に使うときは、値を出す前にその向きを 2 行で導出して
+  併記する。導出できないなら向きに依存しない量へ言い換える)。
+  本件では `wall − max_occ` を上界と明示し、反実仮想を
+  `makespan >= 最長 unit` という向きの要らない定理へ置き換えた。
+- 再発検知: 敵対レビューのレンズに「親が使った不等号・含意それぞれについて、
+  向きの導出が本文にあるかを確かめ、無ければ反例を構成する」を含める。
+  本 wave では段 3 の両レンズが実際にこの検査で 2 件とも検出した。
+
+### F756. 腐らない入口のはずの stale 注記が、同じ日のうちに偽になった [ドリフト]
+
+- 事象: `docs/paper-story/README.md` の「最新スナップショット以後に確定したこと」は、凍結
+  スナップショットが腐ることに対する腐らない入口として置かれている。その C-4 注記
+  (2026-08-27) が「登録であって実行ではない — 本検索は 1 本も走らせていない。」と書いたが、
+  同じ 2026-08-27 の worklog 1049 [T-1969] が事前登録検索を実行し、DBLP 12 枝が完走、
+  arXiv 6 枝で 2 走目の主キー digest 一致まで取っていた。**注記は書かれた日のうちに偽になり、
+  2 日後の本 wave が別件 (A-2) の調査中に偶然見つけるまで、誰も検知しなかった。**
+- 根本原因: 注記機構は「スナップショットが腐る」ことだけを想定し、**注記自身が腐ることを
+  想定していない**。注記には base commit も digest も紐づいておらず、後続 wave が同じ主題を
+  進めても注記の再照合が発火しない。注記を書いた wave と実行した wave が同日並行だったため、
+  どちらも相手の成果を見ていない。
+- 恒久対応: 本 wave では機構を足さない (`DW-G05` の要求外実装禁止、および同型の独立 2 例が
+  未確認のため `DW-G03` の族一般化条件を満たさない)。当面の防壁は、注記の主題を進める wave が
+  着手時に同主題の既存注記を読み直す規律 —
+  `CLAUDE.md`「絶対規律 7」の「測定時点の事実と現行コードへの適合を分ける」と、
+  memory `rulings-must-match-decisions-by-subject` (既裁定照合は T-ID でなく主題でやる) が
+  既に同じ向きを指している。注記本文の是正は
+  [T-2080] が負う。**同型が別の producer で
+  もう 1 件再現したら、注記への base 束縛か再照合 gate を裁定パッケージへ送る。**
+- 再発検知: 注記の主題を進める wave の段 1 で、同主題の既存注記の本文を一次資料へ突き合わせる
+  (現状は人手。機械検査は未実装であり、恒真な保証として数えない)。
+
+### F757. 段 6 の fix 変異を登録する時期が定められておらず、実装後に登録した [手順漏れ]
+
+- 事象: [T-1819] wave で、段 6 の敵対レビューが real / must-fix と裁定した 3 件 (staging の
+  後始末欠落、staging 衝突による過剰拒否、staging basename の長さ上限) について、
+  親はそれを殺す変異を fix 子へ指示を出す時点で登録できたのに登録せず、fix の実装が済んだ後に
+  登録した。結果は 3 件とも KILLED だったが、実装を見てから変異を選んだ以上、
+  実装前に登録した 7 件と同じ重みの証拠にはならない。
+- 根本原因: `docs/dev-wave/mutation.md` の `DW-M01` は「段 4 で B-057 の変異を実装前に登録する」
+  としか書いておらず、**段 6 で新たに real と裁定した所見の変異をいつ登録するか**を定めていない。
+  段 4 の時点では存在しない所見なので、段 4 の規則だけでは射程外になる。
+- 恒久対応: 未実施。`DW-M01` へ「段 6 で real と裁定した所見の変異は、fix 子を起動する前に
+  登録する」を統合する案を段 8 の routing へ送った。dev-wave docs の byte 予算に収まるかの
+  判定が要るため、本 wave では実装せずユーザー裁定へ返す。
+- 再発検知: 段 7 の記録で、変異の登録時期を「事前登録」と「事後登録」に分けて書く。
+  分けずに合算した件数だけを書いた wave が再発である。本 wave の worklog エントリと
+  `stage4-ruling-addendum3.md` が最初の実施例。
+
+### F758. 検査を verifier から呼び出し側へ移し、その verifier だけを通る別経路を無防備にした [恒真ゲート] [手順漏れ]
+
+- 事象: B-4 の受理記録検証で、record が宣言する projection と事前登録文書の projection を
+  照合していた 1 手を `verify_b4_admission_record` から pair 生成点へ移した。pair 経路では
+  より強い検査 (文書 3 値すべてを live 値と照合) に置き換わったが、起動器の bootstrap 経路
+  (`p3_b4_launcher.issue_context` → `launch_bootstrap_impl`) は同 verifier しか通らず
+  pair 生成点を通らないため、**その経路の受理集合が変更前より広がった。**
+  実 driver と sidecar は照合なしで起動できる状態だった。
+- 根本原因: 親が段 4 の裁定で「文書 3 値が live と一致し record 値が選択 driver の live と
+  一致すれば対応は導ける」と推論したが、**その 2 つの照合がどちらも走る経路 (pair) しか
+  数えていなかった。** 同じ verifier を呼ぶ別の production 呼び出し側を列挙していない。
+- 恒久対応: `DW-S04` の「gate の禁止は署名で書き、通る正例を 1 つ添える」に加え、
+  検査を移動・削除する裁定では **移動元を呼ぶ全 caller を列挙し、移動先を通らない caller が
+  無いことを実測する**。本 wave では `verify_b4_admission_record` の caller 20 箇所
+  (production 3、test 17) を焦点再レビューが数え、既定値経路の不在まで確認した。
+- 再発検知: bootstrap 経路の負例テスト
+  `test_bootstrap_rejects_stale_or_driver_mismatched_projection_before_sidecar`
+  (実 driver・sidecar・executable 探索・artifact 作成のいずれにも到達しないことを assert する)。
+  変異 M1 / M4 がこの経路を単独で倒す。
+
+### F759. 文書と実装の食い違いを、実装を緩める向きで解決した [恒真ゲート]
+
+- 事象: 敵対レビューが「事前登録文書の `<slug>` と `<64 hex>` という記述は実装の受理集合より
+  広い」と指摘した。fix 子はこれを**実装側を広げて**解決し、model の `claude-opus-` 接頭辞
+  要求を落とし、hash に大文字を許した。canonical record は接頭辞と小文字のみを受理し、
+  `projection_sha256` も小文字しか produce しないため、受理集合を無用に広げただけだった。
+- 根本原因: 「記述と実装が食い違う」という所見が、どちらを正とするかを含んでいなかった。
+  fix の指示も向きを明示していなかった。
+- 恒久対応: D1283 が定めた向き — 文書の文言が実装より厳しいときは docs 側を実装へ合わせる。
+  逆向き (実装が文書より厳しい) の場合は**文書を実装へ合わせる**のであって、
+  受理集合を広げてはならない (絶対規律 2)。fix の指示には向きを明記する。
+- 再発検知: 期待値行の字句負例
+  `test_closed_critic_expectation_row_requires_claude_opus_slug_and_lowercase_ascii_hex`
+  (非接頭辞 model と大文字 hash を拒否する)。変異 M5 / M6 が文法の緩和を倒す。
+
+### F760. 背景 job の完了通知が、子の生存中に完了として届いた [手順漏れ]
+
+- 事象: dev-wave の子 (`nohup setsid bash <launcher>`) を harness の背景 job として投入した
+  段 6 で、harness が「completed exit code 0」を通知した時点で子はまだ生存し `.done` も
+  存在しない、という事象が 3 回続いた (敵対レビュー 2 本と fix 1 本)。さらに
+  `tools/dev_wave_wait.py producer` を同じく背景 job として張ると、待ち手自身が出力ゼロ・
+  rc=0 で即座に完了扱いされ receipt file を書かなかった。前景で同じ引数を走らせると
+  正しく `producer-timeout rc=70` を返し、待ち手の実装には欠陥が無いことを確認した。
+- 根本原因: 背景 job の完了通知は wrapper shell の終了を見ており、`setsid` で切り離した
+  本体の終了を見ていない。待ち手を同じ経路で張ると、待ち手も本体を待たずに終了扱いされる。
+- 恒久対応: `DW-C00` の「完了は `.done` 非空で決める」を守る。加えて
+  **待ち手を harness の背景 job として張らない — 前景で走らせる。**
+  本 wave は `.done` で判定していたため誤判定には至っていない。
+- 再発検知: 待ち手を張った直後に receipt file の実在を確かめる。receipt が無いまま rc=0 で
+  戻ったら待ち手が走っていない。

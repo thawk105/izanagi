@@ -1,0 +1,361 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-schema-v3-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "_SPEC_SCHEMA = \"izanagi-b10-backoff-shape-preregistration/v4\"",
+          "new": "_SPEC_SCHEMA = \"izanagi-b10-backoff-shape-preregistration/v3\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-extra-shape-row-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "if type(shape_rows) is not list or len(shape_rows) != len(SHAPES):",
+          "new": "if type(shape_rows) is not list or len(shape_rows) < len(SHAPES):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-limit-any-positive-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if maximum_absolute_deviation != 1.0:",
+          "new": "    if maximum_absolute_deviation <= 0:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-exclusive-boundary-becomes-inclusive",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if maximum_observed >= spec.maximum_absolute_deviation_pct_exclusive:",
+          "new": "    if maximum_observed > spec.maximum_absolute_deviation_pct_exclusive:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-registration-rules-keys-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if registration_rules != expected_registration_rules:",
+          "new": "    if set(registration_rules) != set(expected_registration_rules):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-provenance-keys-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if residual_provenance != expected_residual_provenance:",
+          "new": "    if set(residual_provenance) != set(expected_residual_provenance):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-residual-count-guard-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            or len(residual_rows) != len(expected_residual_cells):",
+          "new": "            or len(residual_rows) < len(expected_residual_cells):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-holm-families-readmit-binary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        for shape in (\"symmetric-modulo\",)\n    )\n    if type(family_rows) is not list or len(family_rows) != len(expected_families):",
+          "new": "        for shape in (\"symmetric-modulo\", \"binary\")\n    )\n    if type(family_rows) is not list or len(family_rows) != len(expected_families):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-probe-schema-reverted-to-v1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "PROBE_SCHEMA = \"izanagi-b10-backoff-shape-probe/v2\"",
+          "new": "PROBE_SCHEMA = \"izanagi-b10-backoff-shape-probe/v1\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_output_schema_and_create_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-points-per-block-back-to-21",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "POINTS_PER_BLOCK = 3 + len(MEANS_US) * len(SHAPES)",
+          "new": "POINTS_PER_BLOCK = 21"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_orders_are_distinct_complete_identity_bearing_permutations",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m16_omitting_one_registered_analysis_field_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p04_three_reference_points_and_full_grid_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_table_is_required_and_placeholders_are_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_blob_mismatch_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_dirty_tree_is_rejected_before_blob_admission",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_nonancestor_commit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-positive-control-over-rejects-canonical-doc",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if _positive_int(residual_provenance[\"probe_cells_total\"], \"probe cells total\") != 18:",
+          "new": "    if _positive_int(residual_provenance[\"probe_cells_total\"], \"probe cells total\") != 12:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-prior-record-metadata-cross-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if (\n            row.get(\"shape\"), row.get(\"mean_us\"),\n            row.get(\"encoded\"), row.get(\"genome\"),\n        ) != (\n            expected_shape, expected_mean_us, expected_encoded, expected_genome,\n        ):",
+          "new": "        if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -6315,8 +6315,8 @@ def test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectati
     self_checked = subprocess.run(
         _check_command(paths), text=True, capture_output=True, timeout=10
     )
-    summary = json.loads(self_checked.stdout)
     assert self_checked.returncode == 0, self_checked.stderr
+    summary = json.loads(self_checked.stdout)
     assert summary["limits_self_asserted"] == [
         "preparation_admission_bound_s",
         "wall_clock_admission_bound_s",
@@ -6357,9 +6357,12 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
     legacy_field_set: bool,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", expected_returncode=0, max_wall="100"
     )
     assert receipt is not None
+    # 互換テストの admission 上限は判定の律速にせず、全 node 共通の
+    # launcher subprocess watchdog だけを律速にする。
+    assert receipt["limits"]["wall_clock_admission_bound_s"] > 10
     receipt = _write_legacy_v2_evidence(receipt, paths)
     receipt["limits"].pop("preparation_admission_bound_s")
     receipt["limits"].pop("finalization_admission_bound_s")
@@ -6384,9 +6387,8 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
     checked = subprocess.run(
         _check_command(paths), text=True, capture_output=True, timeout=10
     )
-    diagnostics = json.loads(checked.stdout)
-
     assert checked.returncode == 0, checked.stderr
+    diagnostics = json.loads(checked.stdout)
     assert diagnostics["schema_version"] == 1
     assert len(diagnostics["compatibility_skips"]) == (
         4 if legacy_field_set else 0
@@ -6408,9 +6410,12 @@ def test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade(
     tmp_path: Path, include_failure_class: bool,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", expected_returncode=0, max_wall="100"
     )
     assert receipt is not None
+    # 互換テストの admission 上限は判定の律速にせず、全 node 共通の
+    # launcher subprocess watchdog だけを律速にする。
+    assert receipt["limits"]["wall_clock_admission_bound_s"] > 10
     receipt_v2 = _write_legacy_v2_evidence(
         receipt,
         paths,
@@ -6436,6 +6441,51 @@ def test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade(
 
 
 @pytest.mark.parametrize(
+    ("wall_clock_s", "expected_returncode"),
+    ((100, 0), (100.001, 2)),
+    ids=("at-bound", "over-bound"),
+)
+def test_check_receipt_enforces_v2_wall_clock_admission_boundary(
+    tmp_path: Path,
+    wall_clock_s: float,
+    expected_returncode: int,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0, max_wall="100"
+    )
+    assert receipt is not None
+    receipt_v2 = _write_legacy_v2_evidence(receipt, paths)
+    receipt_v2["limits"].pop("preparation_admission_bound_s")
+    receipt_v2["limits"].pop("finalization_admission_bound_s")
+    receipt_v2["actuals"].pop("preparation_wall_clock_s")
+    receipt_v2["actuals"].pop("finalization_wall_clock_s")
+    assert receipt_v2["limits"]["wall_clock_admission_bound_s"] == 100
+    assert Decimal(str(wall_clock_s)) >= sum(
+        (
+            Decimal(str(attempt["wall_clock_s"]))
+            for attempt in receipt_v2["attempts"]
+        ),
+        Decimal(0),
+    )
+    receipt_v2["actuals"]["wall_clock_s"] = wall_clock_s
+    paths["receipt"].write_text(
+        json.dumps(receipt_v2, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+
+    assert checked.returncode == expected_returncode, checked.stderr
+    if expected_returncode == 0:
+        assert json.loads(checked.stdout)["schema_version"] == 2
+    else:
+        assert checked.stdout == ""
+        assert "NG: receipt truth table が不正" in checked.stderr
+
+
+@pytest.mark.parametrize(
     "include_failure_class",
     [False, True],
     ids=("main-parent", "wave-parent"),
@@ -6444,9 +6494,12 @@ def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
     tmp_path: Path, include_failure_class: bool,
 ) -> None:
     _completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", expected_returncode=0, max_wall="100"
     )
     assert receipt is not None
+    # 互換テストの admission 上限は判定の律速にせず、全 node 共通の
+    # launcher subprocess watchdog だけを律速にする。
+    assert receipt["limits"]["wall_clock_admission_bound_s"] > 10
     receipt["schema_version"] = 3
     receipt["recorded_values_semantics"] = LAUNCHER._RECORDED_VALUES_SEMANTICS
     receipt["limits"].pop("preparation_admission_bound_s")
