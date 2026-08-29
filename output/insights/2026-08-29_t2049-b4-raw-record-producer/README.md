@@ -174,6 +174,29 @@ fix3 の再照準後の実測では**到達不能・検出不能は 0 件**に�
 - 2 正例を直列化していた共有 session fixture を解いた
   (fix4 の 523 秒 setup は両 node に計上され、並列だった 447 秒より悪化していた)。
 
+### 受入全走が捕まえた取り残し (単独走では出ない型)
+
+最初の受入全走は **18,917 passed に対し本 file の 28 node だけが赤**になった。
+同じ file の単独走は 26.25 秒で 29 件緑であり、差は **main の取り込み**にあった。
+
+```
+TypeError: _cached_verify_admission() got an unexpected keyword argument 'driver_kind'
+  orchestrator/campaign/p3_b4_launcher.py:352 issue_context
+```
+
+- main の commit `4256929e9` が `verify_b4_admission_record` の呼び出しへ `driver_kind=` を追加した。
+- 本 test file は同関数を caching wrapper で差し替えており、その署名が追随していなかった。
+- **テキスト上の競合は 0** であり、単独走でも出ない。**取り込んで初めて出る型**である。
+- これは fix2 で混入し fix3 で除去した「production 関数をテストから差し替えて速くする」型の
+  **取り残し 1 箇所**であり、その脆さ (署名変更で壊れる) がそのまま顕在化した。
+- 署名を合わせる延命は採らず **wrapper を除去**した (fix7)。
+  除去後の実測は **28.98 秒 / 29 passed** で、コストは +2.73 秒にとどまった。
+
+残る `mock.patch.object` は fixture 配線だけである — `REPOSITORY_ROOT` / `ROLE_FILE` の path 差し替え、
+`exploration_campaign_layout` の経路づけ、`shutil.which` の実行体解決、
+複製書き込みの `os.fsync` 無効化、十進 token を逐語保存する `wal._record_to_line`。
+**production の検証関数を差し替えているものは 0 件である。**
+
 ### 弱めていないことの確認
 
 - skip / xfail / marker / 除外 / 保留: **0 件** (`grep` で確認)。

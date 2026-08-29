@@ -97,9 +97,6 @@ _CLEAN_GENOME = Genome("silo", {
     "BACKOFF_FIXED": 20,
 })
 
-_REAL_VERIFY_ADMISSION = C.verify_b4_admission_record
-
-
 @functools.lru_cache(maxsize=None)
 def _writer_authority() -> _WriterAuthority:
     binding = contract_loader_binding.capture_contract_loader_binding()
@@ -108,22 +105,6 @@ def _writer_authority() -> _WriterAuthority:
         binding=binding,
         activation_state=env_contract.verified_current_activation_state(),
     )
-
-
-@functools.lru_cache(maxsize=None)
-def _verified_admission(record_path: str, repository_root: str):
-    return _REAL_VERIFY_ADMISSION(
-        record_path,
-        repository_root=repository_root,
-    )
-
-
-def _cached_verify_admission(admission_record_path, *, repository_root):
-    return _verified_admission(
-        os.fspath(admission_record_path),
-        os.fspath(repository_root),
-    )
-
 
 def _publication(
     root: Path,
@@ -369,8 +350,6 @@ def _evidence_scope(
     with contextlib.ExitStack() as stack:
         stack.enter_context(mock.patch.object(C, "REPOSITORY_ROOT", admission.repository))
         stack.enter_context(mock.patch.object(C, "ROLE_FILE", admission.role_file))
-        stack.enter_context(mock.patch.object(C, "verify_b4_admission_record", _cached_verify_admission))
-        stack.enter_context(mock.patch.object(P.launcher, "verify_b4_admission_record", _cached_verify_admission))
         stack.enter_context(mock.patch.object(C.shutil, "which", return_value=sys.executable))
         stack.enter_context(mock.patch.object(C, "exploration_campaign_layout", side_effect=layout_for))
         stack.enter_context(mock.patch.object(L, "exploration_campaign_layout", side_effect=layout_for))
@@ -890,8 +869,6 @@ def certified_evidence(tmp_path_factory):
         with contextlib.ExitStack() as stack:
             stack.enter_context(mock.patch.object(C, "REPOSITORY_ROOT", evidence.admission.repository))
             stack.enter_context(mock.patch.object(C, "ROLE_FILE", evidence.admission.role_file))
-            stack.enter_context(mock.patch.object(C, "verify_b4_admission_record", _cached_verify_admission))
-            stack.enter_context(mock.patch.object(P.launcher, "verify_b4_admission_record", _cached_verify_admission))
             stack.enter_context(mock.patch.object(C.shutil, "which", return_value=sys.executable))
             stack.enter_context(mock.patch.object(C, "exploration_campaign_layout", side_effect=layout_for))
             stack.enter_context(mock.patch.object(L, "exploration_campaign_layout", side_effect=layout_for))
