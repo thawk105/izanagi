@@ -28,13 +28,15 @@ durable writer, report generator, certified-selection connection は scope 外�
 | 段 6 run1 | 段 5 実装子の成果物 | 7 failed / 1 passed / 14 errors |
 | 段 6 run2 | fix1 適用後 | **22 passed** (897.25s) |
 | 段 6 run3 | fix2 適用後 | 3 failed (451.33s) |
-| 段 6 run4 | fix3 適用後 | **29 passed** (451.31s) |
+| 段 6 run4 | fix3 適用後 | 29 passed (451.31s) |
+| 段 6 run5 | fix4 適用後 | 1 failed / 28 passed (634.44s) |
+| 段 6 run6 | fix5 適用後 | **29 passed** (26.25s) |
 | 一覧検査 批1 | plain_runner_coverage / campaign_import_invariant / pytest_collection_config | 103 passed / 6 skipped (71.22s) |
 | 一覧検査 批2 | campaign / t1286_commit_receipt / ccbench_spawn_sites / p3_b4_analysis_path | 424 passed / 3 skipped (23.79s) |
 | 一覧検査 批3 | s8b_floor_campaign / p3_s4_loop | 783 passed / 3 skipped (51.06s) |
 
-受入全走、変異 matrix、正式 B-4 実走、qsub、性能測定は**行っていない**。
-変異 matrix は下記のテスト時間問題により実行不能である。
+正式 B-4 実走、qsub、性能測定は**行っていない**。
+テスト時間が 26 秒へ下がったため、変異 matrix と受入全走は実行可能になった。
 
 ## 段 3 と段 6 で独立 2 レーンが一致した所見
 
@@ -77,53 +79,72 @@ durable writer, report generator, certified-selection connection は scope 外�
 - 事前登録 §7.1 が要求する model hash は存在しない (`model_snapshot` は非 hash の識別子)。
 - `treatment_fired` は receipt 水準の意味に限定され、「その decision で次を合成した」を証明しない。
 
-## テスト時間 — land を止めている実測
+## テスト時間 — 451 秒から 26 秒へ
 
-新規 test file 単独で **451.31 秒**。内訳は 2 node が 99% を占める。
+ユーザー裁定は「**受入全走 5 分以上は絶対に許さない**」である。
+本 wave が新設した 2 node が 447 秒ずつを占めており、単独でこの上限を超えていた。
+**原因は本 wave のテストの書き方であって、既存 production の設計ではない。**
 
-```
-447.39s call  test_positive_201_block_certified_preserves_decimal_and_all_pair_protocol_bindings
-447.12s call  test_positive_201_block_all_terminal_records_absent
- 17.38s setup 以下 27 node
-```
+| 版 | 結果 | file 全体 |
+|---|---|---|
+| fix3 | 29 passed | 451.31 秒 |
+| fix4 (複製導入・共有 fixture) | 1 failed / 28 passed | 634.44 秒 |
+| fix5 (最終) | **29 passed** | **26.25 秒** |
 
-受入台帳 `orchestrator/tests/acceptance_duration_ledger.json` の実測と比較する。
+### 誤っていた最初の帰属 (記録)
 
-- 登録 nodeid 数 17,639、全 node の所要合計 9,610 秒。
-- **現状の最遅 node は 140.0 秒** (`test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications`)。
-- 本 wave の 2 node は **447 秒で、repo 全体の最遅 node の 3.2 倍**である。
-- 並列実行では suite の wall 下限が最長 node に支配されるため、
-  **この 2 node が受入全走の critical path になり、wall 下限を 140 秒から 447 秒へ 3.2 倍にする。**
-- ユーザー裁定の絶対上限は**スイート全体で 5 分 (300 秒)**。単独 node で超える。
+当初「律速は編集禁止面にある drift gate なので本 wave では直せない」と報告した。
+**これは誤りだった。** 切り分けると `p3_b4_raw_record_producer.py` は
+`require_admitted_campaign` を一度も呼んでおらず、402 回呼んでいたのは
+本 wave のテストの証拠生成部分だけである。実際の B-4 実走はこのコストを払わない。
+既存 gate は既存の呼出頻度では問題になっておらず、402 倍にしたのがこの wave である。
 
-### 律速の所在 (構造で特定)
+### 実測した 2 つの律速
 
-`p3_b4_closed_critic.invoke()` は arm ごとに
-`artifact_admission.require_admitted_campaign(..., CERTIFIED_ACCEPTANCE)` を通る。
-その中の `_require_verifier_epoch_for_purpose` が
-`contract_loader_binding.capture_contract_loader_binding()` を呼び、同関数は
+1. **実 `invoke()` 402 回。** `contract_loader_binding.capture_contract_loader_binding()`
+   (`contract_loader_binding.py:318-361`) が 24 path へ `git cat-file blob`、
+   加えて `git rev-parse` を 1 回、計 **25 個の git subprocess** を起動する。
+   親の実測で **1 回 0.38 秒** (`git cat-file` 25 回 = 0.367s、`git rev-parse` = 0.013s)。
+   402 回で約 153 秒。**447 秒の 34% にすぎない。**
+2. **fsync。** この機械で親が実測した値。
 
-- `git rev-parse --verify HEAD^{commit}` を 1 回、
-- `campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS` の **24 path それぞれに `git cat-file blob`**
+   ```
+   /tmp  : 50 回の write+fsync = 2.425 秒 (1 回 48.5 ms)
+   /work : 50 回の write+fsync = 0.267 秒 (1 回  5.3 ms)
+   ```
 
-を実行する (`contract_loader_binding.py:318-361`)。**1 回あたり 25 個の git subprocess** であり、
-402 arm 分では約 1 万回になる。
+   pytest の `tmp_path` は遅い側にある。201 block x 2 arm x 約 10 file の耐久書き込みで
+   概算 4000 file x 48.5 ms = 約 194 秒を払っていた。
 
-**これは本 wave の編集禁止面である。** さらに `artifact_admission.py` 自身が
-contract loader closure の 24 path に含まれるため、編集すると
-「自分が検証している digest」が変わる自己参照面になる。
-またこの gate は D1163 に基づき **admitted read ごとに drift を検出する**設計であり、
-呼出頻度を下げることは単なる高速化ではなく**正しさゲートの設計変更**である。
+### 対処 (テスト file だけを変更。producer は 1 byte も変えていない)
 
-**したがって本 wave では直せない。** 裁定パッケージ 5 として返す。
+- certified / abort / terminal-absent の **3 block は完全な実経路**で生成する。
+  `invoke()` の呼出は `test_p3_b4_raw_record_producer.py:401-402` の 1 か所だけになった。
+- 残りの block は production writer と同じ bytes で複製し、
+  **耐久性のためだけの fsync を払わない。**
+  内容の真正性は `_assert_replicas_match_real_except_identity` (同 file 1521 行) が担保する
+  — 種の実 block に対し、複製は iteration と pair_id が必ず異なり、
+  それ以外の正規化した arm evidence は全複製が種と一致することを要求する。
+- 複製時に WAL 先頭 record の `ts` を block の無作為化 schedule どおりに与える。
+  これを欠いた fix4 版は割当遵守の検査が**正しく赤になった** (検査が効いている証拠)。
+- 2 正例を直列化していた共有 session fixture を解いた
+  (fix4 の 523 秒 setup は両 node に計上され、並列だった 447 秒より悪化していた)。
 
-### 誤りだった仮説 (記録)
+### 弱めていないことの確認
 
-fix2 は「律速は projection closure の 12 file 再 hash」と報告し、
-test から `mock.patch.object(C, "projection_sha256", ...)` で production 関数を差し替えて
-高速化していた。しかし**差し替えても 447 秒のまま**であり仮説は成立しなかった。
-検査を弱めて速度を買う形でもあるため fix3 で全除去した。
-`cProfile` による確定は、codex 子の sandbox が scheduler へ到達できず (rc=16) 未実施である。
+- skip / xfail / marker / 除外 / 保留: **0 件** (`grep` で確認)。
+- `EXPECTED_BLOCK_COUNT` は 201 のまま。402 source artifact、全 hash 相異、
+  十進 token `0.10000000000000001` の 402 回一致という検査はすべて残っている。
+- production 関数の差し替え (`mock.patch.object(C, "projection_sha256", ...)` 型) は
+  fix2 で一度混入したが fix3 で全除去し、以後入れていない。
+- producer 側の検査は 402 arm すべてで従来どおり走る。速くしたのは**証拠の作り方**だけである。
+
+### 受入台帳との比較
+
+`orchestrator/tests/acceptance_duration_ledger.json`: 登録 nodeid 17,639、
+全 node 所要合計 9,610 秒、**現状の最遅 node は 140.0 秒**
+(`test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications`)。
+本 file は 26.25 秒であり、最遅 node の 1/5 である。受入全走の critical path にはならない。
 
 ## 変異事前登録の帰属 (段 6 レビューの検証)
 
