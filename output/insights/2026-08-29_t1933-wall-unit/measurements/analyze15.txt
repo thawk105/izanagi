@@ -1,0 +1,104 @@
+9c62f3e9 08-29 02:36
+    shard-0 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=93fcb4663b8d488c8f0b9095e29d4bff070288c5
+            growth-hold env: (none)
+    shard-1 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=93fcb4663b8d488c8f0b9095e29d4bff070288c5
+            growth-hold env: (none)
+    shard-2 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=93fcb4663b8d488c8f0b9095e29d4bff070288c5
+            growth-hold env: (none)
+6fbbc43d 08-29 02:24
+    shard-0 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=93fcb4663b8d488c8f0b9095e29d4bff070288c5
+            growth-hold env: (none)
+    shard-1 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=93fcb4663b8d488c8f0b9095e29d4bff070288c5
+            growth-hold env: (none)
+    shard-2 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=93fcb4663b8d488c8f0b9095e29d4bff070288c5
+            growth-hold env: (none)
+96dd3976 08-29 02:05
+    shard-0 repo=/.codex/worktrees/dev-wave-t1434-science-slice
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+    shard-1 repo=/.codex/worktrees/dev-wave-t1434-science-slice
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+    shard-2 repo=/.codex/worktrees/dev-wave-t1434-science-slice
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+ef85f4f2 08-29 01:52
+    shard-0 repo=/.codex/worktrees/dev-wave-t1434-science-slice
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+    shard-1 repo=/.codex/worktrees/dev-wave-t1434-science-slice
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+    shard-2 repo=/.codex/worktrees/dev-wave-t1434-science-slice
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+204f307e 08-29 01:43
+    shard-0 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+    shard-1 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+    shard-2 repo=odex/worktrees/dev-wave-t2006-noncertifying-a1
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=c9f868ba8190911c5897dc8b6bdbd1da3d9cc259
+            growth-hold env: (none)
+c575a368 08-29 00:07
+    shard-0 repo=codex/worktrees/dev-wave-avoid-overengineering
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=a5b6cf1d6da345dd13de265abd2e1c8035a54f54
+            growth-hold env: (none)
+    shard-1 repo=codex/worktrees/dev-wave-avoid-overengineering
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=a5b6cf1d6da345dd13de265abd2e1c8035a54f54
+            growth-hold env: (none)
+    shard-2 repo=codex/worktrees/dev-wave-avoid-overengineering
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=a5b6cf1d6da345dd13de265abd2e1c8035a54f54
+            growth-hold env: (none)
+44eb8970 08-28 23:05
+    shard-0 repo=/worktrees/dev-wave-t1941-backoff-requested-us
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=2df60387094877c6f916634224614ac2b97c474a
+            growth-hold env: (none)
+    shard-1 repo=/worktrees/dev-wave-t1941-backoff-requested-us
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=2df60387094877c6f916634224614ac2b97c474a
+            growth-hold env: (none)
+    shard-2 repo=/worktrees/dev-wave-t1941-backoff-requested-us
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=2df60387094877c6f916634224614ac2b97c474a
+            growth-hold env: (none)
+9bf410d1 08-28 22:49
+    shard-0 repo=codex/worktrees/dev-wave-avoid-overengineering
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=6ecc6f88bec3f29065918768364d407e6a141228
+            growth-hold env: (none)
+    shard-1 repo=codex/worktrees/dev-wave-avoid-overengineering
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=6ecc6f88bec3f29065918768364d407e6a141228
+            growth-hold env: (none)
+    shard-2 repo=codex/worktrees/dev-wave-avoid-overengineering
+            runner_binding keys=['nonce', 'shard_count', 'shard_index', 'tested_main']
+            tested_main=6ecc6f88bec3f29065918768364d407e6a141228
+            growth-hold env: (none)

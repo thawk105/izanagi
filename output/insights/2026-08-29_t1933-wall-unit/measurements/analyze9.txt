@@ -1,0 +1,9 @@
+K=3, newest 60 runs
+shard-0  floor(wall-max_occ)  n= 60  min   65.6  p25   76.0  median   86.2  p75  162.3
+shard-1  floor(wall-max_occ)  n= 60  min   52.7  p25   54.6  median   55.1  p75   56.2
+shard-2  floor(wall-max_occ)  n= 60  min   53.1  p25   54.4  median   54.9  p75   55.6
+
+same, restricted to runs after the s8c hold landed (2026-08-29 01:50)
+shard-0  n=4  values ['77.2', '77.7', '78.9', '75.4']
+shard-1  n=4  values ['55.5', '55.1', '55.5', '54.6']
+shard-2  n=4  values ['55.4', '56.1', '55.4', '54.9']
