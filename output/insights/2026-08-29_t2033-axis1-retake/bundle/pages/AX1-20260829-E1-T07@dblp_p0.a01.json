@@ -1,0 +1,176 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 34 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T07@dblp",
+    "logical_query_id": "AX1-20260829-E1-T07@dblp",
+    "page_number": 0,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T07@dblp#p0",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 34,
+    "capacity_echo": 34,
+    "declared_total": 34,
+    "interpreted_query": "multi* version* concurrency* control*",
+    "parse_errors": [],
+    "position_in": "0",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "8d632455c5a600752d9a19acc5aa7123f92a5f40744e28e36e49a48dc82927be",
+    "index_work_ids": [
+      "journals/tkde/AgrawalS93",
+      "conf/infocom/LvLMXL26",
+      "journals/access/AlzahraniIRB25",
+      "journals/pvldb/AntonopoulosCDJKKKOPRST25",
+      "conf/aina/EnokidoD025",
+      "conf/candar/LiOK24",
+      "conf/osdi/Chang0STKZ23",
+      "journals/pvldb/FreitagKN22",
+      "conf/bwcca/EnokidoD022",
+      "conf/nbis/EnokidoD022",
+      "journals/pvldb/WuALXP17",
+      "conf/sigmod/DashtiJS017",
+      "conf/icacci/GhoshCC16",
+      "conf/sigmod/LeeSPKNCSH16",
+      "journals/pvldb/LevandoskiLSS015",
+      "conf/sigmod/0001MK15",
+      "conf/eurosys/MerrifieldE13",
+      "journals/corr/abs-1106-3325",
+      "reference/db/Cellary09",
+      "reference/db/X09xla",
+      "reference/db/X09xlb",
+      "conf/mascots/SanzoCQR08",
+      "conf/IEEEcit/WangP04",
+      "conf/lctrts/JeongKL00",
+      "conf/icde/Morzy93",
+      "conf/ride/Raz93",
+      "conf/sigmod/AgrawalS89",
+      "journals/is/HarderP87",
+      "conf/icde/AhujaB87",
+      "conf/compcon/AgrawalBGS86",
+      "journals/jcss/MuroKM84",
+      "journals/tods/PapadimitriouK84",
+      "journals/is/Lausen83",
+      "conf/pods/PapadimitriouK82"
+    ],
+    "occurrence_count": 34,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T07@dblp.pass1.ab81a1896393.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=multi-version+concurrency+control&format=json&h=100&f=0",
+    "expected_interpreted_query": "multi* version* concurrency* control*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": null,
+    "path": "/search/publ/api",
+    "position_in": "0",
+    "query_parameters": [
+      [
+        "q",
+        "multi-version concurrency control"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "0"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T07@dblp_p0.a01.body.gz",
+    "byte_count": 21250,
+    "content_type": "application/json",
+    "elapsed_s": 3.5915991929359734,
+    "final_url": "https://dblp.org/search/publ/api?q=multi-version+concurrency+control&format=json&h=100&f=0",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "0ee8c65a4b14b4c2ff04e70ca3d4ea327837b682083af6a4991e36f859109593",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:28:42.878790Z",
+    "parsed_at": "2026-08-29T14:28:46.481594Z",
+    "prepared_at": "2026-08-29T14:28:03.880268Z",
+    "response_stored_at": "2026-08-29T14:28:46.478735Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:28:46.483207Z"
+  }
+}

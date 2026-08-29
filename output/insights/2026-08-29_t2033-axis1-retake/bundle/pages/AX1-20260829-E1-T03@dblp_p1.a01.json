@@ -1,0 +1,215 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 73 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T03@dblp",
+    "logical_query_id": "AX1-20260829-E1-T03@dblp",
+    "page_number": 1,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T03@dblp#p1",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 73,
+    "capacity_echo": 73,
+    "declared_total": 173,
+    "interpreted_query": "serializability*",
+    "parse_errors": [],
+    "position_in": "100",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "640abb19ee93877235abad4ba3d3dcb43e878a039307277f3708a70248f63856",
+    "index_work_ids": [
+      "journals/dpd/KrychniakRCST96",
+      "conf/adbis/HadaeghB96",
+      "conf/codas/AsaiNYN96",
+      "conf/date/Gupta96",
+      "books/ph/kumar96/Chrysanthis96",
+      "journals/ieicet/SakaueM95",
+      "journals/tkde/RamamrithamP95",
+      "conf/dagstuhl/Denker95",
+      "conf/hicss/DrewP95",
+      "conf/podc/PitouraZB95",
+      "journals/ipl/Raz94",
+      "journals/ipl/ResendeA94",
+      "journals/jsa/KwonM94",
+      "journals/tcs/Berard94",
+      "journals/tkde/GeorgakopoulosRS94",
+      "conf/adc/PalL94",
+      "conf/vldb/OuzzaniAB94",
+      "journals/debu/RastogiMKS93",
+      "conf/dasfaa/SonK93",
+      "conf/hpts/PuC93",
+      "conf/icci/ZappB93",
+      "conf/icdcs/PuHKWY93",
+      "conf/icde/KamathR93",
+      "conf/icnn/SungurH93",
+      "conf/parle/NygardD93a",
+      "conf/pods/Raz93",
+      "conf/rtss/Graham93",
+      "journals/jsa/HwangM92",
+      "conf/cascon/Bradshaw92",
+      "conf/icdcs/Ben-HassenR92",
+      "conf/icde/WuYP92",
+      "conf/ride/MehrotraRKS92",
+      "conf/ride/PuL92",
+      "conf/vldb/Raz92",
+      "phd/us/Du91",
+      "journals/fuin/Vidyasankar91",
+      "journals/ipl/ElmagarmidD91",
+      "conf/icde/DuEK91",
+      "conf/icde/GeorgakopoulosRS91",
+      "conf/lics/PeledKP91",
+      "conf/icde/RakowGN90",
+      "conf/parbase/Turc90",
+      "conf/parbase/Turc90a",
+      "conf/parbase/WolskiV90",
+      "conf/parbase/WolskiV90a",
+      "conf/vldb/DuE89",
+      "phd/us/Curley88",
+      "conf/icalp/BackK88",
+      "conf/icdt/VidyasankarD88",
+      "conf/sigmod/KorthS88",
+      "journals/acta/Vidyasankar87",
+      "journals/ipl/Kelter87",
+      "journals/tods/IbarakiKM87",
+      "conf/icdt/HansdahP86",
+      "conf/stacs/Kelter86",
+      "journals/ijpp/BrzozowskiM85",
+      "journals/jcss/BernsteinG85",
+      "journals/tcs/FleR85",
+      "conf/fsttcs/Vidyasankar85",
+      "journals/jacm/Yannakakis84",
+      "journals/siamcomp/RosenkrantzSL84",
+      "conf/apn/FleR84",
+      "conf/pods/FordC84",
+      "conf/vldb/IbarakiKM83",
+      "journals/jacm/Sethi82",
+      "conf/podc/FleR82",
+      "conf/pods/FischerM82",
+      "conf/pods/KrishnamurthyD82",
+      "conf/eci/Lausen81",
+      "conf/wg/Lausen81",
+      "journals/jacm/Papadimitriou79b",
+      "journals/tse/BernsteinSW79",
+      "conf/acm/Silberschatz78"
+    ],
+    "occurrence_count": 73,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T03@dblp.pass1.1da9c6379382.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=serializability&format=json&h=100&f=100",
+    "expected_interpreted_query": "serializability*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": "8ce247800f0355cd0b9abf57a7d923146e2243821329fd79310b92a26dfb4ddd",
+    "path": "/search/publ/api",
+    "position_in": "100",
+    "query_parameters": [
+      [
+        "q",
+        "serializability"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "100"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T03@dblp_p1.a01.body.gz",
+    "byte_count": 38789,
+    "content_type": "application/json",
+    "elapsed_s": 9.125539511907846,
+    "final_url": "https://dblp.org/search/publ/api?q=serializability&format=json&h=100&f=100",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "a2ce81c468c5c57739acd71bc07b9fe80431f8a5c3ef9ce3ba981c2eac443e0e",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:24:12.882231Z",
+    "parsed_at": "2026-08-29T14:24:22.018847Z",
+    "prepared_at": "2026-08-29T14:23:31.746217Z",
+    "response_stored_at": "2026-08-29T14:24:22.016148Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:24:22.020493Z"
+  }
+}

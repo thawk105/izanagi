@@ -1,0 +1,16 @@
+{
+ "declared_total": 835,
+ "leaf_query_id": "AX1-20260829-E1-Q6-SM202510@arxiv",
+ "note": "pass ごとに数える。pass を跨いで合算した数は取得完全性の指標ではない",
+ "per_pass": {
+  "1": {
+   "distinct_index_work_ids": 834,
+   "duplicated_index_work_ids": {
+    "http://arxiv.org/abs/2510.27489v2": 2
+   },
+   "returned_rows": 835
+  }
+ },
+ "source_run": "diagnostics-run-abspath",
+ "what": "arXiv が頁境界で同じ work ID を 2 回返しつつ総件数では 1 回しか数えない"
+}

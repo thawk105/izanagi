@@ -1,0 +1,242 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 100 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T08@dblp",
+    "logical_query_id": "AX1-20260829-E1-T08@dblp",
+    "page_number": 0,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T08@dblp#p0",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 100,
+    "capacity_echo": 100,
+    "declared_total": 104,
+    "interpreted_query": "snapshot* isolation*",
+    "parse_errors": [],
+    "position_in": "0",
+    "position_out": "100"
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "149fd910898d704e44a240f27e2a307b7b6091c81b6cd0c3afc071d74a5012c4",
+    "index_work_ids": [
+      "conf/icdcs/KishiP20",
+      "conf/osdi/LepersBGZ20",
+      "conf/eurosys/TomsicCS16",
+      "conf/dasfaa/AlomariCFR08",
+      "conf/srds/PopovS25",
+      "conf/papoc/Zhang024",
+      "journals/corr/abs-2405-18393",
+      "journals/pvldb/AlhomssiL23",
+      "journals/pvldb/HuangLCWBLP23",
+      "conf/eurosys/ZhangJMT23",
+      "journals/corr/abs-2301-07313",
+      "conf/sigmod/KangC0Z0CS22",
+      "journals/patterns/FerreiraMMOPP21",
+      "conf/eurosys/FariaP21",
+      "journals/fcsc/ZhouZW19",
+      "journals/pvldb/0001BLP19",
+      "conf/cav/BeillahiBE19",
+      "conf/edbt/GotzeS19",
+      "conf/vmcai/RaadLV19",
+      "journals/corr/abs-1905-08406",
+      "journals/jacm/CeroneG18",
+      "conf/birthday/Hegner18",
+      "conf/dasfaa/GuoCXQZ18",
+      "conf/esop/RaadLV18",
+      "reference/db/Binnig18",
+      "reference/db/Fekete18c",
+      "reference/db/Fekete18d",
+      "journals/corr/abs-1805-06196",
+      "conf/icde/ZhouZYT17",
+      "conf/isca/ChenPI17",
+      "conf/srds/WeiHL17",
+      "conf/vldb/GottsteinPHB17",
+      "journals/corr/ZhouZYT17",
+      "journals/amai/Hegner16",
+      "journals/is/ONeilO16",
+      "journals/vldb/GaoZY16",
+      "conf/IEEEpact/LitzBC16",
+      "conf/cikm/ArabGKRG16",
+      "conf/edbt/Patino-Martinez16",
+      "conf/podc/CeroneG16",
+      "journals/corr/ArabGKRG16",
+      "journals/tsc/PadhyeT15",
+      "conf/oopsla/Zhang15",
+      "conf/wdag/CeroneGY15",
+      "journals/is/AlomariFR14",
+      "journals/pvldb/ChairunnandaDO14",
+      "journals/taco/LitzDC14",
+      "journals/tjs/LuoOD14",
+      "journals/vldb/BinnigHFKLM14",
+      "conf/asplos/LitzCFAS14",
+      "conf/edbt/GottsteinPPB14",
+      "conf/foiks/Hegner14",
+      "conf/icde/HanPJFRY14",
+      "conf/srds/PadhyeRT14",
+      "conf/aiccsa/Alomari13",
+      "conf/birthday/Lewis13",
+      "conf/dasfaa/JungHFRY13",
+      "conf/edbt/SchillerCM13",
+      "conf/europar/ArdekaniSSP13",
+      "conf/srds/ArdekaniSS13",
+      "conf/srds/DuEZ13",
+      "journals/corr/ArdekaniSPS13",
+      "journals/pvldb/PortsG12",
+      "conf/IEEEcloud/PadhyeT12",
+      "conf/ecoop/DiasDSL12",
+      "conf/eurosys/YabandehF12",
+      "conf/srds/PadhyeT12",
+      "conf/uic/LuoOD12",
+      "journals/corr/abs-1208-4179",
+      "journals/pvldb/JungHFR11",
+      "journals/scpe/ZhangS11",
+      "conf/adbis/TilgnerGBK11",
+      "conf/btw/Klein09",
+      "conf/icde/BorneaHEF11",
+      "conf/icde/RevilakOO11",
+      "conf/syrcodis/Vasilik11",
+      "conf/tpctc/GottsteinPB11",
+      "conf/grid/ZhangS10",
+      "conf/icdt/NormannO10",
+      "phd/basesearch/Alomari09",
+      "phd/basesearch/Cahill09",
+      "journals/pvldb/MishimaN09",
+      "journals/tods/CahillRF09",
+      "journals/tods/LinKJPA09",
+      "conf/icde/AlomariFR09",
+      "conf/otm/Munoz-EscoiBJAM09",
+      "reference/db/Fekete09b",
+      "conf/hotdep/PreguicaRHL08",
+      "conf/icde/AlomariCFR08",
+      "conf/podc/Armendariz-InigoJMM08",
+      "conf/sigmod/CahillRF08",
+      "conf/srds/Bernabe-GisbertZMP08",
+      "conf/prdc/SerranoPJK07",
+      "conf/vldb/JorwekarFRS07",
+      "conf/dba/YangG06",
+      "conf/vldb/DaudjeeS06",
+      "journals/tods/FeketeLOOS05",
+      "conf/icde/WuK05",
+      "conf/sigmod/LinKPJ05",
+      "conf/srds/ElniketyZP05"
+    ],
+    "occurrence_count": 100,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T08@dblp.pass1.fd4640dc96f4.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=snapshot+isolation&format=json&h=100&f=0",
+    "expected_interpreted_query": "snapshot* isolation*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": null,
+    "path": "/search/publ/api",
+    "position_in": "0",
+    "query_parameters": [
+      [
+        "q",
+        "snapshot isolation"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "0"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T08@dblp_p0.a01.body.gz",
+    "byte_count": 59083,
+    "content_type": "application/json",
+    "elapsed_s": 6.583575008902699,
+    "final_url": "https://dblp.org/search/publ/api?q=snapshot+isolation&format=json&h=100&f=0",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "a875d660ac1e5c310203d7cba3f5fbd21c5fb3282b7f8e709daa97c023c40c21",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:29:27.878875Z",
+    "parsed_at": "2026-08-29T14:29:34.480180Z",
+    "prepared_at": "2026-08-29T14:28:48.177455Z",
+    "response_stored_at": "2026-08-29T14:29:34.471776Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:29:34.482018Z"
+  }
+}

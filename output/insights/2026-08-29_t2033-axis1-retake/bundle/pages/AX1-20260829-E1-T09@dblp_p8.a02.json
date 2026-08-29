@@ -1,0 +1,242 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 100 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 2,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T09@dblp",
+    "logical_query_id": "AX1-20260829-E1-T09@dblp",
+    "page_number": 8,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T09@dblp#p8",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 100,
+    "capacity_echo": 100,
+    "declared_total": 1106,
+    "interpreted_query": "transactional* memory*",
+    "parse_errors": [],
+    "position_in": "800",
+    "position_out": "900"
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "2f88bc058a391a6e05c31b6558d3345db54b63dfeffce0bf91419e7d29bb5218",
+    "index_work_ids": [
+      "conf/gcc/WuW10",
+      "conf/hipeac/AnsariKLKKW10",
+      "conf/hipeac/FerriWMBH10",
+      "conf/hpcc/SanyalR10",
+      "conf/hvc/Lourenco10",
+      "conf/icdcit/Herlihy10",
+      "conf/iceccs/BaekBKO10",
+      "conf/icpp/MannarswamyG10",
+      "conf/ieeehpcs/HasenfratzSW10",
+      "conf/ifmt/NegiWS10",
+      "conf/iiswc/NakaikeONM10",
+      "conf/ipps/KotselidisLAMKKW10",
+      "conf/ipps/NatarajanM10",
+      "conf/ipps/PalmieriQRC10",
+      "conf/ipps/SinhaM10",
+      "conf/ipps/ZhangR10",
+      "conf/isca/MoirN10",
+      "conf/isia/FuWWY10",
+      "conf/isia/WangjFh10",
+      "conf/ispass/PorterW10",
+      "conf/issta/TeixeiraLFDS10",
+      "conf/mascots/HeH10",
+      "conf/micro/AydonatA10",
+      "conf/micro/ChungYDPHCG10",
+      "conf/micro/LuponMG10",
+      "conf/middleware/Carvalho10",
+      "conf/middleware/CarvalhoRR10",
+      "conf/opodis/SharmaB10",
+      "conf/pdcat/MullerMS10",
+      "conf/podc/Attiya10",
+      "conf/podc/LuWL10",
+      "conf/podc/ZhangR10",
+      "conf/podc/ZhangR10a",
+      "conf/ppopp/BarretoDFGK10",
+      "conf/ppopp/DashD10",
+      "conf/ppopp/LupeiSPMBKA10",
+      "conf/ppopp/MaldonadoMFSHFLM10",
+      "conf/ppopp/MannarswamyCRS10",
+      "conf/ppopp/PorterW10",
+      "conf/ppopp/ZyulkyarovHUCV10",
+      "conf/pppj/RitoC10",
+      "conf/sac/KrajcaV10",
+      "conf/sac/SchoeberlBV10",
+      "conf/sbac-pad/Gaona-RamirezTFA10",
+      "conf/sbac-pad/YuHH10",
+      "conf/sbcci/KunzGW10",
+      "conf/spaa/BaekBKO10",
+      "conf/spaa/DiceLMMNO10",
+      "conf/spaa/Spear10",
+      "conf/sss/WamhoffRFF10",
+      "conf/vldb/TranBN10",
+      "conf/wdag/FelberFMNR10",
+      "conf/wdag/SharmaEB10",
+      "journals/corr/abs-1002-4182",
+      "journals/corr/abs-1009-0056",
+      "phd/ethos/Ansari09",
+      "phd/ethos/Khan09a",
+      "phd/ndltd/Baldassin09",
+      "phd/us/McDonald09",
+      "journals/cacm/Drepper09",
+      "journals/cal/BaldassinKAAC09",
+      "journals/cl/RenggliN09",
+      "journals/cn/HeindlP09",
+      "journals/concurrency/WaliullahS09",
+      "journals/concurrency/WuMPNBCCCCHMSSWW09",
+      "journals/csse/KhanHRLDW09",
+      "journals/eatcs/GuerraouiK09",
+      "journals/eatcs/Herlihy09",
+      "journals/eatcs/RiegelFF09",
+      "journals/jcst/LiZCL09",
+      "journals/jpdc/Grahn09",
+      "journals/sigact/Gramoli09",
+      "journals/usenix-login/ShriramanDS09",
+      "conf/IEEEpact/BobbaXYHW09",
+      "conf/IEEEpact/LuponMG09",
+      "conf/IEEEpact/PorterCT09",
+      "conf/IEEEpact/QuislantGPZ09",
+      "conf/asplos/DiceLMN09",
+      "conf/cav/GuerraouiK09",
+      "conf/cc/AbadiBHHI09",
+      "conf/cf/PantB09",
+      "conf/cluster/WangLL09",
+      "conf/concur/AbadiH09",
+      "conf/csreaESA/HuCSCW09",
+      "conf/date/FahmyRJ09",
+      "conf/dls/CostanzaHD09",
+      "conf/ecoop/GottschlichSVWC09",
+      "conf/ecoop/VolosWASTN09",
+      "conf/europar/MizunoNN09",
+      "conf/hipc/HeH09",
+      "conf/hipc/RaviA09",
+      "conf/hipeac/AnsariLKJKW09",
+      "conf/hpcc/HeH09",
+      "conf/hpcc/SanyalRCUV09",
+      "conf/hpdc/WangLL09",
+      "conf/ica3pp/MollerMSS09",
+      "conf/icdcs/OLearyST09",
+      "conf/icpp/NikasAGK09",
+      "conf/icpp/WangXPWDY09",
+      "conf/ics/GajinovZUCAHV09"
+    ],
+    "occurrence_count": 100,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T09@dblp.pass1.72f57e7436b0.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=transactional+memory&format=json&h=100&f=800",
+    "expected_interpreted_query": "transactional* memory*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": "ba67426b336d1f994537da58b74135294d229dacc4b5c94d53637801e8592101",
+    "path": "/search/publ/api",
+    "position_in": "800",
+    "query_parameters": [
+      [
+        "q",
+        "transactional memory"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "800"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T09@dblp_p8.a02.body.gz",
+    "byte_count": 59472,
+    "content_type": "application/json",
+    "elapsed_s": 6.6402620817534626,
+    "final_url": "https://dblp.org/search/publ/api?q=transactional+memory&format=json&h=100&f=800",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "214514d8bd99d672496ae765e7fa43f0dfeb01bc096fa74f4862234f71da067d",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:39:57.879301Z",
+    "parsed_at": "2026-08-29T14:40:04.530831Z",
+    "prepared_at": "2026-08-29T14:39:16.621545Z",
+    "response_stored_at": "2026-08-29T14:40:04.527639Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:40:04.532809Z"
+  }
+}

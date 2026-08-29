@@ -1,0 +1,163 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 21 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T04@dblp",
+    "logical_query_id": "AX1-20260829-E1-T04@dblp",
+    "page_number": 1,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T04@dblp#p1",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 21,
+    "capacity_echo": 21,
+    "declared_total": 121,
+    "interpreted_query": "isolation* level*",
+    "parse_errors": [],
+    "position_in": "100",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "2fb2101da6cfa65b99e4889caab1f192f6c18dc5623b3679f9f63e0903004050",
+    "index_work_ids": [
+      "reference/db/Bernstein09",
+      "conf/eurosys/JainSDG08",
+      "conf/otm/Salinas-MonteagudoMAM08",
+      "conf/cicc/KosakaNMI07",
+      "conf/ijcnn/FernandesSON07",
+      "conf/otm/Bernabe-Gisbert07",
+      "journals/corr/abs-cs-0701157",
+      "conf/ispa/Bernabe-GisbertSIM06",
+      "conf/mm/LiuSC05",
+      "conf/pods/Fekete05",
+      "journals/tkde/LuBL04",
+      "phd/de/Schenkel2004",
+      "conf/date/MunchWWMS00",
+      "conf/icde/AdyaLO00",
+      "conf/icde/BernsteinLL00",
+      "conf/acsac/FayadJM99",
+      "conf/dasfaa/KimJPP99",
+      "conf/acsac/JajodiaLM98",
+      "conf/aspdac/Shi97",
+      "conf/sigmod/BerensonBGMOO95",
+      "conf/itc/Sacher84"
+    ],
+    "occurrence_count": 21,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T04@dblp.pass1.f3c394a2a12d.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=isolation+level&format=json&h=100&f=100",
+    "expected_interpreted_query": "isolation* level*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": "0020e437ae1fc3283700e0524d3424bb488a22ce49bc3654c20278460d1cf8de",
+    "path": "/search/publ/api",
+    "position_in": "100",
+    "query_parameters": [
+      [
+        "q",
+        "isolation level"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "100"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T04@dblp_p1.a01.body.gz",
+    "byte_count": 12992,
+    "content_type": "application/json",
+    "elapsed_s": 11.364272555336356,
+    "final_url": "https://dblp.org/search/publ/api?q=isolation+level&format=json&h=100&f=100",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "da0215b3b3ae871bccf94adbc63ab1c362bace9e961ec3f4e47c56eccc977347",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:25:42.878812Z",
+    "parsed_at": "2026-08-29T14:25:54.255457Z",
+    "prepared_at": "2026-08-29T14:25:02.458792Z",
+    "response_stored_at": "2026-08-29T14:25:54.253140Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:25:54.257042Z"
+  }
+}

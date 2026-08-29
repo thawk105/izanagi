@@ -1,0 +1,148 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 6 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T09@dblp",
+    "logical_query_id": "AX1-20260829-E1-T09@dblp",
+    "page_number": 11,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T09@dblp#p11",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 6,
+    "capacity_echo": 6,
+    "declared_total": 1106,
+    "interpreted_query": "transactional* memory*",
+    "parse_errors": [],
+    "position_in": "1100",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "1e89313f84e35b43cd4ef8342e676ee46d7bc97ad2c29132cf24dc3236c779d6",
+    "index_work_ids": [
+      "conf/podc/HerlihyLMS03",
+      "conf/usenix/SaitoB98",
+      "journals/dc/ShavitT97",
+      "conf/podc/ShavitT95",
+      "conf/isca/HerlihyM93",
+      "journals/jsa/MullerRS91"
+    ],
+    "occurrence_count": 6,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T09@dblp.pass1.662fbec56e20.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=transactional+memory&format=json&h=100&f=1100",
+    "expected_interpreted_query": "transactional* memory*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": "b5b11f3d1154c55a58f2adcbb5df2d286876573cb4c97c7f39a1073628d90876",
+    "path": "/search/publ/api",
+    "position_in": "1100",
+    "query_parameters": [
+      [
+        "q",
+        "transactional memory"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "1100"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T09@dblp_p11.a01.body.gz",
+    "byte_count": 3735,
+    "content_type": "application/json",
+    "elapsed_s": 1.3935471992008388,
+    "final_url": "https://dblp.org/search/publ/api?q=transactional+memory&format=json&h=100&f=1100",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "d179249981da5f3b2c706a98c9140c3f26d90d1affc3b0a7d519914032fca2c9",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:42:57.855095Z",
+    "parsed_at": "2026-08-29T14:42:59.259510Z",
+    "prepared_at": "2026-08-29T14:42:25.807385Z",
+    "response_stored_at": "2026-08-29T14:42:59.257516Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:42:59.261234Z"
+  }
+}

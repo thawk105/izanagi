@@ -1,0 +1,242 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 100 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 2,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T03@dblp",
+    "logical_query_id": "AX1-20260829-E1-T03@dblp",
+    "page_number": 0,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T03@dblp#p0",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 100,
+    "capacity_echo": 100,
+    "declared_total": 173,
+    "interpreted_query": "serializability*",
+    "parse_errors": [],
+    "position_in": "0",
+    "position_out": "100"
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "78caecdd6b86158ea6c6f7dce6e91591b95bbb940d4ee65c663137ff4ecf5890",
+    "index_work_ids": [
+      "conf/appinf/ChanC99",
+      "journals/vlc/ZhaoL26",
+      "conf/tacas/AmirBAJ26",
+      "journals/corr/abs-2601-02251",
+      "journals/corr/abs-2606-25409",
+      "journals/afp/Traytel25",
+      "journals/pvldb/CuiDGYZSFW25",
+      "conf/aina/EnokidoD025",
+      "conf/eidwt/EnokidoD025",
+      "journals/corr/abs-2503-05163",
+      "journals/corr/abs-2511-22956",
+      "journals/jip/HamadaSK24",
+      "conf/candar/OharaSK24",
+      "conf/hpcc/ZhaoDWYLZ24",
+      "phd/dnb/Konig23a",
+      "journals/tkde/ZhaoZZLLZPD23",
+      "conf/bigdataconf/HamadaSK23",
+      "conf/ictac/KonigW21",
+      "conf/pldi/RahmaniNDJ21",
+      "conf/sigmod/Zhao21",
+      "conf/sosp/Helt0LL21",
+      "journals/corr/abs-2103-05573",
+      "journals/corr/abs-2109-08930",
+      "phd/us/Sheff19",
+      "conf/ecbseerc/PopovicPGK19",
+      "conf/concur/NagarJ18",
+      "conf/coordination/SutraMST18",
+      "conf/pldi/BrutschyD0V18",
+      "reference/db/Cellary18",
+      "reference/db/Kemme18b",
+      "reference/db/Kemme18f",
+      "reference/db/OuzzaniME18",
+      "journals/corr/abs-1806-08416",
+      "conf/cgo/SenguptaCBK17",
+      "conf/popl/BrutschyD0V17",
+      "journals/tcs/LakinSP16",
+      "conf/edbt/HanD16",
+      "conf/jelia/BassedaK16",
+      "conf/aiccsa/SalemBB15",
+      "conf/asplos/SenguptaBZBK15",
+      "conf/icdcs/EyalBR15",
+      "conf/icpads/ZhuW15",
+      "conf/oopsla/Biswas15",
+      "journals/corr/Veldhuizen14",
+      "conf/birthday/RosenkrantzSL13b",
+      "conf/cikm/FetaiS13",
+      "conf/dna/LakinPS13",
+      "conf/gpc/ZhangJL13",
+      "conf/hotpar/OuyangCFN13",
+      "conf/sosp/ZhangPZSAL13",
+      "journals/pvldb/PattersonENAA12",
+      "journals/corr/abs-1208-0270",
+      "conf/hvc/SinhaMWG11",
+      "conf/icde/BorneaHEF11",
+      "conf/memocode/SinhaMWG11",
+      "conf/oopsla/FernandesC11",
+      "conf/rv/SumnerHD11",
+      "conf/icalp/BlasiakK10",
+      "conf/icse/LaiCC10",
+      "conf/ipps/SinhaM10",
+      "conf/popl/AttiyaRR10",
+      "journals/corr/abs-1001-1373",
+      "reference/db/Cellary09",
+      "reference/db/Kemme09a",
+      "reference/db/OuzzaniME09",
+      "reference/db/Vidyasankar09",
+      "reference/db/X09ig",
+      "journals/jancl/Hussak08",
+      "conf/aiccsa/AlomariCFR08",
+      "conf/icde/AlomariCFR08",
+      "conf/icse/HammerDVT08",
+      "journals/join/Enokido06",
+      "conf/dexa/TanakaET06",
+      "conf/sigmod/BernsteinFGRT06",
+      "conf/dexaw/BraynerA05",
+      "conf/pldi/XuBH05",
+      "books/idea/encyclopediaDB2005/ParkerC05",
+      "journals/corr/abs-cs-0505074",
+      "conf/casdmkm/ParkerCS04",
+      "conf/waim/ChenL04b",
+      "conf/pdpta/MoonNC02",
+      "conf/sac/BusiZ02",
+      "conf/coopis/BraynerH01",
+      "journals/entcs/BusiZ01",
+      "journals/jsa/KangM00",
+      "conf/pods/LechtenborgerV00",
+      "journals/dke/BraynerHR99",
+      "conf/ershov/ChkliaevHS99",
+      "conf/fmldo/Kindler99",
+      "conf/fmldo/Kindler99a",
+      "journals/jdm/Anfindsen98",
+      "journals/tods/MehrotraRKS98",
+      "conf/dagstuhl/WichertFF98",
+      "conf/iadt/Anfindsen98",
+      "journals/ipl/EbertV97",
+      "journals/is/PitouraZB97",
+      "journals/jcss/KrishnaswamyABA97",
+      "journals/tkde/WuYP97",
+      "conf/ausai/AbtrounH97",
+      "conf/icdt/HaliciAD97"
+    ],
+    "occurrence_count": 100,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T03@dblp.pass1.3c4071827a7c.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=serializability&format=json&h=100&f=0",
+    "expected_interpreted_query": "serializability*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": null,
+    "path": "/search/publ/api",
+    "position_in": "0",
+    "query_parameters": [
+      [
+        "q",
+        "serializability"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "0"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T03@dblp_p0.a02.body.gz",
+    "byte_count": 58433,
+    "content_type": "application/json",
+    "elapsed_s": 3.841323283035308,
+    "final_url": "https://dblp.org/search/publ/api?q=serializability&format=json&h=100&f=0",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "8ce247800f0355cd0b9abf57a7d923146e2243821329fd79310b92a26dfb4ddd",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:23:27.878571Z",
+    "parsed_at": "2026-08-29T14:23:31.731754Z",
+    "prepared_at": "2026-08-29T14:22:52.416703Z",
+    "response_stored_at": "2026-08-29T14:23:31.728122Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:23:31.733453Z"
+  }
+}

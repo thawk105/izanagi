@@ -1,0 +1,146 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 4 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T08@dblp",
+    "logical_query_id": "AX1-20260829-E1-T08@dblp",
+    "page_number": 1,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T08@dblp#p1",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 4,
+    "capacity_echo": 4,
+    "declared_total": 104,
+    "interpreted_query": "snapshot* isolation*",
+    "parse_errors": [],
+    "position_in": "100",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "b0eabafe9e2f14bbab1e049a4c63e6f11f719bf1de87411a79cf75a761b4ce51",
+    "index_work_ids": [
+      "journals/sigmod/FeketeOO04",
+      "conf/coopis/SchenkelW00",
+      "conf/fmldo/SchenkelWWW99",
+      "conf/fmldo/SchenkelWWW99a"
+    ],
+    "occurrence_count": 4,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T08@dblp.pass1.f270ecc78ff0.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=snapshot+isolation&format=json&h=100&f=100",
+    "expected_interpreted_query": "snapshot* isolation*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": "a875d660ac1e5c310203d7cba3f5fbd21c5fb3282b7f8e709daa97c023c40c21",
+    "path": "/search/publ/api",
+    "position_in": "100",
+    "query_parameters": [
+      [
+        "q",
+        "snapshot isolation"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "100"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T08@dblp_p1.a01.body.gz",
+    "byte_count": 2729,
+    "content_type": "application/json",
+    "elapsed_s": 1.6490312167443335,
+    "final_url": "https://dblp.org/search/publ/api?q=snapshot+isolation&format=json&h=100&f=100",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "7ec6efda2484585e880b70be5af0c11b9d41870f3e199e3724260644a3b550da",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:30:12.790971Z",
+    "parsed_at": "2026-08-29T14:30:14.448791Z",
+    "prepared_at": "2026-08-29T14:29:34.493649Z",
+    "response_stored_at": "2026-08-29T14:30:14.447049Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:30:14.450168Z"
+  }
+}

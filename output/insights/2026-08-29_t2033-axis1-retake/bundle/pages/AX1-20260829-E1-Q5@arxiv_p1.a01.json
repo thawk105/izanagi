@@ -1,0 +1,235 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 97 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "arxiv",
+    "leaf_query_id": "AX1-20260829-E1-Q5@arxiv",
+    "logical_query_id": "AX1-20260829-E1-Q5@arxiv",
+    "page_number": 1,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-Q5@arxiv#p1",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 97,
+    "capacity_echo": 200,
+    "declared_total": 297,
+    "interpreted_query": "arXiv Query: search_query=(abs:\"concurrency control\" OR abs:\"transaction processing\" OR abs:\"serializability\" OR abs:\"isolation level\" OR abs:\"two-phase locking\" OR abs:\"optimistic concurrency control\" OR abs:\"multi-version concurrency control\" OR abs:\"snapshot isolation\" OR abs:\"transactional memory\" OR abs:\"lock manager\" OR abs:\"conflict detection\" OR abs:\"OLTP\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:\"199101010000 TO 202612312359\"&id_list=&start=200&max_results=200",
+    "parse_errors": [],
+    "position_in": "200",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "f8929bee55e91bd54097c1040064ede44fc11831f75feb922351d741a5f32efa",
+    "index_work_ids": [
+      "http://arxiv.org/abs/2605.30156v1",
+      "http://arxiv.org/abs/1504.01048v2",
+      "http://arxiv.org/abs/1702.07081v2",
+      "http://arxiv.org/abs/2411.06895v2",
+      "http://arxiv.org/abs/2604.04995v1",
+      "http://arxiv.org/abs/0807.2972v1",
+      "http://arxiv.org/abs/2601.08528v1",
+      "http://arxiv.org/abs/2607.28991v1",
+      "http://arxiv.org/abs/2305.11162v3",
+      "http://arxiv.org/abs/1909.11590v3",
+      "http://arxiv.org/abs/2305.08380v1",
+      "http://arxiv.org/abs/0811.1304v1",
+      "http://arxiv.org/abs/2509.21550v2",
+      "http://arxiv.org/abs/2605.17301v2",
+      "http://arxiv.org/abs/2602.19878v3",
+      "http://arxiv.org/abs/2504.06975v1",
+      "http://arxiv.org/abs/2502.13805v2",
+      "http://arxiv.org/abs/2601.07376v2",
+      "http://arxiv.org/abs/1911.06347v1",
+      "http://arxiv.org/abs/2208.00315v1",
+      "http://arxiv.org/abs/2505.19509v1",
+      "http://arxiv.org/abs/2502.08447v1",
+      "http://arxiv.org/abs/1903.00452v1",
+      "http://arxiv.org/abs/2301.11511v1",
+      "http://arxiv.org/abs/2607.18178v1",
+      "http://arxiv.org/abs/2204.05779v1",
+      "http://arxiv.org/abs/2511.19199v1",
+      "http://arxiv.org/abs/0805.3062v1",
+      "http://arxiv.org/abs/2507.06762v2",
+      "http://arxiv.org/abs/1709.00681v5",
+      "http://arxiv.org/abs/2511.11088v1",
+      "http://arxiv.org/abs/1605.01092v1",
+      "http://arxiv.org/abs/2604.16339v1",
+      "http://arxiv.org/abs/2008.07171v1",
+      "http://arxiv.org/abs/2602.07584v1",
+      "http://arxiv.org/abs/1912.03506v1",
+      "http://arxiv.org/abs/2603.07391v1",
+      "http://arxiv.org/abs/2403.12605v4",
+      "http://arxiv.org/abs/1005.5435v1",
+      "http://arxiv.org/abs/2607.26503v1",
+      "http://arxiv.org/abs/2606.23442v1",
+      "http://arxiv.org/abs/2011.15013v5",
+      "http://arxiv.org/abs/2503.02922v1",
+      "http://arxiv.org/abs/2506.22491v1",
+      "http://arxiv.org/abs/2511.16837v1",
+      "http://arxiv.org/abs/2604.27486v1",
+      "http://arxiv.org/abs/2509.02480v1",
+      "http://arxiv.org/abs/2509.06298v1",
+      "http://arxiv.org/abs/0712.1167v1",
+      "http://arxiv.org/abs/2008.04479v2",
+      "http://arxiv.org/abs/2601.12989v1",
+      "http://arxiv.org/abs/2407.13296v4",
+      "http://arxiv.org/abs/2507.21544v3",
+      "http://arxiv.org/abs/2510.11166v1",
+      "http://arxiv.org/abs/0909.0099v1",
+      "http://arxiv.org/abs/1903.00731v1",
+      "http://arxiv.org/abs/2607.09403v1",
+      "http://arxiv.org/abs/2004.07060v1",
+      "http://arxiv.org/abs/2502.14908v2",
+      "http://arxiv.org/abs/2606.20924v1",
+      "http://arxiv.org/abs/2410.04068v1",
+      "http://arxiv.org/abs/2602.01885v1",
+      "http://arxiv.org/abs/2505.17927v1",
+      "http://arxiv.org/abs/2601.06842v1",
+      "http://arxiv.org/abs/2306.04421v3",
+      "http://arxiv.org/abs/2606.14775v1",
+      "http://arxiv.org/abs/2505.13652v1",
+      "http://arxiv.org/abs/1809.09395v2",
+      "http://arxiv.org/abs/2604.05416v1",
+      "http://arxiv.org/abs/2603.21415v1",
+      "http://arxiv.org/abs/2312.11053v2",
+      "http://arxiv.org/abs/2606.14773v1",
+      "http://arxiv.org/abs/2004.06089v4",
+      "http://arxiv.org/abs/1809.01326v4",
+      "http://arxiv.org/abs/2603.05767v1",
+      "http://arxiv.org/abs/2103.00031v1",
+      "http://arxiv.org/abs/1405.5461v1",
+      "http://arxiv.org/abs/2509.11361v3",
+      "http://arxiv.org/abs/2507.14475v1",
+      "http://arxiv.org/abs/2011.07168v2",
+      "http://arxiv.org/abs/2510.02627v1",
+      "http://arxiv.org/abs/2605.13737v1",
+      "http://arxiv.org/abs/2312.12853v1",
+      "http://arxiv.org/abs/1908.11850v1",
+      "http://arxiv.org/abs/2511.05589v1",
+      "http://arxiv.org/abs/2109.14789v1",
+      "http://arxiv.org/abs/2606.18310v1",
+      "http://arxiv.org/abs/2504.09283v1",
+      "http://arxiv.org/abs/2606.07808v1",
+      "http://arxiv.org/abs/2601.03075v2",
+      "http://arxiv.org/abs/2501.17661v1",
+      "http://arxiv.org/abs/2602.19883v1",
+      "http://arxiv.org/abs/2509.03550v1",
+      "http://arxiv.org/abs/2507.14398v1",
+      "http://arxiv.org/abs/2604.02972v1",
+      "http://arxiv.org/abs/2501.02229v1",
+      "http://arxiv.org/abs/2405.13869v2"
+    ],
+    "occurrence_count": 97,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-Q5@arxiv.pass1.c061c985effa.json"
+  },
+  "request": {
+    "encoded_url": "https://export.arxiv.org/api/query?search_query=%28abs%3A%22concurrency+control%22+OR+abs%3A%22transaction+processing%22+OR+abs%3A%22serializability%22+OR+abs%3A%22isolation+level%22+OR+abs%3A%22two-phase+locking%22+OR+abs%3A%22optimistic+concurrency+control%22+OR+abs%3A%22multi-version+concurrency+control%22+OR+abs%3A%22snapshot+isolation%22+OR+abs%3A%22transactional+memory%22+OR+abs%3A%22lock+manager%22+OR+abs%3A%22conflict+detection%22+OR+abs%3A%22OLTP%22%29+AND+%28abs%3A%22workload%22+OR+abs%3A%22benchmark%22+OR+abs%3A%22YCSB%22+OR+abs%3A%22TPC-C%22+OR+abs%3A%22contention%22+OR+abs%3A%22read-write+ratio%22+OR+abs%3A%22skew%22+OR+abs%3A%22many-core%22%29+AND+submittedDate%3A%5B199101010000+TO+202612312359%5D&start=200&max_results=200",
+    "expected_interpreted_query": "arXiv Query: search_query=(abs:\"concurrency control\" OR abs:\"transaction processing\" OR abs:\"serializability\" OR abs:\"isolation level\" OR abs:\"two-phase locking\" OR abs:\"optimistic concurrency control\" OR abs:\"multi-version concurrency control\" OR abs:\"snapshot isolation\" OR abs:\"transactional memory\" OR abs:\"lock manager\" OR abs:\"conflict detection\" OR abs:\"OLTP\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:\"199101010000 TO 202612312359\"&id_list=&start=200&max_results=200",
+    "headers": [
+      [
+        "Accept",
+        "application/atom+xml"
+      ]
+    ],
+    "host": "export.arxiv.org",
+    "method": "GET",
+    "parent_response_sha256": "add953a16269967521d9d40bf97b4b4f3e9c038a25c905bcb5aaf1b98ef4cc5a",
+    "path": "/api/query",
+    "position_in": "200",
+    "query_parameters": [
+      [
+        "search_query",
+        "(abs:\"concurrency control\" OR abs:\"transaction processing\" OR abs:\"serializability\" OR abs:\"isolation level\" OR abs:\"two-phase locking\" OR abs:\"optimistic concurrency control\" OR abs:\"multi-version concurrency control\" OR abs:\"snapshot isolation\" OR abs:\"transactional memory\" OR abs:\"lock manager\" OR abs:\"conflict detection\" OR abs:\"OLTP\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:[199101010000 TO 202612312359]"
+      ],
+      [
+        "start",
+        "200"
+      ],
+      [
+        "max_results",
+        "200"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-Q5@arxiv_p1.a01.body.gz",
+    "byte_count": 237892,
+    "content_type": "application/atom+xml",
+    "elapsed_s": 16.437817378900945,
+    "final_url": "https://export.arxiv.org/api/query?search_query=%28abs%3A%22concurrency+control%22+OR+abs%3A%22transaction+processing%22+OR+abs%3A%22serializability%22+OR+abs%3A%22isolation+level%22+OR+abs%3A%22two-phase+locking%22+OR+abs%3A%22optimistic+concurrency+control%22+OR+abs%3A%22multi-version+concurrency+control%22+OR+abs%3A%22snapshot+isolation%22+OR+abs%3A%22transactional+memory%22+OR+abs%3A%22lock+manager%22+OR+abs%3A%22conflict+detection%22+OR+abs%3A%22OLTP%22%29+AND+%28abs%3A%22workload%22+OR+abs%3A%22benchmark%22+OR+abs%3A%22YCSB%22+OR+abs%3A%22TPC-C%22+OR+abs%3A%22contention%22+OR+abs%3A%22read-write+ratio%22+OR+abs%3A%22skew%22+OR+abs%3A%22many-core%22%29+AND+submittedDate%3A%5B199101010000+TO+202612312359%5D&start=200&max_results=200",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/atom+xml; charset=utf-8"
+      ]
+    ],
+    "sha256": "99058de289910c3c2282a42d3d3a72d812473d1b40edbeb34ef49f1414b80f0a",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:04:03.794393Z",
+    "parsed_at": "2026-08-29T14:04:20.342910Z",
+    "prepared_at": "2026-08-29T14:04:01.829208Z",
+    "response_stored_at": "2026-08-29T14:04:20.337649Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:04:20.344771Z"
+  }
+}

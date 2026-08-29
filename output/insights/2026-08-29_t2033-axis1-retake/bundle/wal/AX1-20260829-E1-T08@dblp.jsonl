@@ -1,0 +1,10 @@
+{"at":"2026-08-29T14:28:48.177455Z","attempt_number":1,"request_id":"AX1-20260829-E1-T08@dblp#p0","state":"prepared"}
+{"at":"2026-08-29T14:29:27.878875Z","attempt_number":1,"request_id":"AX1-20260829-E1-T08@dblp#p0","state":"issued"}
+{"at":"2026-08-29T14:29:34.471776Z","attempt_number":1,"payload":{"body_path":"raw/AX1-20260829-E1-T08@dblp_p0.a01.body.gz","body_sha256":"a875d660ac1e5c310203d7cba3f5fbd21c5fb3282b7f8e709daa97c023c40c21","final_url":"https://dblp.org/search/publ/api?q=snapshot+isolation&format=json&h=100&f=0","status":200},"request_id":"AX1-20260829-E1-T08@dblp#p0","state":"response_stored"}
+{"at":"2026-08-29T14:29:34.480180Z","attempt_number":1,"request_id":"AX1-20260829-E1-T08@dblp#p0","state":"parsed"}
+{"at":"2026-08-29T14:29:34.482018Z","attempt_number":1,"payload":{"outcome":"success","reason_code":null},"request_id":"AX1-20260829-E1-T08@dblp#p0","state":"terminal"}
+{"at":"2026-08-29T14:29:34.493649Z","attempt_number":1,"request_id":"AX1-20260829-E1-T08@dblp#p1","state":"prepared"}
+{"at":"2026-08-29T14:30:12.790971Z","attempt_number":1,"request_id":"AX1-20260829-E1-T08@dblp#p1","state":"issued"}
+{"at":"2026-08-29T14:30:14.447049Z","attempt_number":1,"payload":{"body_path":"raw/AX1-20260829-E1-T08@dblp_p1.a01.body.gz","body_sha256":"7ec6efda2484585e880b70be5af0c11b9d41870f3e199e3724260644a3b550da","final_url":"https://dblp.org/search/publ/api?q=snapshot+isolation&format=json&h=100&f=100","status":200},"request_id":"AX1-20260829-E1-T08@dblp#p1","state":"response_stored"}
+{"at":"2026-08-29T14:30:14.448791Z","attempt_number":1,"request_id":"AX1-20260829-E1-T08@dblp#p1","state":"parsed"}
+{"at":"2026-08-29T14:30:14.450168Z","attempt_number":1,"payload":{"outcome":"success","reason_code":null},"request_id":"AX1-20260829-E1-T08@dblp#p1","state":"terminal"}
