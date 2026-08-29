@@ -26,7 +26,12 @@ from orchestrator.campaign import p3_b4_raw_record_producer as P
 from orchestrator.campaign import p3_s4_loop as L
 from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
-from orchestrator.campaign.model import Genome, STAGE_ABORT, STAGE_BUILD_START
+from orchestrator.campaign.model import (
+    Genome,
+    STAGE_ABORT,
+    STAGE_BUILD_START,
+    STAGE_COMMIT,
+)
 from orchestrator.campaign.build_admission import (
     GeneratorId,
     attest_generator_output,
@@ -61,6 +66,8 @@ class _Evidence:
     on_receipt: Path
     off_receipt: Path
     iteration: int
+    on_commit_receipt: object | None = None
+    off_commit_receipt: object | None = None
 
 
 @dataclass(frozen=True)
@@ -74,6 +81,12 @@ class _SharedAdmission:
 class _WriterAuthority:
     binding: object
     activation_state: object
+
+
+@dataclass(frozen=True)
+class _PublicationEvidence:
+    publication: issuer.B4PrerunPublication
+    evidence: tuple[_Evidence, ...]
 
 
 _CLEAN_GENOME = Genome("silo", {
@@ -144,6 +157,13 @@ def _copy_precursor_with_writers(
     target.ensure()
     for record in wal.read_records(source):
         wal.append(target, record)
+    _write_campaign_lock_with_writer(target, target_cfg)
+    source_state = L.load_loop_state(source)
+    assert source_state is not None
+    L.save_loop_state(target, source_state)
+
+
+def _write_campaign_lock_with_writer(target: CampaignLayout, target_cfg) -> None:
     authority = _writer_authority()
     binding = authority.binding
     activation_state = authority.activation_state
@@ -164,9 +184,6 @@ def _copy_precursor_with_writers(
             ),
         ),
     )
-    source_state = L.load_loop_state(source)
-    assert source_state is not None
-    L.save_loop_state(target, source_state)
 
 
 def _make_clean_admitted_fixture(
@@ -244,6 +261,7 @@ def _commit_with_decimal_lexeme(
     *,
     ts: float,
     operation_identity: str,
+    commit_receipt=None,
 ) -> None:
     real = wal._record_to_line
 
@@ -259,14 +277,25 @@ def _commit_with_decimal_lexeme(
         return line
 
     with mock.patch.object(wal, "_record_to_line", side_effect=lexical_writer):
-        commit_receipt_support.log_receipted_commit(
-            layout,
-            "b4-result-variant",
-            L.ENV_TAG,
-            {"fitness_tps": 0.1},
-            operation_identity=operation_identity,
-            ts=ts,
-        )
+        if commit_receipt is None:
+            commit_receipt_support.log_receipted_commit(
+                layout,
+                "b4-result-variant",
+                L.ENV_TAG,
+                {"fitness_tps": 0.1},
+                operation_identity=operation_identity,
+                ts=ts,
+            )
+        else:
+            wal.log(
+                layout,
+                "b4-result-variant",
+                STAGE_COMMIT,
+                L.ENV_TAG,
+                {"fitness_tps": 0.1},
+                commit_receipt=commit_receipt,
+                ts=ts,
+            )
 
 
 RECEIPT_MARKER = '"commit_verification_receipt"'
@@ -388,20 +417,35 @@ def _evidence_scope(
                 L.consume_b4_iteration_authorization(authorization)
 
             timestamps = {assignment[0]: float(iteration * 10 + 1), assignment[1]: float(iteration * 10 + 2)}
+            commit_receipts: dict[str, object] = {}
             if terminal == "commit":
                 for arm, cfg, layout in (
                     ("on", on_cfg, on_layout),
                     ("off", off_cfg, off_layout),
                 ):
+                    operation_identity = f"producer-{iteration}-{arm}"
+                    commit_receipt = commit_receipt_support.campaign_receipt(
+                        layout,
+                        "b4-result-variant",
+                        {"fitness_tps": 0.1},
+                        operation_identity=operation_identity,
+                    )
+                    commit_receipts[arm] = commit_receipt
                     _production_launch_context(
                         cfg,
                         admission=admission,
                         arm=arm,
                         layout=layout,
-                        action=lambda _context, live_layout, arm=arm: _commit_with_decimal_lexeme(
-                            live_layout,
-                            ts=timestamps[arm],
-                            operation_identity=f"producer-{iteration}-{arm}",
+                        action=(
+                            lambda _context, live_layout, arm=arm,
+                            operation_identity=operation_identity,
+                            commit_receipt=commit_receipt:
+                            _commit_with_decimal_lexeme(
+                                live_layout,
+                                ts=timestamps[arm],
+                                operation_identity=operation_identity,
+                                commit_receipt=commit_receipt,
+                            )
                         ),
                     )
                     state = L.load_loop_state(layout)
@@ -461,7 +505,287 @@ def _evidence_scope(
                 on_receipt=on_invocation.terminal_receipt_path,
                 off_receipt=off_invocation.terminal_receipt_path,
                 iteration=iteration,
+                on_commit_receipt=commit_receipts.get("on"),
+                off_commit_receipt=commit_receipts.get("off"),
             )
+
+
+def _rewrite_receipt_state_with_writer(
+    source_bytes: bytes,
+    target: CampaignLayout,
+    *,
+    iteration: int,
+) -> tuple[L.LoopState, bytes]:
+    state = L.state_from_dict(json.loads(source_bytes))
+    offset = iteration - state.iteration
+    state.iteration = iteration
+    state.whiteboard = [
+        replace(entry, iteration=entry.iteration + offset)
+        for entry in state.whiteboard
+    ]
+    L.save_loop_state(target, state)
+    written = Path(L.loop_state_path(target)).read_bytes()
+    return state, written
+
+
+def _replay_admitted_wal_with_writer(
+    admitted_bytes: bytes,
+    target: CampaignLayout,
+) -> None:
+    assert admitted_bytes.endswith(b"\n")
+    for frame in admitted_bytes.splitlines():
+        wal.append(target, wal.parse_line(frame.decode("utf-8")))
+    assert Path(target.wal_file).read_bytes() == admitted_bytes
+
+
+def _append_replayed_attempt_with_writer(
+    *,
+    source_layout: CampaignLayout,
+    source_receipt_path: Path,
+    target_layout: CampaignLayout,
+    ts: float,
+    live_commit_receipt,
+) -> None:
+    invocation_id = json.loads(source_receipt_path.read_bytes())["invocation_id"]
+    admitted_path = source_receipt_path.parent / (
+        f"admitted_view_{invocation_id}.wal"
+    )
+    admitted_bytes = admitted_path.read_bytes()
+    source_wal = Path(source_layout.wal_file).read_bytes()
+    assert source_wal.startswith(admitted_bytes)
+    suffix = source_wal[len(admitted_bytes):]
+    assert suffix.endswith(b"\n")
+    frames = suffix.splitlines()
+    assert len(frames) == 1
+    source_record = wal.parse_line(frames[0].decode("utf-8"))
+    if source_record.stage == STAGE_COMMIT:
+        assert live_commit_receipt is not None
+        stored_receipt = source_record.payload["commit_verification_receipt"]
+        _commit_with_decimal_lexeme(
+            target_layout,
+            ts=ts,
+            operation_identity=stored_receipt["operation_identity"],
+            commit_receipt=live_commit_receipt,
+        )
+    else:
+        assert live_commit_receipt is None
+        wal.append(target_layout, replace(source_record, ts=ts))
+    target_record = wal.read_records(target_layout)[-1]
+    assert target_record.ts == ts
+    assert target_record.stage == source_record.stage
+    assert target_record.variant == source_record.variant
+    assert target_record.env_tag == source_record.env_tag
+    assert target_record.payload == source_record.payload
+
+
+def _write_replicated_receipt_bundle(
+    *,
+    source_terminal_path: Path,
+    target_pair_root: Path,
+    admitted_bytes: bytes,
+    receipt_state_bytes: bytes,
+    pair_id: str,
+    iteration: int,
+) -> tuple[Path, C.B4ClosedCriticReceipt, str]:
+    source_terminal = json.loads(source_terminal_path.read_bytes())
+    arm = source_terminal["arm"]
+    invocation_id = source_terminal["invocation_id"]
+    source_root = source_terminal_path.parent
+    target_root = target_pair_root / arm
+    target_root.mkdir(parents=True, exist_ok=False)
+
+    source_start_path = source_root / f"receipt_{invocation_id}_start.json"
+    start = json.loads(source_start_path.read_bytes())
+    start["pair_id"] = pair_id
+    start_path = target_root / source_start_path.name
+    start_sha256 = C._write_exclusive_json(start_path, start)
+
+    for stem, suffix in (
+        ("payload", ".json"),
+        ("argv", ".json"),
+        ("effective_prompt", ".txt"),
+        ("neutral_root_identity", ".json"),
+        ("envelope", ".json"),
+    ):
+        name = f"{stem}_{invocation_id}{suffix}"
+        C._write_exclusive_bytes(
+            target_root / name,
+            (source_root / name).read_bytes(),
+        )
+    C._write_exclusive_bytes(
+        target_root / f"admitted_view_{invocation_id}.wal",
+        admitted_bytes,
+    )
+    C._write_exclusive_bytes(
+        target_root / f"loop_state_{invocation_id}.json",
+        receipt_state_bytes,
+    )
+
+    terminal = dict(source_terminal)
+    terminal["pair_id"] = pair_id
+    terminal["iteration"] = iteration
+    terminal["loop_state_sha256"] = hashlib.sha256(
+        receipt_state_bytes
+    ).hexdigest()
+    terminal["start_receipt_sha256"] = start_sha256
+    target_terminal = target_root / source_terminal_path.name
+    terminal_sha256 = C._write_exclusive_json(target_terminal, terminal)
+
+    converted = dict(terminal)
+    converted.pop("finished_at_ns")
+    for field_name in C._RECEIPT_TUPLE_FIELDS:
+        converted[field_name] = tuple(converted[field_name])
+    receipt = C.B4ClosedCriticReceipt(**converted)
+    return target_terminal, receipt, terminal_sha256
+
+
+def _clone_arm_evidence_with_writers(
+    *,
+    source: _Evidence,
+    arm: str,
+    cfg,
+    source_layout: CampaignLayout,
+    source_receipt_path: Path,
+    target_layout: CampaignLayout,
+    target_pair_root: Path,
+    pair_id: str,
+    iteration: int,
+    ts: float,
+    terminal: str,
+    live_commit_receipt,
+) -> Path:
+    source_terminal = json.loads(source_receipt_path.read_bytes())
+    invocation_id = source_terminal["invocation_id"]
+    admitted_bytes = (
+        source_receipt_path.parent / f"admitted_view_{invocation_id}.wal"
+    ).read_bytes()
+    source_state_bytes = (
+        source_receipt_path.parent / f"loop_state_{invocation_id}.json"
+    ).read_bytes()
+
+    target_layout.ensure()
+    _replay_admitted_wal_with_writer(admitted_bytes, target_layout)
+    _write_campaign_lock_with_writer(target_layout, cfg)
+    receipt_state, receipt_state_bytes = _rewrite_receipt_state_with_writer(
+        source_state_bytes,
+        target_layout,
+        iteration=iteration,
+    )
+    _production_launch_context(
+        cfg,
+        admission=source.admission,
+        arm=arm,
+        layout=target_layout,
+        action=lambda _context, live_layout: _append_replayed_attempt_with_writer(
+            source_layout=source_layout,
+            source_receipt_path=source_receipt_path,
+            target_layout=live_layout,
+            ts=ts,
+            live_commit_receipt=live_commit_receipt,
+        ),
+    )
+    if terminal == "commit":
+        current_state = copy.deepcopy(receipt_state)
+        current_state.iteration += 1
+        current_state.whiteboard.append(L.WhiteboardEntry(
+            iteration=current_state.iteration,
+            direction="increase",
+            magnitude="small",
+            result="success",
+            delta_pct=None,
+        ))
+        L.save_loop_state(target_layout, current_state)
+    else:
+        assert terminal == "absent"
+        L.save_loop_state(target_layout, receipt_state)
+
+    target_terminal, receipt, terminal_sha256 = (
+        _write_replicated_receipt_bundle(
+            source_terminal_path=source_receipt_path,
+            target_pair_root=target_pair_root,
+            admitted_bytes=admitted_bytes,
+            receipt_state_bytes=receipt_state_bytes,
+            pair_id=pair_id,
+            iteration=iteration,
+        )
+    )
+    with mock.patch.object(
+        L,
+        "exploration_campaign_layout",
+        return_value=target_layout,
+    ):
+        L.consume_b4_iteration_authorization(L.B4IterationAuthorization(
+            receipt=receipt,
+            terminal_receipt_sha256=terminal_sha256,
+        ))
+    return target_terminal
+
+
+def _clone_evidence_with_writers(
+    source: _Evidence,
+    target_root: Path,
+    *,
+    iteration: int,
+    assignment: tuple[str, str],
+    terminal: str,
+) -> _Evidence:
+    on_id = str(ident.campaign_id(source.on_cfg))
+    off_id = str(ident.campaign_id(source.off_cfg))
+    output_root = target_root / "output" / "exploration" / "campaigns"
+    on_layout = CampaignLayout(str(output_root / on_id))
+    off_layout = CampaignLayout(str(output_root / off_id))
+    target_pair_root = target_root / "critic-pair"
+    target_pair_root.mkdir(parents=True, exist_ok=False)
+    source_pair_root = source.on_receipt.parents[1]
+    C._write_exclusive_bytes(
+        target_pair_root / "admission_record_sidecar.json",
+        (source_pair_root / "admission_record_sidecar.json").read_bytes(),
+    )
+    source_pair_id = json.loads(source.on_receipt.read_bytes())["pair_id"]
+    assert json.loads(source.off_receipt.read_bytes())["pair_id"] == source_pair_id
+    pair_id = f"{source_pair_id}-replica-{iteration:03d}"
+    timestamps = {
+        assignment[0]: float(iteration * 10 + 1),
+        assignment[1]: float(iteration * 10 + 2),
+    }
+    on_receipt = _clone_arm_evidence_with_writers(
+        source=source,
+        arm="on",
+        cfg=source.on_cfg,
+        source_layout=source.on_layout,
+        source_receipt_path=source.on_receipt,
+        target_layout=on_layout,
+        target_pair_root=target_pair_root,
+        pair_id=pair_id,
+        iteration=iteration,
+        ts=timestamps["on"],
+        terminal=terminal,
+        live_commit_receipt=source.on_commit_receipt,
+    )
+    off_receipt = _clone_arm_evidence_with_writers(
+        source=source,
+        arm="off",
+        cfg=source.off_cfg,
+        source_layout=source.off_layout,
+        source_receipt_path=source.off_receipt,
+        target_layout=off_layout,
+        target_pair_root=target_pair_root,
+        pair_id=pair_id,
+        iteration=iteration,
+        ts=timestamps["off"],
+        terminal=terminal,
+        live_commit_receipt=source.off_commit_receipt,
+    )
+    return _Evidence(
+        admission=source.admission,
+        on_cfg=source.on_cfg,
+        off_cfg=source.off_cfg,
+        on_layout=on_layout,
+        off_layout=off_layout,
+        on_receipt=on_receipt,
+        off_receipt=off_receipt,
+        iteration=iteration,
+    )
 
 
 def _request(evidence: _Evidence, attempt_id: str) -> dict[str, object]:
@@ -575,6 +899,65 @@ def certified_evidence(tmp_path_factory):
     finally:
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
         os.close(lock_fd)
+
+
+def _build_full_publication_evidence(
+    root: Path,
+    *,
+    terminal: str,
+) -> _PublicationEvidence:
+    """Build one real block and non-durable writer replicas for one positive."""
+
+    # Issuance randomizes the schedule, so this exact publication must drive
+    # both replica timestamps and the later producer validation.
+    schedule_publication = _publication(root / "schedule")
+    rows = schedule_publication.manifest.rows
+    first_schedule = tuple(arm.value for arm in rows[0].assignment_schedule)
+    admission = _committed_admission_fixture()
+    with _evidence_scope(
+        root / "block-001",
+        iteration=1,
+        assignment=first_schedule,
+        terminal=terminal,
+        admission=admission,
+    ) as seed:
+        evidence = [seed]
+        # Replica bytes still pass through the production serializers and
+        # writers. Durability is deliberately outside this fixture's claim.
+        with mock.patch.object(os, "fsync", return_value=None):
+            for ordinal, row in enumerate(rows[1:], start=2):
+                schedule = tuple(arm.value for arm in row.assignment_schedule)
+                evidence.append(_clone_evidence_with_writers(
+                    seed,
+                    root / f"block-{ordinal:03d}",
+                    iteration=ordinal,
+                    assignment=schedule,
+                    terminal=terminal,
+                ))
+        return _PublicationEvidence(
+            publication=schedule_publication,
+            evidence=tuple(evidence),
+        )
+
+
+@pytest.fixture
+def certified_publication_evidence(
+    tmp_path: Path,
+) -> _PublicationEvidence:
+    return _build_full_publication_evidence(
+        tmp_path / "certified-evidence",
+        terminal="commit",
+    )
+
+
+@pytest.fixture
+def terminal_absent_publication_evidence(
+    tmp_path: Path,
+) -> _PublicationEvidence:
+    return _build_full_publication_evidence(
+        tmp_path / "terminal-absent-evidence",
+        terminal="absent",
+    )
 
 
 def test_m01_assembly_rederives_precursor_from_the_sealed_registry(
@@ -1048,27 +1431,132 @@ def test_non_guarantees_name_the_residual_lock_and_closure_limits(
     assert any("source hash が producer 意味論を識別しない" in item for item in expected)
 
 
-def _publish_full_publication(
-    root: Path,
+def _normalized_loop_state(data: bytes) -> dict[str, object]:
+    value = json.loads(data)
+    whiteboard = value["whiteboard"]
+    offset = whiteboard[0]["iteration"] - 1
+    value["iteration"] -= offset
+    for entry in whiteboard:
+        entry["iteration"] -= offset
+    return value
+
+
+def _normalized_receipt_bundle(terminal_path: Path) -> dict[str, object]:
+    terminal = json.loads(terminal_path.read_bytes())
+    invocation_id = terminal["invocation_id"]
+    root = terminal_path.parent
+    start = json.loads(
+        (root / f"receipt_{invocation_id}_start.json").read_bytes()
+    )
+    start["pair_id"] = "<pair-identity>"
+    terminal["pair_id"] = "<pair-identity>"
+    terminal["iteration"] = 1
+    terminal["loop_state_sha256"] = "<iteration-derived-sha256>"
+    terminal["start_receipt_sha256"] = "<pair-derived-sha256>"
+    unchanged = {}
+    for stem, suffix in (
+        ("payload", ".json"),
+        ("argv", ".json"),
+        ("effective_prompt", ".txt"),
+        ("neutral_root_identity", ".json"),
+        ("envelope", ".json"),
+    ):
+        name = f"{stem}_{invocation_id}{suffix}"
+        unchanged[name] = (root / name).read_bytes()
+    return {
+        "start": start,
+        "terminal": terminal,
+        "admitted_wal": (
+            root / f"admitted_view_{invocation_id}.wal"
+        ).read_bytes(),
+        "loop_state": _normalized_loop_state(
+            (root / f"loop_state_{invocation_id}.json").read_bytes()
+        ),
+        "unchanged": unchanged,
+    }
+
+
+def _normalized_arm_evidence(
+    evidence: _Evidence,
     *,
-    terminal: str,
+    arm: str,
+) -> dict[str, object]:
+    layout = evidence.on_layout if arm == "on" else evidence.off_layout
+    terminal_path = evidence.on_receipt if arm == "on" else evidence.off_receipt
+    terminal = json.loads(terminal_path.read_bytes())
+    invocation_id = terminal["invocation_id"]
+    admitted_bytes = (
+        terminal_path.parent / f"admitted_view_{invocation_id}.wal"
+    ).read_bytes()
+    wal_bytes = Path(layout.wal_file).read_bytes()
+    assert wal_bytes.startswith(admitted_bytes)
+    suffix = []
+    for frame in wal_bytes[len(admitted_bytes):].splitlines():
+        record = json.loads(frame)
+        record["ts"] = "<assignment-identity>"
+        suffix.append(record)
+    consumption_paths = tuple(
+        Path(layout.root).glob("b4_closed_critic_consumption_*.json")
+    )
+    assert len(consumption_paths) == 1
+    consumption = json.loads(consumption_paths[0].read_bytes())
+    consumption["terminal_receipt_sha256"] = "<receipt-derived-sha256>"
+    consumption["iteration"] = 1
+    consumption["pair_id"] = "<pair-identity>"
+    return {
+        "campaign_lock": Path(layout.lock_file).read_bytes(),
+        "launch_sidecar": (
+            Path(layout.root) / P.launcher.B4_LAUNCH_SIDECAR
+        ).read_bytes(),
+        "admitted_wal": admitted_bytes,
+        "attempt_suffix": suffix,
+        "current_state": _normalized_loop_state(
+            Path(L.loop_state_path(layout)).read_bytes()
+        ),
+        "receipt_bundle": _normalized_receipt_bundle(terminal_path),
+        "consumption": consumption,
+    }
+
+
+def _assert_replicas_match_real_except_identity(
+    evidence: tuple[_Evidence, ...],
+) -> None:
+    assert len(evidence) == EXPECTED_BLOCK_COUNT
+    seed = evidence[0]
+    seed_pair_id = json.loads(seed.on_receipt.read_bytes())["pair_id"]
+    seed_sidecar = (
+        seed.on_receipt.parents[1] / "admission_record_sidecar.json"
+    ).read_bytes()
+    expected = {
+        arm: _normalized_arm_evidence(seed, arm=arm)
+        for arm in ("on", "off")
+    }
+    for replica in evidence[1:]:
+        assert replica.iteration != seed.iteration
+        assert json.loads(replica.on_receipt.read_bytes())["pair_id"] != seed_pair_id
+        assert (
+            replica.on_receipt.parents[1] / "admission_record_sidecar.json"
+        ).read_bytes() == seed_sidecar
+        assert {
+            arm: _normalized_arm_evidence(replica, arm=arm)
+            for arm in ("on", "off")
+        } == expected
+
+
+def _publish_full_publication(
+    *,
+    publication: issuer.B4PrerunPublication,
+    evidence: tuple[_Evidence, ...],
 ) -> tuple[issuer.B4PrerunPublication, P.B4RawAnalysisAssembly]:
-    publication = _publication(root / "pre")
-    admission = _committed_admission_fixture()
+    assert len(evidence) == len(publication.manifest.rows) == EXPECTED_BLOCK_COUNT
+    admission = evidence[0].admission
     with contextlib.ExitStack() as stack:
         stack.enter_context(mock.patch.object(C, "REPOSITORY_ROOT", admission.repository))
         stack.enter_context(mock.patch.object(C, "ROLE_FILE", admission.role_file))
-        requests = []
-        for ordinal, row in enumerate(publication.manifest.rows, start=1):
-            schedule = tuple(arm.value for arm in row.assignment_schedule)
-            with _evidence_scope(
-                root / f"block-{ordinal:03d}",
-                iteration=ordinal,
-                assignment=schedule,
-                terminal=terminal,
-                admission=admission,
-            ) as evidence:
-                requests.append(_request(evidence, row.attempt_id))
+        requests = [
+            _request(item, row.attempt_id)
+            for item, row in zip(evidence, publication.manifest.rows)
+        ]
         writes = P.publish_b4_attempt_results(
             publication=publication,
             requests=requests,
@@ -1082,8 +1570,16 @@ def _publish_full_publication(
     return publication, assembled
 
 
-def test_positive_201_block_all_terminal_records_absent(tmp_path: Path) -> None:
-    publication, assembled = _publish_full_publication(tmp_path, terminal="absent")
+def test_positive_201_block_all_terminal_records_absent(
+    terminal_absent_publication_evidence: _PublicationEvidence,
+) -> None:
+    publication = terminal_absent_publication_evidence.publication
+    evidence = terminal_absent_publication_evidence.evidence
+    _assert_replicas_match_real_except_identity(evidence)
+    publication, assembled = _publish_full_publication(
+        publication=publication,
+        evidence=evidence,
+    )
     assert len(assembled.source_artifact_bytes) == 2 * EXPECTED_BLOCK_COUNT
     assert len({hashlib.sha256(item).hexdigest() for item in assembled.source_artifact_bytes}) == 2 * EXPECTED_BLOCK_COUNT
     parsed = parse_raw_analysis_records(assembled.canonical_bytes)
@@ -1112,9 +1608,15 @@ def test_positive_201_block_all_terminal_records_absent(tmp_path: Path) -> None:
 
 
 def test_positive_201_block_certified_preserves_decimal_and_all_pair_protocol_bindings(
-    tmp_path: Path,
+    certified_publication_evidence: _PublicationEvidence,
 ) -> None:
-    publication, assembled = _publish_full_publication(tmp_path, terminal="commit")
+    publication = certified_publication_evidence.publication
+    evidence = certified_publication_evidence.evidence
+    _assert_replicas_match_real_except_identity(evidence)
+    publication, assembled = _publish_full_publication(
+        publication=publication,
+        evidence=evidence,
+    )
     assert len(assembled.source_artifact_bytes) == 2 * EXPECTED_BLOCK_COUNT
     assert len({hashlib.sha256(item).hexdigest() for item in assembled.source_artifact_bytes}) == 2 * EXPECTED_BLOCK_COUNT
     assert assembled.canonical_bytes.count(b'"throughput":0.10000000000000001') == 2 * EXPECTED_BLOCK_COUNT
