@@ -108,6 +108,7 @@ class Catalog:
     registration_epoch: str
     index_policies: dict[str, dict[str, Any]]
     independent_pass_required: bool = False
+    expected_oqo: Any = None
 
     def logical_query(self, query_id: str) -> Any:
         return type(
@@ -119,7 +120,7 @@ class Catalog:
                 "shard_lower": None,
                 "shard_upper": None,
                 "independent_pass_required": self.independent_pass_required,
-                "expected_oqo": None,
+                "expected_oqo": self.expected_oqo,
             },
         )()
 
@@ -1134,6 +1135,7 @@ def test_quota_reserve_stops_before_exhaustion(tmp_path: Path) -> None:
     catalog = Catalog(
         "AX1-20260829-E1",
         {"openalex": {"page_size": 2, "minimum_interval_s": 1, "retry_delays_s": []}},
+        expected_oqo={"get_rows": "works"},
     )
     first_page = _page(
         index="openalex",
@@ -1153,7 +1155,14 @@ def test_quota_reserve_stops_before_exhaustion(tmp_path: Path) -> None:
             ("x-ratelimit-credits-used", "10"),
             ("x-ratelimit-reset", "80000"),
         ),
-        json.dumps({"meta": {"cost_usd": 0.001}}).encode(),
+        json.dumps(
+            {
+                "meta": {
+                    "cost_usd": 0.001,
+                    "x_query": {"oqo": {"get_rows": "authors"}},
+                }
+            }
+        ).encode(),
         "https://api.openalex.org/works?position=*",
         0.1,
     )
@@ -1180,6 +1189,12 @@ def test_quota_reserve_stops_before_exhaustion(tmp_path: Path) -> None:
     assert set(generated["requests"]) >= {"continue_cursor", "start_independent_pass"}
     assert "--checkpoint" in generated["canonical_runner_argv"]
     assert "--query-id" not in generated["canonical_runner_argv"]
+    page_evidence = json.loads(
+        next((tmp_path / "bundle" / "pages").glob("*.json")).read_text(encoding="utf-8")
+    )
+    condition1 = next(item for item in page_evidence["completion"] if item["condition"] == 1)
+    assert condition1["passed"] is False
+    assert condition1["reason_code"] == "interpreted_query_mismatch"
 
 
 def test_quota_reserve_persists_across_leaf_sessions(tmp_path: Path) -> None:
@@ -1256,15 +1271,11 @@ def test_resume_merges_digest_verified_prefix_with_real_openalex_parser(tmp_path
         for query in real.logical_queries
         if query.kind == "leaf" and query.index == "openalex" and query.shard_lower is None
     )
-    structure = {
-        "get_rows": "works",
-        "filter_rows": [{"column_id": "to_publication_date", "value": "2026-12-31"}],
-    }
+    structure = original.expected_openalex_oqo
     query = SimpleNamespace(
         **{
             **original.__dict__,
             "independent_pass_required": False,
-            "expected_oqo": structure,
         }
     )
     catalog = replace(real, logical_queries=(query,))

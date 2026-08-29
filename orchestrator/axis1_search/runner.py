@@ -2098,6 +2098,65 @@ def _run_leaf_impl(
             ),
         )
         parent_response_sha = hashlib.sha256(response.body).hexdigest()
+        position_out = _get(parsed, "position_out")
+        if (
+            index == "openalex"
+            and position_out is not None
+            and latest_quota is not None
+            and not latest_quota.permits_next()
+        ):
+            next_request = builder(
+                catalog,
+                leaf_query_id,
+                int(_get(request, "page_number")) + 1,
+                str(position_out),
+            )
+            payload = _checkpoint_payload(
+                catalog=catalog,
+                request_builder=builder,
+                current_request=request,
+                continuation_request=next_request,
+                registration_commit=registration_commit,
+                catalog_path=catalog_path,
+                catalog_sha256=catalog_sha256,
+                bundle_root=bundle,
+                run_id=run_id,
+                pass_number=pass_number,
+                window_number=window_number,
+                state="paused_quota",
+                resume_action="continue_cursor",
+                occurrences=occurrences,
+                quota=latest_quota,
+                canonical_runner_argv=canonical_runner_argv,
+                previous_checkpoint=previous_checkpoint,
+                last_attempt={
+                    "state": "terminal",
+                    "request_id": request_id,
+                    "attempt_number": attempts_by_request[request_id],
+                    "failure": None,
+                    "raw_evidence_path": raw_path.as_posix() if raw_path else None,
+                },
+                parent_response_sha256=parent_response_sha,
+                second_pass_required=requires_independent,
+            )
+            checkpoint = write_checkpoint(bundle / "checkpoints", payload)
+            finalize_bundle(
+                bundle,
+                registration_epoch=str(
+                    _get(catalog, "registration_epoch", "AX1-20260829-E1")
+                ),
+                registration_commit=registration_commit,
+                catalog_sha256=catalog_sha256,
+            )
+            return RunResult(
+                "paused_quota",
+                request_count,
+                tuple(pages),
+                (),
+                os.fspath(checkpoint),
+                latest_quota,
+                "quota_reserve",
+            )
         if failure_result is not None:
             finalize_bundle(
                 bundle,
@@ -2106,7 +2165,6 @@ def _run_leaf_impl(
                 catalog_sha256=catalog_sha256,
             )
             return RunResult("blocked_on_ruling", request_count, tuple(pages), tuple(page_results), checkpoint_path, latest_quota, failure_result.reason_code)
-        position_out = _get(parsed, "position_out")
         if position_out is None:
             current_ids = sorted(
                 {
