@@ -635,6 +635,29 @@ C-4 が求めているのは新しい文献を足すことではなく、**主�
   結果を見てから語を足した場合は別の query ID とし、理由と時刻を残す。
 - **「全件」の意味**: 索引全体ではなく、**事前登録した検索式群が返した全レコード**を指す。
 
+索引が API / export の版を返さないときは、版番号を捏造せず、ページごとに
+**「版が取得不能な場合の代替来歴」**を固定する (D1206)。その組は、実際の接続先、応答に実在した
+field の exact locator、HTTP client が観測した response header、parser へ渡す前の entity body bytes の
+SHA-256 である。header は同名の重複を落とさず、entity body は JSON/XML の再直列化後でなく取得した
+bytes を保存する。これは wire 上の全 bytes や API 版との同等性を証明せず、取得時点の来歴だけを持つ。
+
+完走述語が索引の性質に対して構造的に成立しないと判明したら、宣言的除外で済ませず、旧走行を
+`未完走` に固定して意味的 amendment を行う (D1207)。amendment は新しい日付の後継物、新しい query ID、
+全枝の再実行、独立レビューを伴う。結果窓を避ける date shard は結果を見る前に、gap も overlap もない
+有限区間として固定する。旧 ID の応答を後継 ID の preflight や本走へ再利用しない。
+
+外部 request の前に、amendment、query catalog、parser と fixture、schema、実行器の bytes を束縛した
+**registration preflight** を通す。live preflight は固定済み request の取得量・availability・予算を
+観測する別段であり、その応答を本走の page 0 として再利用しない。live preflight は全行を
+`ready` / `unavailable` / `blocked` として accounting し、利用可能な行だけを登録順に実行してよい。
+ただし 1 行でも完走しなければ軸全体は `未完走` であり、部分積で成熟度を上げない。
+
+各 page の**実要素数**は arXiv=`feed/entry` の個数、OpenAlex=`results` の個数、
+DBLP=`result/hits/hit` の個数とする。request 件数をこだまする `itemsPerPage` / `meta.per_page` を
+実要素数として使わない。非最終 page は実要素数が要求件数と一致し、最終 page は位置と実要素数から
+宣言総件数へ到達しなければならない。OpenAlex は cursor 終端までの distinct `results[].id` を
+`meta.count` と照合し、同じ work ID の重複 occurrence 自体は消さずに記録する。
+
 **母集合の外にあるもの (網羅を保証しない):** SIGMOD / PVLDB / OSDI / SOSP などの
 venue 本体の年次一覧、ACM Digital Library、書籍、技術報告、学位論文、非英語文献、
 索引化されていない実装・アーティファクト。**この一覧を成果物から落としてはならない。**
@@ -661,6 +684,15 @@ venue 本体の年次一覧、ACM Digital Library、書籍、技術報告、学�
 1 エントリへ束ねているものがあるためである。束ねを展開した数を併記し、
 1 研究が複数軸に接地するときの重複計上の規則を書き、**軸別の数を足し合わせない。**
 束ねの内訳のような現在値は本節に書かず、`claim-survey/` の日付付きスナップショットが持つ。
+
+取得完全性は DOI / arXiv ID へ正規化した横断主キーでなく、索引が返す**索引固有の work ID**で数える
+(D1207)。同じ work ID の再出現は全 occurrence を record 台帳へ保持したうえで索引固有の完走述語に
+従って扱う。異なる work ID が同じ横断主キーへ正規化された場合も record を消さず、衝突を
+work-family 層へ送り、共有識別子などの独立した証拠でだけ統合する。題名一致だけでは統合しない。
+
+属性列の evidence tier が行ごとに異なる表は、tier を混ぜた集計と行間比較を行ってはならない
+(D1209)。tier ごとに分け、各 tier の資料階層を別途妥当化した解析はこの禁止の対象外である。
+層別に分けたという自己申告だけでなく、入力 locator と妥当化記録を残す。
 
 **軸 1 の分類 pilot 29 行の C 欄と D 欄は集計してはならず、行をまたいで比較してもならない**
 (D1156)。この表の C/D は資料階層の混合であり、一部の行は論文本文から、残りは監査前の題名と
@@ -710,3 +742,9 @@ venue 本体の年次一覧、ACM Digital Library、書籍、技術報告、学�
 **凍結物は上書きしない。** 新しい日付のファイルを足す。
 各凍結物には入力 path、入力 commit、文献 cutoff、作成日を置き、
 どの時点の何から導いたのかを、その文書だけで復元できるようにする。
+
+複数の quota 窓にまたがる取得は、散文だけでなく機械可読 checkpoint を持つ (D1183)。checkpoint は
+`continue_cursor` / `start_independent_pass` / `restart_branch` / `blocked_on_ruling` /
+`not_applicable` を排他的に区別し、cursor 継続用と独立 pass 開始用の完全 request を混同させない。
+run・pass・window・stream、完了 ledger と主キー digest、quota の観測時刻と残量、束縛した
+registration seal を残し、応答・ledger prefix・checkpoint の更新順を再開時に検証する。
