@@ -80,15 +80,17 @@ class HTTPSOnlyTransport:
     def __init__(
         self,
         *,
+        catalog: Any | None = None,
         clock: Callable[[], float] = time.monotonic,
         max_response_bytes: int = MAX_RESPONSE_BYTES,
     ) -> None:
+        self._catalog = catalog
         self._clock = clock
         self._max_response_bytes = max_response_bytes
         self._opener = urllib_request.build_opener(_NoRedirect())
 
     @staticmethod
-    def _validate_request(spec: Any) -> None:
+    def _validate_request(spec: Any, *, catalog: Any | None = None) -> None:
         method = _get(spec, "method")
         scheme = _get(spec, "scheme")
         host = _get(spec, "host")
@@ -125,6 +127,18 @@ class HTTPSOnlyTransport:
             raise TransportError("encoded_url query differs from the registered ordered parameters")
         if tuple(_get(spec, "headers", ()) or ()) != (("Accept", registered_accept),):
             raise TransportError("only the registered Accept header is permitted")
+        if catalog is not None:
+            try:
+                registered = _default_request_builder(
+                    catalog,
+                    str(_get(spec, "leaf_query_id")),
+                    int(_get(spec, "page_number")),
+                    _get(spec, "position_in"),
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise TransportError("request cannot be rebuilt from the registered catalog") from exc
+            if not _requests_identical(spec, registered):
+                raise TransportError("request differs from the registered catalog request")
 
     def _bounded_read(self, stream: Any) -> bytes:
         body = stream.read(self._max_response_bytes + 1)
@@ -133,7 +147,9 @@ class HTTPSOnlyTransport:
         return body
 
     def get(self, request: Any) -> Response:
-        self._validate_request(request)
+        if self._catalog is None:
+            raise TransportError("production transport requires a registered catalog binding")
+        self._validate_request(request, catalog=self._catalog)
         started = self._clock()
         headers = {key: value for key, value in tuple(_get(request, "headers", ()) or ())}
         req = urllib_request.Request(
@@ -288,6 +304,28 @@ def _policy(catalog: Any, index: str) -> Mapping[str, Any]:
     return {}
 
 
+def _registered_content_types(catalog: Any, index: str) -> frozenset[str]:
+    raw = _policy(catalog, index).get("content_types")
+    if raw is None:
+        # Deterministic test doubles predating the catalog field keep the one
+        # historical media type; production catalogs are schema-validated and
+        # always take the registered branch below.
+        fallback = {
+            "arxiv": "application/atom+xml",
+            "openalex": "application/json",
+            "dblp": "application/json",
+        }
+        return frozenset({fallback[index]})
+    if not isinstance(raw, (list, tuple)) or not raw:
+        raise ValueError(f"catalog index policy {index!r} has invalid content_types")
+    values = frozenset(
+        item.strip().lower() for item in raw if isinstance(item, str) and item.strip()
+    )
+    if len(values) != len(raw):
+        raise ValueError(f"catalog index policy {index!r} has invalid content_types")
+    return values
+
+
 def _minimum_interval(catalog: Any, index: str) -> float:
     policy = _policy(catalog, index)
     raw = policy.get("minimum_interval_s", policy.get("minimum_interval_seconds"))
@@ -330,11 +368,13 @@ def _logical_query(catalog: Any, query_id: str) -> Any:
 
 
 def control_leaf_query_id(catalog: Any, control_id: str, index: str) -> str:
-    """Resolve a registered control descriptor to a deterministic executable probe.
+    """Resolve the historical descriptor-to-leaf relation for introspection.
 
-    The request remains a catalog-built leaf request; callers cannot supply a
-    filter, URL, or header.  Block controls select their corresponding branch,
-    while operational controls use Q1 as the smallest common probe.
+    This compatibility helper is not an execution surface.  The production CLI
+    fails closed for every control request in the current epoch because the
+    catalog has no control-specific executable request.  Block controls select
+    their corresponding branch here, while operational controls retain their
+    historical Q1 relation only for catalog inspection.
     """
 
     controls = tuple(_get(catalog, "controls", ()) or ())
@@ -780,7 +820,7 @@ def _response_context(
     actual_structure: Any = _UNSET_VALUE,
 ) -> dict[str, Any]:
     index = str(_get(request, "index"))
-    expected_type = REGISTERED_ENDPOINTS[str(_get(request, "host"))][1]
+    expected_types = _registered_content_types(catalog, index)
     actual_type = _content_type(response.headers)
     stored = raw_path.suffix == ".gz"
     context: dict[str, Any] = {
@@ -790,7 +830,7 @@ def _response_context(
         "pagination_kind": _pagination_kind(catalog, index),
         "response_ok": (
             response.status == 200
-            and actual_type == expected_type
+            and actual_type in expected_types
             and response.final_url == str(_get(request, "encoded_url"))
         ),
         "evidence_complete": stored,
@@ -1185,6 +1225,7 @@ def _load_completed_prefix(
     previous: str | os.PathLike[str] | Mapping[str, Any] | None,
     bundle_root: Path,
     *,
+    catalog: Any,
     leaf_query_id: str,
     pass_number: int,
     next_page_number: int,
@@ -1273,7 +1314,9 @@ def _load_completed_prefix(
                 "response_ok": (
                     _get(response_value, "status") == 200
                     and _get(response_value, "content_type")
-                    == REGISTERED_ENDPOINTS[str(_get(request_value, "host"))][1]
+                    in _registered_content_types(
+                        catalog, str(_get(_get(evidence, "identity", {}), "index"))
+                    )
                     and _get(response_value, "final_url") == _get(request_value, "encoded_url")
                 ),
                 "evidence_complete": True,
@@ -1564,6 +1607,7 @@ def _run_leaf_impl(
         pages, occurrences, page_contexts = _load_completed_prefix(
             previous_checkpoint,
             bundle,
+            catalog=catalog,
             leaf_query_id=leaf_query_id,
             pass_number=pass_number,
             next_page_number=int(_get(initial_request, "page_number")),

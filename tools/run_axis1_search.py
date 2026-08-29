@@ -22,7 +22,6 @@ from orchestrator.axis1_search.runner import (
     Transport,
     resume_from_checkpoint,
     run_leaf,
-    control_leaf_query_id,
 )
 from orchestrator.axis1_search.validator import verify_registration
 
@@ -138,17 +137,27 @@ def main(argv: Sequence[str] | None = None, *, transport: Transport | None = Non
     # Loading the catalog and constructing the production transport happen only
     # after Git/frozen-byte preflight.  Neither preflight nor load_catalog uses HTTP.
     catalog = _load_catalog(args.catalog)
-    actual_transport = transport or HTTPSOnlyTransport()
+    if args.control_id is not None:
+        print(
+            json.dumps(
+                {
+                    "passed": False,
+                    "reason_code": "control_request_unregistered_for_epoch",
+                    "detail": (
+                        "this epoch has no registered executable request for controls; "
+                        "no leaf query substitution is permitted"
+                    ),
+                },
+                sort_keys=True,
+            )
+        )
+        return 2
+    actual_transport = transport or HTTPSOnlyTransport(catalog=catalog)
     canonical = _canonical_argv(args)
     if checkpoint is None:
-        query_id = (
-            control_leaf_query_id(catalog, args.control_id, args.control_index)
-            if args.control_id is not None
-            else args.query_id
-        )
         result = run_leaf(
             catalog,
-            query_id,
+            args.query_id,
             run_id=args.run_id,
             registration_commit=args.registration_commit,
             catalog_path=args.catalog.as_posix(),

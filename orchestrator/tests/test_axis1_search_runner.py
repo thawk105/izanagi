@@ -25,6 +25,7 @@ from orchestrator.axis1_search.runner import (
     Response,
     TransportError,
     _independent_pass_required,
+    _load_completed_prefix,
     _merge_quota,
     _minimum_interval,
     _persist_quota,
@@ -40,6 +41,7 @@ from orchestrator.axis1_search.validator import (
     FROZEN_PREDECESSOR_PATHS,
     ConditionResult,
     SubprocessGit,
+    VerificationResult,
     derive_axis_status,
     evaluate_aggregate,
     evaluate_leaf,
@@ -49,6 +51,7 @@ from orchestrator.axis1_search.validator import (
     verify_registration,
     verify_bundle,
 )
+from tools import run_axis1_search as run_axis1_search_cli
 from tools.run_axis1_search import build_parser
 
 
@@ -547,6 +550,43 @@ def test_registered_control_resolves_to_catalog_leaf() -> None:
     assert query.index == "arxiv"
 
 
+def test_control_execution_fails_closed_before_http(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    transport = _FakeTransport([])
+    monkeypatch.setattr(
+        run_axis1_search_cli,
+        "verify_registration",
+        lambda *args, **kwargs: VerificationResult(True, None, "ok"),
+    )
+    monkeypatch.setattr(run_axis1_search_cli, "_load_catalog", lambda path: object())
+    result = run_axis1_search_cli.main(
+        [
+            "--registration-commit",
+            "0" * 40,
+            "--catalog",
+            str(
+                ROOT
+                / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+            ),
+            "--bundle",
+            str(ROOT / "unused-control-bundle"),
+            "--run-id",
+            "control-run",
+            "--control-id",
+            "C-OP-1",
+            "--control-index",
+            "arxiv",
+        ],
+        transport=transport,
+    )
+    assert result != 0
+    assert transport.calls == []
+    output = json.loads(capsys.readouterr().out)
+    assert output["reason_code"] == "control_request_unregistered_for_epoch"
+    assert "no registered executable request for controls" in output["detail"]
+
+
 class _FakeGit:
     def __init__(self, catalog: bytes, frozen: bytes) -> None:
         self.catalog = catalog
@@ -578,6 +618,29 @@ def test_preflight_rejects_mutated_frozen_predecessor(tmp_path: Path) -> None:
     )
     assert not result.passed
     assert result.reason_code == "frozen_bytes_mismatch"
+
+
+class _HeadTreeMismatchGit(_FakeGit):
+    def tree(self, commit: str, paths: tuple[str, ...]) -> dict[str, tuple[str, str]]:
+        object_id = "baseline-object" if commit == FROZEN_BASE_COMMIT else "head-object"
+        return {"frozen.txt": ("100644", object_id)}
+
+
+def test_preflight_rejects_frozen_tree_changed_in_registration_commit(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "catalog.json").write_bytes(b"registered catalog")
+    (tmp_path / "frozen.txt").write_bytes(b"base bytes")
+    result = verify_registration(
+        "0" * 40,
+        "catalog.json",
+        ("catalog.json",),
+        repo_root=tmp_path,
+        git_backend=_HeadTreeMismatchGit(b"registered catalog", b"base bytes"),
+        frozen_paths=("frozen.txt",),
+    )
+    assert not result.passed
+    assert result.reason_code == "frozen_registration_tree_mismatch"
 
 
 def test_preflight_rejects_mutation_with_real_subprocess_git_and_all_128_paths(
@@ -821,6 +884,30 @@ def test_production_transport_rejects_unregistered_path_header_and_query() -> No
         candidate = RequestSpec(**{**registered.__dict__, **changed})
         with pytest.raises(TransportError):
             HTTPSOnlyTransport._validate_request(candidate)
+
+
+def test_production_transport_rejects_query_not_registered_in_catalog() -> None:
+    from orchestrator.axis1_search.catalog import build_request, load_catalog
+
+    catalog = load_catalog(
+        str(ROOT / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json")
+    )
+    query = next(
+        item
+        for item in catalog.logical_queries
+        if item.kind == "leaf" and item.index == "openalex"
+    )
+    registered = build_request(catalog, query.query_id, 0, None)
+    candidate = replace(
+        registered,
+        query_parameters=registered.query_parameters + (("unregistered", "value"),),
+        encoded_url=registered.encoded_url + "&unregistered=value",
+    )
+    # The URL and ordered pairs are internally consistent; only the catalog
+    # binding can reject this otherwise valid transport request.
+    HTTPSOnlyTransport._validate_request(candidate)
+    with pytest.raises(TransportError, match="registered catalog request"):
+        HTTPSOnlyTransport._validate_request(candidate, catalog=catalog)
 
 
 def test_public_runner_has_no_arbitrary_request_injection() -> None:
@@ -1114,6 +1201,92 @@ def test_resume_merges_digest_verified_prefix_with_real_openalex_parser(tmp_path
         catalog_path=ROOT / relative_catalog,
     )
     assert verification.passed, (verification.reason_code, verification.detail)
+
+
+def test_resume_prefix_marks_unregistered_content_type_response_not_ok(
+    tmp_path: Path,
+) -> None:
+    leaf_query_id = "leaf-resume-content-type"
+    bundle = tmp_path / "bundle"
+    ledger_path = bundle / "ledgers" / "prefix.json"
+    page_path = bundle / "pages" / "prefix.json"
+    ledger_path.parent.mkdir(parents=True)
+    page_path.parent.mkdir(parents=True)
+
+    ledger = {
+        "document_type": "record_occurrence_ledger",
+        "leaf_query_id": leaf_query_id,
+        "occurrences": [],
+    }
+    ledger_raw = json.dumps(ledger, sort_keys=True).encode("utf-8")
+    ledger_path.write_bytes(ledger_raw)
+    encoded_url = "https://dblp.org/search/publ/api?q=registered"
+    page_path.write_text(
+        json.dumps(
+            {
+                "document_type": "page_evidence",
+                "identity": {
+                    "leaf_query_id": leaf_query_id,
+                    "pass_number": 1,
+                    "page_number": 0,
+                    "attempt_number": 1,
+                    "index": "dblp",
+                },
+                "failure": None,
+                "parse": {
+                    "declared_total": 0,
+                    "capacity_echo": 0,
+                    "actual_count": 0,
+                    "interpreted_query": "registered",
+                    "position_in": "0",
+                    "position_out": None,
+                    "parse_errors": [],
+                },
+                "request": {
+                    "expected_interpreted_query": "registered",
+                    "position_in": "0",
+                    "encoded_url": encoded_url,
+                },
+                "response": {
+                    "status": 200,
+                    "content_type": "application/x-unregistered",
+                    "final_url": encoded_url,
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    checkpoint = {
+        "leaf_query_id": leaf_query_id,
+        "completed_ledger": {
+            "path": ledger_path.relative_to(bundle).as_posix(),
+            "ledger_sha256": hashlib.sha256(ledger_raw).hexdigest(),
+            "primary_key_digest": hashlib.sha256(b"").hexdigest(),
+        },
+    }
+    catalog = Catalog(
+        "AX1-20260829-E1",
+        {"dblp": {"content_types": ["application/json"]}},
+    )
+
+    pages, occurrences, contexts = _load_completed_prefix(
+        checkpoint,
+        bundle,
+        catalog=catalog,
+        leaf_query_id=leaf_query_id,
+        pass_number=1,
+        next_page_number=1,
+    )
+
+    assert len(pages) == 1
+    assert occurrences == []
+    assert contexts[0]["response_ok"] is False
+    condition6 = _condition(
+        evaluate_page(pages[0], page_size=100, **contexts[0]), 6
+    )
+    assert not condition6.passed
+    assert condition6.reason_code == "response_not_successful"
 
 
 def test_429_pauses_quota_but_503_is_service_failure(tmp_path: Path) -> None:
@@ -1461,6 +1634,252 @@ def test_positive_p4_schema_valid_empty_bundle_is_accepted(tmp_path: Path) -> No
     )
     assert not rejected.passed
     assert rejected.reason_code == "raw_body_digest_mismatch"
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    ("application/atom+xml", "application/xml", "text/xml"),
+)
+def test_arxiv_accepts_every_catalog_registered_content_type(
+    tmp_path: Path, content_type: str
+) -> None:
+    import xml.sax.saxutils
+
+    from orchestrator.axis1_search.catalog import build_request, load_catalog
+
+    relative_catalog = Path(
+        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+    )
+    real = load_catalog(str(ROOT / relative_catalog))
+    original = next(
+        query
+        for query in real.logical_queries
+        if query.kind == "leaf" and query.index == "arxiv" and query.branch == "Q1"
+    )
+    query = SimpleNamespace(**{**original.__dict__, "independent_pass_required": False})
+    catalog = replace(real, logical_queries=(query,))
+    request = build_request(catalog, query.query_id, 0, None)
+    body = (
+        '<feed xmlns="http://www.w3.org/2005/Atom" '
+        'xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">'
+        f"<title>{xml.sax.saxutils.escape(request.expected_interpreted_query)}</title>"
+        "<opensearch:totalResults>0</opensearch:totalResults>"
+        "<opensearch:startIndex>0</opensearch:startIndex>"
+        "<opensearch:itemsPerPage>200</opensearch:itemsPerPage>"
+        "</feed>"
+    ).encode()
+    bundle = tmp_path / "bundle"
+    result = _run_leaf_for_test(
+        catalog,
+        query.query_id,
+        run_id="run-arxiv-content-type",
+        registration_commit="0" * 40,
+        catalog_path=relative_catalog.as_posix(),
+        bundle_root=bundle,
+        transport=_FakeTransport(
+            [
+                Response(
+                    200,
+                    (("Content-Type", content_type),),
+                    body,
+                    request.encoded_url,
+                    0.1,
+                )
+            ]
+        ),
+        preflight=True,
+        clock=lambda: 0.0,
+        sleeper=lambda seconds: None,
+    )
+    assert result.state == "branch_complete"
+    verification = verify_bundle(
+        bundle,
+        catalog=catalog,
+        catalog_path=ROOT / relative_catalog,
+    )
+    assert verification.passed, (verification.reason_code, verification.detail)
+
+
+def _write_json_document(path: Path, value: dict[str, Any]) -> None:
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _refinalize_test_bundle(bundle: Path, catalog: Any, catalog_path: Path) -> None:
+    finalize_bundle(
+        bundle,
+        registration_epoch=catalog.registration_epoch,
+        registration_commit="0" * 40,
+        catalog_sha256=hashlib.sha256(catalog_path.read_bytes()).hexdigest(),
+    )
+
+
+def _build_two_page_dblp_bundle(
+    tmp_path: Path,
+) -> tuple[Path, Any, Path, list[tuple[Path, dict[str, Any]]]]:
+    from orchestrator.axis1_search.catalog import build_request, load_catalog
+
+    relative_catalog = Path(
+        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+    )
+    catalog_path = ROOT / relative_catalog
+    real = load_catalog(str(catalog_path))
+    original = next(
+        query for query in real.logical_queries if query.kind == "leaf" and query.index == "dblp"
+    )
+    query = SimpleNamespace(**{**original.__dict__, "independent_pass_required": False})
+    catalog = replace(real, logical_queries=(query,))
+    requests = [build_request(catalog, query.query_id, page, None) for page in (0, 1)]
+    fixture = json.loads(
+        (ROOT / "orchestrator/tests/fixtures/axis1_search/f6_dblp_terminal.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    template_hit = fixture["result"]["hits"]["hit"][0]
+
+    def hit(number: int) -> dict[str, Any]:
+        value = json.loads(json.dumps(template_hit))
+        value["info"]["key"] = f"journals/example/W{number}"
+        return value
+
+    bodies = []
+    for request, first, count in (
+        (requests[0], 0, 100),
+        (requests[1], 100, 1),
+    ):
+        bodies.append(
+            json.dumps(
+                {
+                    "result": {
+                        "query": request.expected_interpreted_query,
+                        "hits": {
+                            "@total": "101",
+                            "@sent": str(count),
+                            "@first": str(first),
+                            "hit": [
+                                hit(number)
+                                for number in range(first + 1, first + count + 1)
+                            ],
+                        },
+                    }
+                }
+            ).encode()
+        )
+    bundle = tmp_path / "bundle"
+    result = _run_leaf_for_test(
+        catalog,
+        query.query_id,
+        run_id="run-chain",
+        registration_commit="0" * 40,
+        catalog_path=relative_catalog.as_posix(),
+        bundle_root=bundle,
+        transport=_FakeTransport(
+            [
+                Response(
+                    200,
+                    (("Content-Type", "application/json"),),
+                    body,
+                    request.encoded_url,
+                    0.1,
+                )
+                for request, body in zip(requests, bodies)
+            ]
+        ),
+        preflight=True,
+        clock=lambda: 0.0,
+        sleeper=lambda seconds: None,
+    )
+    assert result.state == "branch_complete"
+    page_documents = [
+        (path, json.loads(path.read_text(encoding="utf-8")))
+        for path in bundle.glob("pages/*.json")
+    ]
+    page_documents.sort(key=lambda item: item[1]["identity"]["page_number"])
+    return bundle, catalog, catalog_path, page_documents
+
+
+def test_bundle_rejects_broken_parent_response_digest_chain(tmp_path: Path) -> None:
+    bundle, catalog, catalog_path, pages = _build_two_page_dblp_bundle(tmp_path)
+    second_path, second = pages[1]
+    second["request"]["parent_response_sha256"] = "0" * 64
+    _write_json_document(second_path, second)
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+    result = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+    assert not result.passed
+    assert result.reason_code == "page_chain_parent_digest_mismatch"
+
+
+def test_bundle_rejects_broken_page_position_chain(tmp_path: Path) -> None:
+    import gzip
+
+    bundle, catalog, catalog_path, pages = _build_two_page_dblp_bundle(tmp_path)
+    first_path, first = pages[0]
+    raw_path = bundle / first["response"]["body_path"]
+    body_value = json.loads(gzip.decompress(raw_path.read_bytes()))
+    body_value["result"]["hits"]["@total"] = "100"
+    changed_body = json.dumps(body_value).encode()
+    raw_path.write_bytes(gzip.compress(changed_body, mtime=0))
+    changed_digest = hashlib.sha256(changed_body).hexdigest()
+    first["response"]["sha256"] = changed_digest
+    first["response"]["byte_count"] = len(changed_body)
+    first["parse"]["declared_total"] = 100
+    first["parse"]["position_out"] = None
+    _write_json_document(first_path, first)
+    second_path, second = pages[1]
+    second["request"]["parent_response_sha256"] = changed_digest
+    _write_json_document(second_path, second)
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+    result = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+    assert not result.passed
+    assert result.reason_code == "page_chain_position_mismatch"
+
+
+def test_bundle_rejects_extra_row_in_final_ledger(tmp_path: Path) -> None:
+    bundle, catalog, catalog_path, pages = _build_two_page_dblp_bundle(tmp_path)
+    ledger_path = bundle / pages[-1][1]["records"]["occurrence_ledger_path"]
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    extra = dict(ledger["occurrences"][-1])
+    extra.update(
+        {
+            "index_work_id": "journals/example/EXTRA",
+            "page_number": 99,
+            "ordinal": 0,
+        }
+    )
+    ledger["occurrences"].append(extra)
+    ledger["occurrence_count"] += 1
+    ledger["distinct_index_work_id_count"] += 1
+    _write_json_document(ledger_path, ledger)
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+    result = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+    assert not result.passed
+    assert result.reason_code == "occurrence_ledger_extra_row"
+
+
+def test_bundle_rejects_missing_row_from_final_ledger(tmp_path: Path) -> None:
+    bundle, catalog, catalog_path, pages = _build_two_page_dblp_bundle(tmp_path)
+    ledger_path = bundle / pages[-1][1]["records"]["occurrence_ledger_path"]
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    del ledger["occurrences"][0]
+    ledger["occurrence_count"] -= 1
+    ledger["distinct_index_work_id_count"] -= 1
+    _write_json_document(ledger_path, ledger)
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+    result = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+    assert not result.passed
+    assert result.reason_code == "occurrence_ledger_missing_row"
+
+
+def test_bundle_rejects_duplicate_page_evidence(tmp_path: Path) -> None:
+    bundle, catalog, catalog_path, pages = _build_two_page_dblp_bundle(tmp_path)
+    duplicate = bundle / "pages" / "duplicate.json"
+    duplicate.write_bytes(pages[0][0].read_bytes())
+    _refinalize_test_bundle(bundle, catalog, catalog_path)
+    result = verify_bundle(bundle, catalog=catalog, catalog_path=catalog_path)
+    assert not result.passed
+    assert result.reason_code == "duplicate_page_evidence"
 
 
 def test_checkpoint_writer_is_create_only_and_six_digit(tmp_path: Path) -> None:

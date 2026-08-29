@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -699,6 +700,24 @@ def verify_registration(
             return VerificationResult(False, "catalog_blob_mismatch", "catalog bytes differ from the registered blob")
 
         baseline = dict(backend.tree(frozen_base_commit, tuple(frozen_paths)))
+        registered_tree = dict(backend.tree(registration_commit, tuple(frozen_paths)))
+        if registered_tree != baseline:
+            baseline_paths = set(baseline)
+            registered_paths = set(registered_tree)
+            changed_paths = sorted(
+                path
+                for path in baseline_paths & registered_paths
+                if baseline[path] != registered_tree[path]
+            )
+            return VerificationResult(
+                False,
+                "frozen_registration_tree_mismatch",
+                (
+                    f"missing={sorted(baseline_paths - registered_paths)}, "
+                    f"extra={sorted(registered_paths - baseline_paths)}, "
+                    f"changed={changed_paths}"
+                ),
+            )
         working_paths = _working_frozen_paths(root, tuple(frozen_paths))
         if working_paths != set(baseline):
             return VerificationResult(
@@ -813,6 +832,26 @@ def _openalex_structure(body: bytes) -> Any:
         return value["meta"]["x_query"]["oqo"]
     except (UnicodeDecodeError, json.JSONDecodeError, TypeError, KeyError):
         return None
+
+
+def _registered_content_types(catalog: Any, index: str) -> frozenset[str]:
+    policy = _get(catalog, "index_policies")[index]
+    raw = _get(policy, "content_types")
+    if not isinstance(raw, (list, tuple)) or not raw:
+        raise ValueError(f"catalog index policy {index!r} lacks registered content_types")
+    values = frozenset(
+        item.strip().lower() for item in raw if isinstance(item, str) and item.strip()
+    )
+    if len(values) != len(raw):
+        raise ValueError(f"catalog index policy {index!r} has invalid content_types")
+    return values
+
+
+def _occurrence_counter(rows: Iterable[Mapping[str, Any]]) -> Counter[str]:
+    return Counter(
+        json.dumps(dict(row), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        for row in rows
+    )
 
 
 def _read_stored_raw(path: Path) -> bytes:
@@ -1052,8 +1091,28 @@ def verify_bundle(
         from .catalog import build_request
 
         accepted_pages: dict[tuple[str, int], list[tuple[Mapping[str, Any], Any, dict[str, Any]]]] = {}
+        seen_request_ids: set[tuple[str, int, str]] = set()
+        seen_page_identities: set[tuple[str, int, int]] = set()
         for evidence in pages:
             identity = evidence["identity"]
+            request_id = identity["request_id"]
+            request_identity = (
+                identity["leaf_query_id"], identity["pass_number"], request_id
+            )
+            page_identity = (
+                identity["leaf_query_id"],
+                identity["pass_number"],
+                identity["page_number"],
+            )
+            if (
+                request_identity in seen_request_ids
+                or page_identity in seen_page_identities
+            ):
+                return VerificationResult(
+                    False, "duplicate_page_evidence", request_id
+                )
+            seen_request_ids.add(request_identity)
+            seen_page_identities.add(page_identity)
             if identity["catalog_sha256"] != catalog_sha:
                 return VerificationResult(False, "catalog_digest_mismatch", identity["request_id"])
             ledger_relative = evidence["records"]["occurrence_ledger_path"]
@@ -1063,7 +1122,7 @@ def verify_bundle(
             raw_relative = _safe_bundle_relative(evidence["response"]["body_path"])
             try:
                 body = _read_stored_raw(root / raw_relative)
-            except gzip.BadGzipFile as exc:
+            except gzip.BadGzipFile:
                 return VerificationResult(False, "raw_gzip_invalid", raw_relative.as_posix())
             response_doc = evidence["response"]
             if (
@@ -1132,11 +1191,7 @@ def verify_bundle(
             if parsed_occurrences != ledger_occurrences:
                 return VerificationResult(False, "stored_occurrence_mismatch", identity["request_id"])
             page = _page_from_evidence(evidence, ledger)
-            expected_type = {
-                "arxiv": "application/atom+xml",
-                "openalex": "application/json",
-                "dblp": "application/json",
-            }[identity["index"]]
+            expected_types = _registered_content_types(catalog, identity["index"])
             context: dict[str, Any] = {
                 "expected_interpreted_query": _get(request, "expected_interpreted_query"),
                 "expected_position_in": _get(request, "position_in"),
@@ -1146,7 +1201,8 @@ def verify_bundle(
                 ),
                 "response_ok": (
                     response_doc["status"] == 200
-                    and response_doc["content_type"].split(";", 1)[0].lower() == expected_type
+                    and response_doc["content_type"].split(";", 1)[0].strip().lower()
+                    in expected_types
                     and response_doc["final_url"] == _get(request, "encoded_url")
                 ),
                 "evidence_complete": True,
@@ -1197,9 +1253,76 @@ def verify_bundle(
                 if not values:
                     return VerificationResult(False, "leaf_page_evidence_missing", f"{leaf_id}:pass{pass_number}")
                 values.sort(key=lambda item: item[0]["identity"]["page_number"])
+                page_numbers = [
+                    item[0]["identity"]["page_number"] for item in values
+                ]
+                if page_numbers != list(range(len(values))):
+                    return VerificationResult(
+                        False,
+                        "page_chain_number_mismatch",
+                        f"{leaf_id}:pass{pass_number}:{page_numbers}",
+                    )
+                if values[0][0]["request"].get("parent_response_sha256") is not None:
+                    return VerificationResult(
+                        False,
+                        "page_chain_parent_digest_mismatch",
+                        f"{leaf_id}:pass{pass_number}:page0",
+                    )
+                for previous, current in zip(values, values[1:]):
+                    previous_evidence, previous_page, _previous_context = previous
+                    current_evidence, current_page, _current_context = current
+                    if (
+                        _get(previous_page, "position_out") is None
+                        or _get(previous_page, "position_out")
+                        != _get(current_page, "position_in")
+                    ):
+                        return VerificationResult(
+                            False,
+                            "page_chain_position_mismatch",
+                            current_evidence["identity"]["request_id"],
+                        )
+                    if (
+                        current_evidence["request"].get("parent_response_sha256")
+                        != previous_evidence["response"]["sha256"]
+                    ):
+                        return VerificationResult(
+                            False,
+                            "page_chain_parent_digest_mismatch",
+                            current_evidence["identity"]["request_id"],
+                        )
                 page_values = [item[1] for item in values]
                 contexts = [item[2] for item in values]
                 final_ledger = ledgers[values[-1][0]["records"]["occurrence_ledger_path"]]
+                reparsed_occurrences = [
+                    dict(occurrence)
+                    for page in page_values
+                    for occurrence in tuple(_get(page, "occurrences", ()) or ())
+                ]
+                final_ledger_occurrences = [
+                    dict(item) for item in final_ledger["occurrences"]
+                ]
+                reparsed_counter = _occurrence_counter(reparsed_occurrences)
+                ledger_counter = _occurrence_counter(final_ledger_occurrences)
+                extra_rows = ledger_counter - reparsed_counter
+                missing_rows = reparsed_counter - ledger_counter
+                if extra_rows and not missing_rows:
+                    return VerificationResult(
+                        False,
+                        "occurrence_ledger_extra_row",
+                        f"{leaf_id}:pass{pass_number}",
+                    )
+                if missing_rows and not extra_rows:
+                    return VerificationResult(
+                        False,
+                        "occurrence_ledger_missing_row",
+                        f"{leaf_id}:pass{pass_number}",
+                    )
+                if extra_rows or missing_rows:
+                    return VerificationResult(
+                        False,
+                        "occurrence_ledger_row_mismatch",
+                        f"{leaf_id}:pass{pass_number}",
+                    )
                 work_ids = {
                     str(item["index_work_id"])
                     for item in final_ledger["occurrences"]
