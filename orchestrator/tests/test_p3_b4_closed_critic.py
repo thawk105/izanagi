@@ -659,6 +659,12 @@ class _AdmissionFixture:
     expected_model: str
     expected_prompt: str
     expected_projection: str
+    expected_projections: dict[C.DriverKind, str]
+
+
+def _stale_projection(live: str) -> str:
+    replacement = "0" if live[0] != "0" else "1"
+    return replacement + live[1:]
 
 
 def _committed_admission_fixture(
@@ -666,6 +672,7 @@ def _committed_admission_fixture(
     expected_model: str = _ADMISSION_MODEL,
     expected_prompt: str | None = None,
     expected_projection: str | None = None,
+    document_projections: dict[C.DriverKind, str] | None = None,
     driver_kind: C.DriverKind = "base",
 ) -> _AdmissionFixture:
     repository = Path(tempfile.mkdtemp(prefix="izanagi-b4-closed-admission-"))
@@ -681,11 +688,17 @@ def _committed_admission_fixture(
         if expected_prompt is None
         else expected_prompt
     )
+    live_projections = {
+        kind: _independent_projection_sha256(role_file, driver_kind=kind)
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    projections = (
+        live_projections
+        if document_projections is None
+        else dict(document_projections)
+    )
     projection = (
-        _independent_projection_sha256(
-            role_file,
-            driver_kind=driver_kind,
-        )
+        live_projections[driver_kind]
         if expected_projection is None
         else expected_projection
     )
@@ -696,8 +709,12 @@ def _committed_admission_fixture(
     values[_EXPECTATION_ROW_LABEL] = (
         f"expected_claude_model_snapshot={expected_model}; "
         f"expected_effective_critic_prompt_sha256={prompt}; "
-        "expected_closed_critic_projection_closure_sha256="
-        f"{projection}"
+        "expected_closed_critic_projection_closure_sha256[base]="
+        f"{projections['base']}; "
+        "expected_closed_critic_projection_closure_sha256[sort]="
+        f"{projections['sort']}; "
+        "expected_closed_critic_projection_closure_sha256[trigger]="
+        f"{projections['trigger']}"
     )
     document_lines = [
         "# Closed critic fixture",
@@ -753,6 +770,9 @@ def _committed_admission_fixture(
         repository_root=repository,
     )
     assert verified.expected_claude_model_snapshot == expected_model
+    assert dict(
+        verified.expected_closed_critic_projection_closure_sha256_by_driver
+    ) == projections
     return _AdmissionFixture(
         repository=repository,
         role_file=role_file,
@@ -760,6 +780,7 @@ def _committed_admission_fixture(
         expected_model=expected_model,
         expected_prompt=prompt,
         expected_projection=projection,
+        expected_projections=projections,
     )
 
 
@@ -1178,9 +1199,96 @@ def test_repository_checked_record_with_nonempty_cells_and_three_matching_expect
         ).hexdigest()
 
 
+def test_pair_creation_rejects_stale_nonselected_document_projection_before_provider():
+    document_projections = {
+        kind: C.projection_sha256(kind)
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    document_projections["sort"] = _stale_projection(
+        document_projections["sort"]
+    )
+    admission = _committed_admission_fixture(
+        document_projections=document_projections,
+        driver_kind="base",
+    )
+    with _certified_environment(admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ), unittest.mock.patch.object(
+        C,
+        "ClaudeProjectedRoleProvider",
+        side_effect=AssertionError("provider construction must not run"),
+    ):
+        error = _raises(
+            A.B4AdmissionRecordError,
+            lambda: C.create_b4_closed_critic_pair(
+                on_cfg=on_cfg,
+                off_cfg=off_cfg,
+                artifact_root=parent / "stale-nonselected",
+                admission_record_path=admission.record_path,
+                expected_driver_kind="base",
+                _b4_launch_context=_production_launch_context(
+                    on_cfg,
+                    admission=admission,
+                ),
+                repository_root=admission.repository,
+                environ={"HOME": str(home)},
+            ),
+        )
+    assert str(error) == (
+        "[admission-mismatch] "
+        "expected_closed_critic_projection_closure_sha256[sort]"
+    )
+
+
+def test_pair_creation_rejects_three_stale_document_projections_before_provider():
+    document_projections = {
+        kind: _stale_projection(C.projection_sha256(kind))
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    admission = _committed_admission_fixture(
+        document_projections=document_projections,
+        driver_kind="base",
+    )
+    with _certified_environment(admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ), unittest.mock.patch.object(
+        C,
+        "ClaudeProjectedRoleProvider",
+        side_effect=AssertionError("provider construction must not run"),
+    ):
+        error = _raises(
+            A.B4AdmissionRecordError,
+            lambda: C.create_b4_closed_critic_pair(
+                on_cfg=on_cfg,
+                off_cfg=off_cfg,
+                artifact_root=parent / "three-stale",
+                admission_record_path=admission.record_path,
+                expected_driver_kind="base",
+                _b4_launch_context=_production_launch_context(
+                    on_cfg,
+                    admission=admission,
+                ),
+                repository_root=admission.repository,
+                environ={"HOME": str(home)},
+            ),
+        )
+    assert str(error) == (
+        "[admission-mismatch] "
+        "expected_closed_critic_projection_closure_sha256[base]"
+    )
+
+
 def test_certified_admission_rejects_projection_and_prompt_before_query():
     projection_admission = _committed_admission_fixture(
-        expected_projection="0" * 64,
+        expected_projection=_stale_projection(C.projection_sha256("base")),
     )
     provider_events = []
     real_provider = C.ClaudeProjectedRoleProvider
@@ -1756,6 +1864,10 @@ def test_admission_projection_expectation_selects_the_pair_driver_closure(
     )
     assert len(constructions) == 2
     expected = C.projection_sha256(driver_kind)
+    expected_by_driver = {
+        kind: C.projection_sha256(kind)
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
     assert all(
         item["binding"].driver_kind == driver_kind
         and item["initial_projection_sha256"] == expected
@@ -1764,6 +1876,10 @@ def test_admission_projection_expectation_selects_the_pair_driver_closure(
             .expected_closed_critic_projection_closure_sha256
             == expected
         )
+        and dict(
+            item["verified_admission"]
+            .expected_closed_critic_projection_closure_sha256_by_driver
+        ) == expected_by_driver
         for item in constructions
     )
 

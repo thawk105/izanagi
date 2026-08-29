@@ -54,6 +54,7 @@ from .p3_s4_loop import (  # noqa: E402
     state_from_dict,
 )
 from .p3_b4_admission_record import (  # noqa: E402
+    B4_PROJECTION_DRIVER_KINDS,
     B4AdmissionRecordError,
     VerifiedB4AdmissionRecord,
     assert_admission_expectation,
@@ -1156,6 +1157,18 @@ def _prepare_b4_closed_critic_pair(
     tracker = CrossRoleSessionTracker()
     closure_sha256 = projection_sha256(on_binding.driver_kind)
     if verified_admission is not None:
+        for driver_kind in B4_PROJECTION_DRIVER_KINDS:
+            assert_admission_expectation(
+                "expected_closed_critic_projection_closure_sha256"
+                f"[{driver_kind}]",
+                expected=(
+                    verified_admission
+                    .expected_closed_critic_projection_closure_sha256_by_driver[
+                        driver_kind
+                    ]
+                ),
+                actual=projection_sha256(driver_kind),
+            )
         assert_admission_expectation(
             "expected_closed_critic_projection_closure_sha256",
             expected=(

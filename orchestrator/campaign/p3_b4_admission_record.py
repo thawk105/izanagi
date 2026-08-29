@@ -16,8 +16,9 @@ record after such a mismatch and continuing the same experiment is a protocol
 change, not maintenance.
 
 Section 5 validation checks the fixed raw table shape, nonempty source cells,
-a closed reserved-sentinel list, and three exact declarations.  It does not
-check cell types, meanings, or rendered non-emptiness for the remaining cells.
+a closed reserved-sentinel list, and fixed model, prompt, and driver-tagged
+projection declarations.  It does not check cell types, meanings, or rendered
+non-emptiness for the remaining cells.
 HTML comment detection is a line-oriented simple search: ``<!--`` inside an
 inline code span, an indented code block, or a backslash escape is also treated
 as a comment opener.  Thus otherwise valid documents containing those forms
@@ -36,7 +37,8 @@ import subprocess
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Final, Literal
 
 
 SCHEMA_VERSION = "p3-b4-prerun-admission/v1"
@@ -72,11 +74,21 @@ _SECTION5_LABELS = (
     "実行責任者・開始時刻",
 )
 _EXPECTATION_ROW_LABEL = "model snapshot / prompt hash / projection hash"
+B4ProjectionDriverKind = Literal["base", "sort", "trigger"]
+B4_PROJECTION_DRIVER_KINDS: Final[tuple[B4ProjectionDriverKind, ...]] = (
+    "base",
+    "sort",
+    "trigger",
+)
 _EXPECTATION_ROW_RE = re.compile(
     r"expected_claude_model_snapshot=(?P<model>claude-opus-[^;\r\n]+); "
     r"expected_effective_critic_prompt_sha256=(?P<prompt>[0-9a-f]{64}); "
-    r"expected_closed_critic_projection_closure_sha256="
-    r"(?P<projection>[0-9a-f]{64})"
+    r"expected_closed_critic_projection_closure_sha256\[base\]="
+    r"(?P<projection_base>[0-9a-f]{64}); "
+    r"expected_closed_critic_projection_closure_sha256\[sort\]="
+    r"(?P<projection_sort>[0-9a-f]{64}); "
+    r"expected_closed_critic_projection_closure_sha256\[trigger\]="
+    r"(?P<projection_trigger>[0-9a-f]{64})"
 )
 _RESERVED_SENTINEL_RE = re.compile(
     r"(?:未記入|要記入|(?<!\w)"
@@ -125,6 +137,18 @@ class VerifiedB4AdmissionRecord:
     expected_claude_model_snapshot: str
     expected_effective_critic_prompt_sha256: str
     expected_closed_critic_projection_closure_sha256: str
+    expected_closed_critic_projection_closure_sha256_by_driver: (
+        MappingProxyType[B4ProjectionDriverKind, str]
+    )
+
+
+@dataclass(frozen=True)
+class _Section5ClosedCriticExpectationRow:
+    expected_claude_model_snapshot: str
+    expected_effective_critic_prompt_sha256: str
+    expected_closed_critic_projection_closure_sha256_by_driver: (
+        MappingProxyType[B4ProjectionDriverKind, str]
+    )
 
 
 @dataclass(frozen=True)
@@ -458,6 +482,27 @@ def assert_admission_expectation(
         raise B4AdmissionRecordError(f"[admission-mismatch] {field_name}")
 
 
+def _parse_closed_critic_expectation_row(
+    value: str,
+) -> _Section5ClosedCriticExpectationRow:
+    match = _EXPECTATION_ROW_RE.fullmatch(value)
+    if match is None:
+        raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
+    projection_by_driver = MappingProxyType(
+        {
+            kind: match.group(f"projection_{kind}")
+            for kind in B4_PROJECTION_DRIVER_KINDS
+        }
+    )
+    return _Section5ClosedCriticExpectationRow(
+        expected_claude_model_snapshot=match.group("model"),
+        expected_effective_critic_prompt_sha256=match.group("prompt"),
+        expected_closed_critic_projection_closure_sha256_by_driver=(
+            projection_by_driver
+        ),
+    )
+
+
 def _contains_default_ignorable_or_format(value: str) -> bool:
     for character in value:
         codepoint = ord(character)
@@ -538,9 +583,8 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
     *,
     expected_claude_model_snapshot: str,
     expected_effective_critic_prompt_sha256: str,
-    expected_closed_critic_projection_closure_sha256: str,
-) -> None:
-    """Check fixed source cells and three values, not types or rendered meaning.
+) -> MappingProxyType[B4ProjectionDriverKind, str]:
+    """Check fixed source cells and declared values, not rendered meaning.
 
     HTML comment detection is a line-oriented simple search: ``<!--`` inside
     an inline code span, an indented code block, or a backslash escape is also
@@ -604,24 +648,20 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
             or value.casefold() in _RESERVED_SENTINEL_WHOLE_VALUES
         ):
             raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
-    match = _EXPECTATION_ROW_RE.fullmatch(values[_EXPECTATION_ROW_LABEL])
-    if match is None:
-        raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
+    expectation_row = _parse_closed_critic_expectation_row(
+        values[_EXPECTATION_ROW_LABEL]
+    )
     assert_admission_expectation(
         "expected_claude_model_snapshot",
         expected=expected_claude_model_snapshot,
-        actual=match.group("model"),
+        actual=expectation_row.expected_claude_model_snapshot,
     )
     assert_admission_expectation(
         "expected_effective_critic_prompt_sha256",
         expected=expected_effective_critic_prompt_sha256,
-        actual=match.group("prompt"),
+        actual=expectation_row.expected_effective_critic_prompt_sha256,
     )
-    assert_admission_expectation(
-        "expected_closed_critic_projection_closure_sha256",
-        expected=expected_closed_critic_projection_closure_sha256,
-        actual=match.group("projection"),
-    )
+    return expectation_row.expected_closed_critic_projection_closure_sha256_by_driver
 
 
 def verify_b4_admission_record(
@@ -704,17 +744,16 @@ def verify_b4_admission_record(
     except (_GitVerificationFailure, UnicodeError) as exc:
         raise B4AdmissionRecordError(_DOCUMENT_NOT_VERIFIABLE) from exc
 
-    assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
-        document_blob,
-        expected_claude_model_snapshot=(
-            declared.expected_claude_model_snapshot
-        ),
-        expected_effective_critic_prompt_sha256=(
-            declared.expected_effective_critic_prompt_sha256
-        ),
-        expected_closed_critic_projection_closure_sha256=(
-            declared.expected_closed_critic_projection_closure_sha256
-        ),
+    projection_closure_sha256_by_driver = (
+        assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document_blob,
+            expected_claude_model_snapshot=(
+                declared.expected_claude_model_snapshot
+            ),
+            expected_effective_critic_prompt_sha256=(
+                declared.expected_effective_critic_prompt_sha256
+            ),
+        )
     )
     return VerifiedB4AdmissionRecord(
         admission_record_repository_path=relative_record_path.as_posix(),
@@ -733,5 +772,8 @@ def verify_b4_admission_record(
         ),
         expected_closed_critic_projection_closure_sha256=(
             declared.expected_closed_critic_projection_closure_sha256
+        ),
+        expected_closed_critic_projection_closure_sha256_by_driver=(
+            projection_closure_sha256_by_driver
         ),
     )
