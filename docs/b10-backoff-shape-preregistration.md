@@ -35,6 +35,21 @@ v4 はこの probe の結果を**開示したうえで**、上限を満たす gr
 反復数、α、permutation、信頼区間、欠測規則、曝露規則、等価域 ±3.0%、判定手続きの骨格、
 C++ の hole line、patch、`formula_sha256`、`patch_sha256`。
 
+### D1270 との対応
+
+D1270 (2026-08-29) は「上限は据え置く」「probe の 18 cell を開示した新しい日付版の事前登録を作ってから
+正式投入する」「凍結物は上書きしない」と定めた。本 v4 がその新しい版である。対応は次のとおり。
+
+- **上限は据え置いた。** `maximum_absolute_deviation_pct_exclusive` は 1.0 のままである。
+- **18 cell を全件開示した。** §4.1 に `binary` の失敗 4 cell を含む全値がある。
+- **版は commit で識別する。** driver は canonical path
+  `docs/b10-backoff-shape-preregistration.md` を固定して束縛するので (D1058)、
+  別 path の日付入り file を新設せず、**同じ canonical path 上の新しい版**として作った。
+  版の日付と改訂内容は本節に、束縛は commit hash に持たせる。
+- **凍結物は 1 バイトも上書きしていない。** v3 の bytes は改訂前の commit に残る。
+  probe 成果物 (`output/insights/2026-08-28_t1905-b10-backoff-shape-run/`) も変更していない。
+  v3 はそもそも placeholder のまま発効しておらず、v3 を束縛した実走成果物は存在しない。
+
 ### 発効と本走の手順
 
 - **本走 (`build` / `verify` / `perf`) は本書 v4 を含む commit を指して起動する。**
