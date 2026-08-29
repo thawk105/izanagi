@@ -54,6 +54,7 @@ from orchestrator.campaign.source_digest import (                               
 )
 from orchestrator.critic.digest import load_screen_rejections, load_workload            # noqa: E402
 from campaign_lock_test_support import build_v2_lock                                    # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support                # noqa: E402
 
 _FIXTURE = _HERE / "fixtures" / "bench_first_screen_reject_6f169f90.jsonl"
 _BASELINE = "84319b1127a6"
@@ -206,10 +207,25 @@ def _upgrade_to_fixed_e1(
             record["payload"][COMMIT_CONTRACT_SHA256_KEY] = (
                 decoded.authority.environment_contract_sha256
             )
+    commit_index = next(
+        index for index, record in enumerate(records)
+        if record["stage"] == "commit"
+    )
+    commit = records[commit_index]
     Path(layout.wal_file).write_text(
-        "".join(json.dumps(record) + "\n" for record in records),
+        "".join(json.dumps(record) + "\n" for record in records[:commit_index]),
         encoding="utf-8",
     )
+    receipt_support.log_receipted_commit(
+        layout, commit["variant"], commit["env_tag"], commit["payload"],
+        operation_identity=commit["payload"]["build_attempt_id"],
+        tags=tuple(commit["payload"]["verify_configs"]), ts=commit["ts"],
+    )
+    for record in records[commit_index + 1:]:
+        wal.log(
+            layout, record["variant"], record["stage"], record["env_tag"],
+            record["payload"], ts=record["ts"],
+        )
     return layout
 
 

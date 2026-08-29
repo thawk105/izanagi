@@ -754,6 +754,13 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(
             "llc_miss_rate": 0.21,
         },
     })
+    W.wal.log(layout, certified_variant, "verify_done", W.ENV_TAG, {
+        "build_attempt_id": certified_attempt,
+        "verdict": "serializable",
+        "certified": True,
+        "anomalies": 0,
+        "workload": {"tag": "legacy"},
+    })
     # post-policy COMMIT は attempt と receipt SHA を必須にする。
     receipt_support.log_receipted_commit(
         layout, certified_variant, W.ENV_TAG, {
