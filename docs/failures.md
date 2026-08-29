@@ -15509,6 +15509,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 履歴検査の変異で option を 1 つずつ外し、**それぞれに専用の kill node があるか**を
   見る。option を外しても死なない検査は、その option が守る経路の負例が無い。
 
+
+- **再発: 2026-08-29** — 救出依頼が「main へ一度も着地していない 7 file」という前提で来たが、
+  実際には 6 file が `5107ced3c` で着地し `c986c1459` (merge) で撤去されていた。
+  前提の裏取りに使った `git log --oneline --diff-filter=D --all -- <paths>` は 0 件を返す。
+  path 限定 `git log` は既定で merge の差分を出さないため、**merge commit の中でだけ起きた
+  削除は完全に不可視**であり、「削除 commit が無い」を「削除されていない」と読むと着地履歴を
+  丸ごと取り違える。ここでは `git ls-tree` による tree 突合 (着地時点にあり main に無い) と
+  `--ancestry-path` の 1 コミットずつの `cat-file -e` 走査で初めて撤去 merge に到達した。
+  着地・撤去の有無は `--diff-filter` の出力ではなく **tree の内容**で判定する。
 ### F561. /rulings が既裁定を項目単位でしか照合せず、絶対規律に触れる推奨を出した [手順漏れ]
 
 - 事象: `/rulings all` が裁定待ち 23 件を提示し、ユーザーが全件を推奨どおり裁定した後、
