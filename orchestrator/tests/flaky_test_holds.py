@@ -201,10 +201,6 @@ _EXPLORATION_EXTERNAL_ROOT_NODE = (
     "orchestrator/tests/test_dev_wave_land.py::"
     "test_exploration_external_root_keeps_wave_clean"
 )
-_CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE = (
-    "orchestrator/tests/test_codex_worker_launch.py::"
-    "test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]"
-)
 
 
 _FLAKY_TEST_HOLD_ROWS = (
@@ -232,35 +228,6 @@ _FLAKY_TEST_HOLD_ROWS = (
             ),
             evidence_id="F57",
             reintroduction_task_id="t-1079",
-        ),
-    ),
-    (
-        _CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE,
-        FlakyTestHold(
-            known_failure_node_ids=frozenset(
-                {_CHECK_RECEIPT_V1_EXPLICIT_SKIP_FALSE_NODE}
-            ),
-            same_tree=True,
-            green_observation=(
-                "同一 tip の exact node 単独走は 1 passed in 5.60s で、"
-                "直後の受入全走は 18499 passed / 62 skipped で緑だった"
-            ),
-            green_collection_condition=(
-                "exact-node-single-run + acceptance-full-suite"
-            ),
-            green_run_count=2,
-            red_observation=(
-                "同一 tip の受入 attempt 1 で当該 exact node が唯一の赤だった"
-            ),
-            red_collection_condition=ACCEPTANCE_COLLECTION,
-            failure_signature="subprocess 出力が空による JSONDecodeError",
-            cause=(
-                "launcher プロセス全体の実時間が admission 上限を超えると v1 "
-                "判定表が拒否する経路を実測で再現した。当時の receipt と stderr は"
-                "残っておらず、当該赤がこの経路だった直接証拠は無い"
-            ),
-            evidence_id="F273",
-            reintroduction_task_id="t-2073",
         ),
     ),
 )
