@@ -216,6 +216,29 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 - **総計測予算**: arm ごとに対称とする。失敗した role query と reject も予算を消費する。
   再試行・差替えは禁止。
 - **model snapshot / prompt hash / projection hash**: 両アームで同一であることを確認して記入する。
+  **本欄は独立した 3 種の値を 1 セルに持つ。§0 の原子性により、すべてが確定するまで
+  `未記入` のままにする。** 部分記入の例外は「実行責任者・開始時刻」欄だけであり、本欄へ広げない。
+  記入は固定順・固定 tag・区切り `; ` の次の形に限る。
+  `expected_claude_model_snapshot=<slug>` に続けて
+  `expected_effective_critic_prompt_sha256=<hash>`、
+  `expected_closed_critic_projection_closure_sha256[base]=<hash>`、
+  同 `[sort]`、同 `[trigger]` を並べる。
+  `<slug>` は `claude-opus-` で始まり、以降が英数字と `.` `_` `-` の区切りだけからなる文字列。
+  `<hash>` は小文字 16 進 64 桁。**大文字・全角・互換文字を使わない** — 値セルの raw bytes が
+  この形と一致しない行は、正規化後に一致して見えても実走前検査が拒否する。
+  - **projection は 3 driver 分をすべて書く。** 1 driver 分だけを書ける形にすると、どの driver で
+    走るかを結果を見た後に選べる。値は `p3_b4_closed_critic.projection_sha256(kind)` が
+    記入時点の checkout から機械導出したものを base / sort / trigger の順で書く。
+  - **記入後に閉包 member の bytes が変われば 3 値は同時に無効になる。** 登録は一度きりの行為ではなく
+    継続的な不変条件である。変わったら本欄を書き直す。実走前検査はこの陳腐化を拒否する。
+  - **prompt hash は repository の bytes から導出する** — 未改変の `.claude/agents/critic.md` の本文と
+    mediated projection contract から作る effective prompt の sha256 である。
+  - **model snapshot は repository の bytes から導出できない。** 実行時に観測される exact slug と
+    照合される事前宣言であり、宣言そのものが値を拘束する。したがって本欄を埋める前に、
+    **(a) 結果に依存しない宣言源、(b) 宣言を承認する人間の識別子、(c) 宣言の時点、
+    (d) 観測 slug が宣言と食い違ったときの扱い**を別 commit で先に固定する。
+    (d) を「宣言を書き換えて同じ実走を続ける」と定めてはならない — 実行時照合が拘束でなくなる。
+    4 点が固定されるまで本欄を埋めない。**この 4 点は人間の指名を含むため AI が確定できない** (§10)。
 - **env_tag (実測環境)**: 選択した driver と実行 site が確定し、その site の環境契約の exact tag と
   一致することを**同じ site resolver から機械導出して**確認してから記入する。同一 driver でも site に
   よって tag が分かれるため、driver・site・tag の 3 つ組で固定し、環境契約の artifact path と hash、
@@ -756,6 +779,22 @@ next synthesis・primary outcome・secondary outcome を新たに生成も閲覧
     必ず例外を送出するため、違反が記録されたまま publish へ到達する状態は起こらない。
     両層同時変異でも生存することを実測した。多重防御として残すが発火する保証には数えない。
   - **任意の native code や同権限 process による interpreter 改変は主張しない。**
+- **`expected_claude_model_snapshot` の宣言源と承認主体 (2026-08-29 に実測して明記、[T-2005])。**
+  同欄の値は repository の bytes から導出できない。実 CLI 応答の `modelUsage` が返す exact slug は
+  走らせる時期で変わり (本 repo の成果物には `claude-opus-5[1m]` と `claude-opus-4-8` の
+  両方が実在する)、role frontmatter の `opus` は snapshot slug ではない。
+  D998 が定めるとおり本欄は「事前宣言 + 実行時照合」であって予測ではないので、
+  値の指名は実験条件の決定である。§5.1 が要求する 4 点 — 結果に依存しない宣言源、承認する人間の
+  識別子、宣言の時点、観測 slug が食い違ったときの扱い — は**人間の指名を含むため AI が確定できない。**
+  §0 の原子性により、同じセルに入る prompt hash と projection hash も同時に記入できない。
+  **したがって 3 driver の projection closure hash は、機構と規範が揃っても値としては未登録である。**
+  機構の側 (3 driver 分を要求する行の文法、記入された 3 値すべてを起動器の bootstrap 経路と
+  pair 生成点で実走前に live 値と照合する関門、invoke と最終 certification での 3 件再照合) は
+  2026-08-29 に閉じた。**閉じたのは機構だけである。** 本欄が埋まるまでに残るのは、
+  (i) §5.1 の 4 点を別 commit で固定すること、(ii) model・prompt・3 driver の projection を
+  同じセルへ原子的に記入すること、(iii) その版を commit すること、(iv) その版へ束縛した
+  admission record を driver ごとに発行することである。**本書の発効にはさらに §5 の他 9 欄と
+  §6 の前提条件が要る** — 本項はそれらを一つも充足しない。
 - 対象 driver と軸の選定そのもの (§5.1 の手順)。
 - 旧登録の B-4 記述を本書が supersede するかどうかのユーザー裁定。
 - **critic の決定と proposal 本文の因果的束縛。** 2026-08-26 の必須配線は、閉じた critic

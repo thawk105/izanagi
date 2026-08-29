@@ -1,0 +1,173 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "head": null,
+  "spec_sha256": "576ad575acd01d7899e1abcc36bce239dd54f973101f20e2771e166ff4fbdc69",
+  "baseline_status": "PASSED",
+  "mutations": [
+    {
+      "id": "M1-anomalies-zero",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 62,
+      "failed_node_count": 62,
+      "duration_s": 37.501
+    },
+    {
+      "id": "M2-receipt-validator",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 58,
+      "failed_node_count": 58,
+      "duration_s": 37.849
+    },
+    {
+      "id": "M3-receipt-operation",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 57,
+      "failed_node_count": 57,
+      "duration_s": 47.77
+    },
+    {
+      "id": "M4-receipt-evidence",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 57,
+      "failed_node_count": 57,
+      "duration_s": 47.718
+    },
+    {
+      "id": "M5-verify-attempt-binding",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 66,
+      "failed_node_count": 66,
+      "duration_s": 32.763
+    },
+    {
+      "id": "M6-chokepoint-first-commit-only",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 57,
+      "failed_node_count": 57,
+      "duration_s": 37.772
+    },
+    {
+      "id": "M7-s1-wiring",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 1,
+      "failed_node_count": 1,
+      "duration_s": 43.385
+    },
+    {
+      "id": "M8-a2-wiring",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 1,
+      "failed_node_count": 1,
+      "duration_s": 38.1
+    },
+    {
+      "id": "M9-s6-resume-wiring",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 1,
+      "failed_node_count": 1,
+      "duration_s": 38.063
+    },
+    {
+      "id": "M10-all-verifies-must-be-clean",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 58,
+      "failed_node_count": 58,
+      "duration_s": 37.755
+    },
+    {
+      "id": "M11-commit-required",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 57,
+      "failed_node_count": 57,
+      "duration_s": 46.108
+    },
+    {
+      "id": "M12-historical-raw-also-gated",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 83,
+      "failed_node_count": 83,
+      "duration_s": 42.81
+    },
+    {
+      "id": "M13-aborts-must-be-zero",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 161,
+      "failed_node_count": 161,
+      "duration_s": 58.361
+    },
+    {
+      "id": "M14-resolve-duplicate-wiring",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 1,
+      "failed_node_count": 1,
+      "duration_s": 78.569
+    },
+    {
+      "id": "M15-s8a-resume-wiring",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "rc": 1,
+      "expected_node_count": 1,
+      "failed_node_count": 1,
+      "duration_s": 68.205
+    }
+  ]
+}

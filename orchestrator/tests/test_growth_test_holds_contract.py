@@ -2532,6 +2532,9 @@ def test_direct_import_and_call_bypass_is_refused():
 
 
 def test_regular_pytest_path_keeps_single_hold_skip():
+    # This is the only caller that loads a real conftest-backed pytest session:
+    # its measured standalone cost is 4.25 s, and the default 10.0 s budget
+    # expired twice under acceptance-run parallelism.
     result = _run_subprocess([
         sys.executable,
         "-m",
@@ -2542,7 +2545,7 @@ def test_regular_pytest_path_keeps_single_hold_skip():
         "-q",
         "orchestrator/tests/test_s8b_repo_scan_invariant.py::"
         "test_real_repository_scan_matches_known_hits_and_has_positive_control",
-    ])
+    ], timeout=120.0)
     output = _combined_output(result)
     assert result.returncode == 0, output
     assert "1 skipped" in output

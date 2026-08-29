@@ -527,7 +527,7 @@ def _read_bytes_once(path: Path, *, missing_ok: bool = False) -> bytes | None:
         os.close(fd)
 
 
-def _exclusive_write_bytes(path: Path, raw: bytes) -> None:
+def _exclusive_write_bytes(path: Path, raw: bytes) -> tuple[int, int]:
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
@@ -536,6 +536,7 @@ def _exclusive_write_bytes(path: Path, raw: bytes) -> None:
     except OSError as exc:
         raise PaperStoryError(f"create-only write refused: {path}: {exc}") from exc
     try:
+        created = os.fstat(fd)
         view = memoryview(raw)
         while view:
             written = os.write(fd, view)
@@ -543,6 +544,7 @@ def _exclusive_write_bytes(path: Path, raw: bytes) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+    return created.st_dev, created.st_ino
 
 
 def _exclusive_write(path: Path, value: object) -> None:
@@ -563,6 +565,63 @@ def _exclusive_write(path: Path, value: object) -> None:
     finally:
         if fd >= 0:
             os.close(fd)
+
+
+def _submission_receipt_staging_path(path: Path) -> Path:
+    """Derive a PID staging basename no longer than the valid final basename."""
+    suffix = f".s-{os.getpid():x}"
+    basename_budget = len(os.fsencode(path.name))
+    stem_budget = basename_budget - len(os.fsencode(f".{suffix}"))
+    stem = path.name
+    while stem and len(os.fsencode(stem)) > stem_budget:
+        stem = stem[:-1]
+    if not stem:
+        raise PaperStoryError("submission receipt basename cannot fit staging name")
+    return path.parent / f".{stem}{suffix}"
+
+
+def _remove_submission_receipt_staging(
+    staging: Path, identity: tuple[int, int]
+) -> None:
+    try:
+        info = staging.lstat()
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise PaperStoryError(
+            f"submission receipt staging cleanup stat failed: {exc}"
+        ) from exc
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or (info.st_dev, info.st_ino) != identity
+    ):
+        raise PaperStoryError("submission receipt staging cleanup identity differs")
+    try:
+        staging.unlink()
+        _fsync_directory(staging.parent)
+    except OSError as exc:
+        raise PaperStoryError(
+            f"submission receipt staging cleanup failed: {exc}"
+        ) from exc
+
+
+def _publish_submission_receipt(path: Path, value: object) -> None:
+    raw = _canonical_json_bytes(value)
+    staging = _submission_receipt_staging_path(path)
+    staging_identity = _exclusive_write_bytes(staging, raw)
+    published = False
+    try:
+        try:
+            _renameat2_directory(staging, path, _RENAME_NOREPLACE)
+        except OSError as exc:
+            raise PaperStoryError(
+                f"no-replace submission receipt publish failed: {exc.strerror}"
+            ) from exc
+        published = True
+        _fsync_directory(path.parent)
+    finally:
+        if not published:
+            _remove_submission_receipt_staging(staging, staging_identity)
 
 
 def _exclusive_write_text(path: Path, value: str) -> None:
@@ -1088,9 +1147,11 @@ def run_submit(args) -> int:
         raise PaperStoryError("working tree is dirty")
     base = _durable_measurement_base(policy)
     attempt = _validate_attempt_root(Path(args.attempt_root), base)
+    base.mkdir(parents=True, exist_ok=True)
     evidence = _attempt_evidence_paths(attempt)
     intent_path = _attempt_intent_path(attempt)
     submission_path = Path(evidence["submission_receipt"])
+    submission_staging_path = _submission_receipt_staging_path(submission_path)
     if os.path.lexists(submission_path):
         raise PaperStoryError("submission receipt already exists")
     if os.path.lexists(intent_path):
@@ -1100,6 +1161,14 @@ def run_submit(args) -> int:
         )
     if os.path.lexists(attempt):
         raise PaperStoryError("submit attempt root must not already exist")
+    if os.path.lexists(Path(evidence["completion_receipt"])):
+        raise PaperStoryError("completion receipt already exists")
+    if os.path.lexists(Path(evidence["stdout_path"])):
+        raise PaperStoryError("stdout already exists")
+    if os.path.lexists(Path(evidence["stderr_path"])):
+        raise PaperStoryError("stderr already exists")
+    if os.path.lexists(submission_staging_path):
+        raise PaperStoryError("submission receipt staging already exists")
     argv, options = _canonical_qsub_contract(
         repo_root=repo_root,
         study_id=STUDY_ID,
@@ -1147,8 +1216,7 @@ def run_submit(args) -> int:
             "qstat_visibility": visibility,
         },
     }
-    _exclusive_write(submission_path, receipt)
-    _fsync_directory(submission_path.parent)
+    _publish_submission_receipt(submission_path, receipt)
     return 0
 
 

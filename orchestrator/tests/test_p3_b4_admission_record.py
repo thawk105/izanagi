@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import MappingProxyType
 import unittest.mock
 
 _HERE = Path(__file__).resolve().parent
@@ -17,11 +19,16 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH.parent))
 
 from orchestrator.campaign import p3_b4_admission_record as A  # noqa: E402
+from orchestrator.campaign import p3_b4_closed_critic as C  # noqa: E402
 
 
 _MODEL = "claude-opus-5"
 _PROMPT = "1" * 64
-_PROJECTION = "2" * 64
+_PROJECTIONS = {
+    kind: hashlib.sha256(f"fixture-projection-{kind}".encode("ascii")).hexdigest()
+    for kind in A.B4_PROJECTION_DRIVER_KINDS
+}
+_PROJECTION = _PROJECTIONS["base"]
 _SCHEMA_VERSION = "p3-b4-prerun-admission/v1"
 _PREREGISTRATION_REPOSITORY_PATH = (
     "docs/phase3-b4-reflux-ablation-preregistration.md"
@@ -70,18 +77,20 @@ def _section5_document(
     *,
     model: str = _MODEL,
     prompt: str = _PROMPT,
-    projection: str = _PROJECTION,
+    projections: dict[str, str] | None = None,
     value_overrides: dict[str, str] | None = None,
 ) -> bytes:
     values = {
         label: f"fixture-value-{index}"
         for index, label in enumerate(_SECTION5_LABELS, start=1)
     }
-    values[_EXPECTATION_ROW_LABEL] = (
-        f"expected_claude_model_snapshot={model}; "
-        f"expected_effective_critic_prompt_sha256={prompt}; "
-        "expected_closed_critic_projection_closure_sha256="
-        f"{projection}"
+    projection_by_driver = (
+        dict(_PROJECTIONS) if projections is None else dict(projections)
+    )
+    values[_EXPECTATION_ROW_LABEL] = _expectation_row(
+        model=model,
+        prompt=prompt,
+        projections=projection_by_driver,
     )
     if value_overrides:
         values.update(value_overrides)
@@ -96,6 +105,27 @@ def _section5_document(
     rows.extend(f"|{label}|{values[label]}|" for label in _SECTION5_LABELS)
     rows.extend(("", "### 5.1 欄別の解除条件", "", "fixture"))
     return "\n".join(rows).encode("utf-8")
+
+
+def _expectation_row(
+    *,
+    model: str = _MODEL,
+    prompt: str = _PROMPT,
+    projections: dict[str, str] | None = None,
+) -> str:
+    projection_by_driver = (
+        _PROJECTIONS if projections is None else projections
+    )
+    return (
+        f"expected_claude_model_snapshot={model}; "
+        f"expected_effective_critic_prompt_sha256={prompt}; "
+        "expected_closed_critic_projection_closure_sha256[base]="
+        f"{projection_by_driver['base']}; "
+        "expected_closed_critic_projection_closure_sha256[sort]="
+        f"{projection_by_driver['sort']}; "
+        "expected_closed_critic_projection_closure_sha256[trigger]="
+        f"{projection_by_driver['trigger']}"
+    )
 
 
 def _record_value(
@@ -163,6 +193,7 @@ def _committed_fixture(
     model: str = _MODEL,
     prompt: str = _PROMPT,
     projection: str = _PROJECTION,
+    projections: dict[str, str] | None = None,
 ) -> _CommittedFixture:
     repository = _init_repository()
     document_path = repository / _PREREGISTRATION_REPOSITORY_PATH
@@ -170,7 +201,7 @@ def _committed_fixture(
     document_bytes = _section5_document(
         model=model,
         prompt=prompt,
-        projection=projection,
+        projections=projections,
     )
     document_path.write_bytes(document_bytes)
     _git(repository, "add", _PREREGISTRATION_REPOSITORY_PATH)
@@ -229,14 +260,146 @@ def test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes():
         _raises(A._RecordSchemaFailure, lambda raw=raw: A._parse_canonical_record(raw))
 
 
-def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values():
-    document = _section5_document()
-    A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
-        document,
-        expected_claude_model_snapshot=_MODEL,
-        expected_effective_critic_prompt_sha256=_PROMPT,
-        expected_closed_critic_projection_closure_sha256=_PROJECTION,
+def test_closed_critic_expectation_row_accepts_fixed_driver_tags_and_rejects_alternate_shapes():
+    valid = _expectation_row()
+    parsed = A._parse_closed_critic_expectation_row(valid)
+    projection_by_driver = (
+        parsed.expected_closed_critic_projection_closure_sha256_by_driver
     )
+    assert type(projection_by_driver) is MappingProxyType
+    assert tuple(projection_by_driver) == A.B4_PROJECTION_DRIVER_KINDS
+    assert dict(projection_by_driver) == _PROJECTIONS
+    try:
+        projection_by_driver["base"] = _PROJECTIONS["sort"]
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("driver projection mapping must be immutable")
+
+    prefix = (
+        f"expected_claude_model_snapshot={_MODEL}; "
+        f"expected_effective_critic_prompt_sha256={_PROMPT}; "
+    )
+    declarations = {
+        kind: (
+            "expected_closed_critic_projection_closure_sha256"
+            f"[{kind}]={_PROJECTIONS[kind]}"
+        )
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    rejected_rows = (
+        prefix
+        + "expected_closed_critic_projection_closure_sha256="
+        + _PROJECTIONS["base"],
+        prefix
+        + "; ".join((declarations["base"], declarations["trigger"])),
+        prefix
+        + "; ".join((
+            declarations["base"],
+            declarations["sort"],
+            declarations["sort"],
+        )),
+        prefix
+        + "; ".join((
+            declarations["base"],
+            declarations["trigger"],
+            declarations["sort"],
+        )),
+        valid + "; unexpected=tail",
+    )
+    for rejected in rejected_rows:
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda rejected=rejected: A._parse_closed_critic_expectation_row(
+                rejected
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+
+def test_closed_critic_expectation_row_requires_claude_opus_slug_and_lowercase_ascii_hex():
+    lowercase_projections = {
+        kind: C.projection_sha256(kind)
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    lowercase_prompt = C.projection_sha256("base")
+    valid_model = "claude-opus-snapshot_1.2"
+    parsed = A._parse_closed_critic_expectation_row(_expectation_row(
+        model=valid_model,
+        prompt=lowercase_prompt,
+        projections=lowercase_projections,
+    ))
+    assert parsed.expected_claude_model_snapshot == valid_model
+    assert parsed.expected_effective_critic_prompt_sha256 == lowercase_prompt
+    assert dict(
+        parsed.expected_closed_critic_projection_closure_sha256_by_driver
+    ) == lowercase_projections
+
+    for model in (
+        "model-snapshot-1",
+        "model snapshot",
+        "model--snapshot",
+        "model_snapshot-",
+        "claude-opus-",
+        "claude-opus-snapshot-",
+        "claude-opus-model--snapshot",
+    ):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda model=model: A._parse_closed_critic_expectation_row(
+                _expectation_row(
+                    model=model,
+                    prompt=lowercase_prompt,
+                    projections=lowercase_projections,
+                )
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+    uppercase_prompt = lowercase_prompt.upper()
+    assert uppercase_prompt != lowercase_prompt
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A._parse_closed_critic_expectation_row(_expectation_row(
+            model=valid_model,
+            prompt=uppercase_prompt,
+            projections=lowercase_projections,
+        )),
+        exact=_SECTION5_ERROR,
+    )
+
+    for uppercase_kind in A.B4_PROJECTION_DRIVER_KINDS:
+        uppercase_projections = dict(lowercase_projections)
+        uppercase_projections[uppercase_kind] = (
+            C.projection_sha256(uppercase_kind).upper()
+        )
+        assert (
+            uppercase_projections[uppercase_kind]
+            != lowercase_projections[uppercase_kind]
+        )
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda uppercase_projections=uppercase_projections: (
+                A._parse_closed_critic_expectation_row(_expectation_row(
+                    model=valid_model,
+                    prompt=lowercase_prompt,
+                    projections=uppercase_projections,
+                ))
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+
+def test_section5_source_cell_examples_and_expectation_bindings():
+    document = _section5_document()
+    projection_by_driver = (
+        A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        )
+    )
+    assert dict(projection_by_driver) == _PROJECTIONS
 
     for label, value in (
         (_SECTION5_LABELS[0], ""),
@@ -253,7 +416,6 @@ def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_
                     rejected,
                     expected_claude_model_snapshot=_MODEL,
                     expected_effective_critic_prompt_sha256=_PROMPT,
-                    expected_closed_critic_projection_closure_sha256=_PROJECTION,
                 )
             ),
             exact=_SECTION5_ERROR,
@@ -270,7 +432,6 @@ def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_
                 duplicate_row,
                 expected_claude_model_snapshot=_MODEL,
                 expected_effective_critic_prompt_sha256=_PROMPT,
-                expected_closed_critic_projection_closure_sha256=_PROJECTION,
             )
         ),
         exact=_SECTION5_ERROR,
@@ -287,11 +448,6 @@ def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_
             _PROMPT,
             _section5_document(prompt="3" * 64),
         ),
-        (
-            "expected_closed_critic_projection_closure_sha256",
-            _PROJECTION,
-            _section5_document(projection="4" * 64),
-        ),
     ):
         _raises(
             A.B4AdmissionRecordError,
@@ -306,15 +462,50 @@ def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_
                         if field == "expected_effective_critic_prompt_sha256"
                         else _PROMPT
                     ),
-                    expected_closed_critic_projection_closure_sha256=(
-                        expected
-                        if field
-                        == "expected_closed_critic_projection_closure_sha256"
-                        else _PROJECTION
-                    ),
                 )
             ),
             exact=f"[admission-mismatch] {field}",
+        )
+
+
+def test_section5_expectation_row_rejects_nfkc_only_ascii_grammar_matches():
+    live_projections = {
+        kind: C.projection_sha256(kind)
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    nbsp_document = _section5_document(
+        projections=live_projections
+    ).replace(
+        b"; expected_effective_critic_prompt_sha256=",
+        ";\u00a0expected_effective_critic_prompt_sha256=".encode("utf-8"),
+        1,
+    )
+    seed = C.projection_sha256("base")
+    for nonce in range(65_536):
+        ascii_hash = hashlib.sha256(
+            f"{seed}:{nonce}".encode("ascii")
+        ).hexdigest()
+        if "ff" in ascii_hash:
+            break
+    else:
+        raise AssertionError("fixture search did not produce adjacent f digits")
+    ligature_hash = ascii_hash.replace("ff", "\ufb00", 1)
+    ligature_projections = dict(live_projections)
+    ligature_projections["base"] = ligature_hash
+    ligature_document = _section5_document(
+        projections=ligature_projections
+    )
+    for rejected in (nbsp_document, ligature_document):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda rejected=rejected: (
+                A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+                    rejected,
+                    expected_claude_model_snapshot=_MODEL,
+                    expected_effective_critic_prompt_sha256=_PROMPT,
+                )
+            ),
+            exact=_SECTION5_ERROR,
         )
 
 
@@ -338,7 +529,6 @@ def test_section5_ordinary_words_with_na_and_unregistered_source_values_pass():
             document,
             expected_claude_model_snapshot=_MODEL,
             expected_effective_critic_prompt_sha256=_PROMPT,
-            expected_closed_critic_projection_closure_sha256=_PROJECTION,
         )
 
 
@@ -353,7 +543,6 @@ def test_section5_commonmark_fence_openers_and_marker_lengths():
             accepted,
             expected_claude_model_snapshot=_MODEL,
             expected_effective_critic_prompt_sha256=_PROMPT,
-            expected_closed_critic_projection_closure_sha256=_PROJECTION,
         )
 
     for rejected in (
@@ -368,7 +557,6 @@ def test_section5_commonmark_fence_openers_and_marker_lengths():
                     rejected,
                     expected_claude_model_snapshot=_MODEL,
                     expected_effective_critic_prompt_sha256=_PROMPT,
-                    expected_closed_critic_projection_closure_sha256=_PROJECTION,
                 )
             ),
             exact=_SECTION5_ERROR,
@@ -382,7 +570,6 @@ def test_section5_rejects_html_commented_region_but_accepts_comment_outside():
         unrelated_comment,
         expected_claude_model_snapshot=_MODEL,
         expected_effective_critic_prompt_sha256=_PROMPT,
-        expected_closed_critic_projection_closure_sha256=_PROJECTION,
     )
 
     commented_section = b"<!--\n" + document + b"\n-->"
@@ -393,7 +580,6 @@ def test_section5_rejects_html_commented_region_but_accepts_comment_outside():
                 commented_section,
                 expected_claude_model_snapshot=_MODEL,
                 expected_effective_critic_prompt_sha256=_PROMPT,
-                expected_closed_critic_projection_closure_sha256=_PROJECTION,
             )
         ),
         exact=_SECTION5_ERROR,
@@ -407,7 +593,6 @@ def test_section5_accepts_one_leading_bom_and_rejects_bom_hidden_fence():
         b"\xef\xbb\xbf" + section5,
         expected_claude_model_snapshot=_MODEL,
         expected_effective_critic_prompt_sha256=_PROMPT,
-        expected_closed_critic_projection_closure_sha256=_PROJECTION,
     )
 
     for rejected in (
@@ -421,7 +606,6 @@ def test_section5_accepts_one_leading_bom_and_rejects_bom_hidden_fence():
                     rejected,
                     expected_claude_model_snapshot=_MODEL,
                     expected_effective_critic_prompt_sha256=_PROMPT,
-                    expected_closed_critic_projection_closure_sha256=_PROJECTION,
                 )
             ),
             exact=_SECTION5_ERROR,
@@ -444,7 +628,6 @@ def test_section5_known_over_rejection_for_literal_comment_openers():
                     rejected,
                     expected_claude_model_snapshot=_MODEL,
                     expected_effective_critic_prompt_sha256=_PROMPT,
-                    expected_closed_critic_projection_closure_sha256=_PROJECTION,
                 )
             ),
             exact=_SECTION5_ERROR,
@@ -472,7 +655,6 @@ def test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character():
                     rejected,
                     expected_claude_model_snapshot=_MODEL,
                     expected_effective_critic_prompt_sha256=_PROMPT,
-                    expected_closed_critic_projection_closure_sha256=_PROJECTION,
                 )
             ),
             exact=_SECTION5_ERROR,
@@ -505,6 +687,7 @@ def test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist(
         verified = A.verify_b4_admission_record(
             fixture.record_path,
             repository_root=fixture.repository,
+            driver_kind="base",
         )
         assert A._git_environment() == {
             "GIT_ATTR_NOSYSTEM": "1",
@@ -521,6 +704,39 @@ def test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist(
     assert verified.preregistration_content_sha256 == hashlib.sha256(
         fixture.document_bytes
     ).hexdigest()
+    assert type(
+        verified.expected_closed_critic_projection_closure_sha256_by_driver
+    ) is MappingProxyType
+    assert dict(
+        verified.expected_closed_critic_projection_closure_sha256_by_driver
+    ) == _PROJECTIONS
+
+
+def test_verifier_requires_driver_and_binds_record_projection_to_document_tag():
+    parameter = inspect.signature(A.verify_b4_admission_record).parameters[
+        "driver_kind"
+    ]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is inspect.Parameter.empty
+    fixture = _committed_fixture()
+    A.verify_b4_admission_record(
+        fixture.record_path,
+        repository_root=fixture.repository,
+        driver_kind="base",
+    )
+    for driver_kind in ("sort", "outside-closed-driver-set"):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda driver_kind=driver_kind: A.verify_b4_admission_record(
+                fixture.record_path,
+                repository_root=fixture.repository,
+                driver_kind=driver_kind,
+            ),
+            exact=(
+                "[admission-mismatch] "
+                "expected_closed_critic_projection_closure_sha256"
+            ),
+        )
 
 
 def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head():
@@ -530,6 +746,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             fixture.repository / "missing.json",
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -541,6 +758,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             untracked,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is not committed at execution HEAD",
     )
@@ -552,6 +770,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             fixture.record_path,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is not committed at execution HEAD",
     )
@@ -565,6 +784,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             fixture.record_path,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is not committed at execution HEAD",
     )
@@ -595,6 +815,7 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
         lambda: A.verify_b4_admission_record(
             nonancestor.record_path,
             repository_root=nonancestor.repository,
+            driver_kind="base",
         ),
         exact=(
             "[admission-preregistration] document binding is not verifiable"
@@ -613,6 +834,7 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
         lambda: A.verify_b4_admission_record(
             bad_hash.record_path,
             repository_root=bad_hash.repository,
+            driver_kind="base",
         ),
         exact=(
             "[admission-preregistration] document binding is not verifiable"
@@ -628,6 +850,7 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
         lambda: A.verify_b4_admission_record(
             stale.record_path,
             repository_root=stale.repository,
+            driver_kind="base",
         ),
         exact=(
             "[admission-preregistration] document binding is not verifiable"
@@ -644,6 +867,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             directory,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -654,6 +878,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             link,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -664,6 +889,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             directory_link / "admission.json",
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -672,6 +898,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             fixture.repository / ".git" / "HEAD",
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )

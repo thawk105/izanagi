@@ -46,6 +46,7 @@ from orchestrator.campaign.source_digest import (                    # noqa: E40
     SourceEvidence,
 )
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
@@ -3710,14 +3711,21 @@ def _layer3_campaign(
                 "env_tag": _T530_LAYER3_CONTRACT.env_tag,
                 "payload": bench_payload,
             },
-            {
-                "ts": 4.0, "stage": "commit", "variant": variant,
-                "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
-                    **terminal,
-                    "contract_sha256": _T530_CONTRACT_SHA256,
-                },
-            },
         ])
+        for index, tag in enumerate((P.LEGACY_TAG, P.S2_TAG), 1):
+            records.append({
+                "ts": 3.0 + index / 4,
+                "stage": "verify_done",
+                "variant": variant,
+                "env_tag": _T530_LAYER3_CONTRACT.env_tag,
+                "payload": {
+                    "build_attempt_id": attempt_id,
+                    "verdict": "serializable",
+                    "certified": True,
+                    "anomalies": 0,
+                    "workload": {"tag": tag},
+                },
+            })
     else:
         records.append({
             "ts": 2.0, "stage": "abort", "variant": variant,
@@ -3729,6 +3737,19 @@ def _layer3_campaign(
         "".join(json.dumps(record) + "\n" for record in records),
         encoding="utf-8",
     )
+    if include_bench_done:
+        receipt_support.log_receipted_commit(
+            layout,
+            variant,
+            _T530_LAYER3_CONTRACT.env_tag,
+            {
+                **terminal,
+                "contract_sha256": _T530_CONTRACT_SHA256,
+            },
+            operation_identity=attempt_id,
+            tags=(P.LEGACY_TAG, P.S2_TAG),
+            ts=4.0,
+        )
     if include_trigger_binding:
         provenance_entry = {
             "variant": variant,

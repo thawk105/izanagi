@@ -30,7 +30,8 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import (env_contract, ident, pipeline,             # noqa: E402
                                    sort_swo_oracle, wal)
 from orchestrator.campaign.artifact_admission import (                    # noqa: E402
-    CampaignAdmissionDecision, CampaignNotAdmitted, CampaignReadPurpose,
+    ArtifactAdmissionError, CampaignAdmissionDecision, CampaignNotAdmitted,
+    CampaignReadPurpose,
     CampaignVerifierEpoch, HistoricalCampaignView, ImmutableWalRecord,
     require_admitted_campaign,
 )
@@ -592,6 +593,11 @@ def test_real_legacy_s4_critic_entry_is_rejected() -> None:
 def _write(lay, genome, committed=True, **li):
     attempt = _start_attempt(lay, genome)
     _attempt_event(lay, attempt, STAGE_BUILD_DONE, {})
+    if committed:
+        _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
+            "verdict": "serializable", "certified": True, "anomalies": 0,
+            "commits": 1, "aborts": 0, "workload": {"tag": "legacy"},
+        })
     _attempt_event(lay, attempt, STAGE_BENCH_DONE, {"leading_indicators": li})
     if committed:                                  # digest は committed のみ拾う
         _attempt_event(
@@ -605,7 +611,8 @@ def _write_retry_projection_fixture(lay, genome):
     old_attempt = _start_attempt(lay, genome)
     _attempt_event(lay, old_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, old_attempt, STAGE_VERIFY_DONE, {
-        "verdict": "serializable", "commits": 10, "aborts": 90,
+        "verdict": "serializable", "certified": True, "anomalies": 0,
+        "commits": 10, "aborts": 90,
         "workload": {"tag": "legacy"},
     })
     _attempt_event(lay, old_attempt, STAGE_BENCH_DONE, {
@@ -619,7 +626,8 @@ def _write_retry_projection_fixture(lay, genome):
     new_attempt = _start_attempt(lay, genome)
     _attempt_event(lay, new_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, new_attempt, STAGE_VERIFY_DONE, {
-        "verdict": "serializable", "commits": 20, "aborts": 80,
+        "verdict": "serializable", "certified": True, "anomalies": 0,
+        "commits": 20, "aborts": 80,
         "workload": {"tag": "legacy"},
     })
     _attempt_event(lay, new_attempt, STAGE_BENCH_DONE, {
@@ -737,7 +745,8 @@ def test_load_verify_abort_signals_uses_committed_retry_attempt_only():
     assert signals[0].aborts == 80
 
 
-def test_load_verify_abort_signals_drops_prior_signal_when_commit_has_no_verify():
+def test_admission_rejects_committed_retry_attempt_without_verify():
+    """A prior attempt's verify cannot certify a later committed retry."""
     lay = _tmp_layout()
     genome = _G.format(b=0, l=1, t=0, w=0)
 
@@ -754,8 +763,9 @@ def test_load_verify_abort_signals_drops_prior_signal_when_commit_has_no_verify(
     _attempt_event(lay, new_attempt, STAGE_COMMIT, {"fitness_tps": 2.0})
 
     # The old attempt's verify_done is intentionally present, while the
-    # committed retry has the valid build_done -> commit shape and no verify.
-    assert load_verify_abort_signals(_view(lay)) == []
+    # committed retry has build_done -> commit and no verify of its own.
+    with pytest.raises(ArtifactAdmissionError, match="no preceding verify_done"):
+        _view(lay)
 
 
 def test_load_workload_preserves_legacy_commit_without_build_attempt_id():

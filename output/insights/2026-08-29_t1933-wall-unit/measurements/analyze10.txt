@@ -1,0 +1,28 @@
+== 9c62f3e9 08-29 02:36 shard0 wall=204.8 items=6299
+   loadgroup chains (seconds, items):
+         36.0     3  s8c-predicate-snapshot
+          0.0     5  s8c-preregistration-candidate
+          0.0     6  campaign-repository-scan
+          0.0     4  real-repo
+   heaviest ungrouped nodes: 126.6, 107.3, 104.7, 100.7, 99.5
+== 6fbbc43d 08-29 02:24 shard0 wall=200.2 items=6299
+   loadgroup chains (seconds, items):
+         36.6     3  s8c-predicate-snapshot
+          0.0     6  campaign-repository-scan
+          0.0     5  s8c-preregistration-candidate
+          0.0     4  real-repo
+   heaviest ungrouped nodes: 111.8, 109.1, 105.5, 104.9, 103.8
+== 96dd3976 08-29 02:05 shard0 wall=224.3 items=6277
+   loadgroup chains (seconds, items):
+         38.2     3  s8c-predicate-snapshot
+          0.0     5  s8c-preregistration-candidate
+          0.0     6  campaign-repository-scan
+          0.0     4  real-repo
+   heaviest ungrouped nodes: 120.5, 118.3, 113.5, 113.0, 112.7
+== ef85f4f2 08-29 01:52 shard0 wall=216.5 items=6277
+   loadgroup chains (seconds, items):
+         37.5     3  s8c-predicate-snapshot
+          0.0     6  campaign-repository-scan
+          0.0     5  s8c-preregistration-candidate
+          0.0     4  real-repo
+   heaviest ungrouped nodes: 116.0, 112.2, 108.9, 107.4, 107.2

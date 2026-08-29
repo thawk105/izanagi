@@ -57,15 +57,17 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (env_contract, ident, pin, pipeline, screening_driver,  # noqa: E402
-                      source_digest, wal)
+from . import (campaign_lock as campaign_lock_codec, env_contract, ident,  # noqa: E402
+               pin, pipeline, screening_driver, source_digest, wal)
 from . import p3_s4_loop as L                              # noqa: E402
 from . import p3_s4_loop_sort as S                         # noqa: E402
 from .artifact_admission import (                          # noqa: E402
+    ArtifactAdmissionError,
     CampaignReadPurpose,
     CertifiedCampaignView,
     require_admitted_campaign,
     require_certified_campaign_view,
+    require_persisted_certified_commit,
 )
 from .build_admission import (BuildAdmissionError,         # noqa: E402
                                       BuildRunContext, GeneratorId,
@@ -397,9 +399,52 @@ def _eval_one(name: str, cfg: CampaignConfig, perf: PerfConfig, layout, sub: str
             "outcome": outcome}
 
 
+def _replay_snapshot(layout, build_context: BuildRunContext):
+    try:
+        lock_bytes = Path(layout.lock_file).read_bytes()
+        decoded_lock = campaign_lock_codec.decode_campaign_lock_bytes(lock_bytes)
+    except (OSError, campaign_lock_codec.CampaignLockCodecError) as exc:
+        raise ArtifactAdmissionError(
+            "replay campaign lock cannot be read or decoded"
+        ) from exc
+    campaign_lock_sha256 = hashlib.sha256(lock_bytes).hexdigest()
+    records = wal.read_records(layout)
+    try:
+        lock_sha256_after_records = hashlib.sha256(
+            Path(layout.lock_file).read_bytes()
+        ).hexdigest()
+    except OSError as exc:
+        raise ArtifactAdmissionError(
+            "replay campaign lock cannot be re-read after WAL"
+        ) from exc
+    if lock_sha256_after_records != campaign_lock_sha256:
+        raise ArtifactAdmissionError(
+            "replay campaign lock changed while reading WAL"
+        )
+    wal.validate_commit_contract_bindings(records, campaign_lock=decoded_lock)
+    wal.validate_trigger_bindings(records, campaign_lock=decoded_lock)
+    wal._validate_attempt_topology(
+        records,
+        admission_policy=build_context.policy,
+        campaign_lock=decoded_lock,
+    )
+    return records, wal.replay_admitted_records(records), campaign_lock_sha256
+
+
 def _replay_outcome(layout, vid: str, build_context: BuildRunContext) -> str:
-    state = wal.replay(layout, admission_policy=build_context.policy).get(vid)
+    records, states, campaign_lock_sha256 = _replay_snapshot(
+        layout, build_context,
+    )
+    state = states.get(vid)
     if state is not None and state.committed:
+        commit_record = next(
+            record for record in reversed(records)
+            if record.variant == vid and record.stage == STAGE_COMMIT
+        )
+        require_persisted_certified_commit(
+            records, commit_record,
+            campaign_lock_sha256=campaign_lock_sha256,
+        )
         return "replayed-certified"
     if state is not None and state.aborted:
         return "replayed-aborted"

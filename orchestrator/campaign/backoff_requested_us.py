@@ -443,14 +443,20 @@ def _grid_projection(committed_genomes: Sequence[str]) -> dict[str, object]:
 
 def _reference_records(
         campaign_root: Path, lock: Mapping[str, object], decoded_lock,
-        records: list,
+        records: list, *, lock_bytes: bytes, campaign_lock_sha256: str,
 ) -> list:
     """Validate a frozen campaign through the normal current certified admission."""
     layout = CampaignLayout(root=str(campaign_root))
-    artifact_admission.require_campaign_verifier_epoch(
-        layout,
-        purpose=artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
-    )
+    try:
+        recorded_epoch = artifact_admission._recorded_campaign_verifier_epoch(
+            artifact_admission._decode_campaign_lock(lock_bytes)
+        )
+        artifact_admission._require_verifier_epoch_for_purpose(
+            recorded_epoch,
+            artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
+    except artifact_admission.ArtifactAdmissionError as exc:
+        raise RuntimeError("reference campaign verifier epoch is invalid") from exc
     current_policy = resolve_current_build_admission_policy()
     try:
         decision = artifact_admission.classify_campaign(layout)
@@ -474,6 +480,18 @@ def _reference_records(
         raise RuntimeError("reference attempt admission is invalid") from exc
     if wal.is_trigger_machine_campaign_lock(lock):
         raise RuntimeError("trigger campaign cannot serve as a D1106 reference")
+
+    try:
+        for record in records:
+            if record.stage == "commit":
+                artifact_admission.require_persisted_certified_commit(
+                    records, record,
+                    campaign_lock_sha256=campaign_lock_sha256,
+                )
+    except (artifact_admission.ArtifactAdmissionError, TypeError) as exc:
+        raise RuntimeError(
+            "reference persisted certification is invalid"
+        ) from exc
 
     lock_commit = decoded_lock.identity.get("ccbench_commit")
     for record in records:
@@ -555,6 +573,9 @@ def load_reference_binding(reference_root: str) -> dict[str, object]:
         raise RuntimeError("reference campaign lock workload/runtime/grid mismatch")
 
     raw_records, wal_records = _load_wal_snapshot(artifact_snapshots[wal_rel])
+    campaign_lock_sha256 = _sha256_bytes(lock_raw)
+    if _sha256_bytes(_read_regular_bytes(lock_path)) != campaign_lock_sha256:
+        raise RuntimeError("reference campaign lock changed while reading WAL")
     with tempfile.TemporaryDirectory(prefix="izanagi_t1941_reference_snapshot_") as temporary:
         snapshot_root = Path(temporary)
         _materialize_artifact_snapshot(snapshot_root, artifact_snapshots)
@@ -563,6 +584,8 @@ def load_reference_binding(reference_root: str) -> dict[str, object]:
             campaign_lock_value,
             decoded_lock,
             wal_records,
+            lock_bytes=lock_raw,
+            campaign_lock_sha256=campaign_lock_sha256,
         )
     states = wal.replay_admitted_records(records)
     committed: dict[str, tuple[str, object]] = {}
@@ -570,9 +593,7 @@ def load_reference_binding(reference_root: str) -> dict[str, object]:
         if not state.committed:
             continue
         start = state.committed_build_start
-        verifies = state.committed_verify
-        if start is None or not verifies or not all(
-                record.payload.get("certified") is True for record in verifies):
+        if start is None:
             raise RuntimeError(f"reference variant is not attempt-bound certified: {variant}")
         canonical = start.payload.get("genome")
         _protocol, parsed = _parse_genome(canonical)
@@ -610,16 +631,7 @@ def load_reference_binding(reference_root: str) -> dict[str, object]:
     for record in (done, verify, bench, commit):
         if record.get("payload", {}).get("build_attempt_id") != attempt_id:
             raise RuntimeError("reference adaptive records are not attempt-bound")
-    if verify.get("payload", {}).get("certified") is not True:
-        raise RuntimeError("reference adaptive verify is not certified")
     commit_receipt = commit.get("payload", {}).get("commit_verification_receipt")
-    if (
-        type(commit_receipt) is not dict
-        or commit_receipt.get("operation_identity") != attempt_id
-        or commit_receipt.get("variant") != variant
-        or type(commit_receipt.get("receipt_id")) is not str
-    ):
-        raise RuntimeError("reference adaptive commit verification identity mismatch")
     reference_binary_sha256 = done.get("payload", {}).get("perf_bin_sha256")
     if type(reference_binary_sha256) is not str or _SHA256_RE.fullmatch(
             reference_binary_sha256) is None:

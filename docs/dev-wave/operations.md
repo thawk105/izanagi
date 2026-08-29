@@ -124,7 +124,7 @@ trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--dry-
 mergeは`OLD_HEAD`を保存し、ffはincoming監査→`--ff-only`→full監査、非ffは`--no-ff --no-commit`→
 競合解消→同じpreflight→`commit -F`→full監査。自動message/`--no-edit`は禁止。correctionは両commitを含む
 rangeかfull監査だけが権威（`OLD_HEAD..HEAD`は補助）。検査rcをpipeへ渡さず赤で停止（F37）。複数preflightと
-commitを同じshellで行うなら先頭を`set -e`にし、無ければtool callを分ける。両親と異なる実装面はCodex
+commitを同じshellで行うなら先頭を`set -e`にし、無ければtool callを分ける。両親と異なる実装面と実装面のrevertはCodex
 `role=author`へ。競合時の`git add -A`は未解決gitlinkを旧側で確定しうるため`git ls-tree main <sub>`と照合し、
 merge内でmain側pinへ揃える（後追い実装commitはCodex著者行を要求されlandが止まる）。
 

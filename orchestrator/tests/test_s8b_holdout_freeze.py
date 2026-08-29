@@ -6,6 +6,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1755,7 +1756,14 @@ def _rewrite_floor_artifacts_for_uncommitted_protocol_seed(fixture: dict) -> str
     V2FIX._write(root, f"{run_dir}/journal.jsonl", b"".join(
         V2FIX.canonical_bytes(record) + b"\n" for record in journal_records
     ))
-    V2FIX._write(root, f"{run_dir}/launch_certificate.json", b"{}")
+    campaign_run_id = f"20260811T000000Z-{protocol_sha256[:8]}"
+    V2FIX._write(
+        root, f"{run_dir}/launch_certificate.json",
+        V2FIX.canonical_bytes(V2FIX.launch_certificate(
+            protocol_sha256=protocol_sha256,
+            campaign_run_id=campaign_run_id,
+        )),
+    )
     return result_rel
 
 
@@ -1844,6 +1852,625 @@ def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):
             budget_path=fixture["budget_rel"],
             root=root,
         )
+
+
+def _floor_selection_context(fixture: dict) -> tuple[dict, dict, dict]:
+    from orchestrator.campaign import env_contract
+    from orchestrator.campaign import s8b_floor_contract
+    from orchestrator.campaign.s8b_launch_cert import parse_official_run_path
+
+    root = fixture["root"]
+    v1 = json.loads((root / M.FREEZE_REL).read_bytes())
+    protocol = s8b_floor_contract.validate_protocol(
+        json.loads((root / M.FLOOR_PROTOCOL_REL).read_bytes()),
+        contract_sha256_lookup=lambda env_tag: env_contract.lookup(
+            env_tag,
+        ).contract_sha256,
+    )
+    path_info = parse_official_run_path(
+        fixture["result_rel"], expected_basename="result.json",
+    )
+    return v1, protocol, path_info
+
+
+def _derive_fixture_floor_selection_eligibility(
+        fixture: dict, *, result_rel: str | None = None) -> bool:
+    from orchestrator.campaign.s8b_launch_cert import parse_official_run_path
+
+    root = fixture["root"]
+    result_rel = fixture["result_rel"] if result_rel is None else result_rel
+    v1, protocol, _selected_path_info = _floor_selection_context(fixture)
+    path_info = parse_official_run_path(
+        result_rel, expected_basename="result.json",
+    )
+    run_fd = M._open_nofollow_directory_chain(
+        root, result_rel.rsplit("/", 1)[0], label="test floor run",
+    )
+    try:
+        result_before = M._capture_regular_nofollow_at(
+            run_fd, "result.json", label="test floor result",
+        )
+        assert result_before is not None
+        return M._derive_floor_selection_eligibility(
+            root=root, run_fd=run_fd, result_rel=result_rel,
+            result_before=result_before, path_info=path_info,
+            protocol=protocol, v1=v1,
+        )
+    finally:
+        os.close(run_fd)
+
+
+def _expected_current_floor_admission_receipt(
+        admission_root: Path, *, campaign_run_id: str, run_relpath: str,
+        protocol_sha256: str, freeze_sha256: str,
+        manifest_sha256: str) -> dict:
+    """production projector から独立した current admission receipt 投影。"""
+    main_rows = [
+        json.loads(line)
+        for line in (admission_root / "ledger.jsonl").read_text().splitlines()
+    ]
+    attempt_rows = [
+        json.loads(line)
+        for line in (admission_root / "attempt-ledger.jsonl").read_text().splitlines()
+    ]
+    selected_main = sorted(
+        (
+            row for row in main_rows
+            if row["campaign_run_id"] == campaign_run_id
+        ),
+        key=lambda row: (row["cell_id"], row["cell_effect_digest"]),
+    )
+    selected_attempts = sorted(
+        (
+            row for row in attempt_rows
+            if row["campaign_run_id"] == campaign_run_id
+        ),
+        key=lambda row: (
+            row["cell_id"], row["attempt_id"],
+            row["measurement_generation_claim_digest"],
+        ),
+    )
+    projection = {
+        "schema": "s8b-floor-admission-ledger-projection/v1",
+        "campaign_run_id": campaign_run_id,
+        "admission_rows": [
+            {key: value for key, value in row.items() if key != "measurement_head"}
+            for row in selected_main
+        ],
+        "attempt_rows": selected_attempts,
+    }
+    claim_identities = {
+        row["cell_id"]: row["measurement_generation_claim_digest"]
+        for row in selected_main
+    }
+    return {
+        "schema": "s8b-floor-holdout-admission-receipt/v1",
+        "campaign_run_id": campaign_run_id,
+        "run_relpath": run_relpath,
+        "mode": "official",
+        "protocol_sha256": protocol_sha256,
+        "freeze_sha256": freeze_sha256,
+        "manifest_sha256": manifest_sha256,
+        "claim_identities": dict(sorted(claim_identities.items())),
+        "admission_row_count": len(selected_main),
+        "attempt_row_count": len(selected_attempts),
+        "ledger_projection_sha256": hashlib.sha256(
+            V2FIX.canonical_bytes(projection)
+        ).hexdigest(),
+    }
+
+
+def _install_real_floor_selection_runs(
+        fixture: dict, run_specs: list[dict]) -> dict[str, dict]:
+    """既存 fixture の実 artifact を複製し、production admission を発行する。"""
+    from orchestrator.campaign import s8b_floor_contract as contract
+    from orchestrator.campaign import s8b_holdout_admission as admission
+
+    root = fixture["root"]
+    selected_rel = fixture["result_rel"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    namespace_rel = selected_rel.rsplit("/", 2)[0]
+    template_result = json.loads((root / selected_rel).read_bytes())
+    template_manifest = json.loads(
+        (root / selected_rel.rsplit("/", 1)[0] / "manifest.json").read_bytes()
+    )
+    v1, protocol, _path_info = _floor_selection_context(fixture)
+    cells = contract.enumerate_cells(
+        v1, stock_configuration=protocol["stock_configuration"],
+    )
+    admission_cells = [
+        {
+            "cell_id": cell["cell_id"],
+            "freeze_holdout_key": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": cell["workload"],
+        }
+        for cell in cells
+    ]
+    schedule = contract.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    schedule_by_seq = {row["seq"]: row for row in schedule}
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    shutil.rmtree(admission_root)
+
+    installed = {}
+    for ordinal, spec in enumerate(run_specs, 1):
+        run_id = spec["run_id"]
+        assert run_id.rsplit("-", 1)[1] == selected_run_id.rsplit("-", 1)[1]
+        run_dir_rel = f"{namespace_rel}/{run_id}"
+        result_rel = f"{run_dir_rel}/result.json"
+        run_dir = root / run_dir_rel
+        if run_dir.exists():
+            shutil.rmtree(run_dir)
+        run_dir.mkdir(parents=True)
+
+        manifest_raw = V2FIX.canonical_bytes(template_manifest) + b"\n" * ordinal
+        manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+        (run_dir / "manifest.json").write_bytes(manifest_raw)
+        journal_path = run_dir / "journal.jsonl"
+        journal_path.write_bytes(b"")
+        run_relpath = run_dir_rel.removeprefix("output/")
+        reservation = admission.reserve_floor_holdout_observations(
+            repo_root=root, protocol=protocol, verified_freeze_document=v1,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            cells=admission_cells, schedule=schedule,
+            campaign_run_id=run_id, out_root=root / "output",
+            run_dir=run_dir, run_relpath=run_relpath, mode="official",
+            resume=False, nondefault_seams=[],
+        )
+        admitted = admission.finalize_floor_holdout_admissions(reservation)
+        if spec.get("resume") is True:
+            resumed = admission.reserve_floor_holdout_observations(
+                repo_root=root, protocol=protocol,
+                verified_freeze_document=v1,
+                freeze_sha256=protocol["freeze"]["sha256"],
+                cells=admission_cells, schedule=schedule,
+                campaign_run_id=run_id, out_root=root / "output",
+                run_dir=run_dir, run_relpath=run_relpath, mode="official",
+                resume=True, nondefault_seams=[],
+            )
+            admitted = admission.finalize_floor_holdout_admissions(resumed)
+
+        journal_records = []
+        result = copy.deepcopy(template_result)
+        for session in result["sessions"]:
+            scheduled = schedule_by_seq[session["seq"]]
+            start = {
+                "event": "session-start", "seq": session["seq"],
+                "kind": "planned", "cell_id": session["cell_id"],
+                "round": scheduled["round"], "retry_ordinal": None,
+                "attempt_id": session["attempt_id"], "trigger": None,
+            }
+            journal_records.append(start)
+            journal_path.write_bytes(b"".join(
+                V2FIX.canonical_bytes(record) + b"\n"
+                for record in journal_records
+            ))
+            if session["probe_before"]["competing"] is False:
+                admission.consume_attempt_ticket(
+                    admitted[session["cell_id"]],
+                    attempt_id=session["attempt_id"],
+                )
+            journal_records.append(session)
+            journal_path.write_bytes(b"".join(
+                V2FIX.canonical_bytes(record) + b"\n"
+                for record in journal_records
+            ))
+
+        inspection = admission.inspect_floor_holdout_admission_evidence(
+            repo_root=root, protocol=protocol, verified_freeze_document=v1,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            manifest_sha256=manifest_sha256, campaign_run_id=run_id,
+            run_relpath=run_relpath, mode="official", cells=cells,
+            schedule=schedule, sessions=journal_records,
+        )
+        expected_receipt = _expected_current_floor_admission_receipt(
+            admission_root, campaign_run_id=run_id, run_relpath=run_relpath,
+            protocol_sha256=hashlib.sha256(
+                (root / M.FLOOR_PROTOCOL_REL).read_bytes()
+            ).hexdigest(),
+            freeze_sha256=protocol["freeze"]["sha256"],
+            manifest_sha256=manifest_sha256,
+        )
+        assert dict(inspection) == expected_receipt
+        reported = spec.get(
+            "reported_eligible_for_refreeze",
+            inspection.derived_eligible_for_refreeze,
+        )
+        result["eligible_for_refreeze"] = reported
+        result["manifest_sha256"] = manifest_sha256
+        result["holdout_admission"] = expected_receipt
+        (run_dir / "result.json").write_bytes(V2FIX.canonical_bytes(result))
+        (run_dir / "launch_certificate.json").write_bytes(
+            V2FIX.canonical_bytes(V2FIX.launch_certificate(
+                protocol_sha256=result["protocol_sha256"],
+                campaign_run_id=run_id,
+            ))
+        )
+        installed[run_id] = {
+            "result_rel": result_rel,
+            "run_relpath": run_relpath,
+            "manifest_sha256": manifest_sha256,
+            "claim_identities": dict(expected_receipt["claim_identities"]),
+            "derived_eligible_for_refreeze": (
+                inspection.derived_eligible_for_refreeze
+            ),
+        }
+
+    V2FIX._git(root, "add", "-A")
+    V2FIX._git(root, "commit", "-qm", "real floor selection run fixtures")
+    fixture["head"] = V2FIX._git(root, "rev-parse", "HEAD")
+    return installed
+
+
+def test_floor_selection_eligibility_uses_derived_bit_not_reported_result(
+        tmp_path):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    result["eligible_for_refreeze"] = False
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+    assert _derive_fixture_floor_selection_eligibility(fixture) is True
+
+
+def test_floor_selection_eligibility_derives_resume_as_ineligible(tmp_path):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    v1, protocol, path_info = _floor_selection_context(fixture)
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    for claim_path in (admission_root / "claims").glob("*.claim"):
+        claim = json.loads(claim_path.read_bytes())
+        claim["entry_kind"] = "resume"
+        claim_path.write_bytes(V2FIX.canonical_bytes(claim) + b"\n")
+    marker = {
+        "schema_version": "s8b-refreeze-disqualification/v1",
+        "reason": "resume",
+        "campaign_run_id": path_info["run_id"],
+        "run_relpath": fixture["result_rel"].rsplit("/", 1)[0].removeprefix(
+            "output/"
+        ),
+        "protocol_sha256": hashlib.sha256(
+            V2FIX.canonical_bytes(protocol)
+        ).hexdigest(),
+        "freeze_sha256": T080.HOLDOUT_RAW_SHA256,
+    }
+    marker_name = hashlib.sha256(path_info["run_id"].encode("utf-8")).hexdigest()
+    V2FIX._write(
+        root,
+        (
+            ".git/izanagi/s8b-holdout-admission-v1/"
+            f"refreeze-disqualifications/{marker_name}.json"
+        ),
+        V2FIX.canonical_bytes(marker) + b"\n",
+    )
+
+    assert _derive_fixture_floor_selection_eligibility(fixture) is False
+
+
+@pytest.mark.parametrize(
+    "reported_eligible_for_refreeze",
+    [True, False, True],
+    ids=["min-to-max", "use-reported-eligible", "drop-candidate-selection"],
+)
+def test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility(
+        tmp_path, monkeypatch, reported_eligible_for_refreeze):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_id = fixture["result_rel"].rsplit("/", 2)[-2]
+    proto8 = selected_id.rsplit("-", 1)[1]
+    earlier_id = f"20260810T235900Z-{proto8}"
+    installed = _install_real_floor_selection_runs(fixture, [
+        {
+            "run_id": earlier_id,
+            "reported_eligible_for_refreeze": reported_eligible_for_refreeze,
+        },
+        {"run_id": selected_id},
+    ])
+    earlier_rel = installed[earlier_id]["result_rel"]
+    selected = json.loads((root / fixture["result_rel"]).read_bytes())
+    earlier = json.loads((root / earlier_rel).read_bytes())
+    assert selected["floors"] == earlier["floors"]
+    assert installed[earlier_id]["derived_eligible_for_refreeze"] is True
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    with pytest.raises(
+            M.FreezeError,
+            match=(
+                r"^floor-selection-rule-mismatch: "
+                r"earliest-eligible-official-run-id/v1: .*required_run_id="
+                r"20260810T235900Z-"
+            )):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+@pytest.mark.parametrize("_mutation_case", [None], ids=["underivable-to-skip"])
+def test_v2_candidate_fails_closed_when_earlier_eligibility_is_underivable(
+        tmp_path, monkeypatch, _mutation_case):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_id = fixture["result_rel"].rsplit("/", 2)[-2]
+    proto8 = selected_id.rsplit("-", 1)[1]
+    earlier_id = f"20260810T235900Z-{proto8}"
+    installed = _install_real_floor_selection_runs(fixture, [
+        {"run_id": earlier_id},
+        {"run_id": selected_id},
+    ])
+    earlier_rel = installed[earlier_id]["result_rel"]
+    earlier_claim = next(iter(installed[earlier_id]["claim_identities"].values()))
+    earlier_claim_path = (
+        root / ".git/izanagi/s8b-holdout-admission-v1"
+        / "measurement-generation-claims" / f"{earlier_claim}.claim"
+    )
+    assert earlier_claim_path.is_file()
+    earlier_claim_path.unlink()
+    assert not earlier_claim_path.exists()
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    with pytest.raises(
+            M.FreezeError,
+            match=rf"^floor-selection-eligibility-underivable: {re.escape(earlier_rel)}:"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_accepts_later_run_after_derived_ineligible_resume(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_id = fixture["result_rel"].rsplit("/", 2)[-2]
+    proto8 = selected_id.rsplit("-", 1)[1]
+    earlier_id = f"20260810T235900Z-{proto8}"
+    installed = _install_real_floor_selection_runs(fixture, [
+        {"run_id": earlier_id, "resume": True},
+        {"run_id": selected_id},
+    ])
+    assert installed[earlier_id]["derived_eligible_for_refreeze"] is False
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    document = M.build_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"], root=root,
+    )
+    assert document["floor_source"]["path"] == fixture["result_rel"]
+
+
+def test_floor_selection_threads_earlier_run_identity_and_manifest_to_derivation(
+        tmp_path, monkeypatch):
+    from orchestrator.campaign import s8b_holdout_admission as admission
+
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_id = fixture["result_rel"].rsplit("/", 2)[-2]
+    proto8 = selected_id.rsplit("-", 1)[1]
+    earlier_id = f"20260810T235900Z-{proto8}"
+    installed = _install_real_floor_selection_runs(fixture, [
+        {"run_id": earlier_id},
+        {"run_id": selected_id},
+    ])
+    earlier = installed[earlier_id]
+    selected = installed[selected_id]
+    assert earlier["result_rel"] != selected["result_rel"]
+    assert earlier["run_relpath"] != selected["run_relpath"]
+    assert earlier["manifest_sha256"] != selected["manifest_sha256"]
+
+    observed = []
+    original = admission.inspect_floor_holdout_admission_evidence
+
+    def inspect_spy(**kwargs):
+        observed.append({
+            "campaign_run_id": kwargs["campaign_run_id"],
+            "run_relpath": kwargs["run_relpath"],
+            "manifest_sha256": kwargs["manifest_sha256"],
+        })
+        return original(**kwargs)
+
+    monkeypatch.setattr(
+        admission, "inspect_floor_holdout_admission_evidence", inspect_spy,
+    )
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    with pytest.raises(M.FreezeError, match="^floor-selection-rule-mismatch:"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+    assert observed == [
+        {
+            "campaign_run_id": selected_id,
+            "run_relpath": selected["run_relpath"],
+            "manifest_sha256": selected["manifest_sha256"],
+        },
+        {
+            "campaign_run_id": earlier_id,
+            "run_relpath": earlier["run_relpath"],
+            "manifest_sha256": earlier["manifest_sha256"],
+        },
+    ]
+
+
+def test_v2_candidate_rejects_selected_certificate_path_second_mismatch(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    cert_path = (
+        root / fixture["result_rel"].rsplit("/", 1)[0]
+        / "launch_certificate.json"
+    )
+    cert = json.loads(cert_path.read_bytes())
+    cert["started_utc"] = "2026-08-11T00:00:01+00:00"
+    cert_path.write_bytes(V2FIX.canonical_bytes(cert))
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+
+    with pytest.raises(
+            M.FreezeError,
+            match=(
+                r"^floor-launch-certificate-invalid: .*started_utc.*"
+                r"秒単位で不一致$"
+            )):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_reads_selected_certificate_from_bound_run_dirfd(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_run_dir = root / fixture["result_rel"].rsplit("/", 1)[0]
+    anchored_run_dir = selected_run_dir.with_name(
+        f"{selected_run_dir.name}-anchored"
+    )
+    attacker_run_dir = tmp_path / "attacker-selected-run"
+    attacker_run_dir.mkdir()
+    (attacker_run_dir / "launch_certificate.json").write_bytes(b"{}")
+    original = M._capture_regular_nofollow_at
+    swaps = []
+
+    def capture_from_bound_dirfd(parent_fd, leaf, *, label, missing_ok=False):
+        if label != "floor result launch certificate":
+            return original(
+                parent_fd, leaf, label=label, missing_ok=missing_ok,
+            )
+        selected_run_dir.rename(anchored_run_dir)
+        selected_run_dir.symlink_to(attacker_run_dir, target_is_directory=True)
+        try:
+            swaps.append(leaf)
+            return original(
+                parent_fd, leaf, label=label, missing_ok=missing_ok,
+            )
+        finally:
+            selected_run_dir.unlink()
+            anchored_run_dir.rename(selected_run_dir)
+
+    monkeypatch.setattr(
+        M, "_capture_regular_nofollow_at", capture_from_bound_dirfd,
+    )
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    document = M.build_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"], root=root,
+    )
+    assert swaps == ["launch_certificate.json"]
+    assert document["floor_source"]["path"] == fixture["result_rel"]
+
+
+def test_v2_candidate_enumerates_and_reads_earlier_run_through_bound_dirfds(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_id = fixture["result_rel"].rsplit("/", 2)[-2]
+    proto8 = selected_id.rsplit("-", 1)[1]
+    earlier_id = f"20260810T235900Z-{proto8}"
+    installed = _install_real_floor_selection_runs(fixture, [
+        {"run_id": earlier_id},
+        {"run_id": selected_id},
+    ])
+    namespace = root / fixture["result_rel"].rsplit("/", 2)[0]
+    anchored_namespace = namespace.with_name(f"{namespace.name}-anchored")
+    attacker_namespace = tmp_path / "attacker-namespace"
+    attacker_namespace.mkdir()
+    earlier_run_dir = root / "output" / installed[earlier_id]["run_relpath"]
+    anchored_earlier = earlier_run_dir.with_name(f"{earlier_id}-anchored")
+    attacker_run_dir = tmp_path / "attacker-earlier-run"
+    attacker_run_dir.mkdir()
+    (attacker_run_dir / "result.json").write_bytes(b"{}")
+    original_listdir = os.listdir
+    original_capture = M._capture_regular_nofollow_at
+    observations = []
+
+    def list_bound_namespace(namespace_fd):
+        if type(namespace_fd) is not int:
+            return original_listdir(namespace_fd)
+        namespace.rename(anchored_namespace)
+        namespace.symlink_to(attacker_namespace, target_is_directory=True)
+        try:
+            observations.append("namespace")
+            return original_listdir(namespace_fd)
+        finally:
+            namespace.unlink()
+            anchored_namespace.rename(namespace)
+
+    def capture_from_bound_run(parent_fd, leaf, *, label, missing_ok=False):
+        if label != "floor selection earlier result":
+            return original_capture(
+                parent_fd, leaf, label=label, missing_ok=missing_ok,
+            )
+        earlier_run_dir.rename(anchored_earlier)
+        earlier_run_dir.symlink_to(attacker_run_dir, target_is_directory=True)
+        try:
+            observations.append("earlier-result")
+            return original_capture(
+                parent_fd, leaf, label=label, missing_ok=missing_ok,
+            )
+        finally:
+            earlier_run_dir.unlink()
+            anchored_earlier.rename(earlier_run_dir)
+
+    monkeypatch.setattr(os, "listdir", list_bound_namespace)
+    monkeypatch.setattr(M, "_capture_regular_nofollow_at", capture_from_bound_run)
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    with pytest.raises(M.FreezeError, match="^floor-selection-rule-mismatch:"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+    assert observations == ["namespace", "earlier-result"]
+
+
+@pytest.mark.parametrize("symlink_kind", ["run", "result"], ids=["run", "result"])
+def test_v2_candidate_rejects_earlier_official_symlink(
+        tmp_path, monkeypatch, symlink_kind):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_rel = fixture["result_rel"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    selected_run_dir = root / selected_rel.rsplit("/", 1)[0]
+    earlier_run_dir = selected_run_dir.with_name(f"20260810T235900Z-{proto8}")
+    if symlink_kind == "run":
+        earlier_run_dir.symlink_to(selected_run_dir, target_is_directory=True)
+    else:
+        earlier_run_dir.mkdir()
+        (earlier_run_dir / "result.json").symlink_to(root / selected_rel)
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+
+    with pytest.raises(M.FreezeError, match="non-symlink"):
+        M.build_v2_g1_candidate(
+            floor_result_path=selected_rel,
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_ignores_later_official_result_namespace_entry(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_rel = fixture["result_rel"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    later_id = f"20260811T000100Z-{proto8}"
+    installed = _install_real_floor_selection_runs(fixture, [
+        {"run_id": selected_run_id},
+        {"run_id": later_id},
+    ])
+    later_rel = installed[later_id]["result_rel"]
+    assert (root / later_rel).is_file()
+    assert (root / later_rel.rsplit("/", 1)[0] / "manifest.json").is_file()
+    assert (root / later_rel.rsplit("/", 1)[0] / "journal.jsonl").is_file()
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+
+    document = M.build_v2_g1_candidate(
+        floor_result_path=selected_rel,
+        budget_path=fixture["budget_rel"], root=root,
+    )
+    assert document["floor_source"]["path"] == selected_rel
 
 
 def test_v2_candidate_threads_receipt_derived_degraded_mode_to_floor_stats(
