@@ -36,7 +36,51 @@ durable writer, report generator, certified-selection connection は scope 外�
 | 一覧検査 批3 | s8b_floor_campaign / p3_s4_loop | 783 passed / 3 skipped (51.06s) |
 
 正式 B-4 実走、qsub、性能測定は**行っていない**。
-テスト時間が 26 秒へ下がったため、変異 matrix と受入全走は実行可能になった。
+
+## 変異 matrix — 18/18 KILLED、生存 0
+
+`DW-M08` の契約 (probe -> 本登録 -> 再走) に従って 3 巡回した。spec と report は同 directory に置く。
+
+| 巡 | spec | 結果 |
+|---|---|---|
+| probe | `mutation-probe-spec.json` | 全件 SURVIVED 登録。15/18 完走、全件検出 (MISMATCH 15) |
+| 中間 | `mutation-intermediate-spec.json` | 観測 15 件を KILLED 登録。18/18 完走、KILLED 15 / MISMATCH 3 |
+| **本登録** | `mutation-registered-spec.json` | **KILLED 18 / matching 18 / SURVIVED 0 / MISMATCH 0、baseline PASSED** |
+
+anchor は 18 件とも対象 file 内で厳密に 1 回だけ出現し、`old != new` であることを
+親が投入前に機械検査した (`bad=0`)。本登録 spec の `replacements` と `id` は probe 版と byte 一致であり、
+巡ごとに変えたのは期待値と timeout だけである。
+
+### 落ちる node 数 (帰属の一意性)
+
+| node 数 | 変異 |
+|---|---|
+| 1 | M04, M05, M08, M10, M12, M13, M14, M16, M17, M18 (10 件) |
+| 2 | M03, M07 |
+| 4 | M09, M11 |
+| 5 | M01, M15 |
+| 8 | M02 |
+| 20 | M06 |
+
+段 6 レビューは「実効的に一意なのは M04・M16・M18 と publish 層限定の M12 の 4 件だけ」で、
+M02・M08 は到達不能、M01・M03・M05・M13・M17 は検出不能と判定していた。
+fix3 の再照準後の実測では**到達不能・検出不能は 0 件**になり、
+**一意に帰属する変異は 4 件から 10 件へ増えた。**
+
+### 環境に起因する中断と、その扱い (正直に記す)
+
+- probe 1 巡目は M16 で `dispatch-runner-timeout` により中断した。
+  spec の `timeout_seconds: 180` が計算ノードの queue 待ちを含む実時間に足りず、
+  runner が 180.531 秒で signal 15 により打ち切られた。
+  本登録 spec では 1800 秒へ上げた。**変異の内容は変えていない。**
+- orphan hold は規定の順序で回復した — `qstat` で対象 job の不在を確認し、
+  変異を残した path を `git checkout --` で復元し、clean/HEAD を照合してから
+  hold と orphan-stop sidecar を手動削除した。**手動 `qdel` は行っていない** (F47 ラッチを武装させるため)。
+- 3 巡とも wrapper が `rc=125`「共有木の事後検査に失敗」を返した。これは変異の失敗ではない。
+  **走行中に他 wave が共有 checkout を進めたため**である
+  (本登録走行の間に local main が `164e2c355` から `8d39f4394` へ進んだ)。
+  親の wave worktree は走行前後とも clean で HEAD は `c576b6e81` のまま不変であり、
+  変異は使い捨て worktree の中だけで行われた。
 
 ## 段 3 と段 6 で独立 2 レーンが一致した所見
 
