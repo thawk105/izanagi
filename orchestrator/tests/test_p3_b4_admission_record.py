@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH.parent))
 
 from orchestrator.campaign import p3_b4_admission_record as A  # noqa: E402
+from orchestrator.campaign import p3_b4_closed_critic as C  # noqa: E402
 
 
 _MODEL = "claude-opus-5"
@@ -315,7 +317,31 @@ def test_closed_critic_expectation_row_accepts_fixed_driver_tags_and_rejects_alt
         )
 
 
-def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values():
+def test_closed_critic_expectation_row_uses_slug_and_ascii_hex_lexemes():
+    uppercase_projections = {
+        kind: C.projection_sha256(kind).upper()
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    parsed = A._parse_closed_critic_expectation_row(_expectation_row(
+        model="model-snapshot-1",
+        prompt=C.projection_sha256("base").upper(),
+        projections=uppercase_projections,
+    ))
+    assert parsed.expected_claude_model_snapshot == "model-snapshot-1"
+    assert dict(
+        parsed.expected_closed_critic_projection_closure_sha256_by_driver
+    ) == uppercase_projections
+    for model in ("model snapshot", "model--snapshot", "model_snapshot-"):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda model=model: A._parse_closed_critic_expectation_row(
+                _expectation_row(model=model)
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+
+def test_section5_source_cell_examples_and_expectation_bindings():
     document = _section5_document()
     projection_by_driver = (
         A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
@@ -390,6 +416,47 @@ def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_
                 )
             ),
             exact=f"[admission-mismatch] {field}",
+        )
+
+
+def test_section5_expectation_row_rejects_nfkc_only_ascii_grammar_matches():
+    live_projections = {
+        kind: C.projection_sha256(kind)
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    nbsp_document = _section5_document(
+        projections=live_projections
+    ).replace(
+        b"; expected_effective_critic_prompt_sha256=",
+        ";\u00a0expected_effective_critic_prompt_sha256=".encode("utf-8"),
+        1,
+    )
+    seed = C.projection_sha256("base")
+    for nonce in range(65_536):
+        ascii_hash = hashlib.sha256(
+            f"{seed}:{nonce}".encode("ascii")
+        ).hexdigest()
+        if "ff" in ascii_hash:
+            break
+    else:
+        raise AssertionError("fixture search did not produce adjacent f digits")
+    ligature_hash = ascii_hash.replace("ff", "\ufb00", 1)
+    ligature_projections = dict(live_projections)
+    ligature_projections["base"] = ligature_hash
+    ligature_document = _section5_document(
+        projections=ligature_projections
+    )
+    for rejected in (nbsp_document, ligature_document):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda rejected=rejected: (
+                A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+                    rejected,
+                    expected_claude_model_snapshot=_MODEL,
+                    expected_effective_critic_prompt_sha256=_PROMPT,
+                )
+            ),
+            exact=_SECTION5_ERROR,
         )
 
 
@@ -571,6 +638,7 @@ def test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist(
         verified = A.verify_b4_admission_record(
             fixture.record_path,
             repository_root=fixture.repository,
+            driver_kind="base",
         )
         assert A._git_environment() == {
             "GIT_ATTR_NOSYSTEM": "1",
@@ -595,6 +663,33 @@ def test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist(
     ) == _PROJECTIONS
 
 
+def test_verifier_requires_driver_and_binds_record_projection_to_document_tag():
+    parameter = inspect.signature(A.verify_b4_admission_record).parameters[
+        "driver_kind"
+    ]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is inspect.Parameter.empty
+    fixture = _committed_fixture()
+    A.verify_b4_admission_record(
+        fixture.record_path,
+        repository_root=fixture.repository,
+        driver_kind="base",
+    )
+    for driver_kind in ("sort", "outside-closed-driver-set"):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda driver_kind=driver_kind: A.verify_b4_admission_record(
+                fixture.record_path,
+                repository_root=fixture.repository,
+                driver_kind=driver_kind,
+            ),
+            exact=(
+                "[admission-mismatch] "
+                "expected_closed_critic_projection_closure_sha256"
+            ),
+        )
+
+
 def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head():
     fixture = _committed_fixture()
     _raises(
@@ -602,6 +697,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             fixture.repository / "missing.json",
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -613,6 +709,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             untracked,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is not committed at execution HEAD",
     )
@@ -624,6 +721,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             fixture.record_path,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is not committed at execution HEAD",
     )
@@ -637,6 +735,7 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         lambda: A.verify_b4_admission_record(
             fixture.record_path,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is not committed at execution HEAD",
     )
@@ -667,6 +766,7 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
         lambda: A.verify_b4_admission_record(
             nonancestor.record_path,
             repository_root=nonancestor.repository,
+            driver_kind="base",
         ),
         exact=(
             "[admission-preregistration] document binding is not verifiable"
@@ -685,6 +785,7 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
         lambda: A.verify_b4_admission_record(
             bad_hash.record_path,
             repository_root=bad_hash.repository,
+            driver_kind="base",
         ),
         exact=(
             "[admission-preregistration] document binding is not verifiable"
@@ -700,6 +801,7 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
         lambda: A.verify_b4_admission_record(
             stale.record_path,
             repository_root=stale.repository,
+            driver_kind="base",
         ),
         exact=(
             "[admission-preregistration] document binding is not verifiable"
@@ -716,6 +818,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             directory,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -726,6 +829,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             link,
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -736,6 +840,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             directory_link / "admission.json",
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )
@@ -744,6 +849,7 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         lambda: A.verify_b4_admission_record(
             fixture.repository / ".git" / "HEAD",
             repository_root=fixture.repository,
+            driver_kind="base",
         ),
         exact="[admission-record] record is unavailable",
     )

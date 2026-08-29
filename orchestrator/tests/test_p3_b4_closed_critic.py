@@ -674,6 +674,7 @@ def _committed_admission_fixture(
     expected_projection: str | None = None,
     document_projections: dict[C.DriverKind, str] | None = None,
     driver_kind: C.DriverKind = "base",
+    verify_record: bool = True,
 ) -> _AdmissionFixture:
     repository = Path(tempfile.mkdtemp(prefix="izanagi-b4-closed-admission-"))
     _git(repository, "init")
@@ -765,14 +766,16 @@ def _committed_admission_fixture(
     )
     _git(repository, "add", "admission.json")
     _git(repository, "commit", "-m", "fixture admission")
-    verified = A.verify_b4_admission_record(
-        record_path,
-        repository_root=repository,
-    )
-    assert verified.expected_claude_model_snapshot == expected_model
-    assert dict(
-        verified.expected_closed_critic_projection_closure_sha256_by_driver
-    ) == projections
+    if verify_record:
+        verified = A.verify_b4_admission_record(
+            record_path,
+            repository_root=repository,
+            driver_kind=driver_kind,
+        )
+        assert verified.expected_claude_model_snapshot == expected_model
+        assert dict(
+            verified.expected_closed_critic_projection_closure_sha256_by_driver
+        ) == projections
     return _AdmissionFixture(
         repository=repository,
         role_file=role_file,
@@ -1209,8 +1212,18 @@ def test_pair_creation_rejects_stale_nonselected_document_projection_before_prov
     )
     admission = _committed_admission_fixture(
         document_projections=document_projections,
+        expected_projection=document_projections["base"],
         driver_kind="base",
     )
+    with unittest.mock.patch.object(
+        C,
+        "assert_b4_document_projection_closures_are_live",
+        return_value=document_projections,
+    ):
+        launch_context = _production_launch_context(
+            admission=admission,
+        )
+    artifact_root: Path | None = None
     with _certified_environment(admission) as (
         parent,
         on_cfg,
@@ -1218,26 +1231,30 @@ def test_pair_creation_rejects_stale_nonselected_document_projection_before_prov
         _layouts,
         home,
     ), unittest.mock.patch.object(
+        C.shutil,
+        "which",
+    ) as which_mock, unittest.mock.patch.object(
         C,
         "ClaudeProjectedRoleProvider",
         side_effect=AssertionError("provider construction must not run"),
-    ):
+    ) as provider_mock:
+        artifact_root = parent / "stale-nonselected"
         error = _raises(
             A.B4AdmissionRecordError,
             lambda: C.create_b4_closed_critic_pair(
                 on_cfg=on_cfg,
                 off_cfg=off_cfg,
-                artifact_root=parent / "stale-nonselected",
+                artifact_root=artifact_root,
                 admission_record_path=admission.record_path,
                 expected_driver_kind="base",
-                _b4_launch_context=_production_launch_context(
-                    on_cfg,
-                    admission=admission,
-                ),
+                _b4_launch_context=launch_context,
                 repository_root=admission.repository,
                 environ={"HOME": str(home)},
             ),
         )
+        which_mock.assert_not_called()
+        provider_mock.assert_not_called()
+    assert artifact_root is not None and not artifact_root.exists()
     assert str(error) == (
         "[admission-mismatch] "
         "expected_closed_critic_projection_closure_sha256[sort]"
@@ -1251,8 +1268,17 @@ def test_pair_creation_rejects_three_stale_document_projections_before_provider(
     }
     admission = _committed_admission_fixture(
         document_projections=document_projections,
+        expected_projection=document_projections["base"],
         driver_kind="base",
     )
+    with unittest.mock.patch.object(
+        C,
+        "assert_b4_document_projection_closures_are_live",
+        return_value=document_projections,
+    ):
+        launch_context = _production_launch_context(
+            admission=admission,
+        )
     with _certified_environment(admission) as (
         parent,
         on_cfg,
@@ -1272,10 +1298,7 @@ def test_pair_creation_rejects_three_stale_document_projections_before_provider(
                 artifact_root=parent / "three-stale",
                 admission_record_path=admission.record_path,
                 expected_driver_kind="base",
-                _b4_launch_context=_production_launch_context(
-                    on_cfg,
-                    admission=admission,
-                ),
+                _b4_launch_context=launch_context,
                 repository_root=admission.repository,
                 environ={"HOME": str(home)},
             ),
@@ -1286,9 +1309,159 @@ def test_pair_creation_rejects_three_stale_document_projections_before_provider(
     )
 
 
+def test_certified_invoke_rejects_nonselected_projection_change_before_query():
+    admission = _committed_admission_fixture()
+    fake_runner, calls = _fake_runner_factory()
+    with _certified_environment(admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ):
+        launch_context = _production_launch_context(
+            on_cfg,
+            admission=admission,
+        )
+        with C.create_b4_closed_critic_pair(
+            on_cfg=on_cfg,
+            off_cfg=off_cfg,
+            artifact_root=parent / "invoke-stale-nonselected",
+            admission_record_path=admission.record_path,
+            expected_driver_kind="base",
+            _b4_launch_context=launch_context,
+            repository_root=admission.repository,
+            environ={"HOME": str(home)},
+        ) as pair:
+            pair.on._B4ClosedCriticController__provider._runner = fake_runner
+            live_projections = {
+                kind: C.projection_sha256(kind)
+                for kind in A.B4_PROJECTION_DRIVER_KINDS
+            }
+
+            def projection_after_pair_creation(driver_kind="base"):
+                if driver_kind == "sort":
+                    return _stale_projection(live_projections[driver_kind])
+                return live_projections[driver_kind]
+
+            with unittest.mock.patch.object(
+                C,
+                "projection_sha256",
+                side_effect=projection_after_pair_creation,
+            ):
+                error = _raises(
+                    A.B4AdmissionRecordError,
+                    lambda: pair.on.invoke(invocation_id="stale-sort"),
+                )
+    assert str(error) == (
+        "[admission-mismatch] "
+        "expected_closed_critic_projection_closure_sha256[sort]"
+    )
+    assert calls == []
+
+
+def test_final_certification_rechecks_nonselected_projection_closures():
+    admission = _committed_admission_fixture()
+    fake_runner, calls = _fake_runner_factory()
+    with _certified_environment(admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ):
+        launch_context = _production_launch_context(
+            on_cfg,
+            admission=admission,
+        )
+        with C.create_b4_closed_critic_pair(
+            on_cfg=on_cfg,
+            off_cfg=off_cfg,
+            artifact_root=parent / "certification-stale-nonselected",
+            admission_record_path=admission.record_path,
+            expected_driver_kind="base",
+            _b4_launch_context=launch_context,
+            repository_root=admission.repository,
+            environ={"HOME": str(home)},
+        ) as pair:
+            pair.on._B4ClosedCriticController__provider._runner = fake_runner
+            pair.off._B4ClosedCriticController__provider._runner = fake_runner
+            on = pair.on.invoke(invocation_id="certification-on")
+            off = pair.off.invoke(invocation_id="certification-off")
+            live_projections = {
+                kind: C.projection_sha256(kind)
+                for kind in A.B4_PROJECTION_DRIVER_KINDS
+            }
+
+            def projection_before_certification(driver_kind="base"):
+                if driver_kind == "trigger":
+                    return _stale_projection(live_projections[driver_kind])
+                return live_projections[driver_kind]
+
+            with unittest.mock.patch.object(
+                C,
+                "projection_sha256",
+                side_effect=projection_before_certification,
+            ):
+                error = _raises(
+                    A.B4AdmissionRecordError,
+                    lambda: C.assert_b4_certified_arm_pair(
+                        pair,
+                        on.terminal_receipt_path,
+                        off.terminal_receipt_path,
+                        admission_record_path=admission.record_path,
+                    ),
+                )
+    assert str(error) == (
+        "[admission-mismatch] "
+        "expected_closed_critic_projection_closure_sha256[trigger]"
+    )
+    assert len(calls) == 2
+
+
+def test_pair_creation_reads_each_live_projection_closure_once():
+    admission = _committed_admission_fixture()
+    with _certified_environment(admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ):
+        launch_context = _production_launch_context(
+            on_cfg,
+            admission=admission,
+        )
+        real_projection_sha256 = C.projection_sha256
+        projection_calls = []
+
+        def counted_projection(driver_kind="base"):
+            projection_calls.append(driver_kind)
+            return real_projection_sha256(driver_kind)
+
+        with unittest.mock.patch.object(
+            C,
+            "projection_sha256",
+            side_effect=counted_projection,
+        ):
+            with C.create_b4_closed_critic_pair(
+                on_cfg=on_cfg,
+                off_cfg=off_cfg,
+                artifact_root=parent / "single-projection-read",
+                admission_record_path=admission.record_path,
+                expected_driver_kind="base",
+                _b4_launch_context=launch_context,
+                repository_root=admission.repository,
+                environ={"HOME": str(home)},
+            ):
+                pass
+    assert projection_calls == list(A.B4_PROJECTION_DRIVER_KINDS)
+
+
 def test_certified_admission_rejects_projection_and_prompt_before_query():
     projection_admission = _committed_admission_fixture(
         expected_projection=_stale_projection(C.projection_sha256("base")),
+        verify_record=False,
     )
     provider_events = []
     real_provider = C.ClaudeProjectedRoleProvider
@@ -1313,6 +1486,7 @@ def test_certified_admission_rejects_projection_and_prompt_before_query():
         "ClaudeProjectedRoleProvider",
         CountingProvider,
     ):
+        valid_launch_context = _production_launch_context(on_cfg)
         _raises(
             A.B4AdmissionRecordError,
             lambda: C.create_b4_closed_critic_pair(
@@ -1321,9 +1495,7 @@ def test_certified_admission_rejects_projection_and_prompt_before_query():
                 artifact_root=parent / "projection-artifacts",
                 admission_record_path=projection_admission.record_path,
                 expected_driver_kind="base",
-                _b4_launch_context=_production_launch_context(
-                    on_cfg, admission=projection_admission,
-                ),
+                _b4_launch_context=valid_launch_context,
                 repository_root=projection_admission.repository,
                 environ={"HOME": str(home)},
             ),

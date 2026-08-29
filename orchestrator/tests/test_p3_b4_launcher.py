@@ -105,6 +105,7 @@ def _production_text_context(cfg, admission, *, seal):
     verified = A.verify_b4_admission_record(
         admission.record_path,
         repository_root=admission.repository,
+        driver_kind="base",
     )
     values = {
         "evidence_class": "production",
@@ -341,6 +342,87 @@ def test_g9_bootstrap_uses_real_verifier_before_driver(tmp_path, monkeypatch):
     assert driver_spy.call_count == 0
 
 
+def test_bootstrap_matching_record_checks_all_projections_then_launches(
+    tmp_path, monkeypatch,
+):
+    admission = _committed_admission_fixture()
+    layouts = {}
+
+    def layout_for(campaign_id):
+        return layouts.setdefault(
+            campaign_id,
+            CampaignLayout(str(tmp_path / campaign_id)),
+        )
+
+    driver_spy = mock.Mock(return_value=23)
+    monkeypatch.setattr(C, "REPOSITORY_ROOT", admission.repository)
+    monkeypatch.setattr(B4L, "exploration_campaign_layout", layout_for)
+    monkeypatch.setitem(B4L.DRIVER_REGISTRY, "base", driver_spy)
+    result = B4L.launch_bootstrap(
+        driver_kind="base",
+        arm="on",
+        admission_record_path=admission.record_path,
+        proposal_path=tmp_path / "proposal.json",
+    )
+    assert result == 23
+    driver_spy.assert_called_once()
+    assert len(layouts) == 1
+    layout = next(iter(layouts.values()))
+    assert (Path(layout.root) / B4L.B4_LAUNCH_SIDECAR).is_file()
+
+
+def test_bootstrap_rejects_stale_or_driver_mismatched_projection_before_sidecar(
+    tmp_path, monkeypatch,
+):
+    live_projections = {
+        kind: C.projection_sha256(kind)
+        for kind in A.B4_PROJECTION_DRIVER_KINDS
+    }
+    stale_projections = {
+        kind: (
+            ("0" if value[0] != "0" else "1") + value[1:]
+        )
+        for kind, value in live_projections.items()
+    }
+    stale_admission = _committed_admission_fixture(
+        document_projections=stale_projections,
+        expected_projection=stale_projections["base"],
+    )
+    mismatched_admission = _committed_admission_fixture(
+        expected_projection=stale_projections["base"],
+        verify_record=False,
+    )
+    for case_name, admission in (
+        ("stale-document", stale_admission),
+        ("driver-document-mismatch", mismatched_admission),
+    ):
+        layout_root = tmp_path / case_name
+        layout_spy = mock.Mock(
+            return_value=CampaignLayout(str(layout_root))
+        )
+        driver_spy = mock.Mock(
+            side_effect=AssertionError("driver must not be called")
+        )
+        monkeypatch.setattr(C, "REPOSITORY_ROOT", admission.repository)
+        monkeypatch.setattr(
+            B4L,
+            "exploration_campaign_layout",
+            layout_spy,
+        )
+        monkeypatch.setitem(B4L.DRIVER_REGISTRY, "base", driver_spy)
+        with pytest.raises(A.B4AdmissionRecordError):
+            B4L.launch_bootstrap(
+                driver_kind="base",
+                arm="on",
+                admission_record_path=admission.record_path,
+                proposal_path=tmp_path / f"{case_name}-proposal.json",
+            )
+        driver_spy.assert_not_called()
+        layout_spy.assert_not_called()
+        assert not layout_root.exists()
+        assert not (layout_root / B4L.B4_LAUNCH_SIDECAR).exists()
+
+
 def test_module_attributes_cannot_mint_a_production_context(monkeypatch):
     """F1: try every direct module attribute as a context or context factory.
 
@@ -355,6 +437,7 @@ def test_module_attributes_cannot_mint_a_production_context(monkeypatch):
     verified = A.verify_b4_admission_record(
         admission.record_path,
         repository_root=admission.repository,
+        driver_kind="base",
     )
     campaign_id = "module-surface-campaign"
     attributes = tuple(vars(B4L).values())

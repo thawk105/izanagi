@@ -81,14 +81,15 @@ B4_PROJECTION_DRIVER_KINDS: Final[tuple[B4ProjectionDriverKind, ...]] = (
     "trigger",
 )
 _EXPECTATION_ROW_RE = re.compile(
-    r"expected_claude_model_snapshot=(?P<model>claude-opus-[^;\r\n]+); "
-    r"expected_effective_critic_prompt_sha256=(?P<prompt>[0-9a-f]{64}); "
+    r"expected_claude_model_snapshot="
+    r"(?P<model>[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*); "
+    r"expected_effective_critic_prompt_sha256=(?P<prompt>[0-9A-Fa-f]{64}); "
     r"expected_closed_critic_projection_closure_sha256\[base\]="
-    r"(?P<projection_base>[0-9a-f]{64}); "
+    r"(?P<projection_base>[0-9A-Fa-f]{64}); "
     r"expected_closed_critic_projection_closure_sha256\[sort\]="
-    r"(?P<projection_sort>[0-9a-f]{64}); "
+    r"(?P<projection_sort>[0-9A-Fa-f]{64}); "
     r"expected_closed_critic_projection_closure_sha256\[trigger\]="
-    r"(?P<projection_trigger>[0-9a-f]{64})"
+    r"(?P<projection_trigger>[0-9A-Fa-f]{64})"
 )
 _RESERVED_SENTINEL_RE = re.compile(
     r"(?:未記入|要記入|(?<!\w)"
@@ -584,7 +585,7 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
     expected_claude_model_snapshot: str,
     expected_effective_critic_prompt_sha256: str,
 ) -> MappingProxyType[B4ProjectionDriverKind, str]:
-    """Check fixed source cells and declared values, not rendered meaning.
+    """Check source cells, bind model and prompt, and return projections.
 
     HTML comment detection is a line-oriented simple search: ``<!--`` inside
     an inline code span, an indented code block, or a backslash escape is also
@@ -627,18 +628,20 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
     if table[:2] != ["|欄|値|", "|---|---|"]:
         raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
     values: dict[str, str] = {}
+    raw_values: dict[str, str] = {}
     for line in table[2:]:
         if not line.startswith("|") or not line.endswith("|"):
             raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
         cells = line[1:-1].split("|")
         if len(cells) != 2:
             raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
-        label, value = (
-            _normalized_source_cell(cell.strip()) for cell in cells
-        )
+        raw_label, raw_value = (cell.strip() for cell in cells)
+        label = _normalized_source_cell(raw_label)
+        value = _normalized_source_cell(raw_value)
         if label in values:
             raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
         values[label] = value
+        raw_values[label] = raw_value
     if set(values) != set(_SECTION5_LABELS):
         raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
     for value in values.values():
@@ -648,6 +651,7 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
             or value.casefold() in _RESERVED_SENTINEL_WHOLE_VALUES
         ):
             raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
+    _parse_closed_critic_expectation_row(raw_values[_EXPECTATION_ROW_LABEL])
     expectation_row = _parse_closed_critic_expectation_row(
         values[_EXPECTATION_ROW_LABEL]
     )
@@ -668,8 +672,17 @@ def verify_b4_admission_record(
     admission_record_path: str | os.PathLike[str],
     *,
     repository_root: str | os.PathLike[str],
+    driver_kind: B4ProjectionDriverKind,
 ) -> VerifiedB4AdmissionRecord:
-    """Return immutable declarations after exact worktree and Git validation."""
+    """Return declarations after exact record, document, and Git validation."""
+    if (
+        type(driver_kind) is not str
+        or driver_kind not in B4_PROJECTION_DRIVER_KINDS
+    ):
+        raise B4AdmissionRecordError(
+            "[admission-mismatch] "
+            "expected_closed_critic_projection_closure_sha256"
+        )
     try:
         root = Path(repository_root).resolve(strict=True)
     except (TypeError, OSError) as exc:
@@ -754,6 +767,11 @@ def verify_b4_admission_record(
                 declared.expected_effective_critic_prompt_sha256
             ),
         )
+    )
+    assert_admission_expectation(
+        "expected_closed_critic_projection_closure_sha256",
+        expected=declared.expected_closed_critic_projection_closure_sha256,
+        actual=projection_closure_sha256_by_driver[driver_kind],
     )
     return VerifiedB4AdmissionRecord(
         admission_record_repository_path=relative_record_path.as_posix(),
