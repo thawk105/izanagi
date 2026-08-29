@@ -1,0 +1,170 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "min-to-max",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    required_run_id, _required_rel = min(eligible, key=lambda item: item[0])",
+          "new": "    required_run_id, _required_rel = max(eligible, key=lambda item: item[0])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_floor_selection_threads_earlier_run_identity_and_manifest_to_derivation",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_enumerates_and_reads_earlier_run_through_bound_dirfds",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[drop-candidate-selection]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[min-to-max]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[use-reported-eligible]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_rejects_floor_selection_rule_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "drop-candidate-selection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    _assert_floor_selection_identity(\n        root=root, selected_rel=result_rel, selected_path_info=path_info,\n        protocol=protocol, v1=v1, validate_selected_certificate=True,\n    )",
+          "new": "    if False:\n        _assert_floor_selection_identity(\n            root=root, selected_rel=result_rel, selected_path_info=path_info,\n            protocol=protocol, v1=v1, validate_selected_certificate=True,\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_floor_selection_threads_earlier_run_identity_and_manifest_to_derivation",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_enumerates_and_reads_earlier_run_through_bound_dirfds",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_when_earlier_eligibility_is_underivable[underivable-to-skip]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_reads_selected_certificate_from_bound_run_dirfd",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_earlier_official_symlink[result]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_earlier_official_symlink[run]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[drop-candidate-selection]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[min-to-max]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[use-reported-eligible]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_selected_certificate_path_second_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "drop-cert-time-binding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "        protocol=protocol, v1=v1, validate_selected_certificate=True,",
+          "new": "        protocol=protocol, v1=v1, validate_selected_certificate=False,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_reads_selected_certificate_from_bound_run_dirfd",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_selected_certificate_path_second_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "use-reported-eligible",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    return inspection.derived_eligible_for_refreeze",
+          "new": "    return bool(_strict_load_object_bytes(\n        result_before, \"floor selection earlier result\",\n    ).get(\"eligible_for_refreeze\"))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_floor_selection_eligibility_derives_resume_as_ineligible",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_floor_selection_eligibility_uses_derived_bit_not_reported_result",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[use-reported-eligible]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "underivable-to-skip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "            except FreezeError as exc:\n                raise FreezeError(\n                    \"floor-selection-eligibility-underivable: \"\n                    f\"{candidate_rel}: {exc}\"\n                ) from exc",
+          "new": "            except FreezeError:\n                continue"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_when_earlier_eligibility_is_underivable[underivable-to-skip]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "drop-loader-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if resolution.generation_number == 1:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_loader_rejects_floor_source_projection_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "drop-launch-selection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if result_type is LaunchValidatedFreeze:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_preserves_floor_selection_path_failure_reason",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_rejects_floor_selection_rule_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "historical-policy-leak",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if result_type is LaunchValidatedFreeze:",
+          "new": "    if True:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_historical_reverify_does_not_apply_current_floor_selection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "treat-all-earlier-eligible",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "            if derived:\n                eligible.append((earlier_info[\"run_id\"], earlier_rel))",
+          "new": "            if True:\n                eligible.append((earlier_info[\"run_id\"], earlier_rel))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_accepts_later_run_after_derived_ineligible_resume"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
