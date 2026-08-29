@@ -324,7 +324,9 @@ def _ratified_cli_manifest(
     Path, Path, artifacts.OfficialManifest, spec_fixture.ReviewedSpecFixture,
 ]:
     def fill_execution_snapshot(generation):
-        v2_fixture.fill(
+        # emitter が result.floors から独立投影した floor は保持し、
+        # report fixture に必要な budget だけを追加する。
+        generation["budget"] = v2_fixture.budget(
             generation, total_bench_s=1000.0, per_holdout_bench_s=1000.0,
         )
 

@@ -79,6 +79,25 @@ def canonical_bytes(value) -> bytes:
     ).encode("utf-8")
 
 
+def launch_certificate(*, protocol_sha256: str, campaign_run_id: str) -> dict:
+    """official path の秒と一致する test-local な実 certificate を組み立てる。"""
+    timestamp = campaign_run_id.split("-", 1)[0]
+    started_utc = (
+        f"{timestamp[0:4]}-{timestamp[4:6]}-{timestamp[6:8]}T"
+        f"{timestamp[9:11]}:{timestamp[11:13]}:{timestamp[13:15]}+00:00"
+    )
+    return {
+        "schema": "s8b-floor-launch-certificate/v1",
+        "v1_freeze_sha256": (
+            "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
+        ),
+        "clean_scan_digest": "0" * 64,
+        "protocol_sha256": protocol_sha256,
+        "started_utc": started_utc,
+        "campaign_run_id": campaign_run_id,
+    }
+
+
 def _git(root: Path, *args: str) -> str:
     return subprocess.run(
         ["git", *args], cwd=root, check=True, text=True,
@@ -458,7 +477,14 @@ def candidate_repository(tmp_path: Path, module, *, manifest_kind: str = "v3") -
     _write(root, f"{run_dir}/journal.jsonl", b"".join(
         canonical_bytes(record) + b"\n" for record in journal_records
     ))
-    _write(root, f"{run_dir}/launch_certificate.json", b"{}")
+    campaign_run_id = f"20260811T000000Z-{protocol_sha256[:8]}"
+    _write(
+        root, f"{run_dir}/launch_certificate.json",
+        canonical_bytes(launch_certificate(
+            protocol_sha256=protocol_sha256,
+            campaign_run_id=campaign_run_id,
+        )),
+    )
 
     budget_rel = "output/s8b-freeze-budget-inputs/g1.json"
     budget_document = {
