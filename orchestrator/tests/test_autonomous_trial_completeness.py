@@ -4672,6 +4672,42 @@ def test_campaign_chain_reads_legacy_layer3_without_epoch(tmp_path) -> None:
     )
 
 
+def test_campaign_chain_reads_legacy_historical_epoch_without_marker(
+    tmp_path: Path,
+) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    assert persisted["certifying_input"] is False
+    assert persisted["campaign_verifier_epoch"].pop(
+        "verifier_assessment_basis"
+    ) == "recorded-at-original-verifier-epoch"
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    C.assert_campaign_layer3_chain(
+        report=_campaign_report(cell), output_root=output_root,
+    )
+
+
+def test_campaign_chain_accepts_historical_epoch_with_exact_marker(
+    tmp_path: Path,
+) -> None:
+    output_root, _campaign, _persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    assert persisted["certifying_input"] is False
+    assert persisted["campaign_verifier_epoch"][
+        "verifier_assessment_basis"
+    ] == "recorded-at-original-verifier-epoch"
+
+    C.assert_campaign_layer3_chain(
+        report=_campaign_report(cell), output_root=output_root,
+    )
+
+
 def test_campaign_chain_accepts_verified_post_admission_schema(
     tmp_path, monkeypatch,
 ) -> None:
@@ -4683,6 +4719,9 @@ def test_campaign_chain_accepts_verified_post_admission_schema(
     assert decision["admission_status"] == "admitted"
     persisted["admission_decision"] = copy.deepcopy(decision)
     persisted["certifying_input"] = True
+    assert persisted["campaign_verifier_epoch"].pop(
+        "verifier_assessment_basis"
+    ) == "recorded-at-original-verifier-epoch"
     cell["admission_decision"] = copy.deepcopy(decision)
     persisted_path.write_text(
         json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
@@ -4722,6 +4761,67 @@ def test_campaign_chain_rejects_persisted_epoch_mutation(tmp_path) -> None:
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match="campaign verifier epoch differs from validator",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
+def test_campaign_chain_rejects_persisted_epoch_marker_mutation(
+    tmp_path: Path,
+) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    persisted["campaign_verifier_epoch"][
+        "verifier_assessment_basis"
+    ] = "recorded-at-current-verifier-epoch"
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match="campaign verifier epoch differs from validator",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
+def test_campaign_chain_rejects_marker_on_certifying_input(
+    tmp_path: Path,
+) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    persisted["certifying_input"] = True
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    report = _campaign_report(cell)
+    report["launch_admission"]["certifying"] = True
+
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match="campaign verifier epoch exact keys differ",
+    ):
+        C.assert_campaign_layer3_chain(report=report, output_root=output_root)
+
+
+def test_campaign_chain_rejects_persisted_epoch_extra_key(tmp_path) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    persisted["campaign_verifier_epoch"]["unexpected"] = "value"
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match="campaign verifier epoch exact keys differ",
     ):
         C.assert_campaign_layer3_chain(
             report=_campaign_report(cell), output_root=output_root,

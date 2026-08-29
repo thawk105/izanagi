@@ -23,6 +23,11 @@ from tools.pegasus.dispatch_compute import TASKS
 EXPECTED_LAYER_IDS = {"production", "test"}
 EXPECTED_TOP_LEVEL_KEYS = {"schema", "completeness", "layers"}
 EXPECTED_TEST_RULING = "2026-08-12 rulings \u7b2c 3 \u675f"
+EXPECTED_T1434_RULING = (
+    "2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f"
+    "\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five "
+    "candidate-fixture nodes outside the causal T-1434 science-slice diff"
+)
 EXPECTED_TEST_HOLD_GROUPS = (
     (
         {
@@ -209,7 +214,32 @@ EXPECTED_TEST_HOLD_GROUPS = (
             "and provenance files. Its cost therefore grows with docs bytes."
         ),
     ),
+    (
+        {
+            "test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+            "test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+            "test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+            "test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+            "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan",
+        },
+        "tracked_files",
+        (
+            "Consumes the module-scoped real-repository candidate fixture. Its fresh-index "
+            "git add -A scans the repository checkout, so cost grows with tracked files. "
+            "At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance "
+            "deterministically exceeded the parent write-lock deadline and the focused rerun "
+            "timed out after 180 seconds in git add -A; these exact five failures predate and "
+            "are outside the causal T-1434 science-slice diff."
+        ),
+    ),
 )
+EXPECTED_TEST_RULING_OVERRIDES = {
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain": EXPECTED_T1434_RULING,
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points": EXPECTED_T1434_RULING,
+    "test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation": EXPECTED_T1434_RULING,
+    "test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates": EXPECTED_T1434_RULING,
+    "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan": EXPECTED_T1434_RULING,
+}
 _SHARED_FIXTURE_COLLATERAL = (
     "Holding this node also prevents the shared module fixture from starting, "
     "so its fixed checks for full SHA format, CURRENT_PIN prefix, an independent "
@@ -347,6 +377,42 @@ EXPECTED_TEST_COLLATERAL_NOTES = {
         "A no-argument tools/check_docs.py invocation remains mandatory for class "
         "2/3 completion; it is not required for other task classes."
     ),
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain": (
+        "Together, holding these exact five nodes removes every consumer of the "
+        "shared module-scoped candidate fixture, so the fixture does not start. "
+        "Holding this node removes the fixed checks for absence of legacy generation "
+        "paths, contiguous generation numbers, latest-generation agreement, protected/"
+        "section-5/section-6/normative-body/evidence-contract hash bindings, and "
+        "generation-1 null supersedes."
+    ),
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points": (
+        "Together, holding these exact five nodes removes every consumer of the "
+        "shared module-scoped candidate fixture, so the fixture does not start. "
+        "Holding this node removes the fixed checks for one multi-path batch call, the "
+        "MAX_BATCH_REQUESTS product bound, and the MAX_COMMITS bound."
+    ),
+    "test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation": (
+        "Together, holding these exact five nodes removes every consumer of the "
+        "shared module-scoped candidate fixture, so the fixture does not start. "
+        "Holding this node removes the fixed checks for candidate/report identity, "
+        "freeze validity and reason code, freeze generation presence, raw and parsed "
+        "schema pins, raw/parsed/report decider version pins, decider-match status and "
+        "reason code, and inactive effectiveness."
+    ),
+    "test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates": (
+        "Together, holding these exact five nodes removes every consumer of the "
+        "shared module-scoped candidate fixture, so the fixture does not start. "
+        "Holding this node removes the fixed checks for candidate/report identity, "
+        "inactive effectiveness, the exact 12 predicate count, ordered PREDICATE_IDS, "
+        "and zero satisfied predicates."
+    ),
+    "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan": (
+        "Together, holding these exact five nodes removes every consumer of the "
+        "shared module-scoped candidate fixture, so the fixture does not start. "
+        "Holding this node removes the fixed checks for WAVE_REQUIRED_PATHS inclusion, "
+        "freeze-path presence, repository enumeration coverage, the exact HOLDOUTS "
+        "result with no wave hits, production scan acceptance, and its positive control."
+    ),
 }
 
 
@@ -362,7 +428,9 @@ def _expected_test_holds() -> list[dict[str, object]]:
         {
             "node_id": node_id,
             "reason": details[node_id][1],
-            "ruling": EXPECTED_TEST_RULING,
+            "ruling": EXPECTED_TEST_RULING_OVERRIDES.get(
+                node_id, EXPECTED_TEST_RULING,
+            ),
             "release_condition": "explicit-user-command-only",
             "hold_axis": details[node_id][0],
             "correctness_gate": True,

@@ -40660,3 +40660,402 @@ object が missing のときは `rc=2` とし、空として扱わない。
 - tested-main実行束縛も外す — D1151が維持したproof chainを弱める。
 - forward-mainの各区間で一度でもrunnerが変われば拒否する — 最終blobが同じ正例まで過剰拒否する。
 - schema拡張・一般receipt再設計・段階Rを同時に行う — 今回のexact 2述語とD987の変更単位を越える。
+
+## D1235. task-specific oracle の実発火は限定 wiring slice と明示 profile で束縛する (2026-08-28)
+
+**決定:** T-189 の task-specific oracle 束縛を実データで発火させる最小単位は、既存 task catalog の
+実在 plan 2 行を持つ1つの wiring slice とする。slice は明示 CLI profileでだけ受理し、canonical bytes、
+verifier tool bytes、manifest kind、許可 verb、catalog/evidence join、finding projectionをpinする。
+組込みT-181 manifestは変更せず、従来の受理集合を維持する。
+
+slice は§8の独立oracle ledger本体ではない。`oracle_content_review_status=not-established`、
+`section8_complete=false`、task acceptance `unbound`、routing evidence `inconclusive`を固定する。
+機械整合性、full CLIの`valid`、test緑を意味的受理へ射影しない。
+
+**理由:**
+- 組込みPOS/NEGは同じknown finding集合を持ち、task別集合とmanifest unionが同一なので、既存束縛は
+  unionより狭い受理集合を一度も作らなかった。
+- task catalogの実在2行はprompt、receipt、base commit、分類、fixed-state worklogへjoinでき、
+  互いに素なfinding集合でaccept/cross-task rejectを作れる。
+- profileをmanifest内fieldから推測すると、field削除によるdowngradeと、既存T-181拡張manifestの
+  過剰拒否が同時に生じる。呼出側の明示profileなら両者を分離できる。
+- D674の電力・外部custodian・署名見送りと、D767のacceptance unboundを動かさずに発火だけを示せる。
+
+**却下した選択肢:**
+- 組込みPOS/NEGのfinding集合を書き換える — 凍結されたT-181 provenanceとdigest連鎖を、発火目的で
+  改変することになる。
+- optionalな別verifierだけを置く — verifierを通さずmanifestとdownstream digestを再生成できる。
+- 2 artifactの汎用generatorを新設する — finding内容の二重正本と生成順序の循環を増やす。
+- sliceを§8 ledger完成またはtask acceptanceと扱う — 独立content reviewと意味的受理が未成立である。
+- served-model attest、署名、汎用oracle platformまで広げる — 今回の発火確認に不要でD674の境界を越える。
+
+## D1236. B-4 の支配点は certified sink の合流点に置く (2026-08-28)
+
+**決定 (親裁定):** D1033 が命じる「専用起動器と B-4 識別子による支配点」は、鋳造の 1 点だけでは
+成立しない。**鋳造と、certified sink での消費の 2 点**で成立させる。sink 側の関門は
+`orchestrator/campaign/wal.py` の COMMIT 分岐に置く。
+
+**理由:**
+
+- 段 3 の 2 レンズが独立に、`loop.run_campaign` と `pipeline.evaluate` が公開 API として
+  関門の下にあることを file:line で示した。`CampaignConfig` は frozen だが `search_config` は
+  可変の dict なので、通常の設定に識別語を後付けして直接 certified な成果物を作れた。
+- COMMIT 分岐は、この 2 つの公開入口が**必ず通る唯一の合流点**である。入口ごとに関門を置くと、
+  次に見つかる producer で同じ話を繰り返す。
+- campaign lock が識別内容を持つため、cfg を受け取らない `wal.append` でも layout だけから
+  B-4 かどうかを判定できる。
+- 先例がある。certified sink の支配点を `wal.append` に置いた前例と同じ骨格である。
+
+**発火条件:** lock が存在し、その識別内容が exact な識別語を持つときだけ。lock が無い campaign では
+関門の本体を 1 行も実行しない。**識別語を持たない通常の測定の受理集合は 1 bit も変わらない。**
+
+**却下した選択肢:**
+
+- 鋳造の 1 点だけを支配点とする — 識別語を後付けした設定が別の producer から certified になる。
+- 公開入口ごとに関門を置く — 次の producer で同じ穴が開く。
+
+## D1237. B-4 の起動記録は上書き可能にする (2026-08-28)
+
+**決定 (親裁定):** 起動器が書く起動記録は、**同じ campaign に対して何度でも書き直せる**形にする。
+一度しか書けない形は採らない。関門が要求するのは内容の一致であって、書かれた回数ではない。
+
+**理由:**
+
+- D1125 が「不可逆承認の token を測定の前提条件として新設しない」と定めている。
+- D1124 が「同じ cell を何度でも測ってよい」「途中死した run の復旧に専用機構を要求しない」と
+  定めている。一度しか書けない起動記録は、途中で落ちた走の測り直しを構造的に禁じる。
+- 段 3 のレビューは一度限りの記録を薦めたが、上位の裁定と正面から衝突するため採らなかった。
+
+**却下した選択肢:**
+
+- 一度だけ書ける起動記録 — D1124 / D1125 と衝突する。
+
+## D1238. 識別語の鋳造口は試験用の封印も受理する (2026-08-28)
+
+**決定 (親裁定):** 識別語を作る入口は、production の封印と**試験用の封印の両方**を受理する。
+production 限定にはしない。
+
+**理由:**
+
+- 標本を生む境界 (反復・駆動・certified sink・production factory) はすべて production の封印を
+  要求する。試験用の封印で作った識別語付きの設定は、certified な標本を 1 つも作れない。
+  **標本の受理集合は変わらない。**
+- 鋳造口を production 限定にすると、campaign identity の golden を固定する検査すべてが
+  実際に commit された受理記録を用意する必要があり、費用が跳ね上がる割に受理集合が変わらない。
+- 段 6 のレビュー 2 本のうち 1 本は production 限定を薦め、もう 1 本は「意図的なら
+  事前登録の文言をそう改めればよい」と代案を出した。後者を採った。
+
+**帰結:** 事前登録の文言は「起動器だけが鋳造できる」ではなく
+**「封印されていない識別語の作成を閉じた」**と書く。
+
+**却下した選択肢:**
+
+- 鋳造口を production 限定にする — 受理集合を変えずに検査費用だけを上げる。
+
+## D1239. closure 内省による到達は非保証として明記する (2026-08-28)
+
+**決定 (親裁定):** 起動器の封印と発行者へ、closure の内省を辿って到達できることは
+**閉じられない**。閉じたと書かず、**非保証として明記する**。
+内省を要しない素直な経路 (任意の封印を受け取る生成関数が module の属性として見えていた) は塞ぐ。
+
+**理由:**
+
+- Python では `__closure__` の走査を塞げない。module 属性を隠しても必ず辿れる。
+- 同一 process からの属性書換えへの耐性は、既に隣接 module が非保証として列挙している。
+  同じ枠に入る性質であり、新しく保証を謳うと恒真な保証になる。
+- 塞げる経路と塞げない経路を分けずに「閉じた」と書くと、事前登録の正直さ要件に反する。
+
+**却下した選択肢:**
+
+- 内省経路も閉じたと書く — 実際には閉じられず、謳うだけの保証になる。
+- 素直な経路も非保証で済ませる — 実際に塞げるものを塞がない理由がない。
+
+## D1240. B-4 分類と receipt は同一 lock snapshot へ束縛し、不在は明示 digest で表す (2026-08-28)
+
+**決定 (親裁定):** COMMIT sink は campaign.lock の同じ raw bytes snapshot を B-4 分類と receipt hash
+検証に使う。lock 不在は receipt 自身の digest を fallback 権威にせず、issuer / sink 共通の固定
+absence digest へ束縛する。decoded identity が exact dict で `search_config` key 自体を持たない valid lock は
+非 B-4 と分類し、key が存在して型不正なら fail-closed にする。
+
+**理由:** 独立 Codex focus が、分類時 markerless / 検証時 marked の二重読取、分類時 lock 不在 / 検証時
+marked の fallback、decoded lock と directory basename の campaign id 差をそれぞれ実行可能な負例で示した。
+同じ path を二度読むことも、receipt が自己申告した digest を sink observation の代用にすることも、
+D1033 の支配点を構成しない。
+
+**受理集合:** 最初から lockless + explicit absence receipt、valid markerless lock + exact receipt、valid non-B4
+lock (`search_config` 無し) + exact receipt は受理する。**physical lock に束縛した receipt を発行後に lock を
+消す旧経路だけを拒否へ狭める。** 同経路を残すと marked receipt を退避・復元して G4 を迂回できるため、
+規律2と両立しない。
+
+**却下した選択肢:** receipt 内 digest fallback の維持 — absence-to-marked bypass を再開する。
+全 non-B4 lock の `search_config` 欠落を分類不能として拒否 — marker 無し通常走の受理集合を壊す。
+
+**scope 外:** D1042 の一回性 token、D1043 の payload snapshot、D1050 の受理記録配置、COMMIT 後 relabel
+(D1223) の実装、正式 B-4 実走。
+
+## D1241. 測定前固定を証明できない floor-backed 主張は non-certifying を上限とする (2026-08-28)
+
+**決定 (ユーザー指示の記録):** 一回性撤去後、適格な複数の fresh floor result から値を見て使用 result を選ぶ経路を防ぐ実装は無い。測定前固定の既存 proof が示されない floor-backed candidate、再凍結、oracle / 8c 公開物、論文主張は advisory / non-certifying を上限とする。
+
+同一 oracle / 8c judge 入力を固定したとき floor 数値が winner / conclusion の計算入力でない、という狭い非干渉は別に維持する。現 commit の official / budget blocker、create-only、ratification、source hash、`eligible_for_refreeze` を測定前固定の証拠へ昇格させない。規律 2 は緩めない。
+
+**理由:**
+- official / budget blocker は A/B を一律拒否するだけで、使用 result を値を見る前に固定しない。
+- candidate は caller 指定 `--floor-result` から生成され、事前固定 identity との equality predicate が無い。
+- candidate path/hash を ratified g1 へ自動束縛する参照は 0 件で、ratified `floor` と `floor_source.result.floors` の投影一致も検査しない。
+- source path/hash は選んだ B を正しく名指しできるが、その名指しが値を見る前だったことを証明しない。
+- D893 は同一試行識別子の複製を対象とし、異なる fresh A/B は D1124 の禁止面である。T-469 の機構も未実装である。
+
+**却下した選択肢:**
+- 現在到達不能なので守られていると記録する — blocker 解消後の選択経路を防がない。
+- create-only candidate を選択防壁と数える — 初回に B を選んだ後の上書きだけを止める。
+- floor 数値が oracle / 8c の直接入力でないことから強い certified claim 全体を許す — artifact provenance、admission、publish 可否と測定前固定の欠落を落とす。
+- 本 wave で新しい guardrail、署名、台帳、nonce、one-shot 代替を実装する — ユーザー指定 scope 外で、将来実装には D95 Codex author が必要である。
+
+## D1242. define 条件の供給と意味は独立した証拠として評価する (2026-08-28)
+
+**決定:** patch供給defineの関門は、source-owner CMake cache-to-TU route/valueを評価する
+supply armと、適用後decoderを実compilerでpointwise評価するmeaning armを、別public function、
+別evidence、別reason code、別負例として持つ。単一pass bitへ潰さない。
+
+初版はBACKOFF_FIXEDだけに閉じる。meaningのproof kindはcaptured applied-source decoderを
+standalone TUで評価したfinite pointwise witnessとし、actual target TU、dynamic reachability、
+exact post-configure build inputを名乗らない。driver integrationはnoneで、driverへの義務接続は
+D1198の別残件とする。
+
+**理由:**
+- F707は供給されない型、F718は供給・適用・供給検査を通って値の意味だけ違う型である。
+  一方の緑は他方の緑を含意しない。
+- 文字列存在、binary hash差、格子単射性だけでは、一様shift、別単位、contextごとの結果入替を通す。
+- 独立期待bitsとのpointwise比較なら、BACKOFF_FIXED=1000が0へ復号される現物を実compilerで拒否できる。
+- driver接続0の段でgateと呼べるのは明示呼出し内だけであり、現行driverが保護済みとは書けない。
+
+**却下した選択肢:**
+- supply名集合だけを検査する — wrong RHS/valueとF718を見逃す。
+- expected/observedを集合比較する — context入替を通す。
+- fixture JSONを任意path/macro/result kindのproduction契約にする — 実在consumer 0の入力面を増やす。
+- BACKOFF_FIXED以外7 macroを同じscalar decoderとして一般化する — selector/enum/diagnosticが混在する。
+- 格子を0..999へ狭めるだけで族を閉じたとする — 現fixed量軸は閉じてもdefine-decode族は閉じない。
+
+## D1243. floorの使用測定は結果を見る前に決定的な規則で固定する (2026-08-28)
+
+**決定:** 複数の適格なfloor測定から強い主張に使う測定は、結果を見る前に事前登録した決定的な選択規則で固定する。既存の事前登録・批准境界に狭い検査を置き、署名、nonce、一回性台帳は新設・復活させない。規則が実装されるまでD1241のnon-certifying上限を維持する。
+
+**理由:** 測定の反復自体はD1124どおり許されるが、値を見た後の選択は禁止されたままである。観測回数を再び制限せず、守るべき事後選択だけを閉じる。
+
+**却下した選択肢:**
+- 一回性台帳を復活する — 途中死で研究本線を止めた失敗を再導入する。
+- 署名やnonceを新設する — 選択規則の固定に不要な機構を増やす。
+- 強い主張を無条件に許す — 現状は測定前固定を証明できない。
+
+## D1244. balanced stock-inline対照は既存producerを使う最小3部品だけを足す (2026-08-28)
+
+**決定:** T-1998は、producer evidenceのread-only到達性監査、既存backoff sweepを呼ぶ薄いsanctioned launcher、事前登録で固定した2点だけを読むconsumerの3部品に限定して実装する。新しい汎用driverは作らない。3部品のland後にprospective preregistrationと正式測定認可を人間手番へ返す。
+
+**理由:** 正確な比較対は既に存在し、欠けているのは正式測定へ束縛する閉包だけである。汎用化はCC自動合成の検証に不要である。
+
+**却下した選択肢:**
+- 診断throughputを流用する — D20に反する。
+- 汎用測定基盤を新設する — 必要な2点比較を越える。
+- 正式対照を見送る — balancedの交絡を切り分けられない。
+
+## D1245. current closure不在は歴史閲覧と現行認証で扱いを分ける (2026-08-28)
+
+**決定:** `current-closure-unavailable`は歴史閲覧の拒否理由にせず、現行適合をunknownとして表示する。現行の正しさ主張に意味互換性が必要な認証では、必要なfail-closed検査を維持する。理由を全面撤去しない。
+
+**理由:** 規律7は過去の測定事実を現行コードとの差だけで無効にしない一方、現行の正しさ主張に必要な意味互換性は維持すると定める。
+
+**却下した選択肢:**
+- 全面撤去 — 現行適合を過大主張しうる。
+- 全面維持 — 過去の測定事実まで読めなくする。
+
+## D1246. persisted WALは実在するcertified consumerだけを共通admissionへ通す (2026-08-28)
+
+**決定:** persisted WALのverdictとreceiptは、現に存在するcertified consumerの列挙を1つの小さい共通admission helperへ通して束縛する。将来一般の証拠frameworkへは広げない。
+
+**理由:** consumerごとの重複実装は取り残しを実際に生んだ。共通入口は正しさに直結するが、汎用基盤は本目的に不要である。
+
+**却下した選択肢:**
+- 各consumerへ個別実装する — 同じ取り残しを再発できる。
+- 汎用proof frameworkを作る — 現在のconsumer集合を越える。
+
+## D1247. B-4凍結文面の不整合は元bytesを変えず後継erratumで閉じる (2026-08-28)
+
+**決定:** D1228の実装側の読みを後継erratumへ記録する。理由enumは12 member、「上の3つ」は4入力の誤記、台帳2 hashは実bytesを持つ統合層で照合する。元の凍結bytesは変更しない。
+
+**理由:** 実装と読者が導く受理集合を一致させる必要があるが、凍結物のin-place編集は事前登録の意味を壊す。
+
+**却下した選択肢:**
+- 元文書を編集する — 凍結bytesを変える。
+- 不整合を残す — 実装と文書から別の意味が導かれる。
+- 台帳hash検査を省く — 差し替えをcertified選択へ通す。
+
+## D1248. runner変更wave専用の受入機構は実需の再発まで作らない (2026-08-28)
+
+**決定:** T-2038の専用機構は今は作らず、pinも緩めない。次にrunner自体を変更する具体的waveが発生した時だけ、その変更単位に限定した二段移行を再提示する。
+
+**理由:** 今回の障害は限定修理で解消しており、現時点でCC自動合成を止める実需がない。
+
+**却下した選択肢:**
+- 今すぐ専用機構を作る — 現在使うcallerがない。
+- pinを緩める — 既存の実行器束縛を弱める。
+
+## D1249. dev-waveのbranch削除はexpected OID付き最小CASにする (2026-08-28)
+
+**決定:** merge確認後のbranch削除は、previewで確認したexpected OIDを条件にした`update-ref -d`または同等の最小CASで行う。単独waveは立てず、次にDW-O28を変更する作業へ相乗りする。
+
+**理由:** 現行は削除後にtipを照合するため、競合時に別tipを消してから気づく。expected OIDの1条件で十分であり、大きな削除transactionは要らない。
+
+**却下した選択肢:**
+- 現状維持 — 誤削除の窓が残る。
+- 汎用削除transactionを作る — 必要な比較交換を越える。
+
+## D1250. 到達不能objectの期限は既存startupで非阻止通知する (2026-08-28)
+
+**決定:** 既存startupで台帳の期限接近・超過だけを非阻止で通知する。新しいdaemon、全object走査、wave停止gateは作らない。
+
+**理由:** 手動cleanupだけでは既定2週間のGC窓内に台帳が読まれる保証がない。既存台帳の期限だけを見る通知なら、不可逆消失を小さい費用で避けられる。
+
+**却下した選択肢:**
+- daemonを作る — 運転機構を増やす。
+- startupを停止gateにする — 古いentryが全waveを止める。
+- 手動cleanupだけにする — 通知が間に合う保証がない。
+
+## D1251. dev-wave運用所見2件は契約予算を増やさずfailuresに留める (2026-08-28)
+
+**決定:** 子を待つ経路とdetachの使い分け、変異中の同一worktreeからの計算ノード投入禁止は、現時点ではfailures記録だけに留める。契約本文のbyte予算を増やさず、再発時だけ昇格を再検討する。
+
+**理由:** 現在のCC主経路を止めず、既存の失敗記録から復旧できる。契約本文の拡張は目的との距離に見合わない。
+
+**却下した選択肢:**
+- 予算を上げて収容する — 現在の実需を越える。
+- 安全義務を圧縮で落とす — 既存契約を弱める。
+
+## D1252. module-private tokenを外部capabilityへ移さない (2026-08-28)
+
+**決定:** `_CERTIFIED_VIEW_TOKEN`のために外部capability、別process、署名主体、OS権限を新設しない。同一processから偽造可能であり完全な権限隔離ではない限界を維持・明記する。
+
+**理由:** 現行tokenは事故防止には働くが、外部capability化はプロトタイプのCC自動合成に不要な信頼基盤を増やす。
+
+**却下した選択肢:**
+- 外部capabilityを新設する — 守る面に対して機構が大きすぎる。
+
+## D1253. D956とD967は包括supersedeせず具体的consumerだけを直す (2026-08-28)
+
+**決定:** D956とD967を包括的にsupersedeする後継決定は作らない。規律7を直接適用し、現行コードとの差だけを拒否理由にする具体的consumerが見つかった場合だけ個別に修正する。事前登録・凍結・入力との束縛は維持する。
+
+**理由:** 両決定にはコード同一性以外の正当な束縛も含まれる。包括上書きは必要な検査まで巻き込む。
+
+**却下した選択肢:**
+- 両決定を全面supersedeする — 規律7の射程外の束縛まで外す。
+- 新しい包括解釈層を作る — 現行の絶対規律で足りる。
+
+## D1254. R33の効果を持たない旧承認identifierは実質的な後継改訂まで残す (2026-08-28)
+
+**決定:** oracle n-pilotのR33事前登録がbytesをpinしている旧承認identifierは、撤去だけを目的とする
+successor事前登録を発行せず現状維持する。R33へ実質的な変更が必要になり後継事前登録を発行する時だけ、
+同じ変更単位へ相乗りして撤去する。現行identifierは承認関門として働かず、値の有無で挙動が変わらない
+既存検査を維持する。
+
+**理由:** 現行R33は未実行で、driverとjob scriptの現行bytesを有効にpinしている。表示上の整理だけのために
+事前登録を再発行すると、科学的受理を変えずに凍結物と検査対象だけを増やす。現行identifierは実行を
+止めないため、次の実質的改訂まで残しても研究主経路を塞がない。
+
+**却下した選択肢:**
+- 撤去だけのsuccessor事前登録を今発行する — 得るものが名称整理だけで変更単位が過大である。
+- 現行事前登録のpinを書き換える — 事前登録の意味を壊す。
+
+## D1255. G12 claimは同一campaign内の重複実行防止として維持する (2026-08-28)
+
+**決定:** oracle driverのG12 claimは、性能測定の回数を制限する一回性関門ではなく、同じ
+campaign identityの重複・並行実行が同じWALと成果物へ進むことを防ぐ関門として維持する。
+再測定はfresh campaign identityで行い、同一identityの復旧専用機構は新設しない。
+
+**理由:** 測定の反復を許す既裁定はfresh runを禁止しないことを求めるが、同じrunの二重実行まで
+許すものではない。同一identityの重複を許すとcampaign terminal、WAL、成果物の対応が曖昧になる。
+fresh identityで測り直せるため、復旧機構を追加せず両方を満たせる。
+
+**却下した選択肢:**
+- G12 claimを撤去する — 同一campaignの重複・並行実行を受理しうる。
+- stale回収やresume専用機構を追加する — fresh campaignでの再測定に不要である。
+
+## D1256. 起動由来の権能要求はB-4に限定する (2026-08-28)
+
+**決定:** 専用起動器とcertified sinkで検査する起動由来の権能は、識別語を持つB-4 campaignだけに
+要求する。非B-4を含むcertified成果物一般へ共通authorityとして広げない。別campaignで同じ破れ方が
+実測された場合だけ、その実在経路に限定して再検討する。
+
+**理由:** 現行B-4の支配点は既に閉じており、識別語の無いcampaignの受理集合を変える必要はない。
+全campaignへの一般化はconsumer移行と共通基盤を要する一方、現在止まっている実在経路がない。
+
+**却下した選択肢:**
+- 全certified campaignへ直ちに一般化する — 現在の実需を越えて受理集合と保守面を広げる。
+- callerのない共通authority frameworkだけを先に作る — 発火しない基盤を増やす。
+
+## D1257. A-2の独立argv観測は将来同じ経路を強い主張へ再利用する時だけ足す (2026-08-28)
+
+**決定:** 現行A-2の性能reject成果物には、correctness実行のactual argv・executable hashを
+後付けせず、取得のための再走も行わない。将来、同じA-2経路を強いcertification主張へ再利用する時だけ、
+その経路専用のrun receiptとしてactual argvとexecutable hashを追加する。pipeline一般のproof
+frameworkへは広げない。
+
+**理由:** 現成果物は独立argv観測が無いことをJSONとREADMEへ明記しており、主張上限は正直である。
+性能判定もrejectで確定している。現在の結論を変えない再走や一般基盤へ費用を払わず、証拠が実際に
+必要になる次の利用時点へ狭く置く。
+
+**却下した選択肢:**
+- 現成果物のために今すぐ再走する — reject済み結論に対して費用が大きい。
+- pipeline一般の独立観測基盤を作る — 実在するA-2の必要範囲を越える。
+- 独立観測済みと読み替える — 現物の明示した限界と矛盾する。
+
+## D1258. A-2のpublish機構記録は次のschema改訂または再走へ相乗りする (2026-08-28)
+
+**決定:** 現行A-2成果物は、EINVAL fallbackとnon-cooperating writerに対する限界を明記した
+READMEを主張上限として据え置く。次にA-2 result schemaを実質的に改訂する時、またはA-2を再走する時だけ、
+選択したpublish機構名と限界を機械可読fieldとして相乗りで追加する。non-cooperating writerを防ぐ
+新しいpublish機構は作らない。
+
+**理由:** 現行コードはcooperating writer間の排他を行い、閉じない競合窓も明記している。
+実害の観測がない脅威へ新機構を足すより、将来schemaを触る実需が生じた時に最小2情報を同梱すれば足りる。
+現行の科学判定はpublish方式のfield不在で変わらない。
+
+**却下した選択肢:**
+- この記録だけのためにschemaを今上げる — 旧readerと成果物の扱いまで広がり変更単位が過大である。
+- non-cooperating writerまで防ぐpublish基盤を作る — 実害未観測の防御的堅牢化である。
+- fallbackを無条件のatomic no-replaceと記録する — 実装の保証範囲を越える。
+
+## D1259. A-2 partial raw authorityはexact-one成功workloadだけに限定する (2026-08-28)
+
+**決定:** D1169のexact 2 workload A-2で、driver成功がexact 1のときだけpartial v4 chainを発行する。
+partial raw manifestは成功workloadのraw 2件とcampaign lock、WAL、claimのexact 5 memberに閉じ、
+failed workloadはrawが物理的に存在してもauthority、cell、effectに含めない。manifestとnested receiptの
+pathはwriterのcanonical位置から再導出し、内容を読む前に一致を要求する。full-successとauthority-noneは
+既存v3 writerとconsumerを維持する。
+
+**理由:**
+- driver非0のsiblingはそのworkloadのraw authorityを失わせるが、別workloadの検証済みrawまで無効にする
+  根拠にはならない。一方、failed siblingの値を推定または再利用すればD1169のworkload論理積を破る。
+- authoritative workloadのanomalyまたはeffect非正は局所rejectであり、coverage不足より先にgroup全体を
+  rejectする。positiveはpartial、判定不能はinconclusiveとし、workload authority mapとouter statusを分ける。
+- materialize時にcompletion、acquisition、manifestからauthority、cells、effects、statusを再導出して
+  report全体と比較すれば、偽status、failed field混入、v3/v4 cross-chainを同じconsumer境界で拒否できる。
+
+**却下した選択肢:**
+- 複数success subsetへ一般化する — A-2のexact 2 workloadを越え、汎用fan-outの別設計になる。
+- failed siblingのrawまたは別attemptのevidenceを再利用する — workload authorityの出所を偽る。
+- full-successもv4へ移す — 既存の完走済みv3 artifactとconsumerの受理集合を不必要に変える。
+- 完走済みA-2 artifactを再発行または遡及昇格する — 当時の判定と現行consumerの主張を混同する。
+
+## D1260. full K=3 wallを動かさないT-080 process-memo groupingは採らない (2026-08-28)
+
+**決定:** 同じimmutable baseを使うT-080の6 nodeを同一workerへ寄せる配線は、paired full K=3中央値が10%未満の差なら採用しない。正しく配線され変異が全件KILLEDでも、速くなった証拠の代用にしない。
+
+**理由:**
+- fixed tip 3走ずつでpre 244.810秒、post 245.707秒、差+0.37%。D357により変化なしである。
+- 焦点6 nodeではcache共有が成立したが、その費用はfull wallのcritical pathの下へ隠れた。
+- worker duration総和は下がっても、同じ48-core nodeを同じwall占有し、node秒は仕事量代理にできない。
+
+**却下した選択肢:**
+- 焦点走のcache hitだけで採用する — full wallへの因果が無い。
+- worker duration総和の低下をmachine cost削減と読む — node-hourは変わらない。
+- no-effect配線を残したままKやallocatorを追加する — D1019の不採用を再実装し、原因を覆う過剰機構になる。

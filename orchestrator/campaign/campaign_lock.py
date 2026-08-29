@@ -7,12 +7,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import hmac
 import json
 import re
 from typing import Any, Mapping
 
 
 CAMPAIGN_LOCK_V2_SCHEMA = "campaign-lock/v2"
+NON_CERTIFYING_CAMPAIGN_LOCK_SCHEMA = "campaign-lock/non-certifying/v1"
 IDENTITY_KEYS = frozenset({
     "spec_content", "ccbench_commit", "search_tag", "search_config", "trial",
 })
@@ -24,6 +27,23 @@ AUTHORITY_KEYS = frozenset({
     "contract_loader_blob_sha256s",
 })
 V2_KEYS = frozenset({"schema_version", "identity_preimage", "authority"})
+NON_CERTIFYING_KEYS = frozenset({
+    "schema_version", "identity_preimage", "a1_non_certifying",
+})
+NON_CERTIFYING_RESERVED_V1_KEYS = frozenset({"a1_non_certifying"})
+NON_CERTIFYING_ENVELOPE_KEYS = frozenset({
+    "common_record", "workload_binding", "identity_tag",
+})
+NON_CERTIFYING_COMMON_KEYS = frozenset({
+    "mode", "certifying", "study_id", "policy_sha256",
+    "preregistration_sha256", "source_commit", "source_binding_sha256",
+    "environment_contract_sha256", "intent_sha256", "campaign_ids",
+})
+NON_CERTIFYING_WORKLOAD_KEYS = frozenset({
+    "workload", "campaign_id", "ordinal",
+})
+_DISCLOSED_IDENTITY_KEY_DOMAIN = b"izanagi-a1-disclosed-identity-key/v1\0"
+_LOCK_IDENTITY_TAG_DOMAIN = b"izanagi-a1-lock-identity-tag/v1\0"
 # ``contract_loader_*`` は歴史的名称であり、この値は exact 24 path の
 # enforcement source closure である。
 CONTRACT_LOADER_RELATIVE_PATHS = (
@@ -106,6 +126,24 @@ class DecodedCampaignLock:
         if not self.is_v1:
             raise CampaignLockCodecError("v2 lock を v1 bytes として保存できない")
         return self.original_text
+
+
+@dataclass(frozen=True)
+class DecodedNonCertifyingCampaignLock:
+    """検証済み A-1 非認証 lock。
+
+    ``identity_tag`` は intent digest から導出できる disclosed-key HMAC であり、
+    field 間の偶発的な結合切断を検出する。発行者認証、秘密鍵 custody、または
+    同一 Unix user による意図的な再生成への耐性は表さない。
+    """
+
+    schema_version: str
+    identity_preimage: str
+    identity: dict[str, Any]
+    common_record: dict[str, Any]
+    workload_binding: dict[str, Any]
+    identity_tag: str
+    original_text: str
 
 
 def _reject_constant(value: str) -> None:
@@ -212,6 +250,87 @@ def _validate_authority(value: Any) -> CampaignLockAuthority:
     )
 
 
+def _require_non_empty_str(value: Any, *, label: str) -> str:
+    if type(value) is not str or not value:
+        raise CampaignLockCodecError(f"{label} は non-empty exact str が必要")
+    return value
+
+
+def _validate_non_certifying_common(value: Any) -> dict[str, Any]:
+    if type(value) is not dict or set(value) != NON_CERTIFYING_COMMON_KEYS:
+        raise CampaignLockCodecError(
+            "A-1 non-certifying common_record の exact key 集合が不正"
+        )
+    if value["mode"] != "registered-formal-non-certifying":
+        raise CampaignLockCodecError("A-1 non-certifying mode が不正")
+    if value["certifying"] is not False:
+        raise CampaignLockCodecError("A-1 non-certifying certifying は false が必要")
+    _require_non_empty_str(value["study_id"], label="common_record.study_id")
+    for key in (
+        "policy_sha256", "preregistration_sha256", "source_binding_sha256",
+        "environment_contract_sha256", "intent_sha256",
+    ):
+        _require_hex(value[key], width=64, label=f"common_record.{key}")
+    _require_hex(value["source_commit"], width=40, label="common_record.source_commit")
+    campaign_ids = value["campaign_ids"]
+    if (
+        type(campaign_ids) is not list
+        or len(campaign_ids) != 3
+        or any(type(item) is not str or not item for item in campaign_ids)
+        or len(set(campaign_ids)) != 3
+    ):
+        raise CampaignLockCodecError(
+            "common_record.campaign_ids は一意な exact 3 non-empty str が必要"
+        )
+    return value
+
+
+def _validate_non_certifying_workload(
+        value: Any, *, common_record: Mapping[str, Any],
+) -> dict[str, Any]:
+    if type(value) is not dict or set(value) != NON_CERTIFYING_WORKLOAD_KEYS:
+        raise CampaignLockCodecError(
+            "A-1 workload_binding の exact key 集合が不正"
+        )
+    _require_non_empty_str(value["workload"], label="workload_binding.workload")
+    campaign_id = _require_non_empty_str(
+        value["campaign_id"], label="workload_binding.campaign_id",
+    )
+    ordinal = value["ordinal"]
+    if type(ordinal) is not int or ordinal not in range(3):
+        raise CampaignLockCodecError("workload_binding.ordinal は 0..2 の exact int が必要")
+    if common_record["campaign_ids"][ordinal] != campaign_id:
+        raise CampaignLockCodecError(
+            "workload_binding campaign_id/ordinal が common_record と不一致"
+        )
+    return value
+
+
+def disclosed_identity_key(intent_sha256: str) -> bytes:
+    """公開 intent digest から A-1 の disclosed HMAC key を決定的に導出する。"""
+    _require_hex(intent_sha256, width=64, label="intent_sha256")
+    return hashlib.sha256(
+        _DISCLOSED_IDENTITY_KEY_DOMAIN + bytes.fromhex(intent_sha256)
+    ).digest()
+
+
+def non_certifying_identity_tag(
+        *, identity_preimage: str, common_record: Mapping[str, Any],
+        workload_binding: Mapping[str, Any],
+) -> str:
+    """A-1 lock field の disclosed-key identity binding tag を返す。"""
+    payload = canonical_json({
+        "identity_preimage": identity_preimage,
+        "common_record": dict(common_record),
+        "workload_binding": dict(workload_binding),
+    }).encode("utf-8")
+    return hmac.new(
+        disclosed_identity_key(common_record["intent_sha256"]),
+        _LOCK_IDENTITY_TAG_DOMAIN + payload,
+        hashlib.sha256,
+    ).hexdigest()
+
+
 def decode_campaign_lock(text: str) -> DecodedCampaignLock:
     """v1/v2 を downgrade なしで判別し、exact wire contract を検査する。"""
     value = _loads(text, label="campaign.lock")
@@ -241,6 +360,10 @@ def decode_campaign_lock(text: str) -> DecodedCampaignLock:
             original_text=text,
         )
 
+    if NON_CERTIFYING_RESERVED_V1_KEYS & set(value):
+        raise CampaignLockCodecError(
+            "非認証 lock reserved field を schema 無し v1 として受理できない"
+        )
     identity = value
     return DecodedCampaignLock(
         schema_version="campaign-lock/v1",
@@ -249,6 +372,88 @@ def decode_campaign_lock(text: str) -> DecodedCampaignLock:
         authority=None,
         original_text=text,
     )
+
+
+def decode_non_certifying_campaign_lock(
+        text: str,
+) -> DecodedNonCertifyingCampaignLock:
+    """A-1 専用非認証 lock の exact schema と disclosed tag を検証する。"""
+    value = _loads(text, label="A-1 non-certifying campaign.lock")
+    if type(value) is not dict or set(value) != NON_CERTIFYING_KEYS:
+        raise CampaignLockCodecError(
+            "A-1 non-certifying lock top-level の exact key 集合が不正"
+        )
+    if value["schema_version"] != NON_CERTIFYING_CAMPAIGN_LOCK_SCHEMA:
+        raise CampaignLockCodecError("A-1 non-certifying lock schema_version が不正")
+    identity_preimage = value["identity_preimage"]
+    identity = _validate_identity(
+        _loads(identity_preimage, label="identity_preimage")
+    )
+    if canonical_json(identity) != identity_preimage:
+        raise CampaignLockCodecError("identity_preimage が canonical JSON でない")
+    envelope = value["a1_non_certifying"]
+    if type(envelope) is not dict or set(envelope) != NON_CERTIFYING_ENVELOPE_KEYS:
+        raise CampaignLockCodecError(
+            "A-1 non-certifying envelope の exact key 集合が不正"
+        )
+    common = _validate_non_certifying_common(envelope["common_record"])
+    workload = _validate_non_certifying_workload(
+        envelope["workload_binding"], common_record=common,
+    )
+    tag = _require_hex(
+        envelope["identity_tag"], width=64,
+        label="a1_non_certifying.identity_tag",
+    )
+    expected = non_certifying_identity_tag(
+        identity_preimage=identity_preimage,
+        common_record=common,
+        workload_binding=workload,
+    )
+    if not hmac.compare_digest(tag, expected):
+        raise CampaignLockCodecError("A-1 non-certifying identity tag mismatch")
+    if canonical_json(value) != text:
+        raise CampaignLockCodecError("A-1 non-certifying outer が canonical JSON でない")
+    return DecodedNonCertifyingCampaignLock(
+        schema_version=NON_CERTIFYING_CAMPAIGN_LOCK_SCHEMA,
+        identity_preimage=identity_preimage,
+        identity=identity,
+        common_record=dict(common),
+        workload_binding=dict(workload),
+        identity_tag=tag,
+        original_text=text,
+    )
+
+
+def encode_non_certifying_campaign_lock(
+        identity_preimage: str, *, common_record: Mapping[str, Any],
+        workload_binding: Mapping[str, Any],
+) -> str:
+    """A-1 専用非認証 lock を canonical encode して自己検証する。"""
+    identity = _validate_identity(
+        _loads(identity_preimage, label="identity_preimage")
+    )
+    if canonical_json(identity) != identity_preimage:
+        raise CampaignLockCodecError("identity_preimage が canonical JSON でない")
+    common = _validate_non_certifying_common(dict(common_record))
+    workload = _validate_non_certifying_workload(
+        dict(workload_binding), common_record=common,
+    )
+    tag = non_certifying_identity_tag(
+        identity_preimage=identity_preimage,
+        common_record=common,
+        workload_binding=workload,
+    )
+    text = canonical_json({
+        "schema_version": NON_CERTIFYING_CAMPAIGN_LOCK_SCHEMA,
+        "identity_preimage": identity_preimage,
+        "a1_non_certifying": {
+            "common_record": common,
+            "workload_binding": workload,
+            "identity_tag": tag,
+        },
+    })
+    decode_non_certifying_campaign_lock(text)
+    return text
 
 
 def encode_campaign_lock_v2(

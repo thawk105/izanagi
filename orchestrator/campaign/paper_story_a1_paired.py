@@ -12,6 +12,7 @@ import argparse
 import ctypes
 import errno
 import hashlib
+import hmac
 import json
 import math
 import os
@@ -25,7 +26,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -33,7 +36,16 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from ..calibrator import runner as calibrator_runner  # noqa: E402
-from . import buildcache, ident, p2_2, pin, site_policy, wal  # noqa: E402
+from . import (  # noqa: E402
+    buildcache,
+    campaign_lock as campaign_lock_codec,
+    ident,
+    p2_2,
+    pin,
+    site_policy,
+    trial_registry,
+    wal,
+)
 from .build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -68,8 +80,31 @@ RESULT_SCHEMA = "paper-story-a1-paired-result/v3"
 RECEIPT_SCHEMA = "paper-story-a1-paired-receipt/v3"
 JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-job-terminal/v3"
 SUBMISSION_SCHEMA = "paper-story-a1-paired-submission/v1"
+SUBMISSION_INTENT_SCHEMA = "paper-story-a1-paired-submission-intent/v1"
 ACQUISITION_SCHEMA = SUBMISSION_SCHEMA
 COMPLETION_SCHEMA = "paper-story-a1-paired-scheduler-completion/v2"
+_SUBMISSION_RECEIPT_KEYS = frozenset({
+    "schema_version", "route", "study_id", "source_commit", "attempt_root",
+    "request_id", "submission_receipt_path", "completion_receipt_path",
+    "qsub_argv", "qsub_options", "submit_observation",
+})
+NON_CERTIFYING_OBSERVATION_SCHEMA = (
+    "paper-story-a1-non-certifying-observation/v1"
+)
+NON_CERTIFYING_OBSERVATION_FILENAME = "non-certifying-observation.json"
+_NON_CERTIFYING_RESULT_KEYS = frozenset({
+    "schema_version", "study_id", "formal", "promotion_prohibited",
+    "authority", "pairing_design", "policy_sha256", "source_binding",
+    "reservation_binding", "pbs_evidence_scope", "workload_reps",
+    "all_workloads_terminal", "complete", "measurement_error", "workloads",
+    "limitations",
+})
+_NON_CERTIFYING_RECEIPT_KEYS = frozenset({
+    "schema_version", "study_id", "formal", "promotion_prohibited", "route",
+    "pbs_jobid", "host", "recorded_epoch", "policy", "source_binding",
+    "submission_receipt", "scheduler_completion_receipt", "roots", "result",
+    "calibration_sha256",
+})
 PAIRING_DESIGN = "arm-grouped-positional-v1"
 ARM_ORDER = ("adaptive", "static10")
 WORKLOAD_ORDER = ("write-heavy", "balanced", "read-heavy")
@@ -86,6 +121,13 @@ SOURCE_RELATIVE_PATHS = (
     POLICY_RELATIVE_PATH,
     PIPELINE_RELATIVE_PATH,
     JOB_RELATIVE_PATH,
+)
+NON_CERTIFYING_SOURCE_RELATIVE_PATHS = SOURCE_RELATIVE_PATHS + (
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/trial_registry.py",
 )
 MATERIALIZATION_RELATIVE_PATH = Path(
     "output/insights/2026-08-26_paper-story-a1-sized"
@@ -168,6 +210,12 @@ _REQUEST_RE = re.compile(r"Request\s+(\S+)\s+submitted")
 _QSTAT_REQUEST_ID_RE = re.compile(
     r"(?im)^\s*Request\s+ID\s*[:=]\s*(\S+)\s*$"
 )
+_QSTAT_STATE_RE = re.compile(
+    r"(?im)^\s*(?:job_state|State)\s*[:=]\s*([A-Za-z]+)\s*$"
+)
+_QSTAT_EXIT_STATUS_RE = re.compile(
+    r"(?im)^\s*(?:exit_status|Exit Status)\s*[:=]\s*(-?\d+)\s*$"
+)
 _PBS_QUEUE = "gen_S"
 NQSV_QSTAT_STATES = frozenset({
     "ARR",
@@ -183,6 +231,7 @@ NQSV_QSTAT_STATES = frozenset({
     "MIG",
     "STG",
 })
+NQSV_QSTAT_TERMINAL_STATES = frozenset({"C", "F", "EXT"})
 _PBS_OBSERVATION_KEYS = frozenset({
     "pbs_jobid",
     "pbs_o_host",
@@ -240,10 +289,40 @@ SCHEDULER_COMPLETION_INTERPRETATION = {
         "success even when a disappeared request has no observable scheduler exit status"
     ),
 }
+_OBSERVATION_TAG_DOMAIN = b"izanagi-a1-observation-identity-tag/v1\0"
+_NON_CERTIFYING_VIEW_TOKEN = object()
 
 
 class PaperStoryError(RuntimeError):
     """The A-1 preregistered contract is not satisfied."""
+
+
+@dataclass(frozen=True, slots=True)
+class NonCertifyingObservationView:
+    """A-1専用consumerが再検証後にだけ発行する局所view。"""
+
+    sidecar_path: Path
+    common_record: Mapping[str, object]
+    campaigns: tuple[Mapping[str, object], ...]
+    result: Mapping[str, object]
+    receipt: Mapping[str, object]
+    _token: object = field(repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self._token is not _NON_CERTIFYING_VIEW_TOKEN:
+            raise TypeError(
+                "NonCertifyingObservationView は A-1専用consumerだけが発行できる"
+            )
+
+
+def _freeze_json(value: object) -> object:
+    if type(value) is dict:
+        return MappingProxyType({
+            key: _freeze_json(item) for key, item in value.items()
+        })
+    if type(value) is list:
+        return tuple(_freeze_json(item) for item in value)
+    return value
 
 
 def _reject_duplicate_keys(pairs):
@@ -355,6 +434,26 @@ def _qstat_mentions_request(stdout: str, request_id: str) -> bool:
         except PaperStoryError:
             continue
     return False
+
+
+def _parse_qstat_terminal(stdout: str) -> tuple[str, str, int]:
+    """Parse the request ID, state, and exit status from terminal qstat output."""
+    if type(stdout) is not str:
+        raise PaperStoryError("qstat stdout is not a string")
+    request_matches = _QSTAT_REQUEST_ID_RE.findall(stdout)
+    state_matches = _QSTAT_STATE_RE.findall(stdout)
+    exit_matches = _QSTAT_EXIT_STATUS_RE.findall(stdout)
+    if (
+        len(request_matches) != 1
+        or len(state_matches) != 1
+        or len(exit_matches) != 1
+    ):
+        raise PaperStoryError("visible scheduler request is not terminal")
+    return (
+        _validated_request_id(request_matches[0], "observed qstat request ID"),
+        state_matches[0],
+        int(exit_matches[0]),
+    )
 
 
 def _validate_reservation_binding_document(value: object) -> dict[str, object]:
@@ -689,8 +788,19 @@ def workload_flags(policy: Mapping[str, object], workload_name: str) -> dict[str
     }
 
 
+def _a1_noncertifying_marker_fields() -> dict[str, object]:
+    return {
+        "formal": False,
+        "promotion_prohibited": True,
+        "non_certifying_mode": (
+            trial_registry.REGISTERED_FORMAL_NON_CERTIFYING_MODE
+        ),
+    }
+
+
 def campaign_config(
     policy: Mapping[str, object], workload_name: str, *, contract=None,
+    non_certifying: bool = False,
 ) -> CampaignConfig:
     validate_policy(policy)
     contract = contract or p2_2._legacy_linux_contract()
@@ -709,9 +819,16 @@ def campaign_config(
         "workload": {"name": workload_name, **flags},
         "scale": _campaign_scale(policy, workload_name),
         "pairing_design": policy["pairing"]["design"],
-        "formal": False,
-        "promotion_prohibited": True,
     }
+    if type(non_certifying) is not bool:
+        raise PaperStoryError("non_certifying selector must be an exact bool")
+    if non_certifying:
+        search_config.update(_a1_noncertifying_marker_fields())
+    else:
+        search_config.update({
+            "formal": False,
+            "promotion_prohibited": True,
+        })
     cfg = CampaignConfig(
         spec_slug=f"paper-story-a1-{workload_name}",
         search_tag="paired",
@@ -843,6 +960,198 @@ def _attempt_evidence_paths(attempt: Path) -> dict[str, str]:
     }
 
 
+def _attempt_intent_path(attempt: Path) -> Path:
+    return attempt.parent / f"{attempt.name}.intent.json"
+
+
+def _submission_intent_digest(value: Mapping[str, object]) -> str:
+    payload = dict(value)
+    supplied = payload.pop("intent_sha256", None)
+    if supplied is not None and (
+        type(supplied) is not str or _FULL_SHA256.fullmatch(supplied) is None
+    ):
+        raise PaperStoryError("submission intent digest shape differs")
+    return _sha256_bytes(_canonical_json_bytes(payload))
+
+
+def _validate_submission_intent(
+    value: object,
+    *,
+    repo_root: Path,
+    source_commit: str,
+    attempt: Path,
+) -> dict[str, object]:
+    if type(value) is not dict or set(value) != {
+        "schema_version", "study_id", "source_commit", "attempt_root",
+        "qsub_argv", "qsub_options", "source_binding", "intent_sha256",
+    }:
+        raise PaperStoryError("submission intent shape differs")
+    expected_argv, expected_options = _canonical_qsub_contract(
+        repo_root=repo_root,
+        study_id=STUDY_ID,
+        source_commit=source_commit,
+        attempt=attempt,
+    )
+    if (
+        value.get("schema_version") != SUBMISSION_INTENT_SCHEMA
+        or value.get("study_id") != STUDY_ID
+        or value.get("source_commit") != source_commit
+        or value.get("attempt_root") != os.fspath(attempt)
+        or value.get("qsub_argv") != expected_argv
+        or value.get("qsub_options") != expected_options
+        or not _validate_non_certifying_source_binding(value.get("source_binding"))
+        or value.get("intent_sha256") != _submission_intent_digest(value)
+    ):
+        raise PaperStoryError("submission intent identity differs")
+    _verify_current_source_paths(
+        repo_root,
+        source_commit,
+        value["source_binding"],
+        relative_paths=NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        label="submission intent",
+    )
+    return dict(value)
+
+
+def _run_qsub(
+    argv: Sequence[str], *, cwd: Path,
+) -> subprocess.CompletedProcess[str]:
+    """Production direct qsub call site; tests monkeypatch this private seam."""
+    return subprocess.run(
+        list(argv), text=True, capture_output=True, check=False, cwd=cwd,
+    )
+
+
+def _assert_submit_a1_noncertifying_markers() -> None:
+    """Refuse before intent/qsub if the tracked A-1 producer markers drift."""
+    cfg = CampaignConfig(
+        spec_slug="paper-story-a1-submit-marker",
+        spec_content="paper-story A-1 submit marker",
+        ccbench_commit=pin.CURRENT_PIN,
+        search_tag="paired",
+        search_config={
+            "schema": "paper-story-a1-paired-campaign/v1",
+            "study_id": STUDY_ID,
+            "pairing_design": PAIRING_DESIGN,
+            **_a1_noncertifying_marker_fields(),
+        },
+        trial=STUDY_ID,
+    )
+    if (
+        tuple(WORKLOAD_ORDER) != trial_registry.A1_NON_CERTIFYING_WORKLOADS
+        or not ident.is_a1_non_certifying_config(cfg)
+    ):
+        raise PaperStoryError(
+            "A-1 formal/promotion_prohibited marker differs before submit"
+        )
+
+
+def _observe_qstat_visibility(request_id: str) -> dict[str, object]:
+    """Observe the submitted NQSV request once through direct qstat."""
+    completed = subprocess.run(
+        ["qstat", "-f", _validated_request_id(request_id, "qstat request ID")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    stdout = completed.stdout
+    state_match = re.search(
+        r"(?im)^\s*(?:job_state|State)\s*[:=]\s*([A-Za-z]+)\s*$", stdout,
+    )
+    queue_match = re.search(
+        r"(?im)^\s*(?:queue|Queue)\s*[:=]\s*(\S+)\s*$", stdout,
+    )
+    state = state_match.group(1) if state_match is not None else None
+    queue = queue_match.group(1) if queue_match is not None else None
+    visible = completed.returncode == 0 and _qstat_mentions_request(
+        stdout, request_id,
+    )
+    if not visible or state not in NQSV_QSTAT_STATES or queue != _PBS_QUEUE:
+        raise PaperStoryError("qstat did not visibly bind the submitted request")
+    return {
+        "request_id": request_id,
+        "visible": True,
+        "state": state,
+        "queue": queue,
+        "observed_epoch": int(time.time()),
+    }
+
+
+def run_submit(args) -> int:
+    """Create an intent before direct qsub, then publish one submission receipt."""
+    repo_root = _repo_root().resolve(strict=True)
+    policy, _policy_sha = load_policy()
+    _assert_submit_a1_noncertifying_markers()
+    if args.expected_head != _run_git(repo_root, "rev-parse", "HEAD"):
+        raise PaperStoryError("current HEAD differs from expected HEAD")
+    if _run_git(repo_root, "status", "--porcelain", "--untracked-files=all"):
+        raise PaperStoryError("working tree is dirty")
+    base = _durable_measurement_base(policy)
+    attempt = _validate_attempt_root(Path(args.attempt_root), base)
+    evidence = _attempt_evidence_paths(attempt)
+    intent_path = _attempt_intent_path(attempt)
+    submission_path = Path(evidence["submission_receipt"])
+    if os.path.lexists(submission_path):
+        raise PaperStoryError("submission receipt already exists")
+    if os.path.lexists(intent_path):
+        raise PaperStoryError(
+            "submission indeterminate: intent exists without submission receipt; "
+            "qsub will not be repeated"
+        )
+    if os.path.lexists(attempt):
+        raise PaperStoryError("submit attempt root must not already exist")
+    argv, options = _canonical_qsub_contract(
+        repo_root=repo_root,
+        study_id=STUDY_ID,
+        source_commit=args.expected_head,
+        attempt=attempt,
+    )
+    intent = {
+        "schema_version": SUBMISSION_INTENT_SCHEMA,
+        "study_id": STUDY_ID,
+        "source_commit": args.expected_head,
+        "attempt_root": os.fspath(attempt),
+        "qsub_argv": argv,
+        "qsub_options": options,
+        "source_binding": _non_certifying_source_binding(
+            repo_root, args.expected_head,
+        ),
+    }
+    intent["intent_sha256"] = _submission_intent_digest(intent)
+    _exclusive_write(intent_path, intent)
+    _fsync_directory(intent_path.parent)
+    completed = _run_qsub(argv, cwd=repo_root)
+    if completed.returncode != 0 or completed.stderr != "":
+        raise PaperStoryError(
+            "qsub failed after durable intent; submission is indeterminate"
+        )
+    request_id = _parse_request_id(completed.stdout)
+    visibility = _observe_qstat_visibility(request_id)
+    receipt = {
+        "schema_version": SUBMISSION_SCHEMA,
+        "route": "direct-qsub",
+        "study_id": STUDY_ID,
+        "source_commit": args.expected_head,
+        "attempt_root": os.fspath(attempt),
+        "request_id": request_id,
+        "submission_receipt_path": evidence["submission_receipt"],
+        "completion_receipt_path": evidence["completion_receipt"],
+        "qsub_argv": argv,
+        "qsub_options": options,
+        "submit_observation": {
+            "submit_host": socket.gethostname(),
+            "qsub_stdout": completed.stdout,
+            "qsub_stdout_sha256": _sha256_bytes(completed.stdout.encode("utf-8")),
+            "qsub_stderr": completed.stderr,
+            "qsub_stderr_sha256": _sha256_bytes(completed.stderr.encode("utf-8")),
+            "qstat_visibility": visibility,
+        },
+    }
+    _exclusive_write(submission_path, receipt)
+    _fsync_directory(submission_path.parent)
+    return 0
+
+
 def _canonical_qsub_contract(
     *,
     repo_root: Path,
@@ -924,19 +1233,7 @@ def validate_acquisition_receipt(
     policy: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     policy = policy if policy is not None else load_policy()[0]
-    if type(receipt) is not dict or set(receipt) != {
-        "schema_version",
-        "route",
-        "study_id",
-        "source_commit",
-        "attempt_root",
-        "request_id",
-        "submission_receipt_path",
-        "completion_receipt_path",
-        "qsub_argv",
-        "qsub_options",
-        "submit_observation",
-    }:
+    if type(receipt) is not dict or set(receipt) != _SUBMISSION_RECEIPT_KEYS:
         raise PaperStoryError("submission receipt shape differs")
     if receipt.get("schema_version") != SUBMISSION_SCHEMA:
         raise PaperStoryError("submission receipt schema differs")
@@ -1184,17 +1481,26 @@ def validate_completion_receipt(
     state = terminal.get("state")
     exit_status = terminal.get("exit_status")
     if terminal_reason == "scheduler-end-state":
+        parsed_request_id, parsed_state, parsed_exit_status = (
+            _parse_qstat_terminal(qstat_stdout)
+        )
         if (
             terminal.get("qstat_visible") is not True
             or type(state) is not dict
             or set(state) != {"observed", "value"}
             or state.get("observed") is not True
-            or state.get("value") not in {"C", "F"}
+            or state.get("value") not in NQSV_QSTAT_TERMINAL_STATES
             or type(exit_status) is not dict
             or set(exit_status) != {"observed", "value"}
             or exit_status.get("observed") is not True
             or type(exit_status.get("value")) is not int
             or exit_status.get("value") != 0
+            or parsed_request_id
+            != _validated_request_id(
+                receipt.get("request_id"), "completion request ID"
+            )
+            or parsed_state != state.get("value")
+            or parsed_exit_status != exit_status.get("value")
         ):
             raise PaperStoryError("visible scheduler terminal observation differs")
     elif terminal_reason == "request-disappeared-after-visibility":
@@ -1213,6 +1519,137 @@ def validate_completion_receipt(
     else:
         raise PaperStoryError("scheduler terminal reason differs")
     return receipt
+
+
+def _observe_scheduler_terminal(
+    request_id: str, submission_receipt: Mapping[str, object],
+) -> dict[str, object]:
+    """Observe one scheduler terminal form through direct qstat."""
+    completed = subprocess.run(
+        ["qstat", "-f", _validated_request_id(request_id, "completion request ID")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    stdout = completed.stdout
+    if completed.returncode != 0 or not stdout:
+        raise PaperStoryError("scheduler terminal qstat observation failed")
+    observed_epoch = int(time.time())
+    if not _qstat_mentions_request(stdout, request_id):
+        _validate_prior_qstat_visibility(
+            submission_receipt,
+            request_id=request_id,
+            terminal_observed_epoch=observed_epoch,
+        )
+        return {
+            "terminal_reason": "request-disappeared-after-visibility",
+            "qstat_visible": False,
+            "qstat_rc": completed.returncode,
+            "state": {"observed": False},
+            "exit_status": {"observed": False},
+            "observed_epoch": observed_epoch,
+            "qstat_stdout": stdout,
+            "qstat_stdout_sha256": _sha256_bytes(stdout.encode("utf-8")),
+        }
+    parsed_request_id, state, exit_status = _parse_qstat_terminal(stdout)
+    if (
+        parsed_request_id
+        != _validated_request_id(request_id, "completion request ID")
+        or state not in NQSV_QSTAT_TERMINAL_STATES
+    ):
+        raise PaperStoryError("visible scheduler request is not terminal")
+    return {
+        "terminal_reason": "scheduler-end-state",
+        "qstat_visible": True,
+        "qstat_rc": completed.returncode,
+        "state": {"observed": True, "value": state},
+        "exit_status": {"observed": True, "value": exit_status},
+        "observed_epoch": observed_epoch,
+        "qstat_stdout": stdout,
+        "qstat_stdout_sha256": _sha256_bytes(stdout.encode("utf-8")),
+    }
+
+
+def run_complete(args) -> int:
+    """Publish only the one-shot scheduler completion receipt."""
+    repo_root = _repo_root().resolve(strict=True)
+    policy, _policy_sha = load_policy()
+    attempt = _validate_attempt_root(
+        Path(args.attempt_root), _durable_measurement_base(policy),
+    )
+    evidence = _attempt_evidence_paths(attempt)
+    submission_path = Path(evidence["submission_receipt"])
+    submission_raw = _read_bytes_once(submission_path)
+    if submission_raw is None:  # pragma: no cover
+        raise PaperStoryError("submission receipt is missing")
+    submission = _decode_json_bytes(submission_raw, "submission receipt")
+    intent_raw = _read_bytes_once(_attempt_intent_path(attempt))
+    if intent_raw is None:  # pragma: no cover
+        raise PaperStoryError("submission intent is missing")
+    intent = _validate_submission_intent(
+        _decode_json_bytes(intent_raw, "submission intent"),
+        repo_root=repo_root,
+        source_commit=args.expected_head,
+        attempt=attempt,
+    )
+    if (
+        type(submission) is not dict
+        or set(submission) != _SUBMISSION_RECEIPT_KEYS
+        or submission.get("schema_version") != SUBMISSION_SCHEMA
+        or submission.get("route") != "direct-qsub"
+        or submission.get("study_id") != STUDY_ID
+        or submission.get("source_commit") != args.expected_head
+        or submission.get("attempt_root") != os.fspath(attempt)
+        or submission.get("submission_receipt_path")
+        != evidence["submission_receipt"]
+        or submission.get("completion_receipt_path")
+        != evidence["completion_receipt"]
+        or submission.get("qsub_argv") != intent["qsub_argv"]
+        or submission.get("qsub_options") != intent["qsub_options"]
+    ):
+        raise PaperStoryError("submission receipt differs from its intent")
+    request_id = submission.get("request_id")
+    _validate_raw_non_certifying_observation_for_completion(
+        attempt / "raw" / "results" / NON_CERTIFYING_OBSERVATION_FILENAME,
+        expected_head=args.expected_head,
+        attempt=attempt,
+        request_id=request_id,
+    )
+    scheduler_terminal = _observe_scheduler_terminal(request_id, submission)
+    terminal_path = attempt / "raw" / "job-terminal.json"
+    required = {
+        "stdout": Path(evidence["stdout_path"]),
+        "stderr": Path(evidence["stderr_path"]),
+        "job_terminal": terminal_path,
+    }
+    bindings = {}
+    for label, path in required.items():
+        raw = _read_bytes_once(path)
+        if raw is None:  # pragma: no cover
+            raise PaperStoryError(f"completion input is missing: {label}")
+        bindings[label] = {
+            "path": os.fspath(path),
+            "sha256": _sha256_bytes(raw),
+        }
+    completion = {
+        "schema_version": COMPLETION_SCHEMA,
+        "study_id": STUDY_ID,
+        "source_commit": args.expected_head,
+        "attempt_root": os.fspath(attempt),
+        "request_id": request_id,
+        "submission_receipt": {
+            "path": os.fspath(submission_path),
+            "sha256": _sha256_bytes(submission_raw),
+        },
+        "scheduler_terminal": scheduler_terminal,
+        "stdout": bindings["stdout"],
+        "stderr": bindings["stderr"],
+        "job_terminal": bindings["job_terminal"],
+    }
+    completion_path = Path(evidence["completion_receipt"])
+    _exclusive_write(completion_path, completion)
+    _fsync_directory(completion_path.parent)
+    return 0
 
 
 def validate_measure_environment(
@@ -1275,11 +1712,15 @@ def validate_measure_environment(
     return roots
 
 
-def _source_binding(repo_root: Path, expected_head: str) -> dict:
+def _source_binding_for_paths(
+    repo_root: Path,
+    expected_head: str,
+    relative_paths: Sequence[str],
+) -> dict:
     if _run_git(repo_root, "rev-parse", "HEAD") != expected_head:
         raise PaperStoryError("source HEAD moved before source binding")
     files = {}
-    for relative in SOURCE_RELATIVE_PATHS:
+    for relative in relative_paths:
         oid = _run_git(repo_root, "rev-parse", f"{expected_head}:{relative}")
         if not _FULL_OID.fullmatch(oid):
             raise PaperStoryError(f"source git blob OID is invalid: {relative}")
@@ -1297,6 +1738,20 @@ def _source_binding(repo_root: Path, expected_head: str) -> dict:
         "artifact_standalone_proof": False,
     }
     return binding
+
+
+def _source_binding(repo_root: Path, expected_head: str) -> dict:
+    return _source_binding_for_paths(
+        repo_root, expected_head, SOURCE_RELATIVE_PATHS,
+    )
+
+
+def _non_certifying_source_binding(
+    repo_root: Path, expected_head: str,
+) -> dict:
+    return _source_binding_for_paths(
+        repo_root, expected_head, NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+    )
 
 
 def _classify_difference(mean: float, half_width: float, boundary: float) -> str:
@@ -1433,7 +1888,9 @@ def _valid_physical_frame(frame: Mapping[str, object]) -> bool:
     )
 
 
-def _validate_source_binding(binding: object) -> bool:
+def _validate_source_binding_for_paths(
+    binding: object, relative_paths: Sequence[str],
+) -> bool:
     if type(binding) is not dict or set(binding) != {
         "measurement_source_commit",
         "files",
@@ -1442,9 +1899,9 @@ def _validate_source_binding(binding: object) -> bool:
     }:
         return False
     files = binding.get("files")
-    if type(files) is not dict or set(files) != set(SOURCE_RELATIVE_PATHS):
+    if type(files) is not dict or set(files) != set(relative_paths):
         return False
-    for relative in SOURCE_RELATIVE_PATHS:
+    for relative in relative_paths:
         item = files.get(relative)
         if (
             type(item) is not dict
@@ -1460,6 +1917,16 @@ def _validate_source_binding(binding: object) -> bool:
         and _FULL_OID.fullmatch(binding["measurement_source_commit"]) is not None
         and binding.get("evidence_level") == "source-routed-trace0"
         and binding.get("artifact_standalone_proof") is False
+    )
+
+
+def _validate_source_binding(binding: object) -> bool:
+    return _validate_source_binding_for_paths(binding, SOURCE_RELATIVE_PATHS)
+
+
+def _validate_non_certifying_source_binding(binding: object) -> bool:
+    return _validate_source_binding_for_paths(
+        binding, NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
     )
 
 
@@ -1688,6 +2155,7 @@ def _validate_arm(
     workload_name: str,
     env_tag: str,
     source_binding: Mapping[str, object],
+    require_anomalies_zero: bool = False,
 ) -> dict:
     name = arm_policy["name"]
     errors: list[str] = []
@@ -1776,6 +2244,11 @@ def _validate_arm(
         verify_tags.append(workload.get("tag") if type(workload) is dict else None)
         if payload.get("certified") is not True:
             errors.append("verify-not-certified")
+        if require_anomalies_zero and (
+            type(payload.get("anomalies")) is not int
+            or payload["anomalies"] != 0
+        ):
+            errors.append("verify-anomalies-not-zero")
     if verify_tags != list(EXPECTED_VERIFY_CONFIGS):
         errors.append("verify-config-sequence-mismatch")
     if commit.get("verify_configs") != list(EXPECTED_VERIFY_CONFIGS):
@@ -1890,6 +2363,7 @@ def validate_workload_evidence(
     source_binding: Mapping[str, object],
     preexisting_errors: Sequence[str] = (),
     campaign_binding: Mapping[str, object] | None = None,
+    non_certifying_lock: bool = False,
 ) -> dict:
     validate_policy(policy)
     errors = list(preexisting_errors)
@@ -1921,6 +2395,7 @@ def validate_workload_evidence(
             workload_name=workload_name,
             env_tag=env_tag,
             source_binding=source_binding,
+            require_anomalies_zero=non_certifying_lock,
         )
         arm_results[arm_policy["name"]] = arm_result
         errors.extend(f"{arm_policy['name']}:{item}" for item in arm_result["errors"])
@@ -1985,35 +2460,16 @@ def _campaign_identity_preimage(canonical_lock: object) -> str | None:
     if type(canonical_lock) is not str:
         return None
     try:
-        lock = json.loads(
-            canonical_lock,
-            object_pairs_hook=_reject_duplicate_keys,
-            parse_constant=_reject_constant,
-        )
-    except (json.JSONDecodeError, PaperStoryError):
-        return None
-    if (
-        type(lock) is not dict
-        or set(lock) != {"authority", "identity_preimage", "schema_version"}
-        or lock.get("schema_version") != "campaign-lock/v2"
-        or type(lock.get("authority")) is not dict
-        or not lock["authority"]
-        or type(lock.get("identity_preimage")) is not str
-    ):
-        return None
+        return campaign_lock_codec.decode_non_certifying_campaign_lock(
+            canonical_lock
+        ).identity_preimage
+    except campaign_lock_codec.CampaignLockCodecError:
+        pass
     try:
-        reproduced = json.dumps(
-            lock,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        )
-    except (TypeError, ValueError):
+        decoded = campaign_lock_codec.decode_campaign_lock(canonical_lock)
+    except campaign_lock_codec.CampaignLockCodecError:
         return None
-    if reproduced != canonical_lock:
-        return None
-    return lock["identity_preimage"]
+    return decoded.identity_preimage if decoded.is_v2 else None
 
 
 def _validate_campaign_preimage(
@@ -2043,11 +2499,21 @@ def _validate_campaign_preimage(
     ):
         return False
     search = value["search_config"]
-    if set(search) != {
+    expected_search_keys = {
         "arm_order", "arms", "build_admission", "formal", "measurement_env",
         "pairing_design", "promotion_prohibited", "scale", "schema",
         "study_id", "workload",
-    }:
+    }
+    if set(search) not in (
+        expected_search_keys,
+        expected_search_keys | {"non_certifying_mode"},
+    ):
+        return False
+    if (
+        "non_certifying_mode" in search
+        and search["non_certifying_mode"]
+        != trial_registry.REGISTERED_FORMAL_NON_CERTIFYING_MODE
+    ):
         return False
     expected_arms = [
         {
@@ -2228,6 +2694,7 @@ def collect_workload(
     if lock_raw is None:
         preexisting_errors.append("campaign-lock-snapshot-missing")
     lock_preimage = None
+    decoded_snapshot_lock = None
     physical_frames: list[dict] = []
     if wal_raw is not None and lock_raw is not None:
         try:
@@ -2255,7 +2722,21 @@ def collect_workload(
                 if truncated_tail:
                     preexisting_errors.append("wal-truncated-tail")
                 try:
-                    replayed = wal.replay(snapshot, admission_policy=admission_policy)
+                    try:
+                        decoded_snapshot_lock = (
+                            campaign_lock_codec.decode_non_certifying_campaign_lock(
+                                lock_preimage
+                            )
+                        )
+                    except campaign_lock_codec.CampaignLockCodecError:
+                        decoded_snapshot_lock = None
+                    replay_fn = (
+                        wal.replay_a1_non_certifying
+                        if decoded_snapshot_lock is not None else wal.replay
+                    )
+                    replayed = replay_fn(
+                        snapshot, admission_policy=admission_policy,
+                    )
                     replay_variants = set(replayed)
                     physical_variants = {
                         frame["variant"] for frame in physical_frames
@@ -2321,6 +2802,10 @@ def collect_workload(
         source_binding=source_binding,
         preexisting_errors=preexisting_errors,
         campaign_binding=campaign_binding,
+        non_certifying_lock=(
+            type(decoded_snapshot_lock)
+            is campaign_lock_codec.DecodedNonCertifyingCampaignLock
+        ),
     )
 
 
@@ -2427,6 +2912,531 @@ def _prepare_runtime_roots(roots: Mapping[str, str], env_tag: str) -> None:
         raise PaperStoryError(f"fresh runtime root creation failed: {exc}") from exc
 
 
+def _measurement_intent(
+    *, acquisition: Mapping[str, object], repo_root: Path, attempt: Path,
+    source_commit: str,
+) -> dict[str, object]:
+    raw = _read_bytes_once(_attempt_intent_path(attempt))
+    if raw is None:  # pragma: no cover
+        raise PaperStoryError("submission intent is missing")
+    intent = _validate_submission_intent(
+        _decode_json_bytes(raw, "submission intent"),
+        repo_root=repo_root,
+        source_commit=source_commit,
+        attempt=attempt,
+    )
+    if (
+        acquisition.get("qsub_argv") != intent["qsub_argv"]
+        or acquisition.get("qsub_options") != intent["qsub_options"]
+        or acquisition.get("attempt_root") != intent["attempt_root"]
+        or acquisition.get("source_commit") != intent["source_commit"]
+    ):
+        raise PaperStoryError("submission receipt differs from its create-only intent")
+    return intent
+
+
+def _a1_common_record(
+    projection: trial_registry.A1RegisteredNonCertifyingProjection,
+    *,
+    source_binding: Mapping[str, object],
+    environment_contract_sha256: str,
+    intent_sha256: str,
+) -> dict[str, object]:
+    record = trial_registry.a1_registered_noncertifying_record(projection)
+    return {
+        **record,
+        "source_binding_sha256": _sha256_bytes(
+            campaign_lock_codec.canonical_json(dict(source_binding)).encode("utf-8")
+        ),
+        "environment_contract_sha256": environment_contract_sha256,
+        "intent_sha256": intent_sha256,
+    }
+
+
+def _preseed_a1_non_certifying_locks(
+    *,
+    configs: Sequence[CampaignConfig],
+    layouts: Sequence[CampaignLayout],
+    workloads: Sequence[str],
+    common_record: Mapping[str, object],
+) -> None:
+    if not (
+        len(configs) == len(layouts) == len(workloads) == 3
+        and list(workloads) == list(WORKLOAD_ORDER)
+    ):
+        raise PaperStoryError("A-1 lock preseed requires the exact workload triple")
+    if any(not ident.is_a1_non_certifying_config(cfg) for cfg in configs):
+        raise PaperStoryError(
+            "A-1 formal/promotion_prohibited marker differs before lock preseed"
+        )
+    for ordinal, (cfg, layout, workload) in enumerate(
+        zip(configs, layouts, workloads)
+    ):
+        layout.ensure()
+        identity_preimage = ident.canonical_preimage(cfg)
+        campaign_id = str(ident.campaign_id(cfg))
+        lock_text = campaign_lock_codec.encode_non_certifying_campaign_lock(
+            identity_preimage,
+            common_record=common_record,
+            workload_binding={
+                "workload": workload,
+                "campaign_id": campaign_id,
+                "ordinal": ordinal,
+            },
+        )
+        if wal.acquire_lock_atomic(layout, lock_text):
+            continue
+        stored = wal.read_lock(layout)
+        if stored != lock_text:
+            raise PaperStoryError("existing A-1 non-certifying lock differs")
+
+
+def _observation_identity_tag(value: Mapping[str, object]) -> str:
+    common = value.get("common_record")
+    if type(common) is not dict:
+        raise PaperStoryError("observation common record is missing")
+    payload = dict(value)
+    payload.pop("observation_tag", None)
+    try:
+        key = campaign_lock_codec.disclosed_identity_key(
+            common.get("intent_sha256")
+        )
+    except campaign_lock_codec.CampaignLockCodecError as exc:
+        raise PaperStoryError("observation intent digest is invalid") from exc
+    return hmac.new(
+        key,
+        _OBSERVATION_TAG_DOMAIN + _canonical_json_bytes(payload),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _validate_observation_intent_binding(
+    *,
+    common_record: Mapping[str, object],
+    receipt: Mapping[str, object],
+    source_binding: Mapping[str, object],
+) -> None:
+    roots = receipt.get("roots")
+    attempt_root = roots.get("attempt_root") if type(roots) is dict else None
+    if type(attempt_root) is not str or not Path(attempt_root).is_absolute():
+        raise PaperStoryError("non-certifying receipt attempt binding differs")
+    attempt = Path(attempt_root)
+    raw = _read_bytes_once(_attempt_intent_path(attempt))
+    if raw is None:  # pragma: no cover - missing_ok is false
+        raise PaperStoryError("non-certifying submission intent is missing")
+    intent = _decode_json_bytes(raw, "non-certifying submission intent")
+    if type(intent) is not dict or set(intent) != {
+        "schema_version", "study_id", "source_commit", "attempt_root",
+        "qsub_argv", "qsub_options", "source_binding", "intent_sha256",
+    }:
+        raise PaperStoryError("non-certifying submission intent shape differs")
+    if (
+        intent.get("schema_version") != SUBMISSION_INTENT_SCHEMA
+        or intent.get("study_id") != STUDY_ID
+        or intent.get("source_commit") != common_record.get("source_commit")
+        or intent.get("attempt_root") != attempt_root
+        or not _validate_non_certifying_source_binding(intent.get("source_binding"))
+        or intent.get("source_binding") != source_binding
+        or intent.get("intent_sha256") != _submission_intent_digest(intent)
+        or intent.get("intent_sha256") != common_record.get("intent_sha256")
+    ):
+        raise PaperStoryError("non-certifying submission intent binding differs")
+
+
+def _assert_observation_anomalies_zero(result: Mapping[str, object]) -> None:
+    workloads = result.get("workloads")
+    if type(workloads) is not list or len(workloads) != len(WORKLOAD_ORDER):
+        raise PaperStoryError("non-certifying anomaly evidence set differs")
+    verify_count = 0
+    for workload in workloads:
+        wal_evidence = (
+            workload.get("wal_evidence") if type(workload) is dict else None
+        )
+        records = wal_evidence.get("records") if type(wal_evidence) is dict else None
+        if type(records) is not list:
+            raise PaperStoryError("non-certifying anomaly evidence is missing")
+        for record in records:
+            if type(record) is not dict or record.get("stage") != STAGE_VERIFY_DONE:
+                continue
+            payload = record.get("payload")
+            anomalies = payload.get("anomalies") if type(payload) is dict else None
+            if type(anomalies) is not int or anomalies != 0:
+                raise PaperStoryError("non-certifying observation anomalies are nonzero")
+            verify_count += 1
+    expected = len(WORKLOAD_ORDER) * len(ARM_ORDER) * len(EXPECTED_VERIFY_CONFIGS)
+    if verify_count != expected:
+        raise PaperStoryError("non-certifying anomaly evidence cardinality differs")
+
+
+def _read_observation_binding(binding: object, *, label: str) -> bytes:
+    if type(binding) is not dict or set(binding) != {"path", "sha256"}:
+        raise PaperStoryError(f"non-certifying {label} binding differs")
+    raw_path = binding.get("path")
+    digest = binding.get("sha256")
+    if (
+        type(raw_path) is not str
+        or not Path(raw_path).is_absolute()
+        or type(digest) is not str
+        or _FULL_SHA256.fullmatch(digest) is None
+    ):
+        raise PaperStoryError(f"non-certifying {label} binding differs")
+    raw = _read_bytes_once(Path(raw_path))
+    if raw is None or _sha256_bytes(raw) != digest:
+        raise PaperStoryError(f"non-certifying {label} digest differs")
+    return raw
+
+
+def _issue_non_certifying_observation(
+    *,
+    common_record: Mapping[str, object],
+    source_binding: Mapping[str, object],
+    workloads: Sequence[Mapping[str, object]],
+    result_path: Path,
+    receipt_path: Path,
+) -> Path:
+    campaigns = []
+    for workload in workloads:
+        binding = workload.get("campaign_binding")
+        wal_evidence = workload.get("wal_evidence")
+        if type(binding) is not dict or type(wal_evidence) is not dict:
+            raise PaperStoryError("observation workload binding is missing")
+        campaigns.append({
+            "workload": workload.get("workload"),
+            "campaign_id": workload.get("campaign_id"),
+            "campaign_lock": {
+                "path": binding.get("campaign_lock_path"),
+                "sha256": binding.get("campaign_lock_sha256"),
+            },
+            "wal": {
+                "path": wal_evidence.get("path"),
+                "sha256": wal_evidence.get("sha256"),
+            },
+        })
+    sidecar = {
+        "schema_version": NON_CERTIFYING_OBSERVATION_SCHEMA,
+        "common_record": dict(common_record),
+        "source_binding": dict(source_binding),
+        "campaigns": campaigns,
+        "result": {
+            "path": os.fspath(result_path),
+            "sha256": _sha256_file(result_path),
+        },
+        "receipt": {
+            "path": os.fspath(receipt_path),
+            "sha256": _sha256_file(receipt_path),
+        },
+    }
+    sidecar["observation_tag"] = _observation_identity_tag(sidecar)
+    sidecar_path = result_path.parent / NON_CERTIFYING_OBSERVATION_FILENAME
+    _exclusive_write(sidecar_path, sidecar)
+    _fsync_directory(sidecar_path.parent)
+    return sidecar_path
+
+
+def _validate_non_certifying_observation_contents(
+    sidecar_path: Path,
+) -> dict[str, object]:
+    """Completion receipt に依存しない sidecar と測定 bytes を再検証する。"""
+    path = Path(sidecar_path).resolve(strict=True)
+    value = _read_json(path)
+    if type(value) is not dict or set(value) != {
+        "schema_version", "common_record", "source_binding", "campaigns",
+        "result", "receipt", "observation_tag",
+    }:
+        raise PaperStoryError("non-certifying observation shape differs")
+    if value.get("schema_version") != NON_CERTIFYING_OBSERVATION_SCHEMA:
+        raise PaperStoryError("non-certifying observation schema differs")
+    expected_tag = _observation_identity_tag(value)
+    if (
+        type(value.get("observation_tag")) is not str
+        or not hmac.compare_digest(value["observation_tag"], expected_tag)
+    ):
+        raise PaperStoryError("non-certifying observation tag mismatch")
+    common = value.get("common_record")
+    campaigns = value.get("campaigns")
+    if (
+        type(common) is not dict
+        or type(campaigns) is not list
+        or len(campaigns) != 3
+        or [item.get("workload") for item in campaigns if type(item) is dict]
+        != list(WORKLOAD_ORDER)
+    ):
+        raise PaperStoryError("non-certifying observation campaign set differs")
+    for ordinal, item in enumerate(campaigns):
+        if type(item) is not dict or set(item) != {
+            "workload", "campaign_id", "campaign_lock", "wal",
+        }:
+            raise PaperStoryError("non-certifying campaign binding shape differs")
+        lock_raw = _read_observation_binding(
+            item["campaign_lock"], label="campaign_lock",
+        )
+        try:
+            lock_text = lock_raw.decode("utf-8")
+            decoded = campaign_lock_codec.decode_non_certifying_campaign_lock(
+                lock_text
+            )
+        except (UnicodeError, campaign_lock_codec.CampaignLockCodecError) as exc:
+            raise PaperStoryError("non-certifying campaign lock is invalid") from exc
+        if (
+            decoded.common_record != common
+            or decoded.workload_binding != {
+                "workload": item["workload"],
+                "campaign_id": item["campaign_id"],
+                "ordinal": ordinal,
+            }
+        ):
+            raise PaperStoryError("non-certifying lock/workload binding differs")
+        _read_observation_binding(item["wal"], label="wal")
+    references = {}
+    for label in ("result", "receipt"):
+        raw = _read_observation_binding(value[label], label=label)
+        references[label] = _decode_json_bytes(raw, label)
+    result = references["result"]
+    receipt = references["receipt"]
+    if (
+        set(result) != _NON_CERTIFYING_RESULT_KEYS
+        or set(receipt) != _NON_CERTIFYING_RECEIPT_KEYS
+        or result.get("schema_version") != RESULT_SCHEMA
+        or receipt.get("schema_version") != RECEIPT_SCHEMA
+        or result.get("study_id") != STUDY_ID
+        or receipt.get("study_id") != STUDY_ID
+        or result.get("formal") is not False
+        or result.get("promotion_prohibited") is not True
+        or result.get("authority") != "exploratory"
+        or result.get("pairing_design") != PAIRING_DESIGN
+        or receipt.get("formal") is not False
+        or receipt.get("promotion_prohibited") is not True
+        or receipt.get("route") != "direct-qsub"
+        or receipt.get("policy") != {
+            "path": POLICY_RELATIVE_PATH,
+            "sha256": POLICY_SHA256,
+        }
+        or receipt.get("result") != {
+            "path": value["result"]["path"],
+            "sha256": value["result"]["sha256"],
+            "complete": result.get("complete"),
+            "all_workloads_terminal": result.get("all_workloads_terminal"),
+        }
+    ):
+        raise PaperStoryError("non-certifying result/receipt authority differs")
+    source_binding = value.get("source_binding")
+    result_source_binding = result.get("source_binding")
+    if (
+        not _validate_non_certifying_source_binding(source_binding)
+        or common.get("source_binding_sha256")
+        != _sha256_bytes(
+            campaign_lock_codec.canonical_json(source_binding).encode("utf-8")
+        )
+        or not _validate_source_binding(result_source_binding)
+        or receipt.get("source_binding") != result_source_binding
+        or common.get("mode")
+        != trial_registry.REGISTERED_FORMAL_NON_CERTIFYING_MODE
+        or common.get("certifying") is not False
+        or common.get("policy_sha256") != POLICY_SHA256
+        or common.get("policy_sha256") != result.get("policy_sha256")
+        or common.get("preregistration_sha256") != PREREGISTRATION_SHA256
+        or common.get("study_id") != STUDY_ID
+        or common.get("study_id") != result.get("study_id")
+        or common.get("source_commit")
+        != source_binding.get("measurement_source_commit")
+        or common.get("source_commit")
+        != result_source_binding.get("measurement_source_commit")
+    ):
+        raise PaperStoryError("non-certifying common/source binding differs")
+    _validate_observation_intent_binding(
+        common_record=common,
+        receipt=receipt,
+        source_binding=source_binding,
+    )
+    result_workloads = result.get("workloads")
+    if type(result_workloads) is not list or len(result_workloads) != 3:
+        raise PaperStoryError("non-certifying result workload set differs")
+    expected_campaigns = []
+    for item in result_workloads:
+        campaign_binding = item.get("campaign_binding") if type(item) is dict else None
+        wal_evidence = item.get("wal_evidence") if type(item) is dict else None
+        if type(campaign_binding) is not dict or type(wal_evidence) is not dict:
+            raise PaperStoryError("non-certifying result campaign binding is missing")
+        expected_campaigns.append({
+            "workload": item.get("workload"),
+            "campaign_id": item.get("campaign_id"),
+            "campaign_lock": {
+                "path": campaign_binding.get("campaign_lock_path"),
+                "sha256": campaign_binding.get("campaign_lock_sha256"),
+            },
+            "wal": {
+                "path": wal_evidence.get("path"),
+                "sha256": wal_evidence.get("sha256"),
+            },
+        })
+    if campaigns != expected_campaigns:
+        raise PaperStoryError("non-certifying sidecar/result campaign binding differs")
+    if common.get("campaign_ids") != [
+        item["campaign_id"] for item in expected_campaigns
+    ]:
+        raise PaperStoryError("non-certifying common campaign IDs differ")
+    _revalidate_raw_wals(result, receipt)
+    _assert_observation_anomalies_zero(result)
+    if (
+        result.get("complete") is not True
+        or result.get("all_workloads_terminal") is not True
+        or any(item.get("valid") is not True for item in result_workloads)
+    ):
+        raise PaperStoryError("non-certifying observation is not complete and valid")
+    return {
+        "sidecar_path": path,
+        "result_path": Path(value["result"]["path"]),
+        "receipt_path": Path(value["receipt"]["path"]),
+        "common_record": common,
+        "source_binding": source_binding,
+        "campaigns": campaigns,
+        "result": result,
+        "receipt": receipt,
+    }
+
+
+def _validate_raw_non_certifying_observation_for_completion(
+    sidecar_path: Path,
+    *,
+    expected_head: str,
+    attempt: Path,
+    request_id: str,
+) -> None:
+    """``run_complete`` 専用の、completion 非依存 sidecar gate。"""
+    validated = _validate_non_certifying_observation_contents(sidecar_path)
+    common = validated["common_record"]
+    receipt = validated["receipt"]
+    roots = receipt.get("roots") if type(receipt) is dict else None
+    if (
+        type(common) is not dict
+        or common.get("source_commit") != expected_head
+        or type(receipt) is not dict
+        or _validated_request_id(receipt.get("pbs_jobid"), "raw receipt PBS_JOBID")
+        != _validated_request_id(request_id, "completion request ID")
+        or type(roots) is not dict
+        or roots.get("attempt_root") != os.fspath(attempt)
+        or Path(validated["sidecar_path"])
+        != Path(roots.get("result_root", "")) / NON_CERTIFYING_OBSERVATION_FILENAME
+    ):
+        raise PaperStoryError("raw non-certifying observation completion binding differs")
+    _verify_current_source_paths(
+        _repo_root().resolve(strict=True),
+        expected_head,
+        validated["source_binding"],
+        relative_paths=NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        label="non-certifying observation",
+    )
+
+
+def _validate_completed_non_certifying_observation(
+    validated: Mapping[str, object],
+) -> None:
+    """Final view 発行前に scheduler と job の実 bytes を再検証する。"""
+    repo_root = _repo_root().resolve(strict=True)
+    common = validated["common_record"]
+    result = validated["result"]
+    receipt = validated["receipt"]
+    if not all(type(value) is dict for value in (common, result, receipt)):
+        raise PaperStoryError("non-certifying final observation shape differs")
+    expected_head = common.get("source_commit")
+    if type(expected_head) is not str:
+        raise PaperStoryError("non-certifying final source commit is missing")
+    _verify_current_source_paths(
+        repo_root,
+        expected_head,
+        validated["source_binding"],
+        relative_paths=NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        label="non-certifying observation",
+    )
+    roots = receipt.get("roots")
+    if type(roots) is not dict:
+        raise PaperStoryError("non-certifying final roots are missing")
+    terminal_path = Path(roots.get("raw_root", "")) / "job-terminal.json"
+    terminal_raw = _read_bytes_once(terminal_path, missing_ok=True)
+    if terminal_raw is None:
+        raise PaperStoryError("non-certifying job terminal is missing")
+    terminal = _decode_json_bytes(terminal_raw, "non-certifying job terminal")
+    policy, policy_sha = load_policy()
+    validate_raw_documents(result, receipt, terminal, policy)
+
+    acquisition_binding = receipt.get("submission_receipt")
+    acquisition_raw = _read_observation_binding(
+        acquisition_binding, label="submission receipt",
+    )
+    acquisition = _decode_json_bytes(
+        acquisition_raw, "non-certifying submission receipt",
+    )
+    trusted_roots = validate_acquisition_receipt(
+        acquisition,
+        repo_root=repo_root,
+        study_id=STUDY_ID,
+        source_commit=expected_head,
+        request_id=receipt.get("pbs_jobid"),
+        pbs_observation=terminal.get("pbs_observation"),
+        policy=policy,
+    )
+    _revalidate_attempt_root(roots)
+    if roots != trusted_roots:
+        raise PaperStoryError("non-certifying final roots differ from submission")
+    if Path(validated["sidecar_path"]) != (
+        Path(trusted_roots["result_root"]) / NON_CERTIFYING_OBSERVATION_FILENAME
+    ):
+        raise PaperStoryError("non-certifying sidecar path differs from submission")
+    if (
+        Path(validated["result_path"])
+        != Path(trusted_roots["result_root"]) / "result.json"
+        or Path(validated["receipt_path"])
+        != Path(trusted_roots["result_root"]) / "receipt.json"
+    ):
+        raise PaperStoryError("non-certifying raw document path differs from submission")
+
+    completion_binding = receipt.get("scheduler_completion_receipt")
+    if completion_binding != {"path": trusted_roots["completion_receipt"]}:
+        raise PaperStoryError("non-certifying completion receipt binding differs")
+    completion_path = Path(trusted_roots["completion_receipt"])
+    completion_raw = _read_bytes_once(completion_path, missing_ok=True)
+    if completion_raw is None:
+        raise PaperStoryError("non-certifying completion receipt is missing")
+    completion = _decode_json_bytes(
+        completion_raw, "non-certifying completion receipt",
+    )
+    validate_completion_receipt(
+        completion,
+        trusted_roots=trusted_roots,
+        source_commit=expected_head,
+        request_id=receipt.get("pbs_jobid"),
+        submission_receipt=acquisition,
+        submission_receipt_sha256=acquisition_binding["sha256"],
+        job_terminal_sha256=_sha256_bytes(terminal_raw),
+    )
+    if result.get("policy_sha256") != policy_sha:
+        raise PaperStoryError("non-certifying final policy hash differs")
+    if terminal.get("result_sha256") != _sha256_file(Path(validated["result_path"])):
+        raise PaperStoryError("non-certifying terminal result hash differs")
+    if terminal.get("receipt_sha256") != _sha256_file(
+        Path(validated["receipt_path"])
+    ):
+        raise PaperStoryError("non-certifying terminal receipt hash differs")
+
+
+def consume_non_certifying_observation(
+    sidecar_path: Path,
+) -> NonCertifyingObservationView:
+    """全測定・scheduler bytes の再検証後にだけ A-1 局所 view を発行する。"""
+    validated = _validate_non_certifying_observation_contents(sidecar_path)
+    _validate_completed_non_certifying_observation(validated)
+    return NonCertifyingObservationView(
+        sidecar_path=validated["sidecar_path"],
+        common_record=_freeze_json(dict(validated["common_record"])),
+        campaigns=tuple(
+            _freeze_json(dict(item)) for item in validated["campaigns"]
+        ),
+        result=_freeze_json(dict(validated["result"])),
+        receipt=_freeze_json(dict(validated["receipt"])),
+        _token=_NON_CERTIFYING_VIEW_TOKEN,
+    )
+
+
 def run_measurement(args) -> int:
     repo_root = _repo_root()
     policy, policy_sha = load_policy()
@@ -2452,6 +3462,12 @@ def run_measurement(args) -> int:
         request_id=args.pbs_jobid,
         pbs_observation=_pbs_environment_observation(),
         policy=policy,
+    )
+    submission_intent = _measurement_intent(
+        acquisition=acquisition,
+        repo_root=repo_root,
+        attempt=Path(trusted_roots["attempt_root"]),
+        source_commit=args.expected_head,
     )
     if os.fspath(acquisition_path) != trusted_roots["submission_receipt"]:
         raise PaperStoryError("submission receipt path differs from durable topology")
@@ -2485,6 +3501,9 @@ def run_measurement(args) -> int:
     loaded_calibration = p2_2._assert_matches_calibration(contract)
     _prepare_runtime_roots(roots, contract.env_tag)
     source_binding = _source_binding(repo_root, args.expected_head)
+    non_certifying_source_binding = _non_certifying_source_binding(
+        repo_root, args.expected_head,
+    )
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
     toolchain_manifest = buildcache.observed_toolchain_manifest(
@@ -2495,15 +3514,56 @@ def run_measurement(args) -> int:
         forbidden_roots=(),
     )
 
+    # All three identities are fixed before the first lock is issued.
+    campaign_configs = tuple(
+        ident.bind_admission_policy(
+            p2_2._campaign_cfg_for_site(
+                campaign_config(
+                    policy,
+                    workload_name,
+                    contract=contract,
+                    non_certifying=True,
+                ),
+                site,
+                contract,
+            ),
+            build_context.policy,
+        )
+        for workload_name in WORKLOAD_ORDER
+    )
+    campaign_ids = tuple(
+        str(ident.campaign_id(cfg)) for cfg in campaign_configs
+    )
+    projection = trial_registry.issue_a1_registered_noncertifying_projection(
+        study_id=STUDY_ID,
+        policy_sha256=policy_sha,
+        preregistration_sha256=PREREGISTRATION_SHA256,
+        source_commit=args.expected_head,
+        workloads=WORKLOAD_ORDER,
+        campaign_ids=campaign_ids,
+    )
+    common_record = _a1_common_record(
+        projection,
+        source_binding=non_certifying_source_binding,
+        environment_contract_sha256=contract.contract_sha256,
+        intent_sha256=submission_intent["intent_sha256"],
+    )
+    campaign_layouts = tuple(
+        exploration_campaign_layout(campaign_id, roots["output_root"])
+        for campaign_id in campaign_ids
+    )
+    _preseed_a1_non_certifying_locks(
+        configs=campaign_configs,
+        layouts=campaign_layouts,
+        workloads=WORKLOAD_ORDER,
+        common_record=common_record,
+    )
+
     workload_results = []
     measurement_error = None
-    for workload_name in WORKLOAD_ORDER:
-        cfg = campaign_config(policy, workload_name, contract=contract)
-        cfg = p2_2._campaign_cfg_for_site(cfg, site, contract)
-        bound_cfg = ident.bind_admission_policy(cfg, build_context.policy)
-        campaign_id = str(ident.campaign_id(bound_cfg))
-        layout = exploration_campaign_layout(campaign_id, roots["output_root"])
-        campaign_preimage = ident.canonical_preimage(bound_cfg)
+    for workload_name, cfg, campaign_id, layout in zip(
+            WORKLOAD_ORDER, campaign_configs, campaign_ids, campaign_layouts):
+        campaign_preimage = ident.canonical_preimage(cfg)
         expected_layout_root = layout.root
         summary = None
         campaign_error = None
@@ -2607,26 +3667,57 @@ def run_measurement(args) -> int:
         },
         "calibration_sha256": getattr(loaded_calibration, "sha256", None),
     }
-    _exclusive_write(Path(roots["result_root"]) / "receipt.json", receipt)
+    receipt_path = Path(roots["result_root"]) / "receipt.json"
+    _exclusive_write(receipt_path, receipt)
+    _issue_non_certifying_observation(
+        common_record=common_record,
+        source_binding=non_certifying_source_binding,
+        workloads=workload_results,
+        result_path=result_path,
+        receipt_path=receipt_path,
+    )
     return 0
 
 
-def _verify_current_source(repo_root: Path, expected_head: str, binding: Mapping[str, object]):
+def _verify_current_source_paths(
+    repo_root: Path,
+    expected_head: str,
+    binding: Mapping[str, object],
+    *,
+    relative_paths: Sequence[str],
+    label: str,
+) -> None:
     if _run_git(repo_root, "rev-parse", "HEAD") != expected_head:
-        raise PaperStoryError("HEAD moved after measurement")
-    if _run_git(repo_root, "status", "--porcelain", "--untracked-files=all"):
-        raise PaperStoryError("working tree is dirty before materialization")
+        raise PaperStoryError(f"HEAD differs from {label} source binding")
     if binding.get("measurement_source_commit") != expected_head:
-        raise PaperStoryError("raw source commit differs from expected HEAD")
-    if not _validate_source_binding(binding):
-        raise PaperStoryError("raw source binding shape differs")
-    for relative in SOURCE_RELATIVE_PATHS:
+        raise PaperStoryError(f"{label} source commit differs from expected HEAD")
+    if not _validate_source_binding_for_paths(binding, relative_paths):
+        raise PaperStoryError(f"{label} source binding shape differs")
+    for relative in relative_paths:
         expected = binding["files"][relative]
         oid = _run_git(repo_root, "rev-parse", f"{expected_head}:{relative}")
         if oid != expected.get("git_blob_oid"):
-            raise PaperStoryError(f"git blob differs from raw source binding: {relative}")
+            raise PaperStoryError(
+                f"git blob differs from {label} source binding: {relative}"
+            )
         if _sha256_file(repo_root / relative) != expected.get("working_sha256"):
-            raise PaperStoryError(f"working bytes differ from raw source binding: {relative}")
+            raise PaperStoryError(
+                f"working bytes differ from {label} source binding: {relative}"
+            )
+
+
+def _verify_current_source(
+    repo_root: Path, expected_head: str, binding: Mapping[str, object],
+) -> None:
+    if _run_git(repo_root, "status", "--porcelain", "--untracked-files=all"):
+        raise PaperStoryError("working tree is dirty before materialization")
+    _verify_current_source_paths(
+        repo_root,
+        expected_head,
+        binding,
+        relative_paths=SOURCE_RELATIVE_PATHS,
+        label="raw",
+    )
 
 
 def _canonical_workload_wal_layout(
@@ -3439,6 +4530,9 @@ def run_materialize(args) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="mode", required=True)
+    submit = sub.add_parser("submit")
+    submit.add_argument("--expected-head", required=True)
+    submit.add_argument("--attempt-root", required=True)
     measure = sub.add_parser("measure")
     measure.add_argument("--study-id", required=True)
     measure.add_argument("--expected-head", required=True)
@@ -3456,14 +4550,21 @@ def _parser() -> argparse.ArgumentParser:
     materialize.add_argument("--job-terminal", required=True)
     materialize.add_argument("--completion-receipt", required=True)
     materialize.add_argument("--destination", required=True)
+    complete = sub.add_parser("complete")
+    complete.add_argument("--expected-head", required=True)
+    complete.add_argument("--attempt-root", required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.mode == "submit":
+            return run_submit(args)
         if args.mode == "measure":
             return run_measurement(args)
+        if args.mode == "complete":
+            return run_complete(args)
         return run_materialize(args)
     except PaperStoryError as exc:
         print(f"paper-story A-1 refused: {exc}", file=sys.stderr)

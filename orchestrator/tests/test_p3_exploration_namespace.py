@@ -33,6 +33,7 @@ from orchestrator.campaign import p3_s4_loop as LOOP                            
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from orchestrator.campaign import sort_swo_oracle as SWO                         # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
+from orchestrator.campaign import paper_story_a1_paired as PAPER_STORY           # noqa: E402
 from orchestrator.campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -209,15 +210,53 @@ def _autonomous_build_argv(tmp_path: Path) -> tuple[str, ...]:
 
 
 def _paper_story_measure_argv(tmp_path: Path) -> tuple[str, ...]:
+    repo_root = PAPER_STORY._repo_root()
+    expected_head = "a" * 40
     attempt = tmp_path / "attempt-fixture"
     (attempt / "raw").mkdir(parents=True, exist_ok=True)
+    qsub_argv, qsub_options = PAPER_STORY._canonical_qsub_contract(
+        repo_root=repo_root,
+        study_id=PAPER_STORY.STUDY_ID,
+        source_commit=expected_head,
+        attempt=attempt,
+    )
+    source_binding = {
+        "measurement_source_commit": expected_head,
+        "files": {
+            relative: {
+                "git_blob_oid": "b" * 40,
+                "working_sha256": hashlib.sha256(
+                    (repo_root / relative).read_bytes()
+                ).hexdigest(),
+            }
+            for relative in PAPER_STORY.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+        },
+        "evidence_level": "source-routed-trace0",
+        "artifact_standalone_proof": False,
+    }
+    intent = {
+        "schema_version": PAPER_STORY.SUBMISSION_INTENT_SCHEMA,
+        "study_id": PAPER_STORY.STUDY_ID,
+        "source_commit": expected_head,
+        "attempt_root": os.fspath(attempt),
+        "qsub_argv": qsub_argv,
+        "qsub_options": qsub_options,
+        "source_binding": source_binding,
+    }
+    intent["intent_sha256"] = PAPER_STORY._submission_intent_digest(intent)
+    PAPER_STORY._exclusive_write(PAPER_STORY._attempt_intent_path(attempt), intent)
     acquisition_path = tmp_path / "attempt-fixture.submission.json"
-    acquisition_raw = b"{}\n"
+    acquisition_raw = PAPER_STORY._canonical_json_bytes({
+        "source_commit": expected_head,
+        "attempt_root": os.fspath(attempt),
+        "qsub_argv": qsub_argv,
+        "qsub_options": qsub_options,
+    })
     acquisition_path.write_bytes(acquisition_raw)
     return (
         "measure",
         "--study-id", "paper-story-a1-20260826-sized-v1",
-        "--expected-head", "a" * 40,
+        "--expected-head", expected_head,
         "--pbs-jobid", "12345.fixture",
         "--acquisition-receipt", str(acquisition_path),
         "--acquisition-receipt-sha256", hashlib.sha256(acquisition_raw).hexdigest(),
@@ -260,6 +299,7 @@ def _paper_story_expected_configs(module, runtime_contract):
         assert default_cfg.search_tag == "paired"
         cfg = module.campaign_config(
             policy, workload_name, contract=runtime_contract,
+            non_certifying=True,
         )
         assert cfg.spec_slug == f"paper-story-a1-{workload_name}"
         assert cfg.search_tag == "paired"
@@ -586,6 +626,7 @@ def _install_paper_story_external_spies(
             p2_2._campaign_cfg_for_site(
                 module.campaign_config(
                     policy, workload_name, contract=runtime_contract,
+                    non_certifying=True,
                 ),
                 site_policy.PEGASUS_COMPUTE,
                 runtime_contract,
@@ -598,10 +639,12 @@ def _install_paper_story_external_spies(
     policy_context = build_run_context(
         generator_id=driver_contract.expected_generator_id,
     )
+    expected_configs = tuple(
+        ident.bind_admission_policy(cfg, policy_context.policy)
+        for cfg in expected_configs
+    )
     expected_campaign_ids = tuple(
-        str(ident.campaign_id(
-            ident.bind_admission_policy(cfg, policy_context.policy)
-        ))
+        str(ident.campaign_id(cfg))
         for cfg in expected_configs
     )
     if pin_identity_oracle:
@@ -649,11 +692,21 @@ def _install_paper_story_external_spies(
     toolchain_manifest = {"fixture": "paper-story-toolchain"}
     expected_git_calls = [
         (repo_root, ("rev-parse", "HEAD")),
+        *[
+            (repo_root, ("rev-parse", f"{expected_head}:{relative}"))
+            for relative in module.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+        ],
+        (repo_root, ("rev-parse", "HEAD")),
         (repo_root, ("status", "--porcelain", "--untracked-files=all")),
         (repo_root, ("rev-parse", "HEAD")),
         *[
             (repo_root, ("rev-parse", f"{expected_head}:{relative}"))
             for relative in module.SOURCE_RELATIVE_PATHS
+        ],
+        (repo_root, ("rev-parse", "HEAD")),
+        *[
+            (repo_root, ("rev-parse", f"{expected_head}:{relative}"))
+            for relative in module.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
         ],
     ]
     calls = {
@@ -675,7 +728,18 @@ def _install_paper_story_external_spies(
     def acquisition_spy(receipt, *args, **kwargs):
         calls["validate_acquisition_receipt"].append((receipt, args, kwargs))
         assert args == ()
-        assert receipt == {}
+        expected_argv, expected_options = module._canonical_qsub_contract(
+            repo_root=repo_root,
+            study_id=options["--study-id"],
+            source_commit=expected_head,
+            attempt=attempt,
+        )
+        assert receipt == {
+            "source_commit": expected_head,
+            "attempt_root": os.fspath(attempt),
+            "qsub_argv": expected_argv,
+            "qsub_options": expected_options,
+        }
         assert kwargs == {
             "repo_root": repo_root,
             "study_id": options["--study-id"],
@@ -767,14 +831,16 @@ def _install_paper_story_external_spies(
     original_campaign_config = module.campaign_config
 
     def campaign_config_spy(
-            observed_policy, workload_name, *, contract=None):
+            observed_policy, workload_name, *, contract=None, non_certifying):
         calls["campaign_config"].append((workload_name, contract))
         assert len(calls["campaign_config"]) <= len(_PAPER_STORY_WORKLOAD_ORDER)
         assert observed_policy == policy
         assert workload_name in _PAPER_STORY_WORKLOAD_ORDER
         assert contract is runtime_contract
+        assert non_certifying is True
         return original_campaign_config(
             observed_policy, workload_name, contract=contract,
+            non_certifying=non_certifying,
         )
 
     def forbidden_default_configs(*args, **kwargs):
@@ -797,8 +863,7 @@ def _install_paper_story_external_spies(
     monkeypatch.setattr(module, "campaign_config", campaign_config_spy)
     monkeypatch.setattr(module, "default_campaign_configs", forbidden_default_configs)
 
-    def assert_complete(
-            expected_workload_calls: int, *, assert_workload_order: bool):
+    def assert_complete(expected_single_tenant_calls: int):
         assert calls["validate_acquisition_receipt"] and len(
             calls["validate_acquisition_receipt"]
         ) == 1
@@ -816,21 +881,11 @@ def _install_paper_story_external_spies(
             "observed_toolchain_manifest",
         ):
             assert calls[label] and len(calls[label]) == 1, label
-        assert len(calls["assert_single_tenant"]) == expected_workload_calls
-        if assert_workload_order:
-            assert calls["campaign_config"] == [
-                (workload_name, runtime_contract)
-                for workload_name in _PAPER_STORY_WORKLOAD_ORDER[
-                    :expected_workload_calls
-                ]
-            ]
-        else:
-            assert len(calls["campaign_config"]) == expected_workload_calls
-            assert all(
-                workload_name in _PAPER_STORY_WORKLOAD_ORDER
-                and contract is runtime_contract
-                for workload_name, contract in calls["campaign_config"]
-            )
+        assert len(calls["assert_single_tenant"]) == expected_single_tenant_calls
+        assert calls["campaign_config"] == [
+            (workload_name, runtime_contract)
+            for workload_name in _PAPER_STORY_WORKLOAD_ORDER
+        ]
         assert calls["default_campaign_configs"] == []
 
     return SimpleNamespace(
@@ -971,11 +1026,11 @@ def test_driver_build_spy_receives_exact_run_context(
         assert len(seen) == 1
         assert seen[0]._authority_nonce is None
         assert seen[0]._coder_entrypoint_site is None
-        assert len(layout_calls) == 1
-        assert layout_calls[0][0][0] in harness.expected_campaign_ids
-        assert layout_calls[0][0][1] == str(harness.output_root)
-        assert layout_calls[0][1] == {}
-        harness.assert_complete(1, assert_workload_order=False)
+        assert layout_calls == [
+            ((campaign_id, str(harness.output_root)), {})
+            for campaign_id in harness.expected_campaign_ids
+        ]
+        harness.assert_complete(1)
         return
 
     def capture(*_args, **kwargs):
@@ -1339,10 +1394,7 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
             assert expected.is_dir()
             assert not (harness.output_root / "campaigns" / campaign_id).exists()
         assert len(run_calls) == contract.runtime_run_campaign_calls
-        harness.assert_complete(
-            contract.runtime_run_campaign_calls,
-            assert_workload_order=True,
-        )
+        harness.assert_complete(contract.runtime_run_campaign_calls)
         return
 
     roots, layout_calls = _spy_driver_layout(monkeypatch, tmp_path, module)

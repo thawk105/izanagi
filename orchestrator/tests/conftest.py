@@ -1734,7 +1734,7 @@ def _growth_hold_id_from_nodeid(nodeid: str) -> str | None:
     parts = nodeid.split("::")
     if len(parts) < 2:
         return None
-    function = parts[1].split("[", 1)[0]
+    function = parts[1].split("[", 1)[0].split("@", 1)[0]
     return f"{os.path.basename(parts[0])}::{function}"
 
 

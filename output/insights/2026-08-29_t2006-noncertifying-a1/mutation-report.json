@@ -1,0 +1,688 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/631b38dedf8fcd0b6ce5b5e5510b24e5/izdw-631b38dedf.o957283",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/631b38dedf8fcd0b6ce5b5e5510b24e5/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n.........                                                                [100%]\n============================== 9 passed in 4.34s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "2dd94029498b3b91a3be3173d619688c9a8118187c083b6b9db97d0612b54ac7"
+    },
+    "artifact_error": null,
+    "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+    "duration_s": 26.878,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f5b613deb1abcaac60da827b93b11b06912a503b399dac51426c190ccfe2b290",
+    "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+    "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+    "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+    "status": "PASSED",
+    "test_output_sha256": "2dd94029498b3b91a3be3173d619688c9a8118187c083b6b9db97d0612b54ac7",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+  },
+  "date": "2026-08-28T16:22:36.797087+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/249ad5dec3344cdb96b94c12032df18f/izdw-249ad5dec3.o957284",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/249ad5dec3344cdb96b94c12032df18f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n....F....                                                                [100%]\n=================================== FAILURES ===================================\n________ test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m_nc01_submit_rejects_mar0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153145fcce20>\n\n    def test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)\n        monkeypatch.setattr(\n            paired,\n            \"_a1_noncertifying_marker_fields\",\n            lambda: {\n                \"formal\": False,\n                \"promotion_prohibited\": False,\n                \"non_certifying_mode\": \"registered-formal-non-certifying\",\n            },\n        )\n        qsub_calls = []\n        monkeypatch.setattr(\n            paired, \"_run_qsub\", lambda argv, *, cwd: qsub_calls.append((argv, cwd)),\n        )\n        with pytest.raises(paired.PaperStoryError, match=\"marker differs before submit\"):\n>           paired.run_submit(SimpleNamespace(\n                expected_head=head, attempt_root=str(attempt),\n            ))\n\norchestrator/tests/test_paper_story_a1_job_contract.py:1857: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = namespace(expected_head='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', attempt_root='/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m_nc01_submit_rejects_mar0/measurement-submit/attempt')\n\n    def run_submit(args) -> int:\n        \"\"\"Create an intent before direct qsub, then publish one submission receipt.\"\"\"\n        repo_root = _repo_root().resolve(strict=True)\n        policy, _policy_sha = load_policy()\n        _assert_submit_a1_noncertifying_markers()\n        if args.expected_head != _run_git(repo_root, \"rev-parse\", \"HEAD\"):\n            raise PaperStoryError(\"current HEAD differs from expected HEAD\")\n        if _run_git(repo_root, \"status\", \"--porcelain\", \"--untracked-files=all\"):\n            raise PaperStoryError(\"working tree is dirty\")\n        base = _durable_measurement_base(policy)\n        attempt = _validate_attempt_root(Path(args.attempt_root), base)\n        evidence = _attempt_evidence_paths(attempt)\n        intent_path = _attempt_intent_path(attempt)\n        submission_path = Path(evidence[\"submission_receipt\"])\n        if os.path.lexists(submission_path):\n            raise PaperStoryError(\"submission receipt already exists\")\n        if os.path.lexists(intent_path):\n            raise PaperStoryError(\n                \"submission indeterminate: intent exists without submission receipt; \"\n                \"qsub will not be repeated\"\n            )\n        if os.path.lexists(attempt):\n            raise PaperStoryError(\"submit attempt root must not already exist\")\n        argv, options = _canonical_qsub_contract(\n            repo_root=repo_root,\n            study_id=STUDY_ID,\n            source_commit=args.expected_head,\n            attempt=attempt,\n        )\n        intent = {\n            \"schema_version\": SUBMISSION_INTENT_SCHEMA,\n            \"study_id\": STUDY_ID,\n            \"source_commit\": args.expected_head,\n            \"attempt_root\": os.fspath(attempt),\n            \"qsub_argv\": argv,\n            \"qsub_options\": options,\n            \"source_binding\": _non_certifying_source_binding(\n                repo_root, args.expected_head,\n            ),\n        }\n        intent[\"intent_sha256\"] = _submission_intent_digest(intent)\n        _exclusive_write(intent_path, intent)\n        _fsync_directory(intent_path.parent)\n        completed = _run_qsub(argv, cwd=repo_root)\n>       if completed.returncode != 0 or completed.stderr != \"\":\nE       AttributeError: 'NoneType' object has no attribute 'returncode'\n\norchestrator/campaign/paper_story_a1_paired.py:1124: AttributeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub\n========================= 1 failed, 8 passed in 4.67s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=3758 retained_bytes=3758 omitted_bytes=0 rendered_excerpt_bytes=3919 sha256=154e3133f2f72420f65ae877f54dbed9b01641c4a9b16abddee0c1a6d9ea203a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m_nc01_submit_rejects_mar0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153145fcce20>\n> \n>     def test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)\n>         monkeypatch.setattr(\n>             paired,\n>             \"_a1_noncertifying_marker_fields\",\n>             lambda: {\n>                 \"formal\": False,\n>                 \"promotion_prohibited\": False,\n>                 \"non_certifying_mode\": \"registered-formal-non-certifying\",\n>             },\n>         )\n>         qsub_calls = []\n>         monkeypatch.setattr(\n>             paired, \"_run_qsub\", lambda argv, *, cwd: qsub_calls.append((argv, cwd)),\n>         )\n>         with pytest.raises(paired.PaperStoryError, match=\"marker differs before submit\"):\n> >           paired.run_submit(SimpleNamespace(\n>                 expected_head=head, attempt_root=str(attempt),\n>             ))\n> \n> orchestrator/tests/test_paper_story_a1_job_contract.py:1857: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = namespace(expected_head='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', attempt_root='/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m_nc01_submit_rejects_mar0/measurement-submit/attempt')\n> \n>     def run_submit(args) -> int:\n>         \"\"\"Create an intent before direct qsub, then publish one submission receipt.\"\"\"\n>         repo_root = _repo_root().resolve(strict=True)\n>         policy, _policy_sha = load_policy()\n>         _assert_submit_a1_noncertifying_markers()\n>         if args.expected_head != _run_git(repo_root, \"rev-parse\", \"HEAD\"):\n>             raise PaperStoryError(\"current HEAD differs from expected HEAD\")\n>         if _run_git(repo_root, \"status\", \"--porcelain\", \"--untracked-files=all\"):\n>             raise PaperStoryError(\"working tree is dirty\")\n>         base = _durable_measurement_base(policy)\n>         attempt = _validate_attempt_root(Path(args.attempt_root), base)\n>         evidence = _attempt_evidence_paths(attempt)\n>         intent_path = _attempt_intent_path(attempt)\n>         submission_path = Path(evidence[\"submission_receipt\"])\n>         if os.path.lexists(submission_path):\n>             raise PaperStoryError(\"submission receipt already exists\")\n>         if os.path.lexists(intent_path):\n>             raise PaperStoryError(\n>                 \"submission indeterminate: intent exists without submission receipt; \"\n>                 \"qsub will not be repeated\"\n>             )\n>         if os.path.lexists(attempt):\n>             raise PaperStoryError(\"submit attempt root must not already exist\")\n>         argv, options = _canonical_qsub_contract(\n>             repo_root=repo_root,\n>             study_id=STUDY_ID,\n>             source_commit=args.expected_head,\n>             attempt=attempt,\n>         )\n>         intent = {\n>             \"schema_version\": SUBMISSION_INTENT_SCHEMA,\n>             \"study_id\": STUDY_ID,\n>             \"source_commit\": args.expected_head,\n>             \"attempt_root\": os.fspath(attempt),\n>             \"qsub_argv\": argv,\n>             \"qsub_options\": options,\n>             \"source_binding\": _non_certifying_source_binding(\n>                 repo_root, args.expected_head,\n>             ),\n>         }\n>         intent[\"intent_sha256\"] = _submission_intent_digest(intent)\n>         _exclusive_write(intent_path, intent)\n>         _fsync_directory(intent_path.parent)\n>         completed = _run_qsub(argv, cwd=repo_root)\n> >       if completed.returncode != 0 or completed.stderr != \"\":\n> E       AttributeError: 'NoneType' object has no attribute 'returncode'\n> \n> orchestrator/campaign/paper_story_a1_paired.py:1124: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3758 retained_bytes=3758 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4665 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "96a5c324a227a6f3530400a9487ceab1a018c604891f6b1769bd4d77708abad0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.913,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub"
+      ],
+      "hang_risk": false,
+      "id": "t2006.marker-gate",
+      "injection_diff_sha256": "eaaeae7c49849d058bc38412caeea2bc2b4d756c4f381b764d9462b00e753232",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3ae50fc6c9c39e1278e6f885310ae505d11a2209c19b11c3a9bc5ac1447465fc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "        or False\n",
+          "old": "        or not ident.is_a1_non_certifying_config(cfg)\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "96a5c324a227a6f3530400a9487ceab1a018c604891f6b1769bd4d77708abad0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/89c13aef749c71ea1bdd88c18032a11d/izdw-89c13aef74.o957285",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/89c13aef749c71ea1bdd88c18032a11d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n....F....                                                                [100%]\n=================================== FAILURES ===================================\n______ test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders ______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders() -> None:\n        value = json.loads(_non_certifying_lock())\n        retagged = dict(value)\n        retagged[\"schema_version\"] = \"campaign-lock/v2\"\n        schema_removed = dict(value)\n        schema_removed.pop(\"schema_version\")\n        for candidate in (retagged, schema_removed):\n            text = _canonical(candidate)\n>           with pytest.raises(campaign_lock.CampaignLockCodecError):\nE           Failed: DID NOT RAISE CampaignLockCodecError\n\norchestrator/tests/test_campaign_lock_codec.py:371: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders\n========================= 1 failed, 8 passed in 4.67s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=633 retained_bytes=633 omitted_bytes=0 rendered_excerpt_bytes=662 sha256=ac00e176c2539391da8dada5a3c2d7ada606dbb7906818a94d833ee0d9e1d54b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders() -> None:\n>         value = json.loads(_non_certifying_lock())\n>         retagged = dict(value)\n>         retagged[\"schema_version\"] = \"campaign-lock/v2\"\n>         schema_removed = dict(value)\n>         schema_removed.pop(\"schema_version\")\n>         for candidate in (retagged, schema_removed):\n>             text = _canonical(candidate)\n> >           with pytest.raises(campaign_lock.CampaignLockCodecError):\n> E           Failed: DID NOT RAISE CampaignLockCodecError\n> \n> orchestrator/tests/test_campaign_lock_codec.py:371: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=633 retained_bytes=633 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1399 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bf0c1f7283885c4c550e35c929d6cd513b65a359a3e581389590ce0cb785bb68"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.905,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders"
+      ],
+      "hang_risk": false,
+      "id": "t2006.schema-downgrade",
+      "injection_diff_sha256": "5f4694e952cf110312b136292a868af9b51028189146e7f64f01e51edf37bec9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8642a8171eaa764b69fb8c196dcde435b0df356355d64d0b2eabaac46f449cfe",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "new": "    if False:\n",
+          "old": "    if NON_CERTIFYING_RESERVED_V1_KEYS & set(value):\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "bf0c1f7283885c4c550e35c929d6cd513b65a359a3e581389590ce0cb785bb68",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/c1dbf91088ba4ac23f6aa7ea1020846a/izdw-c1dbf91088.o957286",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/c1dbf91088ba4ac23f6aa7ea1020846a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n....F....                                                                [100%]\n=================================== FAILURES ===================================\n____________ test_m_nc03_non_certifying_lock_tag_tamper_is_rejected ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m_nc03_non_certifying_lock_tag_tamper_is_rejected() -> None:\n        value = json.loads(_non_certifying_lock())\n        tag = value[\"a1_non_certifying\"][\"identity_tag\"]\n        value[\"a1_non_certifying\"][\"identity_tag\"] = (\n            (\"0\" if tag[0] != \"0\" else \"1\") + tag[1:]\n        )\n>       with pytest.raises(\n            campaign_lock.CampaignLockCodecError, match=\"tag mismatch\",\n        ):\nE       Failed: DID NOT RAISE CampaignLockCodecError\n\norchestrator/tests/test_campaign_lock_codec.py:383: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected\n========================= 1 failed, 8 passed in 4.71s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=571 retained_bytes=571 omitted_bytes=0 rendered_excerpt_bytes=600 sha256=ca762ab7062f16bb8b4061e6ac4dccc84652625e414f6cc1bfb2b98c3dc09b2e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m_nc03_non_certifying_lock_tag_tamper_is_rejected() -> None:\n>         value = json.loads(_non_certifying_lock())\n>         tag = value[\"a1_non_certifying\"][\"identity_tag\"]\n>         value[\"a1_non_certifying\"][\"identity_tag\"] = (\n>             (\"0\" if tag[0] != \"0\" else \"1\") + tag[1:]\n>         )\n> >       with pytest.raises(\n>             campaign_lock.CampaignLockCodecError, match=\"tag mismatch\",\n>         ):\n> E       Failed: DID NOT RAISE CampaignLockCodecError\n> \n> orchestrator/tests/test_campaign_lock_codec.py:383: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=571 retained_bytes=571 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1325 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "15b654f34b594d2ada1210f9c63215ee88805f1305a06db625205034a51eb015"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.881,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "t2006.identity-tag",
+      "injection_diff_sha256": "1d37677a8148d7db9ea424d7616396a725c5e9300b7616008c44fdbf2c511d57",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f06576948c3fe118b16c47c855106dd045dd5e93e0d97e48286767bd89b3942e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "new": "    if False:\n",
+          "old": "    if not hmac.compare_digest(tag, expected):\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "15b654f34b594d2ada1210f9c63215ee88805f1305a06db625205034a51eb015",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/7ff9f5ad23bcf9cd0800f5a8113a14a8/izdw-7ff9f5ad23.o957287",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/7ff9f5ad23bcf9cd0800f5a8113a14a8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n....F....                                                                [100%]\n=================================== FAILURES ===================================\n_____ test_a1_registered_noncertifying_projection_shares_load_bearing_mode _____\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_a1_registered_noncertifying_projection_shares_load_bearing_mode() -> None:\n        projection = R.issue_a1_registered_noncertifying_projection(\n            study_id=\"paper-story-a1-20260826-sized-v1\",\n            policy_sha256=\"a\" * 64,\n            preregistration_sha256=\"b\" * 64,\n            source_commit=\"c\" * 40,\n            workloads=R.A1_NON_CERTIFYING_WORKLOADS,\n            campaign_ids=(\"campaign-a\", \"campaign-b\", \"campaign-c\"),\n        )\n        R.assert_issued_a1_registered_noncertifying_projection(projection)\n        record = R.a1_registered_noncertifying_record(projection)\n        assert record[\"mode\"] == R.REGISTERED_FORMAL_NON_CERTIFYING_MODE\n        assert record[\"certifying\"] is False\n        assert record[\"campaign_ids\"] == [\n            \"campaign-a\", \"campaign-b\", \"campaign-c\",\n        ]\n        forged = dataclasses.replace(projection, _seal=object())\n>       with pytest.raises(R.TrialRegistryError, match=\"not issued\"):\nE       Failed: DID NOT RAISE TrialRegistryError\n\norchestrator/tests/test_trial_registry.py:3564: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode\n========================= 1 failed, 8 passed in 4.70s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1115 retained_bytes=1115 omitted_bytes=0 rendered_excerpt_bytes=1162 sha256=e9c54aa449653b839641baa5aa1c2c639064b5b668078044a617d1c9f889efa1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_a1_registered_noncertifying_projection_shares_load_bearing_mode() -> None:\n>         projection = R.issue_a1_registered_noncertifying_projection(\n>             study_id=\"paper-story-a1-20260826-sized-v1\",\n>             policy_sha256=\"a\" * 64,\n>             preregistration_sha256=\"b\" * 64,\n>             source_commit=\"c\" * 40,\n>             workloads=R.A1_NON_CERTIFYING_WORKLOADS,\n>             campaign_ids=(\"campaign-a\", \"campaign-b\", \"campaign-c\"),\n>         )\n>         R.assert_issued_a1_registered_noncertifying_projection(projection)\n>         record = R.a1_registered_noncertifying_record(projection)\n>         assert record[\"mode\"] == R.REGISTERED_FORMAL_NON_CERTIFYING_MODE\n>         assert record[\"certifying\"] is False\n>         assert record[\"campaign_ids\"] == [\n>             \"campaign-a\", \"campaign-b\", \"campaign-c\",\n>         ]\n>         forged = dataclasses.replace(projection, _seal=object())\n> >       with pytest.raises(R.TrialRegistryError, match=\"not issued\"):\n> E       Failed: DID NOT RAISE TrialRegistryError\n> \n> orchestrator/tests/test_trial_registry.py:3564: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1115 retained_bytes=1115 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1901 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e7456dbcde14639716b94559d5415f010bc02113b8af2ee1cec6e00d03e5fd16"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.879,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode"
+      ],
+      "hang_risk": false,
+      "id": "t2006.registry-seal",
+      "injection_diff_sha256": "d93f95b3259842a3dd158663e1210cd6d78c09076e690cb44899e93d8d7b0ade",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fb16402460c96831e9ca9d398d68d74dcb504efc58a0a74384feb1a7c9cf1d2e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "        or False\n",
+          "old": "        or projection._seal is not _A1_NON_CERTIFYING_PROJECTION_SEAL\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "e7456dbcde14639716b94559d5415f010bc02113b8af2ee1cec6e00d03e5fd16",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/505339356c4214ff41b8e48dc32b8c96/izdw-505339356c.o957288",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/505339356c4214ff41b8e48dc32b8c96/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_____ test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal ______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m_nc05_commit_receipt_rej0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145a77ad8d90>\n\n    def test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _sidecar, workloads, common = _noncertifying_bundle(tmp_path, monkeypatch)\n        binding = workloads[0][\"campaign_binding\"]\n        lock_path = Path(binding[\"campaign_lock_path\"])\n        decoded = campaign_lock.decode_non_certifying_campaign_lock(\n            lock_path.read_text(encoding=\"utf-8\")\n        )\n        changed = dict(common)\n        changed[\"source_binding_sha256\"] = \"0\" * 64\n        lock_path.write_text(\n            campaign_lock.encode_non_certifying_campaign_lock(\n                decoded.identity_preimage,\n                common_record=changed,\n                workload_binding=decoded.workload_binding,\n            ),\n            encoding=\"utf-8\",\n        )\n>       with pytest.raises(wal.AttemptTopologyError, match=\"lock SHA\"):\nE       Failed: DID NOT RAISE AttemptTopologyError\n\norchestrator/tests/test_paper_story_a1_paired.py:2899: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal\n========================= 1 failed, 8 passed in 4.66s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1242 retained_bytes=1242 omitted_bytes=0 rendered_excerpt_bytes=1299 sha256=c3ac443e56de6edd072999069cba13407c78c8a6858bd0fa8a78e548076bda1c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_m_nc05_commit_receipt_rej0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145a77ad8d90>\n> \n>     def test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _sidecar, workloads, common = _noncertifying_bundle(tmp_path, monkeypatch)\n>         binding = workloads[0][\"campaign_binding\"]\n>         lock_path = Path(binding[\"campaign_lock_path\"])\n>         decoded = campaign_lock.decode_non_certifying_campaign_lock(\n>             lock_path.read_text(encoding=\"utf-8\")\n>         )\n>         changed = dict(common)\n>         changed[\"source_binding_sha256\"] = \"0\" * 64\n>         lock_path.write_text(\n>             campaign_lock.encode_non_certifying_campaign_lock(\n>                 decoded.identity_preimage,\n>                 common_record=changed,\n>                 workload_binding=decoded.workload_binding,\n>             ),\n>             encoding=\"utf-8\",\n>         )\n> >       with pytest.raises(wal.AttemptTopologyError, match=\"lock SHA\"):\n> E       Failed: DID NOT RAISE AttemptTopologyError\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:2899: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1242 retained_bytes=1242 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2044 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c7f8ddf4602a0088d22e021e988f38fbcdaae29a5d6955a59845794605ead66f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.923,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal"
+      ],
+      "hang_risk": false,
+      "id": "t2006.commit-receipt-binding",
+      "injection_diff_sha256": "3f8102ea78d446e75a7137b09107533b048a95a2aa9928928affeef40e592a39",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c631a140ce715b87b8552ffe61e4b1ba50320c31c28c4b52943e50004c03df5d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "new": "                    lock_identity_sha256=serialized[\"lock_identity_sha256\"],\n",
+          "old": "                    lock_identity_sha256=campaign_lock_bytes_sha256(\n                        decoded.original_text.encode(\"utf-8\")\n                    ),\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "c7f8ddf4602a0088d22e021e988f38fbcdaae29a5d6955a59845794605ead66f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/179d119a8df8d12554ee4fd6e27fcfb9/izdw-179d119a8d.o957289",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/179d119a8df8d12554ee4fd6e27fcfb9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_________ test_m_nc06_sidecar_campaign_digest_replacement_is_rejected __________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_m_nc06_sidecar_campaign_d0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1545eaff8d00>\n\n    def test_m_nc06_sidecar_campaign_digest_replacement_is_rejected(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)\n        value = json.loads(sidecar.read_bytes())\n        value[\"campaigns\"][1][\"wal\"][\"sha256\"] = \"0\" * 64\n        value[\"observation_tag\"] = paired._observation_identity_tag(value)\n        sidecar.write_bytes(paired._canonical_json_bytes(value))\n>       with pytest.raises(paired.PaperStoryError, match=\"wal digest\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'wal digest'\nE         Actual message: 'non-certifying sidecar/result campaign binding differs'\n\norchestrator/tests/test_paper_story_a1_paired.py:2916: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected\n========================= 1 failed, 8 passed in 4.67s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1006 retained_bytes=1006 omitted_bytes=0 rendered_excerpt_bytes=1045 sha256=1f678386a871684593094a70a16ef5f02ddc204625b7ddc69a3155aa897099cf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_m_nc06_sidecar_campaign_d0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1545eaff8d00>\n> \n>     def test_m_nc06_sidecar_campaign_digest_replacement_is_rejected(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)\n>         value = json.loads(sidecar.read_bytes())\n>         value[\"campaigns\"][1][\"wal\"][\"sha256\"] = \"0\" * 64\n>         value[\"observation_tag\"] = paired._observation_identity_tag(value)\n>         sidecar.write_bytes(paired._canonical_json_bytes(value))\n> >       with pytest.raises(paired.PaperStoryError, match=\"wal digest\"):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'wal digest'\n> E         Actual message: 'non-certifying sidecar/result campaign binding differs'\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:2916: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1006 retained_bytes=1006 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1782 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "106223a17194b268f89881ab282b374f5591ae6cecf2fa2170ed9fd5d6d6b6f1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.986,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "t2006.artifact-digest",
+      "injection_diff_sha256": "8dd0bb0c463852fc17d0f884b8f97f5741d0010c8111e12967283164a1f68822",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c99d4ed0dc653c7b943b8dd8f935cfe0460395e77b804b946246cde9bab358ca",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "    if raw is None:\n",
+          "old": "    if raw is None or _sha256_bytes(raw) != digest:\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "106223a17194b268f89881ab282b374f5591ae6cecf2fa2170ed9fd5d6d6b6f1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/f4804e463a2ddbb827930d655965bc2e/izdw-f4804e463a.o957290",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/f4804e463a2ddbb827930d655965bc2e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n______ test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer _______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_m_nc07_anomaly_is_indepen0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149e53decdf0>\n\n    def test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        sidecar, workloads, _common = _noncertifying_bundle(\n            tmp_path, monkeypatch, anomalies=1,\n        )\n        assert workloads[0][\"valid\"] is False\n>       with pytest.raises(paired.PaperStoryError, match=\"anomalies are nonzero\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'anomalies are nonzero'\nE         Actual message: 'non-certifying observation is not complete and valid'\n\norchestrator/tests/test_paper_story_a1_paired.py:3026: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer\n========================= 1 failed, 8 passed in 4.67s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=866 retained_bytes=866 omitted_bytes=0 rendered_excerpt_bytes=903 sha256=5ccdf7015c02f389173e4d269e65ae6dd8b3d9df2cfe44711eefcc4f5326ea0f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_m_nc07_anomaly_is_indepen0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149e53decdf0>\n> \n>     def test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         sidecar, workloads, _common = _noncertifying_bundle(\n>             tmp_path, monkeypatch, anomalies=1,\n>         )\n>         assert workloads[0][\"valid\"] is False\n> >       with pytest.raises(paired.PaperStoryError, match=\"anomalies are nonzero\"):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'anomalies are nonzero'\n> E         Actual message: 'non-certifying observation is not complete and valid'\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:3026: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=866 retained_bytes=866 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1641 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "89f77b7df7d992a76262eeeb10a97ce0e733dcdddd0d9d78cb43719699ac295a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.97,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer"
+      ],
+      "hang_risk": false,
+      "id": "t2006.anomaly-gate",
+      "injection_diff_sha256": "95265c283c6bae37cf880afc086f0f7317838dba6025f539bc21734929987df4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3665ddc375f43188d7d13ed69af1a1bcd5a627b5ed0053d07e3f130023e10a0d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "            if False:\n",
+          "old": "            if type(anomalies) is not int or anomalies != 0:\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "89f77b7df7d992a76262eeeb10a97ce0e733dcdddd0d9d78cb43719699ac295a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/9c32157de322f912e2a78c669158a78c/izdw-9c32157de3.o957291",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/9c32157de322f912e2a78c669158a78c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n........F                                                                [100%]\n=================================== FAILURES ===================================\n_________ test_noncertifying_sidecar_positive_and_exact_type_boundary __________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_noncertifying_sidecar_pos0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1542a61dcd00>\n\n    def test_noncertifying_sidecar_positive_and_exact_type_boundary(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        sidecar, workloads, common = _noncertifying_bundle(tmp_path, monkeypatch)\n        assert all(item[\"valid\"] is True for item in workloads)\n        view = paired.consume_non_certifying_observation(sidecar)\n        assert type(view) is paired.NonCertifyingObservationView\n        sidecar_document = json.loads(sidecar.read_bytes())\n        assert set(sidecar_document[\"source_binding\"][\"files\"]) == set(\n            paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS\n        )\n        assert view.common_record[\"mode\"] == common[\"mode\"]\n        assert tuple(view.common_record[\"campaign_ids\"]) == tuple(\n            common[\"campaign_ids\"]\n        )\n        with pytest.raises(TypeError):\n            view.result[\"complete\"] = False\n>       with pytest.raises(TypeError, match=\"専用consumer\"):\nE       Failed: DID NOT RAISE TypeError\n\norchestrator/tests/test_paper_story_a1_paired.py:2714: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary\n========================= 1 failed, 8 passed in 4.72s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1253 retained_bytes=1253 omitted_bytes=0 rendered_excerpt_bytes=1312 sha256=ff17e81927714d53bec668f8a52bc18122787f9e5f42532422741d29792c0575\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_noncertifying_sidecar_pos0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1542a61dcd00>\n> \n>     def test_noncertifying_sidecar_positive_and_exact_type_boundary(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         sidecar, workloads, common = _noncertifying_bundle(tmp_path, monkeypatch)\n>         assert all(item[\"valid\"] is True for item in workloads)\n>         view = paired.consume_non_certifying_observation(sidecar)\n>         assert type(view) is paired.NonCertifyingObservationView\n>         sidecar_document = json.loads(sidecar.read_bytes())\n>         assert set(sidecar_document[\"source_binding\"][\"files\"]) == set(\n>             paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS\n>         )\n>         assert view.common_record[\"mode\"] == common[\"mode\"]\n>         assert tuple(view.common_record[\"campaign_ids\"]) == tuple(\n>             common[\"campaign_ids\"]\n>         )\n>         with pytest.raises(TypeError):\n>             view.result[\"complete\"] = False\n> >       with pytest.raises(TypeError, match=\"\\u5c02\\u7528consumer\"):\n> E       Failed: DID NOT RAISE TypeError\n> \n> orchestrator/tests/test_paper_story_a1_paired.py:2714: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1253 retained_bytes=1253 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2049 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "80ea285bf068b50ec433a6fdd1e6c088b2199618d48ce03749f4b3c200a4cb3e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.897,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary"
+      ],
+      "hang_risk": false,
+      "id": "t2006.view-token",
+      "injection_diff_sha256": "877a1521e761bfd909845ed25f17f36715a802e11a809191b18c30d0793bc036",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ee837dda9c056e937d8a8b0215865495f423d0f56731600300620c3cc8c07154",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "        if False:\n",
+          "old": "        if self._token is not _NON_CERTIFYING_VIEW_TOKEN:\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "80ea285bf068b50ec433a6fdd1e6c088b2199618d48ce03749f4b3c200a4cb3e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/ad1ac69fed6ab7b5623f83f14180f496/izdw-ad1ac69fed.o957292",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/ad1ac69fed6ab7b5623f83f14180f496/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [9 items]\n\n....F....                                                                [100%]\n=================================== FAILURES ===================================\n___________ test_m_nc09_intent_without_submission_never_repeats_qsub ___________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_m_nc09_intent_without_sub0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148e7ab7d2a0>\n\n    def test_m_nc09_intent_without_submission_never_repeats_qsub(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)\n        argv, options = paired._canonical_qsub_contract(\n            repo_root=repo.resolve(),\n            study_id=paired.STUDY_ID,\n            source_commit=head,\n            attempt=attempt,\n        )\n        intent = {\n            \"schema_version\": paired.SUBMISSION_INTENT_SCHEMA,\n            \"study_id\": paired.STUDY_ID,\n            \"source_commit\": head,\n            \"attempt_root\": str(attempt),\n            \"qsub_argv\": argv,\n            \"qsub_options\": options,\n            \"source_binding\": paired._non_certifying_source_binding(repo, head),\n        }\n        intent[\"intent_sha256\"] = paired._submission_intent_digest(intent)\n        paired._exclusive_write(paired._attempt_intent_path(attempt), intent)\n        attempt.mkdir()\n        calls = []\n        monkeypatch.setattr(\n            paired, \"_run_qsub\", lambda _argv, *, cwd: calls.append((_argv, cwd)),\n        )\n>       with pytest.raises(paired.PaperStoryError, match=\"indeterminate\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'indeterminate'\nE         Actual message: 'submit attempt root must not already exist'\n\norchestrator/tests/test_paper_story_a1_job_contract.py:1829: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub\n========================= 1 failed, 8 passed in 4.66s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1626 retained_bytes=1626 omitted_bytes=0 rendered_excerpt_bytes=1701 sha256=3fa086cf78affcbd821eb0519144c48a8889f63907722b3693dd7471266b8d1f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_m_nc09_intent_without_sub0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148e7ab7d2a0>\n> \n>     def test_m_nc09_intent_without_submission_never_repeats_qsub(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)\n>         argv, options = paired._canonical_qsub_contract(\n>             repo_root=repo.resolve(),\n>             study_id=paired.STUDY_ID,\n>             source_commit=head,\n>             attempt=attempt,\n>         )\n>         intent = {\n>             \"schema_version\": paired.SUBMISSION_INTENT_SCHEMA,\n>             \"study_id\": paired.STUDY_ID,\n>             \"source_commit\": head,\n>             \"attempt_root\": str(attempt),\n>             \"qsub_argv\": argv,\n>             \"qsub_options\": options,\n>             \"source_binding\": paired._non_certifying_source_binding(repo, head),\n>         }\n>         intent[\"intent_sha256\"] = paired._submission_intent_digest(intent)\n>         paired._exclusive_write(paired._attempt_intent_path(attempt), intent)\n>         attempt.mkdir()\n>         calls = []\n>         monkeypatch.setattr(\n>             paired, \"_run_qsub\", lambda _argv, *, cwd: calls.append((_argv, cwd)),\n>         )\n> >       with pytest.raises(paired.PaperStoryError, match=\"indeterminate\"):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'indeterminate'\n> E         Actual message: 'submit attempt root must not already exist'\n> \n> orchestrator/tests/test_paper_story_a1_job_contract.py:1829: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1626 retained_bytes=1626 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2441 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e19ea0d7a6e03f50a94559643e2910bf6ac5f85b683f9c0ef8382af25d5cd82e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "14e5200a226d552dfa7097cff9d64effae36f228367a0e998bdbe7964d5c9828",
+      "duration_s": 26.916,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub"
+      ],
+      "hang_risk": false,
+      "id": "t2006.submit-once",
+      "injection_diff_sha256": "a54f47adc9cdfdf30f612574b7320207f4c20ae96c31055f39bde995b50c1b81",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0e24e5654208cf5f3ec74af99932cf6de54f6422784614d1d7b806c7780dc69b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "new": "    if False:\n        raise PaperStoryError(\n            \"submission indeterminate: intent exists without submission receipt; \"\n            \"qsub will not be repeated\"\n        )\n",
+          "old": "    if os.path.lexists(intent_path):\n        raise PaperStoryError(\n            \"submission indeterminate: intent exists without submission receipt; \"\n            \"qsub will not be repeated\"\n        )\n"
+        }
+      ],
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "KILLED",
+      "test_output_sha256": "e19ea0d7a6e03f50a94559643e2910bf6ac5f85b683f9c0ef8382af25d5cd82e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/2b33f71d2d9f6f24fd1b57604d711926/izdw-2b33f71d2d.o957282",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/output/pegasus-dispatch/2b33f71d2d9f6f24fd1b57604d711926/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub\norchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders\norchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected\norchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode\norchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal\norchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected\norchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer\norchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary\norchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub\n\n9 tests collected in 0.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "65fb06e59736724195e82041e5b31027e3c5332e4c6137ac8c27bbf87d2b846c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub",
+        "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders",
+        "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub"
+      ],
+      "duration_s": 21.731,
+      "rc": 0,
+      "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+      "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+      "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+      "status": "PASSED",
+      "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t2006.anomaly-gate": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "95265c283c6bae37cf880afc086f0f7317838dba6025f539bc21734929987df4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "            if False:\n",
+            "old": "            if type(anomalies) is not int or anomalies != 0:\n"
+          }
+        ]
+      },
+      "t2006.artifact-digest": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8dd0bb0c463852fc17d0f884b8f97f5741d0010c8111e12967283164a1f68822",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "    if raw is None:\n",
+            "old": "    if raw is None or _sha256_bytes(raw) != digest:\n"
+          }
+        ]
+      },
+      "t2006.commit-receipt-binding": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3f8102ea78d446e75a7137b09107533b048a95a2aa9928928affeef40e592a39",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/wal.py",
+            "new": "                    lock_identity_sha256=serialized[\"lock_identity_sha256\"],\n",
+            "old": "                    lock_identity_sha256=campaign_lock_bytes_sha256(\n                        decoded.original_text.encode(\"utf-8\")\n                    ),\n"
+          }
+        ]
+      },
+      "t2006.identity-tag": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1d37677a8148d7db9ea424d7616396a725c5e9300b7616008c44fdbf2c511d57",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/campaign_lock.py",
+            "new": "    if False:\n",
+            "old": "    if not hmac.compare_digest(tag, expected):\n"
+          }
+        ]
+      },
+      "t2006.marker-gate": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "eaaeae7c49849d058bc38412caeea2bc2b4d756c4f381b764d9462b00e753232",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "        or False\n",
+            "old": "        or not ident.is_a1_non_certifying_config(cfg)\n"
+          }
+        ]
+      },
+      "t2006.registry-seal": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d93f95b3259842a3dd158663e1210cd6d78c09076e690cb44899e93d8d7b0ade",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "        or False\n",
+            "old": "        or projection._seal is not _A1_NON_CERTIFYING_PROJECTION_SEAL\n"
+          }
+        ]
+      },
+      "t2006.schema-downgrade": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5f4694e952cf110312b136292a868af9b51028189146e7f64f01e51edf37bec9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/campaign_lock.py",
+            "new": "    if False:\n",
+            "old": "    if NON_CERTIFYING_RESERVED_V1_KEYS & set(value):\n"
+          }
+        ]
+      },
+      "t2006.submit-once": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a54f47adc9cdfdf30f612574b7320207f4c20ae96c31055f39bde995b50c1b81",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "    if False:\n        raise PaperStoryError(\n            \"submission indeterminate: intent exists without submission receipt; \"\n            \"qsub will not be repeated\"\n        )\n",
+            "old": "    if os.path.lexists(intent_path):\n        raise PaperStoryError(\n            \"submission indeterminate: intent exists without submission receipt; \"\n            \"qsub will not be repeated\"\n        )\n"
+          }
+        ]
+      },
+      "t2006.view-token": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "877a1521e761bfd909845ed25f17f36715a802e11a809191b18c30d0793bc036",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a1_paired.py",
+            "new": "        if False:\n",
+            "old": "        if self._token is not _NON_CERTIFYING_VIEW_TOKEN:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f5b613deb1abcaac60da827b93b11b06912a503b399dac51426c190ccfe2b290",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub",
+      "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders",
+      "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected",
+      "orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary",
+      "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "fb7b8dbbafe1f07f91372d45b9f26ba00b9c706d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub",
+      "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders",
+      "orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected",
+      "orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer",
+      "orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary",
+      "orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "574226e0dfa061e32e5faab1c6f993f26fcca4c2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "1a369060ac42ff333759518121f587ade3884fc5e45ac54034cbbe1480c41337",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a2c022112ea69df46840f5edde8b87325fbf6e8e084327706a0cbd2efea146da",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2006-noncertifying-a1/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "e46b1fdc6fdd4fa0cb41cb6b3de5b288658a48f6b02313329ff746e85d93d857",
+  "updated_at": "2026-08-28T16:27:31.813865+00:00"
+}

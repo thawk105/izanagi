@@ -9,8 +9,10 @@ import math
 import os
 import shlex
 import statistics
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,7 +20,7 @@ import pytest
 pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
 
 from orchestrator.calibrator import runner as calibrator_runner
-from orchestrator.campaign import ident, wal
+from orchestrator.campaign import campaign_lock, ident, loop as campaign_loop, wal
 from orchestrator.campaign import paper_story_a1_paired as paired
 from orchestrator.campaign.build_admission import (
     GeneratorId,
@@ -28,9 +30,11 @@ from orchestrator.campaign.build_admission import (
 from orchestrator.campaign.layout import exploration_campaign_layout
 from orchestrator.campaign.model import COMMIT_CONTRACT_SHA256_KEY, WalRecord
 from orchestrator.campaign.source_digest import SourceEvidence
+from orchestrator.tests import commit_receipt_support as receipt_support
 
 
 _TEST_BUILD_DIR: Path | None = None
+_MISSING = object()
 
 
 @pytest.fixture(autouse=True)
@@ -427,6 +431,331 @@ def _production_wal_workload(
         expected_campaign_preimage=expected_preimage,
         expected_layout_root=layout.root,
     )
+
+
+def _noncertifying_bundle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    anomalies: object = 0,
+):
+    policy, policy_sha = paired.load_policy()
+    monkeypatch.setattr(
+        paired, "_durable_measurement_base", lambda _policy: tmp_path.resolve(),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    contract = paired.p2_2.env_contract.lookup("pegasus")
+    repo_root = paired._repo_root().resolve(strict=True)
+    source_commit = paired._run_git(repo_root, "rev-parse", "HEAD")
+    legacy_source_binding = _source_binding()
+    legacy_source_binding["measurement_source_commit"] = source_commit
+    non_certifying_source_binding = paired._non_certifying_source_binding(
+        repo_root, source_commit,
+    )
+    configs = [
+        ident.bind_admission_policy(
+            paired.p2_2._campaign_cfg_for_site(
+                paired.campaign_config(
+                    policy, name, contract=contract, non_certifying=True,
+                ),
+                paired.site_policy.PEGASUS_COMPUTE,
+                contract,
+            ),
+            context.policy,
+        )
+        for name in paired.WORKLOAD_ORDER
+    ]
+    campaign_ids = [str(ident.campaign_id(cfg)) for cfg in configs]
+    attempt = (tmp_path / "noncertifying-attempt").resolve()
+    attempt.mkdir()
+    (attempt / "raw" / "tmp").mkdir(parents=True)
+    (attempt / "cache").mkdir()
+    argv, options = paired._canonical_qsub_contract(
+        repo_root=repo_root,
+        study_id=paired.STUDY_ID,
+        source_commit=source_commit,
+        attempt=attempt,
+    )
+    intent = {
+        "schema_version": paired.SUBMISSION_INTENT_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "qsub_argv": argv,
+        "qsub_options": options,
+        "source_binding": non_certifying_source_binding,
+    }
+    intent["intent_sha256"] = paired._submission_intent_digest(intent)
+    paired._exclusive_write(paired._attempt_intent_path(attempt), intent)
+    projection = paired.trial_registry.issue_a1_registered_noncertifying_projection(
+        study_id=paired.STUDY_ID,
+        policy_sha256=policy_sha,
+        preregistration_sha256=paired.PREREGISTRATION_SHA256,
+        source_commit=source_commit,
+        workloads=paired.WORKLOAD_ORDER,
+        campaign_ids=campaign_ids,
+    )
+    common = paired._a1_common_record(
+        projection,
+        source_binding=non_certifying_source_binding,
+        environment_contract_sha256=contract.contract_sha256,
+        intent_sha256=intent["intent_sha256"],
+    )
+    layouts = [
+        exploration_campaign_layout(cid, attempt / "raw" / "campaign-output")
+        for cid in campaign_ids
+    ]
+    paired._preseed_a1_non_certifying_locks(
+        configs=configs,
+        layouts=layouts,
+        workloads=paired.WORKLOAD_ORDER,
+        common_record=common,
+    )
+    rewritten = []
+    for name, cfg, campaign_id, layout in zip(
+        paired.WORKLOAD_ORDER, configs, campaign_ids, layouts,
+    ):
+        with wal.a1_non_certifying_io(layout):
+            for arm_name in paired.ARM_ORDER:
+                arm_policy = next(
+                    item for item in policy["arms"] if item["name"] == arm_name
+                )
+                genome = paired.Genome(
+                    arm_policy["protocol"], dict(arm_policy["flags"])
+                )
+                source = SourceEvidence(
+                    schema_version="source-evidence/v1",
+                    source_root=str(tmp_path.resolve()),
+                    ccbench_commit=paired.pin.CURRENT_PIN,
+                    genome_sha256=hashlib.sha256(
+                        genome.canonical().encode("utf-8")
+                    ).hexdigest(),
+                    src_token="stock",
+                    source_bytes_sha256=hashlib.sha256(b"stock").hexdigest(),
+                    tracked_clean=True,
+                    tracked_diff_sha256=hashlib.sha256(b"").hexdigest(),
+                    tracked_paths=(),
+                )
+                admission = derive_build_admission(
+                    context, source
+                ).as_wal_receipt()
+                frames = _arm(policy, arm_name, workload_name=name)[
+                    "attempts"
+                ][0]["frames"]
+                for index, frame in enumerate(frames):
+                    payload = copy.deepcopy(frame["payload"])
+                    if (
+                        name == paired.WORKLOAD_ORDER[0]
+                        and arm_name == paired.ARM_ORDER[0]
+                        and frame["stage"] == paired.STAGE_VERIFY_DONE
+                    ):
+                        if anomalies is not _MISSING:
+                            payload["anomalies"] = anomalies
+                    elif frame["stage"] == paired.STAGE_VERIFY_DONE:
+                        payload["anomalies"] = 0
+                    if frame["stage"] == paired.STAGE_BUILD_START:
+                        payload.update({
+                            "src_token": admission["source"]["src_token"],
+                            "build_admission": admission,
+                            "build_admission_receipt_sha256": admission[
+                                "receipt_sha256"
+                            ],
+                        })
+                    elif frame["stage"] in {
+                        paired.STAGE_BUILD_DONE, paired.STAGE_COMMIT,
+                    }:
+                        payload["build_admission_receipt_sha256"] = admission[
+                            "receipt_sha256"
+                        ]
+                    record = WalRecord(
+                        variant=frame["variant"],
+                        stage=frame["stage"],
+                        env_tag=frame["env_tag"],
+                        ts=float(index + 1),
+                        payload=payload,
+                    )
+                    if record.stage == paired.STAGE_COMMIT:
+                        receipt_support.log_receipted_commit(
+                            layout,
+                            record.variant,
+                            record.env_tag,
+                            record.payload,
+                            operation_identity=record.payload[
+                                "build_attempt_id"
+                            ],
+                        )
+                    else:
+                        wal.append(layout, record)
+        rewritten.append(paired.collect_workload(
+            policy,
+            workload_name=name,
+            campaign_id=campaign_id,
+            layout=layout,
+            admission_policy=context.policy,
+            env_tag="pegasus",
+            source_binding=legacy_source_binding,
+            expected_campaign_preimage=ident.canonical_preimage(cfg),
+            expected_layout_root=layout.root,
+        ))
+    result = paired.assemble_result(
+        policy,
+        policy_sha256=policy_sha,
+        source_binding=legacy_source_binding,
+        reservation_binding={
+            **_reservation_binding(),
+            "job_id": "12345.nqsv",
+            "nonce": attempt.name,
+        },
+        workloads=rewritten,
+    )
+    evidence = paired._attempt_evidence_paths(attempt)
+    request_id = "12345.nqsv"
+    qsub_stdout = f"{request_id}\n"
+    submission = {
+        "schema_version": paired.SUBMISSION_SCHEMA,
+        "route": "direct-qsub",
+        "study_id": paired.STUDY_ID,
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "request_id": request_id,
+        "submission_receipt_path": evidence["submission_receipt"],
+        "completion_receipt_path": evidence["completion_receipt"],
+        "qsub_argv": argv,
+        "qsub_options": options,
+        "submit_observation": {
+            "submit_host": "fixture-host",
+            "qsub_stdout": qsub_stdout,
+            "qsub_stdout_sha256": hashlib.sha256(qsub_stdout.encode()).hexdigest(),
+            "qsub_stderr": "",
+            "qsub_stderr_sha256": hashlib.sha256(b"").hexdigest(),
+            "qstat_visibility": {
+                "request_id": request_id,
+                "visible": True,
+                "state": "QUE",
+                "queue": "gen_S",
+                "observed_epoch": 1,
+            },
+        },
+    }
+    paired._exclusive_write(Path(evidence["submission_receipt"]), submission)
+    result_root = attempt / "raw" / "results"
+    result_root.mkdir()
+    result_path = result_root / "result.json"
+    receipt_path = result_root / "receipt.json"
+    paired._exclusive_write(result_path, result)
+    roots = {
+        "attempt_root": os.fspath(attempt),
+        "attempt_identity": paired._attempt_root_identity(attempt),
+        "raw_root": os.fspath(attempt / "raw"),
+        "output_root": os.fspath(attempt / "raw" / "campaign-output"),
+        "cache_root": os.fspath(attempt / "cache"),
+        "result_root": os.fspath(result_root),
+        "tmp_root": os.fspath(attempt / "raw" / "tmp"),
+        **evidence,
+    }
+    receipt = {
+        "schema_version": paired.RECEIPT_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "formal": False,
+        "promotion_prohibited": True,
+        "route": "direct-qsub",
+        "pbs_jobid": request_id,
+        "host": "fixture-host",
+        "recorded_epoch": 1,
+        "policy": {
+            "path": paired.POLICY_RELATIVE_PATH,
+            "sha256": policy_sha,
+        },
+        "source_binding": legacy_source_binding,
+        "submission_receipt": {
+            "path": evidence["submission_receipt"],
+            "sha256": hashlib.sha256(
+                Path(evidence["submission_receipt"]).read_bytes()
+            ).hexdigest(),
+        },
+        "scheduler_completion_receipt": {
+            "path": evidence["completion_receipt"],
+        },
+        "roots": roots,
+        "result": {
+            "path": os.fspath(result_path),
+            "sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
+            "complete": result["complete"],
+            "all_workloads_terminal": result["all_workloads_terminal"],
+        },
+        "calibration_sha256": None,
+    }
+    paired._exclusive_write(receipt_path, receipt)
+    sidecar = paired._issue_non_certifying_observation(
+        common_record=common,
+        source_binding=non_certifying_source_binding,
+        workloads=rewritten,
+        result_path=result_path,
+        receipt_path=receipt_path,
+    )
+    Path(evidence["stdout_path"]).write_bytes(b"fixture stdout\n")
+    Path(evidence["stderr_path"]).write_bytes(b"")
+    terminal_path = attempt / "raw" / "job-terminal.json"
+    terminal = {
+        "schema_version": paired.JOB_TERMINAL_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "pbs_jobid": request_id,
+        "expected_head": source_commit,
+        "observed_head": source_commit,
+        "porcelain": "",
+        "driver_rc": 0,
+        "shell_rc": 0,
+        "status": "finished",
+        "result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
+        "receipt_sha256": hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+        "submission_receipt_sha256": receipt["submission_receipt"]["sha256"],
+        "completion_receipt_path": evidence["completion_receipt"],
+        "pbs_observation": {
+            "pbs_jobid": request_id,
+            "pbs_o_host": "fixture-host",
+            "pbs_o_workdir": os.fspath(repo_root),
+        },
+        "reservation_binding": result["reservation_binding"],
+        "attempt_identity": roots["attempt_identity"],
+        "terminal_source_binding": legacy_source_binding,
+        "recorded_epoch": 2,
+    }
+    paired._exclusive_write(terminal_path, terminal)
+
+    def binding(candidate: Path) -> dict:
+        return {
+            "path": os.fspath(candidate),
+            "sha256": hashlib.sha256(candidate.read_bytes()).hexdigest(),
+        }
+
+    qstat_stdout = (
+        f"Request ID: {request_id}\nState: EXT\nExit Status: 0\n"
+    )
+    completion = {
+        "schema_version": paired.COMPLETION_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "request_id": request_id,
+        "submission_receipt": binding(Path(evidence["submission_receipt"])),
+        "scheduler_terminal": {
+            "terminal_reason": "scheduler-end-state",
+            "qstat_visible": True,
+            "qstat_rc": 0,
+            "state": {"observed": True, "value": "EXT"},
+            "exit_status": {"observed": True, "value": 0},
+            "observed_epoch": 2,
+            "qstat_stdout": qstat_stdout,
+            "qstat_stdout_sha256": hashlib.sha256(
+                qstat_stdout.encode()
+            ).hexdigest(),
+        },
+        "stdout": binding(Path(evidence["stdout_path"])),
+        "stderr": binding(Path(evidence["stderr_path"])),
+        "job_terminal": binding(terminal_path),
+    }
+    paired._exclusive_write(Path(evidence["completion_receipt"]), completion)
+    return sidecar, rewritten, common
 
 
 def _frame_for(arm: dict, stage: str) -> dict:
@@ -2248,6 +2577,454 @@ def test_trace0_is_source_routed_and_never_standalone(mutation: str) -> None:
     )
     assert result["valid"] is False
     assert any("trace0-source-route-incomplete" in error for error in result["errors"])
+
+
+@pytest.mark.parametrize("mutation", ["formal-missing", "promotion-flipped"])
+def test_m_nc01_a1_marker_rejected_before_lock_preseed(
+    tmp_path: Path, mutation: str,
+) -> None:
+    policy = _policy()
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    configs = [
+        ident.bind_admission_policy(
+            paired.campaign_config(policy, name, non_certifying=True),
+            context.policy,
+        )
+        for name in paired.WORKLOAD_ORDER
+    ]
+    search = dict(configs[0].search_config)
+    if mutation == "formal-missing":
+        search.pop("formal")
+    else:
+        search["promotion_prohibited"] = False
+    configs[0] = replace(configs[0], search_config=search)
+    layouts = [
+        exploration_campaign_layout(f"campaign-{index}", tmp_path)
+        for index in range(3)
+    ]
+    with pytest.raises(paired.PaperStoryError, match="marker differs"):
+        paired._preseed_a1_non_certifying_locks(
+            configs=configs,
+            layouts=layouts,
+            workloads=paired.WORKLOAD_ORDER,
+            common_record={},
+        )
+    assert all(not Path(layout.lock_file).exists() for layout in layouts)
+
+
+def test_a1_exact_marker_routes_loop_to_dedicated_replay_and_append(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    policy = _policy()
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = paired.campaign_config(
+        policy, paired.WORKLOAD_ORDER[0], non_certifying=True,
+    )
+    events = []
+
+    def authorize(bound_cfg, *_args, **_kwargs):
+        return campaign_loop._AuthorizationResult(
+            authorized_contract=SimpleNamespace(),
+            execution_receipt=None,
+            bound_cfg=bound_cfg,
+            campaign_identity=str(ident.campaign_id(bound_cfg)),
+        )
+
+    @contextmanager
+    def unlocked(_path):
+        yield
+
+    @contextmanager
+    def dedicated_io(layout):
+        events.append("dedicated-io")
+        token = wal._A1_IO_LAYOUT.set(os.fspath(layout.root))
+        try:
+            yield
+        finally:
+            wal._A1_IO_LAYOUT.reset(token)
+
+    def dedicated_replay(*_args, **_kwargs):
+        events.append("dedicated-replay")
+        return {}
+
+    def dedicated_append(_layout, record, *, commit_receipt=None):
+        assert commit_receipt is None
+        events.append(f"dedicated-append:{record.stage}")
+        return record
+
+    monkeypatch.setattr(campaign_loop, "_authorize_measurement", authorize)
+    monkeypatch.setattr(campaign_loop, "campaign_lock", unlocked)
+    monkeypatch.setattr(wal, "a1_non_certifying_io", dedicated_io)
+    monkeypatch.setattr(wal, "replay_a1_non_certifying", dedicated_replay)
+    monkeypatch.setattr(
+        wal, "replay", lambda *_args, **_kwargs: pytest.fail("generic replay used"),
+    )
+    monkeypatch.setattr(wal, "append_a1_non_certifying", dedicated_append)
+    monkeypatch.setattr(
+        ident,
+        "ensure_resumable_wal",
+        lambda *_args, **_kwargs: SimpleNamespace(status="clean"),
+    )
+    monkeypatch.setattr(
+        campaign_loop.source_digest,
+        "resolve_evidence",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("focused identity failure")
+        ),
+    )
+    summary = campaign_loop.run_campaign(
+        cfg,
+        [paired.Genome("focused", {})],
+        SimpleNamespace(),
+        "pegasus",
+        1,
+        do_bench=False,
+        output_root=os.fspath(tmp_path / "campaign-output"),
+        authorization_contract=object(),
+        build_context=context,
+        declared_use_class="exploration",
+        log=lambda *_args: None,
+    )
+    assert summary.aborted == 1
+    assert events == [
+        "dedicated-io",
+        "dedicated-replay",
+        f"dedicated-append:{paired.STAGE_BUILD_START}",
+        f"dedicated-append:{paired.STAGE_ABORT}",
+    ]
+
+
+def test_noncertifying_sidecar_positive_and_exact_type_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sidecar, workloads, common = _noncertifying_bundle(tmp_path, monkeypatch)
+    assert all(item["valid"] is True for item in workloads)
+    view = paired.consume_non_certifying_observation(sidecar)
+    assert type(view) is paired.NonCertifyingObservationView
+    sidecar_document = json.loads(sidecar.read_bytes())
+    assert set(sidecar_document["source_binding"]["files"]) == set(
+        paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    )
+    assert view.common_record["mode"] == common["mode"]
+    assert tuple(view.common_record["campaign_ids"]) == tuple(
+        common["campaign_ids"]
+    )
+    with pytest.raises(TypeError):
+        view.result["complete"] = False
+    with pytest.raises(TypeError, match="専用consumer"):
+        paired.NonCertifyingObservationView(
+            sidecar_path=sidecar,
+            common_record=common,
+            campaigns=(),
+            result={},
+            receipt={},
+            _token=object(),
+        )
+    from orchestrator.campaign import artifact_admission
+    with pytest.raises(TypeError, match="exact CertifiedCampaignView"):
+        artifact_admission.require_certified_campaign_view(view)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("completion-missing", "completion receipt is missing"),
+        ("submission-sha", "submission receipt digest differs"),
+        ("scheduler-exit", "visible scheduler terminal observation differs"),
+        ("job-terminal-missing", "job terminal is missing"),
+    ],
+)
+def test_final_noncertifying_view_requires_real_terminal_receipt_chain(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    message: str,
+) -> None:
+    sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    receipt = json.loads(Path(value["receipt"]["path"]).read_bytes())
+    roots = receipt["roots"]
+    if mutation == "completion-missing":
+        Path(roots["completion_receipt"]).unlink()
+    elif mutation == "submission-sha":
+        Path(roots["submission_receipt"]).write_bytes(b"tampered submission\n")
+    elif mutation == "scheduler-exit":
+        completion_path = Path(roots["completion_receipt"])
+        completion = json.loads(completion_path.read_bytes())
+        completion["scheduler_terminal"]["exit_status"]["value"] = 1
+        completion_path.write_bytes(paired._canonical_json_bytes(completion))
+    else:
+        (Path(roots["raw_root"]) / "job-terminal.json").unlink()
+    with pytest.raises(paired.PaperStoryError, match=message):
+        paired.consume_non_certifying_observation(sidecar)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("request", "Request ID: 54321.nqsv"),
+        ("state", "State: RUN"),
+        ("exit", "Exit Status: 1"),
+    ],
+)
+def test_final_noncertifying_view_reparses_scheduler_terminal_stdout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    replacement: str,
+) -> None:
+    sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    receipt = json.loads(Path(value["receipt"]["path"]).read_bytes())
+    completion_path = Path(receipt["roots"]["completion_receipt"])
+    completion = json.loads(completion_path.read_bytes())
+    terminal = completion["scheduler_terminal"]
+    request_id = completion["request_id"]
+    original = {
+        "request": f"Request ID: {request_id}",
+        "state": "State: EXT",
+        "exit": "Exit Status: 0",
+    }[field]
+    terminal["qstat_stdout"] = terminal["qstat_stdout"].replace(
+        original, replacement,
+    )
+    terminal["qstat_stdout_sha256"] = hashlib.sha256(
+        terminal["qstat_stdout"].encode()
+    ).hexdigest()
+    completion_path.write_bytes(paired._canonical_json_bytes(completion))
+
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="visible scheduler terminal observation differs",
+    ):
+        paired.consume_non_certifying_observation(sidecar)
+
+
+def test_run_complete_uses_raw_sidecar_gate_then_enables_final_view(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sidecar, _workloads, common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    receipt = json.loads(Path(value["receipt"]["path"]).read_bytes())
+    completion_path = Path(receipt["roots"]["completion_receipt"])
+    completion_path.unlink()
+    request_id = receipt["pbs_jobid"]
+    stdout = (
+        f"Request ID: {request_id}\nState: EXT\nExit Status: 0\n"
+    )
+    original_run = paired.subprocess.run
+
+    def run_with_terminal_qstat(argv, *args, **kwargs):
+        if list(argv) == ["qstat", "-f", request_id]:
+            return SimpleNamespace(
+                args=argv, returncode=0, stdout=stdout, stderr="",
+            )
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(
+        paired.subprocess,
+        "run",
+        run_with_terminal_qstat,
+    )
+    assert paired.run_complete(SimpleNamespace(
+        expected_head=common["source_commit"],
+        attempt_root=receipt["roots"]["attempt_root"],
+    )) == 0
+    assert completion_path.is_file()
+    assert type(
+        paired.consume_non_certifying_observation(sidecar)
+    ) is paired.NonCertifyingObservationView
+
+
+def test_m_nc03_observation_tag_tamper_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    tag = value["observation_tag"]
+    value["observation_tag"] = ("0" if tag[0] != "0" else "1") + tag[1:]
+    sidecar.write_bytes(paired._canonical_json_bytes(value))
+    with pytest.raises(paired.PaperStoryError, match="tag mismatch"):
+        paired.consume_non_certifying_observation(sidecar)
+
+
+def test_m_nc03_sidecar_decodes_lock_before_reading_bound_wal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    lock_path = Path(value["campaigns"][0]["campaign_lock"]["path"])
+    lock = json.loads(lock_path.read_bytes())
+    tag = lock["a1_non_certifying"]["identity_tag"]
+    lock["a1_non_certifying"]["identity_tag"] = (
+        ("0" if tag[0] != "0" else "1") + tag[1:]
+    )
+    lock_path.write_text(campaign_lock.canonical_json(lock), encoding="utf-8")
+    value["campaigns"][0]["campaign_lock"]["sha256"] = hashlib.sha256(
+        lock_path.read_bytes()
+    ).hexdigest()
+    value["observation_tag"] = paired._observation_identity_tag(value)
+    sidecar.write_bytes(paired._canonical_json_bytes(value))
+    original = paired._read_observation_binding
+
+    def refuse_wal(binding, *, label):
+        if label == "wal":
+            pytest.fail("sidecar read WAL before dedicated lock rejection")
+        return original(binding, label=label)
+
+    monkeypatch.setattr(paired, "_read_observation_binding", refuse_wal)
+    with pytest.raises(paired.PaperStoryError, match="campaign lock is invalid"):
+        paired.consume_non_certifying_observation(sidecar)
+
+
+def test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _sidecar, workloads, common = _noncertifying_bundle(tmp_path, monkeypatch)
+    binding = workloads[0]["campaign_binding"]
+    lock_path = Path(binding["campaign_lock_path"])
+    decoded = campaign_lock.decode_non_certifying_campaign_lock(
+        lock_path.read_text(encoding="utf-8")
+    )
+    changed = dict(common)
+    changed["source_binding_sha256"] = "0" * 64
+    lock_path.write_text(
+        campaign_lock.encode_non_certifying_campaign_lock(
+            decoded.identity_preimage,
+            common_record=changed,
+            workload_binding=decoded.workload_binding,
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="lock SHA"):
+        wal.replay_a1_non_certifying(
+            paired.CampaignLayout(binding["layout_root"]),
+            admission_policy=build_run_context(
+                generator_id=GeneratorId.BACKOFF_SWEEP
+            ).policy,
+        )
+
+
+def test_m_nc06_sidecar_campaign_digest_replacement_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    value["campaigns"][1]["wal"]["sha256"] = "0" * 64
+    value["observation_tag"] = paired._observation_identity_tag(value)
+    sidecar.write_bytes(paired._canonical_json_bytes(value))
+    with pytest.raises(paired.PaperStoryError, match="wal digest"):
+        paired.consume_non_certifying_observation(sidecar)
+
+
+def test_m_nc04_common_prereg_replacement_is_rederived_and_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sidecar, _workloads, _common = _noncertifying_bundle(tmp_path, monkeypatch)
+    value = json.loads(sidecar.read_bytes())
+    changed_common = dict(value["common_record"])
+    changed_common["preregistration_sha256"] = "0" * 64
+    result_path = Path(value["result"]["path"])
+    result = json.loads(result_path.read_bytes())
+    for ordinal, campaign in enumerate(value["campaigns"]):
+        lock_path = Path(campaign["campaign_lock"]["path"])
+        decoded = campaign_lock.decode_non_certifying_campaign_lock(
+            lock_path.read_text(encoding="utf-8")
+        )
+        lock_path.write_text(
+            campaign_lock.encode_non_certifying_campaign_lock(
+                decoded.identity_preimage,
+                common_record=changed_common,
+                workload_binding=decoded.workload_binding,
+            ),
+            encoding="utf-8",
+        )
+        lock_sha = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+        campaign["campaign_lock"]["sha256"] = lock_sha
+        result["workloads"][ordinal]["campaign_binding"][
+            "campaign_lock_sha256"
+        ] = lock_sha
+    paired._exclusive_write(result_path.with_suffix(".replacement"), result)
+    replacement_path = result_path.with_suffix(".replacement")
+    value["result"] = {
+        "path": os.fspath(replacement_path),
+        "sha256": hashlib.sha256(replacement_path.read_bytes()).hexdigest(),
+    }
+    receipt_path = Path(value["receipt"]["path"])
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["result"] = {
+        "path": value["result"]["path"],
+        "sha256": value["result"]["sha256"],
+        "complete": result["complete"],
+        "all_workloads_terminal": result["all_workloads_terminal"],
+    }
+    replacement_receipt = receipt_path.with_suffix(".replacement")
+    paired._exclusive_write(replacement_receipt, receipt)
+    value["receipt"] = {
+        "path": os.fspath(replacement_receipt),
+        "sha256": hashlib.sha256(replacement_receipt.read_bytes()).hexdigest(),
+    }
+    value["common_record"] = changed_common
+    value["observation_tag"] = paired._observation_identity_tag(value)
+    sidecar.write_bytes(paired._canonical_json_bytes(value))
+    with pytest.raises(paired.PaperStoryError, match="common/source binding"):
+        paired.consume_non_certifying_observation(sidecar)
+
+
+def test_historical_v2_collector_accepts_verify_payload_without_anomalies() -> None:
+    policy = _policy()
+    adaptive = _arm(policy, "adaptive")
+    assert "anomalies" not in _frame_for(
+        adaptive, paired.STAGE_VERIFY_DONE,
+    )["payload"]
+    result = paired.validate_workload_evidence(
+        policy,
+        workload_name="write-heavy",
+        campaign_id="campaign-a",
+        env_tag="pegasus",
+        arms=[adaptive, _arm(policy, "static10")],
+        wal_evidence={},
+        source_binding=_source_binding(),
+    )
+    assert result["valid"] is True
+
+
+@pytest.mark.parametrize(
+    ("anomalies", "accepted"),
+    [
+        pytest.param(0, True, id="exact-int-zero"),
+        pytest.param(_MISSING, False, id="missing"),
+        pytest.param(False, False, id="bool-false"),
+        pytest.param(True, False, id="bool-true"),
+        pytest.param(1, False, id="int-one"),
+    ],
+)
+def test_m_nc07_decoded_noncertifying_lock_scopes_collector_anomaly_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    anomalies: object,
+    accepted: bool,
+) -> None:
+    _sidecar, workloads, _common = _noncertifying_bundle(
+        tmp_path, monkeypatch, anomalies=anomalies,
+    )
+    assert workloads[0]["valid"] is accepted
+    anomaly_errors = [
+        error for error in workloads[0]["errors"]
+        if "verify-anomalies-not-zero" in error
+    ]
+    assert bool(anomaly_errors) is (not accepted)
+
+
+def test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sidecar, workloads, _common = _noncertifying_bundle(
+        tmp_path, monkeypatch, anomalies=1,
+    )
+    assert workloads[0]["valid"] is False
+    with pytest.raises(paired.PaperStoryError, match="anomalies are nonzero"):
+        paired.consume_non_certifying_observation(sidecar)
 
 
 def _run() -> int:

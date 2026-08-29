@@ -40,9 +40,27 @@ from orchestrator.tests.growth_test_holds import (
 from tools import run_tests as RT
 
 
-_EXPECTED_HOLD_COUNT = 45
-_EXPECTED_KEY_SHA256 = "5a5f7a4f918684cbde6b9267d5535455974d441fa847ab8f070cc8b2e77d3429"
-_EXPECTED_ROW_CONTRACT_SHA256 = "8cf20b5f685a38bd9aee4e306792a509d5ebc0314a436a1e16c0fc129466d945"
+_EXPECTED_HOLD_COUNT = 50
+_EXPECTED_KEY_SHA256 = "ac015d7cfc40c5fdcac58aee914d5be8e86a5b167e2ae59ecad8a4639d7c7e37"
+_EXPECTED_ROW_CONTRACT_SHA256 = "0b5a699c6dc30e16c4854318cf2285b172f8e5f991eaed513000cef4da9ef094"
+_EXPECTED_FULL_ROW_SHA256 = "ec33a70d03dddc656bb17cb26add4fde60c28ccc06ad5d70f887b769db1183f4"
+_LEGACY_HOLD_COUNT = 45
+_LEGACY_KEY_SHA256 = "5a5f7a4f918684cbde6b9267d5535455974d441fa847ab8f070cc8b2e77d3429"
+_LEGACY_ROW_CONTRACT_SHA256 = "8cf20b5f685a38bd9aee4e306792a509d5ebc0314a436a1e16c0fc129466d945"
+_LEGACY_FULL_ROW_SHA256 = "8b1ec48f42d84943818e3936b57ce4180e204145ce4ffae68b62e57c62167684"
+_OLD_RULING = "2026-08-12 rulings 第 3 束"
+_T1434_EXACT_FIVE_RULING = (
+    "2026-08-29 T-1434 user ruling: 「既存の赤ならknown-violation使って問題ないよね？"
+    "あなたの赤ならあなたが直せばいいよね？」; applies only to the exact five "
+    "candidate-fixture nodes outside the causal T-1434 science-slice diff"
+)
+_T1434_CANDIDATE_FIXTURE_HOLD_NODES = frozenset({
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+    "test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+    "test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+    "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan",
+})
 _HELD_SERIAL_NODE = (
     "test_s8b_repo_scan_invariant.py::"
     "test_real_repository_scan_matches_known_hits_and_has_positive_control"
@@ -55,6 +73,92 @@ _SHARED_FIXTURE_COLLATERAL = (
     "so its fixed checks for full SHA format, CURRENT_PIN prefix, an independent "
     "golden, and K.verify_document stop too."
 )
+_S8C_CANDIDATE_FIXTURE_REASON = (
+    "Consumes the module-scoped real-repository candidate fixture. Its fresh-index "
+    "git add -A scans the repository checkout, so cost grows with tracked files. "
+    "At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance "
+    "deterministically exceeded the parent write-lock deadline and the focused rerun "
+    "timed out after 180 seconds in git add -A; these exact five failures predate and "
+    "are outside the causal T-1434 science-slice diff."
+)
+
+
+def _s8c_candidate_fixture_collateral(detail: str) -> str:
+    return (
+        "Together, holding these exact five nodes removes every consumer of the "
+        "shared module-scoped candidate fixture, so the fixture does not start. "
+        f"Holding this node removes {detail}."
+    )
+
+
+_T1434_EXPECTED_HOLDS = {
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain": GrowthTestHold(
+        hold_axis="tracked_files",
+        ruling=_T1434_EXACT_FIVE_RULING,
+        reason=_S8C_CANDIDATE_FIXTURE_REASON,
+        correctness_gate=True,
+        release_condition="explicit-user-command-only",
+        measured_seconds=None,
+        collateral_note=_s8c_candidate_fixture_collateral(
+            "the fixed checks for absence of legacy generation paths, contiguous "
+            "generation numbers, latest-generation agreement, protected/section-5/"
+            "section-6/normative-body/evidence-contract hash bindings, and "
+            "generation-1 null supersedes"
+        ),
+    ),
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points": GrowthTestHold(
+        hold_axis="tracked_files",
+        ruling=_T1434_EXACT_FIVE_RULING,
+        reason=_S8C_CANDIDATE_FIXTURE_REASON,
+        correctness_gate=True,
+        release_condition="explicit-user-command-only",
+        measured_seconds=None,
+        collateral_note=_s8c_candidate_fixture_collateral(
+            "the fixed checks for one multi-path batch call, the MAX_BATCH_REQUESTS "
+            "product bound, and the MAX_COMMITS bound"
+        ),
+    ),
+    "test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation": GrowthTestHold(
+        hold_axis="tracked_files",
+        ruling=_T1434_EXACT_FIVE_RULING,
+        reason=_S8C_CANDIDATE_FIXTURE_REASON,
+        correctness_gate=True,
+        release_condition="explicit-user-command-only",
+        measured_seconds=None,
+        collateral_note=_s8c_candidate_fixture_collateral(
+            "the fixed checks for candidate/report identity, freeze validity and "
+            "reason code, freeze generation presence, raw and parsed schema pins, "
+            "raw/parsed/report decider version pins, decider-match status and reason "
+            "code, and inactive effectiveness"
+        ),
+    ),
+    "test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates": GrowthTestHold(
+        hold_axis="tracked_files",
+        ruling=_T1434_EXACT_FIVE_RULING,
+        reason=_S8C_CANDIDATE_FIXTURE_REASON,
+        correctness_gate=True,
+        release_condition="explicit-user-command-only",
+        measured_seconds=None,
+        collateral_note=_s8c_candidate_fixture_collateral(
+            "the fixed checks for candidate/report identity, inactive effectiveness, "
+            "the exact 12 predicate count, ordered PREDICATE_IDS, and zero satisfied "
+            "predicates"
+        ),
+    ),
+    "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan": GrowthTestHold(
+        hold_axis="tracked_files",
+        ruling=_T1434_EXACT_FIVE_RULING,
+        reason=_S8C_CANDIDATE_FIXTURE_REASON,
+        correctness_gate=True,
+        release_condition="explicit-user-command-only",
+        measured_seconds=None,
+        collateral_note=_s8c_candidate_fixture_collateral(
+            "the fixed checks for WAVE_REQUIRED_PATHS inclusion, freeze-path presence, "
+            "repository enumeration coverage, the exact HOLDOUTS result with no wave "
+            "hits, production scan acceptance, and its positive control"
+        ),
+    ),
+}
 
 
 def _fixture_collateral(detail: str) -> str:
@@ -62,6 +166,10 @@ def _fixture_collateral(detail: str) -> str:
 
 
 _EXPECTED_COLLATERAL_NOTES = {
+    **{
+        node_id: hold.collateral_note
+        for node_id, hold in _T1434_EXPECTED_HOLDS.items()
+    },
     "test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract": (
         "Holding this node removes the fixed-size positive check that the current "
         "dev-wave model pins do not over-reject the real repository. Land's "
@@ -250,11 +358,11 @@ def _literal_hold(**changes) -> GrowthTestHold:
     return replace(hold, **changes)
 
 
-def _row_contract_digest() -> str:
+def _row_contract_digest(rows) -> str:
     payload = json.dumps(
         [
             [key, hold.hold_axis, hold.ruling, hold.correctness_gate]
-            for key, hold in sorted(GROWTH_TEST_HOLDS.items())
+            for key, hold in sorted(rows.items())
         ],
         ensure_ascii=False,
         separators=(",", ":"),
@@ -262,16 +370,72 @@ def _row_contract_digest() -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _full_row_digest(rows) -> str:
+    payload = json.dumps(
+        [
+            [
+                key,
+                hold.hold_axis,
+                hold.ruling,
+                hold.reason,
+                hold.correctness_gate,
+                hold.release_condition,
+                hold.measured_seconds,
+                hold.collateral_note,
+            ]
+            for key, hold in sorted(rows.items())
+        ],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _independent_key_digest(keys) -> str:
+    return hashlib.sha256("\n".join(sorted(keys)).encode("utf-8")).hexdigest()
+
+
 def test_inventory_count_and_key_digest_are_independently_pinned():
     assert len(GROWTH_TEST_HOLDS) == _EXPECTED_HOLD_COUNT
+    assert _independent_key_digest(GROWTH_TEST_HOLDS) == _EXPECTED_KEY_SHA256
+    assert _row_contract_digest(GROWTH_TEST_HOLDS) == _EXPECTED_ROW_CONTRACT_SHA256
+    assert _full_row_digest(GROWTH_TEST_HOLDS) == _EXPECTED_FULL_ROW_SHA256
     assert growth_test_hold_key_digest(GROWTH_TEST_HOLDS) == _EXPECTED_KEY_SHA256
-    assert _row_contract_digest() == _EXPECTED_ROW_CONTRACT_SHA256
+
+    legacy_rows = {
+        key: hold
+        for key, hold in GROWTH_TEST_HOLDS.items()
+        if key not in _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    }
+    assert len(legacy_rows) == _LEGACY_HOLD_COUNT
+    assert _independent_key_digest(legacy_rows) == _LEGACY_KEY_SHA256
+    assert _row_contract_digest(legacy_rows) == _LEGACY_ROW_CONTRACT_SHA256
+    assert _full_row_digest(legacy_rows) == _LEGACY_FULL_ROW_SHA256
 
 
 def test_registry_rows_preserve_current_wave_contract():
     assert {hold.ruling for hold in GROWTH_TEST_HOLDS.values()} == {
-        "2026-08-12 rulings 第 3 束",
+        _OLD_RULING,
+        _T1434_EXACT_FIVE_RULING,
     }
+    assert {
+        key
+        for key, hold in GROWTH_TEST_HOLDS.items()
+        if hold.ruling == _T1434_EXACT_FIVE_RULING
+    } == _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    assert all(
+        hold.ruling == _OLD_RULING
+        for key, hold in GROWTH_TEST_HOLDS.items()
+        if key not in _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    )
+    assert all(
+        GROWTH_TEST_HOLDS[key].hold_axis == "tracked_files"
+        for key in _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    )
+    assert {
+        GROWTH_TEST_HOLDS[key].reason
+        for key in _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    } == {_S8C_CANDIDATE_FIXTURE_REASON}
     assert all(hold.correctness_gate is True for hold in GROWTH_TEST_HOLDS.values())
     assert all(hold.measured_seconds is None for hold in GROWTH_TEST_HOLDS.values())
     assert all(
@@ -292,6 +456,23 @@ def test_registry_rows_preserve_current_wave_contract():
         "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive",
         "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
     }.isdisjoint(GROWTH_TEST_HOLDS)
+
+
+@pytest.mark.parametrize(
+    ("node_id", "expected"),
+    tuple(sorted(_T1434_EXPECTED_HOLDS.items())),
+)
+def test_each_t1434_candidate_fixture_hold_row_is_independently_pinned(
+    node_id, expected,
+):
+    actual = GROWTH_TEST_HOLDS[node_id]
+    assert actual.ruling == expected.ruling
+    assert actual.hold_axis == expected.hold_axis
+    assert actual.release_condition == expected.release_condition
+    assert actual.correctness_gate is expected.correctness_gate
+    assert actual.measured_seconds is expected.measured_seconds
+    assert actual.reason == expected.reason
+    assert actual.collateral_note == expected.collateral_note
 
 
 @pytest.mark.parametrize(
@@ -374,6 +555,44 @@ def test_collection_hook_rejects_opt_in_typo(monkeypatch):
     wrapper = CONF.pytest_collection_modifyitems(_config(), [_Item(_HELD_SERIAL_NODE)])
     with pytest.raises(pytest.UsageError):
         next(wrapper)
+
+
+def test_xdist_controller_normalizes_both_suffixes_and_summarizes_all_50(
+    monkeypatch,
+):
+    monkeypatch.delenv(RUN_GROWTH_HELD_TESTS_ENV, raising=False)
+    terminal = _Terminal()
+    config = _config(terminal=terminal)
+    ids = []
+    for index, node_id in enumerate(sorted(GROWTH_TEST_HOLDS)):
+        filename, function = node_id.split("::", 1)
+        if node_id in _T1434_CANDIDATE_FIXTURE_HOLD_NODES:
+            suffix = "@s8c-preregistration-candidate"
+        elif index % 2:
+            suffix = "[synthetic-parameter]"
+        else:
+            suffix = "[synthetic-parameter]@synthetic-group"
+        collected = f"orchestrator/tests/{filename}::{function}{suffix}"
+        ids.append(collected)
+        assert CONF._growth_hold_id_from_nodeid(collected) == node_id
+
+    node = SimpleNamespace(
+        config=config,
+        gateway=SimpleNamespace(id="gw-synthetic"),
+        workerinput={},
+    )
+    CONF.pytest_xdist_node_collection_finished(node, ids)
+    held_ids = getattr(config, CONF._GROWTH_HOLD_IDS_ATTR)
+    assert held_ids == set(GROWTH_TEST_HOLDS)
+
+    CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
+    prefix = "IZANAGI_GROWTH_HOLD_SUMMARY_V1 "
+    assert terminal.lines[0].startswith(prefix)
+    assert json.loads(terminal.lines[0][len(prefix):]) == {
+        "collected_hold_functions": 50,
+        "opted_in": False,
+    }
+    assert len(terminal.lines) == 51
 
 
 def test_complete_collection_rejects_valid_shape_function_typo(monkeypatch):
@@ -1315,6 +1534,7 @@ def test_every_held_module_has_exact_top_level_guard_binding():
         "test_s8b_oracle_driver.py",
         "test_s8b_protocol_builder.py",
         "test_s8b_repo_scan_invariant.py",
+        "test_s8c_preregistration_invariant.py",
     )
     analyses = {}
     for filename in _held_filenames():
@@ -1327,6 +1547,245 @@ def test_every_held_module_has_exact_top_level_guard_binding():
         assert errors == (), filename
         assert self_load is False, filename
     assert analyses["test_check_docs.py"] == ((), False)
+
+
+class _FixtureCollectionProbe:
+    def __init__(self) -> None:
+        self.items: tuple[dict[str, object], ...] | None = None
+
+    @pytest.hookimpl(trylast=True)
+    def pytest_collection_modifyitems(self, items) -> None:
+        self.items = tuple({
+            "nodeid": str(item.nodeid),
+            "fixturenames": tuple(item.fixturenames),
+            "user_properties": tuple(item.user_properties),
+            "growth_skip_reasons": tuple(
+                str(mark.kwargs.get("reason", ""))
+                for mark in item.iter_markers(name="skip")
+                if str(mark.kwargs.get("reason", "")).startswith(
+                    "IZANAGI_GROWTH_HOLD_V1 "
+                )
+            ),
+        } for item in items)
+
+
+def _actual_pytest_collection(path: Path) -> tuple[dict[str, object], ...]:
+    """Collect through the production conftest and retain pytest's item view."""
+    probe = _FixtureCollectionProbe()
+    with pytest.MonkeyPatch.context() as nested_env:
+        nested_env.delenv("PYTEST_ADDOPTS", raising=False)
+        nested_env.delenv(RUN_GROWTH_HELD_TESTS_ENV, raising=False)
+        returncode = pytest.main(
+            [
+                "--collect-only",
+                "--noconftest",
+                "-p", "no:cacheprovider",
+                "-p", "no:terminal",
+                f"--rootdir={ROOT}",
+                str(path),
+            ],
+            plugins=[CONF, probe],
+        )
+    assert returncode == pytest.ExitCode.OK
+    assert probe.items is not None
+    return probe.items
+
+
+def _dynamic_fixture_lookup_lines(path: Path) -> tuple[int, ...]:
+    """Reject fixture acquisition that pytest cannot expose at collection."""
+    tree = ast.parse(path.read_bytes(), filename=str(path))
+    return tuple(sorted({
+        node.lineno
+        for node in ast.walk(tree)
+        if (
+            isinstance(node, ast.Attribute)
+            and node.attr == "getfixturevalue"
+        ) or (
+            isinstance(node, ast.Constant)
+            and node.value == "getfixturevalue"
+        )
+    }))
+
+
+def _candidate_fixture_collection(path: Path) -> tuple[dict[str, object], ...]:
+    dynamic_lines = _dynamic_fixture_lookup_lines(path)
+    assert dynamic_lines == (), (
+        "dynamic getfixturevalue bypasses collection-time fixture closure: "
+        f"lines={dynamic_lines!r}"
+    )
+    return _actual_pytest_collection(path)
+
+
+def test_s8c_candidate_fixture_consumers_and_remaining_nodes_are_collection_pinned():
+    filename = "test_s8c_preregistration_invariant.py"
+    path = Path(__file__).resolve().parent / filename
+    items = _candidate_fixture_collection(path)
+    consumers = tuple(
+        item for item in items
+        if "repository_candidate_commit" in item["fixturenames"]
+    )
+    remaining = tuple(
+        item for item in items
+        if "repository_candidate_commit" not in item["fixturenames"]
+    )
+
+    expected_nodeids = {
+        f"orchestrator/tests/{node_id}"
+        for node_id in _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    }
+    assert len(items) == 20
+    assert len(consumers) == 5
+    assert len(remaining) == 15
+    assert {item["nodeid"] for item in consumers} == expected_nodeids
+    assert {
+        CONF._growth_hold_id_from_nodeid(item["nodeid"])
+        for item in consumers
+    } == _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    assert all(
+        dict(item["user_properties"])["growth_hold_node_id"]
+        == CONF._growth_hold_id_from_nodeid(item["nodeid"])
+        for item in consumers
+    )
+    assert all(len(item["growth_skip_reasons"]) == 1 for item in consumers)
+    assert all(
+        "growth_hold_node_id" not in dict(item["user_properties"])
+        for item in remaining
+    )
+    assert all(not item["growth_skip_reasons"] for item in remaining)
+
+
+@pytest.mark.parametrize(
+    ("case_name", "body", "expected_suffixes", "expected_total"),
+    (
+        (
+            "module_usefixtures",
+            "pytestmark = pytest.mark.usefixtures('repository_candidate_commit')\n"
+            "def test_module_usefixtures_one():\n"
+            "    pass\n\n"
+            "def test_module_usefixtures_two():\n"
+            "    pass\n",
+            (
+                "::test_module_usefixtures_one",
+                "::test_module_usefixtures_two",
+            ),
+            2,
+        ),
+        (
+            "class_usefixtures",
+            "@pytest.mark.usefixtures('repository_candidate_commit')\n"
+            "class TestClassUsefixtures:\n"
+            "    def test_method(self):\n"
+            "        pass\n\n"
+            "def test_control():\n"
+            "    pass\n",
+            ("::TestClassUsefixtures::test_method",),
+            2,
+        ),
+        (
+            "function_usefixtures",
+            "@pytest.mark.usefixtures('repository_candidate_commit')\n"
+            "def test_function_usefixtures():\n"
+            "    pass\n\n"
+            "def test_control():\n"
+            "    pass\n",
+            ("::test_function_usefixtures",),
+            2,
+        ),
+        (
+            "method_argument",
+            "class TestMethodArgument:\n"
+            "    def test_method(self, repository_candidate_commit):\n"
+            "        pass\n\n"
+            "def test_control():\n"
+            "    pass\n",
+            ("::TestMethodArgument::test_method",),
+            2,
+        ),
+        (
+            "alias_parametrize",
+            "parameterize = pytest.mark.parametrize\n"
+            "@parameterize('case', (1, 2, 3))\n"
+            "def test_alias_parametrize(repository_candidate_commit, case):\n"
+            "    pass\n\n"
+            "def test_control():\n"
+            "    pass\n",
+            (
+                "::test_alias_parametrize[1]",
+                "::test_alias_parametrize[2]",
+                "::test_alias_parametrize[3]",
+            ),
+            4,
+        ),
+    ),
+)
+def test_candidate_fixture_collection_negative_controls_cover_pytest_shapes(
+    tmp_path, case_name, body, expected_suffixes, expected_total,
+):
+    synthetic = tmp_path / f"test_candidate_fixture_collection_{case_name}.py"
+    synthetic.write_text(
+        "import pytest\n\n"
+        "@pytest.fixture\n"
+        "def repository_candidate_commit():\n"
+        "    return 'candidate'\n\n"
+        + body,
+        encoding="utf-8",
+    )
+    items = _candidate_fixture_collection(synthetic)
+    consumers = tuple(
+        item for item in items
+        if "repository_candidate_commit" in item["fixturenames"]
+    )
+    remaining = tuple(
+        item for item in items
+        if "repository_candidate_commit" not in item["fixturenames"]
+    )
+    assert len(items) == expected_total
+    assert len(consumers) == len(expected_suffixes)
+    assert len(remaining) == expected_total - len(expected_suffixes)
+    assert tuple(
+        suffix
+        for suffix in expected_suffixes
+        if any(item["nodeid"].endswith(suffix) for item in consumers)
+    ) == expected_suffixes
+
+
+def test_candidate_fixture_collection_rejects_dynamic_getfixturevalue(tmp_path):
+    synthetic = tmp_path / "test_candidate_fixture_dynamic.py"
+    synthetic.write_text(
+        "import pytest\n\n"
+        "@pytest.fixture\n"
+        "def repository_candidate_commit():\n"
+        "    return 'candidate'\n\n"
+        "def test_dynamic(request):\n"
+        "    request.getfixturevalue('repository_candidate_commit')\n",
+        encoding="utf-8",
+    )
+    collected = _actual_pytest_collection(synthetic)
+    assert len(collected) == 1
+    assert "repository_candidate_commit" not in collected[0]["fixturenames"]
+    with pytest.raises(AssertionError, match="dynamic getfixturevalue"):
+        _candidate_fixture_collection(synthetic)
+
+
+def test_s8c_call_guard_wraps_exact_five_test_functions_only():
+    module = importlib.import_module(
+        "orchestrator.tests.test_s8c_preregistration_invariant"
+    )
+    test_functions = {
+        name: value
+        for name, value in vars(module).items()
+        if name.startswith("test_") and callable(value)
+    }
+    wrapped = {
+        name for name, function in test_functions.items()
+        if hasattr(function, "__wrapped__")
+    }
+    assert wrapped == {
+        node_id.split("::", 1)[1]
+        for node_id in _T1434_CANDIDATE_FIXTURE_HOLD_NODES
+    }
+    assert len(test_functions) == 18
+    assert len(test_functions) - len(wrapped) == 13
 
 
 def _synthetic_binding_source(

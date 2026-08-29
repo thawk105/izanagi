@@ -13,10 +13,12 @@ from orchestrator.verifier import (
     QUALIFICATION_SINK,
     RECEIPT_PAYLOAD_KEY,
     admit_replay_evidence,
-    campaign_lock_sha256,
     issue_commit_receipt,
     validate_live_receipt,
     verify_trace_dir_with_capability,
+)
+from orchestrator.verifier.commit_receipt import (
+    campaign_lock_sha256_or_absent,
 )
 
 
@@ -46,7 +48,7 @@ def campaign_receipt(
         layout, variant: str, payload: dict, *, operation_identity: str = "test-op",
         tags=("legacy",), lock_identity_sha256: str | None = None):
     lock_identity = (
-        campaign_lock_sha256(layout)
+        campaign_lock_sha256_or_absent(layout)
         if lock_identity_sha256 is None else lock_identity_sha256
     )
     return issue_commit_receipt(

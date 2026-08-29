@@ -6,15 +6,16 @@
 ## DW-O01 — codex subprocess 起動
 
 `tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 が docs 権威から導出。caller 指定は不可。
-背景 job は `nohup setsid bash -c '<cmd>; echo $? > <log>.done' </dev/null` で detach。
-prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再投入を止める。
+背景jobは`nohup setsid bash -c '<cmd>; echo $? > <log>.done' </dev/null`でdetach。
+prompt非空を先に検査し、既存`.done`を消去・再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
+wait側`--receipt-file`はworker launcher receiptと別pathにする（同じpathは証拠を上書きする）。
 完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
-採用は `tools/check_codex_output.py` の rc=0（prompt は `## 総括` 必須。F43）。
+採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
 `<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。
-`--artifact-root` は `<root>/<wave>/` しか作らず、`<root>` 未作成は rc=2。投入前に作る。
-`--max-*` は非権威の運用既定で caller が上げてよい。重い巡は所要 model call と token を見積もる。
-中断子の部分成果物は未完了と明記して保全し、次の子へ監査させる。
+`--artifact-root`の親を先に作る。出力は`<root>/<wave>/`だけ、親不在はrc=2。
+`--max-*`は非権威で増量可。重い巡はcall/tokenを見積もる。
+中断子は未完了と記して保全し、次の子に監査させる。
 
 ## DW-O02 — job artifact
 
@@ -119,15 +120,13 @@ NO-GO が続く場合は fix を重ねず 3 巡を上限とし (親の実機 blo
 
 ## DW-O17 — commit trailer
 
-trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage file→`--dry-run -F`単独rc=0
-→`commit -F`→既定full-history監査。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
-→`--ff-only`→full監査、merge commitなら`merge --no-ff --no-commit <tip>`→競合解消→同じpreflight
-→`commit -F`→full監査。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
-含むときは両commitを含むrangeかfull監査だけが権威。検査rcをパイプに通さず、赤なら止める（F37）。
-実装面pathが両親と異なればCodex`role=author`へ。
-競合解決の`git add -A`はsubmoduleの未解決gitlinkを古い作業ツリー側で確定させる。`git ls-tree main
-<sub>`と突き合わせ**merge commit内で**main側pinへ揃える。後追い単独commitは実装面判定で書けない
-Codex著者行を要求されlandが止まる。
+trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--dry-run -F`単独rc=0→`commit -F`→full監査。
+mergeは`OLD_HEAD`を保存し、ffはincoming監査→`--ff-only`→full監査、非ffは`--no-ff --no-commit`→
+競合解消→同じpreflight→`commit -F`→full監査。自動message/`--no-edit`は禁止。correctionは両commitを含む
+rangeかfull監査だけが権威（`OLD_HEAD..HEAD`は補助）。検査rcをpipeへ渡さず赤で停止（F37）。複数preflightと
+commitを同じshellで行うなら先頭を`set -e`にし、無ければtool callを分ける。両親と異なる実装面はCodex
+`role=author`へ。競合時の`git add -A`は未解決gitlinkを旧側で確定しうるため`git ls-tree main <sub>`と照合し、
+merge内でmain側pinへ揃える（後追い実装commitはCodex著者行を要求されlandが止まる）。
 
 ## DW-O18 — テスト cwd と非帰属赤の着地
 

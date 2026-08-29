@@ -72,6 +72,10 @@ DEFAULT_LIFECYCLE_PATH = Path("output/s8c-trial-registry/lifecycle.jsonl")
 LIFECYCLE_SCHEMA_VERSION = "p3-8c-trial-lifecycle/v2"
 ARMS = ("on", "off", "swapped")
 HOLDOUTS = ("H1", "H2")
+REGISTERED_FORMAL_NON_CERTIFYING_MODE = "registered-formal-non-certifying"
+A1_NON_CERTIFYING_WORKLOADS = (
+    "write-heavy", "balanced", "read-heavy",
+)
 
 
 def _holdout_bindings_from_freeze() -> Mapping[str, Mapping[str, str | int]]:
@@ -125,6 +129,7 @@ _TRIAL_ARM_EXECUTION_SEAL = object()
 _TRIAL_LAUNCH_ADMISSION_SEAL = object()
 _TRIAL_LIFECYCLE_TOKEN_SEAL = object()
 _ATTEMPT_SLOT_CAPABILITY_SEAL = object()
+_A1_NON_CERTIFYING_PROJECTION_SEAL = object()
 
 ATTEMPT_STATUSES = (
     "observed", "retryable-failure", "terminal-failure", "not-consumed",
@@ -348,6 +353,25 @@ class TrialLaunchAdmission:
     workloads: tuple[str, ...]
     binding: TrialBinding | None
     activation_report_digest_sha256: str | None
+    _seal: object = dataclasses.field(repr=False, compare=False)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class A1RegisteredNonCertifyingProjection:
+    """A-1 producer 専用の sealed registered non-certifying projection。
+
+    この値は supported process 内の型取り違えを防ぐだけで、外部 authority、
+    certifying capability、秘密 custody、または別 process の認証を表さない。
+    """
+
+    mode: Literal["registered-formal-non-certifying"]
+    certifying: bool
+    study_id: str
+    policy_sha256: str
+    preregistration_sha256: str
+    source_commit: str
+    workloads: tuple[str, ...]
+    campaign_ids: tuple[str, ...]
     _seal: object = dataclasses.field(repr=False, compare=False)
 
 
@@ -3841,6 +3865,106 @@ def _validate_launch_inputs(
     return selected
 
 
+def _validate_a1_projection_fields(
+    *,
+    study_id: str,
+    policy_sha256: str,
+    preregistration_sha256: str,
+    source_commit: str,
+    workloads: Sequence[str],
+    campaign_ids: Sequence[str],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    if type(study_id) is not str or not study_id:
+        _fail("a1-noncertifying", "study_id is invalid")
+    for label, digest in (
+        ("policy_sha256", policy_sha256),
+        ("preregistration_sha256", preregistration_sha256),
+    ):
+        if type(digest) is not str or _SHA256_RE.fullmatch(digest) is None:
+            _fail("a1-noncertifying", f"{label} is invalid")
+    if type(source_commit) is not str or _COMMIT_RE.fullmatch(source_commit) is None:
+        _fail("a1-noncertifying", "source_commit is invalid")
+    selected_workloads = tuple(workloads)
+    selected_campaign_ids = tuple(campaign_ids)
+    if selected_workloads != A1_NON_CERTIFYING_WORKLOADS:
+        _fail("a1-noncertifying", "workloads differ from the A-1 exact order")
+    if (
+        len(selected_campaign_ids) != len(A1_NON_CERTIFYING_WORKLOADS)
+        or any(type(value) is not str or not value for value in selected_campaign_ids)
+        or len(set(selected_campaign_ids)) != len(selected_campaign_ids)
+    ):
+        _fail("a1-noncertifying", "campaign_ids are not an exact unique triple")
+    return selected_workloads, selected_campaign_ids
+
+
+def issue_a1_registered_noncertifying_projection(
+    *,
+    study_id: str,
+    policy_sha256: str,
+    preregistration_sha256: str,
+    source_commit: str,
+    workloads: Sequence[str],
+    campaign_ids: Sequence[str],
+) -> A1RegisteredNonCertifyingProjection:
+    """A-1 exact producer inputsから sealed non-certifying projectionを発行する。"""
+    selected_workloads, selected_campaign_ids = _validate_a1_projection_fields(
+        study_id=study_id,
+        policy_sha256=policy_sha256,
+        preregistration_sha256=preregistration_sha256,
+        source_commit=source_commit,
+        workloads=workloads,
+        campaign_ids=campaign_ids,
+    )
+    return A1RegisteredNonCertifyingProjection(
+        mode=REGISTERED_FORMAL_NON_CERTIFYING_MODE,
+        certifying=False,
+        study_id=study_id,
+        policy_sha256=policy_sha256,
+        preregistration_sha256=preregistration_sha256,
+        source_commit=source_commit,
+        workloads=selected_workloads,
+        campaign_ids=selected_campaign_ids,
+        _seal=_A1_NON_CERTIFYING_PROJECTION_SEAL,
+    )
+
+
+def assert_issued_a1_registered_noncertifying_projection(
+    projection: A1RegisteredNonCertifyingProjection,
+) -> None:
+    """A-1 registry gate が発行した exact projection だけを受理する。"""
+    if (
+        type(projection) is not A1RegisteredNonCertifyingProjection
+        or projection._seal is not _A1_NON_CERTIFYING_PROJECTION_SEAL
+        or projection.mode != REGISTERED_FORMAL_NON_CERTIFYING_MODE
+        or projection.certifying is not False
+    ):
+        _fail("a1-noncertifying", "projection was not issued by the A-1 gate")
+    _validate_a1_projection_fields(
+        study_id=projection.study_id,
+        policy_sha256=projection.policy_sha256,
+        preregistration_sha256=projection.preregistration_sha256,
+        source_commit=projection.source_commit,
+        workloads=projection.workloads,
+        campaign_ids=projection.campaign_ids,
+    )
+
+
+def a1_registered_noncertifying_record(
+    projection: A1RegisteredNonCertifyingProjection,
+) -> dict[str, Any]:
+    """lock/sidecar が共有する sealed A-1 projection record を返す。"""
+    assert_issued_a1_registered_noncertifying_projection(projection)
+    return {
+        "mode": projection.mode,
+        "certifying": projection.certifying,
+        "study_id": projection.study_id,
+        "policy_sha256": projection.policy_sha256,
+        "preregistration_sha256": projection.preregistration_sha256,
+        "source_commit": projection.source_commit,
+        "campaign_ids": list(projection.campaign_ids),
+    }
+
+
 def admit_unregistered_exploratory(
     *,
     trial_id: str,
@@ -3998,9 +4122,9 @@ def admit_registered_formal_noncertifying(
         registry_path=Path(registry_path),
     )
     return TrialLaunchAdmission(
-        mode="registered-formal-non-certifying",
+        mode=REGISTERED_FORMAL_NON_CERTIFYING_MODE,
         certifying=False,
-        reason_code="registered-formal-non-certifying",
+        reason_code=REGISTERED_FORMAL_NON_CERTIFYING_MODE,
         trial_id=trial_id,
         workloads=selected,
         binding=binding,
@@ -4020,7 +4144,7 @@ def assert_issued_trial_launch_admission(
         _fail("launch-admission", "admission was not issued by the registry gate")
     if admission.mode not in {
         "registered-effective",
-        "registered-formal-non-certifying",
+        REGISTERED_FORMAL_NON_CERTIFYING_MODE,
         "explicit-unregistered-exploratory",
     }:
         _fail("launch-admission", "admission mode is outside the closed set")
@@ -4050,7 +4174,7 @@ def assert_issued_trial_launch_admission(
             or _SHA256_RE.fullmatch(admission.activation_report_digest_sha256) is None
         ):
             _fail("launch-admission", "registered admission has no activation digest")
-    elif admission.mode == "registered-formal-non-certifying":
+    elif admission.mode == REGISTERED_FORMAL_NON_CERTIFYING_MODE:
         if admission.binding is None:
             _fail(
                 "launch-admission",
@@ -4065,7 +4189,7 @@ def assert_issued_trial_launch_admission(
                 "launch-admission",
                 "formal non-certifying admission has invalid P/C binding",
             )
-        if admission.reason_code != "registered-formal-non-certifying":
+        if admission.reason_code != REGISTERED_FORMAL_NON_CERTIFYING_MODE:
             _fail(
                 "launch-admission",
                 "formal non-certifying admission reason_code is inconsistent",
@@ -4138,7 +4262,7 @@ def launch_admission_record(
             binding is None
             or admission.mode not in {
                 "registered-effective",
-                "registered-formal-non-certifying",
+                REGISTERED_FORMAL_NON_CERTIFYING_MODE,
             }
             or origin_record["campaign_id"] != binding.campaign_id
             or origin_record["trial_workload"] != binding.workload
@@ -4240,7 +4364,7 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
             starts.add(trial_id)
             if value["mode"] not in {
                 "registered-effective",
-                "registered-formal-non-certifying",
+                REGISTERED_FORMAL_NON_CERTIFYING_MODE,
             }:
                 _fail(
                     "lifecycle-schema",
@@ -4269,7 +4393,7 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
                 if not isinstance(raw, str) or pattern.fullmatch(raw) is None:
                     _fail("lifecycle-schema", f"start {field} is invalid")
             if (
-                value["mode"] == "registered-formal-non-certifying"
+                value["mode"] == REGISTERED_FORMAL_NON_CERTIFYING_MODE
                 and value["activation_report_digest_sha256"] is not None
             ):
                 _fail(
@@ -4461,7 +4585,7 @@ def record_trial_start_once(
         workloads=admission.workloads,
         allow_unregistered_exploratory=False,
         allow_formal_noncertifying=(
-            admission.mode == "registered-formal-non-certifying"
+            admission.mode == REGISTERED_FORMAL_NON_CERTIFYING_MODE
         ),
         repository_root=repository_root,
         registry_path=registry_path,
@@ -4470,7 +4594,7 @@ def record_trial_start_once(
     if (
         admission.mode not in (
             "registered-effective",
-            "registered-formal-non-certifying",
+            REGISTERED_FORMAL_NON_CERTIFYING_MODE,
         )
         or admission.binding is None
     ):

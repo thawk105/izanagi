@@ -1,0 +1,77 @@
+{
+  "schema_version": "izanagi-dev-wave-mutation-spec/v1",
+  "wave": "dev-wave-t2018-condition-meaning-gate-codex-resume",
+  "base_commit": "f34e19be94a3608099773ac6c1a12a98ae992048",
+  "preregistered_stage": 4,
+  "baseline": [
+    "orchestrator/tests/test_condition_meaning_gate.py",
+    "orchestrator/tests/test_sort_swo_oracle.py",
+    "orchestrator/tests/test_campaign.py"
+  ],
+  "mutations": [
+    {
+      "id": "t2018.m01-supply-membership",
+      "anchor": "independent supply arm effective mapping membership",
+      "change": "treat missing BACKOFF_FIXED mapping as supplied",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler",
+      "expected_reason": "macro-not-supplied"
+    },
+    {
+      "id": "t2018.m02-supply-value",
+      "anchor": "independent supply arm effective value equality",
+      "change": "skip requested/effective BACKOFF_FIXED value equality",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+      "expected_reason": "supply-value-mismatch"
+    },
+    {
+      "id": "t2018.m03-marker-authority",
+      "anchor": "shared evolve-block extractor unique branch selection",
+      "change": "accept a marker comment decoy or non-unique marker",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_comment_formula_does_not_replace_materialized_hole",
+      "expected_reason": "materialized-decoder-invalid"
+    },
+    {
+      "id": "t2018.m04-source-evaluation",
+      "anchor": "rendered TU uses captured hole bytes",
+      "change": "render requested value directly instead of captured decoder",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+      "expected_reason": "decoded-meaning-mismatch"
+    },
+    {
+      "id": "t2018.m05-pointwise-meaning",
+      "anchor": "independent meaning arm case-context pointwise bits comparison",
+      "change": "bypass or invert expected/observed comparison",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+      "expected_reason": "decoded-meaning-mismatch"
+    },
+    {
+      "id": "t2018.m06-row-cardinality",
+      "anchor": "compiler output exact row identity/cardinality",
+      "change": "ignore duplicate or missing output rows",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_or_missing_rows_fail_closed",
+      "expected_reason": "compiler-output-invalid"
+    },
+    {
+      "id": "t2018.m07-finite-output",
+      "anchor": "observed float64 finite check",
+      "change": "accept NaN or infinity bits",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed",
+      "expected_reason": "decoded-output-nonfinite"
+    },
+    {
+      "id": "t2018.m08-process-failure",
+      "anchor": "compile/run return-code and timeout checks",
+      "change": "treat compiler/run failure as an empty successful observation",
+      "expected_node": "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed",
+      "expected_reason": "compiler-failed"
+    }
+  ],
+  "positive_control": "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise",
+  "scope_exclusions": [
+    "driver integration",
+    "patch or ledger bytes",
+    "EXTENDED_SWEEP_US",
+    "encoding formula",
+    "grid constants"
+  ]
+}

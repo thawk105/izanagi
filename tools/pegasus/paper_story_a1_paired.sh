@@ -18,6 +18,17 @@ POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v2.json"
 PIPELINE_RELATIVE="orchestrator/campaign/pipeline.py"
 JOB_RELATIVE="tools/pegasus/paper_story_a1_paired.sh"
 PEGASUS_POLICY_RELATIVE="tools/pegasus/policy.json"
+NON_CERTIFYING_SOURCE_RELATIVE_PATHS=(
+  "orchestrator/campaign/paper_story_a1_paired.py"
+  "orchestrator/campaign/paper_story_a1_paired.v2.json"
+  "orchestrator/campaign/pipeline.py"
+  "tools/pegasus/paper_story_a1_paired.sh"
+  "orchestrator/campaign/campaign_lock.py"
+  "orchestrator/campaign/ident.py"
+  "orchestrator/campaign/wal.py"
+  "orchestrator/campaign/loop.py"
+  "orchestrator/campaign/trial_registry.py"
+)
 
 refuse() {
   printf 'paper-story A-1 job refused: %s\n' "$1" >&2
@@ -51,6 +62,9 @@ REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)
 [[ -f "$REPO_ROOT/$POLICY_RELATIVE" ]] || refuse "tracked policy is missing"
 [[ -f "$REPO_ROOT/$JOB_RELATIVE" ]] || refuse "tracked job body is missing"
 [[ -f "$REPO_ROOT/$PEGASUS_POLICY_RELATIVE" ]] || refuse "Pegasus policy is missing"
+for relative in "${NON_CERTIFYING_SOURCE_RELATIVE_PATHS[@]}"; do
+  [[ -f "$REPO_ROOT/$relative" ]] || refuse "non-certifying source closure is missing"
+done
 CURRENT_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD) || refuse "cannot resolve HEAD"
 [[ "$CURRENT_HEAD" == "$IZANAGI_EXPECTED_HEAD" ]] || refuse "HEAD mismatch"
 [[ -z "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]] || \
@@ -496,8 +510,10 @@ for key in ("scheduler_started_epoch", "deadline_epoch"):
     reservation_binding[key] = float(reservation_binding[key])
 result_path = os.path.join(result_root, "result.json")
 receipt_path = os.path.join(result_root, "receipt.json")
+observation_path = os.path.join(result_root, "non-certifying-observation.json")
 result_sha = digest(result_path)
 receipt_sha = digest(receipt_path)
+observation_sha = digest(observation_path)
 terminal_acquisition_sha = digest(acquisition_path)
 attempt_info = os.stat(attempt_root, follow_symlinks=False)
 if not stat.S_ISDIR(attempt_info.st_mode):
@@ -508,6 +524,7 @@ success = all((
     shell_rc == 0,
     result_sha is not None,
     receipt_sha is not None,
+    observation_sha is not None,
     terminal_acquisition_sha == acquisition_sha,
     source_ok,
 ))

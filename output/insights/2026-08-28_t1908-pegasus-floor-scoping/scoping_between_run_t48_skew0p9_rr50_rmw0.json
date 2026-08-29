@@ -1,0 +1,59 @@
+{
+  "workload": {
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "0"
+  },
+  "genome": "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "records": 1000000,
+  "threads": 48,
+  "clocks_per_us": 2100,
+  "abort_rate": 0.6942,
+  "run_cmd": "perf stat -e LLC-load-misses,LLC-loads,instructions,cycles -- /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1908-pegasus-floor/scoping-run-20260828-0029-f34e19be/build-variants/silo_0db61db421_t0/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0",
+  "within_run": {
+    "reps": 10,
+    "cv": 0.021584884410020214,
+    "median": 3418876.5,
+    "mean": 3425771.5,
+    "stdev": 73944.88184264157,
+    "throughputs": [
+      3267677.0,
+      3475999.0,
+      3473588.0,
+      3418839.0,
+      3418914.0,
+      3393531.0,
+      3537307.0,
+      3481295.0,
+      3416387.0,
+      3374178.0
+    ],
+    "high_variance": false
+  },
+  "between_run": {
+    "sessions": 8,
+    "reps_per_session": 5,
+    "cv": 0.005706253616846823,
+    "median": 3427550.5,
+    "mean": 3422911.0,
+    "stdev": 19531.998273894777,
+    "session_throughputs": [
+      3453985.0,
+      3434117.0,
+      3425905.0,
+      3412076.0,
+      3429196.0,
+      3389762.0,
+      3407167.0,
+      3431080.0
+    ],
+    "high_variance": false,
+    "notes": [
+      "between-run CV 0.57% = 8 独立セッションの session-median の散らばり。settle は admission (独立性でない) ため cold-boot/温度ドリフト未含 = 下限。high-abort genome はこれを上回りうる → cross-campaign データと突き合わせ保守側に採れ"
+    ]
+  },
+  "evidence_class": "same-submission-cohort-allocation-session-median-cv",
+  "time_window_clusters": 1,
+  "eligible_for_compare": false,
+  "env_tag": "pegasus"
+}

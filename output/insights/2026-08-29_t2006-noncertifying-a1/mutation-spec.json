@@ -1,0 +1,88 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 30,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "t2006.marker-gate",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{"file": "orchestrator/campaign/paper_story_a1_paired.py", "old": "        or not ident.is_a1_non_certifying_config(cfg)\n", "new": "        or False\n"}]
+    },
+    {
+      "id": "t2006.schema-downgrade",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_campaign_lock_codec.py::test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{"file": "orchestrator/campaign/campaign_lock.py", "old": "    if NON_CERTIFYING_RESERVED_V1_KEYS & set(value):\n", "new": "    if False:\n"}]
+    },
+    {
+      "id": "t2006.identity-tag",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_campaign_lock_codec.py::test_m_nc03_non_certifying_lock_tag_tamper_is_rejected"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{"file": "orchestrator/campaign/campaign_lock.py", "old": "    if not hmac.compare_digest(tag, expected):\n", "new": "    if False:\n"}]
+    },
+    {
+      "id": "t2006.registry-seal",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_trial_registry.py::test_a1_registered_noncertifying_projection_shares_load_bearing_mode"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{"file": "orchestrator/campaign/trial_registry.py", "old": "        or projection._seal is not _A1_NON_CERTIFYING_PROJECTION_SEAL\n", "new": "        or False\n"}]
+    },
+    {
+      "id": "t2006.commit-receipt-binding",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc05_commit_receipt_rejects_retagged_lock_with_unchanged_wal"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{
+        "file": "orchestrator/campaign/wal.py",
+        "old": "                    lock_identity_sha256=campaign_lock_bytes_sha256(\n                        decoded.original_text.encode(\"utf-8\")\n                    ),\n",
+        "new": "                    lock_identity_sha256=serialized[\"lock_identity_sha256\"],\n"
+      }]
+    },
+    {
+      "id": "t2006.artifact-digest",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc06_sidecar_campaign_digest_replacement_is_rejected"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{"file": "orchestrator/campaign/paper_story_a1_paired.py", "old": "    if raw is None or _sha256_bytes(raw) != digest:\n", "new": "    if raw is None:\n"}]
+    },
+    {
+      "id": "t2006.anomaly-gate",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_paper_story_a1_paired.py::test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{"file": "orchestrator/campaign/paper_story_a1_paired.py", "old": "            if type(anomalies) is not int or anomalies != 0:\n", "new": "            if False:\n"}]
+    },
+    {
+      "id": "t2006.view-token",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_paper_story_a1_paired.py::test_noncertifying_sidecar_positive_and_exact_type_boundary"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{"file": "orchestrator/campaign/paper_story_a1_paired.py", "old": "        if self._token is not _NON_CERTIFYING_VIEW_TOKEN:\n", "new": "        if False:\n"}]
+    },
+    {
+      "id": "t2006.submit-once",
+      "category": "negative",
+      "expected_nodes": ["orchestrator/tests/test_paper_story_a1_job_contract.py::test_m_nc09_intent_without_submission_never_repeats_qsub"],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [{
+        "file": "orchestrator/campaign/paper_story_a1_paired.py",
+        "old": "    if os.path.lexists(intent_path):\n        raise PaperStoryError(\n            \"submission indeterminate: intent exists without submission receipt; \"\n            \"qsub will not be repeated\"\n        )\n",
+        "new": "    if False:\n        raise PaperStoryError(\n            \"submission indeterminate: intent exists without submission receipt; \"\n            \"qsub will not be repeated\"\n        )\n"
+      }]
+    }
+  ]
+}

@@ -41,11 +41,15 @@ from .pipeline import PerfConfig
 POLICY_SCHEMA = "paper-story-a2-certification-policy/v2"
 RAW_RESULT_SCHEMA = "paper-story-a2-cell-result/v2"
 CERTIFICATION_SCHEMA = "paper-story-a2-certification-result/v3"
+PARTIAL_CERTIFICATION_SCHEMA = "paper-story-a2-partial-result/v1"
 SUBMISSION_SCHEMA = "paper-story-a2-submission-receipt/v4"
 COMPLETION_SCHEMA = "paper-story-a2-completion-receipt/v3"
+PARTIAL_COMPLETION_SCHEMA = "paper-story-a2-completion-receipt/v4"
 ACQUISITION_SCHEMA = "paper-story-a2-acquisition-receipt/v3"
+PARTIAL_ACQUISITION_SCHEMA = "paper-story-a2-acquisition-receipt/v4"
 TRACE0_SCHEMA = "paper-story-a2-trace0-evidence/v2"
 RAW_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v3"
+PARTIAL_RAW_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v4"
 COMPUTE_RESULT_SCHEMA = "paper-story-a2-compute-result/v2"
 RESERVATION_RESULT_SCHEMA = "paper-story-a2-reservation-result/v1"
 COMPLETE_MARKER_SCHEMA = "paper-story-a2-materialization-complete/v1"
@@ -59,6 +63,8 @@ COMPILE_OUT_SCOPE = (
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _COMMIT_RE = re.compile(r"[0-9a-f]{7,64}")
+_SHORT_COMMIT_RE = re.compile(r"[0-9a-f]{7}")
+_FULL_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _ATTEMPT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 _REQUEST_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*")
 _QSUB_REQUEST_RE = re.compile(r"Request[ \t]+(\S+)[ \t]+submitted")
@@ -152,6 +158,10 @@ _COLLECT_TEST_TOKEN = object()
 
 class CertificationError(RuntimeError):
     """Evidence is incomplete or inconsistent and cannot certify A-2."""
+
+
+class SchemaChainError(CertificationError):
+    """Partial evidence crosses or violates its closed schema chain."""
 
 
 @dataclass(frozen=True)
@@ -333,10 +343,11 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
     )
     for key in ("records", "threads", "extime", "reps"):
         _positive_int(common[key], f"performance_common.{key}")
-    if (common["wal"] != 0 or common["base"] != "L-W0"
-            or type(common["ccbench_protocol"]) is not str
-            or not common["ccbench_protocol"]):
+    if (common["wal"] != 0 or common["base"] != "L-W0"):
         raise CertificationError("policy must use L-W0 with WAL disabled")
+    if common["ccbench_protocol"] != "silo":
+        raise CertificationError(
+            "performance_common.ccbench_protocol must be exact lowercase silo")
     for key in ("skew", "rmw", "max_ope"):
         if type(common[key]) is not str or not common[key]:
             raise CertificationError(f"performance_common.{key} must be a string")
@@ -513,6 +524,20 @@ def _genome_for_cell(policy: Policy, cell: CellSpec):
         protocol=policy.document["performance_common"]["ccbench_protocol"],
         flags=flags,
     )
+
+
+def _generator_input_sha256(policy: Policy, workload_id: str,
+                            evidence_genome_sha256: str) -> str:
+    """Bind A-2 generator authority to its protocol, workload, and source genome."""
+    if workload_id not in workload_ids(policy):
+        raise CertificationError(f"unknown workload: {workload_id!r}")
+    genome_sha256 = _require_sha(
+        evidence_genome_sha256, "generator evidence genome sha256")
+    return _sha256_bytes(_canonical_json({
+        "policy_protocol_sha256": policy.protocol_sha256,
+        "workload_id": workload_id,
+        "evidence_genome_sha256": genome_sha256,
+    }))
 
 
 def campaign_preimage(policy: Policy, workload_id: str, attempt_id: str,
@@ -1165,15 +1190,21 @@ def _validate_completion_receipt(policy: Policy, payload: Mapping[str, Any],
                                  attempt_id: str, attempt_root: Path,
                                  current_pin: str,
                                  submission: Mapping[str, Any]) -> dict[str, Any]:
-    required = {
+    common_required = {
         "schema_version", "study", "protocol_sha256", "attempt_id",
         "attempt_root", "source_commit", "current_pin", "jobs",
         "raw_result_manifest", "raw_result_manifest_sha256",
     }
+    schema = payload.get("schema_version") if type(payload) is dict else None
+    if schema == COMPLETION_SCHEMA:
+        required = common_required
+    elif schema == PARTIAL_COMPLETION_SCHEMA:
+        required = common_required | {"successful_workload"}
+    else:
+        raise CertificationError("unsupported completion receipt schema")
     if type(payload) is not dict or set(payload) != required:
         raise CertificationError("completion receipt does not have exact evidence fields")
-    if (payload["schema_version"] != COMPLETION_SCHEMA
-            or payload["study"] != policy.study
+    if (payload["study"] != policy.study
             or payload["protocol_sha256"] != policy.protocol_sha256
             or payload["attempt_id"] != attempt_id
             or _lexical_absolute_path(
@@ -1198,9 +1229,12 @@ def _validate_completion_receipt(policy: Policy, payload: Mapping[str, Any],
     ]
     manifest_bundle = None
     manifest_reason = "driver-nonzero"
-    all_drivers_succeeded = all(
-        binding["driver_rc"] == 0 for binding in job_bindings)
-    if all_drivers_succeeded:
+    manifest_invalid_kind = None
+    successful_workloads = [
+        binding["workload"] for binding in job_bindings
+        if binding["driver_rc"] == 0]
+    successful_workload = None
+    if schema == COMPLETION_SCHEMA and len(successful_workloads) == 2:
         try:
             if (payload["raw_result_manifest"] is None
                     or payload["raw_result_manifest_sha256"] is None):
@@ -1220,17 +1254,57 @@ def _validate_completion_receipt(policy: Policy, payload: Mapping[str, Any],
         except (CertificationError, OSError, ValueError, TypeError,
                 KeyError, IndexError) as exc:
             manifest_reason = str(exc)
-    elif (payload["raw_result_manifest"] is not None
-          or payload["raw_result_manifest_sha256"] is not None):
-        raise CertificationError(
-            "failed group completion must not claim a raw manifest")
+            manifest_invalid_kind = "authority"
+    elif schema == COMPLETION_SCHEMA:
+        if (payload["raw_result_manifest"] is not None
+                or payload["raw_result_manifest_sha256"] is not None):
+            raise CertificationError(
+                "failed group completion must not claim a raw manifest")
+    else:
+        if len(successful_workloads) != 1:
+            raise CertificationError(
+                "partial completion requires exactly one successful workload")
+        successful_workload = successful_workloads[0]
+        if payload["successful_workload"] != successful_workload:
+            raise CertificationError(
+                "partial completion successful workload differs from driver evidence")
+        try:
+            if (payload["raw_result_manifest"] is None
+                    or payload["raw_result_manifest_sha256"] is None):
+                raise CertificationError("partial raw manifest is missing")
+            manifest_path = _canonical_child(
+                payload["raw_result_manifest"], attempt_root,
+                "partial raw result manifest")
+            if manifest_path != attempt_root / "raw-manifest.json":
+                raise SchemaChainError(
+                    "partial raw manifest path is not canonical")
+            manifest_sha = _require_sha(
+                payload["raw_result_manifest_sha256"],
+                "partial raw_result_manifest_sha256")
+            manifest_bundle = _load_partial_raw_manifest_bundle(
+                policy, manifest_path, manifest_sha, attempt_id=attempt_id,
+                attempt_root=attempt_root, current_pin=current_pin,
+                successful_workload=successful_workload,
+                job_bindings=job_bindings,
+            )
+            manifest_reason = None
+        except SchemaChainError as exc:
+            manifest_reason = str(exc)
+            manifest_invalid_kind = "schema-chain"
+        except (CertificationError, OSError, ValueError, TypeError,
+                KeyError, IndexError) as exc:
+            manifest_reason = str(exc)
+            manifest_invalid_kind = "authority"
     return {
+        "schema_version": schema,
+        "successful_workload": successful_workload,
         "jobs": job_bindings,
         "driver_rcs": {
             binding["workload"]: binding["driver_rc"]
             for binding in job_bindings},
         "raw_manifest_valid": manifest_bundle is not None,
         "raw_manifest_reason": manifest_reason,
+        "raw_manifest_invalid_kind": manifest_invalid_kind,
         "raw_manifest_bundle": manifest_bundle,
     }
 
@@ -1240,20 +1314,26 @@ def validate_acquisition_bundle(policy: Policy, acquisition_path: Path | str,
     acquisition_file = _lexical_absolute_path(
         acquisition_path, "acquisition receipt")
     acquisition, acquisition_bytes = _read_json(acquisition_file)
-    required = {
+    common_required = {
         "schema_version", "route", "study", "protocol_sha256", "attempt_id",
         "attempt_root", "source_commit", "current_pin", "request_ids",
         "submission_receipt",
         "submission_receipt_sha256", "completion_receipt",
         "completion_receipt_sha256",
     }
+    schema = acquisition.get("schema_version")
+    if schema == ACQUISITION_SCHEMA:
+        required = common_required
+    elif schema == PARTIAL_ACQUISITION_SCHEMA:
+        required = common_required | {"successful_workload"}
+    else:
+        raise CertificationError("unsupported acquisition receipt schema")
     if set(acquisition) != required:
         raise CertificationError("acquisition receipt is a hand-written subset")
     attempt_id = acquisition["attempt_id"]
     attempt_name, attempt_root = validate_attempt_root(
         policy, acquisition["attempt_root"])
-    if (acquisition["schema_version"] != ACQUISITION_SCHEMA
-            or acquisition["route"] != "direct-qsub"
+    if (acquisition["route"] != "direct-qsub"
             or acquisition["study"] != policy.study
             or acquisition["protocol_sha256"] != policy.protocol_sha256
             or attempt_id != attempt_name
@@ -1267,6 +1347,13 @@ def validate_acquisition_bundle(policy: Policy, acquisition_path: Path | str,
         acquisition["submission_receipt"], attempt_root, "submission receipt")
     completion_path = _canonical_child(
         acquisition["completion_receipt"], attempt_root, "completion receipt")
+    if schema == PARTIAL_ACQUISITION_SCHEMA:
+        if submission_path != attempt_root / "receipts" / "submission.json":
+            raise SchemaChainError(
+                "partial submission receipt path is not canonical")
+        if completion_path != attempt_root / "receipts" / "completion.json":
+            raise SchemaChainError(
+                "partial completion receipt path is not canonical")
     submission_sha = _require_sha(
         acquisition["submission_receipt_sha256"], "submission receipt sha256")
     completion_sha = _require_sha(
@@ -1288,8 +1375,23 @@ def validate_acquisition_bundle(policy: Policy, acquisition_path: Path | str,
         policy, completion, attempt_id, attempt_root, current_pin,
         submission_binding,
     )
+    expected_completion_schema = (
+        COMPLETION_SCHEMA if schema == ACQUISITION_SCHEMA
+        else PARTIAL_COMPLETION_SCHEMA)
+    if completion_binding["schema_version"] != expected_completion_schema:
+        raise SchemaChainError(
+            "acquisition and completion schema versions are crossed")
+    if schema == PARTIAL_ACQUISITION_SCHEMA:
+        if (acquisition["successful_workload"]
+                != completion_binding["successful_workload"]):
+            raise CertificationError(
+                "acquisition and completion successful workloads differ")
     manifest_bundle = completion_binding["raw_manifest_bundle"]
     return {
+        "acquisition_path": str(acquisition_file),
+        "acquisition_schema": schema,
+        "completion_schema": completion_binding["schema_version"],
+        "successful_workload": completion_binding["successful_workload"],
         "attempt_id": attempt_id,
         "attempt_root": str(attempt_root),
         "request_ids": submission_binding["request_ids"],
@@ -1303,6 +1405,11 @@ def validate_acquisition_bundle(policy: Policy, acquisition_path: Path | str,
         "driver_rcs": completion_binding["driver_rcs"],
         "raw_manifest_valid": completion_binding["raw_manifest_valid"],
         "raw_manifest_reason": completion_binding["raw_manifest_reason"],
+        "raw_manifest_invalid_kind": completion_binding[
+            "raw_manifest_invalid_kind"],
+        "raw_manifest_schema": (
+            manifest_bundle["manifest"]["schema_version"]
+            if manifest_bundle else None),
         "raw_manifest_bytes": (
             manifest_bundle["manifest_bytes"] if manifest_bundle else None),
         "raw_results": (
@@ -1327,6 +1434,48 @@ def record_submission_receipt(policy: Policy, attempt_root: Path | str,
     write_json_x(path, payload)
     _fsync_dir(path.parent)
     return path
+
+
+def record_scheduler_request_id(policy: Policy, attempt_root: Path | str,
+                                workload_id: str, request_id: str) -> Path:
+    """Durably retain a diagnostic request ID without making it a receipt."""
+    _, root = validate_attempt_root(policy, attempt_root)
+    normalized = _normalize_request_id(request_id)
+    scheduler_root = workload_job_root(
+        policy, root, workload_id) / "scheduler"
+    _reject_symlink_components(scheduler_root, "scheduler request directory")
+    if not scheduler_root.is_dir():
+        raise CertificationError("scheduler request directory is unavailable")
+    path = scheduler_root / "request-id"
+    _write_bytes_x(path, (normalized + "\n").encode("ascii"))
+    _fsync_dir(scheduler_root)
+    return path
+
+
+def durabilize_scheduler_qsub_diagnostics(
+        policy: Policy, attempt_root: Path | str, workload_id: str,
+) -> tuple[Path, Path]:
+    """Fsync pre-opened qsub diagnostics without making them receipts."""
+    _, root = validate_attempt_root(policy, attempt_root)
+    scheduler_root = workload_job_root(
+        policy, root, workload_id) / "scheduler"
+    _reject_symlink_components(scheduler_root, "qsub diagnostics directory")
+    if not scheduler_root.is_dir():
+        raise CertificationError("qsub diagnostics directory is unavailable")
+    paths = tuple(
+        scheduler_root / filename for filename in ("qsub.stdout", "qsub.stderr"))
+    for path in paths:
+        _reject_symlink_components(path, "qsub diagnostic")
+        if not path.is_file():
+            raise CertificationError("qsub diagnostic is not a regular file")
+        descriptor = os.open(
+            path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    _fsync_dir(scheduler_root)
+    return paths
 
 
 def record_completion_receipt(policy: Policy, attempt_root: Path | str,
@@ -1355,10 +1504,15 @@ def record_acquisition_receipt(policy: Policy, attempt_root: Path | str,
     completion, _ = _read_json(completion_path)
     binding = _validate_submission_receipt(
         policy, submission, attempt_id, root, current_pin)
-    _validate_completion_receipt(
+    completion_binding = _validate_completion_receipt(
         policy, completion, attempt_id, root, current_pin, binding)
+    completion_schema = completion_binding["schema_version"]
+    acquisition_schema = (
+        PARTIAL_ACQUISITION_SCHEMA
+        if completion_schema == PARTIAL_COMPLETION_SCHEMA
+        else ACQUISITION_SCHEMA)
     payload = {
-        "schema_version": ACQUISITION_SCHEMA,
+        "schema_version": acquisition_schema,
         "route": "direct-qsub",
         "study": policy.study,
         "protocol_sha256": policy.protocol_sha256,
@@ -1372,6 +1526,9 @@ def record_acquisition_receipt(policy: Policy, attempt_root: Path | str,
         "completion_receipt": str(completion_path),
         "completion_receipt_sha256": _sha256_file(completion_path),
     }
+    if acquisition_schema == PARTIAL_ACQUISITION_SCHEMA:
+        payload["successful_workload"] = completion_binding[
+            "successful_workload"]
     path = root / "receipts" / "acquisition.json"
     write_json_x(path, payload)
     _fsync_dir(path.parent)
@@ -1383,7 +1540,7 @@ def exact_qsub(argv: Sequence[str], *, runner=subprocess.run) -> object:
     if (type(argv) not in {list, tuple} or not argv or argv[0] != "qsub"
             or not all(type(token) is str and token for token in argv)):
         raise CertificationError("ratified qsub argv is not exact")
-    return runner(list(argv), check=False, capture_output=True, text=True)
+    return runner(list(argv), check=False)
 
 
 def _file_record(path: Path, attempt_root: Path) -> dict[str, Any]:
@@ -1404,7 +1561,6 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
     submission = _validate_submission_receipt(
         policy, submission_payload, attempt_id, root, current_pin)
     jobs: list[dict[str, Any]] = []
-    all_succeeded = True
     for workload_id, submitted in zip(workload_ids(policy), submission["jobs"]):
         request_id = submitted["request_id"]
         command = ["qstat", "-f", request_id]
@@ -1435,7 +1591,6 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
         driver_status = compute.get("driver_rc")
         if type(driver_status) is not int:
             raise CertificationError("compute result driver_rc is missing")
-        all_succeeded = all_succeeded and driver_status == 0
         jobs.append({
             "workload": workload_id,
             "request_id": request_id,
@@ -1459,13 +1614,31 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
             "scheduler_stderr": _file_record(
                 job_root / "scheduler" / "job.stderr", root),
         })
+    validated_jobs = [
+        _validate_completion_job(
+            policy, job, attempt_id, root, current_pin,
+            workload_id, submitted["request_id"], submitted,
+            submission["job_body_sha256"],
+        )
+        for workload_id, job, submitted in zip(
+            workload_ids(policy), jobs, submission["jobs"])
+    ]
+    successful_workloads = [
+        binding["workload"] for binding in validated_jobs
+        if binding["driver_rc"] == 0]
     manifest_path = None
     manifest_sha = None
-    if all_succeeded:
+    completion_schema = COMPLETION_SCHEMA
+    if len(successful_workloads) == len(workload_ids(policy)):
         manifest_path = finalize_raw_manifest(policy, root, current_pin)
         manifest_sha = _sha256_file(manifest_path)
+    elif len(successful_workloads) == 1:
+        completion_schema = PARTIAL_COMPLETION_SCHEMA
+        manifest_path = _finalize_partial_raw_manifest(
+            policy, root, current_pin, successful_workloads[0])
+        manifest_sha = _sha256_file(manifest_path)
     completion = {
-        "schema_version": COMPLETION_SCHEMA,
+        "schema_version": completion_schema,
         "study": policy.study,
         "protocol_sha256": policy.protocol_sha256,
         "attempt_id": attempt_id,
@@ -1477,6 +1650,8 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
             str(manifest_path) if manifest_path is not None else None),
         "raw_result_manifest_sha256": manifest_sha,
     }
+    if completion_schema == PARTIAL_COMPLETION_SCHEMA:
+        completion["successful_workload"] = successful_workloads[0]
     completion_path = record_completion_receipt(
         policy, root, current_pin, completion)
     acquisition_path = record_acquisition_receipt(policy, root, current_pin)
@@ -1821,22 +1996,19 @@ def _classify_performance(policy: Policy, cell: CellSpec, raw: object,
     return "complete", median
 
 
-def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
-                    *, attempt_id: str, current_pin: str,
-                    request_ids: Mapping[str, str],
-                    frozen_files: Optional[Mapping[str, bytes]] = None,
-                    attempt_root: Optional[Path] = None,
-                    _test_token: object = None) -> dict[str, Any]:
-    if type(request_ids) is not dict or list(request_ids) != list(workload_ids(policy)):
-        raise CertificationError("request ID mapping is not in exact policy order")
-    normalized_request_ids = {
-        workload_id: _normalize_request_id(request_ids[workload_id])
-        for workload_id in workload_ids(policy)}
-    if len(set(normalized_request_ids.values())) != len(normalized_request_ids):
-        raise CertificationError("certification request IDs must be distinct")
+def _classify_raw_cells(
+        policy: Policy, raw_results: Iterable[Mapping[str, Any]], *,
+        selected_cells: Sequence[CellSpec], attempt_id: str,
+        current_pin: str,
+        frozen_files: Optional[Mapping[str, bytes]] = None,
+        attempt_root: Optional[Path] = None,
+        _test_token: object = None,
+) -> dict[str, Any]:
+    selected = tuple(selected_cells)
+    expected_cell_ids = {cell.cell_id for cell in selected}
     raw_list = list(raw_results)
-    if len(raw_list) != len(policy.cells):
-        raise CertificationError("raw result count does not match exact four-cell protocol")
+    if not selected or len(raw_list) != len(selected):
+        raise CertificationError("raw result count does not match selected cells")
     indexed: dict[str, Mapping[str, Any]] = {}
     for raw in raw_list:
         required_raw = {
@@ -1851,13 +2023,13 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
         cell_id = raw.get("cell_id")
         if cell_id in indexed:
             raise CertificationError("duplicate cell result")
-        if (cell_id not in {cell.cell_id for cell in policy.cells}
+        if (cell_id not in expected_cell_ids
                 or raw.get("attempt_id") != attempt_id
                 or raw.get("current_pin") != current_pin
                 or raw.get("protocol_sha256") != policy.protocol_sha256):
             raise CertificationError("extra or cross-attempt cell result")
         indexed[cell_id] = raw
-    if set(indexed) != {cell.cell_id for cell in policy.cells}:
+    if set(indexed) != expected_cell_ids:
         raise CertificationError("cell result set is incomplete")
 
     cells: list[dict[str, Any]] = []
@@ -1865,7 +2037,7 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
     any_indeterminate = False
     any_performance_indeterminate = False
     medians: dict[tuple[str, str], float] = {}
-    for cell in policy.cells:
+    for cell in selected:
         raw = indexed[cell.cell_id]
         expected_preimage = campaign_preimage(
             policy, cell.workload_id, attempt_id, current_pin)
@@ -1977,7 +2149,7 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
         })
 
     effects: dict[str, float] = {}
-    for workload_id in {cell.workload_id for cell in policy.cells}:
+    for workload_id in {cell.workload_id for cell in selected}:
         stock = medians.get((workload_id, "stock"))
         adopted = medians.get((workload_id, "adopted"))
         if stock is not None and adopted is not None:
@@ -1986,11 +2158,55 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
                 effects[workload_id] = effect
             else:
                 any_performance_indeterminate = True
-    if any_anomaly:
+    return {
+        "cells": cells,
+        "effects": effects,
+        "any_anomaly": any_anomaly,
+        "any_indeterminate": any_indeterminate,
+        "any_performance_indeterminate": any_performance_indeterminate,
+    }
+
+
+def _classify_workload_pair(
+        policy: Policy, raw_results: Iterable[Mapping[str, Any]], *,
+        workload_id: str, attempt_id: str, current_pin: str,
+        frozen_files: Optional[Mapping[str, bytes]] = None,
+        attempt_root: Optional[Path] = None,
+) -> dict[str, Any]:
+    selected = tuple(
+        cell for cell in policy.cells if cell.workload_id == workload_id)
+    if len(selected) != 2:
+        raise CertificationError("workload classifier requires an exact cell pair")
+    return _classify_raw_cells(
+        policy, raw_results, selected_cells=selected,
+        attempt_id=attempt_id, current_pin=current_pin,
+        frozen_files=frozen_files, attempt_root=attempt_root)
+
+
+def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
+                    *, attempt_id: str, current_pin: str,
+                    request_ids: Mapping[str, str],
+                    frozen_files: Optional[Mapping[str, bytes]] = None,
+                    attempt_root: Optional[Path] = None,
+                    _test_token: object = None) -> dict[str, Any]:
+    if type(request_ids) is not dict or list(request_ids) != list(workload_ids(policy)):
+        raise CertificationError("request ID mapping is not in exact policy order")
+    normalized_request_ids = {
+        workload_id: _normalize_request_id(request_ids[workload_id])
+        for workload_id in workload_ids(policy)}
+    if len(set(normalized_request_ids.values())) != len(normalized_request_ids):
+        raise CertificationError("certification request IDs must be distinct")
+    classified = _classify_raw_cells(
+        policy, raw_results, selected_cells=policy.cells,
+        attempt_id=attempt_id, current_pin=current_pin,
+        frozen_files=frozen_files, attempt_root=attempt_root,
+        _test_token=_test_token)
+    effects = classified["effects"]
+    if classified["any_anomaly"]:
         status = "reject"
-    elif any_indeterminate:
+    elif classified["any_indeterminate"]:
         status = "indeterminate"
-    elif any_performance_indeterminate:
+    elif classified["any_performance_indeterminate"]:
         status = "performance-indeterminate"
     elif len(effects) != len(policy.document["workloads"]):
         status = "performance-indeterminate"
@@ -2012,7 +2228,7 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
             "ccbench_commit": policy.document["historical_reference"]["ccbench_commit"],
             "comparison_input": False,
         },
-        "cells": cells,
+        "cells": classified["cells"],
         "effects": effects,
         "status": status,
         "a4_noise_floor_status": "open",
@@ -2029,11 +2245,157 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
     }
 
 
+def _partial_workload_authority(
+        policy: Policy, evidence: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    if (evidence.get("acquisition_schema") != PARTIAL_ACQUISITION_SCHEMA
+            or evidence.get("completion_schema") != PARTIAL_COMPLETION_SCHEMA):
+        raise SchemaChainError("partial result requires the exact v4 receipt chain")
+    driver_rcs = evidence.get("driver_rcs")
+    successful_workload = evidence.get("successful_workload")
+    expected_workloads = workload_ids(policy)
+    if (type(driver_rcs) is not dict
+            or list(driver_rcs) != list(expected_workloads)
+            or successful_workload not in expected_workloads
+            or [workload for workload in expected_workloads
+                if driver_rcs.get(workload) == 0] != [successful_workload]
+            or any(type(driver_rcs.get(workload)) is not int
+                   for workload in expected_workloads)):
+        raise CertificationError("partial driver authority mapping is invalid")
+    authority: dict[str, dict[str, Any]] = {}
+    for workload_id in expected_workloads:
+        rc = driver_rcs[workload_id]
+        if (workload_id == successful_workload
+                and evidence.get("raw_manifest_valid") is True):
+            authority[workload_id] = {
+                "authority": "authoritative",
+                "driver_rc": rc,
+                "reason": "verified-partial-v4-manifest",
+            }
+        elif rc != 0:
+            authority[workload_id] = {
+                "authority": "unavailable",
+                "driver_rc": rc,
+                "reason": f"driver-exited-nonzero:{rc}",
+            }
+        else:
+            authority[workload_id] = {
+                "authority": "unavailable",
+                "driver_rc": rc,
+                "reason": (
+                    "partial-raw-authority-unavailable:"
+                    + str(evidence.get("raw_manifest_reason"))),
+            }
+    return authority
+
+
+def _partial_report_envelope(
+        policy: Policy, evidence: Mapping[str, Any], *,
+        current_pin: str, authority: Mapping[str, Any],
+        cells: list[dict[str, Any]], effects: Mapping[str, float],
+        status: str, reason: str) -> dict[str, Any]:
+    return {
+        "schema_version": PARTIAL_CERTIFICATION_SCHEMA,
+        "study": policy.study,
+        "protocol_schema": POLICY_SCHEMA,
+        "protocol_sha256": policy.protocol_sha256,
+        "policy_sha256": policy.bytes_sha256,
+        "policy_bytes_base64": base64.b64encode(policy.raw_bytes).decode("ascii"),
+        "attempt_id": evidence["attempt_id"],
+        "request_ids": {
+            workload_id: _normalize_request_id(evidence["request_ids"][workload_id])
+            for workload_id in workload_ids(policy)},
+        "current_pin": current_pin,
+        "source_commit": evidence["source_commit"],
+        "workload_authority": dict(authority),
+        "cells": cells,
+        "effects": dict(effects),
+        "status": status,
+        "reason": reason,
+        "historical_context": {
+            "ccbench_commit": policy.document[
+                "historical_reference"]["ccbench_commit"],
+            "comparison_input": False,
+        },
+        "a4_noise_floor_status": "open",
+        "legacy_role": "historically inherited companion",
+        "smallest_observed_sufficient_in_this_two_point_protocol": None,
+        "global_minimality_established": False,
+        "compile_out_evidence_scope": COMPILE_OUT_SCOPE,
+        "independent_observation_limits": {
+            "correctness_run_argv": "not-recorded-by-existing-pipeline",
+            "correctness_workload_binding": (
+                "campaign-lock-and-pipeline-constructor; not an independent argv observation"
+            ),
+        },
+    }
+
+
+def _canonical_partial_report(
+        policy: Policy, evidence: Mapping[str, Any], *,
+        current_pin: str) -> dict[str, Any]:
+    """Re-derive partial authority and science only from frozen v4 evidence."""
+    authority = _partial_workload_authority(policy, evidence)
+    authoritative = [
+        workload_id for workload_id in workload_ids(policy)
+        if authority[workload_id]["authority"] == "authoritative"]
+    if authoritative != [evidence.get("successful_workload")]:
+        unavailable = ";".join(
+            f"{workload_id}={authority[workload_id]['reason']}"
+            for workload_id in workload_ids(policy))
+        return _partial_report_envelope(
+            policy, evidence, current_pin=current_pin, authority=authority,
+            cells=[], effects={}, status="inconclusive",
+            reason="no-authoritative-workload:" + unavailable)
+
+    workload_id = authoritative[0]
+    try:
+        local = _classify_workload_pair(
+            policy, evidence["raw_results"], workload_id=workload_id,
+            attempt_id=evidence["attempt_id"], current_pin=current_pin,
+            frozen_files=evidence["raw_files"],
+            attempt_root=Path(evidence["attempt_root"]),
+        )
+    except (CertificationError, OSError, ValueError, TypeError,
+            KeyError, IndexError) as exc:
+        authority[workload_id] = {
+            "authority": "unavailable",
+            "driver_rc": authority[workload_id]["driver_rc"],
+            "reason": "workload-evidence-invalid:" + str(exc),
+        }
+        return _partial_report_envelope(
+            policy, evidence, current_pin=current_pin, authority=authority,
+            cells=[], effects={}, status="inconclusive",
+            reason=("no-authoritative-workload:"
+                    f"{workload_id}={authority[workload_id]['reason']}"))
+
+    cells = local["cells"]
+    effects = local["effects"]
+    if any(cell["correctness"]["disposition"] == "reject" for cell in cells):
+        status = "reject"
+        reason = f"authoritative-workload-anomaly:{workload_id}"
+    elif (any(cell["correctness"]["disposition"] == "indeterminate"
+              for cell in cells)
+          or any(cell["performance"]["status"] != "complete"
+                 for cell in cells)
+          or workload_id not in effects):
+        status = "inconclusive"
+        reason = f"authoritative-workload-inconclusive:{workload_id}"
+    elif effects[workload_id] <= 0:
+        status = "reject"
+        reason = f"authoritative-workload-effect-nonpositive:{workload_id}"
+    else:
+        status = "partial"
+        reason = f"authoritative-workload-positive:{workload_id}"
+    return _partial_report_envelope(
+        policy, evidence, current_pin=current_pin, authority=authority,
+        cells=cells, effects=effects, status=status, reason=reason)
+
+
 def driver_rc(report: Mapping[str, Any]) -> int:
     status = report.get("status")
-    if status in {"observed-positive", "reject"}:
+    if status in {"observed-positive", "partial", "reject"}:
         return 0
-    if status in {"indeterminate", "performance-indeterminate"}:
+    if status in {"indeterminate", "performance-indeterminate", "inconclusive"}:
         return 2
     raise CertificationError("unknown report status")
 
@@ -2445,8 +2807,12 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
                  dependency_prefix: Path | str, ccbench_dir: Path | str,
                  log=print) -> object:
     """Run one ordered stock/adopted workload pair through run_campaign()."""
-    from . import env_contract
-    from .build_admission import GeneratorId, build_run_context
+    from . import env_contract, pin
+    from .build_admission import (
+        GeneratorId,
+        attest_generator_output,
+        build_run_context,
+    )
     from .layout import (DurableRootPolicy, env_scope_dir,
                          resolve_campaign_output_root)
     from .loop import run_campaign
@@ -2465,15 +2831,34 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     source_root = Path(ccbench_dir).resolve(strict=True)
     if source_root.is_symlink() or not source_root.is_dir():
         raise CertificationError("CCBench source root is unavailable")
-    observed_pin = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=source_root, check=True,
-        capture_output=True, text=True,
-    ).stdout.strip()
-    dirty_source = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
-        cwd=source_root, check=True, capture_output=True, text=True,
-    ).stdout
-    if observed_pin != current_pin or dirty_source:
+    if (type(current_pin) is not str
+            or _SHORT_COMMIT_RE.fullmatch(current_pin) is None
+            or current_pin != pin.CURRENT_PIN):
+        raise CertificationError(
+            "CCBench current pin is not the repository canonical short pin")
+    try:
+        observed_pin = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+            cwd=source_root, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        resolved_pin = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{current_pin}^{{commit}}"],
+            cwd=source_root, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        dirty_source = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=source_root, check=True, capture_output=True, text=True,
+        ).stdout
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CertificationError(
+            "CCBench current pin resolver or clean-tree probe failed") from exc
+    if (_FULL_COMMIT_RE.fullmatch(observed_pin) is None
+            or _FULL_COMMIT_RE.fullmatch(resolved_pin) is None
+            or resolved_pin != observed_pin
+            or not observed_pin.startswith(current_pin)
+            or dirty_source):
         raise CertificationError("CCBench current pin or clean-tree binding failed")
     cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
     if len(cells) != 2 or [cell.role for cell in cells] != ["stock", "adopted"]:
@@ -2515,6 +2900,16 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
         resolved_cc, resolved_cxx,
     )
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
+
+    def capability_resolver(evidence):
+        return attest_generator_output(
+            build_context,
+            evidence,
+            generator_input_sha256=_generator_input_sha256(
+                policy, workload_id, evidence.genome_sha256),
+        )
+
     summary = run_campaign(
         cfg, genomes, perf, contract.env_tag, contract.clocks_per_us,
         numactl=contract.numactl, do_bench=True, output_root=str(output_root),
@@ -2522,7 +2917,8 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
         dependency_prefix=str(dependency),
         authorization_contract=authorization,
         cache_root=str(cache_root),
-        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_REPRO),
+        build_context=build_context,
+        capability_resolver=capability_resolver,
         declared_use_class="official",
         expected_toolchain_manifest=expected_toolchain_manifest,
         durable_root_policy=durable_policy,
@@ -2588,37 +2984,136 @@ def _validate_claim_reservation_binding(
             "campaign claim differs from submission or reservation")
 
 
+def _load_workload_raw_results(
+        policy: Policy, attempt_root: Path,
+        workload_id: str) -> list[dict[str, Any]]:
+    """Close and read one workload namespace without touching its sibling."""
+    if workload_id not in workload_ids(policy):
+        raise CertificationError(f"unknown workload: {workload_id!r}")
+    raw_root = workload_job_root(policy, attempt_root, workload_id) / "raw"
+    cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
+    expected_names = {f"{cell.cell_id}.json" for cell in cells}
+    if len(cells) != 2 or raw_root.is_symlink() or not raw_root.is_dir():
+        raise CertificationError("job-local raw directory inventory is not closed")
+    try:
+        entries = list(os.scandir(raw_root))
+    except OSError as exc:
+        raise CertificationError(
+            "job-local raw directory cannot be inspected") from exc
+    if ({entry.name for entry in entries} != expected_names
+            or any(entry.is_symlink()
+                   or not entry.is_file(follow_symlinks=False)
+                   for entry in entries)):
+        raise CertificationError("job-local raw directory inventory is not closed")
+    return [
+        _read_json(raw_root / f"{cell.cell_id}.json")[0]
+        for cell in cells
+    ]
+
+
 def load_raw_results(policy: Policy, attempt_root: Path) -> list[dict[str, Any]]:
     """Open the exact cells after closing each job-local raw namespace."""
-    results: list[dict[str, Any]] = []
-    for workload_id in workload_ids(policy):
-        raw_root = workload_job_root(policy, attempt_root, workload_id) / "raw"
-        expected_names = {
-            f"{cell.cell_id}.json" for cell in policy.cells
-            if cell.workload_id == workload_id
-        }
-        if raw_root.is_symlink() or not raw_root.is_dir():
-            raise CertificationError(
-                "job-local raw directory inventory is not closed")
-        try:
-            entries = list(os.scandir(raw_root))
-        except OSError as exc:
-            raise CertificationError(
-                "job-local raw directory cannot be inspected") from exc
-        if ({entry.name for entry in entries} != expected_names
-                or any(entry.is_symlink()
-                       or not entry.is_file(follow_symlinks=False)
-                       for entry in entries)):
-            raise CertificationError(
-                "job-local raw directory inventory is not closed")
-        for cell in policy.cells:
-            if cell.workload_id == workload_id:
-                results.append(_read_json(raw_root / f"{cell.cell_id}.json")[0])
+    results = [
+        raw
+        for workload_id in workload_ids(policy)
+        for raw in _load_workload_raw_results(policy, attempt_root, workload_id)
+    ]
     by_cell = {str(raw.get("cell_id")): raw for raw in results}
     if set(by_cell) != {cell.cell_id for cell in policy.cells}:
         raise CertificationError("job-local raw cell inventory is not exact")
     results = [by_cell[cell.cell_id] for cell in policy.cells]
     return results
+
+
+def _finalize_workload_raw_authority(
+        policy: Policy, attempt_root: Path, current_pin: str,
+        workload_id: str, raw_results: Sequence[Mapping[str, Any]],
+        submission_job: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Validate and freeze one workload's raw pair and campaign triple."""
+    attempt_id = attempt_root.name
+    cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
+    if (len(cells) != 2 or len(raw_results) != 2
+            or [raw.get("cell_id") for raw in raw_results]
+            != [cell.cell_id for cell in cells]):
+        raise CertificationError("raw workload is not an exact cell pair")
+    files = {
+        f"jobs/{workload_id}/raw/{cell.cell_id}.json": _sha256_file(
+            workload_job_root(policy, attempt_root, workload_id)
+            / "raw" / f"{cell.cell_id}.json")
+        for cell in cells
+    }
+    evidence_keys = {
+        "campaign_id", "lock_path", "lock_sha256", "wal_path",
+        "wal_sha256", "claim_path", "claim_sha256",
+    }
+    evidences = [raw.get("campaign_evidence") for raw in raw_results]
+    if (any(type(evidence) is not dict or set(evidence) != evidence_keys
+            for evidence in evidences)
+            or evidences[0] != evidences[1]):
+        raise CertificationError("raw campaign evidence is incomplete or split")
+    evidence = evidences[0]
+    config_bindings = {
+        _campaign_config_binding(
+            policy, workload_id, attempt_id, current_pin,
+            raw.get("campaign_preimage"))
+        for raw in raw_results
+    }
+    if len(config_bindings) != 1:
+        raise CertificationError("raw campaign config binding is split")
+    expected_campaign_id, expected_protocol_digest = config_bindings.pop()
+    if expected_campaign_id != evidence["campaign_id"]:
+        raise CertificationError("raw campaign config identity differs")
+
+    campaign_members: set[str] = set()
+    for kind in ("lock", "wal", "claim"):
+        member_path = _canonical_child(
+            evidence[f"{kind}_path"], attempt_root, f"campaign {kind}")
+        relative = member_path.relative_to(attempt_root).as_posix()
+        expected_sha = _require_sha(
+            evidence[f"{kind}_sha256"], f"campaign {kind} sha256")
+        if _sha256_file(member_path) != expected_sha:
+            raise CertificationError(
+                f"campaign {kind} changed before manifest")
+        if relative in files:
+            raise CertificationError("campaign member aliases raw evidence")
+        files[relative] = expected_sha
+        campaign_members.add(relative)
+    if len(files) != 5 or len(campaign_members) != 3:
+        raise CertificationError(
+            "workload authority is not an exact raw pair and campaign triple")
+
+    claim_path = _canonical_child(
+        evidence["claim_path"], attempt_root, "campaign claim")
+    claim_bytes = claim_path.read_bytes()
+    claim = _decode_campaign_claim(claim_bytes, "campaign claim")
+    reservation_path = workload_job_root(
+        policy, attempt_root, workload_id) / "reservation.json"
+    reservation_result, reservation_bytes = _read_json(reservation_path)
+    from . import reservation
+    try:
+        reservation_binding = reservation.read_binding(
+            reservation_result.get("environment"))
+    except (reservation.ReservationError, TypeError) as exc:
+        raise CertificationError("reservation result binding is invalid") from exc
+    _validate_claim_reservation_binding(
+        claim, campaign_id=evidence["campaign_id"],
+        request_id=submission_job["request_id"],
+        reservation_binding=reservation_binding,
+        expected_protocol_digest=expected_protocol_digest)
+    return {
+        "files": files,
+        "campaign_members": campaign_members,
+        "claim": {
+            "campaign_id": evidence["campaign_id"],
+            "claim_path": claim_path.relative_to(attempt_root).as_posix(),
+            "claim_sha256": _sha256_bytes(claim_bytes),
+            "claim": claim,
+            "reservation_result": reservation_path.relative_to(
+                attempt_root).as_posix(),
+            "reservation_result_sha256": _sha256_bytes(reservation_bytes),
+        },
+    }
 
 
 def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
@@ -2628,85 +3123,29 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
     # enumerating the shared jobs/ parent, then opens the four policy paths.
     # The manifest freezes those bytes and both lock/WAL/claim triples.
     raw_results = load_raw_results(policy, root)
-    files = {
-        f"jobs/{cell.workload_id}/raw/{cell.cell_id}.json": _sha256_file(
-            workload_job_root(policy, root, cell.workload_id)
-            / "raw" / f"{cell.cell_id}.json")
-        for cell in policy.cells
-    }
-    campaign_paths: set[str] = set()
     submission_payload, _ = _read_json(root / "receipts" / "submission.json")
     submission = _validate_submission_receipt(
         policy, submission_payload, attempt_id, root, current_pin)
+    files: dict[str, str] = {}
+    campaign_paths: set[str] = set()
     claims: dict[str, dict[str, Any]] = {}
-    from . import reservation
     for workload_id, submission_job in zip(
             workload_ids(policy), submission["jobs"]):
         workload_raw = [
             raw for cell, raw in zip(policy.cells, raw_results)
             if cell.workload_id == workload_id
         ]
-        if len(workload_raw) != 2:
-            raise CertificationError("raw workload is not an exact cell pair")
-        evidences = [raw.get("campaign_evidence") for raw in workload_raw]
-        evidence_keys = {
-            "campaign_id", "lock_path", "lock_sha256", "wal_path",
-            "wal_sha256", "claim_path", "claim_sha256",
-        }
-        if (any(type(evidence) is not dict or set(evidence) != evidence_keys
-                for evidence in evidences)
-                or evidences[0] != evidences[1]):
-            raise CertificationError("raw campaign evidence is incomplete or split")
-        evidence = evidences[0]
-        config_bindings = {
-            _campaign_config_binding(
-                policy, workload_id, attempt_id, current_pin,
-                raw.get("campaign_preimage"))
-            for raw in workload_raw
-        }
-        if len(config_bindings) != 1:
-            raise CertificationError("raw campaign config binding is split")
-        expected_campaign_id, expected_protocol_digest = config_bindings.pop()
-        if expected_campaign_id != evidence["campaign_id"]:
-            raise CertificationError("raw campaign config identity differs")
-        for kind in ("lock", "wal", "claim"):
-            path = _canonical_child(
-                evidence[f"{kind}_path"], root, f"campaign {kind}")
-            relative = path.relative_to(root).as_posix()
-            expected_sha = _require_sha(
-                evidence[f"{kind}_sha256"], f"campaign {kind} sha256")
-            if _sha256_file(path) != expected_sha:
-                raise CertificationError(f"campaign {kind} changed before manifest")
-            previous = files.setdefault(relative, expected_sha)
-            if previous != expected_sha:
-                raise CertificationError(f"campaign {kind} hash is inconsistent")
-            campaign_paths.add(relative)
-        claim_path = _canonical_child(
-            evidence["claim_path"], root, "campaign claim")
-        claim_bytes = claim_path.read_bytes()
-        claim = _decode_campaign_claim(claim_bytes, "campaign claim")
-        reservation_path = workload_job_root(
-            policy, root, workload_id) / "reservation.json"
-        reservation_result, reservation_bytes = _read_json(reservation_path)
-        environment = reservation_result.get("environment")
-        try:
-            binding = reservation.read_binding(environment)
-        except (reservation.ReservationError, TypeError) as exc:
-            raise CertificationError("reservation result binding is invalid") from exc
-        _validate_claim_reservation_binding(
-            claim, campaign_id=evidence["campaign_id"],
-            request_id=submission_job["request_id"],
-            reservation_binding=binding,
-            expected_protocol_digest=expected_protocol_digest)
-        claims[workload_id] = {
-            "campaign_id": evidence["campaign_id"],
-            "claim_path": claim_path.relative_to(root).as_posix(),
-            "claim_sha256": _sha256_bytes(claim_bytes),
-            "claim": claim,
-            "reservation_result": reservation_path.relative_to(root).as_posix(),
-            "reservation_result_sha256": _sha256_bytes(reservation_bytes),
-        }
-    if len(campaign_paths) != 6:
+        authority = _finalize_workload_raw_authority(
+            policy, root, current_pin, workload_id, workload_raw,
+            submission_job)
+        for relative, digest in authority["files"].items():
+            previous = files.setdefault(relative, digest)
+            if previous != digest:
+                raise CertificationError(
+                    "workload manifest member hash is inconsistent")
+        campaign_paths.update(authority["campaign_members"])
+        claims[workload_id] = authority["claim"]
+    if len(files) != 10 or len(campaign_paths) != 6:
         raise CertificationError(
             "raw results do not bind exactly two campaign lock/WAL/claim triples")
     manifest = {
@@ -2722,6 +3161,206 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
     write_json_x(path, manifest)
     _fsync_dir(root)
     return path
+
+
+def _finalize_partial_raw_manifest(
+        policy: Policy, attempt_root: Path | str, current_pin: str,
+        successful_workload: str) -> Path:
+    """Freeze the exact five members owned by one successful A-2 workload."""
+    attempt_id, root = validate_attempt_root(policy, attempt_root)
+    raw_results = _load_workload_raw_results(
+        policy, root, successful_workload)
+    submission_payload, _ = _read_json(root / "receipts" / "submission.json")
+    submission = _validate_submission_receipt(
+        policy, submission_payload, attempt_id, root, current_pin)
+    submission_by_workload = {
+        job["workload"]: job for job in submission["jobs"]}
+    authority = _finalize_workload_raw_authority(
+        policy, root, current_pin, successful_workload, raw_results,
+        submission_by_workload[successful_workload])
+    if (len(authority["files"]) != 5
+            or len(authority["campaign_members"]) != 3):
+        raise CertificationError(
+            "partial manifest does not bind exact raw pair and campaign triple")
+    manifest = {
+        "schema_version": PARTIAL_RAW_MANIFEST_SCHEMA,
+        "study": policy.study,
+        "protocol_sha256": policy.protocol_sha256,
+        "attempt_id": attempt_id,
+        "current_pin": current_pin,
+        "successful_workload": successful_workload,
+        "campaign_claims": {successful_workload: authority["claim"]},
+        "files": authority["files"],
+    }
+    path = root / "raw-manifest.json"
+    write_json_x(path, manifest)
+    _fsync_dir(root)
+    return path
+
+
+def _load_partial_raw_manifest_bundle(
+        policy: Policy, manifest_path: Path, manifest_sha256: str, *,
+        attempt_id: str, attempt_root: Path, current_pin: str,
+        successful_workload: str,
+        job_bindings: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Load one v4 workload closure without opening the failed sibling raw."""
+    manifest, manifest_bytes = _read_json(manifest_path)
+    if _sha256_bytes(manifest_bytes) != manifest_sha256:
+        raise CertificationError("partial completion raw manifest hash mismatch")
+    required = {
+        "schema_version", "study", "protocol_sha256", "attempt_id",
+        "current_pin", "successful_workload", "campaign_claims", "files",
+    }
+    if type(manifest) is not dict or set(manifest) != required:
+        raise SchemaChainError("partial raw manifest shape crosses its schema")
+    if manifest.get("schema_version") != PARTIAL_RAW_MANIFEST_SCHEMA:
+        raise SchemaChainError("partial raw manifest schema chain mismatch")
+    if (manifest.get("study") != policy.study
+            or manifest.get("protocol_sha256") != policy.protocol_sha256
+            or manifest.get("attempt_id") != attempt_id
+            or manifest.get("current_pin") != current_pin
+            or manifest.get("successful_workload") != successful_workload
+            or type(manifest.get("campaign_claims")) is not dict
+            or type(manifest.get("files")) is not dict):
+        raise CertificationError("partial raw manifest identity mismatch")
+    files = manifest["files"]
+    failed_workloads = set(workload_ids(policy)) - {successful_workload}
+    if any(
+            type(relative) is str
+            and any(relative.startswith(f"jobs/{failed}/")
+                    for failed in failed_workloads)
+            for relative in files):
+        raise SchemaChainError("partial raw manifest includes failed workload evidence")
+    cells = [
+        cell for cell in policy.cells
+        if cell.workload_id == successful_workload]
+    raw_names = {
+        f"jobs/{successful_workload}/raw/{cell.cell_id}.json"
+        for cell in cells}
+    if (len(cells) != 2 or not raw_names.issubset(files)
+            or len(files) != 5
+            or any(type(name) is not str
+                   or type(digest) is not str
+                   or _SHA256_RE.fullmatch(digest) is None
+                   for name, digest in files.items())):
+        raise CertificationError("partial raw manifest file inventory is not exact five")
+    frozen_files: dict[str, bytes] = {}
+    for relative, digest in files.items():
+        relative_path = Path(relative)
+        if (relative_path.is_absolute() or ".." in relative_path.parts
+                or relative_path.as_posix() != relative):
+            raise CertificationError(
+                "partial raw manifest path is not canonical relative")
+        member_path = _canonical_child(
+            str(attempt_root / relative_path), attempt_root,
+            "partial raw manifest member")
+        payload = member_path.read_bytes()
+        if (not payload or len(payload) > 16 * 1024 * 1024
+                or _sha256_bytes(payload) != digest):
+            raise CertificationError("partial raw manifest member hash mismatch")
+        frozen_files[relative] = payload
+
+    raw_results: list[dict[str, Any]] = []
+    campaign_members: set[str] = set()
+    for cell in cells:
+        relative = f"jobs/{successful_workload}/raw/{cell.cell_id}.json"
+        value = _loads_json(frozen_files[relative], relative)
+        if type(value) is not dict or value.get("cell_id") != cell.cell_id:
+            raise CertificationError("partial raw cell member identity differs")
+        evidence = value.get("campaign_evidence")
+        if type(evidence) is not dict:
+            raise CertificationError("partial raw campaign evidence is missing")
+        for kind in ("lock", "wal", "claim"):
+            path = _lexical_absolute_path(
+                evidence.get(f"{kind}_path"), f"partial campaign {kind}")
+            try:
+                member = path.relative_to(attempt_root).as_posix()
+            except ValueError as exc:
+                raise CertificationError(
+                    "partial campaign evidence is outside attempt") from exc
+            if (member not in frozen_files
+                    or evidence.get(f"{kind}_sha256") != files[member]):
+                raise CertificationError(
+                    "partial campaign evidence is not manifest-bound")
+            campaign_members.add(member)
+        raw_results.append(value)
+    if campaign_members != set(files) - raw_names or len(campaign_members) != 3:
+        raise CertificationError(
+            "partial campaign lock/WAL/claim members are not exact")
+    live_raw_results = _load_workload_raw_results(
+        policy, attempt_root, successful_workload)
+    if [raw.get("cell_id") for raw in live_raw_results] != [
+            raw.get("cell_id") for raw in raw_results]:
+        raise CertificationError("live and frozen partial raw order differs")
+
+    claims = manifest["campaign_claims"]
+    if (list(claims) != [successful_workload]
+            or set(claims) != {successful_workload}):
+        raise CertificationError("partial campaign claim mapping is not exact")
+    claim_entry = claims[successful_workload]
+    if type(claim_entry) is not dict or set(claim_entry) != {
+            "campaign_id", "claim_path", "claim_sha256", "claim",
+            "reservation_result", "reservation_result_sha256"}:
+        raise CertificationError("partial campaign claim entry is not exact")
+    claim_relative = claim_entry["claim_path"]
+    if (type(claim_relative) is not str
+            or claim_relative not in frozen_files
+            or _require_sha(claim_entry["claim_sha256"], "partial claim sha256")
+            != files[claim_relative]):
+        raise CertificationError("partial campaign claim is not file-bound")
+    claim = _decode_campaign_claim(
+        frozen_files[claim_relative], "partial manifest campaign claim")
+    if claim != claim_entry["claim"]:
+        raise CertificationError(
+            "embedded partial campaign claim differs from bytes")
+    binding_by_workload = {
+        str(binding["workload"]): binding for binding in job_bindings}
+    if (list(binding_by_workload) != list(workload_ids(policy))
+            or binding_by_workload[successful_workload]["driver_rc"] != 0):
+        raise CertificationError("partial completion job binding is not exact")
+    config_bindings = {
+        _campaign_config_binding(
+            policy, successful_workload, attempt_id, current_pin,
+            raw.get("campaign_preimage"))
+        for raw in raw_results
+    }
+    if len(raw_results) != 2 or len(config_bindings) != 1:
+        raise CertificationError("partial campaign config binding is split")
+    expected_campaign_id, expected_protocol_digest = config_bindings.pop()
+    if expected_campaign_id != claim_entry["campaign_id"]:
+        raise CertificationError("partial campaign config identity differs")
+    reservation_relative = claim_entry["reservation_result"]
+    expected_reservation = workload_job_root(
+        policy, attempt_root, successful_workload) / "reservation.json"
+    if (reservation_relative
+            != expected_reservation.relative_to(attempt_root).as_posix()
+            or _require_sha(
+                claim_entry["reservation_result_sha256"],
+                "partial reservation result sha256")
+            != _sha256_file(expected_reservation)):
+        raise CertificationError(
+            "partial claim differs from completion reservation")
+    _validate_claim_reservation_binding(
+        claim, campaign_id=claim_entry["campaign_id"],
+        request_id=binding_by_workload[successful_workload]["request_id"],
+        reservation_binding=binding_by_workload[
+            successful_workload]["reservation_binding"],
+        expected_protocol_digest=expected_protocol_digest)
+    for raw in raw_results:
+        evidence = raw["campaign_evidence"]
+        if (evidence["campaign_id"] != claim_entry["campaign_id"]
+                or Path(evidence["claim_path"]).relative_to(
+                    attempt_root).as_posix() != claim_relative
+                or evidence["claim_sha256"] != claim_entry["claim_sha256"]):
+            raise CertificationError(
+                "partial raw campaign evidence differs from claim")
+    return {
+        "manifest_bytes": manifest_bytes,
+        "manifest": manifest,
+        "files": frozen_files,
+        "raw_results": raw_results,
+    }
 
 
 def _load_raw_manifest_bundle(
@@ -2877,6 +3516,7 @@ def _load_raw_manifest_bundle(
             raise CertificationError("raw campaign evidence differs from campaign claim")
     return {
         "manifest_bytes": manifest_bytes,
+        "manifest": manifest,
         "files": frozen_files,
         "raw_results": raw_results,
     }
@@ -2903,6 +3543,83 @@ def _rename_noreplace(source: Path, destination: Path) -> None:
         raise OSError(error_number, os.strerror(error_number), str(destination))
 
 
+def _rename_flags_zero(source: Path, destination: Path) -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is None:
+        raise CertificationError("renameat2(flags=0) is unavailable")
+    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p,
+                          ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    renameat2.restype = ctypes.c_int
+    at_fdcwd = -100
+    rc = renameat2(
+        at_fdcwd, os.fsencode(source), at_fdcwd, os.fsencode(destination), 0,
+    )
+    if rc != 0:
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number), str(destination))
+
+
+def _release_materialization_publish_claim(
+        claim: Path, identity: tuple[int, int]) -> None:
+    try:
+        info = claim.lstat()
+    except OSError as exc:
+        raise CertificationError(
+            f"fallback materialization publish claim stat failed: {exc}"
+        ) from exc
+    if (not stat.S_ISREG(info.st_mode)
+            or (info.st_dev, info.st_ino) != identity):
+        raise CertificationError(
+            "fallback materialization publish claim identity differs")
+    try:
+        claim.unlink()
+        _fsync_dir(claim.parent)
+    except OSError as exc:
+        raise CertificationError(
+            f"fallback materialization publish claim cleanup failed: {exc}"
+        ) from exc
+
+
+def _publish_staging_after_einval(staging: Path, destination: Path) -> None:
+    """Publish for cooperating A-2 writers after RENAME_NOREPLACE is EINVAL.
+
+    The exclusive sibling claim serializes cooperating A-2 publishers.  This
+    fallback is not atomic no-replace against a non-cooperating writer: an
+    empty type-compatible destination created after the existence check can be
+    replaced by the flags-zero renameat2 call.
+    """
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        claim_fd = os.open(claim, flags, 0o600)
+    except OSError as exc:
+        raise CertificationError(
+            f"exclusive fallback materialization publish claim failed: {exc}"
+        ) from exc
+    claim_identity = os.fstat(claim_fd)
+    try:
+        os.fsync(claim_fd)
+        _fsync_dir(destination.parent)
+        if os.path.lexists(destination):
+            raise CertificationError(
+                "fallback materialization publish refused: "
+                "destination already exists")
+        try:
+            _rename_flags_zero(staging, destination)
+        except OSError as exc:
+            raise CertificationError(
+                f"fallback materialization publish failed: {exc.strerror}"
+            ) from exc
+        _fsync_dir(destination.parent)
+    finally:
+        os.close(claim_fd)
+        _release_materialization_publish_claim(
+            claim, (claim_identity.st_dev, claim_identity.st_ino))
+
+
 _CERTIFICATION_RESULT_COMMON_KEYS = {
     "schema_version", "study", "protocol_schema", "protocol_sha256",
     "policy_sha256", "policy_bytes_base64", "attempt_id", "request_ids",
@@ -2919,8 +3636,44 @@ _CERTIFICATION_RESULT_STATUSES = {
 
 def _validate_certification_result(
         policy: Policy, report: Mapping[str, Any],
-        evidence: Mapping[str, Any]) -> None:
-    """Validate the two exact v3 result shapes before creating a stage."""
+        evidence: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Validate a legacy v3 result or re-derive an exact partial v4 result."""
+    if type(report) is dict and report.get(
+            "schema_version") == PARTIAL_CERTIFICATION_SCHEMA:
+        partial_keys = (
+            _CERTIFICATION_RESULT_COMMON_KEYS
+            | {"historical_context", "reason", "workload_authority"})
+        if set(report) != partial_keys:
+            raise CertificationError(
+                "partial certification result fields are not exact")
+        if report.get("status") not in {
+                "success", "partial", "inconclusive", "reject"}:
+            raise CertificationError("partial certification status is unknown")
+        acquisition_path = evidence.get("acquisition_path")
+        if type(acquisition_path) is not str:
+            raise CertificationError(
+                "partial materialization evidence lacks acquisition authority")
+        canonical_evidence = validate_acquisition_bundle(
+            policy, acquisition_path, current_pin=report.get("current_pin"))
+        if (canonical_evidence.get("acquisition_schema")
+                != PARTIAL_ACQUISITION_SCHEMA
+                or canonical_evidence.get("completion_schema")
+                != PARTIAL_COMPLETION_SCHEMA):
+            raise SchemaChainError(
+                "partial result is crossed with a legacy receipt chain")
+        if canonical_evidence.get("raw_manifest_invalid_kind") == "schema-chain":
+            raise SchemaChainError(
+                "partial materialization rejects the raw schema chain: "
+                + str(canonical_evidence.get("raw_manifest_reason")))
+        expected = _canonical_partial_report(
+            policy, canonical_evidence, current_pin=report["current_pin"])
+        report_matches_rederived_evidence = report == expected
+        if not report_matches_rederived_evidence:
+            raise CertificationError(
+                "partial certification result differs from evidence re-derivation")
+        return canonical_evidence
+
+    # Legacy v3 keeps its two existing result shapes and status vocabulary.
     analysis_keys = _CERTIFICATION_RESULT_COMMON_KEYS | {"historical_context"}
     indeterminate_keys = _CERTIFICATION_RESULT_COMMON_KEYS | {"reason"}
     if type(report) is not dict or frozenset(report) not in {
@@ -2942,6 +3695,12 @@ def _validate_certification_result(
             or acquisition.get("protocol_sha256") != policy.protocol_sha256):
         raise CertificationError(
             "certification result and terminal evidence identity differ")
+    if (evidence.get("acquisition_schema") != ACQUISITION_SCHEMA
+            or evidence.get("completion_schema") != COMPLETION_SCHEMA
+            or (evidence.get("raw_manifest_valid") is True
+                and evidence.get("raw_manifest_schema") != RAW_MANIFEST_SCHEMA)):
+        raise SchemaChainError(
+            "legacy result is crossed with a partial receipt or manifest")
     request_ids = report["request_ids"]
     expected_workloads = workload_ids(policy)
     if (type(request_ids) is not dict
@@ -2983,11 +3742,12 @@ def _validate_certification_result(
           or report["cells"] != [] or report["effects"] != {}):
         raise CertificationError(
             "indeterminate certification result fields are malformed")
+    return evidence
 
 
 def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str, Any],
                 *, repo_root: Path | str) -> Path:
-    _validate_certification_result(policy, report, evidence)
+    evidence = _validate_certification_result(policy, report, evidence)
     root = Path(repo_root).resolve(strict=True)
     destination = (root / policy.tracked_destination).resolve()
     expected = root.joinpath(*policy.tracked_destination.parts)
@@ -3040,7 +3800,12 @@ def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str
         }
         _write_bytes_x(stage / "COMPLETE.json", _canonical_json(marker))
         _fsync_dir(stage)
-        _rename_noreplace(stage, destination)
+        try:
+            _rename_noreplace(stage, destination)
+        except OSError as exc:
+            if exc.errno != errno.EINVAL:
+                raise
+            _publish_staging_after_einval(stage, destination)
         published = True
         _fsync_dir(parent)
         return destination
@@ -3161,36 +3926,42 @@ def _collect_command(args: argparse.Namespace) -> int:
     if (attempt_id != evidence["attempt_id"]
             or str(attempt_root) != evidence["attempt_root"]):
         raise CertificationError("collector attempt differs from receipt attempt")
-    failed_drivers = {
-        workload: rc for workload, rc in evidence["driver_rcs"].items()
-        if rc != 0}
-    if failed_drivers:
-        report = _indeterminate_report(
-            policy, evidence, attempt_id=attempt_id, current_pin=args.current_pin,
-            reason=f"compute driver exited nonzero: {failed_drivers}",
-        )
-    elif not evidence["raw_manifest_valid"]:
-        report = _indeterminate_report(
-            policy, evidence, attempt_id=attempt_id, current_pin=args.current_pin,
-            reason=("verified raw manifest unavailable: "
-                    + str(evidence["raw_manifest_reason"])),
-        )
+    if evidence["acquisition_schema"] == PARTIAL_ACQUISITION_SCHEMA:
+        report = _canonical_partial_report(
+            policy, evidence, current_pin=args.current_pin)
     else:
-        try:
-            report = collect_results(
-                policy, evidence["raw_results"],
-                attempt_id=attempt_id, current_pin=args.current_pin,
-                request_ids=evidence["request_ids"],
-                frozen_files=evidence["raw_files"], attempt_root=attempt_root,
-            )
-        except (CertificationError, OSError, ValueError, TypeError,
-                KeyError, IndexError) as exc:
+        failed_drivers = {
+            workload: rc for workload, rc in evidence["driver_rcs"].items()
+            if rc != 0}
+        if failed_drivers:
             report = _indeterminate_report(
                 policy, evidence, attempt_id=attempt_id,
-                current_pin=args.current_pin, reason=str(exc),
+                current_pin=args.current_pin,
+                reason=f"compute driver exited nonzero: {failed_drivers}",
+            )
+        elif not evidence["raw_manifest_valid"]:
+            report = _indeterminate_report(
+                policy, evidence, attempt_id=attempt_id,
+                current_pin=args.current_pin,
+                reason=("verified raw manifest unavailable: "
+                        + str(evidence["raw_manifest_reason"])),
             )
         else:
-            report["source_commit"] = evidence["source_commit"]
+            try:
+                report = collect_results(
+                    policy, evidence["raw_results"],
+                    attempt_id=attempt_id, current_pin=args.current_pin,
+                    request_ids=evidence["request_ids"],
+                    frozen_files=evidence["raw_files"], attempt_root=attempt_root,
+                )
+            except (CertificationError, OSError, ValueError, TypeError,
+                    KeyError, IndexError) as exc:
+                report = _indeterminate_report(
+                    policy, evidence, attempt_id=attempt_id,
+                    current_pin=args.current_pin, reason=str(exc),
+                )
+            else:
+                report["source_commit"] = evidence["source_commit"]
     destination = materialize(policy, report, evidence, repo_root=args.repo_root)
     print(destination)
     return driver_rc(report)
@@ -3231,6 +4002,20 @@ def _preregister_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _record_request_id_command(args: argparse.Namespace) -> int:
+    policy = load_policy()
+    print(record_scheduler_request_id(
+        policy, args.attempt_root, args.workload, args.request_id))
+    return 0
+
+
+def _durabilize_qsub_diagnostics_command(args: argparse.Namespace) -> int:
+    policy = load_policy()
+    durabilize_scheduler_qsub_diagnostics(
+        policy, args.attempt_root, args.workload)
+    return 0
+
+
 def _finalize_raw_command(args: argparse.Namespace) -> int:
     policy = load_policy()
     print(finalize_raw_manifest(policy, args.attempt_root, args.current_pin))
@@ -3242,8 +4027,6 @@ def _exact_qsub_command(args: argparse.Namespace) -> int:
     if argv and argv[0] == "--":
         argv = argv[1:]
     completed = exact_qsub(argv)
-    sys.stdout.write(completed.stdout or "")
-    sys.stderr.write(completed.stderr or "")
     return int(completed.returncode)
 
 
@@ -3291,6 +4074,15 @@ def _parser() -> argparse.ArgumentParser:
     preregister.add_argument("--attempt-id", required=True)
     preregister.add_argument("--current-pin", required=True)
     preregister.set_defaults(handler=_preregister_command)
+    request_id = sub.add_parser("record-request-id")
+    request_id.add_argument("--attempt-root", required=True)
+    request_id.add_argument("--workload", required=True)
+    request_id.add_argument("--request-id", required=True)
+    request_id.set_defaults(handler=_record_request_id_command)
+    diagnostics = sub.add_parser("durabilize-qsub-diagnostics")
+    diagnostics.add_argument("--attempt-root", required=True)
+    diagnostics.add_argument("--workload", required=True)
+    diagnostics.set_defaults(handler=_durabilize_qsub_diagnostics_command)
     run = sub.add_parser("run-workload")
     run.add_argument("--workload", required=True)
     run.add_argument("--attempt-root", required=True)

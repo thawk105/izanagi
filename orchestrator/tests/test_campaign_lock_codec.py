@@ -56,6 +56,33 @@ def _v2_value() -> dict[str, object]:
     }
 
 
+def _non_certifying_common() -> dict[str, object]:
+    return {
+        "mode": "registered-formal-non-certifying",
+        "certifying": False,
+        "study_id": "paper-story-a1-20260826-sized-v1",
+        "policy_sha256": "4" * 64,
+        "preregistration_sha256": "5" * 64,
+        "source_commit": "6" * 40,
+        "source_binding_sha256": "7" * 64,
+        "environment_contract_sha256": "8" * 64,
+        "intent_sha256": "9" * 64,
+        "campaign_ids": ["campaign-a", "campaign-b", "campaign-c"],
+    }
+
+
+def _non_certifying_lock() -> str:
+    return campaign_lock.encode_non_certifying_campaign_lock(
+        _canonical(_identity()),
+        common_record=_non_certifying_common(),
+        workload_binding={
+            "workload": "write-heavy",
+            "campaign_id": "campaign-a",
+            "ordinal": 0,
+        },
+    )
+
+
 def test_v1_is_detected_and_original_bytes_are_preserved() -> None:
     raw = json.dumps(_identity(), ensure_ascii=False, indent=2).encode("utf-8")
     decoded = campaign_lock.decode_campaign_lock(raw.decode("utf-8"))
@@ -316,6 +343,76 @@ def test_campaign_lock_can_be_the_first_campaign_module_imported() -> None:
         check=False, timeout=15,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_non_certifying_lock_uses_dedicated_decoder_and_disclosed_tag() -> None:
+    text = _non_certifying_lock()
+    decoded = campaign_lock.decode_non_certifying_campaign_lock(text)
+    assert decoded.schema_version == "campaign-lock/non-certifying/v1"
+    assert decoded.common_record == _non_certifying_common()
+    assert decoded.workload_binding == {
+        "workload": "write-heavy",
+        "campaign_id": "campaign-a",
+        "ordinal": 0,
+    }
+    assert len(decoded.identity_tag) == 64
+    with pytest.raises(campaign_lock.CampaignLockCodecError):
+        campaign_lock.decode_campaign_lock(text)
+
+
+def test_m_nc02_retag_and_schema_removal_are_rejected_by_both_decoders() -> None:
+    value = json.loads(_non_certifying_lock())
+    retagged = dict(value)
+    retagged["schema_version"] = "campaign-lock/v2"
+    schema_removed = dict(value)
+    schema_removed.pop("schema_version")
+    for candidate in (retagged, schema_removed):
+        text = _canonical(candidate)
+        with pytest.raises(campaign_lock.CampaignLockCodecError):
+            campaign_lock.decode_campaign_lock(text)
+        with pytest.raises(campaign_lock.CampaignLockCodecError):
+            campaign_lock.decode_non_certifying_campaign_lock(text)
+
+
+def test_m_nc03_non_certifying_lock_tag_tamper_is_rejected() -> None:
+    value = json.loads(_non_certifying_lock())
+    tag = value["a1_non_certifying"]["identity_tag"]
+    value["a1_non_certifying"]["identity_tag"] = (
+        ("0" if tag[0] != "0" else "1") + tag[1:]
+    )
+    with pytest.raises(
+        campaign_lock.CampaignLockCodecError, match="tag mismatch",
+    ):
+        campaign_lock.decode_non_certifying_campaign_lock(_canonical(value))
+
+
+def test_m_nc04_non_certifying_common_and_workload_fields_are_exact() -> None:
+    for mutation in ("common-missing", "workload-replaced"):
+        value = json.loads(_non_certifying_lock())
+        if mutation == "common-missing":
+            value["a1_non_certifying"]["common_record"].pop("policy_sha256")
+        else:
+            value["a1_non_certifying"]["workload_binding"]["campaign_id"] = (
+                "campaign-b"
+            )
+        with pytest.raises(campaign_lock.CampaignLockCodecError):
+            campaign_lock.decode_non_certifying_campaign_lock(_canonical(value))
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("mode", "registered-effective"),
+        ("certifying", True),
+    ],
+)
+def test_non_certifying_mode_and_certifying_false_are_load_bearing(
+    field: str, replacement: object,
+) -> None:
+    value = json.loads(_non_certifying_lock())
+    value["a1_non_certifying"]["common_record"][field] = replacement
+    with pytest.raises(campaign_lock.CampaignLockCodecError):
+        campaign_lock.decode_non_certifying_campaign_lock(_canonical(value))
 
 
 def _run() -> int:

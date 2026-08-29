@@ -1150,6 +1150,7 @@ def test_certified_acceptance_admits_exact_e1_fixture(
         == _expected_fixture_epoch()
     )
     assert view.read_purpose is CERTIFIED
+    assert not hasattr(view, "verifier_assessment_basis")
     assert A.require_certified_campaign_view(view) is view
 
 
@@ -1169,15 +1170,16 @@ def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
         "commit", "-q", "-m", "record closure B",
     )
 
-    with pytest.raises(A.CampaignVerifierEpochRejected) as excinfo:
-        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    view = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
 
-    assert excinfo.value.epoch_state == "E1-stale"
+    assert type(view) is A.CertifiedCampaignView
+    assert view.read_purpose is CERTIFIED
+    assert view.campaign_verifier_epoch.state == "E1"
+    assert view.campaign_verifier_epoch.reason_code == "recorded-closure"
     assert (
-        excinfo.value.reason_code
-        == "recorded-current-closure-mismatch"
+        view.campaign_verifier_epoch.campaign_verifier_epoch
+        == _expected_fixture_epoch()
     )
-    assert excinfo.value.campaign_verifier_epoch == _expected_fixture_epoch()
 
 
 @pytest.mark.parametrize(
@@ -1224,14 +1226,15 @@ def test_certified_acceptance_rejects_each_verifier_drift_fail_closed(
             "-c", "user.name=epoch fixture",
             "commit", "-q", "-m", "record verifier drift",
         )
-        with pytest.raises(A.CampaignVerifierEpochRejected) as committed:
-            A.require_admitted_campaign(campaign, purpose=CERTIFIED)
-        assert committed.value.epoch_state == "E1-stale"
+        committed = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert type(committed) is A.CertifiedCampaignView
+        assert committed.read_purpose is CERTIFIED
+        assert committed.campaign_verifier_epoch.state == "E1"
+        assert committed.campaign_verifier_epoch.reason_code == "recorded-closure"
         assert (
-            committed.value.reason_code
-            == "recorded-current-closure-mismatch"
+            committed.campaign_verifier_epoch.campaign_verifier_epoch
+            == expected_epoch
         )
-        assert committed.value.campaign_verifier_epoch == expected_epoch
     finally:
         assert lock_path.read_bytes() == before_lock
         assert wal_path.read_bytes() == before_wal
@@ -1256,6 +1259,18 @@ def test_certified_acceptance_distinguishes_current_closure_unavailable(
     assert excinfo.value.reason_code == "current-closure-unavailable"
 
 
+def test_legacy_recorded_current_closure_mismatch_diagnostic_remains_readable(
+) -> None:
+    epoch = A.CampaignVerifierEpoch(
+        campaign_verifier_epoch=f"E1:{'a' * 64}",
+        state="E1-stale",
+        reason_code="recorded-current-closure-mismatch",
+    )
+
+    assert epoch.state == "E1-stale"
+    assert epoch.reason_code == "recorded-current-closure-mismatch"
+
+
 def test_historical_epoch_display_is_independent_of_live_closure_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1276,6 +1291,13 @@ def test_historical_epoch_display_is_independent_of_live_closure_bytes(
         == _expected_fixture_epoch()
     )
     assert before.campaign_verifier_epoch == after.campaign_verifier_epoch
+    assert (
+        before.verifier_assessment_basis
+        == after.verifier_assessment_basis
+        == "recorded-at-original-verifier-epoch"
+    )
+    with pytest.raises((FrozenInstanceError, AttributeError, TypeError)):
+        before.verifier_assessment_basis = "current-verifier-revalidated"
 
 
 def test_historical_view_cannot_cross_certified_type_boundary(
@@ -1314,6 +1336,72 @@ def test_lock_only_epoch_api_does_not_read_wal(
 
     assert epoch.state == "E1"
     assert epoch.campaign_verifier_epoch == _expected_fixture_epoch()
+
+
+def test_noncertifying_lock_is_rejected_by_lock_only_certified_gate_before_wal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = {
+        "spec_content": "A-1 fixture",
+        "ccbench_commit": "a" * 40,
+        "search_tag": "paired",
+        "search_config": {
+            "build_admission": {"schema": "fixture"},
+            "schema": "paper-story-a1-paired-campaign/v1",
+            "study_id": "paper-story-a1-20260826-sized-v1",
+            "formal": False,
+            "promotion_prohibited": True,
+            "pairing_design": "arm-grouped-positional-v1",
+            "workload": {"name": "write-heavy"},
+        },
+        "trial": "paper-story-a1-20260826-sized-v1",
+    }
+    common = {
+        "mode": "registered-formal-non-certifying",
+        "certifying": False,
+        "study_id": "paper-story-a1-20260826-sized-v1",
+        "policy_sha256": "1" * 64,
+        "preregistration_sha256": "2" * 64,
+        "source_commit": "3" * 40,
+        "source_binding_sha256": "4" * 64,
+        "environment_contract_sha256": "5" * 64,
+        "intent_sha256": "6" * 64,
+        "campaign_ids": ["campaign-a", "campaign-b", "campaign-c"],
+    }
+    campaign = tmp_path / "campaign-a"
+    (campaign / "runs").mkdir(parents=True)
+    (campaign / "campaign.lock").write_text(
+        campaign_lock.encode_non_certifying_campaign_lock(
+            _canonical_json(identity),
+            common_record=common,
+            workload_binding={
+                "workload": "write-heavy",
+                "campaign_id": "campaign-a",
+                "ordinal": 0,
+            },
+        ),
+        encoding="utf-8",
+    )
+    (campaign / "runs/wal.jsonl").write_bytes(b"must-not-be-read")
+    original = Path.read_bytes
+
+    def refuse_wal_read(path: Path) -> bytes:
+        if path == campaign / "runs/wal.jsonl":
+            pytest.fail("lock-only certified gate read the WAL")
+        return original(path)
+
+    monkeypatch.setattr(Path, "read_bytes", refuse_wal_read)
+    with pytest.raises(A.ArtifactAdmissionError):
+        A.require_campaign_verifier_epoch(campaign, purpose=CERTIFIED)
+
+    layout = CampaignLayout(root=str(campaign))
+    monkeypatch.setattr(
+        wal,
+        "read_records",
+        lambda _layout: pytest.fail("generic replay read non-certifying WAL"),
+    )
+    with pytest.raises(wal.AttemptTopologyError):
+        wal.replay(layout)
 
 
 def test_read_purpose_is_mandatory_and_exact() -> None:

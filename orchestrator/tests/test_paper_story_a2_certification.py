@@ -1,8 +1,10 @@
 import base64
 import copy
+import errno
 import hashlib
 import inspect
 import json
+import os
 import socket
 import subprocess
 import time
@@ -10,11 +12,19 @@ from pathlib import Path
 
 import pytest
 
-from orchestrator.campaign import buildcache, loop
-from orchestrator.campaign import campaign_lock, env_contract, ident, reservation, wal
+from orchestrator.campaign import build_admission, buildcache, loop, source_digest
+from orchestrator.campaign import (
+    campaign_lock,
+    env_contract,
+    ident,
+    pin,
+    reservation,
+    wal,
+)
 from orchestrator.campaign import paper_story_a2_certification as A2
 from orchestrator.campaign.model import (
     CampaignConfig,
+    STAGE_ABORT,
     STAGE_BENCH_DONE,
     STAGE_BUILD_DONE,
     STAGE_BUILD_START,
@@ -36,6 +46,7 @@ from orchestrator.campaign.pipeline import (
 
 
 CURRENT_PIN = "1" * 40
+REPO_CURRENT_PIN = pin.CURRENT_PIN
 SOURCE_COMMIT = "2" * 40
 QSTAT_VISIBILITY_FIXTURE = (
     Path(__file__).parent / "fixtures" / "paper_story_a2"
@@ -163,7 +174,7 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
         for cell_index, cell in enumerate(cells):
             build_dir = attempt_root / "build" / cell.cell_id
             binary = (
-                build_dir / "cc" / "SILO" / "ycsb_SILO.exe")
+                build_dir / "cc" / "silo" / "ycsb_silo.exe")
             binary.parent.mkdir(parents=True)
             binary.write_bytes(("binary:" + cell.cell_id).encode("ascii"))
             perf_sha = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -277,8 +288,10 @@ def _raw_cell(policy, cell, root, *, adopted_gain=1.1):
 
 def _write_receipt_bundle(
         policy, attempt_root, *, driver_rc=0, claim_manifest=True,
-        terminal_reason="scheduler-end-state", record_completion=True):
-    results = _positive_results(policy, attempt_root)
+        terminal_reason="scheduler-end-state", record_completion=True,
+        adopted_gain=1.1, force_legacy_v3=False):
+    results = _positive_results(
+        policy, attempt_root, adopted_gain=adopted_gain)
     for workload_id in A2.workload_ids(policy):
         raw_root = A2.workload_job_root(policy, attempt_root, workload_id) / "raw"
         if not raw_root.exists():
@@ -298,10 +311,10 @@ def _write_receipt_bundle(
     request_ids = {"rr5": "945411.nqsv", "rr50": "945412.nqsv"}
     submission_jobs = []
     completion_jobs = []
-    driver_rcs = {
-        "rr5": driver_rc,
-        "rr50": 0,
-    }
+    driver_rcs = (
+        dict(driver_rc) if type(driver_rc) is dict
+        else {"rr5": driver_rc, "rr50": 0})
+    assert list(driver_rcs) == list(A2.workload_ids(policy))
     for workload_id in A2.workload_ids(policy):
         request_id = request_ids[workload_id]
         job_root = A2.workload_job_root(policy, attempt_root, workload_id)
@@ -432,12 +445,20 @@ def _write_receipt_bundle(
         policy, attempt_root, CURRENT_PIN, submission)
     if not record_completion:
         return None, submission
+    successful_workloads = [
+        workload for workload, value in driver_rcs.items() if value == 0]
+    completion_schema = A2.COMPLETION_SCHEMA
     manifest_path = None
-    if all(value == 0 for value in driver_rcs.values()) and claim_manifest:
+    if len(successful_workloads) == 2 and claim_manifest:
         manifest_path = A2.finalize_raw_manifest(
             policy, attempt_root, CURRENT_PIN)
+    elif len(successful_workloads) == 1 and not force_legacy_v3:
+        completion_schema = A2.PARTIAL_COMPLETION_SCHEMA
+        if claim_manifest:
+            manifest_path = A2._finalize_partial_raw_manifest(
+                policy, attempt_root, CURRENT_PIN, successful_workloads[0])
     completion = {
-        "schema_version": A2.COMPLETION_SCHEMA,
+        "schema_version": completion_schema,
         "study": policy.study,
         "protocol_sha256": policy.protocol_sha256,
         "attempt_id": attempt_root.name,
@@ -451,6 +472,8 @@ def _write_receipt_bundle(
             hashlib.sha256(manifest_path.read_bytes()).hexdigest()
             if manifest_path is not None else None),
     }
+    if completion_schema == A2.PARTIAL_COMPLETION_SCHEMA:
+        completion["successful_workload"] = successful_workloads[0]
     A2.record_completion_receipt(
         policy, attempt_root, CURRENT_PIN, completion)
     acquisition_path = A2.record_acquisition_receipt(
@@ -458,8 +481,126 @@ def _write_receipt_bundle(
     return acquisition_path, submission
 
 
+def _rewrite_first_cell_science_from_wal(
+        policy, attempt_root, workload_id, *, outcome):
+    assert outcome in {"anomaly", "inconclusive"}
+    cells = [
+        cell for cell in policy.cells if cell.workload_id == workload_id]
+    target = cells[0]
+    target_raw_path = (
+        attempt_root / "jobs" / workload_id / "raw"
+        / f"{target.cell_id}.json")
+    target_raw, _ = A2._read_json(target_raw_path)
+    wal_path = Path(target_raw["campaign_evidence"]["wal_path"])
+    records = [
+        wal.parse_line(frame.decode("utf-8"))
+        for frame in wal_path.read_bytes().splitlines(keepends=True)
+    ]
+    target_variant = variant_id(A2._genome_for_cell(policy, target))
+    rewritten = []
+    mutation_written = False
+    target_build_attempt = None
+    for record in records:
+        if record.variant != target_variant:
+            rewritten.append(record)
+            continue
+        if (outcome == "inconclusive"
+                and record.stage == STAGE_VERIFY_DONE
+                and record.payload.get("workload", {}).get("tag")
+                == PERFORMANCE_TAG and not mutation_written):
+            mutation_written = True
+            continue
+        if outcome == "inconclusive":
+            rewritten.append(record)
+        elif record.stage == STAGE_BUILD_START:
+            target_build_attempt = record.payload["build_attempt_id"]
+            rewritten.append(record)
+        elif record.stage == STAGE_BUILD_DONE:
+            rewritten.append(record)
+        elif (record.stage == STAGE_VERIFY_DONE
+              and record.payload.get("workload", {}).get("tag") == LEGACY_TAG):
+            rewritten.append(record)
+        elif (record.stage == STAGE_VERIFY_DONE
+              and record.payload.get("workload", {}).get("tag")
+              == PERFORMANCE_TAG and not mutation_written):
+            rewritten.append(WalRecord(
+                variant=record.variant,
+                stage=record.stage,
+                env_tag=record.env_tag,
+                ts=record.ts,
+                payload={
+                    **record.payload,
+                    "certified": False,
+                    "verdict": "non-serializable",
+                    "anomalies": 1,
+                },
+            ))
+            rewritten.append(WalRecord(
+                variant=record.variant,
+                stage=STAGE_ABORT,
+                env_tag=record.env_tag,
+                ts=record.ts + 0.01,
+                payload={
+                    "build_attempt_id": target_build_attempt,
+                    "reason": "verifier-anomaly",
+                    "verify": {
+                        "anomalies": [{"cycle": ["rr50-a", "rr50-b"]}],
+                    },
+                },
+            ))
+            mutation_written = True
+    assert mutation_written is True
+    wal_path.write_text(
+        "".join(wal._record_to_line(record) + "\n" for record in rewritten),
+        encoding="utf-8",
+    )
+    layout_root = wal_path.parents[1]
+    regenerated = []
+    for cell in cells:
+        raw = A2._raw_cell_from_wal(
+            policy, cell,
+            result=type("Result", (), {
+                "variant": variant_id(A2._genome_for_cell(policy, cell))})(),
+            layout_root=str(layout_root), attempt_id=attempt_root.name,
+            current_pin=CURRENT_PIN,
+        )
+        path = (
+            attempt_root / "jobs" / workload_id / "raw"
+            / f"{cell.cell_id}.json")
+        path.write_bytes(A2._canonical_json(raw))
+        regenerated.append(raw)
+    assert regenerated[0]["terminal"] == (
+        "abort" if outcome == "anomaly" else "commit")
+    return regenerated
+
+
+def _make_first_cell_anomalous_from_wal(policy, attempt_root, workload_id):
+    return _rewrite_first_cell_science_from_wal(
+        policy, attempt_root, workload_id, outcome="anomaly")
+
+
+def _make_first_cell_inconclusive_from_wal(policy, attempt_root, workload_id):
+    return _rewrite_first_cell_science_from_wal(
+        policy, attempt_root, workload_id, outcome="inconclusive")
+
+
+def _reseal_partial_receipts_after_manifest_mutation(attempt_root):
+    manifest = attempt_root / "raw-manifest.json"
+    completion_path = attempt_root / "receipts" / "completion.json"
+    completion, _ = A2._read_json(completion_path)
+    completion["raw_result_manifest_sha256"] = hashlib.sha256(
+        manifest.read_bytes()).hexdigest()
+    completion_path.write_bytes(A2._canonical_json(completion))
+    acquisition_path = attempt_root / "receipts" / "acquisition.json"
+    acquisition, _ = A2._read_json(acquisition_path)
+    acquisition["completion_receipt_sha256"] = hashlib.sha256(
+        completion_path.read_bytes()).hexdigest()
+    acquisition_path.write_bytes(A2._canonical_json(acquisition))
+
+
 def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     policy = _policy(tmp_path)
+    assert policy.document["performance_common"]["ccbench_protocol"] == "silo"
     assert [(cell.cell_id, cell.workload_id, cell.role, dict(cell.genome))
             for cell in policy.cells] == [
         ("rr5-stock", "rr5", "stock", {"BACK_OFF": 0, "BACKOFF_FIXED": -1}),
@@ -528,6 +669,51 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     decorative_changed.pop("certification_composition")
     assert hashlib.sha256(A2._canonical_json(decorative_original)).hexdigest() == \
         hashlib.sha256(A2._canonical_json(decorative_changed)).hexdigest()
+
+
+def test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts(
+        tmp_path):
+    policy = A2.load_policy()
+    genome = A2._genome_for_cell(policy, policy.cells[0])
+    repo_root = A2.POLICY_PATH.parents[2]
+    ccbench_root = repo_root / "external" / "ccbench"
+    source_relative = Path(
+        buildcache.source_digest._protocol_cmake_rel(genome.protocol))
+    protocol_source = ccbench_root / source_relative
+
+    assert genome.protocol == "silo"
+    assert source_relative == Path("cc/silo/CMakeLists.txt")
+    assert protocol_source.is_file()
+    assert "ccbench_add_protocol(silo" in protocol_source.read_text(
+        encoding="utf-8")
+
+    build_dir = tmp_path / "build"
+    toolchain = {
+        "cc": {"realpath": "/usr/bin/gcc"},
+        "cxx": {"realpath": "/usr/bin/g++"},
+        "cmake": {"realpath": "/usr/bin/cmake"},
+    }
+    _configure, build = buildcache._v2_commands(
+        genome, False, str(ccbench_root), str(build_dir), toolchain, jobs=48,
+        dependency_prefix="/pinned/dependencies",
+    )
+    assert build == [
+        "/usr/bin/cmake", "--build", str(build_dir),
+        "--target", "ycsb_silo.exe", "-j", "48",
+    ]
+    assert build_dir / "cc" / genome.protocol / f"ycsb_{genome.protocol}.exe" \
+        == build_dir / "cc" / "silo" / "ycsb_silo.exe"
+
+
+def test_uppercase_silo_protocol_is_rejected_by_policy_loader(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["performance_common"]["ccbench_protocol"] = "SILO"
+    path = tmp_path / "uppercase-policy.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+            A2.CertificationError, match="must be exact lowercase silo"):
+        A2.load_policy(path)
 
 
 def test_m1_closed_verify_mode_wires_performance_and_rejects_unknown():
@@ -780,6 +966,7 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
                        match="ratified qsub argv is not exact"):
         A2.exact_qsub(["not-qsub", "job.sh"], runner=runner)
     assert len(qsub_calls) == 1
+    assert qsub_calls[0] == (["qsub", "job.sh"], {"check": False})
 
     finish_root = A2.preregister_attempt(
         policy, "attempt-finish-group", CURRENT_PIN)
@@ -799,6 +986,620 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
         policy, finish_acquisition, current_pin=CURRENT_PIN)
     assert finish_evidence["driver_rcs"] == {"rr5": 0, "rr50": 0}
     assert finish_evidence["raw_manifest_valid"] is True
+
+
+def test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-request-sidecar", CURRENT_PIN)
+    scheduler = root / "jobs" / "rr5" / "scheduler"
+    fsync_calls = []
+    original_fsync_dir = A2._fsync_dir
+
+    def observed_fsync(path):
+        fsync_calls.append(path)
+        original_fsync_dir(path)
+
+    monkeypatch.setattr(A2, "_fsync_dir", observed_fsync)
+    sidecar = A2.record_scheduler_request_id(
+        policy, root, "rr5", "0:945411.nqsv.")
+    assert sidecar == scheduler / "request-id"
+    assert sidecar.is_file() and not sidecar.is_symlink()
+    assert sidecar.read_bytes() == b"945411.nqsv\n"
+    assert fsync_calls == [scheduler]
+    with pytest.raises(FileExistsError):
+        A2.record_scheduler_request_id(
+            policy, root, "rr5", "945411.nqsv")
+
+    second = A2.preregister_attempt(
+        policy, "attempt-request-sidecar-symlink", CURRENT_PIN)
+    linked = second / "jobs" / "rr5" / "scheduler" / "request-id"
+    linked.symlink_to(tmp_path / "decoy-request-id")
+    with pytest.raises(FileExistsError):
+        A2.record_scheduler_request_id(
+            policy, second, "rr5", "945411.nqsv")
+
+
+def test_qsub_diagnostics_fsync_both_files_then_scheduler_directory(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-qsub-diagnostics", CURRENT_PIN)
+    scheduler = root / "jobs" / "rr5" / "scheduler"
+    stdout_path = scheduler / "qsub.stdout"
+    stderr_path = scheduler / "qsub.stderr"
+    stdout_path.write_bytes(b"Request 945411.nqsv submitted\n")
+    stderr_path.write_bytes(b"")
+    fsync_targets = []
+    original_fsync = A2.os.fsync
+
+    def observed_fsync(descriptor):
+        fsync_targets.append(Path(f"/proc/self/fd/{descriptor}").resolve())
+        original_fsync(descriptor)
+
+    monkeypatch.setattr(A2.os, "fsync", observed_fsync)
+    assert A2.durabilize_scheduler_qsub_diagnostics(
+        policy, root, "rr5") == (stdout_path, stderr_path)
+    assert fsync_targets == [stdout_path, stderr_path, scheduler]
+
+
+def _terminal_qstat(command, **kwargs):
+    request_id = command[-1]
+    return subprocess.CompletedProcess(
+        command, 0,
+        f"Request ID: {request_id}\nRequest State = EXT\n", "")
+
+
+def test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest(
+        tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-prevalidate-m4", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    compute_path = root / "jobs" / "rr5" / "compute-result.json"
+    compute, _ = A2._read_json(compute_path)
+    compute["pbs_jobid"] = "945412.nqsv"
+    compute_path.write_bytes(A2._canonical_json(compute))
+
+    with pytest.raises(A2.CertificationError, match="compute result identity"):
+        A2.finish_group(
+            policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert not (root / "raw-manifest.json").exists()
+    assert not (root / "receipts" / "completion.json").exists()
+    assert not (root / "receipts" / "acquisition.json").exists()
+
+
+def test_m5_finish_prevalidates_each_job_against_its_own_request(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-prevalidate-m5", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    original_validate = A2._validate_completion_job
+    first_calls = []
+
+    def observed_validate(
+            observed_policy, payload, attempt_id, attempt_root, current_pin,
+            workload_id, request_id, submission, job_body_sha256):
+        if len(first_calls) < 2:
+            assert not (root / "raw-manifest.json").exists()
+            assert payload["workload"] == workload_id
+            assert payload["request_id"] == request_id
+            assert submission["request_id"] == request_id
+            first_calls.append((workload_id, request_id))
+        return original_validate(
+            observed_policy, payload, attempt_id, attempt_root, current_pin,
+            workload_id, request_id, submission, job_body_sha256)
+
+    monkeypatch.setattr(A2, "_validate_completion_job", observed_validate)
+    A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert first_calls == [
+        ("rr5", "945411.nqsv"), ("rr50", "945412.nqsv")]
+
+
+def test_pc2_canonical_finish_creates_manifest_completion_and_acquisition(
+        tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-positive-control", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    assert not any(
+        (root / "jobs" / workload / "scheduler" / "request-id").exists()
+        for workload in A2.workload_ids(policy))
+
+    completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert completion == root / "receipts" / "completion.json"
+    assert acquisition == root / "receipts" / "acquisition.json"
+    assert (root / "raw-manifest.json").is_file()
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["driver_rcs"] == {"rr5": 0, "rr50": 0}
+    assert evidence["raw_manifest_valid"] is True
+    assert evidence["acquisition_schema"] == A2.ACQUISITION_SCHEMA
+    assert evidence["completion_schema"] == A2.COMPLETION_SCHEMA
+    assert evidence["raw_manifest_schema"] == A2.RAW_MANIFEST_SCHEMA
+
+
+def test_authority_none_production_finish_and_collect_remain_v3_indeterminate(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-failed-driver", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc={"rr5": 7, "rr50": 9},
+        record_completion=False)
+
+    completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert completion == root / "receipts" / "completion.json"
+    assert acquisition == root / "receipts" / "acquisition.json"
+    assert not (root / "raw-manifest.json").exists()
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["driver_rcs"] == {"rr5": 7, "rr50": 9}
+    assert evidence["acquisition_schema"] == A2.ACQUISITION_SCHEMA
+    assert evidence["raw_manifest_valid"] is False
+    assert evidence["raw_manifest_reason"] == "driver-nonzero"
+
+    captured = {}
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+
+    def forbidden_positive_path(*args, **kwargs):
+        raise AssertionError("failed driver reached positive collector")
+
+    def materialize(_policy, report, _evidence, *, repo_root):
+        captured.update(report)
+        return Path(repo_root) / "captured"
+
+    monkeypatch.setattr(A2, "collect_results", forbidden_positive_path)
+    monkeypatch.setattr(A2, "materialize", materialize)
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(tmp_path),
+    ]) == 2
+    assert captured["status"] == "indeterminate"
+    assert "compute driver exited nonzero" in captured["reason"]
+
+
+def test_legacy_v3_one_failed_driver_consumer_remains_indeterminate(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-legacy-v3-failed-driver", CURRENT_PIN)
+    acquisition, _submission = _write_receipt_bundle(
+        policy, root, driver_rc=7, force_legacy_v3=True)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["acquisition_schema"] == A2.ACQUISITION_SCHEMA
+    assert evidence["completion_schema"] == A2.COMPLETION_SCHEMA
+    assert evidence["driver_rcs"] == {"rr5": 7, "rr50": 0}
+    assert evidence["raw_manifest_valid"] is False
+
+    captured = {}
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+
+    def forbidden_partial_path(*args, **kwargs):
+        raise AssertionError("legacy v3 failed driver reached raw collector")
+
+    def materialize(_policy, report, _evidence, *, repo_root):
+        captured.update(report)
+        return Path(repo_root) / "captured"
+
+    monkeypatch.setattr(A2, "collect_results", forbidden_partial_path)
+    monkeypatch.setattr(A2, "materialize", materialize)
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(tmp_path),
+    ]) == 2
+    assert captured["schema_version"] == A2.CERTIFICATION_SCHEMA
+    assert captured["status"] == "indeterminate"
+    assert "compute driver exited nonzero" in captured["reason"]
+
+
+def test_partial_anomaly_production_chain_rejects_without_failed_raw(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-partial-anomaly", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+    authoritative_raw = _make_first_cell_anomalous_from_wal(
+        policy, root, "rr50")
+    expected_manifest_members = {
+        "jobs/rr50/raw/rr50-stock.json",
+        "jobs/rr50/raw/rr50-fixed5.json",
+        *(
+            Path(authoritative_raw[0]["campaign_evidence"][f"{kind}_path"])
+            .relative_to(root).as_posix()
+            for kind in ("lock", "wal", "claim")
+        ),
+    }
+    failed_decoy = {
+        "cell_id": "rr5-decoy",
+        "failed_raw_decoy_tps": 987654321,
+        "failed_raw_decoy_effect": 12345.0,
+        "failed_raw_decoy_anomaly": True,
+    }
+    for name in ("rr5-stock.json", "rr5-fixed10.json"):
+        (root / "jobs" / "rr5" / "raw" / name).write_bytes(
+            A2._canonical_json(failed_decoy))
+
+    original_read_json = A2._read_json
+
+    def reject_failed_raw_read(path, **kwargs):
+        candidate = Path(path)
+        assert root / "jobs" / "rr5" / "raw" not in candidate.parents
+        return original_read_json(candidate, **kwargs)
+
+    monkeypatch.setattr(A2, "_read_json", reject_failed_raw_read)
+
+    completion_path, acquisition_path = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    completion, _ = A2._read_json(completion_path)
+    assert completion["schema_version"] == A2.PARTIAL_COMPLETION_SCHEMA
+    assert completion["successful_workload"] == "rr50"
+    manifest, _ = A2._read_json(root / "raw-manifest.json")
+    assert manifest["schema_version"] == A2.PARTIAL_RAW_MANIFEST_SCHEMA
+    assert manifest["successful_workload"] == "rr50"
+    assert set(manifest["files"]) == expected_manifest_members
+    assert len(manifest["files"]) == 5
+    assert all(not path.startswith("jobs/rr5/") for path in manifest["files"])
+    assert len([
+        path for path in manifest["files"]
+        if path.endswith("/campaign.lock")]) == 1
+    assert len([
+        path for path in manifest["files"]
+        if path.endswith("/runs/wal.jsonl")]) == 1
+    assert len([
+        path for path in manifest["files"]
+        if path.endswith(".claim")]) == 1
+
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition_path, current_pin=CURRENT_PIN)
+    assert evidence["acquisition_schema"] == A2.PARTIAL_ACQUISITION_SCHEMA
+    assert [raw["cell_id"] for raw in evidence["raw_results"]] == [
+        "rr50-stock", "rr50-fixed5"]
+    assert len(evidence["raw_files"]) == 5
+    assert all("jobs/rr5/" not in path for path in evidence["raw_files"])
+
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+    repo = tmp_path / "partial-anomaly-repo"
+    repo.mkdir()
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition_path),
+        "--repo-root", str(repo),
+    ]) == 0
+    destination = repo / policy.tracked_destination
+    report = json.loads(
+        (destination / "certification.json").read_text(encoding="utf-8"))
+    assert report["schema_version"] == A2.PARTIAL_CERTIFICATION_SCHEMA
+    assert report["status"] == "reject"
+    assert report["reason"] == "authoritative-workload-anomaly:rr50"
+    assert report["workload_authority"] == {
+        "rr5": {
+            "authority": "unavailable",
+            "driver_rc": 7,
+            "reason": "driver-exited-nonzero:7",
+        },
+        "rr50": {
+            "authority": "authoritative",
+            "driver_rc": 0,
+            "reason": "verified-partial-v4-manifest",
+        },
+    }
+    assert [cell["cell_id"] for cell in report["cells"]] == [
+        "rr50-stock", "rr50-fixed5"]
+    assert report["effects"] == {}
+    serialized = json.dumps(report, sort_keys=True)
+    assert "987654321" not in serialized
+    assert "12345.0" not in serialized
+
+
+@pytest.mark.parametrize(
+    "adopted_gain,expected_status,expected_reason",
+    ((1.1, "partial", "authoritative-workload-positive:rr50"),
+     (1.0, "reject", "authoritative-workload-effect-nonpositive:rr50"),
+     (0.9, "reject", "authoritative-workload-effect-nonpositive:rr50")),
+)
+def test_partial_positive_and_nonpositive_effect_statuses(
+        tmp_path, monkeypatch, adopted_gain, expected_status, expected_reason):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-partial-effect-" + expected_status, CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False,
+        adopted_gain=adopted_gain)
+    _completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2._canonical_partial_report(
+        policy, evidence, current_pin=CURRENT_PIN)
+    assert report["status"] == expected_status
+    assert report["reason"] == expected_reason
+    assert set(report["effects"]) == {"rr50"}
+    assert [cell["workload"] for cell in report["cells"]] == ["rr50", "rr50"]
+    assert A2.driver_rc(report) == 0
+
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+    repo = tmp_path / "partial-effect-repo"
+    repo.mkdir()
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(repo),
+    ]) == 0
+    destination = repo / policy.tracked_destination
+    assert destination.is_dir()
+    materialized = json.loads(
+        (destination / "certification.json").read_text(encoding="utf-8"))
+    assert materialized == report
+    assert materialized["status"] == expected_status
+    assert (destination / "COMPLETE.json").is_file()
+
+
+def test_partial_authoritative_science_can_remain_inconclusive(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-partial-science-inconclusive", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+    _make_first_cell_inconclusive_from_wal(policy, root, "rr50")
+    _completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2._canonical_partial_report(
+        policy, evidence, current_pin=CURRENT_PIN)
+
+    assert report["status"] == "inconclusive"
+    assert report["reason"] == "authoritative-workload-inconclusive:rr50"
+    assert report["workload_authority"]["rr50"] == {
+        "authority": "authoritative",
+        "driver_rc": 0,
+        "reason": "verified-partial-v4-manifest",
+    }
+    assert [cell["workload"] for cell in report["cells"]] == ["rr50", "rr50"]
+    assert report["effects"] == {}
+    assert A2.driver_rc(report) == 2
+
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+    repo = tmp_path / "partial-inconclusive-repo"
+    repo.mkdir()
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(repo),
+    ]) == 2
+    destination = repo / policy.tracked_destination
+    assert destination.is_dir()
+    materialized = json.loads(
+        (destination / "certification.json").read_text(encoding="utf-8"))
+    assert materialized == report
+    assert materialized["status"] == "inconclusive"
+    assert (destination / "COMPLETE.json").is_file()
+
+
+def test_partial_invalid_authority_is_inconclusive_without_cells_or_effects(
+        tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-partial-invalid-authority", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+    _completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    with (root / "raw-manifest.json").open("ab") as stream:
+        stream.write(b" ")
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["raw_manifest_valid"] is False
+    assert evidence["raw_manifest_invalid_kind"] == "authority"
+    report = A2._canonical_partial_report(
+        policy, evidence, current_pin=CURRENT_PIN)
+    assert report["status"] == "inconclusive"
+    assert report["cells"] == []
+    assert report["effects"] == {}
+    assert report["workload_authority"]["rr50"]["authority"] == "unavailable"
+    assert A2.driver_rc(report) == 2
+
+
+@pytest.mark.parametrize("mutation", ("cross-version", "failed-raw-member"))
+def test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing(
+        tmp_path, mutation):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-partial-chain-" + mutation, CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+    _completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    manifest_path = root / "raw-manifest.json"
+    manifest, _ = A2._read_json(manifest_path)
+    if mutation == "cross-version":
+        manifest["schema_version"] = A2.RAW_MANIFEST_SCHEMA
+    else:
+        failed_raw = root / "jobs" / "rr5" / "raw" / "rr5-stock.json"
+        manifest["files"]["jobs/rr5/raw/rr5-stock.json"] = hashlib.sha256(
+            failed_raw.read_bytes()).hexdigest()
+    manifest_path.write_bytes(A2._canonical_json(manifest))
+    _reseal_partial_receipts_after_manifest_mutation(root)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["raw_manifest_invalid_kind"] == "schema-chain"
+    report = A2._canonical_partial_report(
+        policy, evidence, current_pin=CURRENT_PIN)
+    repo = tmp_path / ("repo-" + mutation)
+    repo.mkdir()
+    with pytest.raises(A2.SchemaChainError):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+@pytest.mark.parametrize(
+    "relocated", ("manifest", "submission", "completion"))
+def test_partial_v4_chain_rejects_noncanonical_authority_path_before_read(
+        tmp_path, monkeypatch, relocated):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-partial-path-" + relocated, CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+    _completion, acquisition_path = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+
+    canonical_paths = {
+        "manifest": root / "raw-manifest.json",
+        "submission": root / "receipts" / "submission.json",
+        "completion": root / "receipts" / "completion.json",
+    }
+    copied_path = root / "jobs" / "rr5" / "raw" / (relocated + ".json")
+    copied_path.write_bytes(canonical_paths[relocated].read_bytes())
+    copied_sha = hashlib.sha256(copied_path.read_bytes()).hexdigest()
+    if relocated == "manifest":
+        completion, _ = A2._read_json(canonical_paths["completion"])
+        completion["raw_result_manifest"] = str(copied_path)
+        completion["raw_result_manifest_sha256"] = copied_sha
+        canonical_paths["completion"].write_bytes(A2._canonical_json(completion))
+        acquisition, _ = A2._read_json(acquisition_path)
+        acquisition["completion_receipt_sha256"] = hashlib.sha256(
+            canonical_paths["completion"].read_bytes()).hexdigest()
+    else:
+        acquisition, _ = A2._read_json(acquisition_path)
+        acquisition[relocated + "_receipt"] = str(copied_path)
+        acquisition[relocated + "_receipt_sha256"] = copied_sha
+    acquisition_path.write_bytes(A2._canonical_json(acquisition))
+
+    original_read_json = A2._read_json
+    copied_reads = []
+
+    def reject_copied_content_read(path, **kwargs):
+        candidate = Path(path)
+        if candidate == copied_path:
+            copied_reads.append(candidate)
+            raise AssertionError("noncanonical authority copy was read")
+        return original_read_json(candidate, **kwargs)
+
+    monkeypatch.setattr(A2, "_read_json", reject_copied_content_read)
+    if relocated == "manifest":
+        evidence = A2.validate_acquisition_bundle(
+            policy, acquisition_path, current_pin=CURRENT_PIN)
+        assert evidence["raw_manifest_valid"] is False
+        assert evidence["raw_manifest_invalid_kind"] == "schema-chain"
+        assert evidence["raw_manifest_reason"] == (
+            "partial raw manifest path is not canonical")
+        report = A2._canonical_partial_report(
+            policy, evidence, current_pin=CURRENT_PIN)
+        repo = tmp_path / "noncanonical-manifest-repo"
+        repo.mkdir()
+        with pytest.raises(
+                A2.SchemaChainError,
+                match="materialization rejects the raw schema chain"):
+            A2.materialize(policy, report, evidence, repo_root=repo)
+        assert not (repo / policy.tracked_destination).exists()
+    else:
+        with pytest.raises(
+                A2.SchemaChainError,
+                match=f"partial {relocated} receipt path is not canonical"):
+            A2.validate_acquisition_bundle(
+                policy, acquisition_path, current_pin=CURRENT_PIN)
+    assert copied_reads == []
+
+
+def test_materializer_rejects_v3_v4_result_receipt_cross_chain(tmp_path):
+    policy = _policy(tmp_path)
+    partial_root = A2.preregister_attempt(
+        policy, "attempt-partial-result-cross", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, partial_root, driver_rc=7, record_completion=False)
+    _completion, partial_acquisition = A2.finish_group(
+        policy, partial_root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    partial_evidence = A2.validate_acquisition_bundle(
+        policy, partial_acquisition, current_pin=CURRENT_PIN)
+    partial_report = A2._canonical_partial_report(
+        policy, partial_evidence, current_pin=CURRENT_PIN)
+    forged_v3 = A2._indeterminate_report(
+        policy, partial_evidence, attempt_id=partial_root.name,
+        current_pin=CURRENT_PIN, reason="crossed-v3-result")
+    v3_repo = tmp_path / "crossed-v3-result-repo"
+    v3_repo.mkdir()
+    with pytest.raises(A2.SchemaChainError, match="legacy result is crossed"):
+        A2.materialize(
+            policy, forged_v3, partial_evidence, repo_root=v3_repo)
+
+    full_root = A2.preregister_attempt(
+        policy, "attempt-full-result-cross", CURRENT_PIN)
+    full_acquisition, _submission = _write_receipt_bundle(policy, full_root)
+    full_evidence = A2.validate_acquisition_bundle(
+        policy, full_acquisition, current_pin=CURRENT_PIN)
+    partial_repo = tmp_path / "crossed-partial-result-repo"
+    partial_repo.mkdir()
+    with pytest.raises(A2.SchemaChainError, match="partial result is crossed"):
+        A2.materialize(
+            policy, partial_report, full_evidence, repo_root=partial_repo)
+
+
+def _partial_materializer_forgery_case(tmp_path, attempt_id):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, attempt_id, CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+    _completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2._canonical_partial_report(
+        policy, evidence, current_pin=CURRENT_PIN)
+    return policy, root, evidence, report
+
+
+def test_m7_partial_materializer_rejects_forged_authority_and_status(tmp_path):
+    policy, _root, evidence, report = _partial_materializer_forgery_case(
+        tmp_path, "attempt-partial-forgery-m7")
+    forged = copy.deepcopy(report)
+    forged["status"] = "reject"
+    forged["workload_authority"]["rr5"]["authority"] = "authoritative"
+    repo = tmp_path / "forged-m7-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
+
+
+def test_m8_partial_materializer_rejects_failed_workload_cells_and_effects(
+        tmp_path):
+    policy, root, evidence, report = _partial_materializer_forgery_case(
+        tmp_path, "attempt-partial-forgery-m8")
+    failed_local = A2._classify_workload_pair(
+        policy, A2._load_workload_raw_results(policy, root, "rr5"),
+        workload_id="rr5", attempt_id=root.name, current_pin=CURRENT_PIN,
+        attempt_root=root)
+    assert [cell["workload"] for cell in failed_local["cells"]] == [
+        "rr5", "rr5"]
+    assert set(failed_local["effects"]) == {"rr5"}
+    forged = copy.deepcopy(report)
+    forged["cells"].extend(failed_local["cells"])
+    forged["effects"].update(failed_local["effects"])
+    repo = tmp_path / "forged-m8-repo"
+    repo.mkdir()
+    with pytest.raises(
+            A2.CertificationError, match="differs from evidence re-derivation"):
+        A2.materialize(policy, forged, evidence, repo_root=repo)
+    assert not (repo / policy.tracked_destination).exists()
 
 
 @pytest.mark.parametrize("missing", ("qsub_argv", "qstat_visibility"))
@@ -1121,6 +1922,149 @@ def test_m11_materializer_stages_marker_before_single_noreplace_rename(
     assert not (v2_repo / policy.tracked_destination).exists()
 
 
+def _materialization_case(tmp_path, attempt_id):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(policy, attempt_id, CURRENT_PIN)
+    acquisition, _ = _write_receipt_bundle(policy, root)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2.collect_results(
+        policy, evidence["raw_results"], attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+        frozen_files=evidence["raw_files"], attempt_root=root)
+    report["source_commit"] = evidence["source_commit"]
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    return policy, report, evidence, repo
+
+
+def test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-positive")
+    destination = repo / policy.tracked_destination
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    rename_calls = []
+    fsync_calls = []
+    original_flags_zero = A2._rename_flags_zero
+    original_fsync_dir = A2._fsync_dir
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    def observed_flags_zero(source, target):
+        rename_calls.append((source, target))
+        assert claim.is_file() and not claim.is_symlink()
+        assert not target.exists()
+        original_flags_zero(source, target)
+
+    def observed_fsync(path):
+        fsync_calls.append(path)
+        original_fsync_dir(path)
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    monkeypatch.setattr(A2, "_rename_flags_zero", observed_flags_zero)
+    monkeypatch.setattr(A2, "_fsync_dir", observed_fsync)
+
+    assert A2.materialize(
+        policy, report, evidence, repo_root=repo) == destination
+    assert len(rename_calls) == 1
+    assert not claim.exists()
+    assert (destination / "COMPLETE.json").is_file()
+    assert fsync_calls.count(destination.parent) == 4
+
+
+def test_materialize_einval_refuses_destination_created_before_recheck(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-destination")
+    destination = repo / policy.tracked_destination
+    claim = destination.parent / f".{destination.name}.publish-claim"
+
+    def destination_race(_source, target):
+        target.mkdir()
+        (target / "non-cooperating-writer").write_text(
+            "preserve\n", encoding="utf-8")
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", destination_race)
+    with pytest.raises(
+            A2.CertificationError, match="destination already exists"):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert (destination / "non-cooperating-writer").read_text(
+        encoding="utf-8") == "preserve\n"
+    assert not claim.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_einval_fails_closed_on_publish_claim_collision(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-claim-collision")
+    destination = repo / policy.tracked_destination
+    destination.parent.mkdir(parents=True)
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    claim.write_text("other cooperating publisher\n", encoding="utf-8")
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    with pytest.raises(
+            A2.CertificationError, match="exclusive fallback.*claim failed"):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert claim.read_text(encoding="utf-8") == "other cooperating publisher\n"
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_non_einval_publish_error_does_not_enter_fallback(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-non-einval")
+    destination = repo / policy.tracked_destination
+
+    def failed_noreplace(_source, _destination):
+        raise OSError(errno.EIO, "I/O failure")
+
+    def forbidden_fallback(_source, _destination):
+        raise AssertionError("non-EINVAL entered fallback")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", failed_noreplace)
+    monkeypatch.setattr(A2, "_publish_staging_after_einval", forbidden_fallback)
+    with pytest.raises(OSError) as raised:
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert raised.value.errno == errno.EIO
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_noreplace_success_does_not_enter_fallback(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-noreplace-success")
+    destination = repo / policy.tracked_destination
+    rename_calls = []
+
+    def successful_noreplace(source, target):
+        rename_calls.append((source, target))
+        os.rename(source, target)
+
+    def forbidden_fallback(_source, _destination):
+        raise AssertionError("successful RENAME_NOREPLACE entered fallback")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", successful_noreplace)
+    monkeypatch.setattr(A2, "_publish_staging_after_einval", forbidden_fallback)
+
+    assert A2.materialize(
+        policy, report, evidence, repo_root=repo) == destination
+    assert len(rename_calls) == 1
+    assert (destination / "COMPLETE.json").is_file()
+
+
 def test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base(tmp_path):
     policy = _policy(tmp_path)
     outside = tmp_path / "arbitrary-repo-external" / "attempt"
@@ -1175,12 +2119,16 @@ def test_nonfinite_json_and_samples_are_fail_closed(tmp_path):
     assert report["effects"] == {"rr50": pytest.approx(0.1)}
 
 
-@pytest.mark.parametrize("driver_rc,claim_manifest", ((7, False), (0, False)))
+@pytest.mark.parametrize(
+    "case_name,driver_rc,claim_manifest",
+    (("authority-none", {"rr5": 7, "rr50": 9}, False),
+     ("manifestless-full", 0, False)),
+)
 def test_collector_never_calls_positive_path_for_failed_or_manifestless_compute(
-        tmp_path, monkeypatch, driver_rc, claim_manifest):
+        tmp_path, monkeypatch, case_name, driver_rc, claim_manifest):
     policy = _policy(tmp_path)
     root = A2.preregister_attempt(
-        policy, f"attempt-collector-{driver_rc}-{int(claim_manifest)}", CURRENT_PIN)
+        policy, f"attempt-collector-{case_name}", CURRENT_PIN)
     acquisition, _ = _write_receipt_bundle(
         policy, root, driver_rc=driver_rc, claim_manifest=claim_manifest)
     monkeypatch.setattr(A2, "load_policy", lambda: policy)
@@ -1380,7 +2328,8 @@ def test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes(tmp_path
     failed_root = A2.preregister_attempt(
         policy, "attempt-one-driver-failed", CURRENT_PIN)
     failed_acquisition, failed_submission = _write_receipt_bundle(
-        policy, failed_root, driver_rc=7, claim_manifest=False)
+        policy, failed_root, driver_rc=7, claim_manifest=False,
+        force_legacy_v3=True)
     failed_evidence = A2.validate_acquisition_bundle(
         policy, failed_acquisition, current_pin=CURRENT_PIN)
     assert failed_evidence["driver_rcs"] == {"rr5": 7, "rr50": 0}
@@ -1419,6 +2368,68 @@ def test_cli_has_no_policy_injection_surface():
         A2._parser().parse_args(["--policy", "/tmp/alternate.json", "preregister"])
 
 
+@pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
+def test_run_workload_production_pin_gate_rejects_noncanonical_source(
+        tmp_path, monkeypatch, mutation):
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "run-workload-pin-negative", REPO_CURRENT_PIN)
+    raw_root = A2.workload_job_root(policy, attempt, "rr5") / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+    canonical_full = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
+    wrong = ("0" if REPO_CURRENT_PIN[0] != "0" else "1") * 40
+
+    def git_run(command, **kwargs):
+        if command == ["git", "rev-parse", "--verify", "HEAD^{commit}"]:
+            value = wrong if mutation == "wrong-prefix" else canonical_full
+            return subprocess.CompletedProcess(command, 0, value + "\n", "")
+        if command == [
+                "git", "rev-parse", "--verify",
+                f"{REPO_CURRENT_PIN}^{{commit}}"]:
+            if mutation == "resolver-failure":
+                raise subprocess.CalledProcessError(41, command)
+            value = wrong if mutation == "wrong-prefix" else canonical_full
+            return subprocess.CompletedProcess(command, 0, value + "\n", "")
+        if command == [
+                "git", "status", "--porcelain", "--untracked-files=no"]:
+            value = " M tracked.cc\n" if mutation == "dirty" else ""
+            return subprocess.CompletedProcess(command, 0, value, "")
+        raise AssertionError(command)
+
+    monkeypatch.setattr(A2.subprocess, "run", git_run)
+    with pytest.raises(A2.CertificationError, match="CCBench current pin"):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            log=lambda *_args: None)
+
+
+@pytest.mark.parametrize("current_pin", ("1" * 40, "abcdef0"))
+def test_run_workload_requires_exact_repository_canonical_short_pin(
+        tmp_path, current_pin):
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "run-workload-noncanonical-pin", REPO_CURRENT_PIN)
+    raw_root = A2.workload_job_root(policy, attempt, "rr5") / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+
+    with pytest.raises(A2.CertificationError, match="canonical short pin"):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=current_pin,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            log=lambda *_args: None)
+
+
 def test_official_run_observes_and_passes_current_toolchain_manifest(
         tmp_path, monkeypatch):
     source = inspect.getsource(A2.run_workload)
@@ -1426,10 +2437,15 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     passed = "expected_toolchain_manifest=expected_toolchain_manifest"
     assert observed in source and passed in source
     assert source.index(observed) < source.index("summary = run_campaign(")
+    assert "capability_resolver=capability_resolver" in source
+    loop_source = inspect.getsource(loop.run_campaign)
+    assert "source_evidence = source_digest.resolve_evidence(" in loop_source
+    assert "capability_resolver=capability_resolver" in loop_source
+    assert "source_evidence=source_evidence" in loop_source
 
     policy = _policy(tmp_path)
     attempt = A2.preregister_attempt(
-        policy, "actual-run-workload-producer", CURRENT_PIN)
+        policy, "actual-run-workload-producer", REPO_CURRENT_PIN)
     job_root = A2.workload_job_root(policy, attempt, "rr5")
     raw_root = job_root / "raw"
     raw_root.mkdir()
@@ -1438,48 +2454,133 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     ccbench = tmp_path / "ccbench"
     ccbench.mkdir()
     calls = {}
+    resolved_repo_pin = subprocess.run(
+        ["git", "-C", str(A2.POLICY_PATH.parents[2] / "external/ccbench"),
+         "rev-parse", "--verify", f"{REPO_CURRENT_PIN}^{{commit}}"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
 
     def git_run(command, **kwargs):
-        if command[:3] == ["git", "rev-parse", "HEAD"]:
-            return subprocess.CompletedProcess(command, 0, CURRENT_PIN + "\n", "")
+        if command == ["git", "rev-parse", "--verify", "HEAD^{commit}"]:
+            return subprocess.CompletedProcess(
+                command, 0, resolved_repo_pin + "\n", "")
+        if command == [
+                "git", "rev-parse", "--verify",
+                f"{REPO_CURRENT_PIN}^{{commit}}"]:
+            return subprocess.CompletedProcess(
+                command, 0, resolved_repo_pin + "\n", "")
         if command[:3] == ["git", "status", "--porcelain"]:
             return subprocess.CompletedProcess(command, 0, "", "")
         raise AssertionError(command)
 
-    def producer(cfg, genomes, *args, output_root, **kwargs):
-        cfg = ident.bind_admission_policy(
-            cfg, kwargs["build_context"].policy)
-        layout = loop.campaign_layout(
-            str(ident.campaign_id(cfg)), output_root).ensure()
-        calls["output_root"] = Path(output_root)
-        calls["layout_root"] = Path(layout.root)
-        return A2.SimpleNamespace(
-            results=[A2.SimpleNamespace() for _ in genomes],
-            skipped=0, layout_root=layout.root)
+    def authorize(cfg, authorization_contract, **_kwargs):
+        calls["authorized"] = True
+        return loop._AuthorizationResult(
+            authorized_contract=authorization_contract,
+            execution_receipt=None,
+            bound_cfg=cfg,
+            campaign_identity=str(ident.campaign_id(cfg)),
+        )
+
+    def resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        index = len(calls.setdefault("evidences", []))
+        assert commit == REPO_CURRENT_PIN
+        assert Path(ccbench_dir) == ccbench
+        assert cxx == "g++"
+        evidence_root = tmp_path / f"source-evidence-{index}"
+        evidence_root.mkdir()
+        genome_sha256 = hashlib.sha256(
+            A2._canonical_json(genome.canonical())).hexdigest()
+        if index == 0:
+            evidence = source_digest.SourceEvidence(
+                source_digest.SOURCE_EVIDENCE_SCHEMA,
+                str(evidence_root), REPO_CURRENT_PIN, genome_sha256,
+                source_digest.STOCK, "a" * 64, True,
+                hashlib.sha256(b"").hexdigest(), (),
+            )
+        else:
+            evidence = source_digest.SourceEvidence(
+                source_digest.SOURCE_EVIDENCE_SCHEMA,
+                str(evidence_root), REPO_CURRENT_PIN, genome_sha256,
+                "b" * 64, "b" * 64, False, "c" * 64,
+                ("include/backoff.h",),
+            )
+        calls["evidences"].append(evidence)
+        return evidence
+
+    def evaluate(genome, _layout, _env_tag, _commit, _perf,
+                 _clocks_per_us, **kwargs):
+        evidence = kwargs["source_evidence"]
+        resolver = kwargs["capability_resolver"]
+        assert evidence is calls["evidences"][len(calls.setdefault(
+            "admissions", []))]
+        assert kwargs["src_token"] == evidence.src_token
+        assert callable(resolver)
+        receipt = resolver(evidence)
+        admission = build_admission.derive_build_admission(
+            kwargs["build_context"], evidence, generator_receipt=receipt)
+        calls["admissions"].append(admission)
+        calls.setdefault("generator_receipts", []).append(receipt)
+        calls["resolver"] = resolver
+        return loop.EvalResult(
+            genome=genome,
+            variant=variant_id(genome, evidence.src_token),
+            certified=True,
+            aborted=False,
+        )
 
     def raw_producer(_policy, cell, *, layout_root, **kwargs):
-        assert Path(layout_root) == calls["layout_root"]
+        calls.setdefault("layout_roots", []).append(Path(layout_root))
         return {"cell_id": cell.cell_id, "terminal": "commit"}
 
     monkeypatch.setattr(A2.subprocess, "run", git_run)
-    monkeypatch.setattr(loop, "run_campaign", producer)
     monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
+    monkeypatch.setattr(loop, "_authorize_measurement", authorize)
+    monkeypatch.setattr(
+        loop, "_perform_perf_preflight", lambda *_args, **_kwargs: (None, True))
+    monkeypatch.setattr(
+        loop.ident, "ensure_resumable_wal",
+        lambda *_args, **_kwargs: A2.SimpleNamespace(status="clean"))
+    monkeypatch.setattr(loop.wal, "replay", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", resolve_evidence)
+    monkeypatch.setattr(loop, "evaluate", evaluate)
     monkeypatch.setattr(
         buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
     monkeypatch.setattr(
         buildcache, "observed_toolchain_manifest",
         lambda *_args, **_kwargs: {"fixture": "toolchain"})
+    monkeypatch.setattr(
+        buildcache, "toolchain_compilers_from_manifest",
+        lambda _manifest: ("gcc", "g++"))
     monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
 
     A2.run_workload(
         policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
-        current_pin=CURRENT_PIN, dependency_prefix=dependency,
+        current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
         ccbench_dir=ccbench, log=lambda *_args: None)
-    assert calls["output_root"] == job_root
-    assert calls["layout_root"].parent == job_root / "campaigns"
+    assert calls["authorized"] is True
+    assert len(set(calls["layout_roots"])) == 1
+    assert calls["layout_roots"][0].parent == job_root / "campaigns"
     assert not (job_root / "campaigns" / "campaigns").exists()
     assert {path.name for path in raw_root.iterdir()} == {
         "rr5-stock.json", "rr5-fixed10.json"}
+    stock, adopted = calls["admissions"]
+    generator_receipts = calls["generator_receipts"]
+    calls["adopted_receipt"] = generator_receipts[1].as_receipt()
+    calls["adopted_receipt_repeat"] = calls["resolver"](
+        calls["evidences"][1]).as_receipt()
+    assert stock.provenance is build_admission.BuildProvenance.STOCK_BASELINE
+    assert adopted.provenance is build_admission.BuildProvenance.MACHINE_GENERATED
+    assert stock.as_wal_receipt()["generator_receipt"] is None
+    expected_generator_input = hashlib.sha256(A2._canonical_json({
+        "policy_protocol_sha256": policy.protocol_sha256,
+        "workload_id": "rr5",
+        "evidence_genome_sha256": calls[
+            "adopted_receipt"]["source"]["genome_sha256"],
+    })).hexdigest()
+    assert calls["adopted_receipt"]["generator_input_sha256"] \
+        == expected_generator_input
+    assert calls["adopted_receipt_repeat"] == calls["adopted_receipt"]
 
 
 def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields():

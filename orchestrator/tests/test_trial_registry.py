@@ -3544,6 +3544,34 @@ def test_admit_registered_formal_noncertifying_requires_explicit_opt_in(
         )
 
 
+def test_a1_registered_noncertifying_projection_shares_load_bearing_mode() -> None:
+    projection = R.issue_a1_registered_noncertifying_projection(
+        study_id="paper-story-a1-20260826-sized-v1",
+        policy_sha256="a" * 64,
+        preregistration_sha256="b" * 64,
+        source_commit="c" * 40,
+        workloads=R.A1_NON_CERTIFYING_WORKLOADS,
+        campaign_ids=("campaign-a", "campaign-b", "campaign-c"),
+    )
+    R.assert_issued_a1_registered_noncertifying_projection(projection)
+    record = R.a1_registered_noncertifying_record(projection)
+    assert record["mode"] == R.REGISTERED_FORMAL_NON_CERTIFYING_MODE
+    assert record["certifying"] is False
+    assert record["campaign_ids"] == [
+        "campaign-a", "campaign-b", "campaign-c",
+    ]
+    forged = dataclasses.replace(projection, _seal=object())
+    with pytest.raises(R.TrialRegistryError, match="not issued"):
+        R.assert_issued_a1_registered_noncertifying_projection(forged)
+    for changed in (
+        dataclasses.replace(projection, mode="registered-effective"),
+        dataclasses.replace(projection, certifying=True),
+        dataclasses.replace(projection, policy_sha256="invalid"),
+    ):
+        with pytest.raises(R.TrialRegistryError):
+            R.assert_issued_a1_registered_noncertifying_projection(changed)
+
+
 def test_admit_registered_formal_noncertifying_validates_freeze_and_returns_binding(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

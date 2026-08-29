@@ -33,6 +33,25 @@ if TYPE_CHECKING:
 
 ADMISSION_POLICY_SEARCH_KEY = "build_admission"
 _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
+_A1_NON_CERTIFYING_SCHEMA = "paper-story-a1-paired-campaign/v1"
+_A1_NON_CERTIFYING_STUDY_ID = "paper-story-a1-20260826-sized-v1"
+
+
+def is_a1_non_certifying_config(cfg: CampaignConfig) -> bool:
+    """A-1 registered non-certifying lane の exact identity marker を判別する。"""
+    if type(cfg) is not CampaignConfig or type(cfg.search_config) is not dict:
+        return False
+    search = cfg.search_config
+    return (
+        search.get("schema") == _A1_NON_CERTIFYING_SCHEMA
+        and search.get("study_id") == _A1_NON_CERTIFYING_STUDY_ID
+        and search.get("formal") is False
+        and search.get("promotion_prohibited") is True
+        and search.get("pairing_design") == "arm-grouped-positional-v1"
+        and search.get("non_certifying_mode")
+        == "registered-formal-non-certifying"
+        and cfg.trial == _A1_NON_CERTIFYING_STUDY_ID
+    )
 
 
 def bind_admission_policy(
@@ -363,6 +382,66 @@ def verify_against_lock(
         )
 
 
+def verify_a1_non_certifying_against_lock(
+        cfg: CampaignConfig, stored_preimage: str, *,
+        admission_policy: BuildAdmissionPolicy,
+        require_environment_contract: bool = True,
+) -> campaign_lock.DecodedNonCertifyingCampaignLock:
+    """A-1 専用 lock を通常 v1/v2 gate と分離して再導出照合する。"""
+    _validate_identity_inputs(admission_policy, require_environment_contract)
+    if not is_a1_non_certifying_config(cfg):
+        raise IdentityMismatch("A-1 non-certifying exact marker が無い")
+    if require_environment_contract is not True:
+        raise IdentityMismatch(
+            "A-1 non-certifying lane は environment contract を必須とする",
+            reason="environment-contract-missing",
+        )
+    try:
+        decoded = campaign_lock.decode_non_certifying_campaign_lock(
+            stored_preimage
+        )
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise IdentityMismatch("A-1 non-certifying campaign.lock schema が不正") from exc
+    search = decoded.identity.get("search_config")
+    if (
+        type(search) is not dict
+        or search.get(ADMISSION_POLICY_SEARCH_KEY) != admission_policy.as_preimage()
+    ):
+        raise IdentityMismatch(
+            "A-1 campaign.lock の admission policy が current run context と不一致"
+        )
+    current = canonical_preimage(cfg)
+    if current != decoded.identity_preimage:
+        raise IdentityMismatch(
+            "A-1 campaign.lock と現在 config の正準 pre-image が不一致"
+        )
+    bound = cfg.bound_environment_contract
+    if type(bound) is not ExecutionEnvironmentContract:
+        raise IdentityMismatch(
+            "A-1 non-certifying campaign には environment contract bind が必要",
+            reason="environment-contract-missing",
+        )
+    if decoded.common_record["environment_contract_sha256"] != bound.contract_sha256:
+        raise IdentityMismatch(
+            "A-1 campaign.lock と target environment contract H が不一致",
+            reason="environment-contract-mismatch",
+        )
+    current_campaign_id = str(campaign_id(cfg))
+    workload_binding = decoded.workload_binding
+    if (
+        workload_binding["campaign_id"] != current_campaign_id
+        or current_campaign_id not in decoded.common_record["campaign_ids"]
+    ):
+        raise IdentityMismatch("A-1 workload binding と再導出 campaign ID が不一致")
+    workload = search.get("workload")
+    if (
+        type(workload) is not dict
+        or workload.get("name") != workload_binding["workload"]
+    ):
+        raise IdentityMismatch("A-1 workload binding と identity workload が不一致")
+    return decoded
+
+
 def ensure_resumable_wal(
         cfg: CampaignConfig, layout: CampaignLayout, *,
         admission_policy: BuildAdmissionPolicy,
@@ -380,12 +459,20 @@ def ensure_resumable_wal(
         require_environment_contract=require_environment_contract,
         authorization_contract=authorization_contract,
     )
-    repair = wal.repair_truncated_tail(
-        layout, reject_active_attempt=True,
-    )
-    wal.recover_interrupted_attempts(
-        layout, admission_policy=admission_policy,
-    )
+    if is_a1_non_certifying_config(cfg):
+        repair = wal.repair_truncated_tail_a1_non_certifying(
+            layout, reject_active_attempt=True,
+        )
+        wal.recover_interrupted_attempts_a1_non_certifying(
+            layout, admission_policy=admission_policy,
+        )
+    else:
+        repair = wal.repair_truncated_tail(
+            layout, reject_active_attempt=True,
+        )
+        wal.recover_interrupted_attempts(
+            layout, admission_policy=admission_policy,
+        )
     return repair
 
 
@@ -401,9 +488,14 @@ def ensure_resumable_attempts(
         require_environment_contract=require_environment_contract,
         authorization_contract=authorization_contract,
     )
-    wal.recover_interrupted_attempts(
-        layout, admission_policy=admission_policy,
-    )
+    if is_a1_non_certifying_config(cfg):
+        wal.recover_interrupted_attempts_a1_non_certifying(
+            layout, admission_policy=admission_policy,
+        )
+    else:
+        wal.recover_interrupted_attempts(
+            layout, admission_policy=admission_policy,
+        )
 
 
 def ensure_campaign_identity(
@@ -425,11 +517,23 @@ def ensure_campaign_identity(
         )
     stored = wal.read_lock(layout)
     if stored is not None:
-        verify_against_lock(
-            cfg, stored, admission_policy=admission_policy,
-            require_environment_contract=require_environment_contract,
-        )
+        if is_a1_non_certifying_config(cfg):
+            verify_a1_non_certifying_against_lock(
+                cfg, stored, admission_policy=admission_policy,
+                require_environment_contract=require_environment_contract,
+            )
+        else:
+            verify_against_lock(
+                cfg, stored, admission_policy=admission_policy,
+                require_environment_contract=require_environment_contract,
+            )
         return False
+
+    if is_a1_non_certifying_config(cfg):
+        raise IdentityMismatch(
+            "A-1 non-certifying campaign.lock は3 campaign確定後にpreseedが必要",
+            reason="a1-lock-preseed-missing",
+        )
 
     # lock 作成前に WAL の lstat/open/fstat を行う。EIO 等は fail-closed に伝播する。
     if wal.wal_bytes_present(layout):

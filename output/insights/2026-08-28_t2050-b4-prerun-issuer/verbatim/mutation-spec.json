@@ -1,0 +1,94 @@
+{
+  "estimated_run_seconds": 900,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1-planned-id-set",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "        or False\n",
+          "old": "        or set(mapped_ids) != set(scheduled_ids)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2-ignore-csprng-return",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "        seed_bytes = b\"\\x00\" * 32\n",
+          "old": "        seed_bytes = secrets.token_bytes(32)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3-seed-source-receipt-binding",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "    if False:\n",
+          "old": "    if seed_receipt.source_receipt_sha256 != hashlib.sha256(\n        canonical_json_bytes(value)\n    ).hexdigest():\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4-initial-result-absence",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "    if False and inspect_absence:\n",
+          "old": "    if inspect_absence:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5-overwrite-final-receipt",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "        try:\n            os.unlink(_RECEIPT_NAME, dir_fd=root_fd)\n        except FileNotFoundError:\n            pass\n        os.link(\n",
+          "old": "        os.link(\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}

@@ -8,6 +8,7 @@ import re
 import shlex
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -43,6 +44,17 @@ EXPECTED_RESERVATION_EXPORTS = {
     "IZANAGI_RESERVATION_SCRIPT_SHA256": "$CURRENT_SCRIPT_SHA",
     "IZANAGI_RESERVATION_NONCE": "$IZANAGI_SUBMISSION_NONCE",
 }
+EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS = frozenset({
+    "orchestrator/campaign/paper_story_a1_paired.py",
+    "orchestrator/campaign/paper_story_a1_paired.v2.json",
+    "orchestrator/campaign/pipeline.py",
+    "tools/pegasus/paper_story_a1_paired.sh",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/trial_registry.py",
+})
 
 
 def _gate_args(tmp_path: Path) -> dict:
@@ -220,6 +232,56 @@ def test_acquisition_receipt_accepts_exact_nqsv_qstat_state_vocabulary(
 
 def test_nqsv_qstat_state_allowlist_is_exact() -> None:
     assert paired.NQSV_QSTAT_STATES == frozenset(EXPECTED_NQSV_QSTAT_STATES)
+    assert paired.NQSV_QSTAT_TERMINAL_STATES == frozenset({"C", "F", "EXT"})
+
+
+def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() -> None:
+    assert paired.SOURCE_RELATIVE_PATHS == (
+        "orchestrator/campaign/paper_story_a1_paired.py",
+        "orchestrator/campaign/paper_story_a1_paired.v2.json",
+        "orchestrator/campaign/pipeline.py",
+        "tools/pegasus/paper_story_a1_paired.sh",
+    )
+    assert frozenset(paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == (
+        EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    )
+    assert len(paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == 9
+    script = JOB.read_text(encoding="utf-8")
+    match = re.search(
+        r"(?ms)^NON_CERTIFYING_SOURCE_RELATIVE_PATHS=\(\n(?P<body>.*?)^\)\s*$",
+        script,
+    )
+    assert match is not None
+    shell_paths = tuple(re.findall(r'^\s*"([^"]+)"\s*$', match["body"], re.M))
+    assert shell_paths == paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    assert frozenset(shell_paths) == EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    assert len(shell_paths) == 9
+
+
+@pytest.mark.parametrize("relative", paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS)
+@pytest.mark.parametrize("mutation", ("missing", "oid", "working-sha"))
+def test_non_certifying_source_closure_rejects_each_file_drift(
+    relative: str, mutation: str,
+) -> None:
+    head = paired._run_git(REPO_ROOT, "rev-parse", "HEAD")
+    binding = paired._non_certifying_source_binding(REPO_ROOT, head)
+    if mutation == "missing":
+        binding["files"].pop(relative)
+    elif mutation == "oid":
+        binding["files"][relative]["git_blob_oid"] = "0" * 40
+    else:
+        binding["files"][relative]["working_sha256"] = "0" * 64
+    assert paired._validate_non_certifying_source_binding(binding) is (
+        mutation != "missing"
+    )
+    with pytest.raises(paired.PaperStoryError, match="source binding"):
+        paired._verify_current_source_paths(
+            REPO_ROOT,
+            head,
+            binding,
+            relative_paths=paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+            label="test non-certifying",
+        )
 
 
 @pytest.mark.parametrize(
@@ -672,7 +734,11 @@ def _scheduler_completion_fixture(
     terminal_path = Path(trusted["raw_root"]) / "job-terminal.json"
     terminal_path.parent.mkdir(parents=True)
     terminal_path.write_bytes(b"terminal\n")
-    qstat_stdout = f"Job Id: {request_id}\n    job_state = F\n"
+    qstat_stdout = (
+        f"Request ID: {request_id}\n"
+        "    job_state = F\n"
+        "    exit_status = 0\n"
+    )
 
     def binding(path: str | Path) -> dict:
         candidate = Path(path)
@@ -768,6 +834,39 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
             submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
             job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
         )
+
+
+def test_scheduler_terminal_ext_flows_from_producer_to_validator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completion, submission, trusted, submission_raw, terminal_path = (
+        _scheduler_completion_fixture(tmp_path)
+    )
+    request_id = submission["request_id"]
+    stdout = (
+        f"Request ID: {request_id}\n"
+        "State: EXT\n"
+        "Exit Status: 0\n"
+    )
+    monkeypatch.setattr(
+        paired.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, stdout, "",
+        ),
+    )
+    observed = paired._observe_scheduler_terminal(request_id, submission)
+    assert observed["state"] == {"observed": True, "value": "EXT"}
+    completion["scheduler_terminal"] = observed
+    assert paired.validate_completion_receipt(
+        completion,
+        trusted_roots=trusted,
+        source_commit="a" * 40,
+        request_id=request_id,
+        submission_receipt=submission,
+        submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+        job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
+    ) == completion
 
 
 def _disappeared_completion_fixture(
@@ -1099,6 +1198,12 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         encoding="utf-8",
     )
     job.chmod(JOB.stat().st_mode & 0o777)
+    for relative in paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS:
+        fixture_source = repo / relative
+        if fixture_source.exists():
+            continue
+        fixture_source.parent.mkdir(parents=True, exist_ok=True)
+        fixture_source.write_bytes((REPO_ROOT / relative).read_bytes())
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     head = "a" * 40
@@ -1583,6 +1688,249 @@ def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> N
         assert cfg.search_config["build_admission"] == json.loads(
             context.policy._preimage_json
         )
+
+
+def _submit_cli_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, str]:
+    policy, policy_sha = paired.load_policy()
+    repo = tmp_path / "submit-repo"
+    for relative in paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS:
+        source = repo / relative
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(f"fixture source: {relative}\n", encoding="utf-8")
+    base = (tmp_path / "measurement-submit").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    head = "a" * 40
+    monkeypatch.setattr(paired, "_repo_root", lambda: repo)
+    monkeypatch.setattr(
+        paired, "load_policy", lambda: (policy, policy_sha),
+    )
+    monkeypatch.setattr(paired, "_durable_measurement_base", lambda _policy: base)
+    def run_git(_repo, *args):
+        if args == ("rev-parse", "HEAD"):
+            return head
+        if len(args) == 2 and args[0] == "rev-parse" and ":" in args[1]:
+            return "b" * 40
+        if args == ("status", "--porcelain", "--untracked-files=all"):
+            return ""
+        raise AssertionError(args)
+
+    monkeypatch.setattr(paired, "_run_git", run_git)
+    return repo, attempt, head
+
+
+def test_submit_create_only_intent_precedes_qsub_and_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    observed = []
+
+    def qsub(argv, *, cwd):
+        observed.append(("qsub", list(argv)))
+        assert cwd == repo.resolve()
+        assert paired._attempt_intent_path(attempt).is_file()
+        return subprocess.CompletedProcess(argv, 0, "12345.nqsv\n", "")
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(
+        paired,
+        "_observe_qstat_visibility",
+        lambda request_id: {
+            "request_id": request_id,
+            "visible": True,
+            "state": "QUE",
+            "queue": "gen_S",
+            "observed_epoch": 2,
+        },
+    )
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    intent = json.loads(paired._attempt_intent_path(attempt).read_bytes())
+    receipt_path = Path(paired._attempt_evidence_paths(attempt)["submission_receipt"])
+    receipt = json.loads(receipt_path.read_bytes())
+    assert observed and observed[0][0] == "qsub"
+    assert intent["schema_version"] == paired.SUBMISSION_INTENT_SCHEMA
+    assert receipt["schema_version"] == paired.SUBMISSION_SCHEMA
+    assert set(receipt) == paired._SUBMISSION_RECEIPT_KEYS
+    assert receipt["qsub_argv"] == intent["qsub_argv"]
+    assert receipt["qsub_options"] == intent["qsub_options"]
+    assert receipt["qsub_argv"][-1] == str((repo / paired.JOB_RELATIVE_PATH).resolve())
+    assert set(intent) == {
+        "schema_version", "study_id", "source_commit", "attempt_root",
+        "qsub_argv", "qsub_options", "source_binding", "intent_sha256",
+    }
+    assert "created_epoch" not in intent
+
+
+def test_submit_runs_real_qsub_call_from_repository_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    outside = tmp_path / "outside-caller"
+    outside.mkdir()
+    monkeypatch.chdir(outside)
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append((list(argv), dict(kwargs), Path.cwd()))
+        if argv[0] == "qsub":
+            return subprocess.CompletedProcess(argv, 0, "12345.nqsv\n", "")
+        assert argv[:2] == ["qstat", "-f"]
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            "Request ID: 12345.nqsv\nState: QUE\nQueue: gen_S\n",
+            "",
+        )
+
+    monkeypatch.setattr(paired.subprocess, "run", run)
+    assert paired.run_submit(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    qsub_call = next(item for item in calls if item[0][0] == "qsub")
+    assert qsub_call[1]["cwd"] == repo.resolve()
+    assert qsub_call[2] == outside
+    receipt = json.loads(Path(
+        paired._attempt_evidence_paths(attempt)["submission_receipt"]
+    ).read_bytes())
+    assert set(receipt) == paired._SUBMISSION_RECEIPT_KEYS
+    assert len(receipt) == 11
+
+
+def test_m_nc09_intent_without_submission_never_repeats_qsub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    argv, options = paired._canonical_qsub_contract(
+        repo_root=repo.resolve(),
+        study_id=paired.STUDY_ID,
+        source_commit=head,
+        attempt=attempt,
+    )
+    intent = {
+        "schema_version": paired.SUBMISSION_INTENT_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "source_commit": head,
+        "attempt_root": str(attempt),
+        "qsub_argv": argv,
+        "qsub_options": options,
+        "source_binding": paired._non_certifying_source_binding(repo, head),
+    }
+    intent["intent_sha256"] = paired._submission_intent_digest(intent)
+    paired._exclusive_write(paired._attempt_intent_path(attempt), intent)
+    attempt.mkdir()
+    calls = []
+    monkeypatch.setattr(
+        paired, "_run_qsub", lambda _argv, *, cwd: calls.append((_argv, cwd)),
+    )
+    with pytest.raises(paired.PaperStoryError, match="indeterminate"):
+        paired.run_submit(SimpleNamespace(
+            expected_head=head, attempt_root=str(attempt),
+        ))
+    assert calls == []
+    assert not Path(
+        paired._attempt_evidence_paths(attempt)["submission_receipt"]
+    ).exists()
+
+
+def test_m_nc01_submit_rejects_marker_drift_before_intent_and_qsub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        paired,
+        "_a1_noncertifying_marker_fields",
+        lambda: {
+            "formal": False,
+            "promotion_prohibited": False,
+            "non_certifying_mode": "registered-formal-non-certifying",
+        },
+    )
+    qsub_calls = []
+    monkeypatch.setattr(
+        paired, "_run_qsub", lambda argv, *, cwd: qsub_calls.append((argv, cwd)),
+    )
+    with pytest.raises(paired.PaperStoryError, match="marker differs before submit"):
+        paired.run_submit(SimpleNamespace(
+            expected_head=head, attempt_root=str(attempt),
+        ))
+    assert qsub_calls == []
+    assert not paired._attempt_intent_path(attempt).exists()
+
+
+def test_complete_only_issues_completion_receipt_without_materialize(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, attempt, head = _submit_cli_fixture(tmp_path, monkeypatch)
+    attempt.mkdir()
+    argv, options = paired._canonical_qsub_contract(
+        repo_root=repo.resolve(), study_id=paired.STUDY_ID,
+        source_commit=head, attempt=attempt,
+    )
+    intent = {
+        "schema_version": paired.SUBMISSION_INTENT_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "source_commit": head,
+        "attempt_root": str(attempt),
+        "qsub_argv": argv,
+        "qsub_options": options,
+        "source_binding": paired._non_certifying_source_binding(repo, head),
+    }
+    intent["intent_sha256"] = paired._submission_intent_digest(intent)
+    paired._exclusive_write(paired._attempt_intent_path(attempt), intent)
+    evidence = paired._attempt_evidence_paths(attempt)
+    submission = _acquisition(attempt, repo)
+    Path(evidence["submission_receipt"]).write_bytes(
+        paired._canonical_json_bytes(submission)
+    )
+    Path(evidence["stdout_path"]).write_bytes(b"stdout\n")
+    Path(evidence["stderr_path"]).write_bytes(b"")
+    terminal = attempt / "raw" / "job-terminal.json"
+    terminal.parent.mkdir()
+    terminal.write_bytes(b"{}\n")
+    monkeypatch.setattr(
+        paired,
+        "_observe_scheduler_terminal",
+        lambda *_args: {
+            "terminal_reason": "scheduler-end-state",
+            "qstat_visible": True,
+            "qstat_rc": 0,
+            "state": {"observed": True, "value": "F"},
+            "exit_status": {"observed": True, "value": 0},
+            "observed_epoch": 2,
+            "qstat_stdout": "Request ID: 12345.nqsv\n",
+            "qstat_stdout_sha256": hashlib.sha256(
+                b"Request ID: 12345.nqsv\n"
+            ).hexdigest(),
+        },
+    )
+    monkeypatch.setattr(
+        paired, "run_materialize",
+        lambda _args: pytest.fail("complete called materialize"),
+    )
+    validated_sidecars = []
+    monkeypatch.setattr(
+        paired,
+        "_validate_raw_non_certifying_observation_for_completion",
+        lambda path, **kwargs: validated_sidecars.append((path, kwargs)),
+    )
+    assert paired.run_complete(SimpleNamespace(
+        expected_head=head, attempt_root=str(attempt),
+    )) == 0
+    completion = json.loads(Path(evidence["completion_receipt"]).read_bytes())
+    assert completion["schema_version"] == paired.COMPLETION_SCHEMA
+    assert "materialization" not in completion
+    assert validated_sidecars == [(
+        attempt / "raw" / "results" / paired.NON_CERTIFYING_OBSERVATION_FILENAME,
+        {
+            "expected_head": head,
+            "attempt": attempt,
+            "request_id": submission["request_id"],
+        },
+    )]
 
 
 def _run() -> int:
