@@ -2335,20 +2335,25 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
             "clocks_per_us": clocks_per_us, "kwargs": kwargs,
         })
         variant = pipeline.variant_id(genome, kwargs["src_token"])
+        attempt_id = f"s8b-{len(calls)}-{variant}"
         wal.log(layout, variant, "build_start", env_tag, {
             "genome": genome.canonical(), "src_token": kwargs["src_token"],
+            "build_attempt_id": attempt_id,
         })
         wal.log(layout, variant, "build_done", env_tag, {
             "trace_bin": "trace", "perf_bin": "perf",
+            "build_attempt_id": attempt_id,
         })
         for tag in (pipeline.LEGACY_TAG, pipeline.S2_TAG):
             wal.log(layout, variant, "verify_done", env_tag, {
+                "build_attempt_id": attempt_id,
                 "verdict": "serializable", "certified": True,
+                "anomalies": 0,
                 "workload": {"tag": tag},
             })
         bench_payload = {
             "tps": [10.0, 11.0, 12.0, 13.0, 14.0], "median_tps": 12.0,
-            "bench_wall_s": bench_wall_s,
+            "bench_wall_s": bench_wall_s, "build_attempt_id": attempt_id,
         }
         if kwargs.get("record_rep_returncodes") is True:
             bench_payload["rep_returncodes"] = [0, 0, 0, 0, 0]
@@ -2357,8 +2362,9 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
             layout, variant, env_tag, {
             "fitness_tps": 12.0,
             "verify_configs": [pipeline.LEGACY_TAG, pipeline.S2_TAG],
+            "build_attempt_id": attempt_id,
             },
-            operation_identity=f"s8b-{len(calls)}-{variant}",
+            operation_identity=attempt_id,
             tags=(pipeline.LEGACY_TAG, pipeline.S2_TAG),
         )
         return pipeline.EvalResult(
@@ -5594,9 +5600,9 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     )
     _authorize_official_report_output(out_root)
     with mock.patch.object(
-            report_module._artifact_admission,
-            "require_campaign_verifier_epoch",
-            lambda campaign, *, purpose: artifact_admission.CampaignVerifierEpoch(
+            report_module,
+            "_campaign_verifier_epoch_from_lock_bytes",
+            lambda lock_bytes: artifact_admission.CampaignVerifierEpoch(
                 campaign_verifier_epoch=f"E1:{'e' * 64}",
                 state="E1", reason_code="recorded-closure",
             ),

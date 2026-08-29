@@ -38,9 +38,10 @@ from orchestrator.campaign.source_digest import (
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
-from orchestrator.campaign import source_digest
+from orchestrator.campaign import source_digest, wal
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock
 from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
+from orchestrator.tests import commit_receipt_support as receipt_support
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import Genome
 
@@ -1192,6 +1193,24 @@ def _build_registered_campaign(
                     "leading_indicators": {},
                 },
             },
+            *(
+                {
+                    "ts": base_ts + 3.0 + index / 4,
+                    "stage": "verify_done",
+                    "variant": variant,
+                    "env_tag": contract.env_tag,
+                    "payload": {
+                        "build_attempt_id": attempt_id,
+                        "verdict": "serializable",
+                        "certified": True,
+                        "anomalies": 0,
+                        "workload": {"tag": tag},
+                    },
+                }
+                for index, tag in enumerate(
+                    (pipeline.LEGACY_TAG, pipeline.S2_TAG), 1,
+                )
+            ),
             {
                 "ts": base_ts + 4.0,
                 "stage": "commit",
@@ -1210,11 +1229,26 @@ def _build_registered_campaign(
             "trigger_gate_binding_commitment": binding_commitment,
             "outcome": "certified",
         }
-    wal_path = campaign / "runs" / "wal.jsonl"
-    wal_path.write_text(
-        "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
-        encoding="utf-8",
-    )
+    for record in records:
+        if record["stage"] == "commit":
+            receipt_support.log_receipted_commit(
+                layout,
+                record["variant"],
+                record["env_tag"],
+                record["payload"],
+                operation_identity=record["payload"]["build_attempt_id"],
+                tags=(pipeline.LEGACY_TAG, pipeline.S2_TAG),
+                ts=record["ts"],
+            )
+        else:
+            wal.log(
+                layout,
+                record["variant"],
+                record["stage"],
+                record["env_tag"],
+                record["payload"],
+                ts=record["ts"],
+            )
     (campaign / "reports" / "p3_s8a_trigger_loop_provenance.json").write_text(
         json.dumps({
             "entries": provenance_entries,
