@@ -1,0 +1,120 @@
+{
+  "estimated_run_seconds": 1500,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_launcher.py",
+          "new": "",
+          "old": "        p3_b4_closed_critic.assert_b4_document_projection_closures_are_live(\n            verified\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "    live_projection_sha256_by_driver = {\n        _mutation_driver_kind: projection_sha256(_mutation_driver_kind)\n        for _mutation_driver_kind in B4_PROJECTION_DRIVER_KINDS\n    }\n",
+          "old": "    live_projection_sha256_by_driver = (\n        assert_b4_document_projection_closures_are_live(\n            verified_admission\n        )\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "            actual=(\n                verified_admission\n                .expected_closed_critic_projection_closure_sha256_by_driver[\n                    driver_kind\n                ]\n            ),\n",
+          "old": "            actual=live_projection_sha256_by_driver[driver_kind],\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "",
+          "old": "    assert_admission_expectation(\n        \"expected_closed_critic_projection_closure_sha256\",\n        expected=declared.expected_closed_critic_projection_closure_sha256,\n        actual=projection_closure_sha256_by_driver[driver_kind],\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "    match = _EXPECTATION_ROW_RE.fullmatch(value)\n    if match is None:\n        _legacy = re.fullmatch(\n            r\"expected_claude_model_snapshot=(?P<model>claude-opus-[^;\\r\\n]+); \"\n            r\"expected_effective_critic_prompt_sha256=(?P<prompt>[0-9a-f]{64}); \"\n            r\"expected_closed_critic_projection_closure_sha256=\"\n            r\"(?P<projection>[0-9a-f]{64})\",\n            value,\n        )\n        if _legacy is None:\n            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n        return _Section5ClosedCriticExpectationRow(\n            expected_claude_model_snapshot=_legacy.group(\"model\"),\n            expected_effective_critic_prompt_sha256=_legacy.group(\"prompt\"),\n            expected_closed_critic_projection_closure_sha256_by_driver=(\n                MappingProxyType({\n                    _kind: _legacy.group(\"projection\")\n                    for _kind in B4_PROJECTION_DRIVER_KINDS\n                })\n            ),\n        )\n",
+          "old": "    match = _EXPECTATION_ROW_RE.fullmatch(value)\n    if match is None:\n        raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "    match = _EXPECTATION_ROW_RE.search(value)\n",
+          "old": "    match = _EXPECTATION_ROW_RE.fullmatch(value)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "",
+          "old": "    _parse_closed_critic_expectation_row(raw_values[_EXPECTATION_ROW_LABEL])\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "                current_projection_sha256 = projection_sha256(\n                    self.__binding.driver_kind\n                )\n",
+          "old": "                current_projection_sha256 = (\n                    assert_b4_document_projection_closures_are_live(\n                        self.__verified_admission\n                    )[self.__binding.driver_kind]\n                )\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 3000
+}
