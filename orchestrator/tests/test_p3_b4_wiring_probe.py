@@ -149,7 +149,8 @@ def test_static_candidate_paths_and_driver_specific_guards(static_runtime):
         assert all("guards" in edge for edge in value["path"])
 
 
-def test_static_preflight_covers_exact_runtime_import_closure(static_runtime):
+def test_static_preflight_mapping_matches_runtime_import_targets(static_runtime):
+    """_load_runtime imports each preflight mapping name into runtime.modules."""
     runtime, static = static_runtime
     assert set(runtime.modules) == set(static)
     assert set(P._MODULE_RELATIVE_PATHS) < set(static)
@@ -287,12 +288,15 @@ def _inventory_symbols(inventory) -> set[str]:
 def test_anchor_seed_alone_load_bears_pipeline_evaluate(static_runtime):
     runtime, static = static_runtime
     baseline = _inventory_symbols(P._build_inventory(static, runtime.modules))
+    anchor = P._GENERATION_SEEDS[0]
+    assert anchor in baseline
     target = "orchestrator.campaign.pipeline.evaluate"
     assert target in baseline
-    without_anchor = tuple(seed for seed in P._GENERATION_SEEDS if seed != P._GENERATION_SEEDS[0])
+    without_anchor = tuple(seed for seed in P._GENERATION_SEEDS if seed != anchor)
     mutated = _inventory_symbols(
         P._build_inventory(static, runtime.modules, seeds=without_anchor)
     )
+    assert anchor not in mutated
     assert target not in mutated
 
 

@@ -1,0 +1,36 @@
+{
+  "estimated_run_seconds": 900,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "",
+          "old": "    if (\n        relative_record_path.as_posix()\n        != _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER[driver_kind]\n    ):\n        raise B4AdmissionRecordError(\n            _RECORD_REPOSITORY_PATH_NOT_REQUIRED_FOR_DRIVER_KIND\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "    if (\n        relative_record_path.as_posix()\n        == _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER[driver_kind]\n    ):\n        raise B4AdmissionRecordError(\n            _RECORD_REPOSITORY_PATH_NOT_REQUIRED_FOR_DRIVER_KIND\n        )\n",
+          "old": "    if (\n        relative_record_path.as_posix()\n        != _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER[driver_kind]\n    ):\n        raise B4AdmissionRecordError(\n            _RECORD_REPOSITORY_PATH_NOT_REQUIRED_FOR_DRIVER_KIND\n        )\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}
