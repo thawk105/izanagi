@@ -77,6 +77,11 @@ _ADMISSION_SCHEMA_VERSION = "p3-b4-prerun-admission/v1"
 _PREREGISTRATION_REPOSITORY_PATH = (
     "docs/phase3-b4-reflux-ablation-preregistration.md"
 )
+_REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER = {
+    "base": "docs/phase3-b4-reflux-ablation-admission-record-base.json",
+    "sort": "docs/phase3-b4-reflux-ablation-admission-record-sort.json",
+    "trigger": "docs/phase3-b4-reflux-ablation-admission-record-trigger.json",
+}
 _SECTION5_LABELS = (
     "対象 driver と軸",
     "赤 precursor の母集合 (workload・赤形状・初期 proposal)",
@@ -754,7 +759,11 @@ def _committed_admission_fixture(
             "expected_closed_critic_projection_closure_sha256": projection,
         },
     }
-    record_path = repository / "admission.json"
+    record_repository_path = (
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER[driver_kind]
+    )
+    record_path = repository / record_repository_path
+    record_path.parent.mkdir(parents=True, exist_ok=True)
     record_path.write_bytes(
         json.dumps(
             value,
@@ -764,7 +773,7 @@ def _committed_admission_fixture(
             allow_nan=False,
         ).encode("utf-8")
     )
-    _git(repository, "add", "admission.json")
+    _git(repository, "add", record_repository_path)
     _git(repository, "commit", "-m", "fixture admission")
     if verify_record:
         verified = A.verify_b4_admission_record(
@@ -1167,7 +1176,11 @@ def test_repository_checked_record_with_nonempty_cells_and_three_matching_expect
         record = json.loads(admission.record_path.read_bytes())
         expected_sidecar = {
             "schema_version": "p3-b4-prerun-admission-sidecar/v1",
-            "admission_record_repository_path": "admission.json",
+            "admission_record_repository_path": (
+                admission.record_path.relative_to(
+                    admission.repository
+                ).as_posix()
+            ),
             "admission_record_sha256": hashlib.sha256(
                 admission.record_path.read_bytes()
             ).hexdigest(),
@@ -2004,7 +2017,10 @@ def test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources():
         "schema_version": "p3-b4-projection-closure/v1",
         "entries": expected_entries,
     }
-    assert "admission.json" not in manifest["entries"]
+    for record_repository_path in (
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER.values()
+    ):
+        assert record_repository_path not in manifest["entries"]
     expected = hashlib.sha256(C._canonical_json_bytes(manifest)).hexdigest()
     assert C.projection_sha256() == expected
 
