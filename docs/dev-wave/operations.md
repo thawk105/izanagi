@@ -170,8 +170,8 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 **wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
-成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
-既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価後に再試行する。
+成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは停止せず既存branchのまま
+新main監査、固定SHAのwave-side merge、条件再評価をやり直しlandedまで再試行する。
 他session所有物、rebase、force、remote、pushで解消しない。
 ## DW-O25 — ff-only land の全史 provenance 関門
 

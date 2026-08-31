@@ -1,0 +1,68 @@
+ログインノード pegasus02 の一時領域 I/O probe 生出力。
+script は repo 外の /home/SFC/tanab/.claude/jobs/97c251d1/tmp/ に置いた。
+
+fstype:
+  /tmp             xfs
+  /home/SFC/tanab  lustre
+  /work/1/SFC/tanab lustre
+  /dev/shm         tmpfs
+
+/proc/mounts (抜粋):
+  .../lustre/work /work lustre rw,flock,user_xattr,lazystatfs,encrypt 0 0
+  .../lustre/home /home lustre rw,flock,user_xattr,lazystatfs,encrypt 0 0
+
+=== 走行 1: io_probe.py (単一 process、300 回 write+fsync / 300 小 file / copytree 300 file、3 走中央値) ===
+
+host=pegasus02 load=(9.09912109375, 8.0322265625, 6.84375)
+root                               write+fsync x300   300 small files    copytree x300
+/tmp/izanagi-ioprobe               8.548              0.009              0.013
+    raw fsync=[8.663, 8.548, 8.218] small=[0.009, 0.009, 0.008] copy=[0.014, 0.013, 0.013]
+/home/SFC/tanab/.izanagi-ioprobe   0.187              0.275              1.219
+    raw fsync=[0.187, 0.193, 0.18] small=[0.281, 0.274, 0.275] copy=[0.995, 1.219, 1.587]
+/work/1/SFC/tanab/.izanagi-ioprobe 0.190              0.444              0.990
+    raw fsync=[0.189, 0.19, 0.233] small=[0.441, 0.555, 0.444] copy=[1.127, 0.975, 0.99]
+/dev/shm/izanagi-ioprobe           0.000              0.003              0.008
+    raw fsync=[0.001, 0.0, 0.0] small=[0.004, 0.003, 0.003] copy=[0.009, 0.008, 0.008]
+
+注: 単一 process だけを見ると Lustre は metadata が 30 倍遅く見え、結論が逆転する。
+    n=1 の測定でこの軸を裁定してはならない。
+
+=== 走行 2: io_conc_probe.py (同時走行数 n を変える。1 process あたり fsync 100 回 / 小 file 200 個) ===
+
+host=pegasus02 load_before=(7.4150390625, 7.73291015625, 6.83984375)
+root                           kind    n    wall       median     max
+/tmp/izanagi-ioprobe           fsync   1    1.974      1.942      1.942
+/tmp/izanagi-ioprobe           fsync   8    13.841     13.493     13.835
+/tmp/izanagi-ioprobe           fsync   32   29.746     29.061     29.725
+/work/1/SFC/tanab/.izanagi-ioprobe fsync   1    0.085      0.079      0.079
+/work/1/SFC/tanab/.izanagi-ioprobe fsync   8    0.090      0.071      0.081
+/work/1/SFC/tanab/.izanagi-ioprobe fsync   32   0.124      0.081      0.098
+/dev/shm/izanagi-ioprobe       fsync   1    0.015      0.000      0.000
+/dev/shm/izanagi-ioprobe       fsync   8    0.007      0.000      0.000
+/dev/shm/izanagi-ioprobe       fsync   32   0.021      0.000      0.000
+/tmp/izanagi-ioprobe           smallfiles 1    0.010      0.005      0.005
+/tmp/izanagi-ioprobe           smallfiles 8    0.018      0.005      0.006
+/tmp/izanagi-ioprobe           smallfiles 32   0.084      0.022      0.023
+/work/1/SFC/tanab/.izanagi-ioprobe smallfiles 1    0.201      0.154      0.154
+/work/1/SFC/tanab/.izanagi-ioprobe smallfiles 8    0.652      0.507      0.547
+/work/1/SFC/tanab/.izanagi-ioprobe smallfiles 32   1.493      0.930      1.031
+/dev/shm/izanagi-ioprobe       smallfiles 1    0.005      0.002      0.002
+/dev/shm/izanagi-ioprobe       smallfiles 8    0.010      0.002      0.002
+/dev/shm/izanagi-ioprobe       smallfiles 32   0.026      0.003      0.003
+load_after=(19.05322265625, 10.76708984375, 7.91162109375)
+
+=== 比・差を引くときの注意 ===
+
+本表は wall / median / max の 3 column を持つ。**比・差・throughput は同じ column から採ること。**
+本 wave の親は当初これを混ぜ、表 (median) と本文 (wall) が食い違う値を書いた。
+
+  n=32 の Lustre 対 /tmp:  median 29.061/0.081 = 358.8 倍   wall 29.746/0.124 = 239.9 倍
+  小 file の絶対差:        median 0.930-0.022 = 0.908 秒    wall 1.493-0.084 = 1.409 秒
+  /tmp の総処理量:         median 3200/29.061 = 110.1 /s    wall 3200/29.746 = 107.6 /s
+
+=== 交絡についての限界 ===
+
+pegasus02 は共有ログインノードで、測定中 loadavg は 7.4 から 19.1 へ動いた。
+root 順・n 順は固定で、randomize も同時刻 paired も quiescence gate も行っていない。
+`/tmp` は node-local、Lustre は cluster 共有で、利用者集合が異なる。
+**この値は「この host、この時刻、この probe 形の観測」であり、受入への転写量は示さない。**
