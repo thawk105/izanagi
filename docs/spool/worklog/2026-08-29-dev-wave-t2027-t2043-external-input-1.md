@@ -50,6 +50,10 @@ title: [T-2027] compiler input を根分類 + 根相対 path へ移し現 canoni
   worktree ごとに submodule の object store が分かれていることだった。詳細は
   {{F:worktree-submodule-missing-policy-oid}}。object を持ってきて復旧し、同 file 単独走
   22 passed / rc=0 を確認してから受入を投げ直した。
+- **受入 attempt 2 と 3 (2026-08-31) はテストの赤ではなく dispatch 基盤で落ちた**。どちらも
+  `raw_child_rc=16` の `dispatch-attestation-missing` で、attempt 3 は collection 19126 件まで
+  進んでから 3 shard とも起動しなかった。原因は残存 orphan hold で、hold が 2 つの path に
+  書かれていることを知らず片方だけ撤去していた。F333 へ再発として追記した。
 - **子の工数**: Codex `role=fix` 1 本 (`gpt-5.6-sol` / xhigh / workspace-write) で
   outcome=accepted、validator rc=0。子は login node の scheduler preflight 拒否で
   dispatch できず「implemented, not run」を正しく申告し、実測は親が行った。
@@ -57,29 +61,40 @@ title: [T-2027] compiler input を根分類 + 根相対 path へ移し現 canoni
   本 wave が追加した唯一の実装面変更 (`test_growth_test_holds_contract.py` の 1 呼び出しの
   anti-hang 予算) はどの anchor にも期待 node 集合にも触れないことを spec を読んで確認した。
 
+- **land 直前に承認済み裁定の前提を覆す既記録の新事実を見つけた**。main を取り込み直した際、
+  T-2027 の本文が 2026-08-29 の別 wave の実測で更新されており、消える根が **2 クラス**
+  (build cache 作業用 directory 31 件と job 専用作業領域 7 件) あること、
+  **1 クラスだけ根相対化しても主経路は赤のまま残る**ことが記録されていた。本 wave は D1192 が
+  裁定した範囲 (クラス 1) の実装を land するに留め、射程拡大は裁定へ返す。当初 T-2027 を
+  `完了` で書いていたのを `更新` へ改めた。実装そのものは裁定どおりで、代案へは戻していない。
+
 ## 次の一手差分
-
-### 完了
-
-- [T-2027] D1192 の択 (1) を実装した branch を回収し、内容監査・main 取り込み・
-  焦点走・受入全走を経て land した。manifest は `s8b-compiler-input/v2` として根の分類
-  (`snapshot` / `fetchcontent-masstree` / `filesystem`) と根相対 POSIX path を持ち、
-  cache-hit と binary admission receipt 発行の両境界で現在の canonical base へ束縛し直して
-  bytes を再検証する。manifest schema は descriptor-bound cache preimage に pin したので、
-  旧 v1 completion は移行されず別 identity のまま残る。
-  remaining: none
-  base: c66919d261f393921cc856ad896744d8c94633391702dedf3e72d4ca882aa0d4
 
 ### 更新
 
-- [T-2043] **P1・実装 land 済み → 実機再投入待ち**: 原因は T-2027 と同一の validator defect で、
-  D1192 の同じ変更単位で閉じた (別 ID のまま維持)。`_external_entry()` が絶対 path を
-  `resolve(strict=True)` できず落ちていた経路は、根相対 path + 現 canonical base への
-  再束縛に置き換わっている。**残っているのは実機の裏取りだけ** — 床値 job を 1 回再投入し、
-  binary admission receipt の発行段を実際に通過することを観測する。前 wave の job 再投入条件
-  (焦点検査・関連全走・事前登録変異の全 kill・docs/codex/provenance 検査が緑) は本 wave で
-  すべて満たした。
-  base: 37e17b6210225eadc1604dd4481ef2998408433d67485e96046a68f36572ad11
+- [T-2027] **P1・D1192 の裁定範囲 (根クラス 1) は実装 land 済み → 射程拡大のユーザー裁定待ち**:
+  branch を回収し、内容監査・main 取り込み・焦点走・受入全走を経て land した。manifest は
+  `s8b-compiler-input/v2` として根の分類 (`snapshot` / `fetchcontent-masstree` / `filesystem`)
+  と根相対 POSIX path を持ち、cache-hit と binary admission receipt 発行の両境界で現在の
+  canonical base へ束縛し直して bytes を再検証する。manifest schema は descriptor-bound cache
+  preimage に pin したので、旧 v1 completion は移行されず別 identity のまま残る。
+  **完了とは書けない。** 本項の既存本文が 2026-08-29 の実測として記録しているとおり、消える根は
+  2 クラスあり、D1192 の裁定文と本実装が扱うのは build cache の作業用 directory
+  (`.staging-<PID>-<nonce>/_deps/…`、31 件) だけである。job 専用作業領域
+  (`/scr/0_<jobid>.nqsv/{gflags,glog}-install/include/…`、7 件) は `filesystem` 根として
+  jobid 入りの path のまま記録されるため、次の job の cache hit で再び解決できず主経路は赤のまま残る。
+  射程を 2 クラスへ広げる裁定はユーザー手番であり、本 wave は裁定済みの範囲だけを land して
+  代案へ戻さない。
+  base: 32d3b7d703a742703ac4fdc1d6c093a09aec278aef2dc261638a907693311cac
+
+- [T-2043] **P1・[T-2027] の根クラス 1 是正が land 済み → 同項の射程裁定待ち**: 原因は T-2027 と
+  同一の validator defect で、D1192 の同じ変更単位で閉じる (別 ID のまま維持)。
+  `_external_entry()` が絶対 path を `resolve(strict=True)` できず落ちていた経路は、
+  根相対 path + 現 canonical base への再束縛に置き換わった。ただし本項を閉じるには
+  根クラス 2 の扱いが決まる必要があり、その後に床値 job を 1 回再投入して binary admission
+  receipt の発行段を実際に通過することを観測する。前 wave の job 再投入条件 (焦点検査・
+  関連全走・事前登録変異の全 kill・docs/codex/provenance 検査が緑) は本 wave で満たした。
+  base: 737db6955a86693ad8faabe86f8fddb8241d5cd41dc9dd29ba058afe2078fc4d
 
 ### 新規
 
