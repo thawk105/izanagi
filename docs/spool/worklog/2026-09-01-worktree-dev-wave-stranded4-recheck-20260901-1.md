@@ -38,5 +38,22 @@ title: 取り残し branch 4 本を base main で再判定し、3 経路すべ�
   `60c758a86` `8b677a197` が main の祖先でないことを添えた。`docs/spool/` の外に置くため
   fold の入力にはならない。
 - branch の削除はユーザー指示に従い 0 件。4 本とも ref のまま残した。
+- **受入全走は本 wave と無関係の決定的赤で止まり、land していない。** tip `f3093622b` の受入
+  (01:18 JST 投入) は shard 3 本のうち shard-0 だけが赤で、rc は 16
+  (`dispatch-attestation-missing` / `acceptance shard report finalization failed`) だった。
+  内訳は failed 4 + errors 1。failed 4 は `orchestrator/tests/test_codex_reasoning_ab.py` の
+  `_REAL_ROLLOUT` で、repo 外の絶対 path
+  `/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-...jsonl` を読む。
+  **この path は Codex のセッションログ・ローテーションで消えた** —
+  `~/.codex/sessions/2026/` の mtime は 2026-09-01 00:54:20 JST で、`07/` ごと無い。
+  errors 1 は `test_s8c_preregistration_predicates.py` の real-repo fixture lock の
+  `BlockingIOError` (並行 wave との競合)。
+- **決定的であることを単独走で確認した。** 該当 2 test を焦点走 (request `963131.nqsv`、10 秒)
+  したところ同じ `FileNotFoundError` で赤。`find` で `/work/1/SFC/tanab` と `/home/SFC/tanab`
+  を探したが当該 rollout の複製は 1 件も残っていない。本 wave の差分は docs 4 file の追加だけで、
+  これらの test にも `tools/codex_reasoning_ab.py` にも触れていない。
+- rc が 1 でなく 16 のため `non-attributable-only` の受領証経路も使えない。`DW-O18` の
+  「決定的赤は main 既存 F を証拠に hold へ登録、F 不在なら登録せず裁定送り」に従い、
+  hold は登録せず裁定パッケージとして返して `DW-STOP` で停止した。
 
 ## 次の一手差分
