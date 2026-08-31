@@ -4713,6 +4713,48 @@ def test_campaign_chain_reads_legacy_historical_epoch_without_marker(
     )
 
 
+def test_campaign_chain_reads_legacy_layer3_without_current_verifier_conformance(
+    tmp_path: Path,
+) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    assert persisted.pop("current_verifier_conformance") == "unknown"
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    C.assert_campaign_layer3_chain(
+        report=_campaign_report(cell), output_root=output_root,
+    )
+
+
+def test_campaign_chain_rejects_persisted_current_verifier_conformance_mutation(
+    tmp_path: Path,
+) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    assert persisted["current_verifier_conformance"] == "unknown"
+    persisted["current_verifier_conformance"] = "changed"
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[campaign-chain\] persisted layer3 report differs "
+            r"from fresh rebuild$"
+        ),
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
 def test_campaign_chain_accepts_historical_epoch_with_exact_marker(
     tmp_path: Path,
 ) -> None:

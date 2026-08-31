@@ -389,6 +389,10 @@ class HistoricalCampaignView(AdmittedCampaign):
     def verifier_assessment_basis(self) -> str:
         return "recorded-at-original-verifier-epoch"
 
+    @property
+    def current_verifier_conformance(self) -> str:
+        return "unknown"
+
 
 def _is_sha256(value: object) -> bool:
     return (
