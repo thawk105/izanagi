@@ -57,15 +57,23 @@ title: [T-493] sort comparator の閉じた権威集合を入れ、T-2076 は前
 
 ### 更新
 
-- [T-2076] **P1・ユーザー再裁定待ち**: D1271 が名指しした基準 snapshot は T-1574 が先に
-  read-only arena へ移しており、literal な実装対象が存在しない。残る関係行列の出所は
-  D1271 の対象外であり、検討した 3 案はいずれも不成立だった。成立しうるのは受理言語を
-  検証済み IR へ縮め trusted interpreter で評価する案だけで、最小実装ではない。
-  択一は (a) 別 wave の設計として起票、(b) 非保証のまま運用、(c) 別案。
-  詳細は {{D:sort-oracle-relation-provenance-has-no-minimal-fix}}。
+- [T-2076] **P1・向き決定済み → 生死確認を {{T:sort-oracle-ir-liveness}} へ分離**: D1271 が
+  名指しした基準 snapshot は T-1574 が先に read-only arena へ移しており、literal な実装対象が
+  存在しない。残る関係行列の出所は D1271 の対象外であり、検討した 3 案はいずれも不成立だった。
+  ユーザー指示により codex と相談のうえ親が向きを決め、受理言語を検証済み IR へ縮め
+  trusted interpreter で評価する方向を採った ({{D:sort-oracle-takes-verified-ir-direction}})。
+  実装は本 wave で行わず、生死確認を先に置く。
   base: 547f77cdb4134c03b065a404e4a2636918169b631fcb6757bb7813b9f5cd2aea
 
 ### 新規
+
+- {{T:sort-oracle-ir-liveness}} **P1・新規 ([T-2076] の向き決定に伴い分離)**:
+  sort SWO oracle の受理言語を検証済み IR へ縮める方向の**生死確認だけ**を行う。
+  問いは「現行の権威集合 15 件を小さい型付き whitelist IR へ全件表現でき、その trusted
+  evaluator が現行 2 corpus の関係行列を再現し、未知 opcode・型不一致・任意 C++ 文字列を
+  評価前に fail-closed で拒否できるか」。100 行以内の使い捨て driver で確かめる (`DW-G01`)。
+  **偽なら parser・receipt・合成エージェントの変更へ進まない。**
+  真なら本設計を別 wave として起票する。
 
 - {{T:freeze-source-pin-for-binding-modules}} **P3・新規 (段 6 レンズ B の所見を裁定して分離)**:
   凍結文書の source closure が、trigger 軸の束縛実装も sort 軸の権威集合も pin していない。
