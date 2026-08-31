@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-01
 wave: dev-wave-t2080-c4-note-fix
 seq: 1
-title: [T-2080] paper-story C-4 注記の「1 本も走らせていない」を、実行本数と未実行本数の書き分けへ是正した (docs のみ、branch worktree-dev-wave-t2080-c4-note-fix、実装面の差分ゼロにつき変異 matrix は DW-S04 の免除)
+title: [T-2080] paper-story C-4 注記を実行本数の書き分けへ是正し、受入を止めていた消失 corpus の三値 guard も入れた (docs + test、branch worktree-dev-wave-t2080-c4-note-fix、変異 5/5 KILLED)
 ---
 
 ## 本文
@@ -45,18 +45,47 @@ title: [T-2080] paper-story C-4 注記の「1 本も走らせていない」を�
   [T-1969] と 2026-08-30 記録に残るユーザー裁定待ち項目にも踏み込んでいない。
   2026-08-27 注記の「6 枝 × 3 索引 = 18 個の query ID」も書き換えず、新注記の中で
   母数の単位を明示して衝突を解消した。
-- **子は 4 本。** 段 2 plan 1 本、段 3 敵対相談 2 本 (レンズ A = 事実と数値の照合、
-  レンズ B = 文書契約と scope 規律)、段 6 焦点レビュー 1 本。すべて read-only、すべて rc=0 で
-  成果物検査も緑。段 5 の実装子は docs-only のため起動していない。段 6 の fix は 2 行の
-  言い換えだけなので親が当て、焦点再レビューは起動していない。
+- **子は 10 本。** 注記の是正で 4 本 (段 2 plan 1、段 3 敵対相談 2 = レンズ A 事実照合 /
+  レンズ B 文書契約、段 6 焦点レビュー 1)。blocker の裁定と実装で 6 本 (相談 2 = レンズ C
+  失われた証拠と主張の関係 / レンズ D 実装可能性と契約整合、段 5 実装子 1、段 6 敵対レビュー 2、
+  段 6 fix 1。うち実装子と fix の 2 本が workspace-write)。**全 10 本 rc=0、成果物検査も緑。**
+  注記側の段 6 fix は 2 行の言い換えだけなので親が当て、焦点再レビューは起動していない。
 - 焦点走 `orchestrator/tests/test_check_docs.py` = 571 passed / 3 skipped、rc=0
   (Pegasus dispatch request 963206.nqsv)。`python3 tools/check_docs.py` = 違反なし。
-- **受入全走は非帰属の環境赤で止まった。本 wave は land していない。** attempt 1 は
-  `21 error, 5 failed, 19033 passed, 67 skipped` で、赤 26 件はすべて
-  `orchestrator/tests/test_codex_reasoning_ab.py` に集中する。原因は repo の外にある
+- **受入全走が非帰属の環境赤で止まり、ユーザー指示で codex と相談して blocker を裁定・実装した。**
+  attempt 1 は `21 error, 5 failed, 19033 passed, 67 skipped` で、赤 26 件はすべて
+  `orchestrator/tests/test_codex_reasoning_ab.py` に集中した。原因は repo の外にある
   2026-07-29 の実 rollout corpus の消失で、本 wave の編集面とは交わらない。単独再走も同じ
-  26 件で落ちたので flake ではない。既存 F を証拠にできないので `DW-O18` の hold 登録は行わず、
-  裁定へ返した ({{F:historical-rollout-corpus-vanished}})。
+  26 件で落ちたので flake ではない ({{F:historical-rollout-corpus-vanished}})。
+- **blocker の裁定 — codex 2 本と相談し、親が (a) の限定版を採った。** 必要な pinned rollout が
+  物理的に不在のときだけ、それに依存する node を skip する。pin・production 道具の fail-closed 挙動・
+  凍結記録・hold 台帳は 1 つも変えない。**却下したのは 3 案。** (b) repo 内への再凍結は、消えた
+  5 件の exact bytes の復元元が無く、別 session で取り直せば provenance が変わる — 既裁定が
+  「凍結された T-181 の provenance 値を、機構を発火させたいという理由で書き換えてはならない」と
+  明記している。(c) hold 登録は、決定的な入力不在が flake ではないうえ `DW-O18` の既存 F 要件を
+  満たさない。(d) 放置は、main が 4 時間動かず別 wave 3 本も同じ赤で止まっていた。
+- **判定は三値にした。** (1) ID が解決し pin された SHA-256 とも一致 → 実行、(2) 必要な ID が不在 →
+  専用の不在例外を経て fixture 側 adapter だけが skip、(3) SHA 不一致・重複・標準名の読取不能や
+  形式不正 → 赤。**帰属できない破損は production の `_find_rollout` 自身が候補と見なさないので
+  不在として扱う。** この境界はコメントで明記し、両側を回帰で固定した。
+- **敵対レビュー 2 本が、実装の恒真性を独立に検出した。** 初版は分類と `pytest.skip` を同じ関数で
+  行っていたため、「不正を不在扱いにする」変異を当てると**負例テスト自身が skip になり赤にならない**。
+  `pytest.skip.Exception` は `BaseException` 直系で `pytest.raises(ValidationError)` に捕まらない。
+  レビュー B はさらに、入れ子 pytest による配線確認が**内側で自前 fixture を定義していて
+  production の結線を検査していない**ことを見つけた。どちらも fix で直した。
+- **レビュー A の「非標準名の破損も赤にせよ」は修正して採用した。** production 自身が帰属できない
+  file を候補と見なさない以上、そこは仕様の境界であって赤へ倒す変更ではない。境界の明記と
+  両ケースの回帰固定に置き換えた。
+- **変異走が、レビューでは見えなかった等価変異を暴いた。** 事前登録した 5 件のうち m05
+  (重複を不在扱い) は SURVIVED だった — 別層の `named_candidate_exists` が先に不正と判定するため
+  挙動が変わらない。`DW-M02` に従い初回結果を消さず、両層をまとめて破る m05b (条件を `rc` だけへ潰す)
+  へ再照準して probe を取り直した。**本走は 5/5 KILLED、baseline PASSED、期待 node も完全一致
+  (matching=5)。** 期待 node は probe で観測してから登録した。
+- 実装子・fix 子はいずれも計算ノードへ dispatch できず (`rc=16`)、**両方とも「実装済み・未実走」と
+  正しく申告した。実測はすべて親が行った。**
+- 焦点走 `orchestrator/tests/test_codex_reasoning_ab.py` = **608 passed / 28 skipped、rc=0**
+  (guard 適用前は 5 failed / 21 error)。skip 数 28 は、レビュー A が親と実装子の「26 node」を
+  訂正した値と一致する。レビュー B が指摘した collection 系メタテスト 4 node も緑。
   差分は `docs/paper-story/README.md` への 45 行追加のみで、削除は 0 行。凍結物
   (`2026-08-26.md` / `2026-08-23.md` / `figures/**` / `claim-evidence/2026-08-26.md` /
   `docs/related-work/claim-survey/` の各 artifact)、版の履歴表、既存の他注記、恒久 erratum の節は
