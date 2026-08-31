@@ -10108,6 +10108,29 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `submission-disabled.json` を武装させ、その解除もユーザー手番になるため)。
 
 - **再発: 2026-08-28** — T-1934の段7でcommitとfull-history provenanceを同じ短い前景commandへ繋ぎ、dispatch親だけを打ち切ってrequest `953513.nqsv`とorphan holdを残した。qdelせず終端を待ち、child未起動のqueue-wait-timeoutとsource clean/HEAD不変を確認した。holdは回復処理が解除し、監査は単独commandで再走して新規違反なしを得た。既存恒久対応に修正すべき新事実はない。
+
+- **再発: 2026-08-31** — T-2027/T-2043 の受入全走 attempt 2 が
+  `dispatch-attestation-missing` (`raw_child_rc=16`、待ち手は `rc=70 source_rc=16`) で戻り、
+  テストを 1 件も走らせなかった。shard-0 の dispatch が request `957885.nqsv` の
+  orphan hold を立て、launcher は `runner binding report count mismatch` を報告した。
+  qstat では当該 request は既に存在せず (終端)、作業ツリーは clean だったので hold を撤去し、
+  attempt 3 を投げた。**attempt 3 も同じ `rc=16` で戻り、3 shard すべての dispatcher log が
+  `Pegasus orphan hold があるため scheduler command を起動しません` だった。**
+- **この再発が足す事実: orphan hold は 2 つの path に書かれ、dispatcher が見るのは片方だけである。**
+  実際に存在したのは `output/pegasus-dispatch/orphan-holds/957885.nqsv.json` と
+  `output/pegasus-dispatch/orphan-hold.json` の 2 つで、**dispatcher が参照して全 shard を
+  止めていたのは後者 (単数形) だった**。attempt 2 の後に前者だけを消したため、hold は
+  解除されておらず attempt 3 は collection (19126 件) まで進んでから 3 shard とも起動せずに終わった。
+  撤去を「1 ファイル」と思い込むと、受入全走 1 回分をそのまま失う。
+- 恒久対応: 撤去前に
+  `find output/pegasus-dispatch -maxdepth 2 -name "*hold*"` で全 path を列挙し、
+  撤去後に同じ列挙が directory だけになることを確認してから再投入する。
+  hold の実 path は推測せず **dispatcher log 本文が名指しする path** を読む
+  (`IZANAGI_DISPATCH_OUTCOME_V1 ... "reason":"orphan-hold"` の直前行)。
+  手動 qdel は行わない — F47 の `submission-disabled.json` を武装させ、解除がユーザー手番になる。
+- 再発検知: 受入や焦点走が `child_started=false` / `kind":"infra"` / `"reason":"orphan-hold"` で
+  戻ったら、上の列挙を 1 回実行する。空でなければ、その走行は負荷でもテストでもなく
+  残存 hold で止まっている。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -12290,6 +12313,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-08-25** — 既存例が「完了したのに carry が未完了と言い続けた」型だったのに対し、本件は **「許可の一部が取り消されたのに carry が許可と言い続けた」型**である点が新しい。[T-425] の carry 本文 (entry 824、2026-08-22) は rr80/rr20 calibration の取得・検証・登録の 3 脚すべてに AI/ツール経路を許していたが、翌 2026-08-23 に別 ID・別 wave ([T-1488]) で land した D716 が**登録の脚だけ**を holdout 解禁まで留保した。D716 は T-425 を引用しないため carry は追随せず、2026-08-25 に「取得・検証・登録」を求める wave が起動した。着手前実測 (`DW-S01` の裁定前提実測、F35 と同じ発火点) が段 1 前に食い違いを露見させ、実害は wave 1 本の空転で止まった。**将来この型を lint 化するとき、closing commit との対応だけを見る検査では取り逃す** — carry 本文が主張する**許可・禁止**が後続 decision で狭められていないかも検査面に要る。局所修復として、同日の worklog エントリで [T-425] の carry 本文を現況へ改めた。
+
+- **再発: 2026-08-31** — 既存例が「完了したのに carry が未完了と言い続けた」型、2026-08-25 の再発が
+  「許可の一部が取り消されたのに carry が許可と言い続けた」型だったのに対し、本件は
+  **「根拠の裁定そのものが上書き廃止されたのに carry が『裁定済み → 実装待ち』と言い続けた」型**
+  である。[T-1985] の carry 本文 (entry 1031、2026-08-27) は D1039 / D1070 を根拠に実装待ちと
+  書いていたが、**同日中に** D1139 (ユーザー裁定) が批准突き合わせを廃止し、本文中で D1039 /
+  D1070 を名指しして「実装不能になり実効を失う」と宣言していた。D1139 は T-1985 を引用しないため
+  carry は追随せず、本文は entry 1111 まで無変更で運ばれ、2026-08-31 にその本文を写した依頼で
+  wave が起動した。着手前実測 (`DW-S01` の裁定前提実測) が段 1 で食い違いを露見させ、実害は
+  実装子を 1 本も起動しないまま docs-only の終端記録へ切り替えたことで止まった。
+  **本件は carry 本文が引く D 番号の生死を見る検査面を要求する** — 既存の恒久対応が挙げる
+  closing commit 対応も、2026-08-25 の再発が足した「許可が後続 decision で狭められていないか」も、
+  **根拠 D 自体が後続 decision に上書きされている**形は取り逃す。局所修復として、本 wave で
+  [T-1985] を終端させ D1318 に射程を記録した。
 ### F429. 大量失敗を伴う変異走行で pytest-xdist の集約・終了処理が host 混雑下で無応答になる [infra不調] [測定汚染]
 
 - 事象: `tools/pegasus/dispatch_compute.py` の `_accounting_present` へ「常に False を返す」
@@ -13648,6 +13685,27 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   偽 clock を注入すると実所要は **0.01 秒**になり、床が消えた。
   この族の判定手順に「決定的な床が無いこと」を先に確かめる段を足すべきである。
   実時間の上界が破れたからといって、原因が負荷とは限らない。
+
+- **再発: 2026-08-28** — 受入全走 2 回 (同一 tip、attempt 1 = 04:07、attempt 2 = 04:21) が
+  いずれも `orchestrator/tests/test_growth_test_holds_contract.py::test_regular_pytest_path_keeps_single_hold_skip`
+  1 件だけで赤になった (どちらも 1 failed / 18319 passed / 62 skipped)。破れたのは
+  同 file の helper `_run_subprocess` の既定 `timeout: float = 10.0` で、
+  `subprocess.run` の budget 切れである。当該 node は実 conftest を読み込む pytest session を
+  subprocess で起動する、同 file で唯一の呼び出しであり、他の 11 呼び出しは `--noconftest` か
+  小さな合成 file を走らせるので桁が違う。**同 node の単独走は緑** — 中断時 4.15 秒、
+  翌日の回収 wave が local main を取り込んだ tip でも `1 passed in 4.25s` / rc=0 で再現しなかった。
+  受入全走は compute job へ shard され約 48 並列の xdist で走るため、4.25 秒の子 session が
+  10 秒を超えるのは容易であり、余裕は 2.35 倍しかなかった。本 wave の差分 (compiler input の
+  根分類と再束縛、4 module) は当該 node の実行経路に入らない — 起動される内側 node が import
+  するのは `s8b_holdout_freeze` だけで、しかも growth hold により skip する。
+- **この再発が族に足す区別: 破れた上界が「検査対象の性質」か「hang 防止の guard」か。**
+  F480 の既存事例 (deadline の絶対性、hook の相対順序) では assert 自身が守りたい性質だったので、
+  上界の設計は所有者の判断として据え置かれた。本件の 10 秒はそうではない — この node の assert は
+  subprocess の終了コードと 3 つの出力 marker だけで、経過時間を一切見ていない。よって
+  当該 1 呼び出しにだけ `timeout=120.0` (実測 4.25 秒の約 28 倍) を渡し、helper 既定の 10.0 秒は
+  他 11 呼び出しのために据え置いた。**受理集合は不変**で、真の hang には従来どおり fail-closed する。
+  上界が性質そのものである node では、この処置は使えない。
+- なお、この赤の hold 登録が構造的に不可能だったことは F766 に別記した。
 ### F481. 別 wave の認証済み除外を絞り込みと誤認し、自分の stale 検査を毎回無効化していた [合成崩れ] [恒真ゲート]
 
 - 事象: 本 wave が新設した flaky registry の「完全 collection か」判定が、main で先に着地した
@@ -19535,3 +19593,84 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   規律を足すのではなく、既存規律が実際に効いた実測として残す。
 - 再発検知: 待ちが戻った直後に `.done` の実在を確かめる手順を守る限り、同じ形で顕在化する。
   「待ちが完了を返した」だけを進行の根拠にした瞬間に破れる。
+
+### F766. 非帰属赤の hold 登録が「exact 関数名を含む F」要求で循環し wave を止めた [手順漏れ] [テスト代表性]
+
+- 事象: T-2027/T-2043 の wave が受入全走を 2 回投入し、いずれも
+  18319 passed / 62 skipped / 1 failed で戻った。唯一の赤は
+  `orchestrator/tests/test_growth_test_holds_contract.py::test_regular_pytest_path_keeps_single_hold_skip`
+  で、本 wave の差分から到達しない node だった。`DW-O18` に従って
+  `orchestrator/tests/flaky_test_holds.py` へ hold を登録しようとしたが登録できず、
+  wave は受入の手前で中断した (2026-08-28)。翌日の回収 wave が原因を特定した。
+- 根本原因: 二つが重なっていた。**(1) 証拠 F の選び違い** — 中断した wave は同型の
+  既存 F として F273 (`test_codex_worker_launch.py` が並行 launcher の負荷で落ちる) だけを見て
+  「exact 関数名を含む F が無い」と結論した。実際の族の正本は F480 (絶対 wall-clock 上界が
+  受入の並列負荷で壊れる) であり、`Thread.join(<秒>)` の上界も順序 assert も同族として
+  既に追記されていた。台帳を主題ではなくファイル名で引いたため、正しい族に当たらなかった。
+  **(2) 構造的な循環** — `flaky_test_holds.py` の field 契約は、`evidence_id` の指す F 節が
+  当該 node の **exact な test 関数名を言及していること**を検査する (`_evidence_section` 照合)。
+  新しい node の再発を F へ land するには受入全走を通す必要があり、その受入を通すには
+  hold が要る。`DW-S07` は 3 台帳の直接編集を禁じ、fragment は land の fold でしか
+  `docs/failures.md` に入らないため、wave の中でこの輪を切ることはできない。
+- 恒久対応: 本件では上界が検査対象の性質ではなく `subprocess.run` の anti-hang guard だったため、
+  hold を登録せず当該 1 呼び出しの予算を広げて閉じた (実体は
+  `orchestrator/tests/test_growth_test_holds_contract.py` の
+  `test_regular_pytest_path_keeps_single_hold_skip` に渡した明示 `timeout=120.0` と、
+  その根拠を書いた同行のコメント)。**この抜け道は上界が性質そのものである node には無い。**
+  契約側の境界をどう変えるかは受理集合に関わるため本 wave では決めず、
+  [T-2095] としてユーザー裁定へ返す。
+- 再発検知: 受入の非帰属赤を hold 登録しようとして「evidence_id が test 関数名を言及していない」で
+  止まったら、まず `docs/failures.md` を**ファイル名でなく破れた assert の主題**
+  (実時間の上界か、イベント順序か、負荷依存か) で引き直し、族エントリが別 F に無いか確かめる。
+  族が正しく当たってもなお exact 関数名が無いなら、それは本エントリの循環に入っている。
+
+### F767. 変異 wrapper が `--out` 未生成の中断でも resume command を表示し、その resume は必ず失敗する [手順漏れ]
+
+- 事象: T-2027/T-2043 の変異走行 attempt 1 が collection 段の手前で child_rc=2 で止まった。
+  wrapper の receipt (`mutation-result-1.json.wrapper-receipt.json`) は
+  `container_preserved: true` / `teardown_completed: false` を記録し、`--out` に指定した
+  `mutation-result-1.json` は**生成されていない** (lock と wrapper receipt だけが残った)。
+  それでも wrapper は `resume command: ...` を stderr へ出したので、その通りに resume すると
+  必ず失敗する。中断した wave は再走経路を探すのに時間を使った。
+- 根本原因: 表示条件と成立条件がずれている。`tools/mutation_worktree.py` の
+  `_print_preserved_resume()` は container を保持したら**無条件に** resume command を出す
+  (`--out` の実在を見ない)。一方 `tools/mutation_harness.py` の `--resume` は既存 ledger を
+  必須にし、`--resume + --attempt-out には既存の symlink でない通常 file が必要` で
+  fail-closed する。`--out` を書く前に死んだ run は、定義上その前提を満たせない。
+- 恒久対応: wrapper の resume command を無条件に信じない。中断後はまず `--out` の実在を
+  確かめ、不在なら resume ではなく `DW-O19` の既存規則どおり **`--out` と `--attempt-out` を
+  新しい path にして再走**する (既存 path は rc=2)。container の保持は evidence 退避のためで
+  あって resume 可能性の証明ではない。
+- 再発検知: 変異走行が非 0 で戻ったら、resume command を読む前に `--out` に指定した path を
+  `ls` する。不在なら resume 経路は成立しないので、新 path での再走を選ぶ。
+
+### F768. policy が pin した submodule oid が主 checkout のローカル branch にしか無く、worktree の受入全走だけが落ちる [テスト代表性] [手順漏れ]
+
+- 事象: T-2027/T-2043 の受入全走 (2026-08-29、tested tip `384e39a68`) が
+  `orchestrator/tests/test_mocc_g2_discriminator.py::test_transaction_watermark_surface_is_trace_guarded_and_post_store`
+  1 件だけで赤になった (1 failed / 18846 passed / 67 skipped)。破れたのは
+  `assert commit_type.returncode == 0` で、`git cat-file -t e9e477ca1b55348ab4530de0b1cf663ce4555290`
+  が submodule で rc=128 (`could not get object info`) を返していた。この oid は
+  `tools/pegasus/mocc_trace_v1_policy.json` の `mocc_trace.new_oid` である。
+- 根本原因: **worktree ごとに submodule の object store が別**である。主 checkout の submodule は
+  `.git/modules/external/ccbench` を指し、worktree の submodule は
+  `.git/worktrees/<name>/modules/external/ccbench` を指す。当該 oid は主 checkout 側にだけ在り、
+  しかも到達経路は upstream ではなく**ローカル branch
+  `izanagi-t1943-mocc-g2-readfrom-witness`** 1 本だけだった (push されていない)。
+  pin 済み submodule commit `511c9538e...` からは到達しない。
+  `tools/dev_wave_submodule_init.py` は docstring どおり "without fetching" で初期化するので、
+  新しい wave worktree にはこの object が入らない。**主 checkout でだけ通り、
+  どの wave worktree でも落ちるテスト**になっていた。
+- 恒久対応: 検出器は当該テスト自身で、object 不在で fail-closed する (恒真ではない)。
+  worktree 側の復旧は、主 checkout の submodule から witness branch を ref ごと持ってくる —
+  `git -C <worktree>/external/ccbench fetch <主 checkout>/external/ccbench
+  izanagi-t1943-mocc-g2-readfrom-witness:refs/heads/izanagi-t1943-mocc-g2-readfrom-witness`。
+  tracked file も submodule pin も変えず、object だけが増える。本 wave はこれで復旧し、
+  同 file 単独走が 22 passed / rc=0 になったことを確認した。
+  **恒久側 (policy の oid を pin 済み commit から到達可能にするか、init tool に provisioning を
+  持たせるか、witness を upstream へ出すか) は受理集合と外部 repo の扱いに関わるため
+  [T-2096] で裁定へ返す。テストは緩めない。**
+- 再発検知: 受入や焦点走が submodule の `git cat-file` / `rev-parse` の rc で落ちたら、
+  同じ oid を主 checkout の submodule で引き、`for-each-ref --contains <oid>` で到達元を見る。
+  ローカル branch しか出てこなければ本エントリの型である。新しい wave worktree を作った直後に
+  一度確かめると、受入 1 回分を失わずに済む。

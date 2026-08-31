@@ -1316,6 +1316,9 @@ def _v2_identity(
     }
     if source_snapshot_sha256 is not None:
         preimage["source_snapshot_sha256"] = source_snapshot_sha256
+        preimage["compiler_input_manifest_schema"] = (
+            s8b_compiler_input.MANIFEST_SCHEMA
+        )
     if compiler_input_policy is not None:
         if compiler_input_policy != "snapshot-and-external-hashes/v1":
             raise BuildCacheError("compiler input policy が不正")
@@ -1391,6 +1394,8 @@ def _collect_compiler_inputs(
         build_dir: str, snapshot_root: str, *, target: str,
         allow_external_inputs: bool,
         expected_evolve_block_sources: Optional[Mapping[str, str]],
+        origin_fetchcontent_masstree_root: str,
+        current_fetchcontent_masstree_root: str,
 ) -> s8b_compiler_input.CompilerInputManifest:
     """Call the production collector with the descriptor-bound policy.
 
@@ -1408,6 +1413,8 @@ def _collect_compiler_inputs(
         (
             "allow_external_inputs" in parameters
             and "expected_evolve_block_sources" in parameters
+            and "origin_fetchcontent_masstree_root" in parameters
+            and "current_fetchcontent_masstree_root" in parameters
         )
         or any(
             parameter.kind is inspect.Parameter.VAR_KEYWORD
@@ -1418,21 +1425,18 @@ def _collect_compiler_inputs(
         kwargs.update({
             "allow_external_inputs": allow_external_inputs,
             "expected_evolve_block_sources": expected_evolve_block_sources,
+            "origin_fetchcontent_masstree_root": (
+                origin_fetchcontent_masstree_root
+            ),
+            "current_fetchcontent_masstree_root": (
+                current_fetchcontent_masstree_root
+            ),
         })
-    elif expected_evolve_block_sources:
+    elif expected_evolve_block_sources or allow_external_inputs:
         raise BuildCacheError(
-            "compiler input collector does not expose EVOLVE-BLOCK bytes proof"
+            "compiler input collector does not expose v2 root binding"
         )
     result = collector(build_dir, snapshot_root, **kwargs)
-    if allow_external_inputs and not supports_policy:
-        if type(result) is not s8b_compiler_input.CompilerInputManifest:
-            return result
-        manifest = dict(result.manifest)
-        manifest["input_policy"] = "snapshot-and-external-hashes/v1"
-        return s8b_compiler_input.CompilerInputManifest(
-            manifest=manifest,
-            manifest_sha256=s8b_compiler_input.manifest_sha256(manifest),
-        )
     return result
 
 
@@ -1589,6 +1593,7 @@ def _validate_v2_entry(
         source_snapshot_root: Optional[str] = None,
         compiler_target: Optional[str] = None,
         expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
+        current_compiler_input_masstree_root: Optional[str] = None,
         complete_toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         complete_toolchain_manifest_sha256: Optional[str] = None,
         parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
@@ -1694,8 +1699,16 @@ def _validate_v2_entry(
                         expected_evolve_block_sources=(
                             expected_evolve_block_sources
                         ),
+                        current_fetchcontent_masstree_root=(
+                            current_compiler_input_masstree_root
+                        ),
                     )
                 )
+                if compiler_input_manifest.get("schema_version") != preimage.get(
+                        "compiler_input_manifest_schema"):
+                    raise s8b_compiler_input.CompilerInputError(
+                        "compiler input manifest schema differs from cache preimage"
+                    )
                 if compiler_input_manifest.get("input_policy") != preimage.get(
                         "compiler_input_policy"):
                     raise s8b_compiler_input.CompilerInputError(
@@ -2165,6 +2178,7 @@ def _build_v2_impl(
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
         fetchcontent_archive_sha256: Optional[object] = None,
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
+        current_compiler_input_masstree_root: Optional[object] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -2196,12 +2210,14 @@ def _build_v2_impl(
     する。hit 側でも同じ validator を通す。未指定時は共有 API の従来 caller のため、
     preimage と completion に field を足さず、manifest の採取・照合も行わない。
 
-    Declaration descriptor 経路は compiler-input policy を preimage に固定する。
-    snapshot 内 input は snapshot entry bytes と一致必須、snapshot 外 input は
-    absolute path と bytes hash を記録して snapshot 在籍を要求しない。選択された
-    EVOLVE-BLOCK source がある configuration では、build 前に捕えた snapshot entry
-    hash を build 後の source bytes と比較する。target dependency list への在籍だけを
-    保証にはしない。
+    Declaration descriptor 経路は compiler-input policy と manifest schema を
+    preimage に固定する。snapshot 内 input は snapshot entry bytes と一致必須、
+    FetchContent masstree input は producer origin で分類・収集して、使用時の current
+    canonical root に同じ relative path と hash で再束縛する。その他の filesystem input
+    も root-relative path と bytes hash を記録し、snapshot 在籍を要求しない。選択された
+    EVOLVE-BLOCK source がある configuration では、build 前に捕えた snapshot entry hash
+    を build 後の source bytes と比較する。target dependency list への在籍だけを保証には
+    しない。旧 schema の completion は別 identity のまま移行しない。
 
     この条件分岐は S8b の検査を外せる knob ではない。S8b 境界の receipt 発行器が
     compiler-input manifest を無条件に要求するため、snapshot 無しの binary には receipt
@@ -2253,6 +2269,19 @@ def _build_v2_impl(
         if not isinstance(expected_evolve_block_sources, Mapping):
             raise TypeError("expected_evolve_block_sources は Mapping が必要")
         expected_evolve_block_sources = dict(expected_evolve_block_sources)
+    canonical_compiler_input_masstree_root = None
+    if current_compiler_input_masstree_root is not None:
+        try:
+            canonical_compiler_input_masstree_root = str(
+                s8b_compiler_input._strict_root(
+                    current_compiler_input_masstree_root,
+                    label="current compiler-input masstree root",
+                )
+            )
+        except s8b_compiler_input.CompilerInputError as exc:
+            raise BuildCacheError(
+                f"current compiler-input masstree root が不正: {exc}"
+            ) from exc
     if type(trace) is not bool:
         raise TypeError(f"trace は bool でなければならない: {trace!r}")
     if declared_use_class == "official" and expected_toolchain_manifest is None:
@@ -2454,6 +2483,9 @@ def _build_v2_impl(
                     if source_snapshot_sha256 is not None else None
                 ),
                 expected_evolve_block_sources=expected_evolve_block_sources,
+                current_compiler_input_masstree_root=(
+                    canonical_compiler_input_masstree_root
+                ),
                 complete_toolchain_manifest=complete_toolchain_manifest,
                 complete_toolchain_manifest_sha256=complete_toolchain_manifest_sha256,
                 parent_fd=parent_fd, bdir_name=bdir_name,
@@ -2573,10 +2605,18 @@ def _build_v2_impl(
 
             compiler_input_manifest = None
             compiler_input_manifest_sha256 = None
+            effective_root = None
             if source_snapshot_sha256 is not None:
                 # .o.d は staging 破棄後に失われる。build 成功と同じ lifetime 内で
-                # strict metadata を採り、snapshot bytes へ束縛する。
+                # strict metadata と実効 masstree origin を同じ lifetime 内で採る。
                 try:
+                    effective_root = _masstree_source_root_from_cmake_cache(
+                        staging
+                    )
+                    validation_root = (
+                        canonical_compiler_input_masstree_root
+                        or effective_root
+                    )
                     compiler_inputs = _collect_compiler_inputs(
                         staging, sub,
                         target=f"ycsb_{genome.protocol}.exe",
@@ -2584,6 +2624,8 @@ def _build_v2_impl(
                         expected_evolve_block_sources=(
                             expected_evolve_block_sources
                         ),
+                        origin_fetchcontent_masstree_root=effective_root,
+                        current_fetchcontent_masstree_root=validation_root,
                     )
                     if type(compiler_inputs) is not (
                             s8b_compiler_input.CompilerInputManifest):
@@ -2599,8 +2641,15 @@ def _build_v2_impl(
                             expected_evolve_block_sources=(
                                 expected_evolve_block_sources
                             ),
+                            current_fetchcontent_masstree_root=validation_root,
                         )
                     )
+                    if compiler_input_manifest.get(
+                            "schema_version") != preimage.get(
+                                "compiler_input_manifest_schema"):
+                        raise s8b_compiler_input.CompilerInputError(
+                            "compiler input manifest schema differs from cache preimage"
+                        )
                     if compiler_input_manifest.get(
                             "input_policy") != preimage.get(
                                 "compiler_input_policy"):
@@ -2623,7 +2672,10 @@ def _build_v2_impl(
 
             masstree_source_root_sha256 = ""
             if dependency_receipt is not None:
-                effective_root = _masstree_source_root_from_cmake_cache(staging)
+                if effective_root is None:
+                    effective_root = _masstree_source_root_from_cmake_cache(
+                        staging
+                    )
                 masstree_source_root_sha256 = hashlib.sha256(
                     effective_root.encode("utf-8")
                 ).hexdigest()
@@ -2781,6 +2833,7 @@ def build_v2(
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
         fetchcontent_archive_sha256: Optional[object] = None,
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
+        current_compiler_input_masstree_root: Optional[object] = None,
 ) -> BuildResult:
     """Build through the declaration gate only at the real compiler boundary.
 
@@ -2827,6 +2880,9 @@ def build_v2(
         "fetchcontent_dependency_receipt": fetchcontent_dependency_receipt,
         "fetchcontent_archive_sha256": fetchcontent_archive_sha256,
         "post_oracle_dependency_binding": post_oracle_dependency_binding,
+        "current_compiler_input_masstree_root": (
+            current_compiler_input_masstree_root
+        ),
     }
     if expected_materialization_descriptor is None:
         return _build_v2_impl(

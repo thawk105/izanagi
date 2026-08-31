@@ -1,0 +1,24 @@
+# [T-2027]/[T-2043] 段 1 brief
+
+- scope: D1192 が採用した、compiler input manifest の根分類・根相対 path・使用時の canonical base 再束縛だけを実装する。
+- 裁定: repo 外の rulings 控えは未裁定資料であり、canonical D1192 の択 (1) を正とする。
+- 統合根拠: job 952615 / 952631 は同じ v2 cache completion、同じ validator、同じ descriptor policy、同じ 31 件の FetchContent 入力で同文拒否した。
+- 不変条件: snapshot 内入力は現行どおり snapshot bytes と再照合する。
+- 不変条件: snapshot 外入力も現在の正規 base へ strict に束縛し、実在・non-symlink regular・hash 一致を全件要求する。
+- 禁止: 欠落 external input の受理、strict resolve の一律撤去、stale entry の cache miss 降格、cache 受理集合の拡大をしない。
+- 禁止: D1136 の snapshot 内外境界、D424 の同一 tree 要求、絶対規律 2 を緩めない。
+- 成果物影響: 未修理では binary admission receipt が 0 件のまま床値測定へ進めず、T-1981 の実機終端も閉じない。
+- 成果物影響: 誤修理では別 root の同名 header または欠落 header を受理し、receipt の proof chain が偽になる。
+- 実証済み入力: 952615 / 952631 とも snapshot 39、dependency prefix 7、system 511、FetchContent base 31。
+- durable manifest: buildcache completion は既発行。失敗 job の binary admission receipt は未発行で、既存 receipt bytes は書き換えない。
+- producer bytes: buildcache completion JSON の compiler_input_manifest とその SHA。
+- consumer bytes: cache-hit validation、fresh-build validation、binary admission receipt 発行時 validation、portable receipt の構造検証。
+- 実アンカー: `orchestrator/campaign/s8b_compiler_input.py` の entry 正規化・収集・再束縛・hash 検証。
+- 実アンカー: `orchestrator/campaign/buildcache.py` の collector context、fresh/hit validator context、completion/result 搬送。
+- 実アンカー: `orchestrator/campaign/s8b_binary_admission.py` と `s8b_floor_campaign.py` の receipt 発行 context。
+- 実アンカー: `orchestrator/tests/test_s8b_compiler_input.py`、`test_buildcache_v2.py`、`test_s8b_binary_admission.py`、`test_s8b_floor_campaign.py`。
+- pin 閉包: manifest SHA は completion と receipt subject/proof が保持し、schema/policy 逐語は buildcache と複数 fixture が固定する。
+- 受入: Pegasus login では `tools/run_tests.py` 経由の焦点検査・関連全走だけを行い、性能本走は job 再投入まで行わない。
+- job 再投入: 焦点検査と事前登録変異が修理の検出力を確認した後に限る。
+- 分割: 段 2 plan 1 本、段 3 敵対相談 2 本、D95 author 1 本、段 6 敵対レビュー 2 本。manager は実装面を編集しない。
+- (P1) root taxonomy と validator へ渡す canonical base の最小 API は親の provisional 裁定であり、段 2・3 の攻撃対象とする。
