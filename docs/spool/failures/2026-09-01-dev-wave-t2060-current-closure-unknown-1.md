@@ -31,6 +31,27 @@ seq: 1
   consumer**を参照関係で引き、legacy omission の正規化機構があるなら新 field を登録したかを
   確認する。保存済み実成果物を 1 件開いて top-level key を数えるのが最も速い。
 
+### {{F:acceptance-depends-on-expiring-home-sessions}}. 受入全走が、保持期限で消えるホーム配下の実 session に依存していた [テスト代表性] [手順漏れ]
+
+- 事象: [T-2060] の受入全走が `21 error, 5 failed, 19043 passed, 67 skipped` で赤になった。
+  赤は全件 `orchestrator/tests/test_codex_reasoning_ab.py` で、本文は
+  `session 019fac6b-... rollout count is 0, expected 1` (21 件) と
+  `FileNotFoundError: /home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-...jsonl`
+  (5 件のうち 4 件) である。
+- 根本原因: 同 test file は `_HISTORICAL_SESSIONS = Path("/home/SFC/tanab/.codex/sessions")` と
+  **repo 外のホーム配下 directory を絶対 path で焼き込み**、2026-07-29 の実 rollout を読む。
+  この directory は Codex 側の保持期限で失効する。実測すると
+  `/home/SFC/tanab/.codex/sessions/2026/07` は**空**で、親 `2026/` の mtime は
+  **2026-09-01 00:54:20 JST** — 当日の受入投入 (01:52) の約 1 時間前に 07 が削除されている。
+  残るのは `08` (31 日分) と `09` だけで、**日ごとに失効が進む**。
+- **これは特定 wave の問題ではない。** 期限切れ以降に受入全走を投げるすべての wave が
+  同じ赤を受け取る。00:54 より前に着地した wave が緑だったのは、失効前だったからである。
+- 恒久対応: **未定 (ユーザー裁定待ち)。** 親は次のいずれも行わなかった —
+  テストの弱体化、`flaky_test_holds.py` への登録 (DW-O18 は main 既存 F を証拠に要求し、
+  本件に該当する F は存在しない)、決定的な赤に対する受入再走 (lease 窓を捨てるだけである)。
+- 再発検知: 受入の赤が `test_codex_reasoning_ab.py` に集中し、本文が
+  `~/.codex/sessions` の path を含むなら、まず当該日の directory の実在を確かめる。
+
 ## 再発
 
 ### F1
