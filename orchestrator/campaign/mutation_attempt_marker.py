@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import re
-import socket
 import stat
 from collections.abc import Mapping
 from pathlib import Path
@@ -173,11 +172,6 @@ def _path_within(path: Path, root: Path) -> bool:
     return True
 
 
-def _first_label(hostname: str) -> str:
-    normalized = hostname.lower().rstrip(".")
-    return normalized.split(".", 1)[0] if normalized else ""
-
-
 def require_local_attempt_marker(
     *,
     normalize_request_id: Callable[[str], str],
@@ -249,10 +243,12 @@ def require_local_attempt_marker(
     if binding["hostname"] != compute_marker["hostname"]:
         raise MutationAttemptMarkerError("hostname が compute-visible.json と不一致です")
     try:
-        current_hostname = socket.gethostname()
+        current_hostname = site_policy.socket.gethostname()
     except Exception as exc:
         raise MutationAttemptMarkerError("現在の hostname を取得できません") from exc
-    if _first_label(binding["hostname"]) != _first_label(current_hostname):
+    if site_policy._first_label(binding["hostname"]) != site_policy._first_label(
+        current_hostname
+    ):
         raise MutationAttemptMarkerError("hostname が現在の compute node と不一致です")
     if hashlib.sha256(request_bytes).hexdigest() != binding["request_sha256"]:
         raise MutationAttemptMarkerError("request.json SHA-256 が marker と不一致です")
