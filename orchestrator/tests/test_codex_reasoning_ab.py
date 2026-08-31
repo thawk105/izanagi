@@ -820,15 +820,10 @@ def _write_pinned_rollout_stub(sessions_root: Path, label: str) -> Path:
 
 
 @pytest.fixture(scope="module")
-def pinned_historical_rollouts() -> None:
-    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
-
-
-@pytest.fixture(scope="module")
 def benchmark_snapshots(
-    pinned_historical_rollouts: None,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> dict[str, Any]:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     root = tmp_path_factory.mktemp("t181-benchmark")
     base = root / "base"
     destinations = {case: root / case.lower() for case in ("POS", "NEG")}
@@ -3202,9 +3197,9 @@ def test_m1_snapshot_head_pin_is_independent(
 
 
 def test_m2_production_golden_requires_both_routes(
-    pinned_historical_rollouts: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     called = False
     original = TOOL._compare_golden_routes
 
@@ -8652,10 +8647,10 @@ def test_m20_render_prompt_binds_external_task_manifest(
 @pytest.mark.parametrize("replacement_count", [0, 9, 10])
 def test_prompt_replacement_count_zero_expected_and_excess(
     replacement_count: int,
-    pinned_historical_rollouts: None,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     source_rollout = _REAL_ROLLOUT
     TOOL._verify_rollout_sha(source_rollout, "POS")
     canonical_message = TOOL.extract_user_message(source_rollout)
