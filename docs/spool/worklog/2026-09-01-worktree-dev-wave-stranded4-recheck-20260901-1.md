@@ -55,5 +55,33 @@ title: 取り残し branch 4 本を base main で再判定し、3 経路すべ�
 - rc が 1 でなく 16 のため `non-attributable-only` の受領証経路も使えない。`DW-O18` の
   「決定的赤は main 既存 F を証拠に hold へ登録、F 不在なら登録せず裁定送り」に従い、
   hold は登録せず裁定パッケージとして返して `DW-STOP` で停止した。
+- **ユーザー指示「codex と相談して決めて」に従い read-only codex 2 レンズへ並列相談し、
+  親が段 1 で書いた推奨を撤回した。** 逐語は `verbatim/s3-consult-a-sol.md` と
+  `verbatim/s3-consult-b-luna.md`、裁定は `adjudication-rollout-blocker.md`。
+  両レンズとも `check_codex_output.py` rc=0。所要は 1 本あたり約 4 時間。
+- 親の当初推奨「現存 rollout へ pin を張り替える」は不採用。両レンズが独立に退けた。
+  レンズ A は「規律 7 の第一 bullet 単独では禁じない。効くのは『記録はやめない』と
+  『過去の判定は追記でのみ訂正する』の 2 条」とし、**親の禁止根拠の当て方が拡大解釈**
+  だったと指摘した。結論は同じだが理由づけが誤っていた。レンズ B は、POS hash を変えると
+  manifest 全体の SHA が変わり 33 production 関数の既定 manifest と全 receipt の
+  `task_manifest_sha256` が連鎖し、既存 digest 成果物が `_require_task_manifest_sha256` に
+  拒否されること、`snapshot.numstat` が rollout から導出されない別の frozen literal である
+  ことを示した。**張り替えは局所修正ではなく別測定である。**
+- **レンズ B の BLOCKER 2 件を親の実測が上書きした。** (1)「依存閉包は 24 test 関数」は
+  推測で、受入の failure digest が `failures=5 selected=5 omitted_failures=0` と切り捨てゼロを
+  示し、fixture 利用テストの代表 1 本の焦点走は skipped だった。skip の理由は原本の不在ではなく
+  既存の `IZANAGI_GROWTH_HOLD_V1` (`ruling=2026-08-12 rulings 第 3 束`) である。被害は
+  guard を持たない 2 関数 4 item に限られる。(2)「案 1 に使える既存 hold は無い」は契約の
+  批判としては正しいが、**形の先例は同じ file 内で現に動いていた** — 裁定 ID・exact node id・
+  解除条件・`correctness_gate`・**barrier nodes の名指し**を持つ機械可読 JSON である。
+  新しい axis と field 契約の追加は要るが、機構をゼロから設計する必要は無い。
+- **レンズ A が親の見落としを 1 件出した (BLOCKER)。** `prompt_source` は `sha256` しか literal
+  固定されておらず `replacements` が固定されていない。`replacements` を {0,9,10} の外へ変えると
+  parametrize 3 case すべてが負例になって通る。hold を入れるだけではこの穴が残るため、
+  同じ変更単位で `prompt_source` の dict 全体を固定する。
+- 裁定は案 1 — T-181 の凍結 literal は 1 bit も変えず、原本を読む 2 関数を素の skip でなく
+  明示 hold にし、失うのは「SHA `9b90d510...` の 16 行目が golden だった」の**再検証可能性だけ**
+  と明記する。production の replacement 検査は合成 rollout で hermetic に走らせ続ける。
+  原本 bytes を回収できたら repo 内へ固定して hold を解除する。
 
 ## 次の一手差分
