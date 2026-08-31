@@ -163,8 +163,8 @@ _FOLD_GATE_ENV_FORCE = (
     ("PYTHONDONTWRITEBYTECODE", "1"),
 )
 _FOLD_GATE_DIAGNOSTIC_TAIL_BYTES = 500
-# 母集合は fold gate の 5 node + landing tip の全 tracked export。
-# login node 混雑下・dispatch 経由の同一隔離 tree/serial 実測 max 63.10 秒を 2.0 倍し 5 秒へ切上げ。
+# 母集合は fold gate registry の selected node + landing tip の全 tracked export。
+# 5 node 時の login node 混雑下・dispatch 経由の同一隔離 tree/serial 実測 max 63.10 秒を 2.0 倍し 5 秒へ切上げ。
 _FOLD_GATE_INNER_TIMEOUT_SECONDS = 130.0
 _FOLD_GATE_TERMINATION_GRACE_SECONDS = 10.0
 _FOLD_GATE_OUTER_TIMEOUT_SECONDS = 145.0
