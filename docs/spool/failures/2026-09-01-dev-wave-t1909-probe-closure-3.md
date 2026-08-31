@@ -62,6 +62,9 @@ seq: 3
   `~/.codex/sessions` 配下への `FileNotFoundError` を含むなら本件型である。
   **2 経路あることに注意する** — fixture 経由の閉包解決と、POS session を固定の絶対 path で
   直接読む経路で、後者は fixture を直しても掛からない。
+  **後者の path 束縛は 2026-09-01 の修理でも解けていない** — 固定の絶対 path のまま
+  `is_file()` で条件化されただけで、corpus が別の場所に在る環境では依然として成立しない。
+  hermetic 化 (`CODEX_HOME` の引数化) は恒久対応へ持ち越された。
   `find /home/SFC/tanab/.codex/sessions -name 'rollout-*.jsonl' | wc -l` で母集合を数え、
   `tools/codex_reasoning_ab.py` の `_LEGACY_SESSION_IDS` と `SESSION_IDS` の各 id が
   何件一致するかを個別に数える。0 件の id が本件の対象である。

@@ -94,3 +94,18 @@ repo、job dir、home のいずれにも残っていない。
 **本 wave は local main へ取り込んでいない。** 受入 receipt は発行されていないので、
 この tip を land する経路は開いていない。
 
+### 修理側の到達点 (2026-09-01、並行セッション経由。本 wave は同 file に触れていない)
+
+- 26 件の赤は解消した。所有者の焦点走は `602 passed / 27 skipped / rc=0`。
+  内訳は **25 skip + 1 pass** で、`test_real_rollout_collector_golden_is_source_bound` は
+  file を読む 2 つの assert だけが条件化され、digest 照合・`_validated_usage`・
+  `input_tokens` の検査は無条件で走るため緑のまま残った。被覆が 1 件助かっている。
+- **ただし `_REAL_ROLLOUT` は固定の絶対 path のままで、`is_file()` による条件化だけである。**
+  本 wave が指摘した「POS session を固定の絶対 path で直接読む」構造は解けていない。
+  **今回 rc=0 になったのは corpus がどこにも無いからであって、path が正しく解決されたからではない。**
+  実走が示したのは guard が効くことであって、path 束縛が解けたことではない。
+  この構造は恒久対応の hermetic 化 (`CODEX_HOME` の引数化) へ持ち越された。
+- hold の受け皿が無いのは「未採番の新種 flaky 赤」ではなく「入力が消えて恒久に赤いテスト」の方で、
+  D1160 を実装しても `green_observation` と `green_run_count >= 1` が `evidence_id` とは
+  独立に課されるため今回の型には効かない。ユーザー裁定へ上がっている。
+
