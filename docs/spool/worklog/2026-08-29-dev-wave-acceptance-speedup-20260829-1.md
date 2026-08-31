@@ -51,6 +51,10 @@ title: 受入全走の高速化を 5 軸で評価し、一時領域 I/O 軸を�
   計算ノードへは probe job 1 本 (20 分枠) だけを投入した。
 - ログインノードでの TMPDIR A/B 実走は、他 wave が 32 worker の pytest と変異 harness を
   複数走らせて loadavg 20.75 だったため、単独性を確認できず中止した。値は採っていない。
+- 段 8 の自己改善は候補 2 件をいずれも**既存 F の再発として台帳へ閉じ、dev-wave docs は
+  編集しなかった**。観測 regime と適用対象 regime の差は F29 の 3 例目、単独性未確認のまま
+  A/B を投入したのは F3 の再発である。F29 が 2026-07-28 に「dev-wave docs へ prose を
+  追加せず裁定側へ記録する」で閉じた前例をそのまま維持した (byte 予算は満杯のまま)。
 - 一次資料は `output/insights/2026-08-29_acceptance-speedup-tmpdir/`。
 
 ## 次の一手差分
