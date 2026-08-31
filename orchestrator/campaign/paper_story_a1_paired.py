@@ -73,9 +73,19 @@ from .reservation import (  # noqa: E402
 )
 
 
+POLICY_SCHEMA_V2 = "paper-story-a1-paired-policy/v2"
+POLICY_SCHEMA_V3 = "paper-story-a1-paired-policy/v3"
 POLICY_PATH = Path(__file__).with_name("paper_story_a1_paired.v2.json")
+V3_PILOT_POLICY_PATH = Path(__file__).with_name(
+    "paper_story_a1_paired.v3-pilot.json"
+)
+V3_SIZED_POLICY_PATH = Path(__file__).with_name(
+    "paper_story_a1_paired.v3-sized.json"
+)
 DECLARED_USE_CLASS = "exploration"
 STUDY_ID = "paper-story-a1-20260826-sized-v1"
+V3_PILOT_STUDY_ID = "paper-story-a1-20260901-balanced5-pilot-v1"
+V3_SIZED_STUDY_ID = "paper-story-a1-20260901-balanced5-sized-v1"
 RESULT_SCHEMA = "paper-story-a1-paired-result/v3"
 RECEIPT_SCHEMA = "paper-story-a1-paired-receipt/v3"
 JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-job-terminal/v3"
@@ -106,12 +116,19 @@ _NON_CERTIFYING_RECEIPT_KEYS = frozenset({
     "calibration_sha256",
 })
 PAIRING_DESIGN = "arm-grouped-positional-v1"
+V3_PAIRING_DESIGN = "balanced-a5b5-b5a5-v1"
 ARM_ORDER = ("adaptive", "static10")
 WORKLOAD_ORDER = ("write-heavy", "balanced", "read-heavy")
 EXPECTED_VERIFY_CONFIGS = ("legacy",)
 PIPELINE_RELATIVE_PATH = "orchestrator/campaign/pipeline.py"
 DRIVER_RELATIVE_PATH = "orchestrator/campaign/paper_story_a1_paired.py"
 POLICY_RELATIVE_PATH = "orchestrator/campaign/paper_story_a1_paired.v2.json"
+V3_PILOT_POLICY_RELATIVE_PATH = (
+    "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json"
+)
+V3_SIZED_POLICY_RELATIVE_PATH = (
+    "orchestrator/campaign/paper_story_a1_paired.v3-sized.json"
+)
 JOB_RELATIVE_PATH = "tools/pegasus/paper_story_a1_paired.sh"
 PREREGISTRATION_RELATIVE_PATH = (
     "output/insights/2026-08-26_paper-story-a1-sized-preregistration/README.md"
@@ -121,6 +138,7 @@ SOURCE_RELATIVE_PATHS = (
     POLICY_RELATIVE_PATH,
     PIPELINE_RELATIVE_PATH,
     JOB_RELATIVE_PATH,
+    "orchestrator/calibrator/runner.py",
 )
 NON_CERTIFYING_SOURCE_RELATIVE_PATHS = SOURCE_RELATIVE_PATHS + (
     "orchestrator/campaign/campaign_lock.py",
@@ -134,9 +152,17 @@ MATERIALIZATION_RELATIVE_PATH = Path(
 )
 COMPLETION_MARKER = ".complete.json"
 POLICY_SHA256 = "83b9c1a1ca4cce1e6394ce3338b491b14663427259eb3e129560fe5b50b99b5b"
+V3_PILOT_POLICY_SHA256 = (
+    "4a2012792c4450351f918ce944fd5dd054f4be9a79065d1fd6d36bbce210a767"
+)
+CANONICAL_CCBENCH_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PREREGISTRATION_SHA256 = (
     "c85279e997c7483060f3282836aa4800f473b95fe5f0fc1807431f06a0817fea"
 )
+V3_PILOT_PREREGISTRATION_RELATIVE_PATH: str | None = None
+V3_PILOT_PREREGISTRATION_SHA256: str | None = None
+V3_SIZED_PREREGISTRATION_RELATIVE_PATH: str | None = None
+V3_SIZED_PREREGISTRATION_SHA256: str | None = None
 WORKLOAD_DESIGNS = {
     "write-heavy": {
         "reps": 72,
@@ -179,6 +205,31 @@ RERUN_REASONS = [
     "verify-failure-before-bench",
     "competing-tenant-detected-before-bench",
     "scheduler-or-infrastructure-failure-before-bench",
+]
+V3_INVALID_RULES = [
+    "campaign workload arm set is not exactly its registered variant and baseline",
+    "an arm has anything other than exactly one build attempt",
+    "both arms are not built and verified before the first bench block",
+    "a verify_done is not certified true or its workload tag differs",
+    "a competing-tenant probe is missing, raises, or detects a tenant before any five-rep arm block",
+    "settle is missing, fails, or occurs other than once at workload schedule start",
+    "bench throughput has no point",
+    "bench aggregate CV is undefined",
+    "bench aggregate CV is not computed from every rep of its arm",
+    "bench rounds is not exactly integer one",
+    "bench unstable is not exactly false",
+    "a block has anything other than five positive finite throughput points",
+    "schedule receipt is missing or differs from the frozen seed derivation and physical order",
+    "a workload is interrupted, one-sided committed, or lacks both arm completion records",
+    "trace0 source-routed evidence is incomplete or inconsistent",
+    "CCBench HEAD differs from canonical pin or CCBench tracked files are dirty at a required boundary",
+]
+V3_CCBENCH_BOUNDARIES = [
+    "login-submit-before-intent-and-qsub",
+    "compute-job-body-preflight",
+    "driver-measurement-start",
+    "before-each-trace-and-perf-build",
+    "artifact-consumer-arm-validation-and-materializer-raw-recollection",
 ]
 PREREGISTERED_LIMITATIONS = (
     "- **arm を別々の時間帯で測る交絡は反復数では消えない。** 1 arm の block は 205 rep で約 615 秒に\n"
@@ -669,6 +720,59 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _policy_schema(policy: Mapping[str, object]) -> str:
+    schema = policy.get("schema_version")
+    if schema not in {POLICY_SCHEMA_V2, POLICY_SCHEMA_V3}:
+        raise PaperStoryError("policy schema version is unknown")
+    return str(schema)
+
+
+def _policy_identity(study_id: str) -> tuple[Path, str, str | None]:
+    if study_id == STUDY_ID:
+        return POLICY_PATH, POLICY_RELATIVE_PATH, POLICY_SHA256
+    if study_id == V3_PILOT_STUDY_ID:
+        return (
+            V3_PILOT_POLICY_PATH,
+            V3_PILOT_POLICY_RELATIVE_PATH,
+            V3_PILOT_POLICY_SHA256,
+        )
+    if study_id == V3_SIZED_STUDY_ID:
+        return V3_SIZED_POLICY_PATH, V3_SIZED_POLICY_RELATIVE_PATH, None
+    raise PaperStoryError("study ID is not registered")
+
+
+def _policy_study_id(policy: Mapping[str, object]) -> str:
+    study_id = policy.get("study_id")
+    if type(study_id) is not str:
+        raise PaperStoryError("policy study ID is missing")
+    _policy_identity(study_id)
+    return study_id
+
+
+def _policy_path(policy: Mapping[str, object]) -> Path:
+    return _policy_identity(_policy_study_id(policy))[0]
+
+
+def _policy_relative_path(policy: Mapping[str, object]) -> str:
+    return _policy_identity(_policy_study_id(policy))[1]
+
+
+def _pairing_design(policy: Mapping[str, object]) -> str:
+    pairing = policy.get("pairing")
+    design = pairing.get("design") if type(pairing) is dict else None
+    if type(design) is not str:
+        raise PaperStoryError("policy pairing design is missing")
+    return design
+
+
+def _campaign_schema(policy: Mapping[str, object]) -> str:
+    return (
+        "paper-story-a1-paired-campaign/v1"
+        if _policy_schema(policy) == POLICY_SCHEMA_V2
+        else "paper-story-a1-paired-campaign/v2"
+    )
+
+
 def _workload_plan(
     policy: Mapping[str, object], workload_name: str,
 ) -> Mapping[str, object]:
@@ -682,6 +786,49 @@ def _workload_plan(
     if len(matches) != 1:
         raise PaperStoryError(
             f"policy must contain exactly one workload plan: {workload_name}"
+        )
+    return matches[0]
+
+
+def _workload_arms(
+    policy: Mapping[str, object], workload_name: str,
+) -> list[Mapping[str, object]]:
+    if _policy_schema(policy) == POLICY_SCHEMA_V2:
+        arms = policy.get("arms")
+    else:
+        arms = _workload_plan(policy, workload_name).get("arms")
+    if type(arms) is not list or any(type(arm) is not dict for arm in arms):
+        raise PaperStoryError(f"policy arms are invalid: {workload_name}")
+    return arms
+
+
+def _workload_arm_order(
+    policy: Mapping[str, object], workload_name: str,
+) -> tuple[str, str]:
+    arms = _workload_arms(policy, workload_name)
+    names = tuple(arm.get("name") for arm in arms)
+    if len(names) != 2 or any(type(name) is not str for name in names):
+        raise PaperStoryError(f"policy arm names are invalid: {workload_name}")
+    return names
+
+
+def _workload_arm_by_role(
+    policy: Mapping[str, object], workload_name: str, role: str,
+) -> Mapping[str, object]:
+    if _policy_schema(policy) == POLICY_SCHEMA_V2:
+        legacy_name = {"baseline": "adaptive", "variant": "static10"}.get(role)
+        matches = [
+            arm for arm in _workload_arms(policy, workload_name)
+            if arm.get("name") == legacy_name
+        ]
+    else:
+        matches = [
+            arm for arm in _workload_arms(policy, workload_name)
+            if arm.get("role") == role
+        ]
+    if len(matches) != 1:
+        raise PaperStoryError(
+            f"policy must contain exactly one {role} arm: {workload_name}"
         )
     return matches[0]
 
@@ -717,10 +864,10 @@ def _campaign_scale(
     return {**scale, "reps": _expected_reps(policy, workload_name)}
 
 
-def _validate_policy_semantics(policy: object) -> dict:
+def _validate_policy_v2_semantics(policy: object) -> dict:
     if type(policy) is not dict:
         raise PaperStoryError("policy must be an exact JSON object")
-    if policy.get("schema_version") != "paper-story-a1-paired-policy/v2":
+    if policy.get("schema_version") != POLICY_SCHEMA_V2:
         raise PaperStoryError("policy schema version differs")
     if policy.get("study_id") != STUDY_ID:
         raise PaperStoryError("policy study ID differs")
@@ -801,32 +948,480 @@ def _validate_policy_semantics(policy: object) -> dict:
     return policy
 
 
+def _validate_v3_fraction(
+    value: object, *, numerator: int, denominator: int, label: str,
+) -> None:
+    if value != {"denominator": denominator, "numerator": numerator}:
+        raise PaperStoryError(f"v3 policy {label} differs")
+
+
+def _validate_policy_v3_semantics(policy: object) -> dict:
+    if type(policy) is not dict:
+        raise PaperStoryError("policy must be an exact JSON object")
+    if policy.get("schema_version") != POLICY_SCHEMA_V3:
+        raise PaperStoryError("policy schema version differs")
+    if "arms" in policy or "arm_order" in policy:
+        raise PaperStoryError("v3 policy prohibits top-level arms and arm_order")
+    study_id = policy.get("study_id")
+    if study_id not in {V3_PILOT_STUDY_ID, V3_SIZED_STUDY_ID}:
+        raise PaperStoryError("v3 policy study ID differs")
+    is_pilot = study_id == V3_PILOT_STUDY_ID
+    if policy.get("campaign_schema") != "paper-story-a1-paired-campaign/v2":
+        raise PaperStoryError("v3 campaign schema differs")
+    if policy.get("final_estimate_eligible") is (not is_pilot):
+        pass
+    else:
+        raise PaperStoryError("v3 final estimate eligibility differs")
+
+    workloads = policy.get("workloads")
+    if (
+        type(workloads) is not list
+        or [item.get("name") for item in workloads if type(item) is dict]
+        != list(WORKLOAD_ORDER)
+    ):
+        raise PaperStoryError("v3 workload order or existence differs")
+    expected_variants = {
+        "write-heavy": ("fixed10", 10, "5"),
+        "balanced": ("fixed5", 5, "50"),
+        "read-heavy": ("fixed2", 2, "95"),
+    }
+    common_variant_flags = {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+    }
+    baseline_flags = {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+    }
+    for workload_name in WORKLOAD_ORDER:
+        workload = _workload_plan(policy, workload_name)
+        variant_name, fixed, rratio = expected_variants[workload_name]
+        arms = workload.get("arms")
+        if type(arms) is not list or len(arms) != 2:
+            raise PaperStoryError(
+                f"v3 workload must contain exactly two arms: {workload_name}"
+            )
+        expected_arms = [
+            {
+                "contrast": "minuend",
+                "flags": {"BACKOFF_FIXED": fixed, **common_variant_flags},
+                "name": variant_name,
+                "protocol": "silo",
+                "role": "variant",
+            },
+            {
+                "contrast": "subtrahend",
+                "flags": baseline_flags,
+                "name": "no-backoff",
+                "protocol": "silo",
+                "role": "baseline",
+            },
+        ]
+        if arms != expected_arms:
+            raise PaperStoryError(f"v3 workload arms differ: {workload_name}")
+        reps = workload.get("reps")
+        df = workload.get("df")
+        if (
+            type(reps) is not int
+            or type(df) is not int
+            or df != reps - 1
+            or workload.get("ycsb_rratio") != rratio
+            or type(workload.get("schedule_root_seed")) is not str
+            or _FULL_SHA256.fullmatch(workload["schedule_root_seed"]) is None
+        ):
+            raise PaperStoryError(f"v3 workload plan differs: {workload_name}")
+        if is_pilot:
+            if reps != 60 or set(workload) != {
+                "arms", "df", "name", "pair_indices", "reps",
+                "schedule_root_seed", "ycsb_rratio",
+            }:
+                raise PaperStoryError(f"v3 pilot workload shape differs: {workload_name}")
+        elif (
+            reps < 30
+            or reps % 10 != 0
+            or not _finite_number(workload.get("k"))
+            or float(workload["k"]) <= 0
+            or not _finite_number(workload.get("planned_sigma_tps"))
+            or float(workload["planned_sigma_tps"]) <= 0
+        ):
+            raise PaperStoryError(f"v3 sized workload plan differs: {workload_name}")
+        _pair_indices(policy, workload_name)
+
+    pairing = policy.get("pairing")
+    if type(pairing) is not dict or set(pairing) != {
+        "arm_block_reps", "contrast", "design", "estimand", "group_pairs",
+        "physical_orders", "schedule_receipt_schema", "seed",
+    }:
+        raise PaperStoryError("v3 pairing shape differs")
+    if any((
+        pairing.get("arm_block_reps") != 5,
+        pairing.get("contrast") != "variant-minus-baseline",
+        pairing.get("design") != V3_PAIRING_DESIGN,
+        pairing.get("estimand")
+        != "arithmetic mean of paired differences under the balanced five-rep schedule",
+        pairing.get("group_pairs") != 10,
+        pairing.get("physical_orders") != {
+            "bit_0": "A^5 B^5 B^5 A^5",
+            "bit_1": "B^5 A^5 A^5 B^5",
+        },
+        pairing.get("schedule_receipt_schema")
+        != "paper-story-a1-balanced-schedule-receipt/v1",
+    )):
+        raise PaperStoryError("v3 pairing design differs")
+    seed = pairing.get("seed")
+    redraw = seed.get("all_identical_redraw") if type(seed) is dict else None
+    if (
+        type(seed) is not dict
+        or seed.get("group_preimage")
+        != "a1-balanced5/v1|workload=<name>|group=<zero-based decimal>"
+        or seed.get("group_preimage_prohibits") != ["study ID", "date"]
+        or seed.get("digest") != "SHA-256"
+        or seed.get("order_bit")
+        != "least-significant bit of the SHA-256 digest"
+        or seed.get("concatenation")
+        != "root seed ASCII bytes followed immediately by group preimage UTF-8 bytes"
+        or seed.get("root_seed_encoding")
+        != "64 lowercase hexadecimal ASCII characters"
+        or type(redraw) is not dict
+        or redraw.get("counter_initial") != 0
+        or redraw.get("counter_limit_exclusive") != 16
+        or redraw.get("effective_root_seed_preimage")
+        != "a1-balanced5-redraw/v1|root_seed=<64-lowercase-hex>|counter=<zero-based decimal>"
+        or redraw.get("predicate")
+        != "all workload group order bits are 0 or all workload group order bits are 1"
+        or redraw.get("rule")
+        != "increment the fixed counter and redraw the entire workload bit sequence before observing or selecting any realized schedule"
+        or redraw.get("failure")
+        != "fail-closed when counter reaches 16 without a non-identical bit sequence"
+    ):
+        raise PaperStoryError("v3 seed or all-identical redraw rule differs")
+
+    execution = policy.get("execution")
+    if (
+        type(execution) is not dict
+        or execution.get("bench_max_rounds") != 1
+        or execution.get("schedule_round_definition")
+        != "one complete workload schedule"
+        or execution.get("bench_lock_acquisitions_per_workload") != 1
+        or execution.get("settle") != "once-at-workload-schedule-start"
+        or execution.get("competing_tenant_probe")
+        != "before-each-five-rep-arm-block-fail-closed-workload-abort"
+    ):
+        raise PaperStoryError("v3 execution schedule differs")
+    quality = policy.get("quality")
+    if (
+        type(quality) is not dict
+        or quality.get("aggregate_cv")
+        != "sample standard deviation of all arm rep TPS divided by arithmetic mean of all arm rep TPS"
+        or quality.get("block_cv")
+        != "diagnostic-only and never substituted or averaged for aggregate CV"
+        or quality.get("unstable") != "aggregate_cv > 0.05"
+        or quality.get("throughput_absent")
+        != "bench-no-throughput and abort whole workload"
+        or quality.get("undefined_cv")
+        != "bench-cv-undefined and abort whole workload"
+        or quality.get("unsettled") != "bench-unsettled and abort whole workload"
+    ):
+        raise PaperStoryError("v3 quality gate differs")
+    if policy.get("invalid_rules") != V3_INVALID_RULES:
+        raise PaperStoryError("v3 invalid rules differ")
+    if policy.get("rerun") != {
+        "allowed_reasons": RERUN_REASONS,
+        "closed_enumeration": True,
+        "performance_output_may_not_authorize_rerun": True,
+    }:
+        raise PaperStoryError("v3 rerun rules differ")
+
+    sizing = policy.get("sizing")
+    if type(sizing) is not dict:
+        raise PaperStoryError("v3 sizing policy is missing")
+    _validate_v3_fraction(
+        sizing.get("alpha_c"), numerator=1, denominator=20, label="alpha_c",
+    )
+    _validate_v3_fraction(
+        sizing.get("family_alpha"), numerator=1, denominator=20,
+        label="family alpha",
+    )
+    _validate_v3_fraction(
+        sizing.get("arm_failure_probability"), numerator=1, denominator=120,
+        label="arm failure probability",
+    )
+    _validate_v3_fraction(
+        sizing.get("floor_fraction"), numerator=3, denominator=100,
+        label="floor fraction",
+    )
+    _validate_v3_fraction(
+        sizing.get("required_success_probability"), numerator=4,
+        denominator=5, label="required success probability",
+    )
+    if any((
+        sizing.get("sigma_pair")
+        != "c(one-sided, alpha_c, df = 59) * sd(60 paired differences)",
+        sizing.get("sigma_block")
+        != "sqrt(5) * c(one-sided, alpha_c, df = 11) * sd(12 five-pair block means)",
+        sizing.get("planned_sigma") != "max(sigma_pair, sigma_block)",
+        sizing.get("sqrt_block_size") != "sqrt(5)",
+        sizing.get("upper_factor")
+        != "c(one-sided, alpha_c, df) = sqrt(df / chi-square-quantile(alpha_c, df))",
+        sizing.get("block_mean_count") != 12,
+        sizing.get("pilot_pairs_per_workload") != 60,
+        sizing.get("pilot_pair_blocks") != {
+            "baseline_first": 6,
+            "pairs_per_block": 5,
+            "total": 12,
+            "variant_first": 6,
+        },
+        sizing.get("n_grid") != {
+            "effective_minimum": 30,
+            "maximum": 4096,
+            "maximum_candidate": 4090,
+            "nominal_minimum": 28,
+            "rule": "evaluate operating characteristics only at the actual candidate n",
+            "step": 10,
+        },
+        sizing.get("conditions") != [
+            {"delta_from_baseline_mean": {"denominator": 1, "numerator": 0}, "name": "zero"},
+            {"delta_from_baseline_mean": {"denominator": 50, "numerator": 3}, "name": "positive-six-percent"},
+            {"delta_from_baseline_mean": {"denominator": 50, "numerator": -3}, "name": "negative-six-percent"},
+        ],
+    )):
+        raise PaperStoryError("v3 sizing formula or search grid differs")
+
+    ccbench = policy.get("ccbench_acceptance")
+    if ccbench != {
+        "boundaries": V3_CCBENCH_BOUNDARIES,
+        "build_preflight_required": True,
+        "canonical_pin": CANONICAL_CCBENCH_OID,
+        "parent_submodule_ignore_independent": True,
+        "tracked_clean_required": True,
+        "untracked_files_ignored": True,
+    }:
+        raise PaperStoryError("v3 CCBench acceptance contract differs")
+    preregistration = policy.get("preregistration")
+    if type(preregistration) is not dict or set(preregistration) != {"path", "sha256"}:
+        raise PaperStoryError("v3 preregistration binding shape differs")
+    expected_preregistration = (
+        {
+            "path": V3_PILOT_PREREGISTRATION_RELATIVE_PATH,
+            "sha256": V3_PILOT_PREREGISTRATION_SHA256,
+        }
+        if is_pilot else
+        {
+            "path": V3_SIZED_PREREGISTRATION_RELATIVE_PATH,
+            "sha256": V3_SIZED_PREREGISTRATION_SHA256,
+        }
+    )
+    if preregistration != expected_preregistration:
+        raise PaperStoryError("v3 preregistration binding differs from module pins")
+    prereg_path = preregistration.get("path")
+    prereg_sha = preregistration.get("sha256")
+    if (prereg_path is None) != (prereg_sha is None):
+        raise PaperStoryError("v3 preregistration binding is only partially frozen")
+    if prereg_path is not None and (
+        type(prereg_path) is not str
+        or not prereg_path
+        or type(prereg_sha) is not str
+        or _FULL_SHA256.fullmatch(prereg_sha) is None
+    ):
+        raise PaperStoryError("v3 preregistration binding differs")
+    if not is_pilot:
+        bindings = policy.get("sizing_inputs")
+        if type(bindings) is not dict or set(bindings) != {
+            "pilot_result", "sizing_certificate",
+        }:
+            raise PaperStoryError("v3 sized policy input bindings differ")
+        for label, binding in bindings.items():
+            if (
+                type(binding) is not dict
+                or set(binding) != {"path", "sha256"}
+                or type(binding.get("path")) is not str
+                or type(binding.get("sha256")) is not str
+                or _FULL_SHA256.fullmatch(binding["sha256"]) is None
+            ):
+                raise PaperStoryError(f"v3 sized {label} binding differs")
+    return policy
+
+
+def _validate_policy_semantics(policy: object) -> dict:
+    if type(policy) is not dict:
+        raise PaperStoryError("policy must be an exact JSON object")
+    schema = policy.get("schema_version")
+    if schema == POLICY_SCHEMA_V2:
+        return _validate_policy_v2_semantics(policy)
+    if schema == POLICY_SCHEMA_V3:
+        return _validate_policy_v3_semantics(policy)
+    raise PaperStoryError("policy schema version is unknown")
+
+
 def validate_policy(policy: object) -> dict:
     policy = _validate_policy_semantics(policy)
-    canonical = _read_json(POLICY_PATH)
+    policy_path = _policy_path(policy)
+    canonical = _read_json(policy_path)
     if set(policy) != set(canonical):
         raise PaperStoryError("policy top-level key set differs")
     for key, expected in canonical.items():
         if policy.get(key) != expected:
             raise PaperStoryError(f"policy field differs: {key}")
-    if _sha256_file(POLICY_PATH) != POLICY_SHA256:
-        raise PaperStoryError("tracked policy bytes differ from the preregistered hash")
-    preregistration = _repo_root() / PREREGISTRATION_RELATIVE_PATH
-    if _sha256_file(preregistration) != PREREGISTRATION_SHA256:
+    expected_policy_sha = _policy_identity(_policy_study_id(policy))[2]
+    if (
+        expected_policy_sha is not None
+        and _sha256_file(policy_path) != expected_policy_sha
+    ):
+        raise PaperStoryError("tracked policy bytes differ from the registered hash")
+    preregistration = policy.get("preregistration")
+    prereg_path = preregistration.get("path")
+    prereg_sha = preregistration.get("sha256")
+    if prereg_path is not None and _sha256_file(
+        _repo_root() / prereg_path
+    ) != prereg_sha:
         raise PaperStoryError("human-readable preregistration bytes differ")
     return policy
 
 
-def load_policy() -> tuple[dict, str]:
-    policy = validate_policy(_read_json(POLICY_PATH))
-    return policy, POLICY_SHA256
+def load_policy(study_id: str = STUDY_ID) -> tuple[dict, str]:
+    policy_path, _relative, expected_sha = _policy_identity(study_id)
+    if not policy_path.is_file():
+        raise PaperStoryError(f"registered policy file is missing: {policy_path.name}")
+    policy = validate_policy(_read_json(policy_path))
+    observed_sha = _sha256_file(policy_path)
+    if expected_sha is not None and observed_sha != expected_sha:
+        raise PaperStoryError("tracked policy bytes differ from the registered hash")
+    return policy, observed_sha
 
 
-def genomes(policy: Mapping[str, object]) -> list[Genome]:
+def _load_policy_for_study(study_id: str) -> tuple[dict, str]:
+    """Keep the legacy no-argument loader seam while dispatching new studies."""
+    return load_policy() if study_id == STUDY_ID else load_policy(study_id)
+
+
+def _require_policy_ready_for_execution(policy: Mapping[str, object]) -> None:
+    if _policy_schema(policy) != POLICY_SCHEMA_V3:
+        return
+    preregistration = policy.get("preregistration")
+    if (
+        type(preregistration) is not dict
+        or preregistration.get("path") is None
+        or preregistration.get("sha256") is None
+    ):
+        raise PaperStoryError(
+            "v3 policy preregistration binding is not frozen by the parent"
+        )
+
+
+def _schedule_group_bits(
+    policy: Mapping[str, object], workload_name: str,
+) -> dict[str, object]:
+    if _policy_schema(policy) != POLICY_SCHEMA_V3:
+        raise PaperStoryError("balanced schedule is only defined for policy v3")
+    workload = _workload_plan(policy, workload_name)
+    reps = _expected_reps(policy, workload_name)
+    if reps % 10 != 0:
+        raise PaperStoryError("balanced schedule reps must be a multiple of ten")
+    root_seed = workload.get("schedule_root_seed")
+    if type(root_seed) is not str or _FULL_SHA256.fullmatch(root_seed) is None:
+        raise PaperStoryError("balanced schedule root seed differs")
+    group_count = reps // 10
+    for counter in range(16):
+        effective_seed = root_seed
+        if counter:
+            redraw_preimage = (
+                "a1-balanced5-redraw/v1|"
+                f"root_seed={root_seed}|counter={counter}"
+            )
+            effective_seed = hashlib.sha256(
+                redraw_preimage.encode("utf-8")
+            ).hexdigest()
+        preimages = [
+            f"a1-balanced5/v1|workload={workload_name}|group={group}"
+            for group in range(group_count)
+        ]
+        bits = [
+            hashlib.sha256((effective_seed + preimage).encode("utf-8")).digest()[-1]
+            & 1
+            for preimage in preimages
+        ]
+        if len(set(bits)) > 1:
+            return {
+                "counter": counter,
+                "effective_root_seed": effective_seed,
+                "group_preimages": preimages,
+                "order_bits": bits,
+            }
+    raise PaperStoryError(
+        "balanced schedule redraw reached counter 16 with all-identical bits"
+    )
+
+
+def _balanced_schedule_plan(
+    policy: Mapping[str, object], workload_name: str,
+) -> dict[str, object]:
+    derivation = _schedule_group_bits(policy, workload_name)
+    variant = _workload_arm_by_role(policy, workload_name, "variant")["name"]
+    baseline = _workload_arm_by_role(policy, workload_name, "baseline")["name"]
+    blocks: list[dict[str, object]] = []
+    for group, bit in enumerate(derivation["order_bits"]):
+        pair_orders = (
+            ((variant, baseline), (baseline, variant))
+            if bit == 0 else
+            ((baseline, variant), (variant, baseline))
+        )
+        for within_group, pair_order in enumerate(pair_orders):
+            pair_block = group * 2 + within_group
+            pair_start = pair_block * 5
+            pair_indices = list(range(pair_start, pair_start + 5))
+            for within_pair_block, arm_name in enumerate(pair_order):
+                role = (
+                    "variant" if arm_name == variant else "baseline"
+                )
+                blocks.append({
+                    "arm": arm_name,
+                    "block_number": len(blocks),
+                    "group": group,
+                    "pair_block_number": pair_block,
+                    "pair_indices": pair_indices,
+                    "position_in_pair_block": within_pair_block,
+                    "reps": 5,
+                    "role": role,
+                })
+    return {
+        "blocks": blocks,
+        "competing_tenant_probe": "before-each-block-fail-closed",
+        "derivation": derivation,
+        "physical_orders": policy["pairing"]["physical_orders"],
+        "schedule_receipt_schema": policy["pairing"]["schedule_receipt_schema"],
+        "settle": "once-before-block-zero",
+    }
+
+
+def _source_relative_paths(
+    policy: Mapping[str, object], *, non_certifying: bool,
+) -> tuple[str, ...]:
+    policy_relative = _policy_relative_path(policy)
+    source = tuple(
+        policy_relative if item == POLICY_RELATIVE_PATH else item
+        for item in SOURCE_RELATIVE_PATHS
+    )
+    if not non_certifying:
+        return source
+    return source + NON_CERTIFYING_SOURCE_RELATIVE_PATHS[len(SOURCE_RELATIVE_PATHS):]
+
+
+def genomes(
+    policy: Mapping[str, object], workload_name: str | None = None,
+) -> list[Genome]:
     validate_policy(policy)
+    if workload_name is None:
+        if _policy_schema(policy) == POLICY_SCHEMA_V3:
+            raise PaperStoryError("v3 genomes require an explicit workload")
+        workload_name = WORKLOAD_ORDER[0]
     return [
         Genome(arm["protocol"], dict(arm["flags"]))
-        for arm in policy["arms"]
+        for arm in _workload_arms(policy, workload_name)
     ]
 
 
@@ -864,21 +1459,35 @@ def campaign_config(
     validate_policy(policy)
     contract = contract or p2_2._legacy_linux_contract()
     flags = workload_flags(policy, workload_name)
+    arm_plans = _workload_arms(policy, workload_name)
+    study_id = _policy_study_id(policy)
+    pairing_design = _pairing_design(policy)
     search_config = {
-        "schema": "paper-story-a1-paired-campaign/v1",
-        "study_id": policy["study_id"],
-        "arm_order": list(policy["arm_order"]),
+        "schema": _campaign_schema(policy),
+        "study_id": study_id,
+        "arm_order": [arm["name"] for arm in arm_plans],
         "arms": [
             {
                 "name": arm["name"],
                 "genome": Genome(arm["protocol"], dict(arm["flags"])).canonical(),
             }
-            for arm in policy["arms"]
+            for arm in arm_plans
         ],
         "workload": {"name": workload_name, **flags},
         "scale": _campaign_scale(policy, workload_name),
-        "pairing_design": policy["pairing"]["design"],
+        "pairing_design": pairing_design,
     }
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        search_config["schedule"] = {
+            "arm_roles": {
+                arm["name"]: {
+                    "role": arm["role"],
+                    "contrast": arm["contrast"],
+                }
+                for arm in arm_plans
+            },
+            **_balanced_schedule_plan(policy, workload_name),
+        }
     if type(non_certifying) is not bool:
         raise PaperStoryError("non_certifying selector must be an exact bool")
     if non_certifying:
@@ -892,12 +1501,18 @@ def campaign_config(
         spec_slug=f"paper-story-a1-{workload_name}",
         search_tag="paired",
         spec_content=(
-            "D95 exploratory A-1 static10 minus adaptive, arm-grouped "
-            f"positional comparison, workload={workload_name}"
-        ),
+            (
+                "D95 exploratory A-1 static10 minus adaptive, arm-grouped "
+                "positional comparison"
+            )
+            if _policy_schema(policy) == POLICY_SCHEMA_V2
+            else (
+                "A-1 variant minus baseline under balanced five-rep blocks"
+            )
+        ) + f", workload={workload_name}",
         ccbench_commit=pin.CURRENT_PIN,
         search_config=search_config,
-        trial=policy["study_id"],
+        trial=study_id,
     )
     return ident.bind_environment_contract(cfg, contract)
 
@@ -923,6 +1538,58 @@ def _run_git(repo_root: Path, *args: str) -> str:
             f"git {' '.join(args)} failed rc={proc.returncode}: {proc.stderr.strip()}"
         )
     return proc.stdout.strip()
+
+
+def _assert_ccbench_acceptance(
+    repo_root: Path,
+    policy: Mapping[str, object],
+    *,
+    boundary: str,
+) -> None:
+    """Enforce one named v3 CCBench boundary against the submodule itself."""
+    if _policy_schema(policy) == POLICY_SCHEMA_V2:
+        return
+    if boundary not in {
+        "login-submit",
+        "driver-measurement",
+        "artifact-consumer",
+    }:
+        raise PaperStoryError("CCBench acceptance boundary is unknown")
+    acceptance = policy.get("ccbench_acceptance")
+    expected = (
+        acceptance.get("canonical_pin") if type(acceptance) is dict else None
+    )
+    if expected != CANONICAL_CCBENCH_OID:
+        raise PaperStoryError(f"CCBench {boundary}: policy canonical pin differs")
+    ccbench_root = repo_root / "external" / "ccbench"
+    try:
+        observed = _run_git(ccbench_root, "rev-parse", "HEAD")
+    except PaperStoryError as exc:
+        raise PaperStoryError(
+            f"CCBench {boundary}: cannot resolve submodule HEAD"
+        ) from exc
+    if observed != expected:
+        raise PaperStoryError(f"CCBench {boundary}: canonical HEAD mismatch")
+    try:
+        tracked_status = _run_git(
+            ccbench_root, "status", "--porcelain", "--untracked-files=no"
+        )
+    except PaperStoryError as exc:
+        raise PaperStoryError(
+            f"CCBench {boundary}: cannot inspect tracked status"
+        ) from exc
+    if tracked_status:
+        raise PaperStoryError(f"CCBench {boundary}: tracked files are dirty")
+
+
+def _parent_porcelain(
+    repo_root: Path, policy: Mapping[str, object],
+) -> str:
+    args = ["status"]
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        args.append("--ignore-submodules=all")
+    args.extend(("--porcelain", "--untracked-files=all"))
+    return _run_git(repo_root, *args)
 
 
 def _repo_root() -> Path:
@@ -1039,7 +1706,10 @@ def _validate_submission_intent(
     repo_root: Path,
     source_commit: str,
     attempt: Path,
+    policy: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
+    policy = policy if policy is not None else load_policy()[0]
+    study_id = _policy_study_id(policy)
     if type(value) is not dict or set(value) != {
         "schema_version", "study_id", "source_commit", "attempt_root",
         "qsub_argv", "qsub_options", "source_binding", "intent_sha256",
@@ -1047,18 +1717,20 @@ def _validate_submission_intent(
         raise PaperStoryError("submission intent shape differs")
     expected_argv, expected_options = _canonical_qsub_contract(
         repo_root=repo_root,
-        study_id=STUDY_ID,
+        study_id=study_id,
         source_commit=source_commit,
         attempt=attempt,
     )
     if (
         value.get("schema_version") != SUBMISSION_INTENT_SCHEMA
-        or value.get("study_id") != STUDY_ID
+        or value.get("study_id") != study_id
         or value.get("source_commit") != source_commit
         or value.get("attempt_root") != os.fspath(attempt)
         or value.get("qsub_argv") != expected_argv
         or value.get("qsub_options") != expected_options
-        or not _validate_non_certifying_source_binding(value.get("source_binding"))
+        or not _validate_non_certifying_source_binding(
+            value.get("source_binding"), policy,
+        )
         or value.get("intent_sha256") != _submission_intent_digest(value)
     ):
         raise PaperStoryError("submission intent identity differs")
@@ -1066,7 +1738,7 @@ def _validate_submission_intent(
         repo_root,
         source_commit,
         value["source_binding"],
-        relative_paths=NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        relative_paths=_source_relative_paths(policy, non_certifying=True),
         label="submission intent",
     )
     return dict(value)
@@ -1081,20 +1753,24 @@ def _run_qsub(
     )
 
 
-def _assert_submit_a1_noncertifying_markers() -> None:
+def _assert_submit_a1_noncertifying_markers(
+    policy: Mapping[str, object] | None = None,
+) -> None:
     """Refuse before intent/qsub if the tracked A-1 producer markers drift."""
+    policy = policy if policy is not None else load_policy()[0]
+    study_id = _policy_study_id(policy)
     cfg = CampaignConfig(
         spec_slug="paper-story-a1-submit-marker",
         spec_content="paper-story A-1 submit marker",
         ccbench_commit=pin.CURRENT_PIN,
         search_tag="paired",
         search_config={
-            "schema": "paper-story-a1-paired-campaign/v1",
-            "study_id": STUDY_ID,
-            "pairing_design": PAIRING_DESIGN,
+            "schema": _campaign_schema(policy),
+            "study_id": study_id,
+            "pairing_design": _pairing_design(policy),
             **_a1_noncertifying_marker_fields(),
         },
-        trial=STUDY_ID,
+        trial=study_id,
     )
     if (
         tuple(WORKLOAD_ORDER) != trial_registry.A1_NON_CERTIFYING_WORKLOADS
@@ -1139,12 +1815,15 @@ def _observe_qstat_visibility(request_id: str) -> dict[str, object]:
 def run_submit(args) -> int:
     """Create an intent before direct qsub, then publish one submission receipt."""
     repo_root = _repo_root().resolve(strict=True)
-    policy, _policy_sha = load_policy()
-    _assert_submit_a1_noncertifying_markers()
+    study_id = getattr(args, "study_id", STUDY_ID)
+    policy, _policy_sha = _load_policy_for_study(study_id)
+    _require_policy_ready_for_execution(policy)
+    _assert_submit_a1_noncertifying_markers(policy)
     if args.expected_head != _run_git(repo_root, "rev-parse", "HEAD"):
         raise PaperStoryError("current HEAD differs from expected HEAD")
-    if _run_git(repo_root, "status", "--porcelain", "--untracked-files=all"):
+    if _parent_porcelain(repo_root, policy):
         raise PaperStoryError("working tree is dirty")
+    _assert_ccbench_acceptance(repo_root, policy, boundary="login-submit")
     base = _durable_measurement_base(policy)
     attempt = _validate_attempt_root(Path(args.attempt_root), base)
     base.mkdir(parents=True, exist_ok=True)
@@ -1171,19 +1850,19 @@ def run_submit(args) -> int:
         raise PaperStoryError("submission receipt staging already exists")
     argv, options = _canonical_qsub_contract(
         repo_root=repo_root,
-        study_id=STUDY_ID,
+        study_id=study_id,
         source_commit=args.expected_head,
         attempt=attempt,
     )
     intent = {
         "schema_version": SUBMISSION_INTENT_SCHEMA,
-        "study_id": STUDY_ID,
+        "study_id": study_id,
         "source_commit": args.expected_head,
         "attempt_root": os.fspath(attempt),
         "qsub_argv": argv,
         "qsub_options": options,
         "source_binding": _non_certifying_source_binding(
-            repo_root, args.expected_head,
+            repo_root, args.expected_head, policy,
         ),
     }
     intent["intent_sha256"] = _submission_intent_digest(intent)
@@ -1199,7 +1878,7 @@ def run_submit(args) -> int:
     receipt = {
         "schema_version": SUBMISSION_SCHEMA,
         "route": "direct-qsub",
-        "study_id": STUDY_ID,
+        "study_id": study_id,
         "source_commit": args.expected_head,
         "attempt_root": os.fspath(attempt),
         "request_id": request_id,
@@ -1301,6 +1980,8 @@ def validate_acquisition_receipt(
     policy: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     policy = policy if policy is not None else load_policy()[0]
+    if study_id != _policy_study_id(policy):
+        raise PaperStoryError("acquisition study ID differs from policy")
     if type(receipt) is not dict or set(receipt) != _SUBMISSION_RECEIPT_KEYS:
         raise PaperStoryError("submission receipt shape differs")
     if receipt.get("schema_version") != SUBMISSION_SCHEMA:
@@ -1466,6 +2147,7 @@ def validate_completion_receipt(
     submission_receipt: Mapping[str, object],
     submission_receipt_sha256: str,
     job_terminal_sha256: str,
+    study_id: str = STUDY_ID,
 ) -> dict:
     if type(receipt) is not dict or set(receipt) != {
         "schema_version",
@@ -1482,7 +2164,7 @@ def validate_completion_receipt(
         raise PaperStoryError("scheduler completion receipt shape differs")
     if (
         receipt.get("schema_version") != COMPLETION_SCHEMA
-        or receipt.get("study_id") != STUDY_ID
+        or receipt.get("study_id") != study_id
         or receipt.get("source_commit") != source_commit
         or receipt.get("attempt_root") != trusted_roots.get("attempt_root")
     ):
@@ -1641,7 +2323,9 @@ def _observe_scheduler_terminal(
 def run_complete(args) -> int:
     """Publish only the one-shot scheduler completion receipt."""
     repo_root = _repo_root().resolve(strict=True)
-    policy, _policy_sha = load_policy()
+    study_id = getattr(args, "study_id", STUDY_ID)
+    policy, _policy_sha = _load_policy_for_study(study_id)
+    _require_policy_ready_for_execution(policy)
     attempt = _validate_attempt_root(
         Path(args.attempt_root), _durable_measurement_base(policy),
     )
@@ -1659,13 +2343,14 @@ def run_complete(args) -> int:
         repo_root=repo_root,
         source_commit=args.expected_head,
         attempt=attempt,
+        policy=policy,
     )
     if (
         type(submission) is not dict
         or set(submission) != _SUBMISSION_RECEIPT_KEYS
         or submission.get("schema_version") != SUBMISSION_SCHEMA
         or submission.get("route") != "direct-qsub"
-        or submission.get("study_id") != STUDY_ID
+        or submission.get("study_id") != study_id
         or submission.get("source_commit") != args.expected_head
         or submission.get("attempt_root") != os.fspath(attempt)
         or submission.get("submission_receipt_path")
@@ -1701,7 +2386,7 @@ def run_complete(args) -> int:
         }
     completion = {
         "schema_version": COMPLETION_SCHEMA,
-        "study_id": STUDY_ID,
+        "study_id": study_id,
         "source_commit": args.expected_head,
         "attempt_root": os.fspath(attempt),
         "request_id": request_id,
@@ -1808,17 +2493,29 @@ def _source_binding_for_paths(
     return binding
 
 
-def _source_binding(repo_root: Path, expected_head: str) -> dict:
+def _source_binding(
+    repo_root: Path, expected_head: str,
+    policy: Mapping[str, object] | None = None,
+) -> dict:
+    relative_paths = (
+        SOURCE_RELATIVE_PATHS
+        if policy is None else _source_relative_paths(policy, non_certifying=False)
+    )
     return _source_binding_for_paths(
-        repo_root, expected_head, SOURCE_RELATIVE_PATHS,
+        repo_root, expected_head, relative_paths,
     )
 
 
 def _non_certifying_source_binding(
     repo_root: Path, expected_head: str,
+    policy: Mapping[str, object] | None = None,
 ) -> dict:
+    relative_paths = (
+        NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+        if policy is None else _source_relative_paths(policy, non_certifying=True)
+    )
     return _source_binding_for_paths(
-        repo_root, expected_head, NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        repo_root, expected_head, relative_paths,
     )
 
 
@@ -1837,44 +2534,107 @@ def _classify_difference(mean: float, half_width: float, boundary: float) -> str
 def positional_statistics(
     policy: Mapping[str, object],
     workload_name: str,
-    adaptive: Sequence[object],
-    static10: Sequence[object],
+    baseline: Sequence[object],
+    variant: Sequence[object],
 ) -> dict:
+    """Producer-side signed contrast; the artifact consumer does not call it."""
     expected_reps = _expected_reps(policy, workload_name)
-    for label, values in (("adaptive", adaptive), ("static10", static10)):
+    baseline_arm = _workload_arm_by_role(policy, workload_name, "baseline")
+    variant_arm = _workload_arm_by_role(policy, workload_name, "variant")
+    for label, values in (
+        (baseline_arm["name"], baseline), (variant_arm["name"], variant),
+    ):
         if type(values) is not list or len(values) != expected_reps:
             raise PaperStoryError(f"{label} length differs from workload policy reps")
         if any(not _finite_number(value) or value <= 0 for value in values):
             raise PaperStoryError(f"{label} contains a non-positive finite-number violation")
     pair_indices = _pair_indices(policy, workload_name)
     differences = [
-        float(static10[index]) - float(adaptive[index])
+        float(variant[index]) - float(baseline[index])
         for index in pair_indices
     ]
+    return _statistics_from_signed_differences(
+        policy,
+        workload_name,
+        baseline,
+        variant,
+        differences,
+    )
+
+
+def _consumer_positional_statistics(
+    policy: Mapping[str, object],
+    workload_name: str,
+    arm_tps: Mapping[str, Sequence[object]],
+) -> dict:
+    """Independently recompute variant-minus-baseline from artifact arm roles."""
+    expected_reps = _expected_reps(policy, workload_name)
+    baseline_arm = _workload_arm_by_role(policy, workload_name, "baseline")
+    variant_arm = _workload_arm_by_role(policy, workload_name, "variant")
+    baseline = arm_tps.get(str(baseline_arm["name"]))
+    variant = arm_tps.get(str(variant_arm["name"]))
+    for label, values in (
+        (baseline_arm["name"], baseline), (variant_arm["name"], variant),
+    ):
+        if type(values) is not list or len(values) != expected_reps:
+            raise PaperStoryError(
+                f"artifact consumer {label} length differs from policy reps"
+            )
+        if any(not _finite_number(value) or value <= 0 for value in values):
+            raise PaperStoryError(
+                f"artifact consumer {label} contains invalid throughput"
+            )
+    pair_indices = _pair_indices(policy, workload_name)
+    differences = [
+        float(variant[index]) - float(baseline[index])
+        for index in pair_indices
+    ]
+    return _statistics_from_signed_differences(
+        policy,
+        workload_name,
+        baseline,
+        variant,
+        differences,
+    )
+
+
+def _statistics_from_signed_differences(
+    policy: Mapping[str, object],
+    workload_name: str,
+    baseline: Sequence[object],
+    variant: Sequence[object],
+    differences: Sequence[float],
+) -> dict:
+    expected_reps = _expected_reps(policy, workload_name)
+    pair_indices = _pair_indices(policy, workload_name)
+    baseline_arm = _workload_arm_by_role(policy, workload_name, "baseline")
+    variant_arm = _workload_arm_by_role(policy, workload_name, "variant")
     mean = statistics.fmean(differences)
     variance = (
         sum((value - mean) ** 2 for value in differences)
         / (expected_reps - 1)
     )
     sample_sd = math.sqrt(variance)
-    adaptive_mean = statistics.fmean(float(value) for value in adaptive)
+    baseline_mean = statistics.fmean(float(value) for value in baseline)
     workload = _workload_plan(policy, workload_name)
-    floor_fraction = policy["statistics"]["floor"]["floor_fraction"]
-    boundary = float(floor_fraction) * adaptive_mean
-    k = float(workload["k"])
-    half_width = k * sample_sd / math.sqrt(expected_reps)
-    classification = _classify_difference(mean, half_width, boundary)
-    return {
-        "pairing_design": PAIRING_DESIGN,
-        "contrast": "static10-minus-adaptive",
+    is_v2 = _policy_schema(policy) == POLICY_SCHEMA_V2
+    floor_fraction = (
+        policy["statistics"]["floor"]["floor_fraction"]
+        if is_v2 else 0.03
+    )
+    boundary = float(floor_fraction) * baseline_mean
+    result = {
+        "pairing_design": _pairing_design(policy),
+        "contrast": (
+            "static10-minus-adaptive" if is_v2 else "variant-minus-baseline"
+        ),
         "n": expected_reps,
         "df": expected_reps - 1,
-        "k": k,
         "pairs": [
             {
                 "pair_index": index,
-                "adaptive_tps": float(adaptive[index]),
-                "static10_tps": float(static10[index]),
+                f"{baseline_arm['name']}_tps": float(baseline[index]),
+                f"{variant_arm['name']}_tps": float(variant[index]),
                 "signed_difference_tps": differences[index],
             }
             for index in pair_indices
@@ -1882,17 +2642,29 @@ def positional_statistics(
         "mean_signed_positional_difference_tps": mean,
         "sample_sd_positional_difference_tps": sample_sd,
         "sample_variance_positional_difference_tps2": variance,
-        "adaptive_mean_tps": adaptive_mean,
+        (
+            "adaptive_mean_tps" if is_v2 else "baseline_mean_tps"
+        ): baseline_mean,
         "floor_fraction": float(floor_fraction),
         "floor_boundary_tps": boundary,
+    }
+    if not is_v2 and policy.get("final_estimate_eligible") is False:
+        result.update({
+            "classification": "pilot-sizing-input-only",
+            "final_estimate_eligible": False,
+        })
+        return result
+    k = float(workload["k"])
+    half_width = k * sample_sd / math.sqrt(expected_reps)
+    result.update({
+        "k": k,
         "descriptive_half_width_tps": half_width,
         "descriptive_interval_tps": [mean - half_width, mean + half_width],
-        "classification": classification,
+        "classification": _classify_difference(mean, half_width, boundary),
         "planned_sigma_tps": float(workload["planned_sigma_tps"]),
-        "variance_plan_breach": (
-            sample_sd > float(workload["planned_sigma_tps"])
-        ),
-    }
+        "variance_plan_breach": sample_sd > float(workload["planned_sigma_tps"]),
+    })
+    return result
 
 
 def _finite_number(value: object) -> bool:
@@ -1988,13 +2760,25 @@ def _validate_source_binding_for_paths(
     )
 
 
-def _validate_source_binding(binding: object) -> bool:
-    return _validate_source_binding_for_paths(binding, SOURCE_RELATIVE_PATHS)
+def _validate_source_binding(
+    binding: object, policy: Mapping[str, object] | None = None,
+) -> bool:
+    relative_paths = (
+        SOURCE_RELATIVE_PATHS
+        if policy is None else _source_relative_paths(policy, non_certifying=False)
+    )
+    return _validate_source_binding_for_paths(binding, relative_paths)
 
 
-def _validate_non_certifying_source_binding(binding: object) -> bool:
+def _validate_non_certifying_source_binding(
+    binding: object, policy: Mapping[str, object] | None = None,
+) -> bool:
+    relative_paths = (
+        NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+        if policy is None else _source_relative_paths(policy, non_certifying=True)
+    )
     return _validate_source_binding_for_paths(
-        binding, NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        binding, relative_paths,
     )
 
 
@@ -2324,6 +3108,9 @@ def _validate_arm(
 
     raw_tps = bench.get("tps")
     expected_reps = _expected_reps(policy, workload_name)
+    is_v3 = _policy_schema(policy) == POLICY_SCHEMA_V3
+    if is_v3 and (type(raw_tps) is not list or not raw_tps):
+        errors.append("bench-no-throughput")
     tps_valid = (
         type(raw_tps) is list
         and len(raw_tps) == expected_reps
@@ -2338,6 +3125,11 @@ def _validate_arm(
         errors.append("rounds-not-one")
     if bench.get("unstable") is not False:
         errors.append("unstable-not-false")
+    if is_v3:
+        if not _finite_number(bench.get("cv")):
+            errors.append("bench-cv-undefined")
+        if bench.get("settled") is not True:
+            errors.append("bench-unsettled")
 
     if tps_valid:
         median = statistics.median(float(value) for value in raw_tps)
@@ -2381,7 +3173,7 @@ def _validate_arm(
         )
         or not _valid_physical_frame(build_frame)
         or not _valid_physical_frame(bench_frame)
-        or not _validate_source_binding(source_binding)
+        or not _validate_source_binding(source_binding, policy)
     ):
         errors.append("trace0-source-route-incomplete")
 
@@ -2434,6 +3226,9 @@ def validate_workload_evidence(
     non_certifying_lock: bool = False,
 ) -> dict:
     validate_policy(policy)
+    _assert_ccbench_acceptance(
+        _repo_root(), policy, boundary="artifact-consumer",
+    )
     errors = list(preexisting_errors)
     if workload_name not in WORKLOAD_ORDER:
         errors.append("unexpected-workload")
@@ -2442,10 +3237,11 @@ def validate_workload_evidence(
     if len(arms) != 2:
         errors.append("variant-set-cardinality-not-two")
     names = [arm.get("name") for arm in arms]
-    if names != list(ARM_ORDER):
+    expected_arm_order = _workload_arm_order(policy, workload_name)
+    if names != list(expected_arm_order):
         errors.append("arm-order-or-set-mismatch")
     arm_results = {}
-    for arm_policy in policy["arms"]:
+    for arm_policy in _workload_arms(policy, workload_name):
         matches = [arm for arm in arms if arm.get("name") == arm_policy["name"]]
         if len(matches) != 1:
             errors.append(f"{arm_policy['name']}:arm-missing-or-duplicate")
@@ -2475,8 +3271,12 @@ def validate_workload_evidence(
             stats = positional_statistics(
                 policy,
                 workload_name,
-                arm_results["adaptive"]["raw_tps"],
-                arm_results["static10"]["raw_tps"],
+                arm_results[_workload_arm_by_role(
+                    policy, workload_name, "baseline",
+                )["name"]]["raw_tps"],
+                arm_results[_workload_arm_by_role(
+                    policy, workload_name, "variant",
+                )["name"]]["raw_tps"],
             )
         except PaperStoryError as exc:
             errors.append(f"statistics-invalid:{exc}")
@@ -2504,14 +3304,18 @@ def validate_workload_evidence(
     }
 
 
-def _infer_arm_name(frames: Sequence[Mapping[str, object]], policy: Mapping[str, object]):
+def _infer_arm_name(
+    frames: Sequence[Mapping[str, object]],
+    policy: Mapping[str, object],
+    workload_name: str,
+):
     starts = [frame for frame in frames if frame.get("stage") == STAGE_BUILD_START]
     if not starts:
         return None
     genome = _frame_payload(starts[0]).get("genome")
     matches = [
         arm["name"]
-        for arm in policy["arms"]
+        for arm in _workload_arms(policy, workload_name)
         if Genome(arm["protocol"], dict(arm["flags"])).canonical() == genome
     ]
     return matches[0] if len(matches) == 1 else None
@@ -2572,6 +3376,8 @@ def _validate_campaign_preimage(
         "pairing_design", "promotion_prohibited", "scale", "schema",
         "study_id", "workload",
     }
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        expected_search_keys.add("schedule")
     if set(search) not in (
         expected_search_keys,
         expected_search_keys | {"non_certifying_mode"},
@@ -2588,28 +3394,39 @@ def _validate_campaign_preimage(
             "name": arm["name"],
             "genome": Genome(arm["protocol"], dict(arm["flags"])).canonical(),
         }
-        for arm in policy["arms"]
+        for arm in _workload_arms(policy, workload_name)
     ]
     expected_workload = {"name": workload_name, **workload_flags(policy, workload_name)}
+    study_id = _policy_study_id(policy)
+    arm_order = _workload_arm_order(policy, workload_name)
+    is_v2 = _policy_schema(policy) == POLICY_SCHEMA_V2
+    expected_spec = (
+        "D95 exploratory A-1 static10 minus adaptive, arm-grouped "
+        f"positional comparison, workload={workload_name}"
+        if is_v2 else
+        "A-1 variant minus baseline under balanced five-rep blocks, "
+        f"workload={workload_name}"
+    )
     if any((
         value.get("ccbench_commit") != pin.CURRENT_PIN,
-        value.get("trial") != STUDY_ID,
+        value.get("trial") != study_id,
         value.get("search_tag") != "paired",
-        value.get("spec_content") != (
-            "D95 exploratory A-1 static10 minus adaptive, arm-grouped "
-            f"positional comparison, workload={workload_name}"
-        ),
-        search.get("schema") != "paper-story-a1-paired-campaign/v1",
-        search.get("study_id") != STUDY_ID,
-        search.get("arm_order") != list(ARM_ORDER),
+        value.get("spec_content") != expected_spec,
+        search.get("schema") != _campaign_schema(policy),
+        search.get("study_id") != study_id,
+        search.get("arm_order") != list(arm_order),
         search.get("arms") != expected_arms,
         search.get("workload") != expected_workload,
         search.get("scale") != _campaign_scale(policy, workload_name),
         search.get("measurement_env") != "pegasus",
-        search.get("pairing_design") != PAIRING_DESIGN,
+        search.get("pairing_design") != _pairing_design(policy),
         search.get("formal") is not False,
         search.get("promotion_prohibited") is not True,
     )):
+        return False
+    if not is_v2 and search.get("schedule") != campaign_config(
+        policy, workload_name,
+    ).search_config["schedule"]:
         return False
     if admission_policy is not None:
         try:
@@ -2652,7 +3469,8 @@ def _snapshot_frames(raw: bytes, records, issues) -> list[dict]:
 
 
 def _arm_evidence_from_snapshot(
-    physical_frames: Sequence[Mapping[str, object]], policy: Mapping[str, object]
+    physical_frames: Sequence[Mapping[str, object]], policy: Mapping[str, object],
+    workload_name: str,
 ) -> list[dict]:
     evaluation_stages = {
         STAGE_BUILD_START,
@@ -2695,7 +3513,7 @@ def _arm_evidence_from_snapshot(
             if frame.get("stage") in {STAGE_COMMIT, STAGE_ABORT}
         ]
         arms.append({
-            "name": _infer_arm_name(frames, policy),
+            "name": _infer_arm_name(frames, policy, workload_name),
             "variant": variant,
             "attempt_count": len(attempt_ids),
             "attempts": attempts,
@@ -2703,9 +3521,10 @@ def _arm_evidence_from_snapshot(
             "last_terminal_stage": terminals[-1] if terminals else None,
             "last_stage": frames[-1].get("stage") if frames else None,
         })
+    arm_order = _workload_arm_order(policy, workload_name)
     arms.sort(key=lambda item: (
-        list(ARM_ORDER).index(item["name"])
-        if item["name"] in ARM_ORDER else len(ARM_ORDER),
+        list(arm_order).index(item["name"])
+        if item["name"] in arm_order else len(arm_order),
         str(item["variant"]),
     ))
     return arms
@@ -2859,7 +3678,9 @@ def collect_workload(
         "canonical_preimage": lock_preimage,
         "recomputed_campaign_id": expected_id,
     }
-    arm_evidence = _arm_evidence_from_snapshot(physical_frames, policy)
+    arm_evidence = _arm_evidence_from_snapshot(
+        physical_frames, policy, workload_name,
+    )
     return validate_workload_evidence(
         policy,
         workload_name=workload_name,
@@ -2895,6 +3716,7 @@ def _workload_has_terminal_result(item: object) -> bool:
                 "resolved-above-floor",
                 "bounded-below-floor",
                 "unresolved",
+                "pilot-sizing-input-only",
             }
             and item.get("errors") == []
         )
@@ -2941,11 +3763,11 @@ def assemble_result(
     )
     return {
         "schema_version": RESULT_SCHEMA,
-        "study_id": STUDY_ID,
+        "study_id": _policy_study_id(policy),
         "formal": False,
         "promotion_prohibited": True,
         "authority": "exploratory",
-        "pairing_design": PAIRING_DESIGN,
+        "pairing_design": _pairing_design(policy),
         "policy_sha256": policy_sha256,
         "source_binding": dict(source_binding),
         "reservation_binding": reservation,
@@ -2957,13 +3779,22 @@ def assemble_result(
         "complete": complete,
         "measurement_error": measurement_error,
         "workloads": [_json_safe(dict(item)) for item in workloads],
-        "limitations": [
-            "Arm-grouped ordinal positions are not shared time blocks.",
-            "The preregistered intervals are descriptive, not official confidence intervals.",
-            "No causal effect, population mean, repeatability, or official significance is claimed.",
-            "Source-routed trace0 evidence is not an artifact-standalone proof.",
-            "No cross-workload conclusion is produced.",
-        ],
+        "limitations": (
+            [
+                "Arm-grouped ordinal positions are not shared time blocks.",
+                "The preregistered intervals are descriptive, not official confidence intervals.",
+                "No causal effect, population mean, repeatability, or official significance is claimed.",
+                "Source-routed trace0 evidence is not an artifact-standalone proof.",
+                "No cross-workload conclusion is produced.",
+            ]
+            if _policy_schema(policy) == POLICY_SCHEMA_V2
+            else [
+                "The estimand is the difference under the balanced five-rep schedule, not a carryover-free steady-state direct effect.",
+                "Pilot observations are sizing inputs and are ineligible for the final estimate.",
+                "Source-routed trace0 evidence is not an artifact-standalone proof.",
+                "No cross-workload conclusion is produced.",
+            ]
+        ),
     }
 
 
@@ -2982,7 +3813,7 @@ def _prepare_runtime_roots(roots: Mapping[str, str], env_tag: str) -> None:
 
 def _measurement_intent(
     *, acquisition: Mapping[str, object], repo_root: Path, attempt: Path,
-    source_commit: str,
+    source_commit: str, policy: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     raw = _read_bytes_once(_attempt_intent_path(attempt))
     if raw is None:  # pragma: no cover
@@ -2992,6 +3823,7 @@ def _measurement_intent(
         repo_root=repo_root,
         source_commit=source_commit,
         attempt=attempt,
+        policy=policy,
     )
     if (
         acquisition.get("qsub_argv") != intent["qsub_argv"]
@@ -3083,7 +3915,10 @@ def _validate_observation_intent_binding(
     common_record: Mapping[str, object],
     receipt: Mapping[str, object],
     source_binding: Mapping[str, object],
+    policy: Mapping[str, object] | None = None,
 ) -> None:
+    policy = policy if policy is not None else load_policy()[0]
+    study_id = _policy_study_id(policy)
     roots = receipt.get("roots")
     attempt_root = roots.get("attempt_root") if type(roots) is dict else None
     if type(attempt_root) is not str or not Path(attempt_root).is_absolute():
@@ -3100,10 +3935,12 @@ def _validate_observation_intent_binding(
         raise PaperStoryError("non-certifying submission intent shape differs")
     if (
         intent.get("schema_version") != SUBMISSION_INTENT_SCHEMA
-        or intent.get("study_id") != STUDY_ID
+        or intent.get("study_id") != study_id
         or intent.get("source_commit") != common_record.get("source_commit")
         or intent.get("attempt_root") != attempt_root
-        or not _validate_non_certifying_source_binding(intent.get("source_binding"))
+        or not _validate_non_certifying_source_binding(
+            intent.get("source_binding"), policy,
+        )
         or intent.get("source_binding") != source_binding
         or intent.get("intent_sha256") != _submission_intent_digest(intent)
         or intent.get("intent_sha256") != common_record.get("intent_sha256")
@@ -3261,23 +4098,28 @@ def _validate_non_certifying_observation_contents(
         references[label] = _decode_json_bytes(raw, label)
     result = references["result"]
     receipt = references["receipt"]
+    result_study_id = result.get("study_id") if type(result) is dict else None
+    policy, policy_sha = _load_policy_for_study(result_study_id)
+    study_id = _policy_study_id(policy)
+    policy_relative = _policy_relative_path(policy)
+    preregistration_sha = policy["preregistration"]["sha256"]
     if (
         set(result) != _NON_CERTIFYING_RESULT_KEYS
         or set(receipt) != _NON_CERTIFYING_RECEIPT_KEYS
         or result.get("schema_version") != RESULT_SCHEMA
         or receipt.get("schema_version") != RECEIPT_SCHEMA
-        or result.get("study_id") != STUDY_ID
-        or receipt.get("study_id") != STUDY_ID
+        or result.get("study_id") != study_id
+        or receipt.get("study_id") != study_id
         or result.get("formal") is not False
         or result.get("promotion_prohibited") is not True
         or result.get("authority") != "exploratory"
-        or result.get("pairing_design") != PAIRING_DESIGN
+        or result.get("pairing_design") != _pairing_design(policy)
         or receipt.get("formal") is not False
         or receipt.get("promotion_prohibited") is not True
         or receipt.get("route") != "direct-qsub"
         or receipt.get("policy") != {
-            "path": POLICY_RELATIVE_PATH,
-            "sha256": POLICY_SHA256,
+            "path": policy_relative,
+            "sha256": policy_sha,
         }
         or receipt.get("result") != {
             "path": value["result"]["path"],
@@ -3290,20 +4132,20 @@ def _validate_non_certifying_observation_contents(
     source_binding = value.get("source_binding")
     result_source_binding = result.get("source_binding")
     if (
-        not _validate_non_certifying_source_binding(source_binding)
+        not _validate_non_certifying_source_binding(source_binding, policy)
         or common.get("source_binding_sha256")
         != _sha256_bytes(
             campaign_lock_codec.canonical_json(source_binding).encode("utf-8")
         )
-        or not _validate_source_binding(result_source_binding)
+        or not _validate_source_binding(result_source_binding, policy)
         or receipt.get("source_binding") != result_source_binding
         or common.get("mode")
         != trial_registry.REGISTERED_FORMAL_NON_CERTIFYING_MODE
         or common.get("certifying") is not False
-        or common.get("policy_sha256") != POLICY_SHA256
+        or common.get("policy_sha256") != policy_sha
         or common.get("policy_sha256") != result.get("policy_sha256")
-        or common.get("preregistration_sha256") != PREREGISTRATION_SHA256
-        or common.get("study_id") != STUDY_ID
+        or common.get("preregistration_sha256") != preregistration_sha
+        or common.get("study_id") != study_id
         or common.get("study_id") != result.get("study_id")
         or common.get("source_commit")
         != source_binding.get("measurement_source_commit")
@@ -3315,6 +4157,7 @@ def _validate_non_certifying_observation_contents(
         common_record=common,
         receipt=receipt,
         source_binding=source_binding,
+        policy=policy,
     )
     result_workloads = result.get("workloads")
     if type(result_workloads) is not list or len(result_workloads) != 3:
@@ -3374,6 +4217,7 @@ def _validate_raw_non_certifying_observation_for_completion(
     validated = _validate_non_certifying_observation_contents(sidecar_path)
     common = validated["common_record"]
     receipt = validated["receipt"]
+    policy = _load_policy_for_study(common.get("study_id"))[0]
     roots = receipt.get("roots") if type(receipt) is dict else None
     if (
         type(common) is not dict
@@ -3391,7 +4235,7 @@ def _validate_raw_non_certifying_observation_for_completion(
         _repo_root().resolve(strict=True),
         expected_head,
         validated["source_binding"],
-        relative_paths=NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        relative_paths=_source_relative_paths(policy, non_certifying=True),
         label="non-certifying observation",
     )
 
@@ -3409,11 +4253,13 @@ def _validate_completed_non_certifying_observation(
     expected_head = common.get("source_commit")
     if type(expected_head) is not str:
         raise PaperStoryError("non-certifying final source commit is missing")
+    policy, policy_sha = _load_policy_for_study(common.get("study_id"))
+    study_id = _policy_study_id(policy)
     _verify_current_source_paths(
         repo_root,
         expected_head,
         validated["source_binding"],
-        relative_paths=NON_CERTIFYING_SOURCE_RELATIVE_PATHS,
+        relative_paths=_source_relative_paths(policy, non_certifying=True),
         label="non-certifying observation",
     )
     roots = receipt.get("roots")
@@ -3424,7 +4270,6 @@ def _validate_completed_non_certifying_observation(
     if terminal_raw is None:
         raise PaperStoryError("non-certifying job terminal is missing")
     terminal = _decode_json_bytes(terminal_raw, "non-certifying job terminal")
-    policy, policy_sha = load_policy()
     validate_raw_documents(result, receipt, terminal, policy)
 
     acquisition_binding = receipt.get("submission_receipt")
@@ -3437,7 +4282,7 @@ def _validate_completed_non_certifying_observation(
     trusted_roots = validate_acquisition_receipt(
         acquisition,
         repo_root=repo_root,
-        study_id=STUDY_ID,
+        study_id=study_id,
         source_commit=expected_head,
         request_id=receipt.get("pbs_jobid"),
         pbs_observation=terminal.get("pbs_observation"),
@@ -3476,6 +4321,7 @@ def _validate_completed_non_certifying_observation(
         submission_receipt=acquisition,
         submission_receipt_sha256=acquisition_binding["sha256"],
         job_terminal_sha256=_sha256_bytes(terminal_raw),
+        study_id=study_id,
     )
     if result.get("policy_sha256") != policy_sha:
         raise PaperStoryError("non-certifying final policy hash differs")
@@ -3507,9 +4353,14 @@ def consume_non_certifying_observation(
 
 def run_measurement(args) -> int:
     repo_root = _repo_root()
-    policy, policy_sha = load_policy()
-    if args.study_id != STUDY_ID:
+    policy, policy_sha = _load_policy_for_study(args.study_id)
+    study_id = _policy_study_id(policy)
+    if args.study_id != study_id:
         raise PaperStoryError("study ID differs from the preregistered ID")
+    _require_policy_ready_for_execution(policy)
+    _assert_ccbench_acceptance(
+        repo_root, policy, boundary="driver-measurement",
+    )
     acquisition_path = Path(args.acquisition_receipt)
     if not acquisition_path.is_absolute() or acquisition_path.resolve(
         strict=True
@@ -3536,13 +4387,12 @@ def run_measurement(args) -> int:
         repo_root=repo_root,
         attempt=Path(trusted_roots["attempt_root"]),
         source_commit=args.expected_head,
+        policy=policy,
     )
     if os.fspath(acquisition_path) != trusted_roots["submission_receipt"]:
         raise PaperStoryError("submission receipt path differs from durable topology")
     observed_head = _run_git(repo_root, "rev-parse", "HEAD")
-    porcelain = _run_git(
-        repo_root, "status", "--porcelain", "--untracked-files=all"
-    )
+    porcelain = _parent_porcelain(repo_root, policy)
     current_site = site_policy.current_site()
     roots = validate_measure_environment(
         repo_root=repo_root,
@@ -3568,9 +4418,9 @@ def run_measurement(args) -> int:
         raise PaperStoryError("resolved runtime is not Pegasus compute")
     loaded_calibration = p2_2._assert_matches_calibration(contract)
     _prepare_runtime_roots(roots, contract.env_tag)
-    source_binding = _source_binding(repo_root, args.expected_head)
+    source_binding = _source_binding(repo_root, args.expected_head, policy)
     non_certifying_source_binding = _non_certifying_source_binding(
-        repo_root, args.expected_head,
+        repo_root, args.expected_head, policy,
     )
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
@@ -3603,9 +4453,9 @@ def run_measurement(args) -> int:
         str(ident.campaign_id(cfg)) for cfg in campaign_configs
     )
     projection = trial_registry.issue_a1_registered_noncertifying_projection(
-        study_id=STUDY_ID,
+        study_id=study_id,
         policy_sha256=policy_sha,
-        preregistration_sha256=PREREGISTRATION_SHA256,
+        preregistration_sha256=policy["preregistration"]["sha256"],
         source_commit=args.expected_head,
         workloads=WORKLOAD_ORDER,
         campaign_ids=campaign_ids,
@@ -3647,7 +4497,7 @@ def run_measurement(args) -> int:
 
             def capability_resolver(evidence, *, workload_name=workload_name):
                 generator_input = (
-                    f"paper-story-a1-paired/v1|{STUDY_ID}|{workload_name}|"
+                    f"paper-story-a1-paired/v1|{study_id}|{workload_name}|"
                     f"{evidence.genome_sha256}"
                 ).encode("utf-8")
                 return attest_generator_output(
@@ -3658,7 +4508,7 @@ def run_measurement(args) -> int:
 
             summary = run_campaign(
                 cfg,
-                genomes(policy),
+                genomes(policy, workload_name),
                 perf,
                 contract.env_tag,
                 contract.clocks_per_us,
@@ -3707,7 +4557,7 @@ def run_measurement(args) -> int:
     result_sha = _sha256_file(result_path)
     receipt = {
         "schema_version": RECEIPT_SCHEMA,
-        "study_id": STUDY_ID,
+        "study_id": study_id,
         "formal": False,
         "promotion_prohibited": True,
         "route": "direct-qsub",
@@ -3715,7 +4565,7 @@ def run_measurement(args) -> int:
         "host": socket.gethostname(),
         "recorded_epoch": int(time.time()),
         "policy": {
-            "path": POLICY_RELATIVE_PATH,
+            "path": _policy_relative_path(policy),
             "sha256": policy_sha,
         },
         "source_binding": source_binding,
@@ -3776,14 +4626,20 @@ def _verify_current_source_paths(
 
 def _verify_current_source(
     repo_root: Path, expected_head: str, binding: Mapping[str, object],
+    policy: Mapping[str, object] | None = None,
 ) -> None:
-    if _run_git(repo_root, "status", "--porcelain", "--untracked-files=all"):
+    active_policy = policy if policy is not None else load_policy()[0]
+    if _parent_porcelain(repo_root, active_policy):
         raise PaperStoryError("working tree is dirty before materialization")
     _verify_current_source_paths(
         repo_root,
         expected_head,
         binding,
-        relative_paths=SOURCE_RELATIVE_PATHS,
+        relative_paths=(
+            SOURCE_RELATIVE_PATHS
+            if policy is None
+            else _source_relative_paths(policy, non_certifying=False)
+        ),
         label="raw",
     )
 
@@ -3819,7 +4675,11 @@ def _canonical_workload_wal_layout(
     return CampaignLayout(expected.root)
 
 
-def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, object]) -> None:
+def _revalidate_raw_wals(
+    result: Mapping[str, object], receipt: Mapping[str, object],
+    policy: Mapping[str, object] | None = None,
+) -> None:
+    policy = policy if policy is not None else load_policy()[0]
     roots = receipt.get("roots")
     if type(roots) is not dict or type(roots.get("output_root")) is not str:
         raise PaperStoryError("receipt output root binding is missing")
@@ -3854,7 +4714,7 @@ def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, obj
         if type(campaign_binding) is not dict:
             raise PaperStoryError("workload campaign binding is missing")
         recollected = collect_workload(
-            load_policy()[0],
+            policy,
             workload_name=workload["workload"],
             campaign_id=workload["campaign_id"],
             layout=layout,
@@ -3872,6 +4732,10 @@ def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, obj
 
 def validate_raw_documents(result: object, receipt: object, terminal: object, policy: object):
     validate_policy(policy)
+    study_id = _policy_study_id(policy)
+    pairing_design = _pairing_design(policy)
+    policy_path = _policy_relative_path(policy)
+    policy_sha = _sha256_file(_policy_path(policy))
     if type(result) is not dict or result.get("schema_version") != RESULT_SCHEMA:
         raise PaperStoryError("raw result schema differs")
     if type(receipt) is not dict or receipt.get("schema_version") != RECEIPT_SCHEMA:
@@ -3879,7 +4743,7 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
     if type(terminal) is not dict or terminal.get("schema_version") != JOB_TERMINAL_SCHEMA:
         raise PaperStoryError("job terminal schema differs")
     for document in (result, receipt, terminal):
-        if document.get("study_id") != STUDY_ID:
+        if document.get("study_id") != study_id:
             raise PaperStoryError("raw document study ID differs")
     if (
         result.get("formal") is not False
@@ -3888,15 +4752,15 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         or receipt.get("promotion_prohibited") is not True
     ):
         raise PaperStoryError("exploratory authority flags differ")
-    if result.get("pairing_design") != PAIRING_DESIGN:
+    if result.get("pairing_design") != pairing_design:
         raise PaperStoryError("pairing design differs")
     if result.get("pbs_evidence_scope") != _json_safe(PBS_EVIDENCE_SCOPE):
         raise PaperStoryError("PBS evidence scope disclosure differs")
-    if result.get("policy_sha256") != POLICY_SHA256:
+    if result.get("policy_sha256") != policy_sha:
         raise PaperStoryError("raw result policy hash differs from tracked policy")
     if receipt.get("policy") != {
-        "path": POLICY_RELATIVE_PATH,
-        "sha256": POLICY_SHA256,
+        "path": policy_path,
+        "sha256": policy_sha,
     }:
         raise PaperStoryError("raw receipt policy binding differs")
     expected_workload_reps = {
@@ -3940,13 +4804,18 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
             raise PaperStoryError("result workload is not an object")
         if item.get("valid") is True:
             arms = item.get("arms")
-            if type(arms) is not dict or set(arms) != set(ARM_ORDER):
+            expected_names = _workload_arm_order(
+                policy, item.get("workload"),
+            )
+            if type(arms) is not dict or set(arms) != set(expected_names):
                 raise PaperStoryError("materialized valid workload arm set differs")
-            stats = positional_statistics(
+            stats = _consumer_positional_statistics(
                 policy,
                 item.get("workload"),
-                arms["adaptive"].get("raw_tps"),
-                arms["static10"].get("raw_tps"),
+                {
+                    name: arms[name].get("raw_tps")
+                    for name in expected_names
+                },
             )
             if item.get("statistics") != stats:
                 raise PaperStoryError(
@@ -3985,7 +4854,7 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
     binding = result.get("source_binding")
     if type(binding) is not dict:
         raise PaperStoryError("result source binding is missing")
-    if not _validate_source_binding(binding):
+    if not _validate_source_binding(binding, policy):
         raise PaperStoryError("source binding is incomplete")
     if terminal.get("expected_head") != binding.get("measurement_source_commit"):
         raise PaperStoryError("job terminal expected HEAD differs from source binding")
@@ -4029,6 +4898,7 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
 def _readme(result: Mapping[str, object]) -> str:
     complete = result["complete"] is True
     all_terminal = result.get("all_workloads_terminal") is True
+    balanced_v3 = result.get("pairing_design") == V3_PAIRING_DESIGN
     workload_rows = []
     workloads = result.get("workloads")
     for item in workloads if type(workloads) is list else []:
@@ -4040,7 +4910,8 @@ def _readme(result: Mapping[str, object]) -> str:
             interval = statistics_result.get("descriptive_interval_tps")
             interval_text = (
                 f"[{float(interval[0]):.6f}, {float(interval[1]):.6f}]"
-                if type(interval) is list and len(interval) == 2 else "invalid"
+                if type(interval) is list and len(interval) == 2
+                else "not-applicable" if balanced_v3 else "invalid"
             )
             workload_rows.append(
                 f"| {name} | valid | {statistics_result.get('n')} | "
@@ -4089,23 +4960,43 @@ def _readme(result: Mapping[str, object]) -> str:
     else:
         publish_text = ""
     publish_section = f"\n{publish_text}" if publish_text else ""
+    title = (
+        "# Paper-story A-1 balanced five-rep comparison"
+        if balanced_v3 else
+        "# Paper-story A-1 exploratory positional comparison"
+    )
+    mean_label = (
+        "mean variant-baseline tps" if balanced_v3
+        else "mean static10-adaptive tps"
+    )
+    design_text = (
+        "The registered estimand is the arithmetic mean of paired variant-minus-"
+        "baseline TPS differences under the balanced five-rep schedule. Pilot "
+        "observations are sizing-only and cannot enter the final estimate."
+        if balanced_v3 else
+        "The registered positions are arm-grouped ordinal matches, not shared time "
+        "blocks. The interval and classification are descriptive outputs of the "
+        "registered rule."
+    )
+    limitations = (
+        "\n".join(f"- {item}" for item in result.get("limitations", []))
+        if balanced_v3 else PREREGISTERED_LIMITATIONS
+    )
     return (
-        "# Paper-story A-1 exploratory positional comparison\n\n"
-        f"Study: `{STUDY_ID}`\n\n"
+        f"{title}\n\n"
+        f"Study: `{result.get('study_id')}`\n\n"
         f"All workloads terminal: `{'true' if all_terminal else 'false'}`\n\n"
         f"All workloads valid: `{'true' if complete else 'false'}`\n\n"
         "No cross-workload conclusion is produced. Each row is a terminal "
         "workload result.\n\n"
-        "| workload | status | reps | mean static10-adaptive tps | descriptive interval tps | B tps | classification | variance_plan_breach |\n"
+        f"| workload | status | reps | {mean_label} | descriptive interval tps | B tps | classification | variance_plan_breach |\n"
         "|---|---:|---:|---:|---:|---:|---|---:|\n"
         f"{workload_table}\n\n"
         "This result is exploratory, formal=false, and promotion is prohibited. "
-        "The registered positions are arm-grouped ordinal matches, not shared time "
-        "blocks. The interval and classification are descriptive outputs of the "
-        "registered rule. Trace0 evidence is source-routed and is not an "
+        f"{design_text} Trace0 evidence is source-routed and is not an "
         "artifact-standalone proof.\n\n"
         "## この設計が言えないこと\n\n"
-        f"{PREREGISTERED_LIMITATIONS}\n"
+        f"{limitations}\n"
         "PBS evidence scope: the job observes PBS_JOBID, PBS_O_HOST, and "
         "PBS_O_WORKDIR. PBS_O_QUEUE is not exported by this NQSV site and is not "
         "claimed as a job observation. NQSV stdout/stderr FD targets are not the "
@@ -4164,10 +5055,23 @@ def create_materialization_destination(raw: Path) -> Path:
     return destination
 
 
-def _exact_materialization_destination(repo_root: Path, raw: Path) -> Path:
+def _exact_materialization_destination(
+    repo_root: Path, raw: Path,
+    policy: Mapping[str, object] | None = None,
+) -> Path:
     destination = raw if raw.is_absolute() else Path.cwd() / raw
     destination = destination.resolve(strict=False)
-    expected = (repo_root / MATERIALIZATION_RELATIVE_PATH).resolve(strict=False)
+    relative = MATERIALIZATION_RELATIVE_PATH
+    if policy is not None:
+        execution = policy.get("execution")
+        value = (
+            execution.get("materialization_relative_path")
+            if type(execution) is dict else None
+        )
+        if type(value) is not str:
+            raise PaperStoryError("policy materialization destination is missing")
+        relative = Path(value)
+    expected = (repo_root / relative).resolve(strict=False)
     if destination != expected:
         raise PaperStoryError("materialize destination is not the exact A-1 insight leaf")
     if os.path.lexists(destination):
@@ -4477,7 +5381,9 @@ def run_materialize(args) -> int:
     result = _read_json(raw_result_path)
     receipt = _read_json(raw_receipt_path)
     terminal = _read_json(job_terminal_path)
-    policy, policy_sha = load_policy()
+    policy, policy_sha = _load_policy_for_study(result.get("study_id"))
+    study_id = _policy_study_id(policy)
+    _require_policy_ready_for_execution(policy)
     validate_raw_documents(result, receipt, terminal, policy)
     acquisition_binding = receipt.get("submission_receipt")
     if (
@@ -4503,7 +5409,7 @@ def run_materialize(args) -> int:
     trusted_roots = validate_acquisition_receipt(
         acquisition,
         repo_root=repo_root,
-        study_id=STUDY_ID,
+        study_id=study_id,
         source_commit=args.expected_head,
         request_id=receipt.get("pbs_jobid"),
         pbs_observation=terminal.get("pbs_observation"),
@@ -4542,11 +5448,12 @@ def run_materialize(args) -> int:
         submission_receipt=acquisition,
         submission_receipt_sha256=acquisition_binding["sha256"],
         job_terminal_sha256=_sha256_file(job_terminal_path),
+        study_id=study_id,
     )
     if result.get("policy_sha256") != policy_sha:
         raise PaperStoryError("raw result policy hash differs from tracked policy")
     if receipt.get("policy") != {
-        "path": POLICY_RELATIVE_PATH,
+        "path": _policy_relative_path(policy),
         "sha256": policy_sha,
     }:
         raise PaperStoryError("raw receipt policy binding differs")
@@ -4561,10 +5468,14 @@ def run_materialize(args) -> int:
         raise PaperStoryError("job terminal result hash differs")
     if terminal.get("receipt_sha256") != _sha256_file(raw_receipt_path):
         raise PaperStoryError("job terminal receipt hash differs")
-    _verify_current_source(repo_root, args.expected_head, result["source_binding"])
-    _revalidate_raw_wals(result, receipt)
+    _verify_current_source(
+        repo_root, args.expected_head, result["source_binding"], policy,
+    )
+    _revalidate_raw_wals(result, receipt, policy)
 
-    destination = _exact_materialization_destination(repo_root, Path(args.destination))
+    destination = _exact_materialization_destination(
+        repo_root, Path(args.destination), policy,
+    )
     materialized_receipt = {
         **receipt,
         "materialization": {
@@ -4599,6 +5510,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="mode", required=True)
     submit = sub.add_parser("submit")
+    submit.add_argument("--study-id", default=STUDY_ID)
     submit.add_argument("--expected-head", required=True)
     submit.add_argument("--attempt-root", required=True)
     measure = sub.add_parser("measure")
@@ -4619,6 +5531,7 @@ def _parser() -> argparse.ArgumentParser:
     materialize.add_argument("--completion-receipt", required=True)
     materialize.add_argument("--destination", required=True)
     complete = sub.add_parser("complete")
+    complete.add_argument("--study-id", default=STUDY_ID)
     complete.add_argument("--expected-head", required=True)
     complete.add_argument("--attempt-root", required=True)
     return parser

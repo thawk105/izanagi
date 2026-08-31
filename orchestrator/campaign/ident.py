@@ -33,8 +33,24 @@ if TYPE_CHECKING:
 
 ADMISSION_POLICY_SEARCH_KEY = "build_admission"
 _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
-_A1_NON_CERTIFYING_SCHEMA = "paper-story-a1-paired-campaign/v1"
-_A1_NON_CERTIFYING_STUDY_ID = "paper-story-a1-20260826-sized-v1"
+_A1_BALANCED5_PAIRING_DESIGN = "balanced-a5b5-b5a5-v1"
+_A1_NON_CERTIFYING_IDENTITIES = frozenset({
+    (
+        "paper-story-a1-paired-campaign/v1",
+        "paper-story-a1-20260826-sized-v1",
+        "arm-grouped-positional-v1",
+    ),
+    (
+        "paper-story-a1-paired-campaign/v2",
+        "paper-story-a1-20260901-balanced5-pilot-v1",
+        _A1_BALANCED5_PAIRING_DESIGN,
+    ),
+    (
+        "paper-story-a1-paired-campaign/v2",
+        "paper-story-a1-20260901-balanced5-sized-v1",
+        _A1_BALANCED5_PAIRING_DESIGN,
+    ),
+})
 
 
 def is_a1_non_certifying_config(cfg: CampaignConfig) -> bool:
@@ -42,15 +58,26 @@ def is_a1_non_certifying_config(cfg: CampaignConfig) -> bool:
     if type(cfg) is not CampaignConfig or type(cfg.search_config) is not dict:
         return False
     search = cfg.search_config
+    study_id = search.get("study_id")
     return (
-        search.get("schema") == _A1_NON_CERTIFYING_SCHEMA
-        and search.get("study_id") == _A1_NON_CERTIFYING_STUDY_ID
+        (
+            search.get("schema"),
+            study_id,
+            search.get("pairing_design"),
+        ) in _A1_NON_CERTIFYING_IDENTITIES
         and search.get("formal") is False
         and search.get("promotion_prohibited") is True
-        and search.get("pairing_design") == "arm-grouped-positional-v1"
         and search.get("non_certifying_mode")
         == "registered-formal-non-certifying"
-        and cfg.trial == _A1_NON_CERTIFYING_STUDY_ID
+        and cfg.trial == study_id
+    )
+
+
+def _is_a1_balanced5_non_certifying_config(cfg: CampaignConfig) -> bool:
+    return (
+        is_a1_non_certifying_config(cfg)
+        and cfg.search_config.get("pairing_design")
+        == _A1_BALANCED5_PAIRING_DESIGN
     )
 
 
@@ -463,9 +490,14 @@ def ensure_resumable_wal(
         repair = wal.repair_truncated_tail_a1_non_certifying(
             layout, reject_active_attempt=True,
         )
-        wal.recover_interrupted_attempts_a1_non_certifying(
-            layout, admission_policy=admission_policy,
-        )
+        if _is_a1_balanced5_non_certifying_config(cfg):
+            wal.recover_interrupted_attempts_a1_balanced5_terminal_invalid(
+                layout, admission_policy=admission_policy,
+            )
+        else:
+            wal.recover_interrupted_attempts_a1_non_certifying(
+                layout, admission_policy=admission_policy,
+            )
     else:
         repair = wal.repair_truncated_tail(
             layout, reject_active_attempt=True,
@@ -489,9 +521,14 @@ def ensure_resumable_attempts(
         authorization_contract=authorization_contract,
     )
     if is_a1_non_certifying_config(cfg):
-        wal.recover_interrupted_attempts_a1_non_certifying(
-            layout, admission_policy=admission_policy,
-        )
+        if _is_a1_balanced5_non_certifying_config(cfg):
+            wal.recover_interrupted_attempts_a1_balanced5_terminal_invalid(
+                layout, admission_policy=admission_policy,
+            )
+        else:
+            wal.recover_interrupted_attempts_a1_non_certifying(
+                layout, admission_policy=admission_policy,
+            )
     else:
         wal.recover_interrupted_attempts(
             layout, admission_policy=admission_policy,

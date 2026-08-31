@@ -32,12 +32,15 @@ from .layout import (campaign_layout, env_scope_dir,
                      resolve_campaign_output_root,
                      validate_campaign_id, write_capability_for_directory)
 from .lock import campaign_lock
-from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
+from .model import (CampaignConfig, Genome, INCOMPLETE_ATTEMPT_RECOVERY_REASON,
+                    STAGE_ABORT, STAGE_BUILD_START)
 from .pipeline import (AdmissionCapabilityResolver, EvalResult, LEGACY_TAG,
-                       PERFORMANCE_TAG, PerfConfig, S2_TAG,
+                       PERFORMANCE_TAG, BalancedScheduleConfig, PerfConfig, S2_TAG,
                        SEARCH_CONFIG_VERIFY_KEY,
                        VERIFY_LEGACY_PLUS_PERFORMANCE, VERIFY_LEGACY_PLUS_S2,
-                       evaluate, performance_correctness_workload,
+                       _PreparedEvaluation, _abort_balanced_workload,
+                       _prepare_evaluation, _run_balanced_schedule, evaluate,
+                       performance_correctness_workload,
                        s2_correctness_workload, variant_id)
 from .trigger_gate_binding import (
     SCHEMA_VERSION as TRIGGER_BINDING_SCHEMA,
@@ -66,6 +69,7 @@ class CampaignSummary:
     results: List[EvalResult] = field(default_factory=list)
     execution_receipt: Optional[dict] = None
     perf_preflight_receipt: Optional[dict] = None
+    balanced_schedule_receipt: Optional[dict] = None
 
 
 @dataclass(frozen=True)
@@ -245,6 +249,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  perf_preflight_fn: Optional[Callable[..., object]] = None,
                  perf_preflight_receipt_path: str = "",
                  durable_root_policy=None,
+                 bench_max_rounds: int = 3,
+                 balanced_schedule: Optional[BalancedScheduleConfig] = None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -252,7 +258,27 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
     evaluate 呼出し形を保つ。`expected_toolchain_manifest` は campaign 開始時に観測した
     v2 toolchain を source identity/build へ渡す。`build_context` の安定 policy を campaign
-    identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
+    identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。
+    `bench_max_rounds` は既定 3 の既存経路では従来の evaluate 呼出し形を維持し、明示的な
+    非既定値だけを pipeline へ渡す。`balanced_schedule` は二 arm 専用 opt-in。"""
+    if (isinstance(bench_max_rounds, bool)
+            or not isinstance(bench_max_rounds, int)
+            or bench_max_rounds < 1):
+        raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
+    if balanced_schedule is not None:
+        if type(balanced_schedule) is not BalancedScheduleConfig:
+            raise TypeError("balanced_schedule must be an exact BalancedScheduleConfig")
+        search_workload = cfg.search_config.get("workload")
+        if (len(genomes) != 2 or do_bench is not True
+                or bench_max_rounds != 1
+                or cfg.search_config.get("pairing_design")
+                != "balanced-a5b5-b5a5-v1"
+                or type(search_workload) is not dict
+                or search_workload.get("name") != balanced_schedule.workload):
+            raise ValueError(
+                "balanced schedule requires two arms, bench, max_rounds=1, "
+                "the balanced pairing design, and its bound workload"
+            )
     if declared_use_class == "official":
         layout_constructor = campaign_layout
     elif declared_use_class == "exploration":
@@ -350,6 +376,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 "preview": repair.preview,
                 "receipt_path": repair.receipt_path,
             }, ensure_ascii=False, sort_keys=True))
+            if balanced_schedule is not None:
+                raise ValueError(
+                    "balanced schedule refuses re-evaluation after interrupted WAL repair"
+                )
 
         # リカバリ: terminal な variant はスキップ
         replay = (
@@ -357,6 +387,15 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             if a1_non_certifying else wal.replay
         )
         states = replay(layout, admission_policy=build_context.policy)
+        if balanced_schedule is not None and any(
+            state.last_terminal is not None
+            and state.last_terminal.payload.get("reason")
+            == INCOMPLETE_ATTEMPT_RECOVERY_REASON
+            for state in states.values()
+        ):
+            raise ValueError(
+                "balanced schedule refuses recovered incomplete attempts"
+            )
         terminal = wal.terminal_variants(states)
         # transient infra 失敗による abort (identity-error = g++/git 一時失敗、*-probe-error =
         # 競合検知 pgrep 一時失敗) は genome-intrinsic な失敗 (verifier-red / build-error /
@@ -380,6 +419,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         )
         done = set(terminal)        # terminal を seed して 1 run 内の二重評価も防ぐ (U1)
         first_bench = True          # settle は最初の実 bench の前に 1 回だけ (calibrator 契約)
+        balanced_prepared: List[_PreparedEvaluation] = []
+        balanced_prepare_failed = False
         for g in genomes:
             # identity (D23/D24): skip/abort キーを src_token id に揃える (coder variant の
             # リカバリ冪等性 D・例外 abort の整合 A)。pipeline.evaluate と同じ確定窓口
@@ -428,11 +469,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                                             notes=[f"source_digest 確定不能 → reject ({e})"]))
                 s.evaluated += 1
                 s.aborted += 1
+                balanced_prepare_failed = balanced_schedule is not None
                 continue
             v = variant_id(g, src_tok)
             if v in done:
                 s.skipped += 1
                 s.skipped_variants.append(v)
+                balanced_prepare_failed = balanced_schedule is not None
                 continue
             done.add(v)
             log(f"[campaign] evaluate {g.canonical()}")
@@ -462,16 +505,34 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 if not use_perf:
                     # True は pipeline の legacy default に任せ、利用可能時の呼出し形を維持する。
                     evaluate_options["use_perf"] = False
-                r = evaluate(g, layout, env_tag, cfg.ccbench_commit, perf,
-                             clocks_per_us, numactl=numactl, do_bench=do_bench,
-                             do_settle=(do_bench and first_bench),
-                             src_token=src_tok, extra_correctness=extra_correctness,
-                             log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
-                             authorization_contract=authorization_contract,
-                             build_context=build_context,
-                             capability_resolver=capability_resolver,
-                             source_evidence=source_evidence,
-                             **evaluate_options)
+                if bench_max_rounds != 3:
+                    evaluate_options["bench_max_rounds"] = bench_max_rounds
+                if balanced_schedule is not None:
+                    r = _prepare_evaluation(
+                        g, layout, env_tag, cfg.ccbench_commit, perf,
+                        clocks_per_us, numactl=numactl, do_bench=do_bench,
+                        do_settle=False, src_token=src_tok,
+                        extra_correctness=extra_correctness,
+                        log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
+                        authorization_contract=authorization_contract,
+                        build_context=build_context,
+                        capability_resolver=capability_resolver,
+                        source_evidence=source_evidence,
+                        **evaluate_options,
+                    )
+                else:
+                    r = evaluate(
+                        g, layout, env_tag, cfg.ccbench_commit, perf,
+                        clocks_per_us, numactl=numactl, do_bench=do_bench,
+                        do_settle=(do_bench and first_bench),
+                        src_token=src_tok, extra_correctness=extra_correctness,
+                        log=log, ccbench_dir=ccbench_dir, cache_root=cache_root,
+                        authorization_contract=authorization_contract,
+                        build_context=build_context,
+                        capability_resolver=capability_resolver,
+                        source_evidence=source_evidence,
+                        **evaluate_options,
+                    )
             except Exception as e:   # noqa: BLE001  この variant 固有の失敗を隔離する
                 # 想定外の例外も abort として terminal 化し、再起動で同地点の再クラッシュを
                 # 防ぐ (overnight 耐性 / A)。KeyboardInterrupt 等は Exception 外なので通す。
@@ -496,6 +557,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 log(f"[campaign] {v} 評価中に例外 → abort 隔離して継続: {e}")
                 r = EvalResult(genome=g, variant=v, certified=False, aborted=True,
                                notes=[f"評価中の例外 → reject ({e})"])
+            if type(r) is _PreparedEvaluation:
+                balanced_prepared.append(r)
+                continue
+            if balanced_schedule is not None:
+                balanced_prepare_failed = True
             s.results.append(r)
             s.evaluated += 1
             if r.aborted:
@@ -504,6 +570,28 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 s.committed += 1
                 if do_bench and r.fitness_tps is not None:
                     first_bench = False     # 実 bench が 1 回成功 → 以降 settle 不要
+        if balanced_schedule is not None and balanced_prepared:
+            if balanced_prepare_failed or len(balanced_prepared) != 2:
+                peer_results = _abort_balanced_workload(
+                    balanced_prepared,
+                    "balanced-peer-prepare-failed",
+                    "both balanced arms were not prepared and verified → reject workload",
+                )
+                s.results.extend(peer_results)
+                s.evaluated += len(peer_results)
+                s.aborted += len(peer_results)
+            else:
+                balanced_results, receipt = _run_balanced_schedule(
+                    balanced_prepared, balanced_schedule,
+                )
+                s.balanced_schedule_receipt = receipt or None
+                s.results.extend(balanced_results)
+                s.evaluated += len(balanced_results)
+                s.aborted += sum(result.aborted for result in balanced_results)
+                s.committed += sum(
+                    result.certified and not result.aborted
+                    for result in balanced_results
+                )
         log(f"[campaign] done: {s.committed} committed / {s.aborted} aborted / "
             f"{s.skipped} skipped (of {s.total})")
         return s

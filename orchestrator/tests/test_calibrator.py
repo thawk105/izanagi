@@ -515,6 +515,34 @@ def test_measure_point_rep_observations_are_indexed_across_timeout_exception_and
     assert point.rep_observations == observations
 
 
+def test_measure_point_rep_timestamps_are_generated_around_each_runner_call():
+    """Balanced receipt timestamps come from the runner's exact rep boundary."""
+    from orchestrator.calibrator import runner
+    timestamps = []
+    ticks = iter((101, 109, 201, 215))
+    good = (
+        {"throughput[tps]": "1000", "maxrss": "100 kB"},
+        PerfCounters(llc_load_misses=10, llc_loads=100),
+        0.5,
+    )
+    original_run_once = runner.run_once
+    original_time_ns = runner.time.time_ns
+    runner.run_once = lambda *_args, **_kwargs: good
+    runner.time.time_ns = lambda: next(ticks)
+    try:
+        runner.measure_point(
+            "dummy", records=1000, threads=4, clocks_per_us=1800,
+            reps=2, rep_timestamps=timestamps,
+        )
+    finally:
+        runner.run_once = original_run_once
+        runner.time.time_ns = original_time_ns
+    assert timestamps == [
+        {"rep_index": 0, "started_at_ns": 101, "finished_at_ns": 109},
+        {"rep_index": 1, "started_at_ns": 201, "finished_at_ns": 215},
+    ]
+
+
 def test_measure_point_rep_observations_no_perf_are_not_required():
     """P1/P5: no-perf は rc 0 を保ち counter だけを not_required にする。"""
     from orchestrator.calibrator import runner

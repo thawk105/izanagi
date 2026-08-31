@@ -24,6 +24,7 @@ import json
 import os
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -12900,6 +12901,272 @@ def test_loop_does_not_append_abort_after_wal_io_error():
         layout = campaign_layout(str(ident.campaign_id(bound_cfg)), out_root)
         assert caught is failure
         assert wal.read_records(layout) == []
+
+
+def _balanced_prepared_fixture(layout, arm, *, reps=20):
+    events = []
+    result = EvalResult(
+        genome=Genome("silo", {"BACK_OFF": int(arm == "A")}),
+        variant=f"variant-{arm}", certified=True, aborted=False,
+    )
+
+    def abort(reason, note, extra=None):
+        result.aborted = True
+        result.notes.append(note)
+        events.append(("abort", reason, extra))
+        return result
+
+    def emit(*args):
+        events.append(("emit", args[2], args[4]))
+
+    prepared = pipeline._PreparedEvaluation(
+        result=result,
+        layout=layout,
+        env_tag="linux-baremetal",
+        perf_binary=arm,
+        perf=PerfConfig(records=1000, threads=2, reps=reps),
+        clocks_per_us=1800,
+        numactl=None,
+        do_bench=True,
+        do_settle=False,
+        log=lambda *_args: None,
+        abort=abort,
+        emit=emit,
+        build_attempt_id=f"attempt-{arm}",
+        build_admission_receipt_sha256=arm.lower() * 64,
+        contract_sha256="c" * 64,
+        verify_tags=[pipeline.LEGACY_TAG],
+        receipt_for=lambda payload: payload,
+        bench_max_rounds=1,
+        record_rep_returncodes=False,
+        qualification_policy=None,
+        holdout_observation_admission=None,
+        use_perf=True,
+        perf_preflight_receipt=None,
+        active_screening=None,
+        screening_disabled_payload=None,
+    )
+    return prepared, events
+
+
+def _exercise_balanced_schedule(
+        values_for_block, *, settle_result=None, competing_fn=None):
+    root = _tmpdir("izanagi_balanced_schedule_")
+    layout = CampaignLayout(root)
+    arm_a, events_a = _balanced_prepared_fixture(layout, "A")
+    arm_b, events_b = _balanced_prepared_fixture(layout, "B")
+    probes = []
+    locks = []
+    block_calls = []
+    writes_during_blocks = []
+    clock = iter(range(1_000_000, 2_000_000))
+
+    @contextlib.contextmanager
+    def one_lock():
+        locks.append("acquire")
+        yield
+
+    def measure(binary, records, threads, clocks_per_us, **kwargs):
+        writes_during_blocks.append(
+            os.path.exists(os.path.join(root, "balanced-schedule-receipt.json"))
+            or bool(events_a or events_b)
+        )
+        block_index = len(block_calls)
+        block_calls.append(binary)
+        values = list(values_for_block(binary, block_index))
+        observations = kwargs["rep_observations"]
+        timestamps = kwargs["rep_timestamps"]
+        observations[:] = [
+            {"rep_index": index, "throughput": value}
+            for index, value in enumerate(values)
+        ]
+        timestamps[:] = [
+            {"rep_index": index, "started_at_ns": next(clock),
+             "finished_at_ns": next(clock)}
+            for index in range(5)
+        ]
+        from orchestrator.calibrator.model import ScalePoint
+        measured = ScalePoint(records=records, threads=threads, run_cmd=binary)
+        measured.throughputs = values
+        return measured
+
+    config = pipeline.BalancedScheduleConfig(
+        workload="balanced", root_seed="0" * 64,
+    )
+    if settle_result is None:
+        settle_result = {"settled": True, "load1": 0.0}
+
+    def probe():
+        probes.append("probe")
+        return [] if competing_fn is None else competing_fn()
+
+    with unittest_mock.patch.object(pipeline, "bench_lock", one_lock), \
+            unittest_mock.patch.object(
+                pipeline, "settle", lambda: settle_result), \
+            unittest_mock.patch.object(
+                pipeline, "competing_bench_pids", probe), \
+            unittest_mock.patch.object(pipeline, "measure_point", measure), \
+            unittest_mock.patch.object(
+                pipeline, "_commit_prepared",
+                lambda prepared, _bench: prepared.result):
+        results, receipt = pipeline._run_balanced_schedule(
+            [arm_a, arm_b], config,
+        )
+    return {
+        "results": results,
+        "receipt": receipt,
+        "probes": probes,
+        "locks": locks,
+        "blocks": block_calls,
+        "events": events_a + events_b,
+        "writes_during_blocks": writes_during_blocks,
+        "root": root,
+    }
+
+
+def test_balanced_schedule_probes_each_five_rep_block_independently():
+    """M1: two groups have eight independently observable block probes."""
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert len(run["probes"]) == 8
+
+
+def test_balanced_schedule_holds_one_lock_for_all_blocks():
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert run["locks"] == ["acquire"]
+
+
+def test_balanced_schedule_writes_nothing_until_every_block_finishes():
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert run["writes_during_blocks"] == [False] * 8
+    assert os.path.isfile(
+        os.path.join(run["root"], "balanced-schedule-receipt.json")
+    )
+
+
+def test_balanced_schedule_records_aggregate_unstable_not_constant_false():
+    """M2: a genuinely noisy complete arm must carry unstable=true."""
+    run = _exercise_balanced_schedule(
+        lambda _arm, block: [10.0, 20.0, 30.0, 40.0, 50.0]
+        if block % 2 == 0 else [100.0, 200.0, 300.0, 400.0, 500.0]
+    )
+    assert run["receipt"]["arms"]["A"]["unstable"] is True
+
+
+def test_balanced_schedule_cv_is_all_rep_cv_not_mean_block_cv():
+    """M3: constant blocks at different levels have zero block CV but nonzero arm CV."""
+    seen = {"A": 0, "B": 0}
+
+    def values(arm, _block):
+        seen[arm] += 1
+        return [float(seen[arm] * 100)] * 5
+
+    run = _exercise_balanced_schedule(values)
+    arm = run["receipt"]["arms"]["A"]
+    expected = statistics.stdev(arm["tps"]) / statistics.mean(arm["tps"])
+    assert arm["cv"] == expected and arm["cv"] != statistics.mean(arm["block_cvs"])
+
+
+def test_balanced_schedule_seed_bit_mapping_is_independently_rederived():
+    """M8: the consumer derives bit 0=ABBA and bit 1=BAAB without producer reuse."""
+    root_seed = "0" * 64
+    bits = tuple(
+        hashlib.sha256(
+            (root_seed
+             + f"a1-balanced5/v1|workload=balanced|group={group}").encode()
+        ).digest()[-1] & 1
+        for group in range(2)
+    )
+    expected = tuple(
+        (("A",) * 5 + ("B",) * 10 + ("A",) * 5)
+        if bit == 0 else
+        (("B",) * 5 + ("A",) * 10 + ("B",) * 5)
+        for bit in bits
+    )
+    actual = pipeline.derive_balanced_schedule(
+        root_seed, "balanced", 2,
+    )
+    assert actual.blocks == expected
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_campaign_wires_nondefault_bench_max_rounds_to_evaluate():
+    from orchestrator.campaign import loop as campaign_loop
+    captured = []
+    genome = Genome("silo", {"BACK_OFF": 1})
+
+    def fake_evaluate(candidate, *_args, **kwargs):
+        captured.append(kwargs.get("bench_max_rounds"))
+        return EvalResult(
+            genome=candidate,
+            variant=pipeline.variant_id(candidate, kwargs["src_token"]),
+            certified=True,
+            aborted=False,
+        )
+
+    saved_evaluate = campaign_loop.evaluate
+    saved_source_digest = campaign_loop.source_digest
+    campaign_loop.evaluate = fake_evaluate
+    campaign_loop.source_digest = _sd_mock("stock")
+    try:
+        campaign_loop.run_campaign(
+            CampaignConfig(
+                spec_slug="balanced-round-wiring",
+                search_tag="test",
+                spec_content="bench max rounds wiring",
+                ccbench_commit="deadbeef",
+            ),
+            [genome],
+            PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag,
+            _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            do_bench=False,
+            output_root=_tmpdir("izanagi_round_wiring_"),
+            log=lambda *_args: None,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
+            bench_max_rounds=1,
+        )
+    finally:
+        campaign_loop.evaluate = saved_evaluate
+        campaign_loop.source_digest = saved_source_digest
+    assert captured == [1]
+
+
+def test_balanced_schedule_quality_gate_signatures_accept_complete_input():
+    """Acceptance implication: complete settled input implies two committed results."""
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert len(run["results"]) == 2 and all(
+        result.certified and not result.aborted for result in run["results"]
+    )
+
+
+def test_balanced_schedule_quality_gate_signatures_reject_each_named_condition():
+    """Rejection implication: each named bad input implies whole-workload abort."""
+    probe_error = pipeline.CompetingBenchProbeError(
+        "exec-failure", ["pgrep"], errno=5,
+    )
+    cases = (
+        ("bench-unsettled", {"settled": False}, None, [100.0] * 5),
+        ("bench-probe-error", None,
+         lambda: (_ for _ in ()).throw(probe_error), [100.0] * 5),
+        ("bench-competing-tenant", None, lambda: ["999 ycsb_silo.exe"],
+         [100.0] * 5),
+        ("bench-no-throughput", None, None, []),
+        ("bench-cv-undefined", None, None, [0.0] * 5),
+    )
+    for reason, settled, probe, values in cases:
+        run = _exercise_balanced_schedule(
+            lambda _arm, _block, values=values: values,
+            settle_result=settled,
+            competing_fn=probe,
+        )
+        abort_reasons = [
+            event[1] for event in run["events"] if event[0] == "abort"
+        ]
+        assert abort_reasons == [reason, reason]
+        assert run["receipt"] == {}
 
 
 def _run():
