@@ -83,11 +83,53 @@ def test_m1_non_compute_hostname_is_rejected_by_real_site_classifier(
     valid_marker: tuple[dict[str, str], Path, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    binding, _request, compute_marker = valid_marker
+    forged = {**binding, "hostname": "developer-host"}
+    monkeypatch.setenv(MAM.MARKER_ENV, MAM.encode_binding(forged))
+    document = json.loads(compute_marker.read_text(encoding="utf-8"))
+    document["hostname"] = "developer-host"
+    compute_marker.write_text(json.dumps(document) + "\n", encoding="utf-8")
     monkeypatch.setattr(site_policy.socket, "gethostname", lambda: "developer-host")
     monkeypatch.setattr(site_policy, "_has_nqsv", lambda: False)
     assert site_policy.classify_site("developer-host", {}, False) == site_policy.OTHER
 
     with pytest.raises(MAM.MutationAttemptMarkerError, match="compute site"):
+        _require_marker()
+
+
+def test_binding_schema_version_mismatch_is_rejected(
+    valid_marker: tuple[dict[str, str], Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    binding, _request, _compute_marker = valid_marker
+    forged = {**binding, "schema_version": "forged/v1"}
+    monkeypatch.setenv(MAM.MARKER_ENV, MAM.encode_binding(forged))
+
+    with pytest.raises(MAM.MutationAttemptMarkerError, match="marker schema"):
+        _require_marker()
+
+
+def test_compute_marker_schema_version_mismatch_is_rejected(
+    valid_marker: tuple[dict[str, str], Path, Path],
+) -> None:
+    _binding, _request, compute_marker = valid_marker
+    document = json.loads(compute_marker.read_text(encoding="utf-8"))
+    document["schema_version"] = "forged/v1"
+    compute_marker.write_text(json.dumps(document) + "\n", encoding="utf-8")
+
+    with pytest.raises(MAM.MutationAttemptMarkerError, match="compute-visible.json schema"):
+        _require_marker()
+
+
+def test_binding_and_compute_marker_hostname_mismatch_is_rejected(
+    valid_marker: tuple[dict[str, str], Path, Path],
+) -> None:
+    _binding, _request, compute_marker = valid_marker
+    document = json.loads(compute_marker.read_text(encoding="utf-8"))
+    document["hostname"] = "bnode999.example"
+    compute_marker.write_text(json.dumps(document) + "\n", encoding="utf-8")
+
+    with pytest.raises(MAM.MutationAttemptMarkerError, match="compute-visible.json と不一致"):
         _require_marker()
 
 

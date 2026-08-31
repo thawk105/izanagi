@@ -100,33 +100,15 @@ def _read_regular_file(path: Path, label: str) -> bytes:
             f"{label} を安全に開けません: {exc}"
         ) from exc
     try:
-        before = os.fstat(descriptor)
-        if not stat.S_ISREG(before.st_mode):
+        file_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(file_stat.st_mode):
             raise MutationAttemptMarkerError(f"{label} が通常 file ではありません")
         chunks: list[bytes] = []
-        total = 0
         while True:
             chunk = os.read(descriptor, 1024 * 1024)
             if not chunk:
                 break
             chunks.append(chunk)
-            total += len(chunk)
-        after = os.fstat(descriptor)
-        stable = (
-            before.st_dev,
-            before.st_ino,
-            before.st_mode,
-            before.st_size,
-            before.st_mtime_ns,
-        ) == (
-            after.st_dev,
-            after.st_ino,
-            after.st_mode,
-            after.st_size,
-            after.st_mtime_ns,
-        )
-        if total != before.st_size or not stable:
-            raise MutationAttemptMarkerError(f"{label} が読取中に変化しました")
         return b"".join(chunks)
     except OSError as exc:
         raise MutationAttemptMarkerError(f"{label} を安全に読めません: {exc}") from exc
