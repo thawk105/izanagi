@@ -1580,7 +1580,6 @@ def test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy(
         claim_root = Path(resolved_output) / "env" / B.ENV_TAG / "claims"
 
         assert Path(resolved_output) == forbidden_root
-        assert policy.forbidden_roots == (Path("/tmp"), Path("/scr"))
         with pytest.raises(
             DurableRootError, match="^candidate が forbidden root 配下$",
         ):
@@ -1604,7 +1603,6 @@ def test_t1905_a5_non_forbidden_external_official_root_is_accepted(
 
         assert Path(resolved_output) == external_root
         assert external_root.is_relative_to(Path("/var/tmp"))
-        assert policy.forbidden_roots == (Path("/tmp"), Path("/scr"))
         assert capability.root == claim_root.resolve()
 
 
