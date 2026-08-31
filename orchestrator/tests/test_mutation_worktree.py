@@ -594,6 +594,7 @@ def test_i3_local_without_attempt_does_not_call_marker_validator_between_observa
 def test_m2_wrapper_local_attempt_without_marker_is_rejected_before_preflight(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
 ) -> None:
     fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
     attempts = fixture.artifacts / "attempts.json"
@@ -608,8 +609,13 @@ def test_m2_wrapper_local_attempt_without_marker_is_rejected_before_preflight(
         ),
     )
 
-    with pytest.raises(MW.MutationWorktreeError, match="marker がありません"):
-        MW.main(_wrapper_argv(fixture, plan_only=True, attempt_out=attempts))
+    assert MW.main(
+        _wrapper_argv(fixture, plan_only=True, attempt_out=attempts)
+    ) == MW.WRAPPER_FAILURE_RC
+    assert capfd.readouterr().err == (
+        "mutation worktree aborted: local attempt authorization が不正です: "
+        "mutation local attempt marker がありません\n"
+    )
 
 
 @_limited
