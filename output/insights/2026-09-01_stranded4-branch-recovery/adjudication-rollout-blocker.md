@@ -22,12 +22,25 @@
 - 同セッションは、所有者の修正だけで受入 attempt 2 が `1 failed / 19043 passed / 92 skipped` になり
   非帰属の赤 26 件がすべて消えたと報告している。
 
-**以上はいずれも peer からの報告であり、本 wave が独立に検証したものではない。**
-本 wave が自分で確かめた範囲は次のとおり。
+初出時、本 wave は上記を「peer の報告であり独立検証していない」と記し、その時点の local main
+`24014bdb259d971571f22b54a8f10a49352b825f` に修正が着地していないことだけを実測として書いた。
+**その後、修正が着地したので本 wave が現物で検証した。以下は追記である。**
 
-- 本節を書いた時点の local main は `24014bdb259d971571f22b54a8f10a49352b825f` で、
-  **修正はまだ着地していない。** 「緑になった」は所有者側の走行の報告であって、
-  main の現物で確認できた事実ではない。
+- **local main = `dbdacb666ccec0341fd5108e1aa12d7381bdcd52`。**
+  `git merge-base --is-ancestor 24014bdb2 main` が rc=0 で、本 wave の base からの
+  fast-forward であることを確認した。
+- 修正は 3 commit — `b227c23bb` (benchmark の gate を root directory ではなく
+  pin された rollout に張り替える)、`67c9b10f0` (消えた pin と、それが黙らせていたもの、
+  および直っていないものの記録)、`267d72d4a` (可用性検査を共有 fixture graph の外へ出す)。
+- **変更は `orchestrator/tests/test_codex_reasoning_ab.py` の 1 file だけ (+86/-8)。**
+  `tools/codex_reasoning_ab.py` には触れていない。**したがって `TASK_MANIFEST` の T-181 凍結
+  literal は 1 bit も変わっていない。** 本書の結論 1 と同じ原則が実装でも保たれている。
+- **本書の指摘した穴は現行 main でも開いたままである。** `dbdacb666` の
+  `test_codex_reasoning_ab.py` を全文検索したところ `replacements` の出現は 1 箇所
+  (`TOOL.PROMPT_SOURCE["POS"]["replacements"]` の参照) だけで、**literal pin は無い。**
+  レンズ A の BLOCKER は未解決であり、恒久タスクへ引き渡されたという peer の説明と整合する。
+- 受入が緑 (`acceptance_red_nodeids=[]`) であることは所有者側の走行の報告であり、
+  本 wave はまだ自分では走らせていない。
 
 ## 結論
 

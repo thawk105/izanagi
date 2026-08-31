@@ -109,9 +109,17 @@ title: 取り残し branch 4 本を base main で再判定し、3 経路すべ�
   `green_observation` と `green_run_count >= 1` を必須とし、一度も緑でないこの赤は正直に
   登録できないためである。裁定 ID も不要になった。所有者側は修正だけで受入 attempt 2 が
   `1 failed / 19043 passed / 92 skipped` になり赤 26 件が消えたと報告している。
-  **以上は peer の報告であり本 wave は独立検証していない。** 本 wave が確かめたのは、
-  記録時点の local main が `24014bdb2` で**修正がまだ着地していない**ことだけである。
+  初出時これは peer の報告にすぎず、本 wave が確かめたのは記録時点の local main が `24014bdb2` で
+  修正が未着地であることだけだった。**その後着地したので現物で検証した。**
+- **検証結果。** local main = `dbdacb666`、`git merge-base --is-ancestor 24014bdb2 main` rc=0 で
+  本 wave の base からの fast-forward。修正は 3 commit (`b227c23bb` `67c9b10f0` `267d72d4a`) で、
+  変更は `orchestrator/tests/test_codex_reasoning_ab.py` **1 file だけ (+86/-8)**。
+  `tools/codex_reasoning_ab.py` には触れておらず、**T-181 の凍結 literal は 1 bit も変わっていない**。
+  gate を root directory から pin された rollout へ張り替え、可用性検査を共有 fixture graph の外へ
+  出す形だった。受入が緑という点は所有者側の走行の報告で、本 wave はまだ自分で走らせていない。
 - レンズ A が出した `prompt_source.replacements` の穴だけは件数の議論と独立に有効で、
-  恒久タスクへ引き渡された。本 wave の正味の貢献はこの 1 点である。
+  恒久タスクへ引き渡された。**現行 main `dbdacb666` でも未解決であることを確認した** —
+  同 file 全文で `replacements` の出現は `TOOL.PROMPT_SOURCE["POS"]["replacements"]` の参照 1 箇所だけで
+  literal pin が無い。本 wave の正味の貢献はこの 1 点である。
 
 ## 次の一手差分
