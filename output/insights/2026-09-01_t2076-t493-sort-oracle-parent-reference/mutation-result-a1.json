@@ -1,0 +1,375 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/14f86d3e02d4a515e14775155f86e421/izdw-14f86d3e02.o963225",
+      "receipt_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/14f86d3e02d4a515e14775155f86e421/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................sssssssss...                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":9,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n38 passed, 9 skipped in 4.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "1accddfdcea1b1da1d4d04e6f568d1cff21ff4e28f70e3d81cd9acb4a23d769d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "9d1722ab9aeaacabd76ddbf896afa31475850cd456fc79d12d2b0c2754f9592c",
+    "duration_s": 27.389,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "032a881e275a5d45173269c710120d95bbdd0244c7b75c475b2390db194fe076",
+    "repo_head": "acaed1452f5c530974ebbf3fa6657d1cab576a6a",
+    "runner_sha256": "994651fe900797b8221600e1d2c3e20412896d79979ea82f4b7dd1263b6a1557",
+    "spec_sha256": "4561e7574563aa129595c9ba8220d8668eb0ae0c84dcd5194c84e0630a90d010",
+    "status": "PASSED",
+    "test_output_sha256": "1accddfdcea1b1da1d4d04e6f568d1cff21ff4e28f70e3d81cd9acb4a23d769d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "22341ea0133ac99aad56cb414387c90fd01e96b4a6ddbdf1d01b62f72200423e"
+  },
+  "date": "2026-08-31T16:51:04.662360+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2c9c39233a5964de6049cecca4c84c6f/izdw-2c9c39233a.o963229",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2c9c39233a5964de6049cecca4c84c6f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................sssssssss.FFFFFFF..                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":9,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n___________ test_binding_rejects_canonical_name_comparator_mismatch ____________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_binding_rejects_canonical_name_comparator_mismatch():\n        first = s6_sort_sweep.CANDIDATES[0]\n        second = s6_sort_sweep.CANDIDATES[1]\n>       with pytest.raises(authority.SortComparatorAuthorityError):\nE       Failed: DID NOT RAISE SortComparatorAuthorityError\n\norchestrator/tests/test_sort_comparator_authority.py:47: Failed\n____________________ test_binding_rejects_outer_whitespace _____________________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_binding_rejects_outer_whitespace():\n        name, _category, implementation = s6_sort_sweep.CANDIDATES[0]\n>       with pytest.raises(authority.SortComparatorAuthorityError):\nE       Failed: DID NOT RAISE SortComparatorAuthorityError\n\norchestrator/tests/test_sort_comparator_authority.py:40: Failed\n________ test_validate_schema_rejects_sort_comparator_outside_authority ________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_validate_schema_rejects_sort_comparator_outside_authority():\n        doc = _current_frozen_document()\n        record = doc[\"entries\"][\"balanced\"][\"sort_best\"]\n        record[\"comparator\"] = record[\"comparator\"] + \"\\n\"\n>       with pytest.raises(M.FreezeError) as excinfo:\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:166: Failed\n__________ test_validate_schema_rejects_sort_name_comparator_mismatch __________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_validate_schema_rejects_sort_name_comparator_mismatch():\n        doc = _current_frozen_document()\n        record = doc[\"entries\"][\"balanced\"][\"sort_best\"]\n        assert record[\"name\"] == \"sp_dd\"\n        record[\"comparator\"] = _sort_implementation(\"sk_ad\")\n>       with pytest.raises(M.FreezeError) as excinfo:\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:177: Failed\n___________ test_verify_rejects_sort_name_tamper_at_authority_layer ____________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_verify_rejects_sort_name_tamper_at_authority_layer():\n        original = (M.ROOT / M.FREEZE_REL).read_bytes()\n        assert b'\"sp_dd\"' in original\n        tampered = original.replace(b'\"sp_dd\"', b'\"xp_dd\"', 1)\n        assert len(tampered) == len(original)\n        doc = json.loads(tampered)\n>       with pytest.raises(M.FreezeError) as excinfo:\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s1_known_axes_freeze.py:695: Failed\n______ test_sort_entry_rejects_comparator_outside_authority_before_output ______\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_sort_entry_rejects_comparator_outside_authority_before_output():\n        for workload, selected_name in (\n                (\"read-heavy\", \"sk_ad\"), (\"balanced\", \"sp_dd\")):\n            comparator = _sort_implementation(selected_name) + \"\\n\"\n            with pytest.raises(M.FreezeError) as excinfo:\n>               _call_sort_entry_with_mocked_provenance(\n                    workload=workload,\n                    selected_name=selected_name,\n                    comparator=comparator,\n                )\n\norchestrator/tests/test_s1_known_axes_freeze.py:188: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_s1_known_axes_freeze.py:77: in _call_sort_entry_with_mocked_provenance\n    return M._sort_entry(workload)\norchestrator/campaign/s1_known_axes_freeze.py:508: in _sort_entry\n    flags = dict(s6_sort_sweep._genome(1).flags)\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_genome' id='22845921299904'>, args = (1,), kwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: sort binding rejection did not precede output assembly\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n________ test_sort_entry_rejects_name_comparator_mismatch_before_output ________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_sort_entry_rejects_name_comparator_mismatch_before_output():\n        for workload, selected_name, mismatched_name in (\n                (\"read-heavy\", \"sk_ad\", \"sp_dd\"),\n                (\"balanced\", \"sp_dd\", \"sk_ad\")):\n            with pytest.raises(M.FreezeError) as excinfo:\n>               _call_sort_entry_with_mocked_provenance(\n                    workload=workload,\n                    selected_name=selected_name,\n                    comparator=_sort_implementation(mismatched_name),\n                )\n\norchestrator/tests/test_s1_known_axes_freeze.py:203: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_s1_known_axes_freeze.py:77: in _call_sort_entry_with_mocked_provenance\n    return M._sort_entry(workload)\norchestrator/campaign/s1_known_axes_freeze.py:508: in _sort_entry\n    flags = dict(s6_sort_sweep._genome(1).flags)\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_genome' id='22611339325024'>, args = (1,), kwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: sort binding rejection did not precede output assembly\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch\nFAILED orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output\n7 failed, 31 passed, 9 skipped in 4.47s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1817 retained_bytes=1817 omitted_bytes=0 rendered_excerpt_bytes=1894 sha256=3e218cc202d60cb236f0d839a5c657c003ebe41f348ad024f19d3598f00bc544\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_sort_entry_rejects_name_comparator_mismatch_before_output():\n>         for workload, selected_name, mismatched_name in (\n>                 (\"read-heavy\", \"sk_ad\", \"sp_dd\"),\n>                 (\"balanced\", \"sp_dd\", \"sk_ad\")):\n>             with pytest.raises(M.FreezeError) as excinfo:\n> >               _call_sort_entry_with_mocked_provenance(\n>                     workload=workload,\n>                     selected_name=selected_name,\n>                     comparator=_sort_implementation(mismatched_name),\n>                 )\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:203: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_s1_known_axes_freeze.py:77: in _call_sort_entry_with_mocked_provenance\n>     return M._sort_entry(workload)\n> orchestrator/campaign/s1_known_axes_freeze.py:508: in _sort_entry\n>     flags = dict(s6_sort_sweep._genome(1).flags)\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_genome' id='22611339325024'>, args = (1,), kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: sort binding rejection did not precede output assembly\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=395 retained_bytes=395 omitted_bytes=0 rendered_excerpt_bytes=414 sha256=a9c97e117f5c0f832b3337f203fd3ce98e37b786112cf756448501bf5447a759\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_binding_rejects_canonical_name_comparator_mismatch():\n>         first = s6_sort_sweep.CANDIDATES[0]\n>         second = s6_sort_sweep.CANDIDATES[1]\n> >       with pytest.raises(authority.SortComparatorAuthorityError):\n> E       Failed: DID NOT RAISE SortComparatorAuthorityError\n> \n> orchestrator/tests/test_sort_comparator_authority.py:47: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1811 retained_bytes=1811 omitted_bytes=0 rendered_excerpt_bytes=1891 sha256=368616e5132da60975f09bb1206e9b7f25e51a742ec1746d889413f4ad2baa5d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_sort_entry_rejects_comparator_outside_authority_before_output():\n>         for workload, selected_name in (\n>                 (\"read-heavy\", \"sk_ad\"), (\"balanced\", \"sp_dd\")):\n>             comparator = _sort_implementation(selected_name) + \"\\x5cn\"\n>             with pytest.raises(M.FreezeError) as excinfo:\n> >               _call_sort_entry_with_mocked_provenance(\n>                     workload=workload,\n>                     selected_name=selected_name,\n>                     comparator=comparator,\n>                 )\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:188: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_s1_known_axes_freeze.py:77: in _call_sort_entry_with_mocked_provenance\n>     return M._sort_entry(workload)\n> orchestrator/campaign/s1_known_axes_freeze.py:508: in _sort_entry\n>     flags = dict(s6_sort_sweep._genome(1).flags)\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_genome' id='22845921299904'>, args = (1,), kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: sort binding rejection did not precede output assembly\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=509 retained_bytes=509 omitted_bytes=0 rendered_excerpt_bytes=534 sha256=f0195c40779392abad070c287c19fa02b81d923d97f42e8d26fd1e493b167b43\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_verify_rejects_sort_name_tamper_at_authority_layer():\n>         original = (M.ROOT / M.FREEZE_REL).read_bytes()\n>         assert b'\"sp_dd\"' in original\n>         tampered = original.replace(b'\"sp_dd\"', b'\"xp_dd\"', 1)\n>         assert len(tampered) == len(original)\n>         doc = json.loads(tampered)\n> >       with pytest.raises(M.FreezeError) as excinfo:\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:695: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=474 retained_bytes=474 omitted_bytes=0 rendered_excerpt_bytes=497 sha256=f2fb50671b23e5bc29bb245f95a936ae959e7bdd7e96a8b820a24547186b70d9\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_validate_schema_rejects_sort_name_comparator_mismatch():\n>         doc = _current_frozen_document()\n>         record = doc[\"entries\"][\"balanced\"][\"sort_best\"]\n>         assert record[\"name\"] == \"sp_dd\"\n>         record[\"comparator\"] = _sort_implementation(\"sk_ad\")\n> >       with pytest.raises(M.FreezeError) as excinfo:\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:177: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=435 retained_bytes=435 omitted_bytes=0 rendered_excerpt_bytes=459 sha256=24dadcb06c1006a91d77759c7d3dbf452500a1236d40915520f3497ea7d83afc\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_validate_schema_rejects_sort_comparator_outside_authority():\n>         doc = _current_frozen_document()\n>         record = doc[\"entries\"][\"balanced\"][\"sort_best\"]\n>         record[\"comparator\"] = record[\"comparator\"] + \"\\x5cn\"\n> >       with pytest.raises(M.FreezeError) as excinfo:\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:166: Failed\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=358 retained_bytes=358 omitted_bytes=0 rendered_excerpt_bytes=375 sha256=d5e2694397141a57433f6b9f2bf6ce293074daf59003f885e59de8e3e3547575\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_binding_rejects_outer_whitespace():\n>         name, _category, implementation = s6_sort_sweep.CANDIDATES[0]\n> >       with pytest.raises(authority.SortComparatorAuthorityError):\n> E       Failed: DID NOT RAISE SortComparatorAuthorityError\n> \n> orchestrator/tests/test_sort_comparator_authority.py:40: Failed\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=5799 retained_bytes=5799 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9470 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "593332c30aa87f085f5414e7010d307c7293b0c325dce1942a21208699aa8f6e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9d1722ab9aeaacabd76ddbf896afa31475850cd456fc79d12d2b0c2754f9592c",
+      "duration_s": 27.381,
+      "expected_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace",
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch",
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output"
+      ],
+      "hang_risk": false,
+      "id": "MUT-1-BINDING-RAISE-DISABLED",
+      "injection_diff_sha256": "1589f54e05f5b11af5826e9ed90c201e65a7babed2f1512de35925ca066c39ca",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "985a1b2b7ff1d95989e22646c0e9088ab6c616bfc8e6070a12abd337e27f2f96",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_comparator_authority.py",
+          "new": "    if type(name) is not str or type(comparator) is not str:\n        return\n    if _SORT_NAME_COMPARATOR_INDEX.get(name) != comparator:\n        return\n",
+          "old": "    if type(name) is not str or type(comparator) is not str:\n        _reject()\n    if _SORT_NAME_COMPARATOR_INDEX.get(name) != comparator:\n        _reject()\n"
+        }
+      ],
+      "repo_head": "acaed1452f5c530974ebbf3fa6657d1cab576a6a",
+      "runner_sha256": "994651fe900797b8221600e1d2c3e20412896d79979ea82f4b7dd1263b6a1557",
+      "spec_sha256": "4561e7574563aa129595c9ba8220d8668eb0ae0c84dcd5194c84e0630a90d010",
+      "status": "KILLED",
+      "test_output_sha256": "593332c30aa87f085f5414e7010d307c7293b0c325dce1942a21208699aa8f6e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "22341ea0133ac99aad56cb414387c90fd01e96b4a6ddbdf1d01b62f72200423e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3a8b7f439e7ee2d3d19420cdae901ebd/izdw-3a8b7f439e.o963232",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3a8b7f439e7ee2d3d19420cdae901ebd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................s.s..sssssss.F..                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":9,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n______________________ test_duplicate_name_is_fail_closed ______________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_duplicate_name_is_fail_closed():\n        first = s6_sort_sweep.CANDIDATES[0]\n        second = s6_sort_sweep.CANDIDATES[1]\n        candidates = (*s6_sort_sweep.CANDIDATES, (first[0], second[1], first[2] + \"\\n\"))\n>       with pytest.raises(RuntimeError, match=\"duplicate sort candidate name\"):\nE       Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_sort_comparator_authority.py:26: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed\n1 failed, 37 passed, 9 skipped in 4.41s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=460 retained_bytes=460 omitted_bytes=0 rendered_excerpt_bytes=484 sha256=06bbb78f8fac98c1d739c1677e6181305efcfda5e5602765d758905dc2ade00b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_duplicate_name_is_fail_closed():\n>         first = s6_sort_sweep.CANDIDATES[0]\n>         second = s6_sort_sweep.CANDIDATES[1]\n>         candidates = (*s6_sort_sweep.CANDIDATES, (first[0], second[1], first[2] + \"\\x5cn\"))\n> >       with pytest.raises(RuntimeError, match=\"duplicate sort candidate name\"):\n> E       Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_sort_comparator_authority.py:26: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=460 retained_bytes=460 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1194 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "18730404ae769ea458c35610adbe31f0fc573e3874bbf9c1355a7dca970b8011"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9d1722ab9aeaacabd76ddbf896afa31475850cd456fc79d12d2b0c2754f9592c",
+      "duration_s": 27.171,
+      "expected_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed"
+      ],
+      "hang_risk": false,
+      "id": "MUT-2A-DUPLICATE-NAME-CHECK-DISABLED",
+      "injection_diff_sha256": "6454d888b1d6909ab8b83a42aff739eec8eb1ffce4fa97fa586b38dcc808e77f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bb3bbe041ce42bd6fd935e5447c5f86c813b7fa5e045d85675fe8d650ae56054",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_comparator_authority.py",
+          "new": "        if name in index and False:\n            raise RuntimeError(f\"duplicate sort candidate name: {name!r}\")\n",
+          "old": "        if name in index:\n            raise RuntimeError(f\"duplicate sort candidate name: {name!r}\")\n"
+        }
+      ],
+      "repo_head": "acaed1452f5c530974ebbf3fa6657d1cab576a6a",
+      "runner_sha256": "994651fe900797b8221600e1d2c3e20412896d79979ea82f4b7dd1263b6a1557",
+      "spec_sha256": "4561e7574563aa129595c9ba8220d8668eb0ae0c84dcd5194c84e0630a90d010",
+      "status": "KILLED",
+      "test_output_sha256": "18730404ae769ea458c35610adbe31f0fc573e3874bbf9c1355a7dca970b8011",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "22341ea0133ac99aad56cb414387c90fd01e96b4a6ddbdf1d01b62f72200423e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1472c738bd5034ba3545c7cbda2eb100/izdw-1472c738bd.o963233",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1472c738bd5034ba3545c7cbda2eb100/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................ssFsssssss...                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":9,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_________________ test_duplicate_implementation_is_fail_closed _________________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_duplicate_implementation_is_fail_closed():\n        first = s6_sort_sweep.CANDIDATES[0]\n        second = s6_sort_sweep.CANDIDATES[1]\n        candidates = (*s6_sort_sweep.CANDIDATES, (second[0] + \"_copy\", second[1], first[2]))\n>       with pytest.raises(RuntimeError, match=\"duplicate sort candidate implementation\"):\nE       Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_sort_comparator_authority.py:34: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed\n1 failed, 37 passed, 9 skipped in 4.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=484 retained_bytes=484 omitted_bytes=0 rendered_excerpt_bytes=505 sha256=01487ea7f0890dd1034b804afda5b0a5639d13880b9243325536b46dbc5e788c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_duplicate_implementation_is_fail_closed():\n>         first = s6_sort_sweep.CANDIDATES[0]\n>         second = s6_sort_sweep.CANDIDATES[1]\n>         candidates = (*s6_sort_sweep.CANDIDATES, (second[0] + \"_copy\", second[1], first[2]))\n> >       with pytest.raises(RuntimeError, match=\"duplicate sort candidate implementation\"):\n> E       Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_sort_comparator_authority.py:34: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=484 retained_bytes=484 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1225 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d7639d34d8afb714e8fc0bb07dd77e4e9cd651535dff3a0131ce6906bd484d12"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9d1722ab9aeaacabd76ddbf896afa31475850cd456fc79d12d2b0c2754f9592c",
+      "duration_s": 27.137,
+      "expected_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed"
+      ],
+      "hang_risk": false,
+      "id": "MUT-2B-DUPLICATE-IMPL-CHECK-DISABLED",
+      "injection_diff_sha256": "ece31fc094a41d8599f2054236bbb047d1d020377bb56bcc3f749b89bcc7d617",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d533957ec029c00aa0d71434fa2580ba5915bc05c0f99af53cc7d5d1f5c1b45a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_comparator_authority.py",
+          "new": "        if implementation in implementation_names and False:\n            raise RuntimeError(\n                \"duplicate sort candidate implementation: \"\n                f\"names={(implementation_names[implementation], name)!r}\")\n",
+          "old": "        if implementation in implementation_names:\n            raise RuntimeError(\n                \"duplicate sort candidate implementation: \"\n                f\"names={(implementation_names[implementation], name)!r}\")\n"
+        }
+      ],
+      "repo_head": "acaed1452f5c530974ebbf3fa6657d1cab576a6a",
+      "runner_sha256": "994651fe900797b8221600e1d2c3e20412896d79979ea82f4b7dd1263b6a1557",
+      "spec_sha256": "4561e7574563aa129595c9ba8220d8668eb0ae0c84dcd5194c84e0630a90d010",
+      "status": "KILLED",
+      "test_output_sha256": "d7639d34d8afb714e8fc0bb07dd77e4e9cd651535dff3a0131ce6906bd484d12",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "22341ea0133ac99aad56cb414387c90fd01e96b4a6ddbdf1d01b62f72200423e"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f61ece3568bc5485ee0a3055b14f9821/izdw-f61ece3568.o963223",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f61ece3568bc5485ee0a3055b14f9821/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_sort_comparator_authority.py::test_all_fifteen_candidates_bind\norchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed\norchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed\norchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace\norchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch\norchestrator/tests/test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points\norchestrator/tests/test_s1_known_axes_freeze.py::test_current_six_frozen_trigger_predicates_pass_semantic_membership\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_accepts_frozen_sort_entries\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch\norchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output\norchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_accepts_all_32_masks\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_accepts_both_mask31_names\norchestrator/tests/test_s1_known_axes_freeze.py::test_duplicate_trigger_names_and_alias_collisions_fail_closed\norchestrator/tests/test_s1_known_axes_freeze.py::test_consumer_import_defers_trigger_name_collision_until_first_check\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_unknown_string_name\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_none_name\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_integer_name\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_bytes_name\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_str_subclass_name\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_comparison_spoof_name\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_non_string_diagnostics_ignore_repr\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_missing_trigger_name\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_has_complete_diagnostic\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_entries_rejects_coordinated_noncanonical_system_gate\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_entries_rejects_coordinated_noncanonical_ident_all\norchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_entries_rejects_coordinated_canonical_name_mask_tamper\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_noncanonical_system_gate\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_noncanonical_ident_all\norchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_coordinated_canonical_name_mask_tamper\norchestrator/tests/test_s1_known_axes_freeze.py::test_generate_rejects_noncanonical_predicate_before_writing\norchestrator/tests/test_s1_known_axes_freeze.py::test_verify_document_rejects_noncanonical_predicate_before_rebuild\norchestrator/tests/test_s1_known_axes_freeze.py::test_backoff_sweep_grid_matches_registered_golden\norchestrator/tests/test_s1_known_axes_freeze.py::test_mu3_extended_campaign_ids_do_not_change_legacy_source_path_tuple\norchestrator/tests/test_s1_known_axes_freeze.py::test_goldens_helper_is_independent_of_production\norchestrator/tests/test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper\norchestrator/tests/test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze\norchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper\norchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer\norchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy\norchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper\norchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head\norchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin\norchestrator/tests/test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags\norchestrator/tests/test_s1_known_axes_freeze.py::test_submodule_init_predicate_distinguishes_uninit_from_missing_file\norchestrator/tests/test_s1_known_axes_freeze.py::test_silo_cmake_rel_matches_source_digest_template\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":9,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n47 tests collected in 2.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "a671f979b5ca203873577a9d43a2182ec67b54fd8e5e7d6c6e758a6d7db335d9"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_all_fifteen_candidates_bind",
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed",
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed",
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace",
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_current_six_frozen_trigger_predicates_pass_semantic_membership",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_accepts_frozen_sort_entries",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_accepts_all_32_masks",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_accepts_both_mask31_names",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_duplicate_trigger_names_and_alias_collisions_fail_closed",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_consumer_import_defers_trigger_name_collision_until_first_check",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_unknown_string_name",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_none_name",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_integer_name",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_bytes_name",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_str_subclass_name",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_rejects_comparison_spoof_name",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_non_string_diagnostics_ignore_repr",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_missing_trigger_name",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_name_mask_binding_has_complete_diagnostic",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_entries_rejects_coordinated_noncanonical_system_gate",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_entries_rejects_coordinated_noncanonical_ident_all",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_trigger_entries_rejects_coordinated_canonical_name_mask_tamper",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_noncanonical_system_gate",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_noncanonical_ident_all",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_coordinated_canonical_name_mask_tamper",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_generate_rejects_noncanonical_predicate_before_writing",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_document_rejects_noncanonical_predicate_before_rebuild",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_backoff_sweep_grid_matches_registered_golden",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_mu3_extended_campaign_ids_do_not_change_legacy_source_path_tuple",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_goldens_helper_is_independent_of_production",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_submodule_init_predicate_distinguishes_uninit_from_missing_file",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_silo_cmake_rel_matches_source_digest_template",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"output_artifacts\",\"node_id\":\"test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy\",\"reason\":\"Builds or verifies the real known-axes freeze by globbing and parsing campaign artifacts, so cost grows with output artifacts.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 26.96,
+      "rc": 0,
+      "repo_head": "acaed1452f5c530974ebbf3fa6657d1cab576a6a",
+      "runner_sha256": "994651fe900797b8221600e1d2c3e20412896d79979ea82f4b7dd1263b6a1557",
+      "spec_sha256": "4561e7574563aa129595c9ba8220d8668eb0ae0c84dcd5194c84e0630a90d010",
+      "status": "PASSED",
+      "tool_sha256": "22341ea0133ac99aad56cb414387c90fd01e96b4a6ddbdf1d01b62f72200423e"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-1-BINDING-RAISE-DISABLED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace",
+          "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output",
+          "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1589f54e05f5b11af5826e9ed90c201e65a7babed2f1512de35925ca066c39ca",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/sort_comparator_authority.py",
+            "new": "    if type(name) is not str or type(comparator) is not str:\n        return\n    if _SORT_NAME_COMPARATOR_INDEX.get(name) != comparator:\n        return\n",
+            "old": "    if type(name) is not str or type(comparator) is not str:\n        _reject()\n    if _SORT_NAME_COMPARATOR_INDEX.get(name) != comparator:\n        _reject()\n"
+          }
+        ]
+      },
+      "MUT-2A-DUPLICATE-NAME-CHECK-DISABLED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6454d888b1d6909ab8b83a42aff739eec8eb1ffce4fa97fa586b38dcc808e77f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/sort_comparator_authority.py",
+            "new": "        if name in index and False:\n            raise RuntimeError(f\"duplicate sort candidate name: {name!r}\")\n",
+            "old": "        if name in index:\n            raise RuntimeError(f\"duplicate sort candidate name: {name!r}\")\n"
+          }
+        ]
+      },
+      "MUT-2B-DUPLICATE-IMPL-CHECK-DISABLED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ece31fc094a41d8599f2054236bbb047d1d020377bb56bcc3f749b89bcc7d617",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/sort_comparator_authority.py",
+            "new": "        if implementation in implementation_names and False:\n            raise RuntimeError(\n                \"duplicate sort candidate implementation: \"\n                f\"names={(implementation_names[implementation], name)!r}\")\n",
+            "old": "        if implementation in implementation_names:\n            raise RuntimeError(\n                \"duplicate sort candidate implementation: \"\n                f\"names={(implementation_names[implementation], name)!r}\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "032a881e275a5d45173269c710120d95bbdd0244c7b75c475b2390db194fe076",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_sort_comparator_authority.py",
+      "orchestrator/tests/test_s1_known_axes_freeze.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "acaed1452f5c530974ebbf3fa6657d1cab576a6a",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_sort_comparator_authority.py",
+      "orchestrator/tests/test_s1_known_axes_freeze.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3b9af0d8f247289b4960ae9e0e63264b44d6628f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "994651fe900797b8221600e1d2c3e20412896d79979ea82f4b7dd1263b6a1557",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "4561e7574563aa129595c9ba8220d8668eb0ae0c84dcd5194c84e0630a90d010",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/home/SFC/tanab/.claude/jobs/67d9faca/tmp/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "22341ea0133ac99aad56cb414387c90fd01e96b4a6ddbdf1d01b62f72200423e",
+  "updated_at": "2026-08-31T16:53:05.882868+00:00"
+}

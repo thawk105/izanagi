@@ -1,0 +1,58 @@
+{
+ "estimated_run_seconds": 1200,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "MWA",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+     "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[0]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+     "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "MWB",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+     "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[1]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+     "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "MWC",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+     "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[2]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+     "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
