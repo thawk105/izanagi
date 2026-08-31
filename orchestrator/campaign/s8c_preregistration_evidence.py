@@ -76,6 +76,7 @@ class ReasonCode(str, enum.Enum):
     FORMAL_ACCEPTANCE_LAYER3_ABSENT = "formal-acceptance-layer3-consumer-absent"
     CROSS_BINDING_VERIFIER_INCOMPLETE = "cross-binding-verifier-incomplete"
     CROSS_BINDING_ACCEPTANCE_UNREACHABLE = "cross-binding-acceptance-unreachable"
+    CROSS_BINDING_READINESS_SATISFIED = "cross-binding-readiness-satisfied"
     GENERATION_CAP_NOT_LIFTED = "generation-cap-not-lifted"
     GENERATION_ENTRYPOINT_BOUNDARY_INCOMPLETE = "generation-entrypoint-boundary-incomplete"
     CRITIC_FEEDBACK_CONSUMER_ABSENT = "critic-feedback-consumer-absent"
@@ -2237,28 +2238,272 @@ _C10_FIELDS = frozenset(
 )
 
 
+def _c10_single_function(
+    tree: ast.Module,
+    name: str,
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    matches = [
+        node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == name
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _c10_reader_is_not_noop(
+    reader: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    statements = list(reader.body)
+    if (
+        statements
+        and isinstance(statements[0], ast.Expr)
+        and isinstance(statements[0].value, ast.Constant)
+        and type(statements[0].value.value) is str
+    ):
+        statements.pop(0)
+    return bool(statements) and not all(
+        isinstance(statement, ast.Pass)
+        or (
+            isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Constant)
+            and statement.value.value is Ellipsis
+        )
+        for statement in statements
+    )
+
+
+def _c10_block_must_raise(statements: Sequence[ast.stmt]) -> bool:
+    for statement in statements:
+        if isinstance(statement, ast.Raise):
+            return True
+        if isinstance(statement, ast.If):
+            if (
+                statement.orelse
+                and _c10_block_must_raise(statement.body)
+                and _c10_block_must_raise(statement.orelse)
+            ):
+                return True
+        if isinstance(statement, (ast.Return, ast.Break, ast.Continue)):
+            return False
+    return False
+
+
+def _c10_contextlib_suppress_aliases(
+    tree: ast.Module,
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Return unambiguous module and callable aliases for contextlib.suppress."""
+
+    def import_kind(node: ast.AST, name: str) -> str | None:
+        if isinstance(node, ast.Import):
+            if any(
+                alias.name == "contextlib"
+                and (alias.asname or alias.name) == name
+                for alias in node.names
+            ):
+                return "module"
+        elif (
+            isinstance(node, ast.ImportFrom)
+            and node.level == 0
+            and node.module == "contextlib"
+            and any(
+                alias.name == "suppress"
+                and (alias.asname or alias.name) == name
+                for alias in node.names
+            )
+        ):
+            return "callable"
+        return None
+
+    def exact_aliases(
+        rows_by_name: Mapping[str, Sequence[ast.AST]],
+    ) -> tuple[set[str], set[str]]:
+        modules: set[str] = set()
+        callables: set[str] = set()
+        for name, rows in rows_by_name.items():
+            kinds = {import_kind(row, name) for row in rows}
+            if kinds == {"module"}:
+                modules.add(name)
+            elif kinds == {"callable"}:
+                callables.add(name)
+        return modules, callables
+
+    module_rows: dict[str, list[ast.AST]] = {}
+    for statement in tree.body:
+        for name in _statement_bound_names(statement):
+            module_rows.setdefault(name, []).append(statement)
+    module_aliases, callable_aliases = exact_aliases(module_rows)
+
+    live_ids = {id(node) for node in _live_nodes(function)}
+    local_rows: dict[str, list[ast.AST]] = {
+        name: [] for name in _function_parameters(function)
+    }
+    for node in _scope_nodes(function)[1:]:
+        if isinstance(node, (ast.Global, ast.Nonlocal)):
+            continue
+        for name in _direct_bound_names(node):
+            local_rows.setdefault(name, []).append(node)
+    module_aliases.difference_update(local_rows)
+    callable_aliases.difference_update(local_rows)
+    live_local_rows = {
+        name: rows
+        for name, rows in local_rows.items()
+        if rows and all(id(row) in live_ids for row in rows)
+    }
+    local_modules, local_callables = exact_aliases(live_local_rows)
+    module_aliases.update(local_modules)
+    callable_aliases.update(local_callables)
+    return frozenset(module_aliases), frozenset(callable_aliases)
+
+
+def _c10_is_suppress_context(
+    expression: ast.AST,
+    *,
+    module_aliases: frozenset[str],
+    callable_aliases: frozenset[str],
+) -> bool:
+    if not isinstance(expression, ast.Call):
+        return False
+    target = expression.func
+    if isinstance(target, ast.Name):
+        return target.id in callable_aliases
+    return (
+        isinstance(target, ast.Attribute)
+        and target.attr == "suppress"
+        and isinstance(target.value, ast.Name)
+        and target.value.id in module_aliases
+    )
+
+
+def _c10_call_is_not_catch_and_continue(
+    tree: ast.Module,
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    call: ast.Call,
+) -> bool:
+    parents = _c07_parent_map(function)
+    module_aliases, callable_aliases = _c10_contextlib_suppress_aliases(
+        tree, function
+    )
+    current: ast.AST = call
+    while id(current) in parents:
+        parent = parents[id(current)]
+        if isinstance(parent, ast.Try) and any(
+            call is candidate
+            for statement in parent.body
+            for candidate in ast.walk(statement)
+        ):
+            if any(
+                not _c10_block_must_raise(handler.body)
+                for handler in parent.handlers
+            ):
+                return False
+        if isinstance(parent, (ast.With, ast.AsyncWith)) and any(
+            call is candidate
+            for statement in parent.body
+            for candidate in ast.walk(statement)
+        ):
+            if any(
+                _c10_is_suppress_context(
+                    item.context_expr,
+                    module_aliases=module_aliases,
+                    callable_aliases=callable_aliases,
+                )
+                for item in parent.items
+            ):
+                return False
+        current = parent
+    return True
+
+
 def _evaluate_c10(probe: _ConditionProbe) -> core.PredicateResult:
     verifier = probe.python_kind("cross_binding_verifier")
-    functions = _functions(verifier) if verifier is not None else {}
-    verify = functions.get("verify_s8c_cross_binding")
+    if verifier is None:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.CROSS_BINDING_VERIFIER_INCOMPLETE,
+        )
+    verifier_path = probe.requirement("cross_binding_verifier").path
+    verify = _c10_single_function(verifier, "verify_s8c_cross_binding")
+    reader = _c10_single_function(verifier, "read_and_verify_bytes")
+    live_strings = (
+        {
+            node.value
+            for node in _live_nodes(verify)
+            if isinstance(node, ast.Constant) and type(node.value) is str
+        }
+        if verify is not None
+        else set()
+    )
+    reader_calls = (
+        () if verify is None else _calls_named(verify, "read_and_verify_bytes")
+    )
+    verifier_graph = (
+        None
+        if verify is None
+        else _ReachabilityExplorer(probe).walk(
+            (verifier_path, "verify_s8c_cross_binding")
+        )
+    )
     if (
         verify is None
-        or not _C10_FIELDS <= _strings(verify)
-        or "read_and_verify_bytes" not in _called_names(verify)
+        or reader is None
+        or not _c10_reader_is_not_noop(reader)
+        or not _C10_FIELDS <= live_strings
+        or not reader_calls
+        or verifier_graph is None
+        or not _declared_call(
+            probe,
+            verifier_graph,
+            (verifier_path, "read_and_verify_bytes"),
+        )
     ):
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CROSS_BINDING_VERIFIER_INCOMPLETE)
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.CROSS_BINDING_VERIFIER_INCOMPLETE,
+        )
     registry = probe.python_kind("trial_registry")
+    registry_path = probe.requirement("trial_registry").path
     accept = (
         _functions(registry).get("assert_trial_registry_acceptance")
         if registry is not None
         else None
     )
-    if accept is None or "verify_s8c_cross_binding" not in _called_names(accept):
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CROSS_BINDING_ACCEPTANCE_UNREACHABLE)
+    acceptance_calls = (
+        () if accept is None else _calls_named(accept, "verify_s8c_cross_binding")
+    )
+    acceptance_graph = (
+        None
+        if accept is None
+        else _ReachabilityExplorer(probe).walk(
+            (registry_path, "assert_trial_registry_acceptance")
+        )
+    )
+    if (
+        accept is None
+        or not acceptance_calls
+        or acceptance_graph is None
+        or not _declared_call(
+            probe,
+            acceptance_graph,
+            (verifier_path, "verify_s8c_cross_binding"),
+        )
+        or not all(
+            _c10_call_is_not_catch_and_continue(registry, accept, call)
+            for call in acceptance_calls
+        )
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.CROSS_BINDING_ACCEPTANCE_UNREACHABLE,
+        )
     return _result(
         probe,
-        core.PredicateStatus.EVIDENCE_UNDEFINED,
-        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+        core.PredicateStatus.SATISFIED,
+        ReasonCode.CROSS_BINDING_READINESS_SATISFIED,
     )
 
 
@@ -3072,7 +3317,7 @@ def _evaluate_c07(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
-SATISFIABLE_CONDITION_IDS: frozenset[str] = frozenset()
+SATISFIABLE_CONDITION_IDS: frozenset[str] = frozenset({"C10"})
 
 
 def _evaluate_undefined(probe: _ConditionProbe) -> core.PredicateResult:

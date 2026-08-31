@@ -2401,7 +2401,7 @@ def test_matching_decider_version_preserves_activation_conjunction(tmp_path: Pat
 
 
 def test_decider_version_binds_cross_module_semantics_to_v6() -> None:
-    assert M.DECIDER_VERSION == "s8c-decider/v6"
+    assert M.DECIDER_VERSION == "s8c-decider/v7"
 
 
 def test_mismatched_decider_version_is_not_effective(tmp_path: Path) -> None:
@@ -2451,7 +2451,7 @@ def test_invalid_running_decider_version_cannot_activate(
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v6"
+    assert report.decider_version == "s8c-decider/v7"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
@@ -2474,7 +2474,7 @@ def test_valid_hostile_str_subclass_cannot_fake_decider_version_match(
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v6"
+    assert report.decider_version == "s8c-decider/v7"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False

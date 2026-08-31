@@ -1,0 +1,112 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "drop-bypass-hard-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                if bypassed_cell_indices:\n",
+          "new": "                if False and bypassed_cell_indices:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaignless_failure_layer3_bypass_after_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "drop-bypass-record",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                        bypassed_cell_indices.append(index)\n",
+          "new": "                        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaignless_failure_layer3_bypass_after_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "bypass-gate-always-fires",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                if bypassed_cell_indices:\n",
+          "new": "                if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_reports_changed_layer3_snapshot_identity",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "skip-layer3-chain-call",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                    assert_campaign_layer3_chain(\n",
+          "new": "                    (lambda **_kwargs: None)(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaignless_failure_layer3_bypass_after_chain",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "reject-no-build",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                no_build_seen = True\n",
+          "new": "                _fail(\"campaign-chain\", \"no-build rejected\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_m11_acceptance_receipt_is_exclusive_create",
+        "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt",
+        "orchestrator/tests/test_trial_registry.py::test_p12_accept_cli_runs_from_clean_pythonpath",
+        "orchestrator/tests/test_trial_registry.py::test_p7_later_registry_rows_do_not_hide_older_manifest",
+        "orchestrator/tests/test_trial_registry.py::test_p6_one_cell_partial_terminal_outcome_passes_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_p6_partial_terminal_outcomes_are_reported_not_dropped",
+        "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_t1185_m3_m4_acceptance_checks_last_report_generation_budget",
+        "orchestrator/tests/test_trial_registry.py::test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[True]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_runs_digest_chain_once_per_registered_trial",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_allows_coherent_past_measurement_head",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_v3_has_no_certifying_issuance_branch",
+        "orchestrator/tests/test_trial_registry.py::test_t1185_pa_all_six_generation_two_reports_pass_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_start_run_root_outside_report_parent",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[False]",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_mixed_measurement_heads",
+        "orchestrator/tests/test_trial_registry.py::test_high_level_acceptance_routes_mismatch_to_formal_once_without_receipt",
+        "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_rejects_noncooperating_registry_rebind_without_receipt[parent-parent]",
+        "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_rejects_noncooperating_registry_rebind_without_receipt[target-path]",
+        "orchestrator/tests/test_trial_registry.py::test_m10_acceptance_rejects_missing_lifecycle_terminal",
+        "orchestrator/tests/test_trial_registry.py::test_p6_indeterminate_not_consumed_partial_fails_formal_acceptance"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
