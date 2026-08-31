@@ -40,12 +40,14 @@ pytestmark = pytest.mark.xdist_group("p3-b4-material-report")
 @dataclass(frozen=True)
 class _ImmutablePublication:
     publication_evidence: _PublicationEvidence
-    inputs: R.B4MaterialReportInputs
-    document: R.B4MaterialReportDocument
 
     @property
     def publication(self):
         return self.publication_evidence.publication
+
+
+_INPUT_CACHE: dict[str, R.B4MaterialReportInputs] = {}
+_DOCUMENT_CACHE: dict[str, R.B4MaterialReportDocument] = {}
 
 
 @pytest.fixture(scope="module")
@@ -113,23 +115,14 @@ def immutable_publication(tmp_path_factory) -> _ImmutablePublication:
         _assert_replicas_match_real_except_identity(
             publication_evidence.evidence
         )
-        publication, assembly = _publish_full_publication(
+        publication, _ = _publish_full_publication(
             publication=publication_evidence.publication,
             evidence=publication_evidence.evidence,
         )
     assert publication is publication_evidence.publication
     assert invoke_ids == ["producer-on-1", "producer-off-1"]
-    assert isinstance(assembly, producer.B4RawAnalysisAssembly)
-    assert len(assembly.source_artifact_bytes) == 2 * EXPECTED_BLOCK_COUNT
-    inputs = R._load_and_evaluate(Path(publication.publication_root))
-    assert isinstance(inputs.assembly, producer.B4RawAnalysisAssembly)
-    assert inputs.contract_binding is not None
-    assert inputs.analysis_result is not None
-    document = R.build_material_report_document(publication.publication_root)
     return _ImmutablePublication(
         publication_evidence=publication_evidence,
-        inputs=inputs,
-        document=document,
     )
 
 
@@ -155,8 +148,36 @@ def _fresh_publication_from_shared_evidence(
     return publication
 
 
+def _inputs(immutable: _ImmutablePublication) -> R.B4MaterialReportInputs:
+    publication_root = immutable.publication.publication_root
+    if publication_root not in _INPUT_CACHE:
+        _INPUT_CACHE[publication_root] = R._load_and_evaluate(
+            Path(publication_root)
+        )
+    return _INPUT_CACHE[publication_root]
+
+
 def _document(immutable: _ImmutablePublication) -> R.B4MaterialReportDocument:
-    return immutable.document
+    publication_root = immutable.publication.publication_root
+    if publication_root not in _DOCUMENT_CACHE:
+        _DOCUMENT_CACHE[publication_root] = R.build_material_report_document(
+            publication_root
+        )
+    return _DOCUMENT_CACHE[publication_root]
+
+
+def test_normal_path_assembles_binds_evaluates_and_builds_document(
+    immutable_publication: _ImmutablePublication,
+) -> None:
+    inputs = _inputs(immutable_publication)
+    assert isinstance(inputs.assembly, producer.B4RawAnalysisAssembly)
+    assert len(inputs.assembly.source_artifact_bytes) == 2 * EXPECTED_BLOCK_COUNT
+    assert inputs.contract_binding is not None
+    assert inputs.analysis_result is not None
+
+    document = _document(immutable_publication)
+    assert document.json_value["assembly"]["status"] == "assembled"
+    assert document.json_value["analysis"]["status"] == "evaluated"
 
 
 def test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf(
@@ -431,7 +452,8 @@ def test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutat
         return tuple(rows)
 
     monkeypatch.setattr(R, "_project_rows", mutate)
-    monkeypatch.setattr(R, "_load_and_evaluate", lambda _root: immutable_publication.inputs)
+    inputs = _inputs(immutable_publication)
+    monkeypatch.setattr(R, "_load_and_evaluate", lambda _root: inputs)
     with pytest.raises(R.B4MaterialReportError, match="projection_"):
         R.build_material_report_document(
             immutable_publication.publication.publication_root
@@ -452,7 +474,8 @@ def test_input_artifact_projection_rejects_one_byte_rewrite_through_public_build
         return report
 
     monkeypatch.setattr(R, "_build_report_value", mutate)
-    monkeypatch.setattr(R, "_load_and_evaluate", lambda _root: immutable_publication.inputs)
+    inputs = _inputs(immutable_publication)
+    monkeypatch.setattr(R, "_load_and_evaluate", lambda _root: inputs)
     with pytest.raises(R.B4MaterialReportError, match=artifact):
         R.build_material_report_document(
             immutable_publication.publication.publication_root
@@ -533,6 +556,7 @@ def test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing
     direction: str,
 ) -> None:
     campaign = _first_campaign_root(immutable_publication)
+    inputs = _inputs(immutable_publication)
     output = {
         "equal": campaign,
         "below": campaign / "material-report-output",
@@ -541,7 +565,7 @@ def test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing
     monkeypatch.setattr(
         R,
         "_load_and_evaluate",
-        lambda _root: immutable_publication.inputs,
+        lambda _root: inputs,
     )
     with pytest.raises(R.B4MaterialReportError, match="output_campaign_intersection"):
         R.write_material_report(
@@ -657,6 +681,7 @@ def test_m16b_prepublication_race_check_rejects_new_target(
     immutable_publication: _ImmutablePublication,
 ) -> None:
     output = tmp_path / "prepublish-race"
+    inputs = _inputs(immutable_publication)
     original = R._assert_output_absent
     observations = 0
 
@@ -672,7 +697,7 @@ def test_m16b_prepublication_race_check_rejects_new_target(
     monkeypatch.setattr(
         R,
         "_load_and_evaluate",
-        lambda _root: immutable_publication.inputs,
+        lambda _root: inputs,
     )
     with pytest.raises(R.B4MaterialReportError, match="output_exists"):
         R.write_material_report(
