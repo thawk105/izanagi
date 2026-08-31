@@ -126,13 +126,56 @@ def _physical_residual_values(
     return rows
 
 
+def _physical_residual_provenance() -> dict[str, object]:
+    return {
+        "probe_schema_version": "izanagi-b10-backoff-shape-probe/v1",
+        "probe_result_sha256": (
+            "6e7d8ed7d27be091ce94de4b85ac61a50e99d97167e75c4328e8a54982224bc3"
+        ),
+        "probe_source_commit": "8df4fa25da01311e887336b6f454f6d33ec28a2c",
+        "placeholder_preregistration_commit": (
+            "1549bd92794d72e05aeafe5903568f7d9023614d"
+        ),
+        "probe_request_id": "953543.nqsv",
+        "probe_nonce": "6f8cea40fcf2193f4e4157e9c89adde1",
+        "submission_receipt_sha256": (
+            "782b25fc0aecf78d0aa9dfa36ef2d036c777eb171b3ebe654405b7364dc7eb54"
+        ),
+        "probe_host": "bnode142",
+        "probe_measured_at_utc": "2026-08-27T16:26:55.628726Z",
+        "probe_clocks_per_us": 2100,
+        "probe_calls_per_cell": 100000,
+        "probe_cells_total": 18,
+        "extraction_rule": "select-probe-rows-whose-shape-is-in-the-registered-grid",
+    }
+
+
 def _spec_dict() -> dict[str, object]:
     patch_sha = _sha(_patch_bytes())
     return {
-        "schema_version": "izanagi-b10-backoff-shape-preregistration/v3",
+        "schema_version": "izanagi-b10-backoff-shape-preregistration/v4",
         "artifacts": {
             "patch_sha256": patch_sha,
             "formula_sha256": B.FORMULA_SHA256,
+        },
+        "registration_rules": {
+            "shape_eligibility_criterion": (
+                "symbolic-mean-deviation-has-no-unsuppressed-mu-coefficient-"
+                "on-mixer-high-bit-frequency"
+            ),
+            "shape_eligibility_evidence": "formula-only-not-observed-deviation",
+            "shape_exclusion_granularity": "whole-shape-only",
+            "means_us_and_cell_partition": "unchanged",
+            "physical_residual_cell_policy": (
+                "evaluate-all-registered-cells-without-exemption"
+            ),
+            "throughput_decision_procedure": "unchanged-and-independent-of-a2",
+            "a2_material_role": (
+                "motivation-and-prior-evidence-not-parameter-selection"
+            ),
+            "shape_rule_formulation_timing": (
+                "after-physical-residual-probe-before-shape-grid-throughput"
+            ),
         },
         "grid": {
             "means_us": list(B.MEANS_US),
@@ -142,7 +185,6 @@ def _spec_dict() -> dict[str, object]:
                     "name": "symmetric-modulo", "code": 1,
                     "support": "closed-half-width-mu/2-through-3mu/2",
                 },
-                {"name": "binary", "code": 2, "support": "two-point-mu/2-or-3mu/2"},
             ],
             "encoding": "BACKOFF_FIXED=shape_code*1000+mu",
             "references": [
@@ -174,7 +216,7 @@ def _spec_dict() -> dict[str, object]:
             "holm_families": [
                 {"workload": workload, "shape": shape}
                 for workload in B.WORKLOADS
-                for shape in ("symmetric-modulo", "binary")
+                for shape in ("symmetric-modulo",)
             ],
             "permutation": {
                 "method": "exact-sign-flip",
@@ -209,7 +251,7 @@ def _spec_dict() -> dict[str, object]:
                 "mark-family-indeterminate-on-any-unusable-pair",
                 "enumerate-two-sided-sign-flip-pvalue-for-each-testable-family",
                 "set-indeterminate-family-pvalue-to-1",
-                "holm-adjust-all-six-families",
+                "holm-adjust-all-three-families",
                 "different-iff-testable-and-holm-p-less-than-or-equal-alpha",
                 "otherwise-not-detected",
                 "report-all-cell-effects-confidence-intervals-and-equivalence-relations",
@@ -218,6 +260,7 @@ def _spec_dict() -> dict[str, object]:
         "physical_residual": {
             "measurement": "realized-backoff-loop-cycles",
             "maximum_absolute_deviation_pct_exclusive": 1.0,
+            "provenance": _physical_residual_provenance(),
             "values": _physical_residual_values(),
         },
         "external_floor_reference_widths": {
@@ -265,6 +308,46 @@ def _binding() -> B.PreregistrationBinding:
     )
 
 
+def _prior_block_record(
+    tmp_path: Path, *, point: str = "none",
+) -> tuple[B.Preregistration, dict[str, object]]:
+    spec = _spec()
+    binding = _binding()
+    prereg = B.Preregistration(binding, B.PREREG_REL, spec)
+    receipt = tmp_path / "submit-receipt.json"
+    receipt_bytes = b"fixture submission receipt\n"
+    receipt.write_bytes(receipt_bytes)
+    block_id = "block-1"
+    schedule_index = B.block_run_order(block_id).index(point)
+    shape, mean_us, encoded = B._name_metadata(point)
+    request_id = "request-1"
+    nonce = "d" * 32
+    row = {
+        "schema_version": "b10-backoff-shape-block/v2",
+        "official_certification": False,
+        "workload": "write-heavy",
+        "block_id": block_id,
+        "schedule_index": schedule_index,
+        "point": point,
+        "shape": shape,
+        "mean_us": mean_us,
+        "encoded": encoded,
+        "genome": dict(B.named_genomes())[point].canonical(),
+        "source_commit": binding.analysis_commit,
+        "trial": f"{request_id}-{nonce[:12]}",
+        "submission_receipt": str(receipt),
+        "submission_receipt_sha256": _sha(receipt_bytes),
+        "request_id": request_id,
+        "submission_nonce": nonce,
+        "job_script_sha256": "6" * 64,
+        "preregistration_binding": binding.as_dict(),
+        "spec_sha256": spec.spec_sha256,
+        "analysis_commit": binding.analysis_commit,
+        "analysis_code_sha256": binding.analysis_code_sha256,
+    }
+    return prereg, row
+
+
 def _probe_result() -> dict[str, object]:
     clocks_per_us = 2100
     calls = B.PROBE_CALLS_PER_CELL
@@ -275,7 +358,6 @@ def _probe_result() -> dict[str, object]:
             shape_extra = {
                 "constant": 20.0,
                 "symmetric-modulo": 24.0,
-                "binary": 22.0,
             }[shape]
             realized = commanded + shape_extra
             cells.append({
@@ -294,7 +376,7 @@ def _probe_result() -> dict[str, object]:
                 "deviation_pct": 100.0 * shape_extra / commanded,
             })
     return {
-        "schema_version": B.PROBE_SCHEMA,
+        "schema_version": "izanagi-b10-backoff-shape-probe/v2",
         "source_commit": "a" * 40,
         "patch_sha256": _sha(_patch_bytes()),
         "formula_sha256": B.FORMULA_SHA256,
@@ -561,7 +643,9 @@ def test_preregistration_matching_commit_blob_patch_and_formula_are_accepted(
     assert prereg.binding.formula_sha256 == B.FORMULA_SHA256
     assert prereg.minimum_abort_calls == 10
     assert prereg.maximum_absolute_deviation_pct_exclusive == 1.0
-    assert len(prereg.spec.physical_residual_values) == 18
+    assert dict(prereg.spec.registration_rules)["shape_eligibility_evidence"] \
+        == "formula-only-not-observed-deviation"
+    assert len(prereg.spec.physical_residual_values) == 12
     assert prereg.equivalence_margin_pct == 3.0
 
 
@@ -572,11 +656,12 @@ def test_m09_shape_code_three_is_rejected_instead_of_falling_back():
 
 
 def test_m10_underexposed_cell_is_indeterminate_not_success_or_failure():
-    key = ("read-heavy", "block-1", "binary", 2)
+    key = ("read-heavy", "block-1", "symmetric-modulo", 2)
     result = B.judge(_complete_records(underexposed=key), _spec())
     family = next(
         item for item in result["families"]
-        if item["workload"] == "read-heavy" and item["shape"] == "binary"
+        if item["workload"] == "read-heavy"
+        and item["shape"] == "symmetric-modulo"
     )
     assert family["outcome"] == "indeterminate"
     assert family["pairs"] == 17
@@ -591,7 +676,7 @@ def test_m11_raw_p_cannot_bypass_holm_family_correction():
     for row in rows:
         if row["shape"] != "constant":
             row["median_tps"] = 100.0
-        if (row["workload"], row["shape"]) == target and changed < 7:
+        if (row["workload"], row["shape"]) == target and changed < 6:
             row["median_tps"] = 120.0
             changed += 1
     result = B.judge(rows, spec)
@@ -625,20 +710,22 @@ def test_m13_actual_patch_half_width_mutation_reaches_only_cpp_bounds_oracle(
     assert value < Fraction(mean_us, 2)
 
 
-def test_m14_different_random_mixers_are_rejected_for_one_reason():
+def test_m14_dormant_cpp_code2_mixer_must_match_registered_symmetric_mixer():
     mutated_line = B.EXPECTED_HOLE_LINE.replace(
         "0x9e3779b97f4a7c15ULL) >> 63) *",
         "0xd1b54a32d192ed03ULL) >> 63) *",
         1,
     )
     assert mutated_line != B.EXPECTED_HOLE_LINE
-    # Any odd mixer preserves the high-bit-separated pair, so the numeric pair-sum
-    # oracle cannot kill this mutation. M14 targets the formula-structure gate that
-    # enforces one shared mixer across both random shapes.
+    # Code 2 is absent from the v4 grid, Holm families, and throughput report.
+    # This checks only compatibility of the byte-pinned formula's dormant code-2
+    # branch with the registered symmetric branch's mixer.
     _expect_code("mixer", lambda: B.validate_formula_contract(mutated_line))
 
 
-def test_cpp_pair_average_is_exact_mean_for_an_alternate_odd_mixer(tmp_path: Path):
+def test_dormant_cpp_code2_pair_average_is_exact_for_alternate_odd_mixer(
+    tmp_path: Path,
+):
     """An alternate odd mixer keeps every constructed pair's average at mu."""
     mutated_line = B.EXPECTED_HOLE_LINE.replace(
         "0x9e3779b97f4a7c15ULL) >> 63) *",
@@ -647,7 +734,8 @@ def test_cpp_pair_average_is_exact_mean_for_an_alternate_odd_mixer(tmp_path: Pat
     )
     binary = _compile_expression(tmp_path, mutated_line, "alternate_odd_mixer")
     inverse = pow(B.MIXER, -1, 1 << 64)
-    encoded = B.encode("binary", 25)
+    # Dormant code 2 is byte-pinned C++ compatibility, not a registered v4 shape.
+    encoded = 2025
     for low in range(1000):
         starts = (
             (low * inverse) & B._MASK64,
@@ -698,20 +786,158 @@ def test_m17_and_p05_matching_bound_wal_is_resumable(tmp_path: Path, monkeypatch
     B.assert_resumable_binding(layout, binding)
 
 
-def test_p06_full_machine_spec_and_runtime_residual_are_accepted():
-    spec = _spec()
+def test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted():
+    spec = B.parse_preregistration(
+        (ROOT / B.PREREG_REL).read_bytes(),
+    )
     assert spec.means_us == B.MEANS_US
-    assert len(spec.shapes) == 3
+    assert tuple(name for name, _code, _support in spec.shapes) == (
+        "constant", "symmetric-modulo",
+    )
     assert len(spec.block_orders) == 3
     assert len(spec.workloads) == 3
     assert spec.performance_reps == spec.correctness_reps == 5
-    assert len(spec.holm_families) == 6
+    assert spec.holm_families == (
+        ("write-heavy", "symmetric-modulo"),
+        ("balanced", "symmetric-modulo"),
+        ("read-heavy", "symmetric-modulo"),
+    )
     assert spec.pairs_per_family == 18
     assert spec.missing_family_action == "indeterminate"
+    assert spec.reference_width_terminology == "external-floor-derived-reference-width"
     assert spec.reference_width_power_guarantee is False
-    assert dict((row[0], row[1]) for row in spec.reference_widths)["read-heavy"] == 0.22
-    assert len(spec.physical_residual_values) == 18
-    assert B.validate_runtime_physical_residual(spec, 2100) == pytest.approx(0.5)
+    assert spec.reference_widths == (
+        ("write-heavy", 0.67, 1.9, "linux-baremetal"),
+        ("balanced", 1.07, 3.0, "linux-baremetal"),
+        ("read-heavy", 0.22, 0.62, "pegasus"),
+    )
+    rules = dict(spec.registration_rules)
+    assert rules == {
+        "shape_eligibility_criterion": (
+            "symbolic-mean-deviation-has-no-unsuppressed-mu-coefficient-"
+            "on-mixer-high-bit-frequency"
+        ),
+        "shape_eligibility_evidence": "formula-only-not-observed-deviation",
+        "shape_exclusion_granularity": "whole-shape-only",
+        "means_us_and_cell_partition": "unchanged",
+        "physical_residual_cell_policy": (
+            "evaluate-all-registered-cells-without-exemption"
+        ),
+        "throughput_decision_procedure": "unchanged-and-independent-of-a2",
+        "a2_material_role": (
+            "motivation-and-prior-evidence-not-parameter-selection"
+        ),
+        "shape_rule_formulation_timing": (
+            "after-physical-residual-probe-before-shape-grid-throughput"
+        ),
+    }
+    assert len(spec.physical_residual_values) == 12
+    assert spec.maximum_absolute_deviation_pct_exclusive == 1.0
+    assert B.validate_runtime_physical_residual(spec, 2100) \
+        == pytest.approx(0.5616942857142844)
+
+
+def test_v4_spec_including_binary_shape_is_rejected():
+    B.parse_preregistration(_prereg_doc())
+    mutated = copy.deepcopy(_spec_dict())
+    mutated["grid"]["shapes"].append({
+        "name": "binary", "code": 2,
+        "support": "two-point-mu/2-or-3mu/2",
+    })
+    _expect_code("prereg-spec", lambda: B.parse_preregistration(_prereg_doc(mutated)))
+
+
+@pytest.mark.parametrize("limit", (0.5, 2.0))
+def test_physical_residual_limit_other_than_exact_one_is_rejected(limit: float):
+    B.parse_preregistration(_prereg_doc())
+    mutated = copy.deepcopy(_spec_dict())
+    mutated["physical_residual"]["maximum_absolute_deviation_pct_exclusive"] = limit
+    _expect_code("prereg-spec", lambda: B.parse_preregistration(_prereg_doc(mutated)))
+
+
+@pytest.mark.parametrize(
+    ("field", "mutated_value"),
+    (
+        ("probe_schema_version", "izanagi-b10-backoff-shape-probe/v2"),
+        ("probe_result_sha256", "0" * 64),
+        ("probe_source_commit", "0" * 40),
+        ("placeholder_preregistration_commit", "1" * 40),
+        ("probe_request_id", "953544.nqsv"),
+        ("probe_nonce", "0" * 32),
+        ("submission_receipt_sha256", "f" * 64),
+        ("probe_host", "bnode143"),
+        ("probe_measured_at_utc", "2026-08-27T16:26:56.628726Z"),
+        ("probe_clocks_per_us", 2101),
+        ("probe_calls_per_cell", 100001),
+        ("probe_cells_total", 19),
+        ("extraction_rule", "select-all-probe-rows"),
+    ),
+)
+def test_physical_residual_provenance_values_are_checked_exactly(
+    field: str, mutated_value: object,
+):
+    B.parse_preregistration(_prereg_doc())
+    mutated = copy.deepcopy(_spec_dict())
+    mutated["physical_residual"]["provenance"][field] = mutated_value
+    _expect_code(
+        "prereg-spec", lambda: B.parse_preregistration(_prereg_doc(mutated)),
+    )
+
+
+def test_registration_rules_values_are_checked_exactly():
+    B.parse_preregistration(_prereg_doc())
+
+    observed_deviation = copy.deepcopy(_spec_dict())
+    observed_deviation["registration_rules"]["shape_eligibility_evidence"] = (
+        "observed-deviation-below-limit"
+    )
+    _expect_code(
+        "prereg-spec",
+        lambda: B.parse_preregistration(_prereg_doc(observed_deviation)),
+    )
+
+    cell_exclusion = copy.deepcopy(_spec_dict())
+    cell_exclusion["registration_rules"]["physical_residual_cell_policy"] = (
+        "exclude-cells-by-observed-deviation"
+    )
+    _expect_code(
+        "prereg-spec",
+        lambda: B.parse_preregistration(_prereg_doc(cell_exclusion)),
+    )
+
+    extra_cell = copy.deepcopy(_spec_dict())
+    extra_cell["physical_residual"]["values"].append({
+        "shape": "constant",
+        "mean_us": 2,
+        "realized_mean_cycles": 4200.0,
+        "commanded_mean_cycles": 4200,
+        "deviation_pct": 0.0,
+    })
+    _expect_code(
+        "prereg-spec",
+        lambda: B.parse_preregistration(_prereg_doc(extra_cell)),
+    )
+
+
+def test_schema_v3_document_is_rejected_after_v4_positive_control():
+    B.parse_preregistration(_prereg_doc())
+    mutated = copy.deepcopy(_spec_dict())
+    mutated["schema_version"] = "izanagi-b10-backoff-shape-preregistration/v3"
+    _expect_code("prereg-spec", lambda: B.parse_preregistration(_prereg_doc(mutated)))
+
+
+def test_physical_residual_deviation_exactly_at_the_limit_is_rejected():
+    B.parse_preregistration(_prereg_doc())
+    mutated = copy.deepcopy(_spec_dict())
+    row = mutated["physical_residual"]["values"][0]
+    row["commanded_mean_cycles"] = 4200
+    row["realized_mean_cycles"] = 4242
+    row["deviation_pct"] = 1.0
+    spec = B.parse_preregistration(_prereg_doc(mutated))
+    _expect_code(
+        "physical-residual",
+        lambda: B.validate_runtime_physical_residual(spec, 2100),
+    )
 
 
 def test_physical_residual_table_is_required_and_placeholders_are_rejected():
@@ -800,13 +1026,17 @@ def test_probe_harness_copies_reviewed_chkclkspan_and_wait_loop_verbatim():
 
 def test_probe_output_schema_and_create_only(tmp_path: Path):
     result = _probe_result()
-    assert B._validate_probe_result(result)["schema_version"] == B.PROBE_SCHEMA
+    assert B._validate_probe_result(result)["schema_version"] \
+        == "izanagi-b10-backoff-shape-probe/v2"
+    legacy = copy.deepcopy(result)
+    legacy["schema_version"] = "izanagi-b10-backoff-shape-probe/v1"
+    _expect_code("probe-schema", lambda: B._validate_probe_result(legacy))
     path = tmp_path / "probe-result.json"
     B._write_probe_result_create_only(path, result)
     loaded = json.loads(path.read_text(encoding="utf-8"))
     assert B._validate_probe_result(loaded)["calls_per_cell"] == 100_000
-    assert len(loaded["cells"]) == 18
-    assert len(loaded["shape_differences_from_constant"]) == 12
+    assert len(loaded["cells"]) == 12
+    assert len(loaded["shape_differences_from_constant"]) == 6
     with pytest.raises(FileExistsError):
         B._write_probe_result_create_only(path, result)
 
@@ -825,6 +1055,35 @@ def test_block_records_are_hash_verified_and_create_only(tmp_path: Path):
     envelope["record"]["point"] = "adaptive"
     path.write_text(json.dumps(envelope), encoding="utf-8")
     _expect_code("measurement-record", lambda: B._load_block_record(path))
+
+
+def test_prior_block_record_with_canonical_point_metadata_is_accepted(
+    tmp_path: Path,
+):
+    prereg, row = _prior_block_record(tmp_path, point="symmetric-modulo-mu2")
+    indexed = B._validate_prior_block_records(
+        [row], workload="write-heavy", prereg=prereg,
+    )
+    assert indexed == {("block-1", "symmetric-modulo-mu2"): row}
+
+
+def test_prior_block_record_metadata_must_match_point(tmp_path: Path):
+    prereg, row = _prior_block_record(tmp_path)
+    malicious = copy.deepcopy(row)
+    malicious.update({
+        "shape": "binary",
+        "mean_us": 2,
+        "encoded": 2002,
+        "genome": B.Genome(
+            "silo", {**B._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 2002},
+        ).canonical(),
+    })
+    _expect_code(
+        "resume-binding",
+        lambda: B._validate_prior_block_records(
+            [malicious], workload="write-heavy", prereg=prereg,
+        ),
+    )
 
 
 def test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted(tmp_path: Path):
@@ -902,12 +1161,16 @@ def test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip(tmp_p
     assert len(evidence["inert_references"]) == 2
 
 
-def test_p02_all_18_encodings_are_bijective():
+def test_p02_all_12_registered_encodings_are_bijective():
     encoded = {B.encode(shape, mean_us) for shape, _code in B.SHAPES for mean_us in B.MEANS_US}
-    assert len(encoded) == 18
+    assert len(encoded) == 12
     assert {B.decode(value) for value in encoded} == {
         (shape, mean_us) for shape, _code in B.SHAPES for mean_us in B.MEANS_US
     }
+    with pytest.raises(ValueError, match="grid 外"):
+        B.encode("binary", 2)
+    with pytest.raises(ValueError, match="grid 外"):
+        B.decode(2002)
 
 
 def test_p03_legacy_zero_through_999_is_numerically_identical():
@@ -925,42 +1188,42 @@ def test_p04_three_reference_points_and_full_grid_are_accepted():
     assert refs["adaptive"].flags["BACKOFF_FIXED"] == -1
     assert refs["zero-loop"].flags["BACK_OFF"] == 1
     assert refs["zero-loop"].flags["BACKOFF_FIXED"] == 0
-    assert len(B.genomes()) == 21
+    assert B.POINTS_PER_BLOCK == 15
+    assert len(B.genomes()) == 15
 
 
-def test_exact_finite_models_have_mean_exactly_mu_for_all_shapes():
+def test_exact_finite_models_distinguish_registered_shapes_and_dormant_code2():
     width = 16
-    mask = (1 << width) - 1
-    lower_mask = (1 << (width - 1)) - 1
-    multiplier = B.MIXER & mask
-    assert multiplier % 2 == 1
+    assert B.MIXER % 2 == 1
+    inverse = pow(B.MIXER, -1, 1 << 64)
     for mean_us in B.MEANS_US:
-        constant = []
-        symmetric = []
-        binary = []
-        for start in range(1 << width):
-            mixed = (start * multiplier) & mask
-            high = mixed >> (width - 1)
-            low = mixed & lower_mask
-            residue = low % (2 * mean_us + 1)
-            offset = 2 * mean_us - residue if high else residue
-            constant.append(Fraction(mean_us))
-            symmetric.append(Fraction(mean_us + offset, 2))
-            binary.append(Fraction(mean_us + high * 2 * mean_us, 2))
-        for values in (constant, symmetric, binary):
-            assert sum(values, Fraction()) / len(values) == Fraction(mean_us)
+        encoded_values = (
+            B.encode("constant", mean_us),
+            B.encode("symmetric-modulo", mean_us),
+            2000 + mean_us,
+        )
+        # constant/symmetric are registered v4 shapes. Code 2 is retained only
+        # as a byte-pinned dormant C++ compatibility branch.
+        for low in range(1 << width):
+            starts = (
+                (low * inverse) & B._MASK64,
+                (((1 << 63) | low) * inverse) & B._MASK64,
+            )
+            for encoded in encoded_values:
+                values = [B.exact_model(encoded, start) for start in starts]
+                assert sum(values, Fraction()) == Fraction(2 * mean_us)
 
 
-def test_exact_model_binary_arms_and_symmetric_bounds_for_odd_means():
+def test_dormant_code2_binary_arms_and_registered_symmetric_bounds_for_odd_means():
     for mean_us in (5, 25):
-        binary = B.encode("binary", mean_us)
+        dormant_code2 = 2000 + mean_us
         # MIXER is odd, so start=0 has high bit 0.  Search one finite witness for high bit 1.
         high_start = next(
             start for start in range(1, 1000)
             if (((start * B.MIXER) & B._MASK64) >> 63) == 1
         )
-        assert B.exact_model(binary, 0) == Fraction(mean_us, 2)
-        assert B.exact_model(binary, high_start) == Fraction(3 * mean_us, 2)
+        assert B.exact_model(dormant_code2, 0) == Fraction(mean_us, 2)
+        assert B.exact_model(dormant_code2, high_start) == Fraction(3 * mean_us, 2)
         symmetric = B.encode("symmetric-modulo", mean_us)
         for start in (0, high_start, (1 << 64) - 1):
             value = B.exact_model(symmetric, start)
@@ -971,7 +1234,10 @@ def test_block_orders_are_distinct_complete_identity_bearing_permutations():
     orders = [B.block_run_order(block) for block in B.BLOCK_IDS]
     expected = {name for name, _genome in B.named_genomes()}
     assert len(set(orders)) == 3
-    assert all(len(order) == 21 and set(order) == expected for order in orders)
+    assert all(
+        len(order) == B.POINTS_PER_BLOCK == 15 and set(order) == expected
+        for order in orders
+    )
 
 
 def test_config_uses_calibration_records_and_binds_preregistration():
@@ -995,6 +1261,7 @@ def test_config_uses_calibration_records_and_binds_preregistration():
     assert cfg.search_config["preregistration_binding"] == binding.as_dict()
     assert cfg.search_config[B.SEARCH_CONFIG_VERIFY_KEY] == B.VERIFY_LEGACY_PLUS_PERFORMANCE
     assert "screening" not in cfg.search_config
+    assert "15 genomes" in cfg.spec_content
 
 
 @pytest.mark.parametrize(
@@ -1067,15 +1334,16 @@ def test_each_build_start_carries_all_four_explicit_binding_values(monkeypatch):
 
 def test_missing_uncertified_and_unstable_pairs_are_indeterminate():
     keys = (
-        ("balanced", "block-1", "binary", 2),
-        ("balanced", "block-2", "binary", 5),
+        ("balanced", "block-1", "symmetric-modulo", 2),
+        ("balanced", "block-2", "symmetric-modulo", 5),
     )
     for selector in ("unstable", "uncertified"):
         kwargs = {selector: keys[0]}
         result = B.judge(_complete_records(**kwargs), _spec())
         family = next(
             row for row in result["families"]
-            if row["workload"] == "balanced" and row["shape"] == "binary"
+            if row["workload"] == "balanced"
+            and row["shape"] == "symmetric-modulo"
         )
         assert family["outcome"] == "indeterminate"
     rows = _complete_records()
@@ -1086,14 +1354,15 @@ def test_missing_uncertified_and_unstable_pairs_are_indeterminate():
     result = B.judge(rows, _spec())
     family = next(
         row for row in result["families"]
-        if row["workload"] == "balanced" and row["shape"] == "binary"
+        if row["workload"] == "balanced"
+        and row["shape"] == "symmetric-modulo"
     )
     assert family["outcome"] == "indeterminate"
 
 
-def test_cell_effects_cover_all_54_factorial_cells_with_ci():
+def test_cell_effects_cover_all_36_factorial_cells_with_ci():
     effects = B.cell_effects(_complete_records(), _spec())
-    assert len(effects) == 54
+    assert len(effects) == 36
     assert all(row["status"] == "estimable" for row in effects)
     assert all(row["ci95_low"] is not None and row["ci95_high"] is not None for row in effects)
     assert {row["equivalence_relation"] for row in effects} <= {
@@ -1124,14 +1393,19 @@ def test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model(t
             for start in starts:
                 assert _cpp_value(binary, encoded, start) == B.exact_model(encoded, start)
 
-    # Independent semantic oracle: odd MIXER is a permutation.  Construct y
-    # directly, invert it to start, and pair equal low63 values with opposite
-    # high bits.  This checks the 2*mu sum without mirroring the C++ branches.
+    # Independent semantic oracle: odd MIXER is a permutation. Construct y,
+    # invert it to start, and pair equal low63 values with opposite high bits.
+    # symmetric-modulo is registered; code 2 is absent from the v4 grid, Holm
+    # families, and throughput report, and remains only for byte-pinned formula
+    # compatibility.
     assert B.MIXER & 1
     inverse = pow(B.MIXER, -1, 1 << 64)
-    for shape in ("symmetric-modulo", "binary"):
+    for shape in ("symmetric-modulo", "dormant-code2"):
         for mean_us in B.MEANS_US:
-            encoded = B.encode(shape, mean_us)
+            encoded = (
+                B.encode("symmetric-modulo", mean_us)
+                if shape == "symmetric-modulo" else 2000 + mean_us
+            )
             for residue in range(2 * mean_us + 1):
                 low = residue
                 starts_for_pair = (

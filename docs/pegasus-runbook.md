@@ -1504,6 +1504,37 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
 - qsub 前の永続 claim を持たないため、**SIGKILL と request ID 照会中の再 signal では
   hold が立たないまま終了しうる**。「全 job が fail-closed になった」とは読まない。
 
+### 7.7 A-1 対測定の正式投入 ([T-1819]、2026-08-29 実測)
+
+- **投入器は login 側 shell ではなく driver の `submit` サブコマンドである。** job body
+  `tools/pegasus/paper_story_a1_paired.sh` は冒頭で「親が直接 qsub し、この file は投入器ではない」と
+  宣言している。A-2 が login 側 shell に投入器を置くのは 2 workload の fan-out / fan-in を shell が
+  担うためで、A-1 は 1 job なので driver に置く。この差は欠落ではない。
+- login node から次の形で投入する。
+
+  ```bash
+  python3 -B -m orchestrator.campaign.paper_story_a1_paired submit \
+    --expected-head <現 HEAD の 40 桁> \
+    --attempt-root <durable base>/<attempt-id>
+  ```
+
+- **`<durable base>` は policy の `execution.durable_measurement_base` が固定する。**
+  投入器がこの base を `parents=True, exist_ok=True` で作るので、事前に作らない。
+  attempt root 自体は作らない — 既存だと拒否される。
+- **`<attempt-id>` は base 直下 1 階層の名前**で、`[A-Za-z0-9][A-Za-z0-9._-]*` に収める。
+  同名の attempt root・intent・submission receipt・completion receipt・stdout・stderr の
+  いずれかが残っていると qsub 前に拒否される。作り直すときは新しい attempt-id を使う。
+- 投入前に tracked worktree が clean で、`--expected-head` が現 HEAD と一致している必要がある。
+  どちらも driver が qsub 前に検査する。
+- **intent があって submission receipt が無い状態は「投入したかどうか不明」である。**
+  driver は同じ attempt へ二度目の qsub をしない。これは意図的な fail-closed であり迂回しない。
+  別の attempt-id で取り直す。
+- scheduler の標準出力・標準エラーは evidence path (durable base 直下) へ返るので repo は汚れない
+  (D1291 の規範に既に適合している)。
+- この経路は `tools/pegasus/` の admission 登録簿の対象外である。登録簿は `tools/` 配下の実行体を
+  分類するもので、driver の subcommand は管轄外である。§7.0 の実行場所判定にも掛からない —
+  qsub 自体は login 側で行う軽い操作である。
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した

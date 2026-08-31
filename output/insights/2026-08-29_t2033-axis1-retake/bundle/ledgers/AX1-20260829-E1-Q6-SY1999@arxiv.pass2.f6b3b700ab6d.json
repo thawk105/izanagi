@@ -1,0 +1,27 @@
+{
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "distinct_index_work_id_count": 1,
+  "document_type": "record_occurrence_ledger",
+  "index": "arxiv",
+  "leaf_query_id": "AX1-20260829-E1-Q6-SY1999@arxiv",
+  "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+  "occurrence_count": 1,
+  "occurrences": [
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:cs/9902011"
+      ],
+      "index_work_id": "http://arxiv.org/abs/cs/9902011v1",
+      "interpreted_date": "1999-02-07",
+      "ordinal": 0,
+      "page_number": 0,
+      "raw_date_value": "1999-02-07T20:03:20Z"
+    }
+  ],
+  "primary_key_kind": "index_work_id",
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1"
+}

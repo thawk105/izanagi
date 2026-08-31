@@ -1,0 +1,220 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 78 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T05@dblp",
+    "logical_query_id": "AX1-20260829-E1-T05@dblp",
+    "page_number": 0,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T05@dblp#p0",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 78,
+    "capacity_echo": 78,
+    "declared_total": 78,
+    "interpreted_query": "two* phase* locking*",
+    "parse_errors": [],
+    "position_in": "0",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "ddb02981d3dc17c392c97301861ceabf5aa5d97103a4250f7c2f8e530b89be84",
+    "index_work_ids": [
+      "journals/pvldb/BarthelsMTAH19",
+      "journals/informaticaSI/Meenu26a",
+      "journals/afp/Traytel25",
+      "journals/pacmmod/HabibiFLN25",
+      "journals/corr/abs-2501-06978",
+      "journals/corr/abs-2508-18576",
+      "journals/jip/NakamoriNHK23",
+      "conf/aina/EnokidoD023",
+      "conf/ppopp/RamalheteCF23",
+      "journals/ewc/FakherH22",
+      "conf/adc/NakamoriNHK22",
+      "conf/cisis/EnokidoD022",
+      "conf/hpdc/NakamoriNHK22",
+      "conf/mocast/SelvarajBN22",
+      "data/10/RamalheteCF22",
+      "journals/soca/FrosiniPCSB21",
+      "conf/sigmod/GuoWYY21",
+      "journals/corr/abs-2103-09906",
+      "conf/icsai/XiaoLing19",
+      "reference/db/Lausen18",
+      "journals/iet-cds/MokhtabadG17",
+      "conf/ecms/CulciarV15",
+      "conf/aiccsa/Alomari13",
+      "conf/compsystech/VasilevaG13",
+      "journals/jcns/WoodmanC11",
+      "reference/db/Lausen09",
+      "journals/jcns/MaranC08",
+      "conf/compsystech/VasilevaM08",
+      "conf/imcsit/Kot08",
+      "journals/jcis/KimM06",
+      "conf/cata/WangHWC04",
+      "conf/ccct/WangHW04",
+      "conf/ike/WangHW04",
+      "journals/siamads/GreenKS03",
+      "journals/infsof/Al-JumahHE00",
+      "conf/appinf/ChoKBH99b",
+      "journals/isci/BurgerKH97",
+      "conf/adbis/KrzyzagorskiM97",
+      "books/ph/kumar96/Thomasian96",
+      "conf/icdt/Soisalon-SoininenY95",
+      "conf/cikm/HelalKF94",
+      "conf/compsac/SonD94",
+      "journals/tods/Thomasian93",
+      "conf/iscas/YuJYM93",
+      "conf/mmb/Hasslinger93",
+      "conf/srds/DavidS93",
+      "conf/icde/Thomasian92",
+      "journals/isci/KumarH91",
+      "journals/tkde/Vidyasankar91",
+      "journals/tse/ThomasianR91",
+      "conf/icde/Thomasian91",
+      "journals/isci/Kumar90",
+      "journals/tods/DasguptaK90",
+      "conf/icdcs/ThomasianR90",
+      "journals/is/Kumar89",
+      "journals/rts/NishioTI89",
+      "journals/tse/Hartzman89",
+      "journals/pe/ThanosBC88",
+      "journals/tse/LeuB88",
+      "conf/pods/Kelter88",
+      "journals/tse/PunB87",
+      "conf/iwdm/SaishoK87",
+      "journals/tods/HsuC86",
+      "phd/us/Moon85",
+      "phd/us/Pun85",
+      "journals/jacm/BuckleyS85",
+      "journals/tse/MohanFKS85",
+      "conf/hpts/HsuC85",
+      "journals/tse/Silberschatz83a",
+      "conf/srds/ThanosCB83",
+      "conf/vldb/DasguptaK83",
+      "conf/vldb/LinN83",
+      "conf/berkeley/LinN82",
+      "conf/icdcs/LinN82",
+      "conf/jcdkb/MohanFS82",
+      "conf/pods/MohanFS82",
+      "conf/vldb/KedemMS82",
+      "conf/vldb/KedemS80"
+    ],
+    "occurrence_count": 78,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T05@dblp.pass1.6f32db2638a2.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=two-phase+locking&format=json&h=100&f=0",
+    "expected_interpreted_query": "two* phase* locking*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": null,
+    "path": "/search/publ/api",
+    "position_in": "0",
+    "query_parameters": [
+      [
+        "q",
+        "two-phase locking"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "0"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T05@dblp_p0.a01.body.gz",
+    "byte_count": 43601,
+    "content_type": "application/json",
+    "elapsed_s": 2.6309484792873263,
+    "final_url": "https://dblp.org/search/publ/api?q=two-phase+locking&format=json&h=100&f=0",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "3db4b911860468417f2727c6c99b153e3e7d2bb3950cad994eb2c6056d9d2b5c",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:26:27.850607Z",
+    "parsed_at": "2026-08-29T14:26:30.504557Z",
+    "prepared_at": "2026-08-29T14:25:55.921270Z",
+    "response_stored_at": "2026-08-29T14:26:30.501503Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:26:30.506140Z"
+  }
+}

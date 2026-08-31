@@ -1,0 +1,15 @@
+{"at":"2026-08-29T14:22:00.672986Z","attempt_number":1,"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"prepared"}
+{"at":"2026-08-29T14:22:42.883178Z","attempt_number":1,"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"issued"}
+{"at":"2026-08-29T14:22:49.391523Z","attempt_number":1,"payload":{"body_path":"raw/AX1-20260829-E1-T03@dblp_p0.a01.body.gz","body_sha256":"01b8db9eedaf7eba2ae67c401247b0b8245d4c1a18225bfde6175483055beb6f","final_url":"https://dblp.org/search/publ/api?q=serializability&format=json&h=100&f=0","status":500},"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"response_stored"}
+{"at":"2026-08-29T14:22:49.393094Z","attempt_number":1,"payload":{"parse_skipped":true},"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"parsed"}
+{"at":"2026-08-29T14:22:49.394304Z","attempt_number":1,"payload":{"outcome":"retryable_failure","reason_code":"http_status_500"},"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"terminal"}
+{"at":"2026-08-29T14:22:52.416703Z","attempt_number":2,"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"prepared"}
+{"at":"2026-08-29T14:23:27.878571Z","attempt_number":2,"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"issued"}
+{"at":"2026-08-29T14:23:31.728122Z","attempt_number":2,"payload":{"body_path":"raw/AX1-20260829-E1-T03@dblp_p0.a02.body.gz","body_sha256":"8ce247800f0355cd0b9abf57a7d923146e2243821329fd79310b92a26dfb4ddd","final_url":"https://dblp.org/search/publ/api?q=serializability&format=json&h=100&f=0","status":200},"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"response_stored"}
+{"at":"2026-08-29T14:23:31.731754Z","attempt_number":2,"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"parsed"}
+{"at":"2026-08-29T14:23:31.733453Z","attempt_number":2,"payload":{"outcome":"success","reason_code":null},"request_id":"AX1-20260829-E1-T03@dblp#p0","state":"terminal"}
+{"at":"2026-08-29T14:23:31.746217Z","attempt_number":1,"request_id":"AX1-20260829-E1-T03@dblp#p1","state":"prepared"}
+{"at":"2026-08-29T14:24:12.882231Z","attempt_number":1,"request_id":"AX1-20260829-E1-T03@dblp#p1","state":"issued"}
+{"at":"2026-08-29T14:24:22.016148Z","attempt_number":1,"payload":{"body_path":"raw/AX1-20260829-E1-T03@dblp_p1.a01.body.gz","body_sha256":"a2ce81c468c5c57739acd71bc07b9fe80431f8a5c3ef9ce3ba981c2eac443e0e","final_url":"https://dblp.org/search/publ/api?q=serializability&format=json&h=100&f=100","status":200},"request_id":"AX1-20260829-E1-T03@dblp#p1","state":"response_stored"}
+{"at":"2026-08-29T14:24:22.018847Z","attempt_number":1,"request_id":"AX1-20260829-E1-T03@dblp#p1","state":"parsed"}
+{"at":"2026-08-29T14:24:22.020493Z","attempt_number":1,"payload":{"outcome":"success","reason_code":null},"request_id":"AX1-20260829-E1-T03@dblp#p1","state":"terminal"}

@@ -1,0 +1,152 @@
+{
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "distinct_index_work_id_count": 12,
+  "document_type": "record_occurrence_ledger",
+  "index": "arxiv",
+  "leaf_query_id": "AX1-20260829-E1-Q6-SM201510@arxiv",
+  "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+  "occurrence_count": 12,
+  "occurrences": [
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.07163"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.07163v1",
+      "interpreted_date": "2015-10-24",
+      "ordinal": 0,
+      "page_number": 0,
+      "raw_date_value": "2015-10-24T16:56:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.08419"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.08419v3",
+      "interpreted_date": "2015-10-28",
+      "ordinal": 1,
+      "page_number": 0,
+      "raw_date_value": "2015-10-28T19:05:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.02709"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.02709v1",
+      "interpreted_date": "2015-10-09",
+      "ordinal": 2,
+      "page_number": 0,
+      "raw_date_value": "2015-10-09T15:45:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.07263",
+        "doi:10.1109/embc.2015.7319455"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.07263v1",
+      "interpreted_date": "2015-10-25",
+      "ordinal": 3,
+      "page_number": 0,
+      "raw_date_value": "2015-10-25T15:22:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.02874"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.02874v1",
+      "interpreted_date": "2015-10-10",
+      "ordinal": 4,
+      "page_number": 0,
+      "raw_date_value": "2015-10-10T04:16:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.07169"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.07169v1",
+      "interpreted_date": "2015-10-24",
+      "ordinal": 5,
+      "page_number": 0,
+      "raw_date_value": "2015-10-24T17:56:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.07864"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.07864v1",
+      "interpreted_date": "2015-10-27",
+      "ordinal": 6,
+      "page_number": 0,
+      "raw_date_value": "2015-10-27T11:15:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.02906",
+        "doi:10.1016/j.cviu.2016.05.003"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.02906v1",
+      "interpreted_date": "2015-10-10",
+      "ordinal": 7,
+      "page_number": 0,
+      "raw_date_value": "2015-10-10T10:13:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.08893",
+        "doi:10.1145/2733373.2806316"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.08893v1",
+      "interpreted_date": "2015-10-29",
+      "ordinal": 8,
+      "page_number": 0,
+      "raw_date_value": "2015-10-29T20:34:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.03336",
+        "doi:10.1109/icmla.2015.141"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.03336v4",
+      "interpreted_date": "2015-10-12",
+      "ordinal": 9,
+      "page_number": 0,
+      "raw_date_value": "2015-10-12T15:30:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.05041"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.05041v1",
+      "interpreted_date": "2015-10-16",
+      "ordinal": 10,
+      "page_number": 0,
+      "raw_date_value": "2015-10-16T22:34:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1510.04373"
+      ],
+      "index_work_id": "http://arxiv.org/abs/1510.04373v2",
+      "interpreted_date": "2015-10-15",
+      "ordinal": 11,
+      "page_number": 0,
+      "raw_date_value": "2015-10-15T01:41:12Z"
+    }
+  ],
+  "primary_key_kind": "index_work_id",
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1"
+}

@@ -547,23 +547,64 @@ def test_public_sweep_partial_write_eio_stops_before_next_candidate(
     assert Path(layout.wal_file).read_bytes() and b"\n" not in Path(layout.wal_file).read_bytes()
 
 
-def test_replay_outcome_distinguishes_commit_and_abort():
+def test_replay_outcome_distinguishes_commit_and_abort(monkeypatch):
     """WAL replay skip 時、前 run の commit/abort を区別する (一律 'replayed' だと abort 点
     が完了サマリ/exit code から消える — 実装後レビュー should-fix)。"""
     context = W.build_run_context(generator_id=W.GeneratorId.S6_SORT_SWEEP)
     states = {
-        "v-commit": SimpleNamespace(committed=True, aborted=False),
-        "v-abort": SimpleNamespace(committed=False, aborted=True),
+        "v-commit": SimpleNamespace(
+            committed=True, aborted=False, last_terminal=object()),
+        "v-abort": SimpleNamespace(
+            committed=False, aborted=True, last_terminal=object()),
     }
-    original = W.wal.replay
-    try:
-        W.wal.replay = lambda _layout, *, admission_policy: (
-            states if admission_policy == context.policy else {})
-        assert W._replay_outcome(None, "v-commit", context) == "replayed-certified"
-        assert W._replay_outcome(None, "v-abort", context) == "replayed-aborted"
-        assert W._replay_outcome(None, "v-none", context) == "replayed-unknown"
-    finally:
-        W.wal.replay = original
+    records = [SimpleNamespace(variant="v-commit", stage=W.STAGE_COMMIT)]
+    monkeypatch.setattr(
+        W, "_replay_snapshot",
+        lambda _layout, observed: (
+            records, states if observed.policy == context.policy else {}, "a" * 64,
+        ),
+    )
+    monkeypatch.setattr(
+        W, "require_persisted_certified_commit",
+        lambda records, commit, *, campaign_lock_sha256: commit,
+    )
+    assert W._replay_outcome(None, "v-commit", context) == "replayed-certified"
+    assert W._replay_outcome(None, "v-abort", context) == "replayed-aborted"
+    assert W._replay_outcome(None, "v-none", context) == "replayed-unknown"
+
+
+@pytest.mark.parametrize("consumer", ["s6"], ids=["s6"])
+def test_replay_outcome_requires_persisted_certification(
+        monkeypatch, consumer):
+    layout = _tmp_layout()
+    Path(layout.lock_file).write_text(
+        json.dumps({"fixture": "s6 replay"}), encoding="utf-8",
+    )
+    attempt_id = "s6-replay-attempt"
+    W.wal.log(layout, "v", "verify_done", W.ENV_TAG, {
+        "build_attempt_id": attempt_id,
+        "verdict": "serializable",
+        "certified": True,
+        "anomalies": 1,
+        "workload": {"tag": "legacy"},
+    })
+    receipt_support.log_receipted_commit(
+        layout, "v", W.ENV_TAG, {"build_attempt_id": attempt_id},
+        operation_identity=attempt_id,
+    )
+    records = W.wal.read_records(layout)
+    states = W.wal.replay_admitted_records(records)
+    lock_sha256 = hashlib.sha256(Path(layout.lock_file).read_bytes()).hexdigest()
+    monkeypatch.setattr(
+        W, "_replay_snapshot",
+        lambda _layout, _context: (records, states, lock_sha256),
+    )
+    context = W.build_run_context(generator_id=W.GeneratorId.S6_SORT_SWEEP)
+
+    with pytest.raises(W.ArtifactAdmissionError, match="anomalies"):
+        W._replay_outcome(layout, "v", context)
+
+    assert consumer == "s6"
 
 
 def test_provenance_merges_existing_entries():
@@ -753,6 +794,13 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(
             "ipc": 0.98,
             "llc_miss_rate": 0.21,
         },
+    })
+    W.wal.log(layout, certified_variant, "verify_done", W.ENV_TAG, {
+        "build_attempt_id": certified_attempt,
+        "verdict": "serializable",
+        "certified": True,
+        "anomalies": 0,
+        "workload": {"tag": "legacy"},
     })
     # post-policy COMMIT は attempt と receipt SHA を必須にする。
     receipt_support.log_receipted_commit(

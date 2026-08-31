@@ -211,7 +211,33 @@ _RR80_PARAMS = b"ycsb_rr" + b"atio=80 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
 _RR20_PARAMS = b"ycsb_rr" + b"atio=20 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"
 _RR50_PARAMS = b"ycsb_rratio=50 ycsb_zipf_skew=0.9 ycsb_rmw=0\n"  # 陽性対照
 _FLOOR_PROTOCOL_STUB = b'{"floor_protocol": "stub", "n": 1}\n'    # strict parse 可能・holdout params 無し
-_FLOOR_SOURCE_STUB = b"# floor source stub\n"
+_FLOOR_SOURCE_STUB_DOCUMENT = {
+    "floors": {
+        holdout_id: {
+            "pairs": {}, "scale_ref": None, "scalar_alt": None,
+            "diagnostics": {},
+        }
+        for holdout_id in ("rr20", "rr80")
+    },
+}
+_FLOOR_SOURCE_STUB = json.dumps(
+    _FLOOR_SOURCE_STUB_DOCUMENT, ensure_ascii=False, sort_keys=True,
+    separators=(",", ":"), allow_nan=False,
+).encode("utf-8")
+
+
+def _independent_floor_projection(result: dict) -> dict:
+    """production projector を使わず result.floors の期待投影を組み立てる。"""
+    return {
+        "by_holdout": {
+            holdout_id: {
+                "pairs": json.loads(json.dumps(value["pairs"])),
+                "scale_ref": json.loads(json.dumps(value["scale_ref"])),
+                "scalar_alt": json.loads(json.dumps(value["scalar_alt"])),
+            }
+            for holdout_id, value in result["floors"].items()
+        },
+    }
 
 
 # --------------------------------------------------------------------------
@@ -1108,6 +1134,7 @@ def build_production_emitter_g1(
         "env_tag": protocol["env_tag"],
         "floor_protocol": {"path": paths["protocol"], "sha256": _sha(protocol_raw)},
         "floor_source": {"path": paths["result"], "sha256": _sha(result_record_raw)},
+        "floor": _independent_floor_projection(state["result"]),
         "measurement_closure": closure_records,
     })
     if mutate_g1 is not None:
@@ -1383,6 +1410,7 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
     g1["env_tag"] = "linux-baremetal"
     g1["floor_protocol"] = {"path": fp, "sha256": _sha(_FLOOR_PROTOCOL_STUB)}
     g1["floor_source"] = {"path": fs, "sha256": _sha(fs_bytes)}
+    g1["floor"] = _independent_floor_projection(json.loads(fs_bytes))
     g1["measurement_closure"] = [
         {"canonical_path": f80, "sha256": _sha(_RR80_PARAMS)},
         {"canonical_path": f20, "sha256": _sha(_RR20_PARAMS)},
@@ -1444,6 +1472,20 @@ def test_happy_path_resolves_and_loads(tmp_path):
             binaries=topology["manifest"]["binaries"], contract=contract,
             expected_use_perf=True,
         )
+
+
+def test_loader_rejects_floor_source_projection_mismatch(tmp_path):
+    def mutate_g1(g1):
+        holdout_id = sorted(g1["floor"]["by_holdout"])[0]
+        g1["floor"]["by_holdout"][holdout_id]["scalar_alt"] = 123456.0
+
+    root, *_ = build_production_emitter_g1(
+        tmp_path, mutate_g1=mutate_g1,
+    )
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.load_ratified_freeze(root)
+    assert caught.value.reason == "floor-source-projection-mismatch"
+    assert caught.value.cause == "floor-source-projection"
 
 
 def test_degraded_launch_threads_expected_use_perf_to_every_consumer(tmp_path):

@@ -1,0 +1,1138 @@
+{
+  "group_by": [],
+  "meta": {
+    "cost_usd": 0.001,
+    "count": 722,
+    "db_response_time_ms": 1,
+    "groups_count": null,
+    "next_cursor": null,
+    "page": null,
+    "per_page": 200,
+    "x_query": {
+      "oql": "works where date <= (2026-12-31) and title has (fixture)",
+      "oqo": {
+        "filter_rows": [],
+        "get_rows": "works"
+      },
+      "url": "/works?filter=display_name.search:fixture&per_page=200&cursor=terminal-cursor"
+    }
+  },
+  "results": [
+    {
+      "display_name": "Fixture work 100000",
+      "doi": null,
+      "id": "https://openalex.org/W100000",
+      "ids": {
+        "openalex": "https://openalex.org/W100000"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100001",
+      "doi": null,
+      "id": "https://openalex.org/W100001",
+      "ids": {
+        "openalex": "https://openalex.org/W100001"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100002",
+      "doi": null,
+      "id": "https://openalex.org/W100002",
+      "ids": {
+        "openalex": "https://openalex.org/W100002"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100003",
+      "doi": null,
+      "id": "https://openalex.org/W100003",
+      "ids": {
+        "openalex": "https://openalex.org/W100003"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100004",
+      "doi": null,
+      "id": "https://openalex.org/W100004",
+      "ids": {
+        "openalex": "https://openalex.org/W100004"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100005",
+      "doi": null,
+      "id": "https://openalex.org/W100005",
+      "ids": {
+        "openalex": "https://openalex.org/W100005"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100006",
+      "doi": null,
+      "id": "https://openalex.org/W100006",
+      "ids": {
+        "openalex": "https://openalex.org/W100006"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100007",
+      "doi": null,
+      "id": "https://openalex.org/W100007",
+      "ids": {
+        "openalex": "https://openalex.org/W100007"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100008",
+      "doi": null,
+      "id": "https://openalex.org/W100008",
+      "ids": {
+        "openalex": "https://openalex.org/W100008"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100009",
+      "doi": null,
+      "id": "https://openalex.org/W100009",
+      "ids": {
+        "openalex": "https://openalex.org/W100009"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100010",
+      "doi": null,
+      "id": "https://openalex.org/W100010",
+      "ids": {
+        "openalex": "https://openalex.org/W100010"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100011",
+      "doi": null,
+      "id": "https://openalex.org/W100011",
+      "ids": {
+        "openalex": "https://openalex.org/W100011"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100012",
+      "doi": null,
+      "id": "https://openalex.org/W100012",
+      "ids": {
+        "openalex": "https://openalex.org/W100012"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100013",
+      "doi": null,
+      "id": "https://openalex.org/W100013",
+      "ids": {
+        "openalex": "https://openalex.org/W100013"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100014",
+      "doi": null,
+      "id": "https://openalex.org/W100014",
+      "ids": {
+        "openalex": "https://openalex.org/W100014"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100015",
+      "doi": null,
+      "id": "https://openalex.org/W100015",
+      "ids": {
+        "openalex": "https://openalex.org/W100015"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100016",
+      "doi": null,
+      "id": "https://openalex.org/W100016",
+      "ids": {
+        "openalex": "https://openalex.org/W100016"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100017",
+      "doi": null,
+      "id": "https://openalex.org/W100017",
+      "ids": {
+        "openalex": "https://openalex.org/W100017"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100018",
+      "doi": null,
+      "id": "https://openalex.org/W100018",
+      "ids": {
+        "openalex": "https://openalex.org/W100018"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100019",
+      "doi": null,
+      "id": "https://openalex.org/W100019",
+      "ids": {
+        "openalex": "https://openalex.org/W100019"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100020",
+      "doi": null,
+      "id": "https://openalex.org/W100020",
+      "ids": {
+        "openalex": "https://openalex.org/W100020"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100021",
+      "doi": null,
+      "id": "https://openalex.org/W100021",
+      "ids": {
+        "openalex": "https://openalex.org/W100021"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100022",
+      "doi": null,
+      "id": "https://openalex.org/W100022",
+      "ids": {
+        "openalex": "https://openalex.org/W100022"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100023",
+      "doi": null,
+      "id": "https://openalex.org/W100023",
+      "ids": {
+        "openalex": "https://openalex.org/W100023"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100024",
+      "doi": null,
+      "id": "https://openalex.org/W100024",
+      "ids": {
+        "openalex": "https://openalex.org/W100024"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100025",
+      "doi": null,
+      "id": "https://openalex.org/W100025",
+      "ids": {
+        "openalex": "https://openalex.org/W100025"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100026",
+      "doi": null,
+      "id": "https://openalex.org/W100026",
+      "ids": {
+        "openalex": "https://openalex.org/W100026"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100027",
+      "doi": null,
+      "id": "https://openalex.org/W100027",
+      "ids": {
+        "openalex": "https://openalex.org/W100027"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100028",
+      "doi": null,
+      "id": "https://openalex.org/W100028",
+      "ids": {
+        "openalex": "https://openalex.org/W100028"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100029",
+      "doi": null,
+      "id": "https://openalex.org/W100029",
+      "ids": {
+        "openalex": "https://openalex.org/W100029"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100030",
+      "doi": null,
+      "id": "https://openalex.org/W100030",
+      "ids": {
+        "openalex": "https://openalex.org/W100030"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100031",
+      "doi": null,
+      "id": "https://openalex.org/W100031",
+      "ids": {
+        "openalex": "https://openalex.org/W100031"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100032",
+      "doi": null,
+      "id": "https://openalex.org/W100032",
+      "ids": {
+        "openalex": "https://openalex.org/W100032"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100033",
+      "doi": null,
+      "id": "https://openalex.org/W100033",
+      "ids": {
+        "openalex": "https://openalex.org/W100033"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100034",
+      "doi": null,
+      "id": "https://openalex.org/W100034",
+      "ids": {
+        "openalex": "https://openalex.org/W100034"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100035",
+      "doi": null,
+      "id": "https://openalex.org/W100035",
+      "ids": {
+        "openalex": "https://openalex.org/W100035"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100036",
+      "doi": null,
+      "id": "https://openalex.org/W100036",
+      "ids": {
+        "openalex": "https://openalex.org/W100036"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100037",
+      "doi": null,
+      "id": "https://openalex.org/W100037",
+      "ids": {
+        "openalex": "https://openalex.org/W100037"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100038",
+      "doi": null,
+      "id": "https://openalex.org/W100038",
+      "ids": {
+        "openalex": "https://openalex.org/W100038"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100039",
+      "doi": null,
+      "id": "https://openalex.org/W100039",
+      "ids": {
+        "openalex": "https://openalex.org/W100039"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100040",
+      "doi": null,
+      "id": "https://openalex.org/W100040",
+      "ids": {
+        "openalex": "https://openalex.org/W100040"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100041",
+      "doi": null,
+      "id": "https://openalex.org/W100041",
+      "ids": {
+        "openalex": "https://openalex.org/W100041"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100042",
+      "doi": null,
+      "id": "https://openalex.org/W100042",
+      "ids": {
+        "openalex": "https://openalex.org/W100042"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100043",
+      "doi": null,
+      "id": "https://openalex.org/W100043",
+      "ids": {
+        "openalex": "https://openalex.org/W100043"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100044",
+      "doi": null,
+      "id": "https://openalex.org/W100044",
+      "ids": {
+        "openalex": "https://openalex.org/W100044"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100045",
+      "doi": null,
+      "id": "https://openalex.org/W100045",
+      "ids": {
+        "openalex": "https://openalex.org/W100045"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100046",
+      "doi": null,
+      "id": "https://openalex.org/W100046",
+      "ids": {
+        "openalex": "https://openalex.org/W100046"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100047",
+      "doi": null,
+      "id": "https://openalex.org/W100047",
+      "ids": {
+        "openalex": "https://openalex.org/W100047"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100048",
+      "doi": null,
+      "id": "https://openalex.org/W100048",
+      "ids": {
+        "openalex": "https://openalex.org/W100048"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100049",
+      "doi": null,
+      "id": "https://openalex.org/W100049",
+      "ids": {
+        "openalex": "https://openalex.org/W100049"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100050",
+      "doi": null,
+      "id": "https://openalex.org/W100050",
+      "ids": {
+        "openalex": "https://openalex.org/W100050"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100051",
+      "doi": null,
+      "id": "https://openalex.org/W100051",
+      "ids": {
+        "openalex": "https://openalex.org/W100051"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100052",
+      "doi": null,
+      "id": "https://openalex.org/W100052",
+      "ids": {
+        "openalex": "https://openalex.org/W100052"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100053",
+      "doi": null,
+      "id": "https://openalex.org/W100053",
+      "ids": {
+        "openalex": "https://openalex.org/W100053"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100054",
+      "doi": null,
+      "id": "https://openalex.org/W100054",
+      "ids": {
+        "openalex": "https://openalex.org/W100054"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100055",
+      "doi": null,
+      "id": "https://openalex.org/W100055",
+      "ids": {
+        "openalex": "https://openalex.org/W100055"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100056",
+      "doi": null,
+      "id": "https://openalex.org/W100056",
+      "ids": {
+        "openalex": "https://openalex.org/W100056"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100057",
+      "doi": null,
+      "id": "https://openalex.org/W100057",
+      "ids": {
+        "openalex": "https://openalex.org/W100057"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100058",
+      "doi": null,
+      "id": "https://openalex.org/W100058",
+      "ids": {
+        "openalex": "https://openalex.org/W100058"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100059",
+      "doi": null,
+      "id": "https://openalex.org/W100059",
+      "ids": {
+        "openalex": "https://openalex.org/W100059"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100060",
+      "doi": null,
+      "id": "https://openalex.org/W100060",
+      "ids": {
+        "openalex": "https://openalex.org/W100060"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100061",
+      "doi": null,
+      "id": "https://openalex.org/W100061",
+      "ids": {
+        "openalex": "https://openalex.org/W100061"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100062",
+      "doi": null,
+      "id": "https://openalex.org/W100062",
+      "ids": {
+        "openalex": "https://openalex.org/W100062"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100063",
+      "doi": null,
+      "id": "https://openalex.org/W100063",
+      "ids": {
+        "openalex": "https://openalex.org/W100063"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100064",
+      "doi": null,
+      "id": "https://openalex.org/W100064",
+      "ids": {
+        "openalex": "https://openalex.org/W100064"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100065",
+      "doi": null,
+      "id": "https://openalex.org/W100065",
+      "ids": {
+        "openalex": "https://openalex.org/W100065"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100066",
+      "doi": null,
+      "id": "https://openalex.org/W100066",
+      "ids": {
+        "openalex": "https://openalex.org/W100066"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100067",
+      "doi": null,
+      "id": "https://openalex.org/W100067",
+      "ids": {
+        "openalex": "https://openalex.org/W100067"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100068",
+      "doi": null,
+      "id": "https://openalex.org/W100068",
+      "ids": {
+        "openalex": "https://openalex.org/W100068"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100069",
+      "doi": null,
+      "id": "https://openalex.org/W100069",
+      "ids": {
+        "openalex": "https://openalex.org/W100069"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100070",
+      "doi": null,
+      "id": "https://openalex.org/W100070",
+      "ids": {
+        "openalex": "https://openalex.org/W100070"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100071",
+      "doi": null,
+      "id": "https://openalex.org/W100071",
+      "ids": {
+        "openalex": "https://openalex.org/W100071"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100072",
+      "doi": null,
+      "id": "https://openalex.org/W100072",
+      "ids": {
+        "openalex": "https://openalex.org/W100072"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100073",
+      "doi": null,
+      "id": "https://openalex.org/W100073",
+      "ids": {
+        "openalex": "https://openalex.org/W100073"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100074",
+      "doi": null,
+      "id": "https://openalex.org/W100074",
+      "ids": {
+        "openalex": "https://openalex.org/W100074"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100075",
+      "doi": null,
+      "id": "https://openalex.org/W100075",
+      "ids": {
+        "openalex": "https://openalex.org/W100075"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100076",
+      "doi": null,
+      "id": "https://openalex.org/W100076",
+      "ids": {
+        "openalex": "https://openalex.org/W100076"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100077",
+      "doi": null,
+      "id": "https://openalex.org/W100077",
+      "ids": {
+        "openalex": "https://openalex.org/W100077"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100078",
+      "doi": null,
+      "id": "https://openalex.org/W100078",
+      "ids": {
+        "openalex": "https://openalex.org/W100078"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100079",
+      "doi": null,
+      "id": "https://openalex.org/W100079",
+      "ids": {
+        "openalex": "https://openalex.org/W100079"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100080",
+      "doi": null,
+      "id": "https://openalex.org/W100080",
+      "ids": {
+        "openalex": "https://openalex.org/W100080"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100081",
+      "doi": null,
+      "id": "https://openalex.org/W100081",
+      "ids": {
+        "openalex": "https://openalex.org/W100081"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100082",
+      "doi": null,
+      "id": "https://openalex.org/W100082",
+      "ids": {
+        "openalex": "https://openalex.org/W100082"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100083",
+      "doi": null,
+      "id": "https://openalex.org/W100083",
+      "ids": {
+        "openalex": "https://openalex.org/W100083"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100084",
+      "doi": null,
+      "id": "https://openalex.org/W100084",
+      "ids": {
+        "openalex": "https://openalex.org/W100084"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100085",
+      "doi": null,
+      "id": "https://openalex.org/W100085",
+      "ids": {
+        "openalex": "https://openalex.org/W100085"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100086",
+      "doi": null,
+      "id": "https://openalex.org/W100086",
+      "ids": {
+        "openalex": "https://openalex.org/W100086"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100087",
+      "doi": null,
+      "id": "https://openalex.org/W100087",
+      "ids": {
+        "openalex": "https://openalex.org/W100087"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100088",
+      "doi": null,
+      "id": "https://openalex.org/W100088",
+      "ids": {
+        "openalex": "https://openalex.org/W100088"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100089",
+      "doi": null,
+      "id": "https://openalex.org/W100089",
+      "ids": {
+        "openalex": "https://openalex.org/W100089"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100090",
+      "doi": null,
+      "id": "https://openalex.org/W100090",
+      "ids": {
+        "openalex": "https://openalex.org/W100090"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100091",
+      "doi": null,
+      "id": "https://openalex.org/W100091",
+      "ids": {
+        "openalex": "https://openalex.org/W100091"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100092",
+      "doi": null,
+      "id": "https://openalex.org/W100092",
+      "ids": {
+        "openalex": "https://openalex.org/W100092"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100093",
+      "doi": null,
+      "id": "https://openalex.org/W100093",
+      "ids": {
+        "openalex": "https://openalex.org/W100093"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100094",
+      "doi": null,
+      "id": "https://openalex.org/W100094",
+      "ids": {
+        "openalex": "https://openalex.org/W100094"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100095",
+      "doi": null,
+      "id": "https://openalex.org/W100095",
+      "ids": {
+        "openalex": "https://openalex.org/W100095"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100096",
+      "doi": null,
+      "id": "https://openalex.org/W100096",
+      "ids": {
+        "openalex": "https://openalex.org/W100096"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100097",
+      "doi": null,
+      "id": "https://openalex.org/W100097",
+      "ids": {
+        "openalex": "https://openalex.org/W100097"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100098",
+      "doi": null,
+      "id": "https://openalex.org/W100098",
+      "ids": {
+        "openalex": "https://openalex.org/W100098"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100099",
+      "doi": null,
+      "id": "https://openalex.org/W100099",
+      "ids": {
+        "openalex": "https://openalex.org/W100099"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100100",
+      "doi": null,
+      "id": "https://openalex.org/W100100",
+      "ids": {
+        "openalex": "https://openalex.org/W100100"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100101",
+      "doi": null,
+      "id": "https://openalex.org/W100101",
+      "ids": {
+        "openalex": "https://openalex.org/W100101"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100102",
+      "doi": null,
+      "id": "https://openalex.org/W100102",
+      "ids": {
+        "openalex": "https://openalex.org/W100102"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100103",
+      "doi": null,
+      "id": "https://openalex.org/W100103",
+      "ids": {
+        "openalex": "https://openalex.org/W100103"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100104",
+      "doi": null,
+      "id": "https://openalex.org/W100104",
+      "ids": {
+        "openalex": "https://openalex.org/W100104"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100105",
+      "doi": null,
+      "id": "https://openalex.org/W100105",
+      "ids": {
+        "openalex": "https://openalex.org/W100105"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100106",
+      "doi": null,
+      "id": "https://openalex.org/W100106",
+      "ids": {
+        "openalex": "https://openalex.org/W100106"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100107",
+      "doi": null,
+      "id": "https://openalex.org/W100107",
+      "ids": {
+        "openalex": "https://openalex.org/W100107"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100108",
+      "doi": null,
+      "id": "https://openalex.org/W100108",
+      "ids": {
+        "openalex": "https://openalex.org/W100108"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100109",
+      "doi": null,
+      "id": "https://openalex.org/W100109",
+      "ids": {
+        "openalex": "https://openalex.org/W100109"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100110",
+      "doi": null,
+      "id": "https://openalex.org/W100110",
+      "ids": {
+        "openalex": "https://openalex.org/W100110"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100111",
+      "doi": null,
+      "id": "https://openalex.org/W100111",
+      "ids": {
+        "openalex": "https://openalex.org/W100111"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100112",
+      "doi": null,
+      "id": "https://openalex.org/W100112",
+      "ids": {
+        "openalex": "https://openalex.org/W100112"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100113",
+      "doi": null,
+      "id": "https://openalex.org/W100113",
+      "ids": {
+        "openalex": "https://openalex.org/W100113"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100114",
+      "doi": null,
+      "id": "https://openalex.org/W100114",
+      "ids": {
+        "openalex": "https://openalex.org/W100114"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100115",
+      "doi": null,
+      "id": "https://openalex.org/W100115",
+      "ids": {
+        "openalex": "https://openalex.org/W100115"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100116",
+      "doi": null,
+      "id": "https://openalex.org/W100116",
+      "ids": {
+        "openalex": "https://openalex.org/W100116"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100117",
+      "doi": null,
+      "id": "https://openalex.org/W100117",
+      "ids": {
+        "openalex": "https://openalex.org/W100117"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100118",
+      "doi": null,
+      "id": "https://openalex.org/W100118",
+      "ids": {
+        "openalex": "https://openalex.org/W100118"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100119",
+      "doi": null,
+      "id": "https://openalex.org/W100119",
+      "ids": {
+        "openalex": "https://openalex.org/W100119"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100120",
+      "doi": null,
+      "id": "https://openalex.org/W100120",
+      "ids": {
+        "openalex": "https://openalex.org/W100120"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100121",
+      "doi": null,
+      "id": "https://openalex.org/W100121",
+      "ids": {
+        "openalex": "https://openalex.org/W100121"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100122",
+      "doi": null,
+      "id": "https://openalex.org/W100122",
+      "ids": {
+        "openalex": "https://openalex.org/W100122"
+      },
+      "publication_date": "2026-08-01"
+    },
+    {
+      "display_name": "Fixture work 100123",
+      "doi": null,
+      "id": "https://openalex.org/W100123",
+      "ids": {
+        "openalex": "https://openalex.org/W100123"
+      },
+      "publication_date": "2026-08-01"
+    }
+  ]
+}

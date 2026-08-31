@@ -1,0 +1,5 @@
+{"at":"2026-08-29T14:43:01.074116Z","attempt_number":1,"request_id":"AX1-20260829-E1-T10@dblp#p0","state":"prepared"}
+{"at":"2026-08-29T14:43:42.882105Z","attempt_number":1,"request_id":"AX1-20260829-E1-T10@dblp#p0","state":"issued"}
+{"at":"2026-08-29T14:43:53.789475Z","attempt_number":1,"payload":{"body_path":"raw/AX1-20260829-E1-T10@dblp_p0.a01.body.gz","body_sha256":"616f796d02f2be2413592e5b351c2cc275792f684da91d8a334daa47ba7a6f04","final_url":"https://dblp.org/search/publ/api?q=lock+manager&format=json&h=100&f=0","status":200},"request_id":"AX1-20260829-E1-T10@dblp#p0","state":"response_stored"}
+{"at":"2026-08-29T14:43:53.791982Z","attempt_number":1,"request_id":"AX1-20260829-E1-T10@dblp#p0","state":"parsed"}
+{"at":"2026-08-29T14:43:53.793541Z","attempt_number":1,"payload":{"outcome":"success","reason_code":null},"request_id":"AX1-20260829-E1-T10@dblp#p0","state":"terminal"}

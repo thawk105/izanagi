@@ -54,6 +54,7 @@ from .p3_s4_loop import (  # noqa: E402
     state_from_dict,
 )
 from .p3_b4_admission_record import (  # noqa: E402
+    B4_PROJECTION_DRIVER_KINDS,
     B4AdmissionRecordError,
     VerifiedB4AdmissionRecord,
     assert_admission_expectation,
@@ -151,6 +152,12 @@ _ADMISSION_ERROR_SIGNATURES = frozenset({
     (
         "[admission-mismatch] "
         "expected_closed_critic_projection_closure_sha256"
+    ),
+    *(
+        "[admission-mismatch] "
+        "expected_closed_critic_projection_closure_sha256"
+        f"[{driver_kind}]"
+        for driver_kind in B4_PROJECTION_DRIVER_KINDS
     ),
 })
 _UNCLASSIFIED_ADMISSION_ERROR_SIGNATURE = "[admission-error] unclassified"
@@ -314,6 +321,7 @@ class _Snapshot:
 class _ProductionPairCertification:
     repository_root: Path
     pair_id: str
+    driver_kind: DriverKind
     verified_admission: VerifiedB4AdmissionRecord
     admission_sidecar_path: Path
     admission_sidecar_sha256: str
@@ -676,6 +684,29 @@ def projection_sha256(driver_kind: DriverKind = "base") -> str:
     )
 
 
+def assert_b4_document_projection_closures_are_live(
+    verified_admission: VerifiedB4AdmissionRecord,
+) -> dict[DriverKind, str]:
+    """Compare all three document projection declarations with live bytes."""
+    live_projection_sha256_by_driver: dict[DriverKind, str] = {
+        driver_kind: projection_sha256(driver_kind)
+        for driver_kind in B4_PROJECTION_DRIVER_KINDS
+    }
+    for driver_kind in B4_PROJECTION_DRIVER_KINDS:
+        assert_admission_expectation(
+            "expected_closed_critic_projection_closure_sha256"
+            f"[{driver_kind}]",
+            expected=(
+                verified_admission
+                .expected_closed_critic_projection_closure_sha256_by_driver[
+                    driver_kind
+                ]
+            ),
+            actual=live_projection_sha256_by_driver[driver_kind],
+        )
+    return live_projection_sha256_by_driver
+
+
 def _resolve_repository_root(repository_root: Path | None) -> Path:
     if repository_root is None:
         return REPOSITORY_ROOT
@@ -874,11 +905,20 @@ class B4ClosedCriticController:
                 "started_at_ns": time.time_ns(),
             }
             start_sha256 = _write_exclusive_json(start_path, start_value)
-            current_projection_sha256 = projection_sha256(
-                self.__binding.driver_kind
-            )
-            if current_projection_sha256 != self.__initial_projection_sha256:
-                raise B4ReceiptError("projection closure changed after pair creation")
+            if self.__verified_admission is None:
+                current_projection_sha256 = projection_sha256(
+                    self.__binding.driver_kind
+                )
+                if current_projection_sha256 != self.__initial_projection_sha256:
+                    raise B4ReceiptError(
+                        "selected projection closure changed after pair creation"
+                    )
+            else:
+                current_projection_sha256 = (
+                    assert_b4_document_projection_closures_are_live(
+                        self.__verified_admission
+                    )[self.__binding.driver_kind]
+                )
             snapshot = _load_stable_snapshot(self.__binding)
             digest = make_critic_digest(
                 snapshot.view,
@@ -1135,7 +1175,7 @@ def _prepare_b4_closed_critic_pair(
     on_cfg: CampaignConfig,
     off_cfg: CampaignConfig,
     artifact_root: Path,
-    verified_admission: VerifiedB4AdmissionRecord | None,
+    initial_projection_sha256: str | None,
 ) -> tuple[
     _ArmBinding,
     _ArmBinding,
@@ -1148,22 +1188,15 @@ def _prepare_b4_closed_critic_pair(
     off_binding = _derive_arm(off_cfg, expected_arm="off", pair_id=pair_id)
     if on_binding.driver_kind != off_binding.driver_kind:
         raise B4ArmBindingError("sealed pair configs select different drivers")
+    closure_sha256 = initial_projection_sha256
+    if closure_sha256 is None:
+        closure_sha256 = projection_sha256(on_binding.driver_kind)
     root = Path(artifact_root)
     try:
         root.mkdir(parents=True, exist_ok=False)
     except FileExistsError as exc:
         raise B4ReceiptError("pair artifact root must not already exist") from exc
     tracker = CrossRoleSessionTracker()
-    closure_sha256 = projection_sha256(on_binding.driver_kind)
-    if verified_admission is not None:
-        assert_admission_expectation(
-            "expected_closed_critic_projection_closure_sha256",
-            expected=(
-                verified_admission
-                .expected_closed_critic_projection_closure_sha256
-            ),
-            actual=closure_sha256,
-        )
     return on_binding, off_binding, root, tracker, closure_sha256
 
 
@@ -1235,6 +1268,7 @@ def create_b4_closed_critic_pair(
     verified_admission = verify_b4_admission_record(
         admission_record_path,
         repository_root=trusted_root,
+        driver_kind=expected_driver_kind,
     )
     if (
         launch_context.admission_record_sha256
@@ -1245,6 +1279,11 @@ def create_b4_closed_critic_pair(
         raise B4LauncherAuthorizationError(
             "B-4 production pair admission differs from launch context"
         )
+    live_projection_sha256_by_driver = (
+        assert_b4_document_projection_closures_are_live(
+            verified_admission
+        )
+    )
     resolved = shutil.which("claude")
     if resolved is None:
         raise B4TrustRootError("certified executable name claude is not on PATH")
@@ -1259,7 +1298,9 @@ def create_b4_closed_critic_pair(
             on_cfg=on_cfg,
             off_cfg=off_cfg,
             artifact_root=artifact_root,
-            verified_admission=verified_admission,
+            initial_projection_sha256=(
+                live_projection_sha256_by_driver[expected_driver_kind]
+            ),
         )
     )
     admission_sidecar_path = root / "admission_record_sidecar.json"
@@ -1270,6 +1311,7 @@ def create_b4_closed_critic_pair(
     production_certification = _ProductionPairCertification(
         repository_root=trusted_root,
         pair_id=on_binding.pair_id,
+        driver_kind=expected_driver_kind,
         verified_admission=verified_admission,
         admission_sidecar_path=admission_sidecar_path.resolve(strict=True),
         admission_sidecar_sha256=admission_sidecar_sha256,
@@ -1332,7 +1374,7 @@ def create_b4_closed_critic_pair_for_test(
             on_cfg=on_cfg,
             off_cfg=off_cfg,
             artifact_root=artifact_root,
-            verified_admission=None,
+            initial_projection_sha256=None,
         )
     )
     on_controller: B4ClosedCriticController | None = None
@@ -1889,7 +1931,9 @@ def assert_b4_certified_arm_pair(
     verified = verify_b4_admission_record(
         admission_record_path,
         repository_root=certification.repository_root,
+        driver_kind=certification.driver_kind,
     )
+    assert_b4_document_projection_closures_are_live(verified)
     if verified != certification.verified_admission:
         raise B4ReceiptError(
             "certified pair admission differs from production factory admission"

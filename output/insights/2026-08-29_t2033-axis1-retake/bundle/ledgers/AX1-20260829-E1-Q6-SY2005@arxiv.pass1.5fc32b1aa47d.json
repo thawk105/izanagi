@@ -1,0 +1,61 @@
+{
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "distinct_index_work_id_count": 4,
+  "document_type": "record_occurrence_ledger",
+  "index": "arxiv",
+  "leaf_query_id": "AX1-20260829-E1-Q6-SY2005@arxiv",
+  "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+  "occurrence_count": 4,
+  "occurrences": [
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:cs/0505070"
+      ],
+      "index_work_id": "http://arxiv.org/abs/cs/0505070v1",
+      "interpreted_date": "2005-05-25",
+      "ordinal": 0,
+      "page_number": 0,
+      "raw_date_value": "2005-05-25T01:39:55Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:cs/0501012"
+      ],
+      "index_work_id": "http://arxiv.org/abs/cs/0501012v6",
+      "interpreted_date": "2005-01-07",
+      "ordinal": 1,
+      "page_number": 0,
+      "raw_date_value": "2005-01-07T17:57:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:astro-ph/0507527",
+        "doi:10.1111/j.1365-2966.2005.09456.x"
+      ],
+      "index_work_id": "http://arxiv.org/abs/astro-ph/0507527v1",
+      "interpreted_date": "2005-07-22",
+      "ordinal": 2,
+      "page_number": 0,
+      "raw_date_value": "2005-07-22T01:05:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:cs/0506041"
+      ],
+      "index_work_id": "http://arxiv.org/abs/cs/0506041v3",
+      "interpreted_date": "2005-06-11",
+      "ordinal": 3,
+      "page_number": 0,
+      "raw_date_value": "2005-06-11T18:11:22Z"
+    }
+  ],
+  "primary_key_kind": "index_work_id",
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1"
+}

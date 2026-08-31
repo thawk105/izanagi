@@ -1,0 +1,2168 @@
+{
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "distinct_index_work_id_count": 200,
+  "document_type": "record_occurrence_ledger",
+  "index": "openalex",
+  "leaf_query_id": "AX1-20260829-E1-Q1@openalex",
+  "logical_query_id": "AX1-20260829-E1-Q1@openalex",
+  "occurrence_count": 200,
+  "occurrences": [
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/cgo.2007.4"
+      ],
+      "index_work_id": "https://openalex.org/W2116145395",
+      "interpreted_date": "2007-03-01",
+      "ordinal": 0,
+      "page_number": 0,
+      "raw_date_value": "2007-03-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2351676.2351694"
+      ],
+      "index_work_id": "https://openalex.org/W2049134176",
+      "interpreted_date": "2012-09-03",
+      "ordinal": 1,
+      "page_number": 0,
+      "raw_date_value": "2012-09-03"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1049/iet-its.2018.5357"
+      ],
+      "index_work_id": "https://openalex.org/W2910515609",
+      "interpreted_date": "2019-01-15",
+      "ordinal": 2,
+      "page_number": 0,
+      "raw_date_value": "2019-01-15"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/tits.2021.3077572"
+      ],
+      "index_work_id": "https://openalex.org/W3161939764",
+      "interpreted_date": "2021-05-13",
+      "ordinal": 3,
+      "page_number": 0,
+      "raw_date_value": "2021-05-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2086696.2086733"
+      ],
+      "index_work_id": "https://openalex.org/W2012893167",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 4,
+      "page_number": 0,
+      "raw_date_value": "2012-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3329859.3329871"
+      ],
+      "index_work_id": "https://openalex.org/W2946655760",
+      "interpreted_date": "2019-05-24",
+      "ordinal": 5,
+      "page_number": 0,
+      "raw_date_value": "2019-05-24"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/tpwrs.2022.3142969"
+      ],
+      "index_work_id": "https://openalex.org/W4206754003",
+      "interpreted_date": "2022-01-13",
+      "ordinal": 6,
+      "page_number": 0,
+      "raw_date_value": "2022-01-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/access.2024.3415470"
+      ],
+      "index_work_id": "https://openalex.org/W4393284236",
+      "interpreted_date": "2024-01-01",
+      "ordinal": 7,
+      "page_number": 0,
+      "raw_date_value": "2024-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.asoc.2021.107952"
+      ],
+      "index_work_id": "https://openalex.org/W4243641017",
+      "interpreted_date": "2021-10-07",
+      "ordinal": 8,
+      "page_number": 0,
+      "raw_date_value": "2021-10-07"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.trc.2008.12.002"
+      ],
+      "index_work_id": "https://openalex.org/W2096882223",
+      "interpreted_date": "2009-02-24",
+      "ordinal": 9,
+      "page_number": 0,
+      "raw_date_value": "2009-02-24"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W3136870597",
+      "interpreted_date": "2020-01-01",
+      "ordinal": 10,
+      "page_number": 0,
+      "raw_date_value": "2020-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2004.06089"
+      ],
+      "index_work_id": "https://openalex.org/W2995237914",
+      "interpreted_date": "2020-04-13",
+      "ordinal": 11,
+      "page_number": 0,
+      "raw_date_value": "2020-04-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2105.10329"
+      ],
+      "index_work_id": "https://openalex.org/W3164625502",
+      "interpreted_date": "2021-05-21",
+      "ordinal": 12,
+      "page_number": 0,
+      "raw_date_value": "2021-05-21"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1002/cpe.1876"
+      ],
+      "index_work_id": "https://openalex.org/W2098761907",
+      "interpreted_date": "2012-02-14",
+      "ordinal": 13,
+      "page_number": 0,
+      "raw_date_value": "2012-02-14"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-11747-3_8"
+      ],
+      "index_work_id": "https://openalex.org/W1550673761",
+      "interpreted_date": "2010-01-01",
+      "ordinal": 14,
+      "page_number": 0,
+      "raw_date_value": "2010-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/snpd.2011.16"
+      ],
+      "index_work_id": "https://openalex.org/W2138485531",
+      "interpreted_date": "2011-07-01",
+      "ordinal": 15,
+      "page_number": 0,
+      "raw_date_value": "2011-07-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/app12020610"
+      ],
+      "index_work_id": "https://openalex.org/W3215041652",
+      "interpreted_date": "2022-01-09",
+      "ordinal": 16,
+      "page_number": 0,
+      "raw_date_value": "2022-01-09"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/jiot.2024.3523907"
+      ],
+      "index_work_id": "https://openalex.org/W4405907368",
+      "interpreted_date": "2024-12-30",
+      "ordinal": 17,
+      "page_number": 0,
+      "raw_date_value": "2024-12-30"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W1786361840",
+      "interpreted_date": "2004-06-01",
+      "ordinal": 18,
+      "page_number": 0,
+      "raw_date_value": "2004-06-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/566171.566199"
+      ],
+      "index_work_id": "https://openalex.org/W2112338943",
+      "interpreted_date": "2002-07-01",
+      "ordinal": 19,
+      "page_number": 0,
+      "raw_date_value": "2002-07-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/mis.2022.3145503"
+      ],
+      "index_work_id": "https://openalex.org/W4210577320",
+      "interpreted_date": "2022-01-25",
+      "ordinal": 20,
+      "page_number": 0,
+      "raw_date_value": "2022-01-25"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-662-53455-7_5"
+      ],
+      "index_work_id": "https://openalex.org/W2508071492",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 21,
+      "page_number": 0,
+      "raw_date_value": "2016-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/tits.2024.3509339"
+      ],
+      "index_work_id": "https://openalex.org/W4405232549",
+      "interpreted_date": "2024-12-10",
+      "ordinal": 22,
+      "page_number": 0,
+      "raw_date_value": "2024-12-10"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/cec.2014.6900292"
+      ],
+      "index_work_id": "https://openalex.org/W2012747304",
+      "interpreted_date": "2014-07-01",
+      "ordinal": 23,
+      "page_number": 0,
+      "raw_date_value": "2014-07-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/566172.566199"
+      ],
+      "index_work_id": "https://openalex.org/W4231639797",
+      "interpreted_date": "2002-07-01",
+      "ordinal": 24,
+      "page_number": 0,
+      "raw_date_value": "2002-07-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icdcs.1991.148644"
+      ],
+      "index_work_id": "https://openalex.org/W2171965162",
+      "interpreted_date": "2002-12-10",
+      "ordinal": 25,
+      "page_number": 0,
+      "raw_date_value": "2002-12-10"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-319-22849-5_18"
+      ],
+      "index_work_id": "https://openalex.org/W1628341315",
+      "interpreted_date": "2015-01-01",
+      "ordinal": 26,
+      "page_number": 0,
+      "raw_date_value": "2015-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.ijhydene.2025.01.380"
+      ],
+      "index_work_id": "https://openalex.org/W4407085375",
+      "interpreted_date": "2025-02-03",
+      "ordinal": 27,
+      "page_number": 0,
+      "raw_date_value": "2025-02-03"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3098572.3098579"
+      ],
+      "index_work_id": "https://openalex.org/W2730164157",
+      "interpreted_date": "2017-06-19",
+      "ordinal": 28,
+      "page_number": 0,
+      "raw_date_value": "2017-06-19"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icsmc.2012.6377863"
+      ],
+      "index_work_id": "https://openalex.org/W2079444221",
+      "interpreted_date": "2012-10-01",
+      "ordinal": 29,
+      "page_number": 0,
+      "raw_date_value": "2012-10-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W2474174095",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 30,
+      "page_number": 0,
+      "raw_date_value": "2013-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/access.2021.3108189"
+      ],
+      "index_work_id": "https://openalex.org/W3198895706",
+      "interpreted_date": "2021-01-01",
+      "ordinal": 31,
+      "page_number": 0,
+      "raw_date_value": "2021-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2004.06089"
+      ],
+      "index_work_id": "https://openalex.org/W3015415344",
+      "interpreted_date": "2020-04-13",
+      "ordinal": 32,
+      "page_number": 0,
+      "raw_date_value": "2020-04-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2480362.2480686"
+      ],
+      "index_work_id": "https://openalex.org/W1979082508",
+      "interpreted_date": "2013-03-18",
+      "ordinal": 33,
+      "page_number": 0,
+      "raw_date_value": "2013-03-18"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/ccwc62904.2025.10903869"
+      ],
+      "index_work_id": "https://openalex.org/W4408258351",
+      "interpreted_date": "2025-01-06",
+      "ordinal": 34,
+      "page_number": 0,
+      "raw_date_value": "2025-01-06"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-540-24650-3_27"
+      ],
+      "index_work_id": "https://openalex.org/W1553303026",
+      "interpreted_date": "2004-01-01",
+      "ordinal": 35,
+      "page_number": 0,
+      "raw_date_value": "2004-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.parco.2015.10.001"
+      ],
+      "index_work_id": "https://openalex.org/W1871315279",
+      "interpreted_date": "2015-10-17",
+      "ordinal": 36,
+      "page_number": 0,
+      "raw_date_value": "2015-10-17"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/access.2021.3061266"
+      ],
+      "index_work_id": "https://openalex.org/W3132295259",
+      "interpreted_date": "2021-01-01",
+      "ordinal": 37,
+      "page_number": 0,
+      "raw_date_value": "2021-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3502223.3502224"
+      ],
+      "index_work_id": "https://openalex.org/W4207075939",
+      "interpreted_date": "2021-12-06",
+      "ordinal": 38,
+      "page_number": 0,
+      "raw_date_value": "2021-12-06"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.engappai.2024.108520"
+      ],
+      "index_work_id": "https://openalex.org/W4396998044",
+      "interpreted_date": "2024-05-17",
+      "ordinal": 39,
+      "page_number": 0,
+      "raw_date_value": "2024-05-17"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/app15158245"
+      ],
+      "index_work_id": "https://openalex.org/W4412631376",
+      "interpreted_date": "2025-07-24",
+      "ordinal": 40,
+      "page_number": 0,
+      "raw_date_value": "2025-07-24"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/math12152318"
+      ],
+      "index_work_id": "https://openalex.org/W4400942305",
+      "interpreted_date": "2024-07-24",
+      "ordinal": 41,
+      "page_number": 0,
+      "raw_date_value": "2024-07-24"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1038/s41598-025-09698-1"
+      ],
+      "index_work_id": "https://openalex.org/W4412429406",
+      "interpreted_date": "2025-07-15",
+      "ordinal": 42,
+      "page_number": 0,
+      "raw_date_value": "2025-07-15"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icbaie52039.2021.9389965"
+      ],
+      "index_work_id": "https://openalex.org/W3204459944",
+      "interpreted_date": "2021-03-26",
+      "ordinal": 43,
+      "page_number": 0,
+      "raw_date_value": "2021-03-26"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1002/spe.4380250505"
+      ],
+      "index_work_id": "https://openalex.org/W2139491617",
+      "interpreted_date": "1995-05-01",
+      "ordinal": 44,
+      "page_number": 0,
+      "raw_date_value": "1995-05-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1698759.1698761"
+      ],
+      "index_work_id": "https://openalex.org/W2100335090",
+      "interpreted_date": "2010-02-01",
+      "ordinal": 45,
+      "page_number": 0,
+      "raw_date_value": "2010-02-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/sym17071109"
+      ],
+      "index_work_id": "https://openalex.org/W4412154376",
+      "interpreted_date": "2025-07-10",
+      "ordinal": 46,
+      "page_number": 0,
+      "raw_date_value": "2025-07-10"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/app14188274"
+      ],
+      "index_work_id": "https://openalex.org/W4402515887",
+      "interpreted_date": "2024-09-13",
+      "ordinal": 47,
+      "page_number": 0,
+      "raw_date_value": "2024-09-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/iot.2012.6402307"
+      ],
+      "index_work_id": "https://openalex.org/W2041018641",
+      "interpreted_date": "2012-10-01",
+      "ordinal": 48,
+      "page_number": 0,
+      "raw_date_value": "2012-10-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/ojcoms.2025.3642642"
+      ],
+      "index_work_id": "https://openalex.org/W4417426828",
+      "interpreted_date": "2025-01-01",
+      "ordinal": 49,
+      "page_number": 0,
+      "raw_date_value": "2025-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/estmed.2008.4696997"
+      ],
+      "index_work_id": "https://openalex.org/W2143588314",
+      "interpreted_date": "2008-10-01",
+      "ordinal": 50,
+      "page_number": 0,
+      "raw_date_value": "2008-10-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1155/2023/6643903"
+      ],
+      "index_work_id": "https://openalex.org/W4386799128",
+      "interpreted_date": "2023-09-16",
+      "ordinal": 51,
+      "page_number": 0,
+      "raw_date_value": "2023-09-16"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/s0306-4379(96)00004-x"
+      ],
+      "index_work_id": "https://openalex.org/W2054306043",
+      "interpreted_date": "1996-03-01",
+      "ordinal": 52,
+      "page_number": 0,
+      "raw_date_value": "1996-03-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2206.13690"
+      ],
+      "index_work_id": "https://openalex.org/W4283723110",
+      "interpreted_date": "2022-06-28",
+      "ordinal": 53,
+      "page_number": 0,
+      "raw_date_value": "2022-06-28"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1162/evco.2006.14.2.129"
+      ],
+      "index_work_id": "https://openalex.org/W2161804994",
+      "interpreted_date": "2006-06-01",
+      "ordinal": 54,
+      "page_number": 0,
+      "raw_date_value": "2006-06-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1371/journal.pone.0342689"
+      ],
+      "index_work_id": "https://openalex.org/W7130594959",
+      "interpreted_date": "2026-02-19",
+      "ordinal": 55,
+      "page_number": 0,
+      "raw_date_value": "2026-02-19"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W3177431865",
+      "interpreted_date": "2021-01-01",
+      "ordinal": 56,
+      "page_number": 0,
+      "raw_date_value": "2021-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1504/ijcsyse.2023.132922"
+      ],
+      "index_work_id": "https://openalex.org/W4385958051",
+      "interpreted_date": "2023-01-01",
+      "ordinal": 57,
+      "page_number": 0,
+      "raw_date_value": "2023-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icmi65310.2025.11141256"
+      ],
+      "index_work_id": "https://openalex.org/W4414054808",
+      "interpreted_date": "2025-04-05",
+      "ordinal": 58,
+      "page_number": 0,
+      "raw_date_value": "2025-04-05"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1038/s41598-025-00951-1"
+      ],
+      "index_work_id": "https://openalex.org/W4414510838",
+      "interpreted_date": "2025-09-25",
+      "ordinal": 59,
+      "page_number": 0,
+      "raw_date_value": "2025-09-25"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1703.01274"
+      ],
+      "index_work_id": "https://openalex.org/W2604338815",
+      "interpreted_date": "2017-03-03",
+      "ordinal": 60,
+      "page_number": 0,
+      "raw_date_value": "2017-03-03"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3769771"
+      ],
+      "index_work_id": "https://openalex.org/W4417070084",
+      "interpreted_date": "2025-12-04",
+      "ordinal": 61,
+      "page_number": 0,
+      "raw_date_value": "2025-12-04"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.30574/wjarr.2024.22.3.1737"
+      ],
+      "index_work_id": "https://openalex.org/W4414032434",
+      "interpreted_date": "2024-06-30",
+      "ordinal": 62,
+      "page_number": 0,
+      "raw_date_value": "2024-06-30"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W1519706220",
+      "interpreted_date": "1987-01-01",
+      "ordinal": 63,
+      "page_number": 0,
+      "raw_date_value": "1987-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/24.510822"
+      ],
+      "index_work_id": "https://openalex.org/W2153531096",
+      "interpreted_date": "1996-06-01",
+      "ordinal": 64,
+      "page_number": 0,
+      "raw_date_value": "1996-06-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-16955-7_18"
+      ],
+      "index_work_id": "https://openalex.org/W4233750989",
+      "interpreted_date": "2010-01-01",
+      "ordinal": 65,
+      "page_number": 0,
+      "raw_date_value": "2010-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/s12028-021-01372-4"
+      ],
+      "index_work_id": "https://openalex.org/W4200043091",
+      "interpreted_date": "2021-12-23",
+      "ordinal": 66,
+      "page_number": 0,
+      "raw_date_value": "2021-12-23"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.18653/v1/2022.emnlp-main.90"
+      ],
+      "index_work_id": "https://openalex.org/W4385567216",
+      "interpreted_date": "2022-01-01",
+      "ordinal": 67,
+      "page_number": 0,
+      "raw_date_value": "2022-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1066157.1066252"
+      ],
+      "index_work_id": "https://openalex.org/W2106039833",
+      "interpreted_date": "2005-06-14",
+      "ordinal": 68,
+      "page_number": 0,
+      "raw_date_value": "2005-06-14"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/aerospace9080413"
+      ],
+      "index_work_id": "https://openalex.org/W4289101875",
+      "interpreted_date": "2022-07-30",
+      "ordinal": 69,
+      "page_number": 0,
+      "raw_date_value": "2022-07-30"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-030-30952-7_2"
+      ],
+      "index_work_id": "https://openalex.org/W2974250113",
+      "interpreted_date": "2019-01-01",
+      "ordinal": 70,
+      "page_number": 0,
+      "raw_date_value": "2019-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3326285.3329056"
+      ],
+      "index_work_id": "https://openalex.org/W2949913798",
+      "interpreted_date": "2019-06-14",
+      "ordinal": 71,
+      "page_number": 0,
+      "raw_date_value": "2019-06-14"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.18653/v1/2024.findings-acl.609"
+      ],
+      "index_work_id": "https://openalex.org/W4402683793",
+      "interpreted_date": "2024-01-01",
+      "ordinal": 72,
+      "page_number": 0,
+      "raw_date_value": "2024-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1137/0117039"
+      ],
+      "index_work_id": "https://openalex.org/W2104680817",
+      "interpreted_date": "1969-03-01",
+      "ordinal": 73,
+      "page_number": 0,
+      "raw_date_value": "1969-03-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.20157139"
+      ],
+      "index_work_id": "https://openalex.org/W7161030840",
+      "interpreted_date": "2026-05-13",
+      "ordinal": 74,
+      "page_number": 0,
+      "raw_date_value": "2026-05-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icsp54964.2022.9778447"
+      ],
+      "index_work_id": "https://openalex.org/W4281490144",
+      "interpreted_date": "2022-04-15",
+      "ordinal": 75,
+      "page_number": 0,
+      "raw_date_value": "2022-04-15"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.24136/oc.3183"
+      ],
+      "index_work_id": "https://openalex.org/W4403122976",
+      "interpreted_date": "2024-09-30",
+      "ordinal": 76,
+      "page_number": 0,
+      "raw_date_value": "2024-09-30"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.19058364"
+      ],
+      "index_work_id": "https://openalex.org/W7138283008",
+      "interpreted_date": "2026-03-17",
+      "ordinal": 77,
+      "page_number": 0,
+      "raw_date_value": "2026-03-17"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/math13152504"
+      ],
+      "index_work_id": "https://openalex.org/W4412943006",
+      "interpreted_date": "2025-08-04",
+      "ordinal": 78,
+      "page_number": 0,
+      "raw_date_value": "2025-08-04"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2502.05562"
+      ],
+      "index_work_id": "https://openalex.org/W4407385138",
+      "interpreted_date": "2025-02-08",
+      "ordinal": 79,
+      "page_number": 0,
+      "raw_date_value": "2025-02-08"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1057/9781137483690_13"
+      ],
+      "index_work_id": "https://openalex.org/W2414402496",
+      "interpreted_date": "2015-01-01",
+      "ordinal": 80,
+      "page_number": 0,
+      "raw_date_value": "2015-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1093/jamia/ocx119"
+      ],
+      "index_work_id": "https://openalex.org/W2774306283",
+      "interpreted_date": "2017-10-19",
+      "ordinal": 81,
+      "page_number": 0,
+      "raw_date_value": "2017-10-19"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.21423/jrs.regsci.111252"
+      ],
+      "index_work_id": "https://openalex.org/W4388688845",
+      "interpreted_date": "2023-09-18",
+      "ordinal": 82,
+      "page_number": 0,
+      "raw_date_value": "2023-09-18"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2108.00256"
+      ],
+      "index_work_id": "https://openalex.org/W3192372956",
+      "interpreted_date": "2021-07-31",
+      "ordinal": 83,
+      "page_number": 0,
+      "raw_date_value": "2021-07-31"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/cbms65348.2025.00172"
+      ],
+      "index_work_id": "https://openalex.org/W4412021332",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 84,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W217876282",
+      "interpreted_date": "1989-01-03",
+      "ordinal": 85,
+      "page_number": 0,
+      "raw_date_value": "1989-01-03"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/iwcmc61514.2024.10592524"
+      ],
+      "index_work_id": "https://openalex.org/W4400727330",
+      "interpreted_date": "2024-05-27",
+      "ordinal": 86,
+      "page_number": 0,
+      "raw_date_value": "2024-05-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/0164-1212(95)00198-0"
+      ],
+      "index_work_id": "https://openalex.org/W2035533151",
+      "interpreted_date": "1997-02-01",
+      "ordinal": 87,
+      "page_number": 0,
+      "raw_date_value": "1997-02-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/ftdcs.2001.969624"
+      ],
+      "index_work_id": "https://openalex.org/W2170005576",
+      "interpreted_date": "2002-11-13",
+      "ordinal": 88,
+      "page_number": 0,
+      "raw_date_value": "2002-11-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.4258/jksmi.2006.12.1.95"
+      ],
+      "index_work_id": "https://openalex.org/W2399155936",
+      "interpreted_date": "2006-01-01",
+      "ordinal": 89,
+      "page_number": 0,
+      "raw_date_value": "2006-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1088/2631-8695/ae282c"
+      ],
+      "index_work_id": "https://openalex.org/W4417010919",
+      "interpreted_date": "2025-12-04",
+      "ordinal": 90,
+      "page_number": 0,
+      "raw_date_value": "2025-12-04"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-030-92273-3_38"
+      ],
+      "index_work_id": "https://openalex.org/W4205812691",
+      "interpreted_date": "2021-01-01",
+      "ordinal": 91,
+      "page_number": 0,
+      "raw_date_value": "2021-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-319-54334-5_9"
+      ],
+      "index_work_id": "https://openalex.org/W2587802902",
+      "interpreted_date": "2017-01-01",
+      "ordinal": 92,
+      "page_number": 0,
+      "raw_date_value": "2017-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/b96274"
+      ],
+      "index_work_id": "https://openalex.org/W1595683865",
+      "interpreted_date": "2004-05-14",
+      "ordinal": 93,
+      "page_number": 0,
+      "raw_date_value": "2004-05-14"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.jvcir.2022.103742"
+      ],
+      "index_work_id": "https://openalex.org/W4313644783",
+      "interpreted_date": "2023-01-06",
+      "ordinal": 94,
+      "page_number": 0,
+      "raw_date_value": "2023-01-06"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1155/2021/9536309"
+      ],
+      "index_work_id": "https://openalex.org/W4200267595",
+      "interpreted_date": "2021-12-07",
+      "ordinal": 95,
+      "page_number": 0,
+      "raw_date_value": "2021-12-07"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W2578673558",
+      "interpreted_date": "2016-02-11",
+      "ordinal": 96,
+      "page_number": 0,
+      "raw_date_value": "2016-02-11"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2210.13255"
+      ],
+      "index_work_id": "https://openalex.org/W4307321269",
+      "interpreted_date": "2022-10-24",
+      "ordinal": 97,
+      "page_number": 0,
+      "raw_date_value": "2022-10-24"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/ccgridw59191.2023.00028"
+      ],
+      "index_work_id": "https://openalex.org/W4384835097",
+      "interpreted_date": "2023-05-01",
+      "ordinal": 98,
+      "page_number": 0,
+      "raw_date_value": "2023-05-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.enbuild.2026.117684"
+      ],
+      "index_work_id": "https://openalex.org/W7161746380",
+      "interpreted_date": "2026-05-19",
+      "ordinal": 99,
+      "page_number": 0,
+      "raw_date_value": "2026-05-19"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.63282/3117-5481/aijcst-v3i2p101"
+      ],
+      "index_work_id": "https://openalex.org/W4417293135",
+      "interpreted_date": "2021-01-01",
+      "ordinal": 100,
+      "page_number": 0,
+      "raw_date_value": "2021-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icns58246.2023.10124287"
+      ],
+      "index_work_id": "https://openalex.org/W4376605493",
+      "interpreted_date": "2023-04-18",
+      "ordinal": 101,
+      "page_number": 0,
+      "raw_date_value": "2023-04-18"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.neubiorev.2013.11.003"
+      ],
+      "index_work_id": "https://openalex.org/W2050040379",
+      "interpreted_date": "2013-11-14",
+      "ordinal": 102,
+      "page_number": 0,
+      "raw_date_value": "2013-11-14"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/mascon51689.2021.9563476"
+      ],
+      "index_work_id": "https://openalex.org/W3209632462",
+      "interpreted_date": "2021-08-27",
+      "ordinal": 103,
+      "page_number": 0,
+      "raw_date_value": "2021-08-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.17775/cseejpes.2021.08300"
+      ],
+      "index_work_id": "https://openalex.org/W4415413213",
+      "interpreted_date": "2025-01-01",
+      "ordinal": 104,
+      "page_number": 0,
+      "raw_date_value": "2025-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W567251055",
+      "interpreted_date": "2004-11-01",
+      "ordinal": 105,
+      "page_number": 0,
+      "raw_date_value": "2004-11-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1002/(sici)1097-024x(199802)28:2<155::aid-spe155>3.0.co;2-5"
+      ],
+      "index_work_id": "https://openalex.org/W1965311471",
+      "interpreted_date": "1998-02-01",
+      "ordinal": 106,
+      "page_number": 0,
+      "raw_date_value": "1998-02-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/hdis60872.2023.10499467"
+      ],
+      "index_work_id": "https://openalex.org/W4394874759",
+      "interpreted_date": "2023-12-06",
+      "ordinal": 107,
+      "page_number": 0,
+      "raw_date_value": "2023-12-06"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1155/2020/3273451"
+      ],
+      "index_work_id": "https://openalex.org/W3040196345",
+      "interpreted_date": "2020-07-03",
+      "ordinal": 108,
+      "page_number": 0,
+      "raw_date_value": "2020-07-03"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W1527821982",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 109,
+      "page_number": 0,
+      "raw_date_value": "2014-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2371536.2371559"
+      ],
+      "index_work_id": "https://openalex.org/W2119153034",
+      "interpreted_date": "2012-09-18",
+      "ordinal": 110,
+      "page_number": 0,
+      "raw_date_value": "2012-09-18"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W817552744",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 111,
+      "page_number": 0,
+      "raw_date_value": "2014-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/3352063.3352141"
+      ],
+      "index_work_id": "https://openalex.org/W2970918514",
+      "interpreted_date": "2019-08-01",
+      "ordinal": 112,
+      "page_number": 0,
+      "raw_date_value": "2019-08-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/bf02481204"
+      ],
+      "index_work_id": "https://openalex.org/W2002946075",
+      "interpreted_date": "2002-03-01",
+      "ordinal": 113,
+      "page_number": 0,
+      "raw_date_value": "2002-03-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.17787619"
+      ],
+      "index_work_id": "https://openalex.org/W7108316613",
+      "interpreted_date": "2025-12-02",
+      "ordinal": 114,
+      "page_number": 0,
+      "raw_date_value": "2025-12-02"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/s10515-014-0151-5"
+      ],
+      "index_work_id": "https://openalex.org/W2046368237",
+      "interpreted_date": "2014-05-27",
+      "ordinal": 115,
+      "page_number": 0,
+      "raw_date_value": "2014-05-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3731599.3767476"
+      ],
+      "index_work_id": "https://openalex.org/W4416004531",
+      "interpreted_date": "2025-11-07",
+      "ordinal": 116,
+      "page_number": 0,
+      "raw_date_value": "2025-11-07"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-540-87877-3_42"
+      ],
+      "index_work_id": "https://openalex.org/W1581554944",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 117,
+      "page_number": 0,
+      "raw_date_value": "2008-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/bfb0052177"
+      ],
+      "index_work_id": "https://openalex.org/W1993517260",
+      "interpreted_date": "2006-06-07",
+      "ordinal": 118,
+      "page_number": 0,
+      "raw_date_value": "2006-06-07"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1609/aaai.v33i01.33011004"
+      ],
+      "index_work_id": "https://openalex.org/W2904349291",
+      "interpreted_date": "2019-07-17",
+      "ordinal": 119,
+      "page_number": 0,
+      "raw_date_value": "2019-07-17"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/tvlsi.2025.3615588"
+      ],
+      "index_work_id": "https://openalex.org/W4415123884",
+      "interpreted_date": "2025-10-13",
+      "ordinal": 120,
+      "page_number": 0,
+      "raw_date_value": "2025-10-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W82467714",
+      "interpreted_date": "1985-01-01",
+      "ordinal": 121,
+      "page_number": 0,
+      "raw_date_value": "1985-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/drones7080491"
+      ],
+      "index_work_id": "https://openalex.org/W4385345048",
+      "interpreted_date": "2023-07-27",
+      "ordinal": 122,
+      "page_number": 0,
+      "raw_date_value": "2023-07-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W2534184227",
+      "interpreted_date": "2006-01-01",
+      "ordinal": 123,
+      "page_number": 0,
+      "raw_date_value": "2006-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3742413.3789058"
+      ],
+      "index_work_id": "https://openalex.org/W7133328331",
+      "interpreted_date": "2026-03-03",
+      "ordinal": 124,
+      "page_number": 0,
+      "raw_date_value": "2026-03-03"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/ici.2011.44"
+      ],
+      "index_work_id": "https://openalex.org/W2533502250",
+      "interpreted_date": "2011-12-01",
+      "ordinal": 125,
+      "page_number": 0,
+      "raw_date_value": "2011-12-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2723372.2723729"
+      ],
+      "index_work_id": "https://openalex.org/W1982242771",
+      "interpreted_date": "2015-05-27",
+      "ordinal": 126,
+      "page_number": 0,
+      "raw_date_value": "2015-05-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W2365677667",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 127,
+      "page_number": 0,
+      "raw_date_value": "2008-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/0-387-23352-0_4"
+      ],
+      "index_work_id": "https://openalex.org/W74745761",
+      "interpreted_date": "2005-12-27",
+      "ordinal": 128,
+      "page_number": 0,
+      "raw_date_value": "2005-12-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2620001"
+      ],
+      "index_work_id": "https://openalex.org/W2118677985",
+      "interpreted_date": "2014-07-01",
+      "ordinal": 129,
+      "page_number": 0,
+      "raw_date_value": "2014-07-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W2286011652",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 130,
+      "page_number": 0,
+      "raw_date_value": "2011-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.2139/ssrn.5570121"
+      ],
+      "index_work_id": "https://openalex.org/W4414851998",
+      "interpreted_date": "2025-01-01",
+      "ordinal": 131,
+      "page_number": 0,
+      "raw_date_value": "2025-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.asoc.2026.116050"
+      ],
+      "index_work_id": "https://openalex.org/W7170187597",
+      "interpreted_date": "2026-07-23",
+      "ordinal": 132,
+      "page_number": 0,
+      "raw_date_value": "2026-07-23"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1504/ijcsyse.2023.10057564"
+      ],
+      "index_work_id": "https://openalex.org/W4384211020",
+      "interpreted_date": "2023-01-01",
+      "ordinal": 133,
+      "page_number": 0,
+      "raw_date_value": "2023-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4842-2199-0_7"
+      ],
+      "index_work_id": "https://openalex.org/W4240083050",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 134,
+      "page_number": 0,
+      "raw_date_value": "2016-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/twc.2023.3349230"
+      ],
+      "index_work_id": "https://openalex.org/W4390691149",
+      "interpreted_date": "2024-01-10",
+      "ordinal": 135,
+      "page_number": 0,
+      "raw_date_value": "2024-01-10"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2210.07128"
+      ],
+      "index_work_id": "https://openalex.org/W4306311934",
+      "interpreted_date": "2022-10-13",
+      "ordinal": 136,
+      "page_number": 0,
+      "raw_date_value": "2022-10-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.23919/ntca68808.2026.11524178"
+      ],
+      "index_work_id": "https://openalex.org/W7163589757",
+      "interpreted_date": "2026-04-23",
+      "ordinal": 137,
+      "page_number": 0,
+      "raw_date_value": "2026-04-23"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.31294/ijse.v4i1.6291"
+      ],
+      "index_work_id": "https://openalex.org/W2976939786",
+      "interpreted_date": "2018-06-28",
+      "ordinal": 138,
+      "page_number": 0,
+      "raw_date_value": "2018-06-28"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/app15116341"
+      ],
+      "index_work_id": "https://openalex.org/W4411062787",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 139,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2511.05589"
+      ],
+      "index_work_id": "https://openalex.org/W4416156606",
+      "interpreted_date": "2025-11-05",
+      "ordinal": 140,
+      "page_number": 0,
+      "raw_date_value": "2025-11-05"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5282/edoc.7936"
+      ],
+      "index_work_id": "https://openalex.org/W1805562699",
+      "interpreted_date": "2007-01-01",
+      "ordinal": 141,
+      "page_number": 0,
+      "raw_date_value": "2007-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/telfor56187.2022.9983786"
+      ],
+      "index_work_id": "https://openalex.org/W4312090298",
+      "interpreted_date": "2022-11-15",
+      "ordinal": 142,
+      "page_number": 0,
+      "raw_date_value": "2022-11-15"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.3390/aerospace8040093"
+      ],
+      "index_work_id": "https://openalex.org/W3143142211",
+      "interpreted_date": "2021-04-01",
+      "ordinal": 143,
+      "page_number": 0,
+      "raw_date_value": "2021-04-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W2182354517",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 144,
+      "page_number": 0,
+      "raw_date_value": "2012-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/tsc.2022.3180831"
+      ],
+      "index_work_id": "https://openalex.org/W4285257592",
+      "interpreted_date": "2022-06-10",
+      "ordinal": 145,
+      "page_number": 0,
+      "raw_date_value": "2022-06-10"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W215191342",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 146,
+      "page_number": 0,
+      "raw_date_value": "2013-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.12700/aph.13.3.2016.3.2"
+      ],
+      "index_work_id": "https://openalex.org/W2553217184",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 147,
+      "page_number": 0,
+      "raw_date_value": "2016-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1117/12.3101597"
+      ],
+      "index_work_id": "https://openalex.org/W7127039941",
+      "interpreted_date": "2026-02-01",
+      "ordinal": 148,
+      "page_number": 0,
+      "raw_date_value": "2026-02-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2160910.2160913"
+      ],
+      "index_work_id": "https://openalex.org/W2060234806",
+      "interpreted_date": "2012-04-01",
+      "ordinal": 149,
+      "page_number": 0,
+      "raw_date_value": "2012-04-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2605.31550"
+      ],
+      "index_work_id": "https://openalex.org/W7163018176",
+      "interpreted_date": "2026-05-29",
+      "ordinal": 150,
+      "page_number": 0,
+      "raw_date_value": "2026-05-29"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W7163287136",
+      "interpreted_date": "2026-05-29",
+      "ordinal": 151,
+      "page_number": 0,
+      "raw_date_value": "2026-05-29"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W7155470537",
+      "interpreted_date": "2026-01-01",
+      "ordinal": 152,
+      "page_number": 0,
+      "raw_date_value": "2026-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2608.24498"
+      ],
+      "index_work_id": "https://openalex.org/W7204221363",
+      "interpreted_date": "2026-08-25",
+      "ordinal": 153,
+      "page_number": 0,
+      "raw_date_value": "2026-08-25"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/3424573.3424578"
+      ],
+      "index_work_id": "https://openalex.org/W3095172747",
+      "interpreted_date": "2020-09-01",
+      "ordinal": 154,
+      "page_number": 0,
+      "raw_date_value": "2020-09-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5555/857198.857953"
+      ],
+      "index_work_id": "https://openalex.org/W1972216377",
+      "interpreted_date": "1999-11-01",
+      "ordinal": 155,
+      "page_number": 0,
+      "raw_date_value": "1999-11-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.18156968"
+      ],
+      "index_work_id": "https://openalex.org/W7118602742",
+      "interpreted_date": "2026-01-05",
+      "ordinal": 156,
+      "page_number": 0,
+      "raw_date_value": "2026-01-05"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.18156969"
+      ],
+      "index_work_id": "https://openalex.org/W7118580657",
+      "interpreted_date": "2026-01-05",
+      "ordinal": 157,
+      "page_number": 0,
+      "raw_date_value": "2026-01-05"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/comsnets63942.2025.10885706"
+      ],
+      "index_work_id": "https://openalex.org/W4407784102",
+      "interpreted_date": "2025-01-06",
+      "ordinal": 158,
+      "page_number": 0,
+      "raw_date_value": "2025-01-06"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5555/776816.776874"
+      ],
+      "index_work_id": "https://openalex.org/W2002046105",
+      "interpreted_date": "2003-05-03",
+      "ordinal": 159,
+      "page_number": 0,
+      "raw_date_value": "2003-05-03"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.51785/jar.1393271"
+      ],
+      "index_work_id": "https://openalex.org/W4392109514",
+      "interpreted_date": "2024-02-23",
+      "ordinal": 160,
+      "page_number": 0,
+      "raw_date_value": "2024-02-23"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W277587035",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 161,
+      "page_number": 0,
+      "raw_date_value": "2012-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05725"
+      ],
+      "index_work_id": "https://openalex.org/W4417097376",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 162,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W7166901346",
+      "interpreted_date": "2026-06-29",
+      "ordinal": 163,
+      "page_number": 0,
+      "raw_date_value": "2026-06-29"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2606.30072"
+      ],
+      "index_work_id": "https://openalex.org/W7166646355",
+      "interpreted_date": "2026-06-29",
+      "ordinal": 164,
+      "page_number": 0,
+      "raw_date_value": "2026-06-29"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/lgrs.2023.3332226"
+      ],
+      "index_work_id": "https://openalex.org/W4388624513",
+      "interpreted_date": "2023-11-13",
+      "ordinal": 165,
+      "page_number": 0,
+      "raw_date_value": "2023-11-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-032-27669-8_6"
+      ],
+      "index_work_id": "https://openalex.org/W7202000064",
+      "interpreted_date": "2026-01-01",
+      "ordinal": 166,
+      "page_number": 0,
+      "raw_date_value": "2026-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-319-47355-0"
+      ],
+      "index_work_id": "https://openalex.org/W2546791707",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 167,
+      "page_number": 0,
+      "raw_date_value": "2016-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1111/cgf.14937"
+      ],
+      "index_work_id": "https://openalex.org/W4388417114",
+      "interpreted_date": "2023-10-01",
+      "ordinal": 168,
+      "page_number": 0,
+      "raw_date_value": "2023-10-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W2401593383",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 169,
+      "page_number": 0,
+      "raw_date_value": "2014-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1142/3257"
+      ],
+      "index_work_id": "https://openalex.org/W618759999",
+      "interpreted_date": "1997-06-01",
+      "ordinal": 170,
+      "page_number": 0,
+      "raw_date_value": "1997-06-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/3-540-15199-0_21"
+      ],
+      "index_work_id": "https://openalex.org/W1832995843",
+      "interpreted_date": "1985-01-01",
+      "ordinal": 171,
+      "page_number": 0,
+      "raw_date_value": "1985-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2411.10665"
+      ],
+      "index_work_id": "https://openalex.org/W4404570032",
+      "interpreted_date": "2024-11-16",
+      "ordinal": 172,
+      "page_number": 0,
+      "raw_date_value": "2024-11-16"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4302-0422-0_21"
+      ],
+      "index_work_id": "https://openalex.org/W2110529257",
+      "interpreted_date": "2007-01-01",
+      "ordinal": 173,
+      "page_number": 0,
+      "raw_date_value": "2007-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/access.2025.3585774"
+      ],
+      "index_work_id": "https://openalex.org/W4411996973",
+      "interpreted_date": "2025-01-01",
+      "ordinal": 174,
+      "page_number": 0,
+      "raw_date_value": "2025-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icse.2003.1201225"
+      ],
+      "index_work_id": "https://openalex.org/W4247020846",
+      "interpreted_date": "2003-01-01",
+      "ordinal": 175,
+      "page_number": 0,
+      "raw_date_value": "2003-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.18488801"
+      ],
+      "index_work_id": "https://openalex.org/W7128502410",
+      "interpreted_date": "2026-02-04",
+      "ordinal": 176,
+      "page_number": 0,
+      "raw_date_value": "2026-02-04"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.18488802"
+      ],
+      "index_work_id": "https://openalex.org/W7128523660",
+      "interpreted_date": "2026-02-04",
+      "ordinal": 177,
+      "page_number": 0,
+      "raw_date_value": "2026-02-04"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icsc67292.2026.00038"
+      ],
+      "index_work_id": "https://openalex.org/W7155501227",
+      "interpreted_date": "2026-02-02",
+      "ordinal": 178,
+      "page_number": 0,
+      "raw_date_value": "2026-02-02"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4302-0060-4_17"
+      ],
+      "index_work_id": "https://openalex.org/W4206144100",
+      "interpreted_date": "2006-10-31",
+      "ordinal": 179,
+      "page_number": 0,
+      "raw_date_value": "2006-10-31"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4302-0160-1_19"
+      ],
+      "index_work_id": "https://openalex.org/W4253955114",
+      "interpreted_date": "2006-11-18",
+      "ordinal": 180,
+      "page_number": 0,
+      "raw_date_value": "2006-11-18"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/isss.1999.814267"
+      ],
+      "index_work_id": "https://openalex.org/W4252202719",
+      "interpreted_date": "2003-01-20",
+      "ordinal": 181,
+      "page_number": 0,
+      "raw_date_value": "2003-01-20"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3802088"
+      ],
+      "index_work_id": "https://openalex.org/W4408973855",
+      "interpreted_date": "2026-05-18",
+      "ordinal": 182,
+      "page_number": 0,
+      "raw_date_value": "2026-05-18"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4302-0200-4_21"
+      ],
+      "index_work_id": "https://openalex.org/W4237033696",
+      "interpreted_date": "2008-08-20",
+      "ordinal": 183,
+      "page_number": 0,
+      "raw_date_value": "2008-08-20"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1905.11245"
+      ],
+      "index_work_id": "https://openalex.org/W2946137658",
+      "interpreted_date": "2019-05-27",
+      "ordinal": 184,
+      "page_number": 0,
+      "raw_date_value": "2019-05-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5281/zenodo.20479015"
+      ],
+      "index_work_id": "https://openalex.org/W7162956129",
+      "interpreted_date": "2026-05-31",
+      "ordinal": 185,
+      "page_number": 0,
+      "raw_date_value": "2026-05-31"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W7165065543",
+      "interpreted_date": "2026-06-13",
+      "ordinal": 186,
+      "page_number": 0,
+      "raw_date_value": "2026-06-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2606.15376"
+      ],
+      "index_work_id": "https://openalex.org/W7164896787",
+      "interpreted_date": "2026-06-13",
+      "ordinal": 187,
+      "page_number": 0,
+      "raw_date_value": "2026-06-13"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/sbcci.1999.802971"
+      ],
+      "index_work_id": "https://openalex.org/W2539144973",
+      "interpreted_date": "2003-01-20",
+      "ordinal": 188,
+      "page_number": 0,
+      "raw_date_value": "2003-01-20"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2603.13906"
+      ],
+      "index_work_id": "https://openalex.org/W7138351343",
+      "interpreted_date": "2026-03-14",
+      "ordinal": 189,
+      "page_number": 0,
+      "raw_date_value": "2026-03-14"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.2172/1034486"
+      ],
+      "index_work_id": "https://openalex.org/W2043709759",
+      "interpreted_date": "2011-12-09",
+      "ordinal": 190,
+      "page_number": 0,
+      "raw_date_value": "2011-12-09"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W7139145088",
+      "interpreted_date": "2026-03-14",
+      "ordinal": 191,
+      "page_number": 0,
+      "raw_date_value": "2026-03-14"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.ins.2022.08.101"
+      ],
+      "index_work_id": "https://openalex.org/W4293723095",
+      "interpreted_date": "2022-08-31",
+      "ordinal": 192,
+      "page_number": 0,
+      "raw_date_value": "2022-08-31"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3372799.3394369"
+      ],
+      "index_work_id": "https://openalex.org/W3032064336",
+      "interpreted_date": "2020-05-29",
+      "ordinal": 193,
+      "page_number": 0,
+      "raw_date_value": "2020-05-29"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "https://openalex.org/W7171749404",
+      "interpreted_date": "2026-07-27",
+      "ordinal": 194,
+      "page_number": 0,
+      "raw_date_value": "2026-07-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2607.23933"
+      ],
+      "index_work_id": "https://openalex.org/W7171516088",
+      "interpreted_date": "2026-07-27",
+      "ordinal": 195,
+      "page_number": 0,
+      "raw_date_value": "2026-07-27"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.48084/etasr.18259"
+      ],
+      "index_work_id": "https://openalex.org/W7163748894",
+      "interpreted_date": "2026-06-06",
+      "ordinal": 196,
+      "page_number": 0,
+      "raw_date_value": "2026-06-06"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/3611540.3611563"
+      ],
+      "index_work_id": "https://openalex.org/W4386768915",
+      "interpreted_date": "2023-08-01",
+      "ordinal": 197,
+      "page_number": 0,
+      "raw_date_value": "2023-08-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/566197.566199"
+      ],
+      "index_work_id": "https://openalex.org/W4233038752",
+      "interpreted_date": "2002-01-01",
+      "ordinal": 198,
+      "page_number": 0,
+      "raw_date_value": "2002-01-01"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.21105/joss.10144"
+      ],
+      "index_work_id": "https://openalex.org/W7166594119",
+      "interpreted_date": "2026-06-29",
+      "ordinal": 199,
+      "page_number": 0,
+      "raw_date_value": "2026-06-29"
+    }
+  ],
+  "primary_key_kind": "index_work_id",
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1"
+}

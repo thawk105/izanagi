@@ -37,6 +37,12 @@ from .model import (
     Genome,
     STAGE_BUILD_START,
     STAGE_COMMIT,
+    STAGE_VERIFY_DONE,
+)
+from ..verifier.commit_receipt import (
+    CommitReceiptError,
+    RECEIPT_PAYLOAD_KEY,
+    validate_serialized_receipt,
 )
 
 
@@ -631,6 +637,106 @@ def _claims_certified_execution(
     )
 
 
+def _thaw_receipt_json(value: Any) -> Any:
+    """Copy parser or immutable-view JSON into exact dict/list containers."""
+    if type(value) in {dict, MappingProxyType}:
+        return {
+            key: _thaw_receipt_json(item)
+            for key, item in value.items()
+        }
+    if type(value) in {list, tuple}:
+        return [_thaw_receipt_json(item) for item in value]
+    return value
+
+
+def require_persisted_certified_commit(
+        records, commit_record, *, campaign_lock_sha256: str,
+):
+    """Require one persisted COMMIT to retain its certified WAL evidence."""
+    if getattr(commit_record, "stage", None) != STAGE_COMMIT:
+        raise TypeError("persisted certification requires a COMMIT record")
+    commit_index = next(
+        (index for index, record in enumerate(records)
+         if record is commit_record),
+        None,
+    )
+    if commit_index is None:
+        raise TypeError("COMMIT record must belong to the supplied WAL records")
+    attempt_id = commit_record.payload.get("build_attempt_id")
+    if type(attempt_id) is not str or not attempt_id:
+        raise ArtifactAdmissionError(
+            "COMMIT build_attempt_id must be a non-empty exact str"
+        )
+
+    verifies = [
+        record
+        for record in records[:commit_index]
+        if record.stage == STAGE_VERIFY_DONE
+        and record.variant == commit_record.variant
+        and record.payload.get("build_attempt_id") == attempt_id
+    ]
+    if not verifies:
+        raise ArtifactAdmissionError(
+            "persisted COMMIT has no preceding verify_done for its attempt"
+        )
+
+    wal_evidence: list[tuple[str, str, bool]] = []
+    for verify in verifies:
+        payload = verify.payload
+        if payload.get("verdict") != "serializable":
+            raise ArtifactAdmissionError(
+                "persisted COMMIT verify verdict is not serializable"
+            )
+        if payload.get("certified") is not True:
+            raise ArtifactAdmissionError(
+                "persisted COMMIT verify evidence is not certified"
+            )
+        anomalies = payload.get("anomalies")
+        if type(anomalies) is not int or anomalies != 0:
+            raise ArtifactAdmissionError(
+                "persisted COMMIT verify anomalies must be exact int zero"
+            )
+        workload = payload.get("workload")
+        workload_tag = (
+            workload.get("tag")
+            if type(workload) in {dict, MappingProxyType}
+            else None
+        )
+        if type(workload_tag) is not str or not workload_tag:
+            raise ArtifactAdmissionError(
+                "persisted COMMIT verify workload tag is invalid"
+            )
+        wal_evidence.append((workload_tag, "serializable", True))
+
+    commit_payload = _thaw_receipt_json(commit_record.payload)
+    serialized_receipt = commit_payload.pop(RECEIPT_PAYLOAD_KEY, None)
+    try:
+        validated_receipt = validate_serialized_receipt(
+            serialized_receipt,
+            sink_kind="campaign-wal",
+            lock_identity_sha256=campaign_lock_sha256,
+            variant=commit_record.variant,
+            terminal_payload=commit_payload,
+        )
+    except CommitReceiptError as exc:
+        raise ArtifactAdmissionError(
+            "persisted COMMIT verification receipt is invalid"
+        ) from exc
+    if validated_receipt["operation_identity"] != attempt_id:
+        raise ArtifactAdmissionError(
+            "persisted COMMIT receipt operation does not match its attempt"
+        )
+    receipt_evidence = [
+        (row["workload_tag"], row["verdict"], row["certified"])
+        for row in validated_receipt["verifier_evidence"]
+    ]
+    if receipt_evidence != wal_evidence:
+        raise ArtifactAdmissionError(
+            "persisted COMMIT receipt evidence does not match WAL verifies"
+        )
+    return commit_record
+
+
 def _parse_canonical_genome(value: object) -> Genome:
     if type(value) is not str or "|" not in value:
         raise ArtifactAdmissionError(
@@ -1155,6 +1261,14 @@ def _require_admitted_campaign(
     if recorded_epoch is None:
         raise AssertionError("admitted campaign requires a recorded epoch")
     epoch = _require_verifier_epoch_for_purpose(recorded_epoch, purpose)
+    if purpose is CampaignReadPurpose.CERTIFIED_ACCEPTANCE:
+        for record in records:
+            if record.stage == STAGE_COMMIT:
+                require_persisted_certified_commit(
+                    records,
+                    record,
+                    campaign_lock_sha256=decision.campaign_lock_sha256,
+                )
     view_fields = {
         "layout": _layout(campaign),
         "records": _immutable_records(records),

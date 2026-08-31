@@ -1,0 +1,6415 @@
+{
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "distinct_index_work_id_count": 578,
+  "document_type": "record_occurrence_ledger",
+  "index": "arxiv",
+  "leaf_query_id": "AX1-20260829-E1-Q6-SM202506@arxiv",
+  "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+  "occurrence_count": 578,
+  "occurrences": [
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12801"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12801v1",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 0,
+      "page_number": 0,
+      "raw_date_value": "2025-06-15T10:33:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07464"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07464v5",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 1,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T06:15:54Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07232"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07232v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 2,
+      "page_number": 0,
+      "raw_date_value": "2025-06-08T17:32:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13862"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13862v2",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 3,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T18:00:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10974"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10974v3",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 4,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T17:59:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22200"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22200v5",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 5,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T13:09:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21495"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21495v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 6,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T17:25:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02841"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02841v4",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 7,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T13:13:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20543"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20543v1",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 8,
+      "page_number": 0,
+      "raw_date_value": "2025-06-25T15:36:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01096"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01096v2",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 9,
+      "page_number": 0,
+      "raw_date_value": "2025-06-01T17:43:54Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17125"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17125v2",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 10,
+      "page_number": 0,
+      "raw_date_value": "2025-06-20T16:27:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14101"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14101v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 11,
+      "page_number": 0,
+      "raw_date_value": "2025-06-17T01:33:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.24005"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.24005v2",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 12,
+      "page_number": 0,
+      "raw_date_value": "2025-06-30T16:08:29Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06093"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06093v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 13,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06T13:52:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08379"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08379v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 14,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T02:43:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00108"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00108v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 15,
+      "page_number": 0,
+      "raw_date_value": "2025-06-30T17:38:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10022"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10022v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 16,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T12:02:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07945"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07945v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 17,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T17:10:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10461"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10461v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 18,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T08:11:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23127"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23127v1",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 19,
+      "page_number": 0,
+      "raw_date_value": "2025-06-29T07:31:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02634"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02634v5",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 20,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T08:51:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09340"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09340v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 21,
+      "page_number": 0,
+      "raw_date_value": "2025-06-11T02:44:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19846"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19846v2",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 22,
+      "page_number": 0,
+      "raw_date_value": "2025-06-24T17:59:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05536"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05536v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 23,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T19:34:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15253"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15253v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 24,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18T08:30:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02458"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02458v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 25,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T05:22:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18670"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18670v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 26,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T14:14:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13111"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13111v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 27,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T05:41:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.02910"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.02910v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 28,
+      "page_number": 0,
+      "raw_date_value": "2025-06-24T20:15:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01538"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01538v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 29,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T10:59:54Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04658"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04658v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 30,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T05:59:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15799"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15799v2",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 31,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18T18:35:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02048"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02048v2",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 32,
+      "page_number": 0,
+      "raw_date_value": "2025-06-01T01:59:52Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02355"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02355v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 33,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T01:15:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02929"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02929v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 34,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T14:30:52Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05445"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05445v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 35,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T13:52:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22403"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22403v2",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 36,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T17:23:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17564"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17564v2",
+      "interpreted_date": "2025-06-21",
+      "ordinal": 37,
+      "page_number": 0,
+      "raw_date_value": "2025-06-21T03:18:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19767"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19767v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 38,
+      "page_number": 0,
+      "raw_date_value": "2025-06-24T16:31:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17335"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17335v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 39,
+      "page_number": 0,
+      "raw_date_value": "2025-06-19T07:04:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02883"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02883v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 40,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T13:48:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13751"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13751v3",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 41,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T17:56:53Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11791"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11791v2",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 42,
+      "page_number": 0,
+      "raw_date_value": "2025-06-13T13:54:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12811"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12811v1",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 43,
+      "page_number": 0,
+      "raw_date_value": "2025-06-15T10:53:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22008"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22008v1",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 44,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T08:22:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07468"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07468v4",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 45,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T06:35:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03610"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03610v3",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 46,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T06:40:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20930"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20930v2",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 47,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T01:29:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14907"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14907v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 48,
+      "page_number": 0,
+      "raw_date_value": "2025-06-17T18:25:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05702"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05702v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 49,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06T03:07:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06856"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06856v3",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 50,
+      "page_number": 0,
+      "raw_date_value": "2025-06-07T16:37:46Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08125"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08125v4",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 51,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T18:27:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10960"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10960v3",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 52,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T17:57:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15654"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15654v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 53,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18T17:31:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10406"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10406v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 54,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T06:59:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18627"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18627v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 55,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T13:34:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02314"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02314v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 56,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T23:04:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10365"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10365v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 57,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T05:42:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01639"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01639v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 58,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T13:15:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14731"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14731v2",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 59,
+      "page_number": 0,
+      "raw_date_value": "2025-06-17T17:12:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18088"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18088v2",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 60,
+      "page_number": 0,
+      "raw_date_value": "2025-06-22T16:26:53Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09092"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09092v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 61,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T10:51:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04098"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04098v2",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 62,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T15:55:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01713"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01713v3",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 63,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T14:21:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22598"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22598v3",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 64,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T19:41:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14811"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14811v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 65,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T15:12:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18462"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18462v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 66,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T09:59:58Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04302"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04302v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 67,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T14:50:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20249"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20249v1",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 68,
+      "page_number": 0,
+      "raw_date_value": "2025-06-25T08:46:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07900"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07900v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 69,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T16:16:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00929"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00929v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 70,
+      "page_number": 0,
+      "raw_date_value": "2025-06-01T09:48:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09404"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09404v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 71,
+      "page_number": 0,
+      "raw_date_value": "2025-06-11T05:17:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10326"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10326v3",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 72,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T03:19:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23985"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23985v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 73,
+      "page_number": 0,
+      "raw_date_value": "2025-06-30T15:50:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18896"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18896v2",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 74,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T17:59:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11902"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11902v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 75,
+      "page_number": 0,
+      "raw_date_value": "2025-06-13T15:52:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02208"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02208v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 76,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T19:46:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00257"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00257v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 77,
+      "page_number": 0,
+      "raw_date_value": "2025-06-30T20:47:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06261"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06261v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 78,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06T17:40:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21510",
+        "doi:10.1109/tsg.2025.3649098"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21510v2",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 79,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T17:35:55Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13923"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13923v2",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 80,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T19:03:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08463"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08463v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 81,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T05:37:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00014"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00014v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 82,
+      "page_number": 0,
+      "raw_date_value": "2025-06-13T07:11:14Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13672"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13672v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 83,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T16:30:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01597"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01597v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 84,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T12:32:52Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12935"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12935v2",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 85,
+      "page_number": 0,
+      "raw_date_value": "2025-06-15T18:26:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20008"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20008v2",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 86,
+      "page_number": 0,
+      "raw_date_value": "2025-06-24T20:54:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09574"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09574v2",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 87,
+      "page_number": 0,
+      "raw_date_value": "2025-06-11T10:12:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02935"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02935v4",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 88,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T14:35:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21121"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21121v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 89,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T09:46:53Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20664"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20664v1",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 90,
+      "page_number": 0,
+      "raw_date_value": "2025-06-25T17:55:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16546"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16546v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 91,
+      "page_number": 0,
+      "raw_date_value": "2025-06-19T19:03:40Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22954"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22954v1",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 92,
+      "page_number": 0,
+      "raw_date_value": "2025-06-28T17:18:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19146"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19146v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 93,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T21:32:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21277"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21277v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 94,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T14:01:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21784"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21784v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 95,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T21:46:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00979"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00979v6",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 96,
+      "page_number": 0,
+      "raw_date_value": "2025-06-01T12:20:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17155"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17155v2",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 97,
+      "page_number": 0,
+      "raw_date_value": "2025-06-20T16:57:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08062"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08062v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 98,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T09:40:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08440"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08440v3",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 99,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T04:27:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08507"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08507v2",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 100,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T07:04:25Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02255"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02255v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 101,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T20:59:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15076"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15076v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 102,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18T02:42:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08460"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08460v3",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 103,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T05:36:54Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17612"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17612v1",
+      "interpreted_date": "2025-06-21",
+      "ordinal": 104,
+      "page_number": 0,
+      "raw_date_value": "2025-06-21T06:36:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21980"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21980v3",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 105,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T07:41:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21833"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21833v2",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 106,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T00:47:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21655"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21655v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 107,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T17:57:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06137"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06137v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 108,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06T14:52:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05384"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05384v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 109,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T10:11:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19724"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19724v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 110,
+      "page_number": 0,
+      "raw_date_value": "2025-06-24T15:39:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13730"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13730v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 111,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T17:40:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04291"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04291v2",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 112,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T10:56:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21427"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21427v3",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 113,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T16:09:53Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01274"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01274v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 114,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T03:08:07Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23749"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23749v3",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 115,
+      "page_number": 0,
+      "raw_date_value": "2025-06-30T11:46:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14012"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14012v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 116,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T21:19:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18482"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18482v3",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 117,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T10:35:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03097"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03097v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 118,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T17:28:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08136"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08136v3",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 119,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T18:39:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07459"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07459v4",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 120,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T06:08:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13705"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13705v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 121,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T17:12:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21934"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21934v1",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 122,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T06:09:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22500"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22500v2",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 123,
+      "page_number": 0,
+      "raw_date_value": "2025-06-25T07:06:29Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12104"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12104v3",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 124,
+      "page_number": 0,
+      "raw_date_value": "2025-06-13T05:01:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05183"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05183v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 125,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T15:56:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11928"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11928v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 126,
+      "page_number": 0,
+      "raw_date_value": "2025-06-13T16:29:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16007",
+        "doi:10.14778/3742728.3742745"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16007v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 127,
+      "page_number": 0,
+      "raw_date_value": "2025-06-19T03:58:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21467"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21467v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 128,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T16:54:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00835"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00835v2",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 129,
+      "page_number": 0,
+      "raw_date_value": "2025-06-01T04:51:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05980"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05980v5",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 130,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06T10:59:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04195"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04195v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 131,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T17:40:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21782"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21782v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 132,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T21:39:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10815"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10815v2",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 133,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T15:29:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08417"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08417v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 134,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T03:43:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06017"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06017v2",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 135,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06T12:07:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20269"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20269v1",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 136,
+      "page_number": 0,
+      "raw_date_value": "2025-06-25T09:25:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04265"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04265v3",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 137,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T08:04:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22609"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22609v2",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 138,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T20:15:53Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05746"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05746v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 139,
+      "page_number": 0,
+      "raw_date_value": "2025-06-06T05:14:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08484"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08484v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 140,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T06:14:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09930"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09930v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 141,
+      "page_number": 0,
+      "raw_date_value": "2025-06-11T16:52:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04559"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04559v3",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 142,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T02:28:07Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03672"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03672v2",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 143,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T08:02:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17878"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17878v1",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 144,
+      "page_number": 0,
+      "raw_date_value": "2025-06-22T02:39:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04044"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04044v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 145,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T15:10:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18710"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18710v3",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 146,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T14:49:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15220"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15220v3",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 147,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18T07:58:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08712"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08712v2",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 148,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T11:54:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00273",
+        "doi:10.1109/humanoids65713.2025.11203130"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00273v3",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 149,
+      "page_number": 0,
+      "raw_date_value": "2025-06-30T21:31:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10085"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10085v5",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 150,
+      "page_number": 0,
+      "raw_date_value": "2025-06-11T18:05:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00876"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00876v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 151,
+      "page_number": 0,
+      "raw_date_value": "2025-06-01T07:36:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17832"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17832v1",
+      "interpreted_date": "2025-06-21",
+      "ordinal": 152,
+      "page_number": 0,
+      "raw_date_value": "2025-06-21T22:03:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04399",
+        "doi:10.1109/lra.2024.3443496"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04399v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 153,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T19:27:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22995",
+        "doi:10.1109/ijcnn64981.2025.11227643"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22995v1",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 154,
+      "page_number": 0,
+      "raw_date_value": "2025-06-28T20:10:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20141"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20141v1",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 155,
+      "page_number": 0,
+      "raw_date_value": "2025-06-25T05:23:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01880"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01880v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 156,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T17:09:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12110"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12110v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 157,
+      "page_number": 0,
+      "raw_date_value": "2025-06-13T09:35:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14162"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14162v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 158,
+      "page_number": 0,
+      "raw_date_value": "2025-06-17T03:53:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01759"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01759v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 159,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T15:07:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07275"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07275v4",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 160,
+      "page_number": 0,
+      "raw_date_value": "2025-06-08T20:30:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18537"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18537v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 161,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T11:47:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01583"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01583v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 162,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T12:13:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19890"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19890v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 163,
+      "page_number": 0,
+      "raw_date_value": "2025-06-24T07:32:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04209"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04209v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 164,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T17:51:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07736"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07736v3",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 165,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T13:20:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20332"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20332v4",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 166,
+      "page_number": 0,
+      "raw_date_value": "2025-06-25T11:34:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14002"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14002v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 167,
+      "page_number": 0,
+      "raw_date_value": "2025-06-16T20:58:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04572"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04572v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 168,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T02:44:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04118"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04118v3",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 169,
+      "page_number": 0,
+      "raw_date_value": "2025-06-04T16:12:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15454"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15454v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 170,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18T13:35:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14391"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14391v3",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 171,
+      "page_number": 0,
+      "raw_date_value": "2025-06-17T10:39:42Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12097"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12097v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 172,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T16:02:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23219"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23219v1",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 173,
+      "page_number": 0,
+      "raw_date_value": "2025-06-29T13:04:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18959"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18959v3",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 174,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T17:27:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10889"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10889v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 175,
+      "page_number": 0,
+      "raw_date_value": "2025-06-12T16:54:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19997"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19997v5",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 176,
+      "page_number": 0,
+      "raw_date_value": "2025-06-24T20:29:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20941"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20941v3",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 177,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T02:16:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01438"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01438v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 178,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T08:52:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22865"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22865v1",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 179,
+      "page_number": 0,
+      "raw_date_value": "2025-06-28T12:22:55Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05168"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05168v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 180,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T15:43:52Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15117"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15117v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 181,
+      "page_number": 0,
+      "raw_date_value": "2025-06-18T03:34:25Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08283"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08283v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 182,
+      "page_number": 0,
+      "raw_date_value": "2025-06-09T23:13:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16399"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16399v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 183,
+      "page_number": 0,
+      "raw_date_value": "2025-06-19T15:31:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02696"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02696v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 184,
+      "page_number": 0,
+      "raw_date_value": "2025-06-03T09:44:28Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05501"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05501v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 185,
+      "page_number": 0,
+      "raw_date_value": "2025-06-05T18:36:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12721"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12721v2",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 186,
+      "page_number": 0,
+      "raw_date_value": "2025-06-15T04:55:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21903"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21903v2",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 187,
+      "page_number": 0,
+      "raw_date_value": "2025-06-27T04:43:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11155"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11155v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 188,
+      "page_number": 0,
+      "raw_date_value": "2025-06-11T15:11:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11110"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11110v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 189,
+      "page_number": 0,
+      "raw_date_value": "2025-06-08T14:08:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12286"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12286v4",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 190,
+      "page_number": 0,
+      "raw_date_value": "2025-06-14T00:25:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18331"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18331v4",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 191,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T06:24:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09247"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09247v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 192,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T21:04:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18879"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18879v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 193,
+      "page_number": 0,
+      "raw_date_value": "2025-06-23T17:50:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08375"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08375v2",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 194,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T02:39:55Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01673"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01673v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 195,
+      "page_number": 0,
+      "raw_date_value": "2025-06-02T13:42:46Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21037"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21037v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 196,
+      "page_number": 0,
+      "raw_date_value": "2025-06-26T06:28:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12227"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12227v2",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 197,
+      "page_number": 0,
+      "raw_date_value": "2025-06-13T21:04:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08898"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08898v4",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 198,
+      "page_number": 0,
+      "raw_date_value": "2025-06-10T15:25:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09396"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09396v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 199,
+      "page_number": 0,
+      "raw_date_value": "2025-06-11T04:55:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00785"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00785v3",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 0,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T02:24:46Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01391"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01391v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 1,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T07:30:29Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13090"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13090v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 2,
+      "page_number": 1,
+      "raw_date_value": "2025-06-16T04:33:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07138"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07138v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 3,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T13:36:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01196"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01196v2",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 4,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T22:15:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.24044"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.24044v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 5,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T16:50:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20608"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20608v2",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 6,
+      "page_number": 1,
+      "raw_date_value": "2025-06-25T17:00:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06508"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06508v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 7,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T20:03:13Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21039"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21039v3",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 8,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T06:35:42Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16796"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16796v4",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 9,
+      "page_number": 1,
+      "raw_date_value": "2025-06-20T07:21:21Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02523",
+        "doi:10.1049/ell2.70504"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02523v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 10,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T06:53:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03656"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03656v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 11,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T07:47:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14009",
+        "doi:10.1109/lra.2025.3643290"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14009v2",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 12,
+      "page_number": 1,
+      "raw_date_value": "2025-06-16T21:12:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03301"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03301v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 13,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T18:38:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05762"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05762v5",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 14,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T05:41:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18951"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18951v4",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 15,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T09:41:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12349",
+        "doi:10.1016/j.ins.2025.122702"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12349v1",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 16,
+      "page_number": 1,
+      "raw_date_value": "2025-06-14T05:01:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05038"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05038v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 17,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T13:42:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07816"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07816v3",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 18,
+      "page_number": 1,
+      "raw_date_value": "2025-06-09T14:44:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04913"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04913v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 19,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T11:47:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07564"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07564v3",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 20,
+      "page_number": 1,
+      "raw_date_value": "2025-06-09T09:04:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06789"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06789v1",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 21,
+      "page_number": 1,
+      "raw_date_value": "2025-06-07T13:11:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02838"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02838v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 22,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T13:06:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02866"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02866v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 23,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T13:30:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15682"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15682v3",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 24,
+      "page_number": 1,
+      "raw_date_value": "2025-06-18T17:59:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02370"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02370v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 25,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T02:13:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12728"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12728v1",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 26,
+      "page_number": 1,
+      "raw_date_value": "2025-06-15T05:42:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2508.13156"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2508.13156v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 27,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T13:32:25Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12597"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12597v1",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 28,
+      "page_number": 1,
+      "raw_date_value": "2025-06-14T18:34:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18110"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18110v2",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 29,
+      "page_number": 1,
+      "raw_date_value": "2025-06-22T17:46:14Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00895"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00895v3",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 30,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T08:32:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04746"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04746v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 31,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T08:27:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03690"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03690v2",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 32,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T08:19:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01254"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01254v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 33,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T02:11:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00188"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00188v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 34,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T18:58:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.24119"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.24119v3",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 35,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T17:58:13Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23342"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23342v1",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 36,
+      "page_number": 1,
+      "raw_date_value": "2025-06-29T17:27:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21355"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21355v3",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 37,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T15:08:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05628"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05628v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 38,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T23:09:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01646",
+        "doi:10.18653/v1/2025.emnlp-main.739"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01646v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 39,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T13:19:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20139"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20139v1",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 40,
+      "page_number": 1,
+      "raw_date_value": "2025-06-25T05:20:54Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13752"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13752v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 41,
+      "page_number": 1,
+      "raw_date_value": "2025-06-16T17:57:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08902"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08902v4",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 42,
+      "page_number": 1,
+      "raw_date_value": "2025-06-10T15:27:46Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16791"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16791v4",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 43,
+      "page_number": 1,
+      "raw_date_value": "2025-06-20T07:14:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.24026"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.24026v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 44,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T16:32:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04463"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04463v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 45,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T21:29:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18325"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18325v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 46,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T06:17:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16644"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16644v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 47,
+      "page_number": 1,
+      "raw_date_value": "2025-06-19T23:06:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09560",
+        "doi:10.18653/v1/2025.bsnlp-1.6"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09560v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 48,
+      "page_number": 1,
+      "raw_date_value": "2025-06-11T09:46:58Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06955"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06955v5",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 49,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T00:38:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10885"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10885v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 50,
+      "page_number": 1,
+      "raw_date_value": "2025-06-12T16:49:40Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02096"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02096v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 51,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T17:45:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21594"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21594v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 52,
+      "page_number": 1,
+      "raw_date_value": "2025-06-18T09:44:21Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11100",
+        "doi:10.1109/bigdata62323.2024.10825990"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11100v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 53,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T15:48:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17254"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17254v2",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 54,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T12:25:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06275"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06275v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 55,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T17:58:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16507"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16507v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 56,
+      "page_number": 1,
+      "raw_date_value": "2025-06-19T17:59:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20986"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20986v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 57,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T04:00:55Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04179"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04179v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 58,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T17:26:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11749"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11749v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 59,
+      "page_number": 1,
+      "raw_date_value": "2025-06-13T13:01:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02177"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02177v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 60,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T19:03:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05260"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05260v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 61,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T17:21:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11373"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11373v2",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 62,
+      "page_number": 1,
+      "raw_date_value": "2025-06-13T00:40:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02596"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02596v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 63,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T08:14:46Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15833"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15833v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 64,
+      "page_number": 1,
+      "raw_date_value": "2025-06-18T19:18:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00263"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00263v3",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 65,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T21:11:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12339"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12339v2",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 66,
+      "page_number": 1,
+      "raw_date_value": "2025-06-14T04:22:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10369"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10369v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 67,
+      "page_number": 1,
+      "raw_date_value": "2025-06-12T05:46:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22832"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22832v3",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 68,
+      "page_number": 1,
+      "raw_date_value": "2025-06-28T09:53:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23663"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23663v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 69,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T09:39:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17670"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17670v1",
+      "interpreted_date": "2025-06-21",
+      "ordinal": 70,
+      "page_number": 1,
+      "raw_date_value": "2025-06-21T10:01:46Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13585"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13585v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 71,
+      "page_number": 1,
+      "raw_date_value": "2025-06-16T15:08:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05278"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05278v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 72,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T17:33:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08671"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08671v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 73,
+      "page_number": 1,
+      "raw_date_value": "2025-06-10T10:31:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18559"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18559v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 74,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T12:11:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05990"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05990v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 75,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T11:20:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17627"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17627v1",
+      "interpreted_date": "2025-06-21",
+      "ordinal": 76,
+      "page_number": 1,
+      "raw_date_value": "2025-06-21T08:04:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04965"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04965v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 77,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T12:41:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14144"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14144v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 78,
+      "page_number": 1,
+      "raw_date_value": "2025-06-17T03:11:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22270"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22270v2",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 79,
+      "page_number": 1,
+      "raw_date_value": "2025-06-27T14:39:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08927"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08927v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 80,
+      "page_number": 1,
+      "raw_date_value": "2025-06-10T15:51:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22419"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22419v2",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 81,
+      "page_number": 1,
+      "raw_date_value": "2025-06-27T17:44:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07918"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07918v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 82,
+      "page_number": 1,
+      "raw_date_value": "2025-06-09T16:31:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23074"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23074v1",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 83,
+      "page_number": 1,
+      "raw_date_value": "2025-06-29T03:25:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09227"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09227v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 84,
+      "page_number": 1,
+      "raw_date_value": "2025-06-10T20:30:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12376"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12376v2",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 85,
+      "page_number": 1,
+      "raw_date_value": "2025-06-14T07:18:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18501",
+        "doi:10.1016/j.array.2025.100478"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18501v3",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 86,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T10:52:54Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.02964"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.02964v2",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 87,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T12:59:29Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16322"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16322v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 88,
+      "page_number": 1,
+      "raw_date_value": "2025-06-19T13:56:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08844"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08844v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 89,
+      "page_number": 1,
+      "raw_date_value": "2025-06-10T14:30:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04255"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04255v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 90,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T17:33:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21475",
+        "doi:10.1103/5591-xjfr"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21475v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 91,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T17:04:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04632"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04632v4",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 92,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T05:04:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.11582"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.11582v1",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 93,
+      "page_number": 1,
+      "raw_date_value": "2025-06-07T14:48:42Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01372"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01372v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 94,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T06:59:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16495"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16495v2",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 95,
+      "page_number": 1,
+      "raw_date_value": "2025-06-19T17:43:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14411"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14411v2",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 96,
+      "page_number": 1,
+      "raw_date_value": "2025-06-17T11:11:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03013"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03013v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 97,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T15:51:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11234"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11234v4",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 98,
+      "page_number": 1,
+      "raw_date_value": "2025-06-12T19:14:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01850"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01850v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 99,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T16:38:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09443"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09443v3",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 100,
+      "page_number": 1,
+      "raw_date_value": "2025-06-11T06:48:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01541"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01541v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 101,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T11:07:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05514",
+        "doi:10.1002/pra2.1326"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05514v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 102,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T18:55:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09082"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09082v5",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 103,
+      "page_number": 1,
+      "raw_date_value": "2025-06-10T05:43:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19121"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19121v2",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 104,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T20:49:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14439"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14439v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 105,
+      "page_number": 1,
+      "raw_date_value": "2025-06-17T11:58:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00780"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00780v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 106,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T02:15:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01859"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01859v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 107,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T16:48:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05735"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05735v4",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 108,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T04:35:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06989",
+        "doi:10.1145/3773078.3831824"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06989v3",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 109,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T04:10:14Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12204"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12204v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 110,
+      "page_number": 1,
+      "raw_date_value": "2025-06-13T20:15:58Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.02909"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.02909v2",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 111,
+      "page_number": 1,
+      "raw_date_value": "2025-06-24T19:29:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02264"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02264v3",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 112,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T21:12:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11844"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11844v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 113,
+      "page_number": 1,
+      "raw_date_value": "2025-06-13T14:48:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05583"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05583v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 114,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T20:58:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11111"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11111v2",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 115,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T16:20:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07964"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07964v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 116,
+      "page_number": 1,
+      "raw_date_value": "2025-06-09T17:39:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.07043"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.07043v2",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 117,
+      "page_number": 1,
+      "raw_date_value": "2025-06-25T15:05:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04250"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04250v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 118,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T01:19:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02457"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02457v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 119,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T05:21:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19697"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19697v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 120,
+      "page_number": 1,
+      "raw_date_value": "2025-06-24T15:03:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20854",
+        "doi:10.1145/3731120.3744583"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20854v4",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 121,
+      "page_number": 1,
+      "raw_date_value": "2025-06-25T22:00:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09562"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09562v3",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 122,
+      "page_number": 1,
+      "raw_date_value": "2025-06-11T09:50:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19536"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19536v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 123,
+      "page_number": 1,
+      "raw_date_value": "2025-06-24T11:45:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05985"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05985v3",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 124,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T11:13:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21465"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21465v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 125,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T16:51:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03923"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03923v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 126,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T13:15:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00081"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00081v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 127,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T02:02:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10171"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10171v3",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 128,
+      "page_number": 1,
+      "raw_date_value": "2025-06-11T20:47:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05387",
+        "doi:10.1007/978-3-032-13497-4_17"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05387v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 129,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T14:25:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00826"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00826v2",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 130,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T04:12:25Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00924"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00924v2",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 131,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T09:31:55Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02594"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02594v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 132,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T08:13:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11474"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11474v2",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 133,
+      "page_number": 1,
+      "raw_date_value": "2025-06-13T05:36:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00920"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00920v2",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 134,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T09:20:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21031"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21031v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 135,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T06:10:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01037"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01037v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 136,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T14:36:25Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12618"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12618v2",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 137,
+      "page_number": 1,
+      "raw_date_value": "2025-06-14T20:16:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21901"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21901v1",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 138,
+      "page_number": 1,
+      "raw_date_value": "2025-06-27T04:38:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.02932"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.02932v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 139,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T12:51:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01245"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01245v3",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 140,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T01:46:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18535"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18535v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 141,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T11:46:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14754"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14754v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 142,
+      "page_number": 1,
+      "raw_date_value": "2025-06-17T17:49:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03381"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03381v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 143,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T20:40:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02648"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02648v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 144,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T09:01:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12664"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12664v2",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 145,
+      "page_number": 1,
+      "raw_date_value": "2025-06-14T23:51:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13798"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13798v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 146,
+      "page_number": 1,
+      "raw_date_value": "2025-06-12T19:53:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04810"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04810v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 147,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T09:34:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13244"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13244v3",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 148,
+      "page_number": 1,
+      "raw_date_value": "2025-06-16T08:42:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01297"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01297v5",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 149,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T04:14:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23678"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23678v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 150,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T10:00:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04525"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04525v3",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 151,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T00:14:40Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14728"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14728v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 152,
+      "page_number": 1,
+      "raw_date_value": "2025-06-17T17:08:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07311"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07311v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 153,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T22:59:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23940"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23940v2",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 154,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T15:07:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00799"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00799v3",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 155,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T03:00:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06928"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06928v1",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 156,
+      "page_number": 1,
+      "raw_date_value": "2025-06-07T21:32:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13089"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13089v2",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 157,
+      "page_number": 1,
+      "raw_date_value": "2025-06-16T04:27:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10264"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10264v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 158,
+      "page_number": 1,
+      "raw_date_value": "2025-06-12T01:16:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05111"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05111v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 159,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T14:55:58Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03510"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03510v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 160,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T02:53:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10244"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10244v3",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 161,
+      "page_number": 1,
+      "raw_date_value": "2025-06-11T23:57:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02618"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02618v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 162,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T08:34:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06045"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06045v3",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 163,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T12:46:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20923"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20923v6",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 164,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T01:09:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.05264",
+        "doi:10.13140/rg.2.2.30870.66880"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.05264v1",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 165,
+      "page_number": 1,
+      "raw_date_value": "2025-06-25T16:56:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23481"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23481v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 166,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T03:05:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12462"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12462v1",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 167,
+      "page_number": 1,
+      "raw_date_value": "2025-06-14T12:01:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10288"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10288v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 168,
+      "page_number": 1,
+      "raw_date_value": "2025-06-12T01:53:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23125"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23125v1",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 169,
+      "page_number": 1,
+      "raw_date_value": "2025-06-29T07:20:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06409"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06409v2",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 170,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T13:52:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19662",
+        "doi:10.1088/1361-6404/ae03f8"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19662v2",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 171,
+      "page_number": 1,
+      "raw_date_value": "2025-06-24T14:25:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01071"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01071v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 172,
+      "page_number": 1,
+      "raw_date_value": "2025-06-01T16:19:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.01066",
+        "doi:10.1145/3726302.3731945"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.01066v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 173,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T19:11:25Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23529"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23529v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 174,
+      "page_number": 1,
+      "raw_date_value": "2025-06-30T05:36:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01545"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01545v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 175,
+      "page_number": 1,
+      "raw_date_value": "2025-06-02T11:18:07Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15155"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15155v2",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 176,
+      "page_number": 1,
+      "raw_date_value": "2025-06-18T05:56:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12115"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12115v2",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 177,
+      "page_number": 1,
+      "raw_date_value": "2025-06-13T13:56:52Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19850"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19850v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 178,
+      "page_number": 1,
+      "raw_date_value": "2025-06-24T17:59:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07104"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07104v2",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 179,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T12:18:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06482"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06482v3",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 180,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T19:11:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17467"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17467v2",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 181,
+      "page_number": 1,
+      "raw_date_value": "2025-06-20T20:15:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04305"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04305v2",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 182,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T17:40:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10387"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10387v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 183,
+      "page_number": 1,
+      "raw_date_value": "2025-06-12T06:21:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02882"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02882v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 184,
+      "page_number": 1,
+      "raw_date_value": "2025-06-03T13:47:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18764"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18764v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 185,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T15:33:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04614"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04614v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 186,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T04:12:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13186"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13186v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 187,
+      "page_number": 1,
+      "raw_date_value": "2025-06-16T07:52:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03490"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03490v4",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 188,
+      "page_number": 1,
+      "raw_date_value": "2025-06-04T02:14:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07330"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07330v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 189,
+      "page_number": 1,
+      "raw_date_value": "2025-06-09T00:11:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07106"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07106v2",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 190,
+      "page_number": 1,
+      "raw_date_value": "2025-06-08T12:28:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09408"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09408v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 191,
+      "page_number": 1,
+      "raw_date_value": "2025-06-11T05:33:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05294"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05294v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 192,
+      "page_number": 1,
+      "raw_date_value": "2025-06-05T17:47:40Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17913"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17913v2",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 193,
+      "page_number": 1,
+      "raw_date_value": "2025-06-22T06:30:52Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12765"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12765v3",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 194,
+      "page_number": 1,
+      "raw_date_value": "2025-06-15T08:08:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18899"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18899v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 195,
+      "page_number": 1,
+      "raw_date_value": "2025-06-23T17:59:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22648",
+        "doi:10.1016/j.asoc.2025.113408"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22648v3",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 196,
+      "page_number": 1,
+      "raw_date_value": "2025-06-27T21:30:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21165"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21165v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 197,
+      "page_number": 1,
+      "raw_date_value": "2025-06-26T11:53:59Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06069"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06069v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 198,
+      "page_number": 1,
+      "raw_date_value": "2025-06-06T13:23:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08293"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08293v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 199,
+      "page_number": 1,
+      "raw_date_value": "2025-06-09T23:50:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06143"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06143v2",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 0,
+      "page_number": 2,
+      "raw_date_value": "2025-06-06T15:01:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21551"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21551v4",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 1,
+      "page_number": 2,
+      "raw_date_value": "2025-06-26T17:59:58Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18116"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18116v1",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 2,
+      "page_number": 2,
+      "raw_date_value": "2025-06-22T18:00:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03954"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03954v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 3,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T13:44:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07972"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07972v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 4,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T17:46:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19051"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19051v2",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 5,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T19:11:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09695"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09695v3",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 6,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T13:10:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05027"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05027v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 7,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T13:37:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12588"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12588v1",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 8,
+      "page_number": 2,
+      "raw_date_value": "2025-06-14T17:53:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05994",
+        "doi:10.1109/tcad.2026.3691288"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05994v2",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 9,
+      "page_number": 2,
+      "raw_date_value": "2025-06-06T11:25:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10911"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10911v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 10,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T17:23:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20675"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20675v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 11,
+      "page_number": 2,
+      "raw_date_value": "2025-06-17T20:06:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16661"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16661v1",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 12,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T00:17:14Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10982"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10982v3",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 13,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T17:59:58Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08189"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08189v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 14,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T19:59:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08176"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08176v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 15,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T19:39:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00956"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00956v3",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 16,
+      "page_number": 2,
+      "raw_date_value": "2025-06-01T11:00:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10833"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10833v2",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 17,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T15:52:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19269"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19269v2",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 18,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T03:03:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21316"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21316v2",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 19,
+      "page_number": 2,
+      "raw_date_value": "2025-06-26T14:32:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12779"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12779v3",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 20,
+      "page_number": 2,
+      "raw_date_value": "2025-06-15T09:09:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18046"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18046v2",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 21,
+      "page_number": 2,
+      "raw_date_value": "2025-06-22T14:19:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08694"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08694v2",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 22,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T11:20:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21067",
+        "doi:10.3847/1538-4357/ade805"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21067v1",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 23,
+      "page_number": 2,
+      "raw_date_value": "2025-06-26T07:36:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19789"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19789v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 24,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T16:56:07Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19359"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19359v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 25,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T06:41:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03651"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03651v2",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 26,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T07:43:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07418"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07418v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 27,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T04:35:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07619"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07619v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 28,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T10:34:14Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16048"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16048v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 29,
+      "page_number": 2,
+      "raw_date_value": "2025-06-19T06:05:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01377",
+        "doi:10.1109/tii.2025.3642530"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01377v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 30,
+      "page_number": 2,
+      "raw_date_value": "2025-06-02T07:11:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19451"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19451v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 31,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T09:25:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18096"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18096v2",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 32,
+      "page_number": 2,
+      "raw_date_value": "2025-06-22T16:52:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11097"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11097v3",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 33,
+      "page_number": 2,
+      "raw_date_value": "2025-06-06T10:49:49Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07759"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07759v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 34,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T13:38:28Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06737"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06737v1",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 35,
+      "page_number": 2,
+      "raw_date_value": "2025-06-07T09:48:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22022"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22022v2",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 36,
+      "page_number": 2,
+      "raw_date_value": "2025-06-27T08:44:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15665"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15665v1",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 37,
+      "page_number": 2,
+      "raw_date_value": "2025-06-18T17:42:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07517",
+        "doi:10.1145/3711896.3736832"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07517v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 38,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T07:50:21Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09308"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09308v3",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 39,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T00:24:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08052"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08052v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 40,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T03:14:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15196"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15196v2",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 41,
+      "page_number": 2,
+      "raw_date_value": "2025-06-18T07:20:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16201"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16201v1",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 42,
+      "page_number": 2,
+      "raw_date_value": "2025-06-19T10:30:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05107"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05107v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 43,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T14:52:28Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09674",
+        "doi:10.1109/jiot.2026.3671698"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09674v2",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 44,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T12:48:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19661"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19661v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 45,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T14:24:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19714"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19714v2",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 46,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T15:20:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21544"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21544v2",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 47,
+      "page_number": 2,
+      "raw_date_value": "2025-06-26T17:58:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05314"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05314v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 48,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T17:55:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17812"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17812v1",
+      "interpreted_date": "2025-06-21",
+      "ordinal": 49,
+      "page_number": 2,
+      "raw_date_value": "2025-06-21T20:56:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.21074"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.21074v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 50,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T07:41:40Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05637"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05637v1",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 51,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T23:41:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04430"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04430v4",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 52,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T20:27:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22714"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22714v2",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 53,
+      "page_number": 2,
+      "raw_date_value": "2025-06-28T01:50:13Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09069"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09069v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 54,
+      "page_number": 2,
+      "raw_date_value": "2025-06-08T23:49:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09338"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09338v2",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 55,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T02:39:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17041"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17041v1",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 56,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T14:51:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06599"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06599v1",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 57,
+      "page_number": 2,
+      "raw_date_value": "2025-06-07T00:19:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22376"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22376v4",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 58,
+      "page_number": 2,
+      "raw_date_value": "2025-06-27T16:44:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06832"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06832v2",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 59,
+      "page_number": 2,
+      "raw_date_value": "2025-06-07T15:25:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09538"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09538v2",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 60,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T09:14:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02897"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02897v3",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 61,
+      "page_number": 2,
+      "raw_date_value": "2025-06-03T14:04:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07254"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07254v3",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 62,
+      "page_number": 2,
+      "raw_date_value": "2025-06-08T18:43:31Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22530",
+        "doi:10.1007/978-3-032-19102-1_38"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22530v1",
+      "interpreted_date": "2025-06-27",
+      "ordinal": 63,
+      "page_number": 2,
+      "raw_date_value": "2025-06-27T13:18:13Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15106"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15106v3",
+      "interpreted_date": "2025-06-18",
+      "ordinal": 64,
+      "page_number": 2,
+      "raw_date_value": "2025-06-18T03:22:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04367",
+        "doi:10.1371/journal.pone.0341909"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04367v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 65,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T18:29:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04931"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04931v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 66,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T12:05:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16627",
+        "doi:10.1111/cgf.70249"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16627v2",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 67,
+      "page_number": 2,
+      "raw_date_value": "2025-06-19T21:54:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20575"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20575v2",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 68,
+      "page_number": 2,
+      "raw_date_value": "2025-06-25T16:09:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.00915"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.00915v1",
+      "interpreted_date": "2025-06-01",
+      "ordinal": 69,
+      "page_number": 2,
+      "raw_date_value": "2025-06-01T09:04:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18725"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18725v2",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 70,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T14:59:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2507.00161"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2507.00161v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 71,
+      "page_number": 2,
+      "raw_date_value": "2025-06-30T18:11:12Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17169"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17169v2",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 72,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T17:13:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05768"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05768v2",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 73,
+      "page_number": 2,
+      "raw_date_value": "2025-06-06T05:52:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21763"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21763v2",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 74,
+      "page_number": 2,
+      "raw_date_value": "2025-06-26T20:44:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10302"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10302v2",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 75,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T02:29:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23323",
+        "doi:10.1016/j.neucom.2025.131844"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23323v6",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 76,
+      "page_number": 2,
+      "raw_date_value": "2025-06-29T16:41:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10060"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10060v2",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 77,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T18:00:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11356"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11356v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 78,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T23:10:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19679"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19679v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 79,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T14:46:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05047"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05047v4",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 80,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T13:56:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13802",
+        "doi:10.1016/j.nima.2025.171170"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13802v2",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 81,
+      "page_number": 2,
+      "raw_date_value": "2025-06-13T12:47:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10389"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10389v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 82,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T06:25:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04113"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04113v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 83,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T16:06:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18188"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18188v2",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 84,
+      "page_number": 2,
+      "raw_date_value": "2025-06-22T22:15:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06630"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06630v1",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 85,
+      "page_number": 2,
+      "raw_date_value": "2025-06-07T02:24:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14922"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14922v2",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 86,
+      "page_number": 2,
+      "raw_date_value": "2025-06-17T19:08:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2508.00831"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2508.00831v2",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 87,
+      "page_number": 2,
+      "raw_date_value": "2025-06-02T08:53:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10892"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10892v3",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 88,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T16:55:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08194"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08194v3",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 89,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T20:11:21Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16815",
+        "doi:10.1109/tnse.2022.3170364"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16815v1",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 90,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T08:11:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13092"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13092v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 91,
+      "page_number": 2,
+      "raw_date_value": "2025-06-16T04:45:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10334"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10334v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 92,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T04:01:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16784"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16784v2",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 93,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T06:57:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11497"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11497v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 94,
+      "page_number": 2,
+      "raw_date_value": "2025-06-13T06:48:21Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08353",
+        "doi:10.1109/icdmw65004.2024.00007"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08353v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 95,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T02:10:40Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05579"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05579v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 96,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T20:48:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23126"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23126v4",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 97,
+      "page_number": 2,
+      "raw_date_value": "2025-06-29T07:23:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08774"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08774v2",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 98,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T13:16:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07915"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07915v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 99,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T16:30:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12468",
+        "doi:10.1145/3711896.3711896.3737376"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12468v2",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 100,
+      "page_number": 2,
+      "raw_date_value": "2025-06-14T12:14:15Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07961"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07961v2",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 101,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T17:36:34Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06793"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06793v2",
+      "interpreted_date": "2025-06-07",
+      "ordinal": 102,
+      "page_number": 2,
+      "raw_date_value": "2025-06-07T13:29:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19561"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19561v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 103,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T12:20:11Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04414"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04414v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 104,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T19:46:04Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19461"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19461v4",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 105,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T09:40:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07779"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07779v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 106,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T13:56:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06019"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06019v1",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 107,
+      "page_number": 2,
+      "raw_date_value": "2025-06-06T12:09:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.04891"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.04891v3",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 108,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T11:19:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18414"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18414v3",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 109,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T08:49:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07801"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07801v3",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 110,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T14:27:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10165"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10165v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 111,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T20:34:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11728"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11728v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 112,
+      "page_number": 2,
+      "raw_date_value": "2025-06-13T12:40:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17968",
+        "doi:10.1109/tpami.2025.3582796"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17968v1",
+      "interpreted_date": "2025-06-22",
+      "ordinal": 113,
+      "page_number": 2,
+      "raw_date_value": "2025-06-22T09:56:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12006"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12006v4",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 114,
+      "page_number": 2,
+      "raw_date_value": "2025-06-13T17:56:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06558"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06558v3",
+      "interpreted_date": "2025-06-06",
+      "ordinal": 115,
+      "page_number": 2,
+      "raw_date_value": "2025-06-06T22:10:05Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07328"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07328v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 116,
+      "page_number": 2,
+      "raw_date_value": "2025-06-08T23:58:32Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03918"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03918v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 117,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T13:10:26Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21109"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21109v2",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 118,
+      "page_number": 2,
+      "raw_date_value": "2025-06-26T09:06:52Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10226"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10226v2",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 119,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T23:06:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17473"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17473v1",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 120,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T20:29:03Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.24062"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.24062v1",
+      "interpreted_date": "2025-06-30",
+      "ordinal": 121,
+      "page_number": 2,
+      "raw_date_value": "2025-06-30T17:13:00Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10084"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10084v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 122,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T18:04:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.03663"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.03663v1",
+      "interpreted_date": "2025-06-04",
+      "ordinal": 123,
+      "page_number": 2,
+      "raw_date_value": "2025-06-04T07:55:13Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01376"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01376v1",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 124,
+      "page_number": 2,
+      "raw_date_value": "2025-06-02T07:08:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08493"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08493v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 125,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T06:40:43Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18217",
+        "doi:10.1109/iccp64821.2025.11143836"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18217v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 126,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T00:33:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.11469"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.11469v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 127,
+      "page_number": 2,
+      "raw_date_value": "2025-06-13T05:05:35Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20413"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20413v2",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 128,
+      "page_number": 2,
+      "raw_date_value": "2025-06-25T13:27:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02630"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02630v2",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 129,
+      "page_number": 2,
+      "raw_date_value": "2025-06-03T08:47:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13903"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13903v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 130,
+      "page_number": 2,
+      "raw_date_value": "2025-06-16T18:29:37Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18789"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18789v2",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 131,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T15:59:21Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.21669"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.21669v2",
+      "interpreted_date": "2025-06-26",
+      "ordinal": 132,
+      "page_number": 2,
+      "raw_date_value": "2025-06-26T18:00:07Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19486"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19486v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 133,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T10:21:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05216"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05216v2",
+      "interpreted_date": "2025-06-05",
+      "ordinal": 134,
+      "page_number": 2,
+      "raw_date_value": "2025-06-05T16:30:53Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.23280"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.23280v1",
+      "interpreted_date": "2025-06-29",
+      "ordinal": 135,
+      "page_number": 2,
+      "raw_date_value": "2025-06-29T15:12:50Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.02695"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.02695v3",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 136,
+      "page_number": 2,
+      "raw_date_value": "2025-06-03T09:44:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16728"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16728v1",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 137,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T03:52:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22837",
+        "doi:10.1109/icdm65498.2025.00032"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22837v2",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 138,
+      "page_number": 2,
+      "raw_date_value": "2025-06-28T10:39:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19046"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19046v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 139,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T19:05:56Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.05380"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.05380v1",
+      "interpreted_date": "2025-06-03",
+      "ordinal": 140,
+      "page_number": 2,
+      "raw_date_value": "2025-06-03T02:22:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19693"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19693v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 141,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T15:00:14Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10347",
+        "doi:10.1145/3711896.3737026"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10347v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 142,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T04:56:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14861"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14861v2",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 143,
+      "page_number": 2,
+      "raw_date_value": "2025-06-17T15:40:08Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09377"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09377v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 144,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T04:01:09Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07123"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07123v4",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 145,
+      "page_number": 2,
+      "raw_date_value": "2025-06-08T13:09:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09638"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09638v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 146,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T11:52:27Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14113"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14113v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 147,
+      "page_number": 2,
+      "raw_date_value": "2025-06-17T02:11:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12183"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12183v1",
+      "interpreted_date": "2025-06-13",
+      "ordinal": 148,
+      "page_number": 2,
+      "raw_date_value": "2025-06-13T19:14:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.14602"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.14602v1",
+      "interpreted_date": "2025-06-17",
+      "ordinal": 149,
+      "page_number": 2,
+      "raw_date_value": "2025-06-17T15:05:57Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12351"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12351v1",
+      "interpreted_date": "2025-06-14",
+      "ordinal": 150,
+      "page_number": 2,
+      "raw_date_value": "2025-06-14T05:19:58Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08306"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08306v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 151,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T00:32:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09205"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09205v1",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 152,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T19:49:21Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18870"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18870v1",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 153,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T17:38:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19920",
+        "doi:10.1007/jhep02(2026)254"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19920v2",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 154,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T18:00:18Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.12706"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.12706v2",
+      "interpreted_date": "2025-06-15",
+      "ordinal": 155,
+      "page_number": 2,
+      "raw_date_value": "2025-06-15T03:34:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07878"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07878v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 156,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T15:51:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07849",
+        "doi:10.1103/7jh8-2vny"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07849v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 157,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T15:13:23Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22902"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22902v1",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 158,
+      "page_number": 2,
+      "raw_date_value": "2025-06-28T14:34:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.07937"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.07937v1",
+      "interpreted_date": "2025-06-09",
+      "ordinal": 159,
+      "page_number": 2,
+      "raw_date_value": "2025-06-09T16:55:41Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09839"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09839v1",
+      "interpreted_date": "2025-06-11",
+      "ordinal": 160,
+      "page_number": 2,
+      "raw_date_value": "2025-06-11T15:15:17Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19482"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19482v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 161,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T10:17:38Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13484"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13484v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 162,
+      "page_number": 2,
+      "raw_date_value": "2025-06-16T13:42:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.01666",
+        "doi:10.1088/2632-2153/ae5b21"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.01666v3",
+      "interpreted_date": "2025-06-02",
+      "ordinal": 163,
+      "page_number": 2,
+      "raw_date_value": "2025-06-02T13:35:33Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17713"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17713v2",
+      "interpreted_date": "2025-06-21",
+      "ordinal": 164,
+      "page_number": 2,
+      "raw_date_value": "2025-06-21T13:29:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.06986"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.06986v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 165,
+      "page_number": 2,
+      "raw_date_value": "2025-06-08T04:00:22Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.18247"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.18247v2",
+      "interpreted_date": "2025-06-23",
+      "ordinal": 166,
+      "page_number": 2,
+      "raw_date_value": "2025-06-23T02:32:20Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.16601"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.16601v2",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 167,
+      "page_number": 2,
+      "raw_date_value": "2025-06-19T21:03:47Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.08309"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.08309v2",
+      "interpreted_date": "2025-06-10",
+      "ordinal": 168,
+      "page_number": 2,
+      "raw_date_value": "2025-06-10T00:35:53Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.19540"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.19540v1",
+      "interpreted_date": "2025-06-24",
+      "ordinal": 169,
+      "page_number": 2,
+      "raw_date_value": "2025-06-24T11:49:48Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.22802"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.22802v2",
+      "interpreted_date": "2025-06-28",
+      "ordinal": 170,
+      "page_number": 2,
+      "raw_date_value": "2025-06-28T08:08:16Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10869"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10869v1",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 171,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T16:31:39Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.17395"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.17395v3",
+      "interpreted_date": "2025-06-20",
+      "ordinal": 172,
+      "page_number": 2,
+      "raw_date_value": "2025-06-20T18:00:10Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.10797"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.10797v2",
+      "interpreted_date": "2025-06-12",
+      "ordinal": 173,
+      "page_number": 2,
+      "raw_date_value": "2025-06-12T15:10:24Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.20741"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.20741v2",
+      "interpreted_date": "2025-06-25",
+      "ordinal": 174,
+      "page_number": 2,
+      "raw_date_value": "2025-06-25T18:09:42Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.13918"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.13918v1",
+      "interpreted_date": "2025-06-16",
+      "ordinal": 175,
+      "page_number": 2,
+      "raw_date_value": "2025-06-16T18:53:29Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.15940"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.15940v2",
+      "interpreted_date": "2025-06-19",
+      "ordinal": 176,
+      "page_number": 2,
+      "raw_date_value": "2025-06-19T00:52:30Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2506.09066"
+      ],
+      "index_work_id": "http://arxiv.org/abs/2506.09066v1",
+      "interpreted_date": "2025-06-08",
+      "ordinal": 177,
+      "page_number": 2,
+      "raw_date_value": "2025-06-08T16:14:37Z"
+    }
+  ],
+  "primary_key_kind": "index_work_id",
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1"
+}

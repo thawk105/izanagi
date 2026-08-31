@@ -1,0 +1,5 @@
+{"at":"2026-08-29T14:28:03.880268Z","attempt_number":1,"request_id":"AX1-20260829-E1-T07@dblp#p0","state":"prepared"}
+{"at":"2026-08-29T14:28:42.878790Z","attempt_number":1,"request_id":"AX1-20260829-E1-T07@dblp#p0","state":"issued"}
+{"at":"2026-08-29T14:28:46.478735Z","attempt_number":1,"payload":{"body_path":"raw/AX1-20260829-E1-T07@dblp_p0.a01.body.gz","body_sha256":"0ee8c65a4b14b4c2ff04e70ca3d4ea327837b682083af6a4991e36f859109593","final_url":"https://dblp.org/search/publ/api?q=multi-version+concurrency+control&format=json&h=100&f=0","status":200},"request_id":"AX1-20260829-E1-T07@dblp#p0","state":"response_stored"}
+{"at":"2026-08-29T14:28:46.481594Z","attempt_number":1,"request_id":"AX1-20260829-E1-T07@dblp#p0","state":"parsed"}
+{"at":"2026-08-29T14:28:46.483207Z","attempt_number":1,"payload":{"outcome":"success","reason_code":null},"request_id":"AX1-20260829-E1-T07@dblp#p0","state":"terminal"}

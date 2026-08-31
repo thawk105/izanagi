@@ -1,0 +1,209 @@
+{
+  "bundle_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2033-axis1-retake/output/insights/2026-08-29_t2033-axis1-retake/bundle",
+  "canonical_runner_argv": [
+    "python3",
+    "tools/run_axis1_search.py",
+    "--registration-commit",
+    "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "--catalog",
+    "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "--bundle",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2033-axis1-retake/output/insights/2026-08-29_t2033-axis1-retake/bundle",
+    "--run-id",
+    "2026-08-29-t2033-axis1-retake",
+    "--checkpoint",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2033-axis1-retake/output/insights/2026-08-29_t2033-axis1-retake/bundle/checkpoints/000014.json"
+  ],
+  "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "checkpoint_id": "000014",
+  "completed_ledger": {
+    "canonicalization": "canonical JSON object v1; primary digest is sorted unique index_work_id lines",
+    "distinct_count": 11,
+    "ledger_sha256": "cf7cf969f18c458e5cdfb6ed79e90843fb45625025765b1c9259dbcc1f9142b3",
+    "path": "ledgers/AX1-20260829-E1-Q6-SM201602@arxiv.pass1.cf7cf969f18c.json",
+    "primary_key_digest": "12917c9c1d03b12e2c5febce5ddbeea220ebb3e84f24fd732d766d8be53d3739",
+    "primary_key_kind": "index_work_id",
+    "row_count": 11
+  },
+  "cursor_state": {
+    "leaf_ordinal": 0,
+    "page_number": 0,
+    "parent_response_sha256": "603bf50e66ee3576b8e8887bf45861a6944169227463a72155b5983384c8c775",
+    "position_in": "0",
+    "position_out": "0",
+    "previous_request_id": "AX1-20260829-E1-Q6-SM201602@arxiv#p0"
+  },
+  "index": "arxiv",
+  "last_attempt": {
+    "attempt_number": 1,
+    "failure": null,
+    "raw_evidence_path": "raw/AX1-20260829-E1-Q6-SM201602@arxiv_p0.a01.body.gz",
+    "request_id": "AX1-20260829-E1-Q6-SM201602@arxiv#p0",
+    "state": "terminal"
+  },
+  "leaf_query_id": "AX1-20260829-E1-Q6-SM201602@arxiv",
+  "pass_number": 1,
+  "previous_checkpoint": null,
+  "query_id": "AX1-20260829-E1-Q6@arxiv",
+  "quota": {
+    "cost_usd": null,
+    "credits_per_request": null,
+    "header_evidence": [],
+    "index": "arxiv",
+    "limit": null,
+    "observed_at_jst": null,
+    "observed_at_utc": null,
+    "observed_request_id": null,
+    "remaining": null,
+    "reset_seconds": null
+  },
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "requests": {
+    "continue_cursor": {
+      "catalog_template_sha256": "1968a5531a2d9c0a5dfd9df4281927a02751f26c9fc81c0c369242061328b7f3",
+      "empty_body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoded_url": "https://export.arxiv.org/api/query?search_query=%28abs%3A%22program+synthesis%22+OR+abs%3A%22automatic+generation%22+OR+abs%3A%22code+generation%22+OR+abs%3A%22evolutionary+search%22+OR+abs%3A%22genetic+programming%22+OR+abs%3A%22large+language+model%22+OR+abs%3A%22LLM+agent%22+OR+abs%3A%22reinforcement+learning%22+OR+abs%3A%22learned%22+OR+abs%3A%22auto-tuning%22+OR+abs%3A%22compiler+injection%22+OR+abs%3A%22superoptimization%22%29+AND+%28abs%3A%22protocol%22+OR+abs%3A%22algorithm%22+OR+abs%3A%22policy%22+OR+abs%3A%22source+code%22+OR+abs%3A%22implementation%22+OR+abs%3A%22intermediate+representation%22+OR+abs%3A%22action+space%22+OR+abs%3A%22design+space%22+OR+abs%3A%22variant%22%29+AND+%28abs%3A%22workload%22+OR+abs%3A%22benchmark%22+OR+abs%3A%22YCSB%22+OR+abs%3A%22TPC-C%22+OR+abs%3A%22contention%22+OR+abs%3A%22read-write+ratio%22+OR+abs%3A%22skew%22+OR+abs%3A%22many-core%22%29+AND+submittedDate%3A%5B201602010000+TO+201602292359%5D&start=0&max_results=200",
+      "executable": false,
+      "expected_interpreted_query": "arXiv Query: search_query=(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:\"201602010000 TO 201602292359\"&id_list=&start=0&max_results=200",
+      "headers": [
+        [
+          "Accept",
+          "application/atom+xml"
+        ]
+      ],
+      "host": "export.arxiv.org",
+      "index": "arxiv",
+      "leaf_query_id": "AX1-20260829-E1-Q6-SM201602@arxiv",
+      "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+      "method": "GET",
+      "page_number": 0,
+      "parent_response_sha256": "603bf50e66ee3576b8e8887bf45861a6944169227463a72155b5983384c8c775",
+      "path": "/api/query",
+      "position_in": "0",
+      "query_parameters": [
+        [
+          "search_query",
+          "(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:[201602010000 TO 201602292359]"
+        ],
+        [
+          "start",
+          "0"
+        ],
+        [
+          "max_results",
+          "200"
+        ]
+      ],
+      "request_id": "AX1-20260829-E1-Q6-SM201602@arxiv#p0",
+      "request_role": "continue_cursor",
+      "scheme": "https",
+      "target_pass_number": 1,
+      "target_run_id": "2026-08-29-t2033-axis1-retake",
+      "target_window_number": 1,
+      "timeout_s": 60.0
+    },
+    "restart_branch": {
+      "catalog_template_sha256": "1968a5531a2d9c0a5dfd9df4281927a02751f26c9fc81c0c369242061328b7f3",
+      "empty_body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoded_url": "https://export.arxiv.org/api/query?search_query=%28abs%3A%22program+synthesis%22+OR+abs%3A%22automatic+generation%22+OR+abs%3A%22code+generation%22+OR+abs%3A%22evolutionary+search%22+OR+abs%3A%22genetic+programming%22+OR+abs%3A%22large+language+model%22+OR+abs%3A%22LLM+agent%22+OR+abs%3A%22reinforcement+learning%22+OR+abs%3A%22learned%22+OR+abs%3A%22auto-tuning%22+OR+abs%3A%22compiler+injection%22+OR+abs%3A%22superoptimization%22%29+AND+%28abs%3A%22protocol%22+OR+abs%3A%22algorithm%22+OR+abs%3A%22policy%22+OR+abs%3A%22source+code%22+OR+abs%3A%22implementation%22+OR+abs%3A%22intermediate+representation%22+OR+abs%3A%22action+space%22+OR+abs%3A%22design+space%22+OR+abs%3A%22variant%22%29+AND+%28abs%3A%22workload%22+OR+abs%3A%22benchmark%22+OR+abs%3A%22YCSB%22+OR+abs%3A%22TPC-C%22+OR+abs%3A%22contention%22+OR+abs%3A%22read-write+ratio%22+OR+abs%3A%22skew%22+OR+abs%3A%22many-core%22%29+AND+submittedDate%3A%5B201602010000+TO+201602292359%5D&start=0&max_results=200",
+      "executable": false,
+      "expected_interpreted_query": "arXiv Query: search_query=(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:\"201602010000 TO 201602292359\"&id_list=&start=0&max_results=200",
+      "headers": [
+        [
+          "Accept",
+          "application/atom+xml"
+        ]
+      ],
+      "host": "export.arxiv.org",
+      "index": "arxiv",
+      "leaf_query_id": "AX1-20260829-E1-Q6-SM201602@arxiv",
+      "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+      "method": "GET",
+      "page_number": 0,
+      "parent_response_sha256": null,
+      "path": "/api/query",
+      "position_in": "0",
+      "query_parameters": [
+        [
+          "search_query",
+          "(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:[201602010000 TO 201602292359]"
+        ],
+        [
+          "start",
+          "0"
+        ],
+        [
+          "max_results",
+          "200"
+        ]
+      ],
+      "request_id": "AX1-20260829-E1-Q6-SM201602@arxiv#p0",
+      "request_role": "restart_branch",
+      "scheme": "https",
+      "target_pass_number": 1,
+      "target_run_id": "2026-08-29-t2033-axis1-retake",
+      "target_window_number": 1,
+      "timeout_s": 60.0
+    },
+    "start_independent_pass": {
+      "catalog_template_sha256": "1968a5531a2d9c0a5dfd9df4281927a02751f26c9fc81c0c369242061328b7f3",
+      "empty_body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoded_url": "https://export.arxiv.org/api/query?search_query=%28abs%3A%22program+synthesis%22+OR+abs%3A%22automatic+generation%22+OR+abs%3A%22code+generation%22+OR+abs%3A%22evolutionary+search%22+OR+abs%3A%22genetic+programming%22+OR+abs%3A%22large+language+model%22+OR+abs%3A%22LLM+agent%22+OR+abs%3A%22reinforcement+learning%22+OR+abs%3A%22learned%22+OR+abs%3A%22auto-tuning%22+OR+abs%3A%22compiler+injection%22+OR+abs%3A%22superoptimization%22%29+AND+%28abs%3A%22protocol%22+OR+abs%3A%22algorithm%22+OR+abs%3A%22policy%22+OR+abs%3A%22source+code%22+OR+abs%3A%22implementation%22+OR+abs%3A%22intermediate+representation%22+OR+abs%3A%22action+space%22+OR+abs%3A%22design+space%22+OR+abs%3A%22variant%22%29+AND+%28abs%3A%22workload%22+OR+abs%3A%22benchmark%22+OR+abs%3A%22YCSB%22+OR+abs%3A%22TPC-C%22+OR+abs%3A%22contention%22+OR+abs%3A%22read-write+ratio%22+OR+abs%3A%22skew%22+OR+abs%3A%22many-core%22%29+AND+submittedDate%3A%5B201602010000+TO+201602292359%5D&start=0&max_results=200",
+      "executable": true,
+      "expected_interpreted_query": "arXiv Query: search_query=(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:\"201602010000 TO 201602292359\"&id_list=&start=0&max_results=200",
+      "headers": [
+        [
+          "Accept",
+          "application/atom+xml"
+        ]
+      ],
+      "host": "export.arxiv.org",
+      "index": "arxiv",
+      "leaf_query_id": "AX1-20260829-E1-Q6-SM201602@arxiv",
+      "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+      "method": "GET",
+      "page_number": 0,
+      "parent_response_sha256": null,
+      "path": "/api/query",
+      "position_in": "0",
+      "query_parameters": [
+        [
+          "search_query",
+          "(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:[201602010000 TO 201602292359]"
+        ],
+        [
+          "start",
+          "0"
+        ],
+        [
+          "max_results",
+          "200"
+        ]
+      ],
+      "request_id": "AX1-20260829-E1-Q6-SM201602@arxiv#p0",
+      "request_role": "start_independent_pass",
+      "scheme": "https",
+      "target_pass_number": 2,
+      "target_run_id": "2026-08-29-t2033-axis1-retake",
+      "target_window_number": 1,
+      "timeout_s": 60.0
+    }
+  },
+  "resume_action": "start_independent_pass",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-checkpoint/v2",
+  "second_pass": {
+    "accepted": null,
+    "first_primary_key_digest": "12917c9c1d03b12e2c5febce5ddbeea220ebb3e84f24fd732d766d8be53d3739",
+    "ledger_path": null,
+    "matches_first": null,
+    "primary_key_digest": null,
+    "required": true,
+    "state": "not_started"
+  },
+  "state": "pass_complete",
+  "waiting_ruling_ids": [],
+  "window_number": 1
+}

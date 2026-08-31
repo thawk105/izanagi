@@ -1,0 +1,1090 @@
+{
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "distinct_index_work_id_count": 100,
+  "document_type": "record_occurrence_ledger",
+  "index": "dblp",
+  "leaf_query_id": "AX1-20260829-E1-T08@dblp",
+  "logical_query_id": "AX1-20260829-E1-T08@dblp",
+  "occurrence_count": 100,
+  "occurrences": [
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icdcs47774.2020.00193"
+      ],
+      "index_work_id": "conf/icdcs/KishiP20",
+      "interpreted_date": "2020-01-01",
+      "ordinal": 0,
+      "page_number": 0,
+      "raw_date_value": "2020"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/osdi/LepersBGZ20",
+      "interpreted_date": "2020-01-01",
+      "ordinal": 1,
+      "page_number": 0,
+      "raw_date_value": "2020"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2911151.2911166"
+      ],
+      "index_work_id": "conf/eurosys/TomsicCS16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 2,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-540-78568-2_21"
+      ],
+      "index_work_id": "conf/dasfaa/AlomariCFR08",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 3,
+      "page_number": 0,
+      "raw_date_value": "2008"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/srds69199.2025.00038"
+      ],
+      "index_work_id": "conf/srds/PopovS25",
+      "interpreted_date": "2025-01-01",
+      "ordinal": 4,
+      "page_number": 0,
+      "raw_date_value": "2025"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3642976.3653032"
+      ],
+      "index_work_id": "conf/papoc/Zhang024",
+      "interpreted_date": "2024-01-01",
+      "ordinal": 5,
+      "page_number": 0,
+      "raw_date_value": "2024"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2405.18393"
+      ],
+      "index_work_id": "journals/corr/abs-2405-18393",
+      "interpreted_date": "2024-01-01",
+      "ordinal": 6,
+      "page_number": 0,
+      "raw_date_value": "2024"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/3583140.3583157"
+      ],
+      "index_work_id": "journals/pvldb/AlhomssiL23",
+      "interpreted_date": "2023-01-01",
+      "ordinal": 7,
+      "page_number": 0,
+      "raw_date_value": "2023"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/3583140.3583145"
+      ],
+      "index_work_id": "journals/pvldb/HuangLCWBLP23",
+      "interpreted_date": "2023-01-01",
+      "ordinal": 8,
+      "page_number": 0,
+      "raw_date_value": "2023"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3552326.3567492"
+      ],
+      "index_work_id": "conf/eurosys/ZhangJMT23",
+      "interpreted_date": "2023-01-01",
+      "ordinal": 9,
+      "page_number": 0,
+      "raw_date_value": "2023"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:2301.07313"
+      ],
+      "index_work_id": "journals/corr/abs-2301-07313",
+      "interpreted_date": "2023-01-01",
+      "ordinal": 10,
+      "page_number": 0,
+      "raw_date_value": "2023"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3514221.3526047"
+      ],
+      "index_work_id": "conf/sigmod/KangC0Z0CS22",
+      "interpreted_date": "2022-01-01",
+      "ordinal": 11,
+      "page_number": 0,
+      "raw_date_value": "2022"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.patter.2021.100349"
+      ],
+      "index_work_id": "journals/patterns/FerreiraMMOPP21",
+      "interpreted_date": "2021-01-01",
+      "ordinal": 12,
+      "page_number": 0,
+      "raw_date_value": "2021"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3447865.3457966"
+      ],
+      "index_work_id": "conf/eurosys/FariaP21",
+      "interpreted_date": "2021-01-01",
+      "ordinal": 13,
+      "page_number": 0,
+      "raw_date_value": "2021"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/s11704-018-7018-z"
+      ],
+      "index_work_id": "journals/fcsc/ZhouZW19",
+      "interpreted_date": "2019-01-01",
+      "ordinal": 14,
+      "page_number": 0,
+      "raw_date_value": "2019"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/3364324.3364334"
+      ],
+      "index_work_id": "journals/pvldb/0001BLP19",
+      "interpreted_date": "2019-01-01",
+      "ordinal": 15,
+      "page_number": 0,
+      "raw_date_value": "2019"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-030-25543-5_17"
+      ],
+      "index_work_id": "conf/cav/BeillahiBE19",
+      "interpreted_date": "2019-01-01",
+      "ordinal": 16,
+      "page_number": 0,
+      "raw_date_value": "2019"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5441/002/edbt.2019.78"
+      ],
+      "index_work_id": "conf/edbt/GotzeS19",
+      "interpreted_date": "2019-01-01",
+      "ordinal": 17,
+      "page_number": 0,
+      "raw_date_value": "2019"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-030-11245-5_1"
+      ],
+      "index_work_id": "conf/vmcai/RaadLV19",
+      "interpreted_date": "2019-01-01",
+      "ordinal": 18,
+      "page_number": 0,
+      "raw_date_value": "2019"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1905.08406"
+      ],
+      "index_work_id": "journals/corr/abs-1905-08406",
+      "interpreted_date": "2019-01-01",
+      "ordinal": 19,
+      "page_number": 0,
+      "raw_date_value": "2019"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3152396"
+      ],
+      "index_work_id": "journals/jacm/CeroneG18",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 20,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/birthday/Hegner18",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 21,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-319-91458-9_40"
+      ],
+      "index_work_id": "conf/dasfaa/GuoCXQZ18",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 22,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-319-89884-1_33"
+      ],
+      "index_work_id": "conf/esop/RaadLV18",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 23,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4614-8265-9_80775"
+      ],
+      "index_work_id": "reference/db/Binnig18",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 24,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4614-8265-9_80774"
+      ],
+      "index_work_id": "reference/db/Fekete18c",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 25,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4614-8265-9_346"
+      ],
+      "index_work_id": "reference/db/Fekete18d",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 26,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1805.06196"
+      ],
+      "index_work_id": "journals/corr/abs-1805-06196",
+      "interpreted_date": "2018-01-01",
+      "ordinal": 27,
+      "page_number": 0,
+      "raw_date_value": "2018"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icde.2017.130"
+      ],
+      "index_work_id": "conf/icde/ZhouZYT17",
+      "interpreted_date": "2017-01-01",
+      "ordinal": 28,
+      "page_number": 0,
+      "raw_date_value": "2017"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/3079856.3080204"
+      ],
+      "index_work_id": "conf/isca/ChenPI17",
+      "interpreted_date": "2017-01-01",
+      "ordinal": 29,
+      "page_number": 0,
+      "raw_date_value": "2017"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/srds.2017.11"
+      ],
+      "index_work_id": "conf/srds/WeiHL17",
+      "interpreted_date": "2017-01-01",
+      "ordinal": 30,
+      "page_number": 0,
+      "raw_date_value": "2017"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/vldb/GottsteinPHB17",
+      "interpreted_date": "2017-01-01",
+      "ordinal": 31,
+      "page_number": 0,
+      "raw_date_value": "2017"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1704.01355"
+      ],
+      "index_work_id": "journals/corr/ZhouZYT17",
+      "interpreted_date": "2017-01-01",
+      "ordinal": 32,
+      "page_number": 0,
+      "raw_date_value": "2017"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/s10472-015-9482-6"
+      ],
+      "index_work_id": "journals/amai/Hegner16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 33,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.is.2016.02.001"
+      ],
+      "index_work_id": "journals/is/ONeilO16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 34,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/s00778-015-0416-z"
+      ],
+      "index_work_id": "journals/vldb/GaoZY16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 35,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2967938.2967955"
+      ],
+      "index_work_id": "conf/IEEEpact/LitzBC16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 36,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2983323.2983825"
+      ],
+      "index_work_id": "conf/cikm/ArabGKRG16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 37,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5441/002/edbt.2016.94"
+      ],
+      "index_work_id": "conf/edbt/Patino-Martinez16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 38,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2933057.2933096"
+      ],
+      "index_work_id": "conf/podc/CeroneG16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 39,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1608.08258"
+      ],
+      "index_work_id": "journals/corr/ArabGKRG16",
+      "interpreted_date": "2016-01-01",
+      "ordinal": 40,
+      "page_number": 0,
+      "raw_date_value": "2016"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/tsc.2013.47"
+      ],
+      "index_work_id": "journals/tsc/PadhyeT15",
+      "interpreted_date": "2015-01-01",
+      "ordinal": 41,
+      "page_number": 0,
+      "raw_date_value": "2015"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2814189.2815371"
+      ],
+      "index_work_id": "conf/oopsla/Zhang15",
+      "interpreted_date": "2015-01-01",
+      "ordinal": 42,
+      "page_number": 0,
+      "raw_date_value": "2015"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-662-48653-5_26"
+      ],
+      "index_work_id": "conf/wdag/CeroneGY15",
+      "interpreted_date": "2015-01-01",
+      "ordinal": 43,
+      "page_number": 0,
+      "raw_date_value": "2015"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1016/j.is.2013.10.002"
+      ],
+      "index_work_id": "journals/is/AlomariFR14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 44,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/2732967.2732970"
+      ],
+      "index_work_id": "journals/pvldb/ChairunnandaDO14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 45,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2693260"
+      ],
+      "index_work_id": "journals/taco/LitzDC14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 46,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/s11227-014-1162-5"
+      ],
+      "index_work_id": "journals/tjs/LuoOD14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 47,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/s00778-014-0359-9"
+      ],
+      "index_work_id": "journals/vldb/BinnigHFKLM14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 48,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2541940.2541952"
+      ],
+      "index_work_id": "conf/asplos/LitzCFAS14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 49,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.5441/002/edbt.2014.59"
+      ],
+      "index_work_id": "conf/edbt/GottsteinPPB14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 50,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-319-04939-7_11"
+      ],
+      "index_work_id": "conf/foiks/Hegner14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 51,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icde.2014.6816693"
+      ],
+      "index_work_id": "conf/icde/HanPJFRY14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 52,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/srds.2014.30"
+      ],
+      "index_work_id": "conf/srds/PadhyeRT14",
+      "interpreted_date": "2014-01-01",
+      "ordinal": 53,
+      "page_number": 0,
+      "raw_date_value": "2014"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/aiccsa.2013.6616497"
+      ],
+      "index_work_id": "conf/aiccsa/Alomari13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 54,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-1-4020-9688-4_13"
+      ],
+      "index_work_id": "conf/birthday/Lewis13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 55,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-37450-0_31"
+      ],
+      "index_work_id": "conf/dasfaa/JungHFRY13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 56,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2452376.2452384"
+      ],
+      "index_work_id": "conf/edbt/SchillerCM13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 57,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-40047-6_39"
+      ],
+      "index_work_id": "conf/europar/ArdekaniSSP13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 58,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/srds.2013.25"
+      ],
+      "index_work_id": "conf/srds/ArdekaniSS13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 59,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/srds.2013.26"
+      ],
+      "index_work_id": "conf/srds/DuEZ13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 60,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1306.3906"
+      ],
+      "index_work_id": "journals/corr/ArdekaniSPS13",
+      "interpreted_date": "2013-01-01",
+      "ordinal": 61,
+      "page_number": 0,
+      "raw_date_value": "2013"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/2367502.2367523"
+      ],
+      "index_work_id": "journals/pvldb/PortsG12",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 62,
+      "page_number": 0,
+      "raw_date_value": "2012"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/cloud.2012.102"
+      ],
+      "index_work_id": "conf/IEEEcloud/PadhyeT12",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 63,
+      "page_number": 0,
+      "raw_date_value": "2012"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-31057-7_28"
+      ],
+      "index_work_id": "conf/ecoop/DiasDSL12",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 64,
+      "page_number": 0,
+      "raw_date_value": "2012"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/2168836.2168853"
+      ],
+      "index_work_id": "conf/eurosys/YabandehF12",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 65,
+      "page_number": 0,
+      "raw_date_value": "2012"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/srds.2012.15"
+      ],
+      "index_work_id": "conf/srds/PadhyeT12",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 66,
+      "page_number": 0,
+      "raw_date_value": "2012"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/uic-atc.2012.129"
+      ],
+      "index_work_id": "conf/uic/LuoOD12",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 67,
+      "page_number": 0,
+      "raw_date_value": "2012"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:1208.4179"
+      ],
+      "index_work_id": "journals/corr/abs-1208-4179",
+      "interpreted_date": "2012-01-01",
+      "ordinal": 68,
+      "page_number": 0,
+      "raw_date_value": "2012"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "journals/pvldb/JungHFR11",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 69,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "journals/scpe/ZhangS11",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 70,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-23737-9_13"
+      ],
+      "index_work_id": "conf/adbis/TilgnerGBK11",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 71,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/btw/Klein09",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 72,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icde.2011.5767897"
+      ],
+      "index_work_id": "conf/icde/BorneaHEF11",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 73,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icde.2011.5767853"
+      ],
+      "index_work_id": "conf/icde/RevilakOO11",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 74,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/syrcodis/Vasilik11",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 75,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-32627-1_9"
+      ],
+      "index_work_id": "conf/tpctc/GottsteinPB11",
+      "interpreted_date": "2011-01-01",
+      "ordinal": 76,
+      "page_number": 0,
+      "raw_date_value": "2011"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/grid.2010.5697970"
+      ],
+      "index_work_id": "conf/grid/ZhangS10",
+      "interpreted_date": "2010-01-01",
+      "ordinal": 77,
+      "page_number": 0,
+      "raw_date_value": "2010"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1804669.1804677"
+      ],
+      "index_work_id": "conf/icdt/NormannO10",
+      "interpreted_date": "2010-01-01",
+      "ordinal": 78,
+      "page_number": 0,
+      "raw_date_value": "2010"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "phd/basesearch/Alomari09",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 79,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "phd/basesearch/Cahill09",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 80,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.14778/1687627.1687747"
+      ],
+      "index_work_id": "journals/pvldb/MishimaN09",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 81,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1620585.1620587"
+      ],
+      "index_work_id": "journals/tods/CahillRF09",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 82,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1538909.1538913"
+      ],
+      "index_work_id": "journals/tods/LinKJPA09",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 83,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icde.2009.22"
+      ],
+      "index_work_id": "conf/icde/AlomariFR09",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 84,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-3-642-05148-7_36"
+      ],
+      "index_work_id": "conf/otm/Munoz-EscoiBJAM09",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 85,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1007/978-0-387-39940-9_346"
+      ],
+      "index_work_id": "reference/db/Fekete09b",
+      "interpreted_date": "2009-01-01",
+      "ordinal": 86,
+      "page_number": 0,
+      "raw_date_value": "2009"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/hotdep/PreguicaRHL08",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 87,
+      "page_number": 0,
+      "raw_date_value": "2008"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icde.2008.4497466"
+      ],
+      "index_work_id": "conf/icde/AlomariCFR08",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 88,
+      "page_number": 0,
+      "raw_date_value": "2008"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1400751.1400814"
+      ],
+      "index_work_id": "conf/podc/Armendariz-InigoJMM08",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 89,
+      "page_number": 0,
+      "raw_date_value": "2008"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1376616.1376690"
+      ],
+      "index_work_id": "conf/sigmod/CahillRF08",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 90,
+      "page_number": 0,
+      "raw_date_value": "2008"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/srds.2008.10"
+      ],
+      "index_work_id": "conf/srds/Bernabe-GisbertZMP08",
+      "interpreted_date": "2008-01-01",
+      "ordinal": 91,
+      "page_number": 0,
+      "raw_date_value": "2008"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/prdc.2007.39"
+      ],
+      "index_work_id": "conf/prdc/SerranoPJK07",
+      "interpreted_date": "2007-01-01",
+      "ordinal": 92,
+      "page_number": 0,
+      "raw_date_value": "2007"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/vldb/JorwekarFRS07",
+      "interpreted_date": "2007-01-01",
+      "ordinal": 93,
+      "page_number": 0,
+      "raw_date_value": "2007"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/dba/YangG06",
+      "interpreted_date": "2006-01-01",
+      "ordinal": 94,
+      "page_number": 0,
+      "raw_date_value": "2006"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [],
+      "index_work_id": "conf/vldb/DaudjeeS06",
+      "interpreted_date": "2006-01-01",
+      "ordinal": 95,
+      "page_number": 0,
+      "raw_date_value": "2006"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1071610.1071615"
+      ],
+      "index_work_id": "journals/tods/FeketeLOOS05",
+      "interpreted_date": "2005-01-01",
+      "ordinal": 96,
+      "page_number": 0,
+      "raw_date_value": "2005"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/icde.2005.108"
+      ],
+      "index_work_id": "conf/icde/WuK05",
+      "interpreted_date": "2005-01-01",
+      "ordinal": 97,
+      "page_number": 0,
+      "raw_date_value": "2005"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1145/1066157.1066205"
+      ],
+      "index_work_id": "conf/sigmod/LinKPJ05",
+      "interpreted_date": "2005-01-01",
+      "ordinal": 98,
+      "page_number": 0,
+      "raw_date_value": "2005"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "doi:10.1109/reldis.2005.14"
+      ],
+      "index_work_id": "conf/srds/ElniketyZP05",
+      "interpreted_date": "2005-01-01",
+      "ordinal": 99,
+      "page_number": 0,
+      "raw_date_value": "2005"
+    }
+  ],
+  "primary_key_kind": "index_work_id",
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1"
+}

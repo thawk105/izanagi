@@ -1,0 +1,40 @@
+universes (digest-set, k) with n>=10, newest first inside each:
+
+### universe 49561579fe k=2 n=18 ncases=8580
+   wall median 290.9  min 272.9  max 387.4
+   gap(wall-max_occ) median 70.9  min 62.4  max 89.9
+   wall ~ max_occ  slope=0.987 intercept=  76.4 r=0.960
+   wall ~ longest  slope=0.558 intercept= 227.9 r=0.460
+   wall ~ ideal    slope=0.505 intercept= 213.9 r=0.483
+      13 test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccb
+       2 test_official_fresh_issues_certificate_and_binds_wall_ledger
+       1 test_official_build_failure_leaves_durable_launch_start
+
+### universe 2b08240ad3 k=3 n=15 ncases=6224
+   wall median 259.1  min 230.2  max 394.0
+   gap(wall-max_occ) median 77.2  min 67.5  max 147.3
+   wall ~ max_occ  slope=1.103 intercept=  66.0 r=0.877
+   wall ~ longest  slope=1.081 intercept=  86.2 r=0.768
+   wall ~ ideal    slope=1.019 intercept= 148.1 r=0.807
+       8 test_repository_candidate_uses_real_s8c_budget_module
+       7 test_candidate_freeze_matches_contract_and_generation_chain@s8c-prereg
+
+### universe c53b486d30 k=3 n=14 ncases=6252
+   wall median 390.8  min 257.9  max 532.8
+   gap(wall-max_occ) median 163.4  min 80.6  max 272.4
+   wall ~ max_occ  slope=1.292 intercept=  95.8 r=0.746
+   wall ~ longest  slope=1.493 intercept= 111.2 r=0.795
+   wall ~ ideal    slope=0.445 intercept= 331.9 r=0.101
+      12 test_candidate_freeze_matches_contract_and_generation_chain@s8c-prereg
+       1 test_repository_candidate_uses_real_s8c_budget_module
+       1 test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccb
+
+### universe ae04a453e0 k=3 n=10 ncases=6176
+   wall median 249.7  min 204.9  max 346.9
+   gap(wall-max_occ) median 81.7  min 53.0  max 116.6
+   wall ~ max_occ  slope=0.922 intercept=  98.5 r=0.900
+   wall ~ longest  slope=0.854 intercept= 119.9 r=0.836
+   wall ~ ideal    slope=0.673 intercept= 175.8 r=0.741
+       6 test_repository_candidate_uses_real_s8c_budget_module
+       3 test_candidate_freeze_matches_contract_and_generation_chain@s8c-prereg
+       1 test_t822_acceptance_reports_changed_layer3_snapshot_identity

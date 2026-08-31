@@ -544,20 +544,37 @@ def _resolved_campaign_layout(
     return CampaignLayout(root=str(resolved_campaign_root))
 
 
+def _read_campaign_lock_bytes(layout) -> bytes:
+    try:
+        return Path(layout.lock_file).read_bytes()
+    except OSError as exc:
+        raise _artifact_admission.ArtifactAdmissionError(
+            f"campaign.lock cannot be read: {layout.lock_file}"
+        ) from exc
+
+
+def _campaign_verifier_epoch_from_lock_bytes(lock_bytes: bytes):
+    recorded = _artifact_admission._recorded_campaign_verifier_epoch(
+        _artifact_admission._decode_campaign_lock(lock_bytes)
+    )
+    return _artifact_admission._require_verifier_epoch_for_purpose(
+        recorded,
+        _artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+
+
 def _campaign_verifier_epoch_projection(
         campaign_id: str, resolved_output_root: Path,
-) -> dict:
+) -> tuple[dict, Optional[str]]:
     """Campaign の lock-only epoch gate を observations 証拠へ射影する。"""
     layout = _resolved_campaign_layout(campaign_id, resolved_output_root)
+    lock_sha256 = None
     try:
-        epoch = _artifact_admission.require_campaign_verifier_epoch(
-            layout,
-            purpose=(
-                _artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
-            ),
-        )
+        lock_bytes = _read_campaign_lock_bytes(layout)
+        lock_sha256 = hashlib.sha256(lock_bytes).hexdigest()
+        epoch = _campaign_verifier_epoch_from_lock_bytes(lock_bytes)
     except _artifact_admission.CampaignVerifierEpochRejected as exc:
-        return {
+        return ({
             "campaign_id": campaign_id,
             "campaign_verifier_epoch": exc.campaign_verifier_epoch,
             "state": exc.epoch_state,
@@ -569,9 +586,9 @@ def _campaign_verifier_epoch_projection(
                 "code": "campaign-verifier-epoch-rejected",
                 "message": str(exc),
             },
-        }
+        }, lock_sha256)
     except _artifact_admission.ArtifactAdmissionError as exc:
-        return {
+        return ({
             "campaign_id": campaign_id,
             "campaign_verifier_epoch": None,
             "state": "unavailable",
@@ -590,8 +607,8 @@ def _campaign_verifier_epoch_projection(
                     f"{type(exc).__name__}"
                 ),
             },
-        }
-    return {
+        }, lock_sha256)
+    return ({
         "campaign_id": campaign_id,
         "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
         "state": epoch.state,
@@ -600,7 +617,7 @@ def _campaign_verifier_epoch_projection(
         "excluded_scope": epoch.excluded_scope,
         "certified_eligible": True,
         "rejection": None,
-    }
+    }, lock_sha256)
 
 
 def _is_int(value: object) -> bool:
@@ -1376,7 +1393,11 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
                    allowed_excluded: set[str], expected_reps: int,
                    record_ordinals: Mapping[int, int],
                    expected_perf_observation: object,
-                   payload_issues: Sequence[str] = ()) -> dict:
+                   payload_issues: Sequence[str] = (), *,
+                   persisted_records: Sequence[object],
+                   persisted_certification_required: bool,
+                   campaign_lock_sha256: Optional[str],
+                   persisted_snapshot_issue: Optional[str]) -> dict:
     row = _base_row(item)
     start = window[0].payload
     result, result_identity_issues, _ = _terminal_result_binding(
@@ -1606,6 +1627,28 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
             issues.append(
                 "verify-inconclusive 宣言と missing verify/abort 証拠が一致しない")
 
+    # Persisted certification is a final admission gate for an otherwise
+    # certifiable current window.  Let the S8B consumer classify malformed,
+    # legacy-unbound, or already-rejected windows first so the helper neither
+    # masks nor adds a second diagnosis to their established protocol result.
+    if (persisted_certification_required
+            and expected_attempt_id is not None
+            and len(commit_records) == 1
+            and not issues):
+        if persisted_snapshot_issue is not None:
+            issues.append(persisted_snapshot_issue)
+        else:
+            try:
+                _artifact_admission.require_persisted_certified_commit(
+                    persisted_records, commit_records[0],
+                    campaign_lock_sha256=campaign_lock_sha256,
+                )
+            except (_artifact_admission.ArtifactAdmissionError, TypeError) as exc:
+                issues.append(
+                    "persisted certification is invalid: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+
     row.update(
         attempt=start.get("attempt", row["attempt"]), status="completed", outcome=outcome,
         binding_ok=binding_ok, lifecycle_ok=True,
@@ -1725,6 +1768,8 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                      current_receipt_invalid: bool,
                      receipt_expectations,
                      receipt_expectations_error: Optional[ReportError],
+                     persisted_certification_required: bool,
+                     campaign_lock_sha256: Optional[str],
                      ) -> tuple[list[dict], _T080CampaignObservation]:
     bases = [_base_row(item) for item in rows]
     layout = _resolved_campaign_layout(campaign_id, output_root)
@@ -1739,6 +1784,27 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         return ([{**base, "status": "protocol_violation",
                   "reason": f"WAL を読めない: {type(exc).__name__}: {exc}"}
                  for base in bases], _T080CampaignObservation("unavailable"))
+
+    persisted_snapshot_issue = None
+    if persisted_certification_required and campaign_lock_sha256 is None:
+        persisted_snapshot_issue = (
+            "persisted certification lock snapshot is unavailable"
+        )
+    elif persisted_certification_required:
+        try:
+            lock_sha256_after_records = hashlib.sha256(
+                _read_campaign_lock_bytes(layout)
+            ).hexdigest()
+        except _artifact_admission.ArtifactAdmissionError as exc:
+            persisted_snapshot_issue = (
+                "campaign.lock cannot be revalidated after WAL read: "
+                f"{type(exc).__name__}: {exc}"
+            )
+        else:
+            if lock_sha256_after_records != campaign_lock_sha256:
+                persisted_snapshot_issue = (
+                    "campaign.lock SHA-256 changed while reading WAL"
+                )
 
     t080_observation = _campaign_t080_observation(
         records, repo_root=repo_root,
@@ -1966,6 +2032,15 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
                 record_ordinals, expected_perf_observation,
                 [payload_issue_by_record[id(record)] for record in window
                  if id(record) in payload_issue_by_record],
+                persisted_records=records,
+                persisted_certification_required=(
+                    persisted_certification_required
+                    and not global_issues
+                    and not lifecycle_global_issues
+                    and plan["valid"]
+                ),
+                campaign_lock_sha256=campaign_lock_sha256,
+                persisted_snapshot_issue=persisted_snapshot_issue,
             )
             for window in resultful_windows
         ]
@@ -2299,10 +2374,21 @@ def build_observations(
     )
     admitted_output_root = _resolve_official_output_root(Path(output_root))
     resolved_output_root = admitted_output_root.path
-    campaign_verifier_epochs = [
+    campaign_epoch_snapshots = [
         _campaign_verifier_epoch_projection(campaign_id, resolved_output_root)
         for campaign_id in sorted(campaign_ids)
     ]
+    campaign_verifier_epochs = [
+        projection for projection, _lock_sha256 in campaign_epoch_snapshots
+    ]
+    campaign_lock_sha256_by_id = {
+        projection["campaign_id"]: lock_sha256
+        for projection, lock_sha256 in campaign_epoch_snapshots
+    }
+    persisted_certification_required_by_id = {
+        projection["campaign_id"]: projection.get("certified_eligible") is True
+        for projection, _lock_sha256 in campaign_epoch_snapshots
+    }
     receipt_expectations = None
     receipt_expectations_error = None
     try:
@@ -2362,6 +2448,12 @@ def build_observations(
                 current_receipt_invalid=current_receipt_invalid,
                 receipt_expectations=receipt_expectations,
                 receipt_expectations_error=receipt_expectations_error,
+                persisted_certification_required=(
+                    persisted_certification_required_by_id.get(
+                        campaign_id, False,
+                    )
+                ),
+                campaign_lock_sha256=campaign_lock_sha256_by_id.get(campaign_id),
             )
             t080_by_campaign[campaign_id] = t080_observation
             for ordinal, row in zip(ordinals, assessed):
