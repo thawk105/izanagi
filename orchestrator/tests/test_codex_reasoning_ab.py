@@ -784,10 +784,46 @@ def _schedule(
     ), slots
 
 
+def _missing_pinned_rollouts(
+    sessions_root: Path,
+) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        (label, session_id)
+        for label, session_id in TOOL.SESSION_IDS.items()
+        if next(
+            sessions_root.rglob(f"rollout-*-{session_id}.jsonl"), None
+        )
+        is None
+    )
+
+
+def _require_pinned_rollouts(sessions_root: Path) -> None:
+    missing = _missing_pinned_rollouts(sessions_root)
+    if missing:
+        detail = ", ".join(
+            f"{label} session {session_id}" for label, session_id in missing
+        )
+        pytest.skip(f"pinned historical rollout is unavailable: {detail}")
+
+
+def _write_pinned_rollout_stub(sessions_root: Path, label: str) -> Path:
+    session_id = TOOL.SESSION_IDS[label]
+    rollout = sessions_root / f"rollout-test-{session_id}.jsonl"
+    rollout.write_text(
+        json.dumps(
+            {"type": "session_meta", "payload": {"id": session_id}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return rollout
+
+
 @pytest.fixture(scope="module")
-def benchmark_snapshots(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
-    if not _HISTORICAL_SESSIONS.is_dir():
-        pytest.skip("historical rollout root is unavailable")
+def benchmark_snapshots(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, Any]:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     root = tmp_path_factory.mktemp("t181-benchmark")
     base = root / "base"
     destinations = {case: root / case.lower() for case in ("POS", "NEG")}
@@ -834,6 +870,41 @@ def benchmark_snapshots(tmp_path_factory: pytest.TempPathFactory) -> dict[str, A
             "prompt_receipt": prompt_receipt,
         }
     return result
+
+
+def test_historical_rollout_guard_all_pins_present_does_not_skip(
+    tmp_path: Path,
+) -> None:
+    for label in TOOL.SESSION_IDS:
+        _write_pinned_rollout_stub(tmp_path, label)
+
+    _require_pinned_rollouts(tmp_path)
+
+
+def test_historical_rollout_guard_reports_missing_session(
+    tmp_path: Path,
+) -> None:
+    missing_label = "author"
+    for label in TOOL.SESSION_IDS:
+        if label != missing_label:
+            _write_pinned_rollout_stub(tmp_path, label)
+
+    missing_session_id = TOOL.SESSION_IDS[missing_label]
+    with pytest.raises(pytest.skip.Exception, match=missing_session_id):
+        _require_pinned_rollouts(tmp_path)
+
+
+def test_historical_rollout_guard_does_not_hide_sha_mismatch(
+    tmp_path: Path,
+) -> None:
+    rollouts = {
+        label: _write_pinned_rollout_stub(tmp_path, label)
+        for label in TOOL.SESSION_IDS
+    }
+
+    _require_pinned_rollouts(tmp_path)
+    with pytest.raises(TOOL.ValidationError, match="POS rollout sha mismatch"):
+        TOOL._verify_rollout_sha(rollouts["POS"], "POS")
 
 
 def _manual_run(
@@ -3128,6 +3199,7 @@ def test_m1_snapshot_head_pin_is_independent(
 def test_m2_production_golden_requires_both_routes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     called = False
     original = TOOL._compare_golden_routes
 
@@ -8578,6 +8650,7 @@ def test_prompt_replacement_count_zero_expected_and_excess(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     source_rollout = _REAL_ROLLOUT
     TOOL._verify_rollout_sha(source_rollout, "POS")
     canonical_message = TOOL.extract_user_message(source_rollout)
@@ -8609,12 +8682,17 @@ def test_prompt_replacement_count_zero_expected_and_excess(
 
 
 def test_real_rollout_collector_golden_is_source_bound() -> None:
-    assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
-        _REAL_ROLLOUT.read_bytes()
-    ).hexdigest()
+    rollout_available = _REAL_ROLLOUT.is_file()
+    if rollout_available:
+        assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
+            _REAL_ROLLOUT.read_bytes()
+        ).hexdigest()
     assert hashlib.sha256(_REAL_TOKEN_SLICE.encode()).hexdigest() == _REAL_TOKEN_SLICE_SHA
-    source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(keepends=True)[15]
-    assert source_line == _REAL_TOKEN_SLICE
+    if rollout_available:
+        source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(
+            keepends=True
+        )[15]
+        assert source_line == _REAL_TOKEN_SLICE
     payload = json.loads(_REAL_TOKEN_SLICE)["payload"]["info"]["total_token_usage"]
     validated, issues, cached_exceeds_input = TOOL.LEDGER._validated_usage(
         payload, location="golden"

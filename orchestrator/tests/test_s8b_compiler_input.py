@@ -311,6 +311,31 @@ def test_descriptor_policy_hashes_external_input_without_snapshot_membership(
     }
 
 
+def test_double_slash_input_matches_single_slash_manifest_and_digest(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    outside = tmp_path / "system" / "header.hh"
+    outside.parent.mkdir()
+    outside.write_bytes(b"#define SYSTEM_VALUE 9\n")
+    canonical_build = tmp_path / "canonical-build"
+    double_slash_build = tmp_path / "double-slash-build"
+    double_slash_outside = Path(f"/{outside}")
+    assert str(double_slash_outside) == f"/{outside}"
+    _write_build_shape(canonical_build, snapshot, input_path=outside)
+    _write_build_shape(
+        double_slash_build, snapshot, input_path=double_slash_outside,
+    )
+
+    canonical = compiler_input.collect_compiler_input_manifest(
+        canonical_build, snapshot, target=TARGET, allow_external_inputs=True,
+    )
+    double_slash = compiler_input.collect_compiler_input_manifest(
+        double_slash_build, snapshot, target=TARGET, allow_external_inputs=True,
+    )
+
+    assert double_slash == canonical
+
+
 def _fetchcontent_fixture(tmp_path: Path):
     snapshot = tmp_path / "snapshot"
     snapshot.mkdir()
@@ -344,6 +369,43 @@ def test_v2_manifest_classifies_fetchcontent_root_relative(tmp_path):
     }]
     assert str(base_a) not in repr(collected.manifest)
     assert str(base_b) not in repr(collected.manifest)
+
+
+def test_v2_manifest_with_normal_relative_path_validates(tmp_path):
+    snapshot, build = _fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET,
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot, target=TARGET,
+    ) == collected.manifest
+
+
+def test_v2_manifest_rejects_dot_path_as_compiler_input_error(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    manifest = {
+        "schema_version": compiler_input.MANIFEST_SCHEMA,
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": TARGET,
+        "depfile_count": 1,
+        "inputs": [{
+            "root": "snapshot",
+            "path": ".",
+            "sha256": "0" * 64,
+        }],
+    }
+
+    with pytest.raises(
+            compiler_input.CompilerInputError,
+            match="not normalized relative POSIX") as caught:
+        compiler_input.validate_compiler_input_manifest(
+            manifest, compiler_input.manifest_sha256(manifest),
+            snapshot_root=snapshot, target=TARGET,
+        )
+    assert type(caught.value) is compiler_input.CompilerInputError
 
 
 def test_v2_validator_rebinds_fetchcontent_inputs_to_current_root(tmp_path):
@@ -395,7 +457,7 @@ def test_v2_missing_current_fetchcontent_input_is_rejected(tmp_path):
         )
 
 
-@pytest.mark.parametrize("symlink_kind", ["leaf", "component", "root"])
+@pytest.mark.parametrize("symlink_kind", ["leaf", "component"])
 def test_v2_current_fetchcontent_symlink_component_is_rejected(
         tmp_path, symlink_kind):
     snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
@@ -418,16 +480,51 @@ def test_v2_current_fetchcontent_symlink_component_is_rejected(
         include.rename(target)
         include.symlink_to(target, target_is_directory=True)
         current = root
-    else:
-        target = base_b / "masstree-real"
-        root.rename(target)
-        root.symlink_to(target, target_is_directory=True)
-        current = root
     with pytest.raises(compiler_input.CompilerInputError, match="symlink|canonical"):
         compiler_input.validate_compiler_input_manifest(
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot,
             current_fetchcontent_masstree_root=current,
+        )
+
+
+def test_symlink_spelled_root_collects_and_validates_identically(tmp_path):
+    snapshot, build = _fixture(tmp_path)
+    alias = tmp_path / "snapshot-link"
+    alias.symlink_to(snapshot, target_is_directory=True)
+
+    canonical = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET,
+    )
+    through_alias = compiler_input.collect_compiler_input_manifest(
+        build, alias, target=TARGET,
+    )
+
+    assert through_alias == canonical
+    assert compiler_input.validate_compiler_input_manifest(
+        through_alias.manifest, through_alias.manifest_sha256,
+        snapshot_root=alias, target=TARGET,
+    ) == canonical.manifest
+
+
+def test_symlink_component_beneath_root_remains_rejected(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    actual_include = snapshot / "actual-include"
+    actual_include.mkdir()
+    header = actual_include / "unrelated.hh"
+    header.write_bytes(b"#define VALUE 7\n")
+    (snapshot / "include").symlink_to(
+        actual_include, target_is_directory=True,
+    )
+    build = tmp_path / "build"
+    _write_build_shape(
+        build, snapshot, input_path=snapshot / "include" / header.name,
+    )
+
+    with pytest.raises(compiler_input.CompilerInputError, match="symlink component"):
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET,
         )
 
 
@@ -487,6 +584,33 @@ def test_v2_unknown_fetchcontent_root_is_not_classified_as_filesystem(tmp_path):
             origin_fetchcontent_masstree_root=masstree,
             current_fetchcontent_masstree_root=masstree,
         )
+
+
+def test_double_slash_unknown_fetchcontent_root_is_compiler_input_error(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    base = tmp_path / "fetchcontent"
+    masstree = base / "masstree-src"
+    masstree.mkdir(parents=True)
+    unknown = base / "mimalloc-src" / "include" / "mimalloc.h"
+    unknown.parent.mkdir(parents=True)
+    unknown.write_bytes(b"unknown fetchcontent\n")
+    build = tmp_path / "build"
+    double_slash_unknown = Path(f"/{unknown}")
+    assert str(double_slash_unknown) == f"/{unknown}"
+    _write_build_shape(
+        build, snapshot, input_path=double_slash_unknown,
+    )
+
+    with pytest.raises(
+            compiler_input.CompilerInputError,
+            match="unsupported FetchContent") as caught:
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET, allow_external_inputs=True,
+            origin_fetchcontent_masstree_root=masstree,
+            current_fetchcontent_masstree_root=masstree,
+        )
+    assert type(caught.value) is compiler_input.CompilerInputError
 
 
 def test_external_input_bytes_drift_is_rejected_by_validator(tmp_path):
