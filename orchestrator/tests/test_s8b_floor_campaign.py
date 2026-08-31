@@ -33,6 +33,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from collections import Counter
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from unittest import mock
