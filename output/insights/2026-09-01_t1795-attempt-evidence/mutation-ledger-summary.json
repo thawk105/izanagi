@@ -1,0 +1,156 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "repo_head": "bf0ac886c17590e896b7a557d3709d437225dc9b",
+  "spec_sha256": "7437bc9b7a2fd7cae7d678204c53dc0c5b68a16292efc9ea1791c013217ee14d",
+  "runner_sha256": "69874dbb8995c85939f44024949fef978413490d5512e2b66f1db0708391bcaa",
+  "tool_sha256": "61d07ff3fe7258252807820fa0067878bab623459b1481963a68c1654d35a7bc",
+  "baseline_status": "PASSED",
+  "baseline_rc": 0,
+  "summary": {
+    "KILLED": 14,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 14,
+    "recorded": 14,
+    "registered": 14
+  },
+  "mutations": [
+    {
+      "id": "m01-site-condition",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m1_non_compute_hostname_is_rejected_by_real_site_classifier"
+      ]
+    },
+    {
+      "id": "m02-marker-absence-passthrough",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m2_missing_marker_is_rejected_on_compute",
+        "orchestrator/tests/test_mutation_worktree.py::test_m2_wrapper_local_attempt_without_marker_is_rejected_before_preflight",
+        "orchestrator/tests/test_mutation_harness.py::test_m2_direct_harness_local_attempt_without_marker_is_rejected"
+      ]
+    },
+    {
+      "id": "m03-pbs-jobid-crosscheck",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m3_pbs_job_id_mismatch_is_rejected"
+      ]
+    },
+    {
+      "id": "m04-binding-marker-hostname",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_binding_and_compute_marker_hostname_mismatch_is_rejected"
+      ]
+    },
+    {
+      "id": "m05-current-hostname",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m4_current_hostname_mismatch_is_rejected"
+      ]
+    },
+    {
+      "id": "m06-request-sha256",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m5_request_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_mutation_harness.py::test_direct_harness_forged_marker_is_rejected_before_lock"
+      ]
+    },
+    {
+      "id": "m07-dispatch-root-containment",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m6_submission_outside_dispatch_root_is_rejected"
+      ]
+    },
+    {
+      "id": "m08-exact-keys-extra-side",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m8_binding_requires_exact_keys[extra]",
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_m8_compute_marker_requires_exact_keys[extra]"
+      ]
+    },
+    {
+      "id": "m09-binding-schema",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_binding_schema_version_mismatch_is_rejected"
+      ]
+    },
+    {
+      "id": "m10-compute-marker-schema",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_attempt_marker.py::test_compute_marker_schema_version_mismatch_is_rejected"
+      ]
+    },
+    {
+      "id": "m11-mint-task-guard",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m9_non_mutation_children_never_receive_marker[provenance-args1]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m9_non_mutation_children_never_receive_marker[tests-args0]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m9_non_mutation_children_never_receive_marker[generic-args2]"
+      ]
+    },
+    {
+      "id": "m12-mint-removal",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_m10_mutation_child_receives_compute_minted_marker_only"
+      ]
+    },
+    {
+      "id": "m13-local-authorization-record",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_m11_m12_direct_harness_local_attempt_persists_authorization_and_schema",
+        "orchestrator/tests/test_mutation_worktree.py::test_m11_m12_wrapper_real_harness_local_attempt_persists_authorization"
+      ]
+    },
+    {
+      "id": "m14-local-schema-value",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_m11_m12_direct_harness_local_attempt_persists_authorization_and_schema",
+        "orchestrator/tests/test_mutation_worktree.py::test_m11_m12_wrapper_real_harness_local_attempt_persists_authorization"
+      ]
+    }
+  ]
+}

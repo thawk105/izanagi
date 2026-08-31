@@ -1,0 +1,53 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-09-01
+wave: dev-wave-t1795-attempt-evidence
+seq: 1
+title: [T-1795] D965 に従い attempt 対応の永続証拠を二重条件で成立させた (code + tests + insight、branch worktree-dev-wave-t1795-attempt-evidence、変異 14/14 KILLED、束ね経路の実機試走で証拠を実測)
+---
+
+## 本文
+
+- **D952 が「束ね経路では成立しない」と書いた attempt 対応の永続証拠を、実機で成立させた。**
+  束ね経路 (`--task mutation`) を計算ノードへ 1 回投入し、collection + baseline + 変異 1 件を
+  完走させて sidecar を得た。sidecar は `izanagi-dev-wave-mutation-attempts-local/v1` を名乗り、
+  root の `local_authorization` に実 job の値 (bnode084、`0:963533.nqsv`、submission dir、
+  request SHA-256) を持つ。設計は {{D:local-attempt-marker-admission}}。
+- **記録から外側 job へ機械的に到達できることを実物で確かめた。** sidecar の `submission_dir` から
+  `request.json` と `compute-visible.json` を読み、request SHA・PBS job ID・hostname が
+  記録と一致し、外側 request の `task` が `mutation` であり、受領証の request_id が
+  記録の job ID に対応することを確認した。**これが「attempt 対応」の実体である。**
+- **敵対検査 2 本と親の実測が、独立に同じ穴へ到達した。** 計算ノード判定の変異が後段の
+  hostname 照合に隠れて帰属しない件で、段 6 レビュー B と親が別々に到達した。負例の
+  hostname を 3 か所すべて非 compute の同一値へ揃えて再照準し、本走で当該変異が
+  ちょうど 1 件のテストで検出されることを確認した。**再照準しなければ「診断文字列だけの赤」を
+  kill と誤記録していた。**
+- **裁定になかった防御を 2 つ削った。** pytest 子への marker 非伝播と、証拠 file の読取前後
+  fstat 比較である。どちらも射程内の攻撃経路を名指しできず、無効化しても落ちるテストが無かった。
+  ユーザーの「仮想リスク向けの gate・検査の追加は scope 外」に従った。symlink 非追跡と
+  通常 file 判定は既存作法なので残した。
+- **テストが基盤の遮断口を迂回していた。** 新 leaf が自前で socket を import して hostname を
+  読んでいたため、機械の素性を無効化する既存の autouse fixture が効かず、実ノード名と比較して
+  6 件が赤になった。素性の取得を唯一の正本へ寄せて解消し、重複していた helper も消えた。
+  **実装の論理は正しく、素性の取得口だけが違っていた。**
+- **同じ焦点走がログインノードと計算ノードで別の結果を出した。** 信号処理系 5 件は
+  ログインノードでは wrapper 子が即中断して必ず落ち、計算ノードでは通る。main 単独の
+  probe worktree でも同じ 5 件が同じ形で落ちたので非帰属と判定した。
+- **変異本走は共有木の事後検査で 1 度落ちた。** 走行中に別 wave の land で main が進んだためで、
+  自分の走行が原因ではない。観測 root には共有 main checkout が入るので、
+  **独立 clone を source にして取り直し**、rc=0 で成立させた。1 回目の結果も消さず残している。
+- 起動条件で 3 度止まった (変異の category が閉集合外、runner entrypoint を絶対 path で指定、
+  試走 spec の category)。**いずれも道具が起動前に fail-closed で止めたもので、変異は 1 件も
+  走っていない。** 束ね経路が 3 回目で通るのは worklog 977 と同型である。
+- 本 session では待ち手と Monitor の完了報告が繰り返し先行し、1 度は報告時刻が実時刻より
+  15 分先だった。完了判定は完了マーカーの非空・期待成果物の実在・process の生死の 3 点で行った。
+
+## 次の一手差分
+
+### 完了
+
+- [T-1795] D965 の設計を実装し、束ね経路の実機試走で attempt 対応の永続証拠を実測した。
+  変異 14/14 KILLED、焦点走 491 passed。scope 外とした 4 件は本文と {{D:local-attempt-marker-admission}} に明記した。
+  remaining: none
+  base: d474c3764359b46178517b6c3dc56be32b36ab3e792e3f720062046de004118d

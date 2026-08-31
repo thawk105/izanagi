@@ -1,0 +1,60 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "0654538959bcd84e72191e8926a3c903470d4077bf56826a651576fbdd857f2c",
+      "finished_at": "2026-08-31T18:32:03.621256+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": null,
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-08-31T18:32:02.378557+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "8b40823fd6ac7f3776589ebe87e0d00c9d7428174ac6e415ea579e2bee06171f",
+      "finished_at": "2026-08-31T18:32:15.302954+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": null,
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-08-31T18:32:05.961527+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "da2e4f19a48b58737994008b89eee116f07874a4e3ac53e1deeca9489c339989",
+      "finished_at": "2026-08-31T18:32:27.041333+00:00",
+      "mutation_id": "dogfood-spool-fold-filename-gate",
+      "phase": "mutation",
+      "rc": 1,
+      "request": null,
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-08-31T18:32:17.630435+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    }
+  ],
+  "expected_initial_requests": 3,
+  "local_authorization": {
+    "dispatch_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1795-attempt-evidence/output/pegasus-dispatch",
+    "hostname": "bnode084",
+    "pbs_jobid": "0:963533.nqsv",
+    "request_sha256": "b37d25993dd13ae454ebc326331dd0ef5bd5cc88f499a43ddf0c10bf087c593d",
+    "schema_version": "izanagi-dev-wave-mutation-attempt-marker/v1",
+    "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1795-attempt-evidence/output/pegasus-dispatch/c82b246f994cadda917f734d50b88f13"
+  },
+  "repo_head": "bf0ac886c17590e896b7a557d3709d437225dc9b",
+  "runner_sha256": "83a01711c0baef4f8791851a4a3ac6efe3a3786f14b8e7f2dd5fd049a39a90be",
+  "schema": "izanagi-dev-wave-mutation-attempts-local/v1",
+  "spec_sha256": "7056bef7fcf6ac42c5db510efcef7ddc4d314d11b5109759fc35af0403235460",
+  "tool_sha256": "ca2ff2e3b7a5d579d0cf45794ad2a2addff7ef697fb3ce6bbee2d5fcda568ca5"
+}
