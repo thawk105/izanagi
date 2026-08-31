@@ -142,11 +142,6 @@ _CERTIFIED_RERUN_DIR = (
     / "run-outputs"
 )
 _S03_SHA = "393df3429fff61bb87d45350237a55ea3346ff9cbad0f7042eeb9ebf859b33ce"
-_REAL_ROLLOUT = (
-    _HISTORICAL_SESSIONS
-    / "2026/07/29/"
-    "rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl"
-)
 _REAL_TOKEN_SLICE = (
     '{"timestamp":"2026-07-29T06:49:36.776Z","type":"event_msg","payload":'
     '{"type":"token_count","info":{"total_token_usage":{"input_tokens":17295,'
@@ -784,10 +779,150 @@ def _schedule(
     ), slots
 
 
+def _required_historical_rollout_pins(
+    task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
+) -> dict[str, tuple[str, str]]:
+    pins = {
+        task["legacy_case"]: (
+            task["provenance"]["session_id"],
+            task["provenance"]["rollout_sha256"],
+        )
+        for task in task_manifest["tasks"].values()
+    }
+    pins.update(
+        {
+            label: (row["session_id"], row["rollout_sha256"])
+            for label, row in task_manifest["shared_provenance"][
+                "auxiliary_sessions"
+            ].items()
+        }
+    )
+    return pins
+
+
+def _matching_required_session_ids(
+    path: Path,
+    target_session_ids: set[str],
+) -> set[str]:
+    state = {
+        session_id: {
+            "owns": False,
+            "first_owns": False,
+            "declares": False,
+            "saw_determinable": False,
+        }
+        for session_id in target_session_ids
+    }
+    for row in TOOL._session_meta_rows(path):
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        own_candidate = (
+            payload.get("session_id")
+            if "id" not in payload
+            else payload.get("id")
+        )
+        own_session_id = (
+            own_candidate
+            if isinstance(own_candidate, str) and own_candidate
+            else None
+        )
+        if own_session_id is None:
+            continue
+        for target_session_id, target_state in state.items():
+            if own_session_id == target_session_id:
+                target_state["owns"] = True
+                if not target_state["saw_determinable"]:
+                    target_state["first_owns"] = True
+            target_state["saw_determinable"] = True
+            if (
+                own_session_id != target_session_id
+                and payload.get("session_id") == target_session_id
+            ):
+                target_state["declares"] = True
+    return {
+        session_id
+        for session_id, target_state in state.items()
+        if target_state["owns"]
+        and (target_state["first_owns"] or not target_state["declares"])
+    }
+
+
+def _resolve_required_historical_rollouts(
+    sessions_root: Path,
+    *,
+    pins: dict[str, tuple[str, str]] | None = None,
+) -> tuple[dict[str, Path], tuple[str, ...]]:
+    required = (
+        pins if pins is not None else _required_historical_rollout_pins()
+    )
+    matches: dict[str, list[Path]] = {label: [] for label in required}
+    named_candidates: dict[str, list[Path]] = {
+        label: [] for label in required
+    }
+    labels_by_session = {
+        session_id: label for label, (session_id, _) in required.items()
+    }
+    target_session_ids = set(labels_by_session)
+    for path in sorted(sessions_root.rglob("rollout-*.jsonl"), key=os.fspath):
+        for label, (session_id, _) in required.items():
+            if path.name.endswith(f"-{session_id}.jsonl"):
+                named_candidates[label].append(path)
+        for session_id in _matching_required_session_ids(
+            path, target_session_ids
+        ):
+            matches[labels_by_session[session_id]].append(path.resolve())
+
+    resolved: dict[str, Path] = {}
+    missing: list[str] = []
+    for label, (session_id, expected_sha256) in required.items():
+        candidates = matches[label]
+        if not candidates and not named_candidates[label]:
+            missing.append(label)
+            continue
+        if len(candidates) != 1:
+            raise TOOL.ValidationError(
+                f"session {session_id} rollout count is "
+                f"{len(candidates)}, expected 1",
+                TOOL.RC_SESSION,
+            )
+        rollout = candidates[0]
+        TOOL._verify_rollout_sha(
+            rollout,
+            label,
+            expected_sha256=expected_sha256,
+        )
+        resolved[label] = rollout
+    return resolved, tuple(missing)
+
+
+def _require_historical_rollouts(
+    sessions_root: Path,
+    *,
+    pins: dict[str, tuple[str, str]] | None = None,
+) -> dict[str, Path]:
+    resolved, missing = _resolve_required_historical_rollouts(
+        sessions_root,
+        pins=pins,
+    )
+    if missing:
+        pytest.skip(
+            "historical rollouts unavailable; expired session labels: "
+            + ", ".join(missing)
+        )
+    return resolved
+
+
 @pytest.fixture(scope="module")
-def benchmark_snapshots(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
-    if not _HISTORICAL_SESSIONS.is_dir():
-        pytest.skip("historical rollout root is unavailable")
+def historical_rollouts() -> dict[str, Path]:
+    return _require_historical_rollouts(_HISTORICAL_SESSIONS)
+
+
+@pytest.fixture(scope="module")
+def historical_benchmark_snapshots(
+    historical_rollouts: dict[str, Path],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, Any]:
     root = tmp_path_factory.mktemp("t181-benchmark")
     base = root / "base"
     destinations = {case: root / case.lower() for case in ("POS", "NEG")}
@@ -834,6 +969,195 @@ def benchmark_snapshots(tmp_path_factory: pytest.TempPathFactory) -> dict[str, A
             "prompt_receipt": prompt_receipt,
         }
     return result
+
+
+@pytest.fixture(scope="module")
+def benchmark_snapshots(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, Any]:
+    root = tmp_path_factory.mktemp("t181-portable-benchmark")
+    base = root / "base"
+    TOOL._build_snapshot_base(_ROOT, base)
+    base_manifests = {"initial": TOOL._metadata_manifest(base)}
+    result: dict[str, Any] = {
+        "root": root,
+        "_base": base,
+        "_base_manifests": base_manifests,
+    }
+    for case in ("POS", "NEG"):
+        snapshot = root / case.lower()
+        TOOL._preflight_snapshot_relocation(base)
+        shutil.copytree(
+            base,
+            snapshot,
+            symlinks=True,
+            copy_function=shutil.copy2,
+        )
+        TOOL._preflight_snapshot_relocation(snapshot)
+        for name in TOOL.CASE_ARTIFACTS[case]:
+            relative = f"{TOOL.ARTIFACT_DIR}/{name}"
+            target = snapshot / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(
+                TOOL._git(
+                    _ROOT,
+                    "show",
+                    f"{TOOL.ARTIFACT_COMMIT}:{relative}",
+                )
+            )
+            target.chmod(0o644)
+        spec = copy.deepcopy(TOOL._snapshot_spec(case))
+        if case == "POS":
+            for relative in TOOL.PATCH_PATHS:
+                spec["hashes"][relative] = TOOL.CASE_HASHES["NEG"][
+                    relative
+                ]
+            spec["numstat"] = [
+                list(row) for row in TOOL.CASE_NUMSTAT["NEG"]
+            ]
+        oracle = TOOL.verify_snapshot(snapshot, case, spec=spec)
+        oracle_path = _canonical(root / f"{case.lower()}-oracle.json", oracle)
+        prompt_path = root / f"{case.lower()}-prompt.txt"
+        prompt_path.write_text(
+            f"portable {case} benchmark prompt\n",
+            encoding="utf-8",
+        )
+        result[case] = {
+            "snapshot": snapshot,
+            "oracle": oracle_path,
+            "oracle_value": oracle,
+            "prompt": prompt_path,
+            "prompt_receipt": None,
+            "spec": spec,
+        }
+        base_manifests[f"after_{case.lower()}"] = TOOL._metadata_manifest(
+            base
+        )
+    return result
+
+
+def _verify_benchmark_snapshot(
+    benchmark: dict[str, Any],
+    snapshot: Path,
+    case: str,
+    *,
+    spec: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return TOOL.verify_snapshot(
+        snapshot,
+        case,
+        spec=(benchmark[case]["spec"] if spec is None else spec),
+    )
+
+
+def _install_benchmark_snapshot_verifier(
+    benchmark: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = TOOL.verify_snapshot
+
+    def verify(
+        snapshot: Path,
+        case: str,
+        *,
+        spec: dict[str, Any] | None = None,
+        task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
+    ) -> dict[str, Any]:
+        selected_spec = spec
+        if selected_spec is None and case in benchmark:
+            selected_spec = benchmark[case]["spec"]
+        return original(
+            snapshot,
+            case,
+            spec=selected_spec,
+            task_manifest=task_manifest,
+        )
+
+    monkeypatch.setattr(TOOL, "verify_snapshot", verify)
+
+
+def _synthetic_historical_pin(
+    label: str,
+    session_id: str,
+    content: bytes,
+) -> dict[str, tuple[str, str]]:
+    return {
+        label: (session_id, hashlib.sha256(content).hexdigest()),
+    }
+
+
+def test_historical_rollout_preflight_skips_missing_label(
+    tmp_path: Path,
+) -> None:
+    label = "author"
+    session_id = "missing-author-session"
+    content = _session_meta_bytes(session_id)
+
+    with pytest.raises(pytest.skip.Exception, match=label):
+        _require_historical_rollouts(
+            tmp_path,
+            pins=_synthetic_historical_pin(label, session_id, content),
+        )
+
+
+def test_require_historical_rollouts_skips_with_expired_label_reason(
+    tmp_path: Path,
+) -> None:
+    label = "expired-author"
+    session_id = "expired-author-session"
+    content = _session_meta_bytes(session_id)
+
+    with pytest.raises(pytest.skip.Exception) as caught:
+        _require_historical_rollouts(
+            tmp_path,
+            pins=_synthetic_historical_pin(label, session_id, content),
+        )
+    assert label in str(caught.value)
+
+
+def test_historical_rollout_preflight_duplicate_is_red(
+    tmp_path: Path,
+) -> None:
+    label = "fix1"
+    session_id = "duplicate-fix1-session"
+    content = _session_meta_bytes(session_id)
+    for branch in ("first", "second"):
+        _write_rollout(
+            tmp_path / branch / f"rollout-{branch}-{session_id}.jsonl",
+            content,
+        )
+
+    with pytest.raises(
+        TOOL.ValidationError,
+        match=f"session {session_id} rollout count is 2, expected 1",
+    ) as caught:
+        _resolve_required_historical_rollouts(
+            tmp_path,
+            pins=_synthetic_historical_pin(label, session_id, content),
+        )
+    assert caught.value.rc == TOOL.RC_SESSION
+
+
+def test_historical_rollout_preflight_sha_mismatch_is_red(
+    tmp_path: Path,
+) -> None:
+    label = "POS"
+    session_id = "corrupt-pos-session"
+    content = _session_meta_bytes(session_id)
+    _write_rollout(
+        tmp_path / f"rollout-corrupt-{session_id}.jsonl",
+        content + b"corrupt\n",
+    )
+
+    with pytest.raises(
+        TOOL.ValidationError,
+        match="POS rollout sha mismatch",
+    ) as caught:
+        _resolve_required_historical_rollouts(
+            tmp_path,
+            pins=_synthetic_historical_pin(label, session_id, content),
+        )
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
 
 
 def _manual_run(
@@ -1112,6 +1436,7 @@ def _collect_manual_run(
 def _supervisor_pair(
     root: Path, benchmark: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> tuple[dict[str, Any], Path, list[dict[str, Any]]]:
+    _install_benchmark_snapshot_verifier(benchmark, monkeypatch)
     schedule_path, slots = _schedule(root / "schedule-source.json", benchmark)
     config = root / "config-source.toml"
     auth = root / "auth-source.json"
@@ -1517,6 +1842,7 @@ def _full_manifest(
     *,
     memoize_construction_snapshots: bool = False,
 ) -> tuple[Path, Path]:
+    _install_benchmark_snapshot_verifier(benchmark, monkeypatch)
     schedule_source, slots = _schedule(root / "schedule-source.json", benchmark)
     run_root = root / "run-root"
     config = root / "config-source.toml"
@@ -1955,10 +2281,14 @@ def test_schedule_normalizers_reject_malformed_manifest(
 
 
 def test_parent_numstat_controls_remain_pinned(
-    benchmark_snapshots: dict[str, Any],
+    historical_benchmark_snapshots: dict[str, Any],
 ) -> None:
-    pos = TOOL.verify_snapshot(benchmark_snapshots["POS"]["snapshot"], "POS")
-    neg = TOOL.verify_snapshot(benchmark_snapshots["NEG"]["snapshot"], "NEG")
+    pos = TOOL.verify_snapshot(
+        historical_benchmark_snapshots["POS"]["snapshot"], "POS"
+    )
+    neg = TOOL.verify_snapshot(
+        historical_benchmark_snapshots["NEG"]["snapshot"], "NEG"
+    )
     assert next(row for row in pos["numstat"] if row[2].endswith("test_check_ai_provenance.py"))[:2] == [693, 0]
     assert next(row for row in pos["numstat"] if row[2].endswith("check_ai_provenance.py") and not row[2].startswith("orchestrator"))[:2] == [123, 10]
     assert next(row for row in neg["numstat"] if row[2].endswith("test_check_ai_provenance.py"))[:2] == [764, 0]
@@ -2135,7 +2465,9 @@ def test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure(
 ) -> None:
     for case in ("POS", "NEG"):
         snapshot = benchmark_snapshots[case]["snapshot"]
-        oracle = TOOL.verify_snapshot(snapshot, case)
+        oracle = _verify_benchmark_snapshot(
+            benchmark_snapshots, snapshot, case
+        )
         repositories = oracle["git_object_closure"]["repositories"]
         assert repositories
         for repository in repositories:
@@ -2463,7 +2795,9 @@ def test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested
     assert commit_graph["verify_returncode"] != 0
     assert commit_graph["paths"]
     with pytest.raises(TOOL.ValidationError) as caught:
-        TOOL.verify_snapshot(snapshot, "POS")
+        _verify_benchmark_snapshot(
+            benchmark_snapshots, snapshot, "POS"
+        )
     assert any(
         "git commit-graph verify exited" in reason
         for reason in caught.value.reasons
@@ -3119,13 +3453,19 @@ def test_git_fsck_worker_uses_run_subprocess_environment_contract(
 def test_m1_snapshot_head_pin_is_independent(
     benchmark_snapshots: dict[str, Any],
 ) -> None:
-    spec = copy.deepcopy(TOOL._snapshot_spec("POS"))
+    spec = copy.deepcopy(benchmark_snapshots["POS"]["spec"])
     spec["head"] = "0" * 40
     with pytest.raises(TOOL.ValidationError, match="HEAD mismatch"):
-        TOOL.verify_snapshot(benchmark_snapshots["POS"]["snapshot"], "POS", spec=spec)
+        _verify_benchmark_snapshot(
+            benchmark_snapshots,
+            benchmark_snapshots["POS"]["snapshot"],
+            "POS",
+            spec=spec,
+        )
 
 
 def test_m2_production_golden_requires_both_routes(
+    historical_rollouts: dict[str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     called = False
@@ -3153,7 +3493,9 @@ def test_m3_snapshot_mode_change(
         target = snapshot / TOOL.TRACKED_PATHS[0]
         target.chmod(0o600)
         with pytest.raises(TOOL.ValidationError, match="st_mode mismatch"):
-            TOOL.verify_snapshot(snapshot, case)
+            _verify_benchmark_snapshot(
+                benchmark_snapshots, snapshot, case
+            )
 
 
 def test_m3_symbolic_head_is_required(
@@ -3163,7 +3505,9 @@ def test_m3_symbolic_head_is_required(
     shutil.copytree(benchmark_snapshots["POS"]["snapshot"], snapshot)
     (snapshot / ".git/HEAD").write_text(TOOL.BASE_COMMIT + "\n", encoding="ascii")
     with pytest.raises(TOOL.ValidationError, match="symbolic HEAD mismatch"):
-        TOOL.verify_snapshot(snapshot, "POS")
+        _verify_benchmark_snapshot(
+            benchmark_snapshots, snapshot, "POS"
+        )
 
 
 def test_m3_ignored_extra_and_missing(
@@ -3176,7 +3520,9 @@ def test_m3_ignored_extra_and_missing(
         with (extra_snapshot / ".git/info/exclude").open("a", encoding="utf-8") as stream:
             stream.write("\n.answer-cache\n")
         with pytest.raises(TOOL.ValidationError, match="filesystem allowlist has extra"):
-            TOOL.verify_snapshot(extra_snapshot, case)
+            _verify_benchmark_snapshot(
+                benchmark_snapshots, extra_snapshot, case
+            )
         missing_snapshot = tmp_path / f"missing-{case.lower()}"
         shutil.copytree(benchmark_snapshots[case]["snapshot"], missing_snapshot)
         missing_relative = (
@@ -3186,7 +3532,9 @@ def test_m3_ignored_extra_and_missing(
         )
         (missing_snapshot / missing_relative).unlink()
         with pytest.raises(TOOL.ValidationError, match="missing"):
-            TOOL.verify_snapshot(missing_snapshot, case)
+            _verify_benchmark_snapshot(
+                benchmark_snapshots, missing_snapshot, case
+            )
 
 
 @pytest.mark.parametrize(
@@ -3205,7 +3553,9 @@ def test_m3_focus_artifact_directions(
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("forbidden", encoding="utf-8")
     with pytest.raises(TOOL.ValidationError, match="forbidden focus artifact"):
-        TOOL.verify_snapshot(snapshot, case)
+        _verify_benchmark_snapshot(
+            benchmark_snapshots, snapshot, case
+        )
 
 
 def test_snapshot_submodule_object_store_is_recursive(
@@ -3226,7 +3576,9 @@ def test_snapshot_submodule_object_store_is_recursive(
         symlinks=True,
         copy_function=shutil.copy2,
     )
-    clean_oracle = TOOL.verify_snapshot(snapshot, "POS")
+    clean_oracle = _verify_benchmark_snapshot(
+        benchmark_snapshots, snapshot, "POS"
+    )
     assert clean_oracle["case"] == "POS"
     assert _index_semantics(snapshot) == base_index
     submodules = TOOL._submodule_repositories(snapshot)
@@ -3237,7 +3589,9 @@ def test_snapshot_submodule_object_store_is_recursive(
     head = TOOL._git(submodules[0], "rev-parse", "HEAD").decode().strip()
     grafts.write_text(head + "\n")
     with pytest.raises(TOOL.ValidationError, match="grafts closure"):
-        TOOL.verify_snapshot(snapshot, "POS")
+        _verify_benchmark_snapshot(
+            benchmark_snapshots, snapshot, "POS"
+        )
 
 
 def test_ls_files_never_combines_stage_and_recurse_submodules() -> None:
@@ -7148,7 +7502,9 @@ def test_git_answer_object_reinjection_is_rejected(
         capture_output=True,
     )
     with pytest.raises(TOOL.ValidationError, match="forbidden git object"):
-        TOOL.verify_snapshot(snapshot, "NEG")
+        _verify_benchmark_snapshot(
+            benchmark_snapshots, snapshot, "NEG"
+        )
 
 
 def test_find_rollout_session_meta_encoding_and_payload_identity_semantics(
@@ -8575,10 +8931,11 @@ def test_m20_render_prompt_binds_external_task_manifest(
 @pytest.mark.parametrize("replacement_count", [0, 9, 10])
 def test_prompt_replacement_count_zero_expected_and_excess(
     replacement_count: int,
+    historical_rollouts: dict[str, Path],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    source_rollout = _REAL_ROLLOUT
+    source_rollout = historical_rollouts["POS"]
     TOOL._verify_rollout_sha(source_rollout, "POS")
     canonical_message = TOOL.extract_user_message(source_rollout)
     if replacement_count == 0:
@@ -8608,12 +8965,17 @@ def test_prompt_replacement_count_zero_expected_and_excess(
             )
 
 
-def test_real_rollout_collector_golden_is_source_bound() -> None:
+def test_real_rollout_collector_golden_is_source_bound(
+    historical_rollouts: dict[str, Path],
+) -> None:
+    real_rollout = historical_rollouts["POS"]
     assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
-        _REAL_ROLLOUT.read_bytes()
+        real_rollout.read_bytes()
     ).hexdigest()
     assert hashlib.sha256(_REAL_TOKEN_SLICE.encode()).hexdigest() == _REAL_TOKEN_SLICE_SHA
-    source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(keepends=True)[15]
+    source_line = real_rollout.read_text(encoding="utf-8").splitlines(
+        keepends=True
+    )[15]
     assert source_line == _REAL_TOKEN_SLICE
     payload = json.loads(_REAL_TOKEN_SLICE)["payload"]["info"]["total_token_usage"]
     validated, issues, cached_exceeds_input = TOOL.LEDGER._validated_usage(
@@ -11959,8 +12321,13 @@ def test_pair_one_sided_retry_is_rejected(tmp_path: Path) -> None:
 
 
 def test_attempt_four_is_rejected_before_launch(
-    tmp_path: Path, benchmark_snapshots: dict[str, Any]
+    tmp_path: Path,
+    benchmark_snapshots: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_benchmark_snapshot_verifier(
+        benchmark_snapshots, monkeypatch
+    )
     schedule_path, _ = _schedule(tmp_path / "schedule.json", benchmark_snapshots)
     with pytest.raises(TOOL.ValidationError, match="attempt must be in 1..3"):
         TOOL.supervise_pair(
@@ -11983,6 +12350,9 @@ def test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation(
     benchmark_snapshots: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_benchmark_snapshot_verifier(
+        benchmark_snapshots, monkeypatch
+    )
     schedule_path, slots = _schedule(
         tmp_path / "schedule.json", benchmark_snapshots
     )
