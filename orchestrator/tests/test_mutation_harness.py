@@ -312,6 +312,9 @@ def _argv(
     *,
     resume: bool = False,
     expected_spec_sha256: str | None = None,
+    runner_mode: str = "local",
+    attempt_out: Path | None = None,
+    wrapper_attempt: int = 1,
 ) -> list[str]:
     os.environ["IZANAGI_MUTATION_TEST_CALLS"] = str(calls)
     os.environ["IZANAGI_MUTATION_TEST_MODE"] = (
@@ -327,9 +330,18 @@ def _argv(
         "--out",
         str(out),
         "--runner-mode",
-        "local",
+        runner_mode,
         "--detached",
     ]
+    if attempt_out is not None:
+        args.extend(
+            [
+                "--attempt-out",
+                str(attempt_out),
+                "--wrapper-attempt",
+                str(wrapper_attempt),
+            ]
+        )
     if resume:
         args.append("--resume")
     args.extend(
@@ -352,6 +364,45 @@ def _single_spec(path: Path) -> None:
 
 def _calls(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
+
+def _install_local_attempt_marker(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> dict[str, str]:
+    from tools.pegasus import dispatch_compute
+
+    dispatch_root = root / "dispatch-root"
+    submission = dispatch_root / "submission"
+    submission.mkdir(parents=True)
+    request = submission / "request.json"
+    request.write_bytes(b'{"task":"mutation"}\n')
+    (submission / MH.mutation_attempt_marker.COMPUTE_MARKER_NAME).write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-compute-visible/v1",
+                "pbs_jobid": "0:424242.nqsv",
+                "hostname": "bnode114.example",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    binding = MH.mutation_attempt_marker.build_binding(
+        dispatch_root=dispatch_root,
+        submission_dir=submission,
+        pbs_jobid="0:424242.nqsv",
+        hostname="bnode114.example",
+        request_sha256=hashlib.sha256(request.read_bytes()).hexdigest(),
+        is_regular_pbs_jobid=dispatch_compute._is_regular_pbs_jobid,
+    )
+    monkeypatch.setenv(
+        MH.mutation_attempt_marker.MARKER_ENV,
+        MH.mutation_attempt_marker.encode_binding(binding),
+    )
+    monkeypatch.setattr(MH.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MH.site_policy.socket, "gethostname", lambda: "bnode114")
+    return binding
 
 
 @pytest.mark.parametrize(
@@ -455,6 +506,158 @@ def test_dispatch_mode_does_not_consult_local_site_gate(
     with pytest.raises(MH.HarnessError, match="未知の spec schema"):
         MH.main(argv)
     assert not calls.exists()
+
+
+def test_i2_dispatch_attempt_does_not_call_local_marker_validator(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "dispatch-attempts.json"
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["schema"] = "izanagi-dev-wave-mutation-spec/v999"
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        MH.mutation_attempt_marker,
+        "require_local_attempt_marker",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("dispatch mode で marker validator を呼んだ")
+        ),
+    )
+
+    with pytest.raises(MH.HarnessError, match="未知の spec schema"):
+        MH.main(
+            _argv(
+                repo,
+                spec,
+                out,
+                calls,
+                mode,
+                runner_mode="dispatch",
+                attempt_out=attempts,
+            )
+        )
+    assert not attempts.exists()
+
+
+def test_i3_local_without_attempt_does_not_call_marker_validator(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    monkeypatch.setattr(
+        MH.mutation_attempt_marker,
+        "require_local_attempt_marker",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("attempt 無し local で marker validator を呼んだ")
+        ),
+    )
+    argv = _argv(repo, spec, out, calls, mode)
+    argv.insert(argv.index("--"), "--plan-only")
+
+    assert MH.main(argv) == 0
+    assert not calls.exists()
+
+
+def test_m2_direct_harness_local_attempt_without_marker_is_rejected(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "attempts.json"
+    monkeypatch.setattr(MH.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MH.site_policy.socket, "gethostname", lambda: "bnode114")
+    monkeypatch.delenv(MH.mutation_attempt_marker.MARKER_ENV, raising=False)
+    monkeypatch.setattr(
+        MH,
+        "_lock_for",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("marker 拒否後の lock へ到達した")
+        ),
+    )
+
+    with pytest.raises(MH.HarnessError, match="marker がありません"):
+        MH.main(_argv(repo, spec, out, calls, mode, attempt_out=attempts))
+    assert not attempts.exists()
+
+
+def test_direct_harness_forged_marker_is_rejected_before_lock(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "attempts.json"
+    binding = _install_local_attempt_marker(repo.parent / "marker", monkeypatch)
+    forged = {**binding, "request_sha256": "0" * 64}
+    monkeypatch.setenv(
+        MH.mutation_attempt_marker.MARKER_ENV,
+        MH.mutation_attempt_marker.encode_binding(forged),
+    )
+    monkeypatch.setattr(
+        MH,
+        "_lock_for",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("偽造 marker 拒否後の lock へ到達した")
+        ),
+    )
+
+    with pytest.raises(MH.HarnessError, match="SHA-256.*不一致"):
+        MH.main(_argv(repo, spec, out, calls, mode, attempt_out=attempts))
+    assert not attempts.exists()
+
+
+def test_m11_m12_direct_harness_local_attempt_persists_authorization_and_schema(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "attempts.json"
+    binding = _install_local_attempt_marker(repo.parent / "marker", monkeypatch)
+
+    assert MH.main(_argv(repo, spec, out, calls, mode, attempt_out=attempts)) == 0
+
+    sidecar = json.loads(attempts.read_text(encoding="utf-8"))
+    assert sidecar["schema"] == MH.LOCAL_ATTEMPT_SCHEMA
+    assert sidecar["local_authorization"] == binding
+    assert [entry["phase"] for entry in sidecar["attempts"]] == [
+        "collection",
+        "baseline",
+        "mutation",
+    ]
+    assert all(entry["state"] == "finished" for entry in sidecar["attempts"])
+    assert all(entry["request"] is None for entry in sidecar["attempts"])
+
+    loaded_spec, loaded_sha256 = MH._load_spec(spec)
+    resumed = MH._new_attempt_recorder(
+        attempts,
+        resume=True,
+        wrapper_attempt_ordinal=2,
+        head=sidecar["repo_head"],
+        spec=loaded_spec,
+        spec_sha256=loaded_sha256,
+        runner_sha256=sidecar["runner_sha256"],
+        tool_sha256=sidecar["tool_sha256"],
+        local_authorization=binding,
+    )
+    assert resumed.document["local_authorization"] == binding
+    forged = {**binding, "pbs_jobid": "0:777777.nqsv"}
+    with pytest.raises(MH.HarnessError, match="local_authorization.*不一致"):
+        MH._new_attempt_recorder(
+            attempts,
+            resume=True,
+            wrapper_attempt_ordinal=2,
+            head=sidecar["repo_head"],
+            spec=loaded_spec,
+            spec_sha256=loaded_sha256,
+            runner_sha256=sidecar["runner_sha256"],
+            tool_sha256=sidecar["tool_sha256"],
+            local_authorization=forged,
+        )
 
 
 def _pid_is_alive(pid: int) -> bool:

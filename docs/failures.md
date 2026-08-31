@@ -377,6 +377,58 @@
   「唯一コピーか」の意味判定が必要になるため恒真化リスクがある (D31 と同型の prompt 規律とし、
   再発時に機械化を再検討)
 
+
+- **再発: 2026-09-01** — 揮発領域に唯一コピーがある成果物を、今度は**恒久の検査入力として
+  設計に組み込んだ**。`tools/codex_reasoning_ab.py:196-209` が `~/.codex/sessions` 配下の
+  過去 session 5 件を ID と SHA-256 で pin し、`orchestrator/tests/test_codex_reasoning_ab.py` が
+  後日それを読む。pin 先は全て 2026-07-29 のもので、実測時点で `~/.codex/sessions/2026/07/` が
+  丸ごと存在しない (現存は `2026/08/01` 以降、同 root に rollout は 7138 件)。`~/.codex` 配下に
+  退避も無く復元不能で、並行する 4 セッションが独立に全探索して 0 件だった。結果、受入全走が
+  同 file の 26 node (5 failed + 21 error) で赤になり、現行 main
+  (`24014bdb259d971571f22b54a8f10a49352b825f`) 単独でも同じ内訳が再現した。受入が緑にならない
+  間は `tools/dev_wave_land.py` が受領証を発行せず、**この機体の全 wave が land できなかった**。
+  **本エントリの事象本文は 2026-07-16 時点で既に `~/.codex/sessions` を「探したが不在だった」
+  領域として挙げている。** 非永続だと分かっていた領域を、2 週間後に恒久の gate 入力として pin
+  したことになる。**深刻度は本体より上がっている** — 本体は永続化の判断を次セッションへ
+  繰り延べたものだが、今回は繰り延べですらなく、揮発領域への依存を設計として固定した。
+  **被覆の喪失はこの機体では恒久である。** 会話ログはストレージ上限のため定期的に削除される
+  運用であり (2026-09-01 に中継されたユーザー指示)、同じ pin は今後も落ちる。消えた 26 node は
+  「緑になった」のではなく「実行されていない」。受入 receipt は skip node ID を保持せず red と
+  flake だけを持つため (`tools/dev_wave_land.py:102-130`、`tools/task_runs/pytest_stats.py:18-20`)、
+  総数だけを見ると通ったように読める。**沈黙した件数は本 wave の 2 つの実測で閉じている** —
+  修正前の main 単独 (`24014bdb2`) で当該 file は `5 failed / 598 passed / 2 skipped / 21 errors`
+  (collected 626)、修正後 (`dbdacb666` 取り込み後) は `602 passed / 27 skipped` (collected 629)。
+  **赤 26 件の内訳は 25 件が skip へ落ち、1 件は緑に戻った。** skip の 27 件は
+  その 25 件に、修正前から `IZANAGI_GROWTH_HOLD_V1` で skip されていた 2 件
+  (`test_forbidden_commits_are_unreachable_in_both_cases`、
+  `test_parent_numstat_controls_remain_pinned`) を足したものである。collected の +3 は
+  修正が新設した guard 自身の自己検査で、常時実行される。緑に戻った 1 件は
+  `test_real_rollout_collector_golden_is_source_bound` で、file を読む assert だけが条件化され、
+  token slice の digest 照合と `input_tokens` の断定は無条件で走る。
+  **したがって恒久に沈黙する生きた防壁は 25 件である。** 独立相談が file:line で確認したとおり失われる検出力は
+  実在し、2026-07-29 の実 corpus そのもの、独立 golden 二経路の実 patch 合成、実 prompt の
+  置換数、実 snapshot から完全 replay までの結合被覆に完全な代替は無く、登録済みの
+  M1 / M2 / M3 mutation killer も止まる。合成 fixture 側
+  (`orchestrator/tests/test_codex_reasoning_ab.py:7154-8010`、`:8366-8491`) に部分的な代替はある。
+  当座の対応は別の単独 wave が `b227c23bb` (可用性判定を「根 directory の有無」から
+  「pin された rollout の実在」へ移し、guard を通らない 5 node にも条件を足し、guard 自身の
+  正例・負例を新設) と `267d72d4a` (可用性判定を共有 fixture にしない。module scope の fixture に
+  すると consumer 閉包の登録契約に当たるため helper の直接呼び出しへ戻した) で入れた。
+  **述語が「候補 0 件のときだけ skip」に限定され、存在するのに壊れているものは赤のまま**である
+  ことは、本 wave が commit の内容で確認した — `test_historical_rollout_guard_does_not_hide_sha_mismatch`
+  が SHA 不一致で `ValidationError` を要求し、skip へ倒れないことを固定している。
+  skip の理由文言も `pinned historical rollout is unavailable: <detail>` と不在対象を名指しする。
+  既存 guard が root directory の有無という粗い粒度で実際の依存である特定 5 session を
+  捉えられなかったことが、この再発の直接の穴だった。**本エントリの `再発検知` 欄は「再発時に機械化を再検討」と事前に登録して
+  おり、今回がその再発である。** 結果を見てから条件を作ったのではなく、条件が先に書かれていた。
+  本体が機械 lint を見送った理由は「唯一コピーか」の意味判定が要り恒真化するというものだったが、
+  **今回の型はもっと狭く意味判定を要さない** — 「同一性 (ID や SHA-256) を pin する対象の root が
+  非永続領域か」は静的に判定でき、現行の `_LEGACY_ROLLOUT_SHA256` の pin がそのまま正例として
+  発火するので恒真にもならない。ただし単純な「非永続 path の禁止」へ広げると
+  `tools/codex_worker_ledger.py:153-168` のような正当な走査経路まで拾うので pin との連結が要る。
+  **この機械化は本再発の時点では未実装であり、対応済みとして数えない。** 射程の棚卸しでは、
+  tracked な実行コードと test を `git grep` で走査した範囲に同型の経路は当該 2 file 以外に無く、
+  repo 外・untracked・ignored file は未検査である。
 ### F21. guard_agent の配線を live 発火未検証のまま防壁とした [恒真ゲート] [テスト代表性]
 - 事象: 導入 commit e45db19 時点では runtime の live 発火検証が無く、翌セッション (2026-07-18) の
   実測で、model 未指定の Agent 呼び出しを guard_agent が拒否せず spawn する環境があると判明した。
