@@ -311,6 +311,31 @@ def test_descriptor_policy_hashes_external_input_without_snapshot_membership(
     }
 
 
+def test_double_slash_input_matches_single_slash_manifest_and_digest(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    outside = tmp_path / "system" / "header.hh"
+    outside.parent.mkdir()
+    outside.write_bytes(b"#define SYSTEM_VALUE 9\n")
+    canonical_build = tmp_path / "canonical-build"
+    double_slash_build = tmp_path / "double-slash-build"
+    double_slash_outside = Path(f"/{outside}")
+    assert str(double_slash_outside) == f"/{outside}"
+    _write_build_shape(canonical_build, snapshot, input_path=outside)
+    _write_build_shape(
+        double_slash_build, snapshot, input_path=double_slash_outside,
+    )
+
+    canonical = compiler_input.collect_compiler_input_manifest(
+        canonical_build, snapshot, target=TARGET, allow_external_inputs=True,
+    )
+    double_slash = compiler_input.collect_compiler_input_manifest(
+        double_slash_build, snapshot, target=TARGET, allow_external_inputs=True,
+    )
+
+    assert double_slash == canonical
+
+
 def _fetchcontent_fixture(tmp_path: Path):
     snapshot = tmp_path / "snapshot"
     snapshot.mkdir()
@@ -559,6 +584,33 @@ def test_v2_unknown_fetchcontent_root_is_not_classified_as_filesystem(tmp_path):
             origin_fetchcontent_masstree_root=masstree,
             current_fetchcontent_masstree_root=masstree,
         )
+
+
+def test_double_slash_unknown_fetchcontent_root_is_compiler_input_error(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    base = tmp_path / "fetchcontent"
+    masstree = base / "masstree-src"
+    masstree.mkdir(parents=True)
+    unknown = base / "mimalloc-src" / "include" / "mimalloc.h"
+    unknown.parent.mkdir(parents=True)
+    unknown.write_bytes(b"unknown fetchcontent\n")
+    build = tmp_path / "build"
+    double_slash_unknown = Path(f"/{unknown}")
+    assert str(double_slash_unknown) == f"/{unknown}"
+    _write_build_shape(
+        build, snapshot, input_path=double_slash_unknown,
+    )
+
+    with pytest.raises(
+            compiler_input.CompilerInputError,
+            match="unsupported FetchContent") as caught:
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET, allow_external_inputs=True,
+            origin_fetchcontent_masstree_root=masstree,
+            current_fetchcontent_masstree_root=masstree,
+        )
+    assert type(caught.value) is compiler_input.CompilerInputError
 
 
 def test_external_input_bytes_drift_is_rejected_by_validator(tmp_path):

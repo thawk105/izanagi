@@ -1029,7 +1029,8 @@ def collect_compiler_input_manifest(
             raw_path = Path(raw_input)
             if not raw_path.is_absolute():
                 raw_path = compiler_working_directory / raw_path
-            absolute = Path(os.path.normpath(os.path.abspath(raw_path)))
+            absolute_text = os.path.normpath(os.path.abspath(raw_path))
+            absolute = Path(os.sep + absolute_text.lstrip(os.sep))
             try:
                 relative = absolute.relative_to(snapshot)
                 root = "snapshot"
