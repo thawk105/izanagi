@@ -94,6 +94,12 @@ title: [T-2080] paper-story C-4 注記の「1 本も走らせていない」を�
   skip 数 28 はレビュー A が親と実装子の「26 node」を訂正した値と一致した。
 - **main への実装面の差分はゼロなので、本 wave に変異 matrix の義務は無い** (`DW-S04` の免除)。
   上記 5/5 KILLED は落とした実装に対する実測であり、着地する成果物の証拠ではない。
+- **受入全走 attempt 2 = `19,094 passed / 92 skipped / 0 failed`、`verdict=child-green`、
+  `red_nodeids` と `flake_nodeids` はいずれも空**
+  (tested main `ec0e2958d`、tested tip `1e2768d79`)。attempt 1 の 26 件の赤は F773 の環境要因で、
+  main 側の修正を取り込んだ本 tip では 1 件も残っていない。
+- `python3 tools/check_docs.py` = 違反なし、`git diff --check` 緑、
+  `python3 tools/check_ai_provenance.py` = rc=0。
 - 最終差分は `docs/paper-story/README.md` への 45 行追加のみで、削除は 0 行。凍結物
   (`2026-08-26.md` / `2026-08-23.md` / `figures/**` / `claim-evidence/2026-08-26.md` /
   `docs/related-work/claim-survey/` の各 artifact)、版の履歴表、既存の他注記、恒久 erratum の節は
