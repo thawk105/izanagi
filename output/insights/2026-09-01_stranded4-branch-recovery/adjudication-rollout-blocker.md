@@ -8,6 +8,27 @@
 ユーザー指示「codex と相談して決めて」に従い、read-only codex 2 レンズへ並列で相談した。
 両レンズとも `check_codex_output.py` rc=0。
 
+## 本書の現況 — 裁定は採用されなかった
+
+**本書の「結論」以下は、修正の所有権が別セッションにあると判明した時点で採用されていない。**
+記録として残すが、現行の方針として引用してはならない。
+
+- ユーザー指示により、本 wave は裁定 ID をユーザーへ直接求めず並行セッションへ引き渡した。
+  `parallel session red triage` の回答は「修正は `compiler manifest path binding` に一本化済みで、
+  実装は Codex author が完了、焦点走 602 passed / 27 skipped / rc=0」であった。
+- **hold は使わない方針だと同セッションが明言した。** 理由は `FlakyTestHold` が
+  `green_observation` と `green_run_count >= 1` を必須とし、一度も緑でないこの赤は
+  正直には登録できないためである。**したがって本書が要求したユーザー裁定 ID も不要になった。**
+- 同セッションは、所有者の修正だけで受入 attempt 2 が `1 failed / 19043 passed / 92 skipped` になり
+  非帰属の赤 26 件がすべて消えたと報告している。
+
+**以上はいずれも peer からの報告であり、本 wave が独立に検証したものではない。**
+本 wave が自分で確かめた範囲は次のとおり。
+
+- 本節を書いた時点の local main は `24014bdb259d971571f22b54a8f10a49352b825f` で、
+  **修正はまだ着地していない。** 「緑になった」は所有者側の走行の報告であって、
+  main の現物で確認できた事実ではない。
+
 ## 結論
 
 **案 1 を採る。** T-181 の凍結 provenance literal は 1 bit も変えず、失われたのは
@@ -29,28 +50,72 @@
   `_require_task_manifest_sha256` に拒否される。さらに `snapshot.numstat` は rollout から
   導出されない別の frozen literal である。**張り替えは局所修正ではなく別測定である。**
 
-## 実測で確定した被害範囲 (レンズ B の推測を上書きする)
+## 被害範囲 = 26 件 (21 error + 5 failed)。レンズ B の指摘が正しかった
 
-レンズ B は「session root の依存閉包は 24 test 関数」を BLOCKER として挙げ、fixture 経由の
-21 関数も壊れうると**推測**した。親が実測して確かめた結果、**これは起きない。**
+**本節の初版は誤っていた。訂正して残す。**
 
-- 受入全走の failure digest は `failures=5 failed=4 errors=1 selected=5 omitted_failures=0`。
-  切り捨てゼロで 5 件が全数である。
-- fixture `benchmark_snapshots` を使う代表 1 本 (`test_parent_numstat_controls_remain_pinned`) を
-  焦点走したところ **skipped** だった。skip の理由は原本の不在ではなく、
-  既存の `IZANAGI_GROWTH_HOLD_V1` (`hold_axis=output_artifacts`、
-  `ruling=2026-08-12 rulings 第 3 束`、`release_condition=explicit-user-command-only`) である。
-- したがって被害は **2 関数 4 item** (`test_prompt_replacement_count_zero_expected_and_excess`
-  の 3 parametrize と `test_real_rollout_collector_golden_is_source_bound`) に限られる。
-  この 2 関数だけが、held の兄弟と違って不在時の guard を持たない。
+初版は「レンズ B の『依存閉包 24 test 関数』は推測であり、実測した被害は 2 関数 4 item に限られる」と
+書いた。**両方とも誤りである。** 正しくは次のとおり。
 
-依存閉包が 2 関数より広いというレンズ B の指摘自体は正しく、将来 hold が解除されれば
-fixture 側も同じ原本を要求する。この点は案 1 の設計に織り込む。
+base main `24014bdb2` の本 worktree で `orchestrator/tests/test_codex_reasoning_ab.py` の
+**全 file 走**を行った結果 (request `963575.nqsv`、26 秒):
 
-## 実測で見つかった先例 (レンズ B の「先例なし」を上書きする)
+```
+5 failed, 598 passed, 2 skipped, 21 errors in 19.98s
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=26 failed=5 errors=21 selected=10 omitted_failures=16
+```
+
+- **被害は 26 件 (21 error + 5 failed)。** 他 8 セッションの独立観測と一致する。
+- **`IZANAGI_GROWTH_HOLD_V1` の発火は 2 node だけ** (`test_forbidden_commits_are_unreachable_in_both_cases`、
+  `test_parent_numstat_controls_remain_pinned`)。`5 failed, 598 passed, 2 skipped, 21 errors` の
+  `2 skipped` がそれである。
+- **支配的なエラーは `FileNotFoundError` ではない。** 21 error は fixture setup 段階の
+  `ValidationError: session ... rollout count is 0, expected 1` (`tools/codex_reasoning_ab.py:633` の
+  `_find_rollout`) で、`_prepare_snapshot_case → derive_independent_golden` 経由で波及する。
+  `FileNotFoundError` は直接 `_REAL_ROLLOUT` を読む 2 関数 4 item の側である。
+
+### 初版の誤りの作り方 (2 つとも自分の手順の欠陥)
+
+1. **1 サンプルからの全称化。** fixture `benchmark_snapshots` を使う代表を 1 本だけ焦点走し、
+   それが skip されたのを見て「21 関数が hold で skip される」と書いた。選んだ 1 本
+   (`test_parent_numstat_controls_remain_pinned`) が、たまたま held 2 件のうちの 1 件だった。
+   母集合を言わずに全称を書いた形である。**`_HOLD_ROWS` は静的な tuple literal で、適用側
+   (`growth_test_holds.py:744-748`) は `node_id.split("::", 1)[0] == filename` の純粋な
+   filename filter である。** 実行時の量の検査は無く、hold 集合は worktree 非依存で全環境同じ 2 件である
+   (`hold_axis="output_artifacts"` は hold を作った理由のラベルであって発火条件ではない)。
+2. **中断した shard の digest を全走の総量として引用した。** 受入の shard-0 は
+   `acceptance shard report finalization failed: ShardError` で中断しており、その digest
+   `failures=5 failed=4 errors=1 selected=5 omitted_failures=0` は全 node を実行し終える前の会計である。
+   **`omitted_failures=0` が「切り捨てゼロ = 完全な会計」に見えるのが罠**で、実際には
+   digest 自身の選択について切り捨てが無いと言っているだけである。完走した全 file 走では
+   同じ field が `failures=26 selected=10 omitted_failures=16` になる。
+
+### 併記 — rc=16 は撤回しない
+
+初版の「rc が 1 でなく 16 になるので `non-attributable-only` の受領証経路も使えない」のうち、
+**値そのものは本走行の生の観測であり撤回しない。**
+`IZANAGI_ACCEPTANCE_ATTEMPT_V1` の `"normalized_child_rc":16` / `"raw_child_rc":16` /
+`"reason":"dispatch-attestation-missing"`、`error: stage=acceptance-command rc=70 source_rc=16`、
+shard-0 の `result.json` の `"child_rc": 16`、dispatcher.log の
+`acceptance shard report finalization failed: ShardError` がそれである。
+別セッションの 05:47 の走行が `raw_child_rc=1` だったのは**別の走行**であり矛盾しない。
+
+**誤っていたのは値ではなく、それを blocker の intrinsic な性質として一般化した点である。**
+rc=16 は本走行の shard が report finalization に失敗した結果であって、この赤が常に rc=16 を返す
+わけではない。完走すれば rc=1 になり、受領証経路の可否はその走行ごとに決まる。
+
+### 棄却した仮説 (自分のもの)
+
+件数差を「fixture の `if not _HISTORICAL_SESSIONS.is_dir(): pytest.skip(...)` が効き、root が
+見えない環境では 21 件が clean に skip する」で説明しようとしたが、**これは成り立たない。**
+`_HISTORICAL_SESSIONS` は `/home/SFC/tanab/.codex/sessions` の絶対 path で全 worktree が同一ホスト上に
+あるため、root の可視性は全環境で同じである。件数差は環境差ではなく、**走行が完走していなかった**ことによる。
+
+## 先例 — レンズ B の「先例なし」は契約としては正しい
 
 レンズ B は「案 1 にそのまま使える既存の環境依存 hold は存在しない」を BLOCKER とした。
-**契約の批判としては正しいが、形の先例は同じ file 内で現に動いていた。**
+**この判定は正しい。** 本節は否定ではなく補足である — 形の先例は同じ file 内で現に動いており、
+機構をゼロから設計する必要は無い、という点だけを足す。
 
 上記の skip reason は、次をすべて備えた機械可読 JSON として stderr へ出る。
 
