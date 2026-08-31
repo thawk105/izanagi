@@ -47,7 +47,14 @@ title: [T-1795] D965 に従い attempt 対応の永続証拠を二重条件で�
   probe worktree で同じ内訳が再現したので非帰属である。原因は repo 外へ pin した過去 session の
   消失で、記録は F20 の再発として残した (揮発領域の唯一コピーという同型)。**この赤は D1144 に従い停止理由にしない。**
   修正は編集面の衝突を避けるため別の単独 wave へ一本化し、本 wave は同 file を触らない。
-  その修正が main へ着地した後に main を取り込んで受入を投げ直す (tip が変わるので再投入資格が立つ)。
+  その修正が main へ着地した後に main を取り込んで受入を投げ直した。**attempt 2 は
+  19083 passed / 92 skipped / 0 failed で rc=0。** 沈黙した件数も本 wave の 2 実測で閉じた
+  (修正前の main 単独で当該 file は collected 626、修正後は collected 629。赤 26 件は
+  25 件が skip へ落ち 1 件は緑に戻った)。
+- **受入投入の順序を 1 度誤った。** attempt 2 の後に台帳の数の訂正を commit したため、
+  取り込み対象の tip が受入時と食い違った。land は `landing_tip != tested_tip` を
+  forward main merge に限るので、記録の編集は受入より前に済ませておく必要がある。
+  訂正を捨てずに受入を取り直した。
 - **親は当初この赤の処置を「検出力は失われない」と見立てたが、独立相談が file:line で反証した。**
   production の reject 述語は弱まらないが、実 corpus・独立 golden 二経路・実 prompt の置換数・
   完全 replay の結合被覆には代替が無く、登録済み mutation killer も止まる。

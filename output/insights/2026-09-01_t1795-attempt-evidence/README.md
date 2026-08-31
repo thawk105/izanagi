@@ -88,6 +88,17 @@ key があると、compute 側の再検査で child 起動前に拒否される�
   main 単独の probe worktree でも同じ 5 件が同じ形で落ちたので**非帰属**と判定した。
   計算ノードへ dispatch された走行では 5 件とも通る。
 
+## 実測 4 — 受入全走
+
+| 走行 | tested main | 結果 |
+|---|---|---|
+| attempt 1 | `24014bdb2` | rc=70。19072 passed / 5 failed / 21 error / 67 skipped。赤 26 件はすべて `test_codex_reasoning_ab.py` で、本 wave は同 file を 1 byte も変更していない |
+| attempt 2 | `dbdacb666` | **rc=0。19083 passed / 92 skipped / 0 failed** |
+
+attempt 1 の赤は非帰属である。現行 main 単独の probe worktree で同じ内訳が再現した。原因は
+repo 外へ pin した過去 session の消失で、記録は F20 の再発として残した。修正は編集面の衝突を
+避けて別の単独 wave が入れ、本 wave は当該 file を触っていない。
+
 ## この機構が保証しないこと (主張せず明記する)
 
 - **条件 A (計算ノードである) は、正規 marker の下では条件 B に含意される。** 正規 marker は
