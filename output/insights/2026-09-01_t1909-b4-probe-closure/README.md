@@ -27,6 +27,7 @@ B-4 事前登録 §5.1 (ii) の非標本 probe について、D1195 が要求す
 |`mutation-ledger-shared-tree-red.json`|本走の 1 回目。変異結果は同じく完全一致だが、走行中に別 wave が local main を進めたため wrapper が rc=125 (共有木の観測 bytes が変化) を返した記録|
 |`mutation-spec-prefix.json`|修正前 HEAD への同一変異の登録 (DW-M08 の新旧両走)|
 |`mutation-ledger-prefix.json`|同結果 (MWA = SURVIVED。新しい assert だけが検出することの実測)|
+|`acceptance-child-1.log`|受入全走 attempt 1 の子 log。19033 passed / 5 failed / 21 errors。赤 26 件はすべて本 wave が触っていない `test_codex_reasoning_ab.py`|
 |`verbatim/`|段 1 brief、段 2 プラン、段 3 敵対相談 2 本、段 4 裁定、段 5 実装報告、段 6 レビュー 2 本|
 
 ## この wave が実測して訂正した事実
@@ -59,3 +60,20 @@ B-4 事前登録 §5.1 (ii) の非標本 probe について、D1195 が要求す
   この境界を動かしていない。
 - **未解決 caller を fail-closed で拒否する案は採らなかった。** 受理集合を縮める変更であり、
   D1195 が選べと定めた「範囲を明示した主張」より重い。この判断は本 wave の decisions に残した。
+
+## 受入が緑にならなかったこと
+
+受入全走 attempt 1 は `19033 passed` の一方で `5 failed, 21 errors` を返した。
+赤 26 件はすべて `orchestrator/tests/test_codex_reasoning_ab.py` に集中し、本 wave が
+1 度も触っていない file である。本文はいずれも
+`ValidationError: session 019fac6b-4f74-7a03-aa4d-8a9de22b352c rollout count is 0, expected 1`。
+
+**決定的な赤である。** 単独再走でも同じ 26 件が同じ本文で再現し、独立 clone 上の local main
+単独でも同一の 26 件が同一本文で再現した。原因は repo が pin する過去の codex rollout が
+`/home/SFC/tanab/.codex/sessions` に 1 件も無いことで、本 wave の差分からは到達できない。
+
+`DW-O18` は決定的な非帰属赤について「main 既存 F を証拠に hold を登録して投げ直す」と定めるが、
+**該当する F は台帳に存在しなかった。** 同節の「F 不在は登録せず裁定送り」に従い、
+hold を登録せず停止した。**本 wave は local main へ取り込んでいない。**
+受入 receipt は発行されていないので、この tip を land する経路は開いていない。
+

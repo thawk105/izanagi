@@ -45,7 +45,15 @@ title: [T-1909] D1195 の逆到達閉包を実測で検分し、第一権威点�
   1 回目は走行中に別 wave が local main を進めたため rc=125 (共有木の観測 bytes が変化)。
   変異結果自体は完全一致だったが、wrapper の非干渉主張は成立しない。
   観測点を共有木から外すため独立 clone を `--source-repo` に渡して取り直し、rc=0 を得た。
-- 失敗の型は {{F:symmetric-looking-negative-controls-missed-one}} に残した。
+- **受入全走は緑にならなかった。** `19033 passed` の一方で `5 failed, 21 errors` を返し、
+  赤 26 件はすべて本 wave が触っていない `test_codex_reasoning_ab.py` に集中した。
+  本文はいずれも「repo が pin する過去の codex rollout が共有 sessions ディレクトリに
+  1 件も無い」で、決定的である。単独再走でも、独立 clone 上の local main 単独でも、
+  同一の 26 件が同一本文で再現した。`DW-O18` の「main 既存 F を証拠に hold 登録」は
+  該当 F が存在しないため成立せず、同節に従い hold を登録せず**裁定へ送って停止した**。
+  したがって**本 wave は local main へ取り込んでいない。**
+- 失敗の型は {{F:symmetric-looking-negative-controls-missed-one}} と
+  {{F:pinned-historical-rollout-vanished-from-shared-sessions}} に残した。
 
 ## 次の一手差分
 
