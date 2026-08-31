@@ -1,0 +1,148 @@
+{
+  "estimated_run_seconds": 300,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M1-SCHEMA-PIN-OMITTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "",
+          "old": "        preimage[\"compiler_input_manifest_schema\"] = (\n            s8b_compiler_input.MANIFEST_SCHEMA\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M2-FETCH-ROOT-AS-FILESYSTEM",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "                        root = \"filesystem\"\n                        selected_root = origin_masstree\n",
+          "old": "                        root = \"fetchcontent-masstree\"\n                        selected_root = origin_masstree\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M3-CURRENT-BASE-IGNORED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "                        current_fetchcontent_masstree_root=None,\n",
+          "old": "                        current_fetchcontent_masstree_root=(\n                            current_compiler_input_masstree_root\n                        ),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M7-ROOT-CANONICALITY-SKIPPED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "                if False and any(\n                    absolute == special or special in absolute.parents\n                    for special in special_roots\n                ):\n",
+          "old": "                if any(\n                    absolute == special or special in absolute.parents\n                    for special in special_roots\n                ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M8-RECEIPT-RECHECK-OMITTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "new": "            current_fetchcontent_masstree_root=None,\n",
+          "old": "            current_fetchcontent_masstree_root=(\n                current_compiler_input_masstree_root\n            ),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M10-NON-SORT-CURRENT-ROOT-OMITTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "            if (dependency_binding is not None\n                    and configuration_id == \"sort_best\"):\n                # The run-scoped dependency source was validated before any\n                # cell build.  Reuse it only as the current compiler-input\n                # masstree root; the post-oracle capability remains sort-only.\n",
+          "old": "            if dependency_binding is not None:\n                # The run-scoped dependency source was validated before any\n                # cell build.  Reuse it only as the current compiler-input\n                # masstree root; the post-oracle capability remains sort-only.\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M11-DOT-PATH-ACCEPTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "    if (pure.is_absolute() or pure.as_posix() != value\n",
+          "old": "    if (not pure.parts or pure.is_absolute() or pure.as_posix() != value\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M12-MASSTREE-ROOT-ALWAYS-REQUIRED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "                    effective_root = _masstree_source_root_from_cmake_cache(\n                        staging\n                    )\n",
+          "old": "                    effective_root = (\n                        _masstree_source_root_from_cmake_cache(staging)\n                        if allow_external_compiler_inputs else None\n                    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M13-SYMLINK-ROOT-REJECTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "    absolute = os.path.abspath(raw)\n    if absolute != raw or os.path.realpath(raw) != absolute:\n        raise CompilerInputError(f\"{label} is not a canonical absolute directory\")\n",
+          "old": "    absolute = os.path.realpath(raw)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M14-DOUBLE-SLASH-ACCEPTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "            absolute = Path(os.path.normpath(os.path.abspath(raw_path)))\n",
+          "old": "            absolute_text = os.path.normpath(os.path.abspath(raw_path))\n            absolute = Path(os.sep + absolute_text.lstrip(os.sep))\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 2400
+}
