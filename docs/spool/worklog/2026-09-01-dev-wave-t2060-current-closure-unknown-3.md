@@ -45,8 +45,37 @@ title: [T-2060] D1245 の歴史閲覧と現行認証の分離を実体化し、�
 - 実装子の完了報告にある「既存テストを一つも変更していない」は**不正確**である。追加のみだが、
   既存テスト 1 件の本文に行が 1 つ加わっている (手作りの certifying report から producer が
   出さない field を外すための fixture 調整)。期待値・assert・raises は不変。
+- **受入全走が、本 wave と無関係な環境失効で赤になった。** 赤は全件
+  `test_codex_reasoning_ab.py` で、本文はホーム配下の実 session rollout の不在。
+  `.codex/sessions/2026/07` が失われ、参照している 5 session は
+  `/home/SFC/tanab` と `/work/1/SFC/tanab` の全域検索で **0 件**。復元不能である。
+  **期限切れ以降に受入を投げるすべての wave が同じ赤を受け取る。** 型は
+  {{F:acceptance-depends-on-expiring-home-sessions}}。
+- **ユーザー指示「codex と相談して決めて」に従い、相談 2 本を独立レンズで走らせた。**
+  **両者とも repo 内 fixture への移設 (案 4) を推奨したが、親はこれを採らなかった** —
+  両相談とも「移す元が残っているか」を確かめておらず、実測すると元 bytes は存在しない。
+  期待値から逆算して fixture を作る道は、独立 2 経路の一致という当の性質を自作自演にする。
+  **両相談の枠組みも 1 点訂正した** — 両者は skip を「coverage を失う」と評価したが、
+  その coverage は既に失われており、緑にできない赤は coverage ではない。
+  採った案と却下理由は {{D:expired-external-evidence-skips-only-on-absence}}。
+- **blocker 修正の段 6 で、fail-closed の負例が形だけだったことを実測で見つけた。**
+  負例が skip する側のラッパーを呼んでいたため、「重複も破損も skip に倒す」変異で
+  node が失敗ではなく **skip** になり、変異が生存していた。下位 resolver へ向け直し、
+  skip 経路自体の正例も別 node で持たせた。**再走で B2 / B3 がそれぞれ 1 node だけで KILLED**
+  になり、単一理由性も成立した。
+- **変異走行の射程を正直に狭めた。** 変異用の使い捨て worktree は入れ子 submodule を
+  初期化できず、合成 fixture の baseline が緑にならない (`mutation_worktree.py` の
+  `submodule update --init` は再帰的でない)。よって blocker の変異走行は
+  **preflight 機構の検出器だけ**を対象にし、合成 fixture へ移した 22 node の検出力は
+  この走行の観測範囲の外である。**受入全走で実走して確かめた。**
 - **親が JST 時刻を実測せずに報告し続けた。** wave を通して一度も `date` を打たず、最初の推定値へ
   経過を足していた。ユーザーの別件の指摘で実測して発覚し、F1 の再発として記録した。
+- **親の手順違反をもう 1 件記録する。** blocker 修正の変異事前登録を、fix 子の投入**後**に書いた
+  (差分の閲覧前には凍結した)。DW-M01 は実装前を要求しており、投入前に書くべきだった。
+- **親の自己訂正 2 件。** (1)「ディレクトリの mtime は 7 月分の削除時刻である」は言い過ぎで、
+  言えるのは「その時刻に直下が変更され、現在 07 は存在しない」まで。
+  (2)「test 側の照合再実装と production 側に食い違いは無い」は**不完全**で、照合述語は等価だが
+  **周囲の候補選択が production の pinned-label 経路と食い違う**。述語だけを比べて結論した。
 
 ## 次の一手差分
 
@@ -67,6 +96,11 @@ title: [T-2060] D1245 の歴史閲覧と現行認証の分離を実体化し、�
 - {{T:historical-view-current-policy-dependency}} **P2・新規**: 歴史閲覧が前段で現行 policy と
   照合され、policy の版が上がると過去の v2 campaign が purpose を問わず読めなくなる。
   `current-closure-unavailable` とは別の識別子だが絶対規律 7 の同じ趣旨に触れる。
+- {{T:expired-rollout-coverage-restoration}} **P2・新規**: 失効で失った coverage を取り戻す。
+  実 POS rollout 由来の内容保証と production spec との統合保証が skip されたままである。
+  **原本が別媒体に在る場合だけ** repo 内の最小 fixture へ移して復元できる。あわせて
+  preflight resolver を production の候補選択 primitive へ一本化し (現状は 1 ケースで食い違う)、
+  gate を node ごとの必要 label 集合へ細分化する。
 - {{T:vacuous-persisted-commit-loop}} **P2・新規**: COMMIT record が 1 件も無い campaign では
   保存済み certification の検査 loop が空回りし、証拠なしで certified view が発行される。
   既存テストもこの受理を要求しているため、縮小には D1246 の共通 admission helper と
