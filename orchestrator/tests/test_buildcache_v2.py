@@ -268,8 +268,12 @@ def _fake_build_environment(
             origin_fetchcontent_masstree_root=None,
             current_fetchcontent_masstree_root=None):
         del expected_evolve_block_sources
-        assert origin_fetchcontent_masstree_root is not None
-        assert current_fetchcontent_masstree_root is not None
+        if allow_external_inputs:
+            assert origin_fetchcontent_masstree_root is not None
+            assert current_fetchcontent_masstree_root is not None
+        else:
+            assert origin_fetchcontent_masstree_root is None
+            assert current_fetchcontent_masstree_root is None
         source = Path(snapshot_root).resolve() / "compiler-input.hh"
         payload = source.read_bytes()
         manifest = {
@@ -3047,6 +3051,133 @@ def test_v2_fresh_completion_and_result_expose_compiler_input_manifest(
             tmp_path / "ccbench"
         )
     )
+
+
+def _install_real_compiler_input_build_without_masstree_resolution(
+        monkeypatch, tmp_path: Path, *, input_path: Path) -> list[str]:
+    real_collector = (
+        buildcache.s8b_compiler_input.collect_compiler_input_manifest
+    )
+    _fake_build_environment(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        real_collector,
+    )
+    events = []
+
+    def run_without_masstree_keys(
+            cmd, what, timeout_s=None, *, site=None, env=None):
+        del timeout_s, site, env
+        events.append(what)
+        if what == "configure":
+            staging = Path(cmd[cmd.index("-B") + 1])
+            target_dir = (
+                staging / "cc" / "silo" / "CMakeFiles"
+                / "ycsb_silo.exe.dir"
+            )
+            target_dir.mkdir(parents=True)
+            (staging / "CMakeCache.txt").write_text(
+                "CMAKE_GENERATOR:INTERNAL=Unix Makefiles\n",
+                encoding="utf-8",
+            )
+            (target_dir / "flags.make").write_text(
+                "# compile CXX with /usr/bin/c++\n"
+                "CXX_DEFINES = -DBACK_OFF=1\n"
+                "CXX_INCLUDES =\n"
+                "CXX_FLAGS = -O3 -std=c++20\n",
+                encoding="utf-8",
+            )
+            (target_dir / "link.txt").write_text(
+                "/usr/bin/c++ "
+                "cc/silo/CMakeFiles/ycsb_silo.exe.dir/compiler-input.cc.o "
+                "-o cc/silo/ycsb_silo.exe\n",
+                encoding="utf-8",
+            )
+            (target_dir / "compiler-input.cc.o.d").write_text(
+                "cc/silo/CMakeFiles/ycsb_silo.exe.dir/compiler-input.cc.o: "
+                f"{input_path.resolve()}\n",
+                encoding="utf-8",
+            )
+        elif what == "build":
+            staging = Path(cmd[cmd.index("--build") + 1])
+            binary = staging / "cc" / "silo" / "ycsb_silo.exe"
+            binary.parent.mkdir(parents=True, exist_ok=True)
+            binary.write_bytes(b"snapshot-bound binary\n")
+
+    monkeypatch.setattr(buildcache, "_run", run_without_masstree_keys)
+    return events
+
+
+def test_v2_snapshot_only_bound_build_collects_without_masstree_keys(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    compiler_header = source_root / "compiler-input.hh"
+    compiler_header.write_bytes(b"snapshot compiler input\n")
+    events = _install_real_compiler_input_build_without_masstree_resolution(
+        monkeypatch, tmp_path, input_path=compiler_header,
+    )
+
+    result = _build(
+        tmp_path, _contract(1), ccbench_dir=str(source_root),
+        source_snapshot_sha256=(
+            buildcache.s8b_expected_materialization.snapshot_tree_digest(
+                source_root
+            )
+        ),
+    )
+
+    assert events == ["configure", "build"]
+    assert result.compiler_input_manifest["inputs"] == [{
+        "root": "snapshot",
+        "path": "compiler-input.hh",
+        "sha256": hashlib.sha256(compiler_header.read_bytes()).hexdigest(),
+    }]
+
+
+def test_v2_external_input_policy_still_requires_masstree_resolution_root(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    (source_root / "compiler-input.hh").write_bytes(b"snapshot sentinel\n")
+    outside = tmp_path / "external" / "compiler-input.hh"
+    outside.parent.mkdir()
+    outside.write_bytes(b"external compiler input\n")
+    events = _install_real_compiler_input_build_without_masstree_resolution(
+        monkeypatch, tmp_path, input_path=outside,
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(source_root),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="masstree 解決 key"):
+        buildcache._build_v2_impl(
+            genome,
+            admission=admission,
+            build_context=context,
+            source_evidence=evidence,
+            source_snapshot_sha256=(
+                buildcache.s8b_expected_materialization.snapshot_tree_digest(
+                    source_root
+                )
+            ),
+            allow_external_compiler_inputs=True,
+            expected_evolve_block_sources=None,
+            contract=_contract(1),
+            ccbench_commit="a" * 40,
+            trace=True,
+            src_token="stock",
+            cc="test-cc",
+            cxx="test-cxx",
+            cache_root=str(tmp_path / "cache"),
+            ccbench_dir=str(source_root),
+        )
+    assert events == ["configure", "build"]
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
 
 
 def test_v2_collects_manifest_before_staging_discard(tmp_path, monkeypatch):
