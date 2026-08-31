@@ -45,7 +45,19 @@ title: 過剰実装抑制の依頼は 3 日前に実施済みと確定し純増�
   おらず再現不能だと段 3 に指摘された。根拠薄として撤回し、報告に使わない。
 - 工数: 段 2 プラン子 1 本、段 3 レンズ 2 本 (いずれも codex、`check_codex_output.py` rc=0)。
   実装子と fix 子は起動していない。docs のみで実装面の差分がゼロのため変異 matrix は
-  `DW-S04` の免除に当たる。受入全走は免除せず実走した。
+  `DW-S04` の免除に当たる。
+- **受入全走は赤で、本 wave は land せずに停止した。**`19033 passed / 67 skipped`、
+  `21 error + 5 failed` がすべて `orchestrator/tests/test_codex_reasoning_ab.py` に集中した。
+  単独再走でも同一件数 (failed=5 / errors=21) が再現し、決定的な赤である。
+- **原因は repo 外の可変ディレクトリの保持期間切れであり、本 wave の差分とは無関係である。**
+  `tools/codex_reasoning_ab.py` は legacy session 5 件の ID と rollout の SHA-256 を pin し、
+  テストはそれらが `/home/SFC/tanab/.codex/sessions` に実在することを要求する。pin された
+  session はすべて 2026-07-29 のものだが、同 root の保持は現在 **2026-08-01 以降しか残っておらず
+  7 月分が消えている** (`2026/` 配下は `08` と `09` のみ)。fixture は root 自体の不在なら skip するが、
+  **個別 session の不在は skip にならず hard red になる**。
+- **これは本 wave 固有ではなく、この機械の全 wave が踏む系統的な受入の閂である。**
+  該当する既存 F が失敗台帳に無いため、`DW-O18` に従い hold 登録は行わず裁定へ送る。
+  テストの弱体化・gate の迂回は行わない。
 - wave 中 local main は動かなかった (base と land 時点がいずれも同一 commit)。
 
 ## 次の一手差分
