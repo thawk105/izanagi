@@ -30,16 +30,28 @@ title: [T-1922] 生成後 phase3 canonical の見送り重複を land 前に拒�
 - 所要時間台帳は触っていない。exact に固定される suite 8 件に本 wave の file は 1 つも含まれず、
   被覆条件も完全一致ではないため、新 node の entry は不要と確認した。
   推測値を性能台帳へ書かずに済ませた。
-- ユーザー裁定「gate tool は親が実データで 1 回通すまで完成としない」に従い、
-  `DW-O23` への義務化は実データ通過を確認してから書いた。
+- ユーザー裁定「gate tool は親が実データで 1 回通すまで完成としない」に従い、義務化は実データ
+  通過を確認してから書いた。`--dry-run` は拒否側・受理側の両方を実データで通し、fold gate 本体も
+  実 plan で 23.3 秒・内側予算 130 秒に対して通した。
+- 義務の置き場は `DW-O23` でなく `docs/spool/README.md` にした。dev-wave 参照文書の L1 予算は
+  本 wave の編集前からちょうど満杯 (10625/10625 bytes) で、124 byte の 1 行すら入らなかった。
+  D782 の手順に従い既存記述の削減を先に試したが、L1 に安全義務でない削減可能部を見つけられず、
+  上限引き上げにも至らせなかった。fold の受理・拒否契約の正本は `docs/spool/README.md` であり、
+  同書は既に `--dry-run` の役割を説明していたので、説明を義務へ改める形で収容した。
+  **義務の内容は弱めていない。**
+- 本 wave の fold は見送り台帳を触らないため、land 時に選択される gate node は 2 件で
+  新 node は選ばれない。新 node は焦点走と名指し実行で緑、結線 (見送り fragment → phase3 family
+  → 新 node 選択) は land 側の検査が固定し、その検査は変異 M8 で殺されることを確認した。
+  gate に phase3 を通すために偽の見送りを commit することはしない。撤回時に fragment 削除が
+  commit 区間へ残り、land が `landed-fold-owned-path` で拒否する。
 
 ## 次の一手差分
 
 ### 完了
 
 - [T-1922] `spool_fold.plan_fold()` が生成後 `docs/phase3.md` の見送り重複を `deferred-duplicate` で
-  拒否し、fold gate の `phase3` family を実 canonical node で被覆した。`DW-O23` へ land 前
-  `--dry-run` の義務を書いた。
+  拒否し、fold gate の `phase3` family を実 canonical node で被覆した。land 前 `--dry-run` の
+  義務は `docs/spool/README.md` へ書いた (dev-wave L1 予算が満杯のため)。
   remaining: none
   base: 4a7c829da4cde29d4d56a5d3e42657a0eb3cbdb28f06726a0812c682d0164dea
 
