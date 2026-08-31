@@ -1,0 +1,62 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "MUT-1-BINDING-RAISE-DISABLED",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_outer_whitespace",
+        "orchestrator/tests/test_sort_comparator_authority.py::test_binding_rejects_canonical_name_comparator_mismatch",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_comparator_outside_authority",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_validate_schema_rejects_sort_name_comparator_mismatch",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_comparator_outside_authority_before_output",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_sort_entry_rejects_name_comparator_mismatch_before_output",
+        "orchestrator/tests/test_s1_known_axes_freeze.py::test_verify_rejects_sort_name_tamper_at_authority_layer"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_comparator_authority.py",
+          "old": "    if type(name) is not str or type(comparator) is not str:\n        _reject()\n    if _SORT_NAME_COMPARATOR_INDEX.get(name) != comparator:\n        _reject()\n",
+          "new": "    if type(name) is not str or type(comparator) is not str:\n        return\n    if _SORT_NAME_COMPARATOR_INDEX.get(name) != comparator:\n        return\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "MUT-2A-DUPLICATE-NAME-CHECK-DISABLED",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_name_is_fail_closed"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_comparator_authority.py",
+          "old": "        if name in index:\n            raise RuntimeError(f\"duplicate sort candidate name: {name!r}\")\n",
+          "new": "        if name in index and False:\n            raise RuntimeError(f\"duplicate sort candidate name: {name!r}\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "MUT-2B-DUPLICATE-IMPL-CHECK-DISABLED",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_sort_comparator_authority.py::test_duplicate_implementation_is_fail_closed"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_comparator_authority.py",
+          "old": "        if implementation in implementation_names:\n            raise RuntimeError(\n                \"duplicate sort candidate implementation: \"\n                f\"names={(implementation_names[implementation], name)!r}\")\n",
+          "new": "        if implementation in implementation_names and False:\n            raise RuntimeError(\n                \"duplicate sort candidate implementation: \"\n                f\"names={(implementation_names[implementation], name)!r}\")\n"
+        }
+      ]
+    }
+  ]
+}
