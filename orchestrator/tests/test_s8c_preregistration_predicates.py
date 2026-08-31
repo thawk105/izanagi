@@ -897,6 +897,7 @@ def verify_s8c_cross_binding(event):
         "input_payload_sha256", "provider_payload_sha256",
         "provider_envelope_sha256", "proposal_path", "proposal_sha256",
         "build_records", "bench_records", "artifact_refs", "source_refs",
+        "proposal_build_source_bindings",
         "admission_decision",
     )
     raw = read_and_verify_bytes(
