@@ -59,7 +59,13 @@ from .build_admission import (  # noqa: E402
     build_run_context,
     derive_build_admission,
 )
-from .layout import CampaignLayout, campaign_layout  # noqa: E402
+from .layout import (  # noqa: E402
+    CampaignLayout,
+    DurableRootPolicy,
+    campaign_layout,
+    env_scope_dir,
+    resolve_campaign_output_root,
+)
 from .lock import bench_lock  # noqa: E402
 from .loop import run_campaign  # noqa: E402
 from .model import (  # noqa: E402
@@ -2791,6 +2797,20 @@ def run_probe(
     return output_path
 
 
+def _prepare_official_output(
+    env_tag: str,
+) -> tuple[str, DurableRootPolicy]:
+    """Resolve the formal root and provision the claim capability boundary."""
+    resolved_output = resolve_campaign_output_root("official")
+    claim_root = Path(env_scope_dir(env_tag, resolved_output)) / "claims"
+    claim_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    durable_policy = DurableRootPolicy(
+        approved_roots=(Path(resolved_output),),
+        forbidden_roots=(Path("/tmp"), Path("/scr")),
+    )
+    return resolved_output, durable_policy
+
+
 def run_formal(
     *,
     phase: str,
@@ -2864,8 +2884,13 @@ def run_formal(
                 return None, None, True
 
             assert workload is not None
+            resolved_output, durable_policy = _prepare_official_output(
+                contract.env_tag,
+            )
             cfg = config_for(workload, prereg, calibration, context, contract)
-            layout = campaign_layout(str(ident.campaign_id(cfg)))
+            layout = campaign_layout(
+                str(ident.campaign_id(cfg)), resolved_output,
+            )
             assert_resumable_binding(layout, prereg.binding)
             perf = perf_for(workload, calibration, prereg.spec)
             if phase == "verify":
@@ -2881,6 +2906,8 @@ def run_formal(
                             context, prereg.binding,
                         ),
                         declared_use_class="official",
+                        output_root=resolved_output,
+                        durable_root_policy=durable_policy,
                     )
                 if summary.committed + summary.skipped + summary.aborted \
                         != POINTS_PER_BLOCK:
@@ -3005,7 +3032,9 @@ def run_formal(
                 other_cfg = config_for(
                     other_workload, prereg, calibration, context, contract,
                 )
-                other_layout = campaign_layout(str(ident.campaign_id(other_cfg)))
+                other_layout = campaign_layout(
+                    str(ident.campaign_id(other_cfg)), resolved_output,
+                )
                 other_root = Path(other_layout.runs_dir) / "b10-backoff-shape-blocks"
                 if not other_root.exists():
                     continue

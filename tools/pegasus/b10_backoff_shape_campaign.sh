@@ -8,6 +8,7 @@
 set -Eeuo pipefail
 umask 077
 unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+unset IZANAGI_OFFICIAL_OUTPUT_ROOT
 
 bootstrap_fail() {
   echo "B10 job bootstrap failed: $*" >&2
@@ -34,9 +35,13 @@ GIT_COMMON_DIR=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-comm
 [[ "$GIT_COMMON_DIR" == /* ]] || bootstrap_fail "git common dir is not absolute"
 GIT_COMMON_REPO=${GIT_COMMON_DIR%/.git}
 DURABLE_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence/b10-backoff-shape/submissions"
+OUTPUT_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence/b10-backoff-shape/official-output"
 [[ "$DURABLE_ROOT" != "$REPO_ROOT" && "$DURABLE_ROOT" != "$REPO_ROOT/"* \
     && "$DURABLE_ROOT" != "$GIT_COMMON_REPO" && "$DURABLE_ROOT" != "$GIT_COMMON_REPO/"* ]] \
   || bootstrap_fail "durable root resolves inside a repository"
+[[ "$OUTPUT_ROOT" != "$REPO_ROOT" && "$OUTPUT_ROOT" != "$REPO_ROOT/"* \
+    && "$OUTPUT_ROOT" != "$GIT_COMMON_REPO" && "$OUTPUT_ROOT" != "$GIT_COMMON_REPO/"* ]] \
+  || bootstrap_fail "official output root resolves inside a repository"
 SUBMISSION_DIR="$DURABLE_ROOT/$IZANAGI_B10_NONCE"
 SUBMIT_RECEIPT="$SUBMISSION_DIR/submit-receipt.json"
 
@@ -323,7 +328,11 @@ PY
   export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"
 fi
 
-mkdir -p "$REPO_ROOT/output/env/pegasus/claims"
+mkdir -p -m 0700 -- \
+  "$OUTPUT_ROOT/campaigns" \
+  "$OUTPUT_ROOT/campaign-locks" \
+  "$OUTPUT_ROOT/env/pegasus/claims"
+export IZANAGI_OFFICIAL_OUTPUT_ROOT="$OUTPUT_ROOT"
 driver_argv=(
   "$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep
   --phase "$IZANAGI_B10_PHASE"

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import ast
 import hashlib
 import io
 import json
@@ -9,6 +10,7 @@ import copy
 import shutil
 import subprocess
 import tarfile
+import tempfile
 from types import SimpleNamespace
 from fractions import Fraction
 from pathlib import Path
@@ -16,10 +18,46 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import b10_backoff_shape_sweep as B
-from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.campaign.durable_root import DurableRootError
+from orchestrator.campaign.layout import (
+    CampaignLayout,
+    write_capability_for_directory,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _job_script_output_root(
+    *, repo_root: Path, git_common_dir: Path, nonce: str,
+) -> Path:
+    job = ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
+    assignments = [
+        line for line in job.read_text(encoding="utf-8").splitlines()
+        if line.startswith("OUTPUT_ROOT=")
+    ]
+    assert len(assignments) == 1
+    completed = subprocess.run(
+        [
+            "bash", "-c",
+            "set -Eeuo pipefail\n"
+            "GIT_COMMON_DIR=$1\n"
+            "GIT_COMMON_REPO=$2\n"
+            "REPO_ROOT=$3\n"
+            "IZANAGI_B10_NONCE=$4\n"
+            f"{assignments[0]}\n"
+            "printf '%s\\n' \"$OUTPUT_ROOT\"\n",
+            "b10-output-root",
+            os.fspath(git_common_dir),
+            os.fspath(git_common_dir.parent),
+            os.fspath(repo_root),
+            nonce,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    return Path(completed.stdout.rstrip("\n"))
 
 
 def _patch_bytes() -> bytes:
@@ -1424,6 +1462,150 @@ def test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model(t
     for encoded in range(1000):
         assert _cpp_value(binary, encoded, 0) == Fraction(encoded)
         assert _cpp_value(binary, encoded, B._MASK64) == Fraction(encoded)
+
+
+def test_t1905_m1_job_exports_official_root_and_missing_env_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    job = ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
+    lines = job.read_text(encoding="utf-8").splitlines()
+    assert lines.count(
+        'export IZANAGI_OFFICIAL_OUTPUT_ROOT="$OUTPUT_ROOT"'
+    ) == 1
+    assert lines.count("unset IZANAGI_OFFICIAL_OUTPUT_ROOT") == 1
+
+    monkeypatch.delenv("IZANAGI_OFFICIAL_OUTPUT_ROOT", raising=False)
+    with pytest.raises(ValueError, match="official output_root は明示必須"):
+        B._prepare_official_output(B.ENV_TAG)
+
+
+def test_t1905_m2_job_root_passes_real_external_and_claim_capability_gates(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    with tempfile.TemporaryDirectory(
+        prefix="izanagi-b10-m2-", dir="/var/tmp",
+    ) as raw_root:
+        repo = Path(raw_root) / "repo"
+        git_common_dir = repo / ".git"
+        git_common_dir.mkdir(parents=True)
+        output_root = _job_script_output_root(
+            repo_root=repo,
+            git_common_dir=git_common_dir,
+            nonce="0" * 32,
+        )
+        monkeypatch.setenv(
+            "IZANAGI_OFFICIAL_OUTPUT_ROOT", os.fspath(output_root),
+        )
+
+        resolved_output, policy = B._prepare_official_output(B.ENV_TAG)
+        resolved_root = Path(resolved_output)
+        claim_root = resolved_root / "env" / B.ENV_TAG / "claims"
+        capability = write_capability_for_directory(claim_root, policy=policy)
+
+        assert resolved_root == output_root.resolve()
+        assert resolved_root != repo and repo not in resolved_root.parents
+        assert policy.approved_roots == (resolved_root,)
+        assert capability.root == claim_root.resolve()
+
+
+def test_t1905_m3_job_root_is_identical_across_phase_job_nonces(tmp_path: Path):
+    repo = tmp_path / "repo"
+    git_common_dir = repo / ".git"
+    git_common_dir.mkdir(parents=True)
+    roots = {
+        _job_script_output_root(
+            repo_root=repo,
+            git_common_dir=git_common_dir,
+            nonce=nonce,
+        )
+        for nonce in ("0" * 32, "f" * 32)
+    }
+    assert len(roots) == 1
+
+
+def test_formal_campaign_layout_and_writer_share_resolved_root_and_policy():
+    source = Path(B.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    run_formal = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_formal"
+    )
+    prepare_calls = [
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_prepare_official_output"
+    ]
+    layout_calls = [
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "campaign_layout"
+    ]
+    writer_calls = [
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_campaign"
+    ]
+
+    assert len(prepare_calls) == 1
+    assert len(layout_calls) == 2
+    assert all(
+        len(call.args) == 2
+        and isinstance(call.args[1], ast.Name)
+        and call.args[1].id == "resolved_output"
+        for call in layout_calls
+    )
+    assert len(writer_calls) == 1
+    writer_keywords = {keyword.arg: keyword.value for keyword in writer_calls[0].keywords}
+    assert isinstance(writer_keywords["output_root"], ast.Name)
+    assert writer_keywords["output_root"].id == "resolved_output"
+    assert isinstance(writer_keywords["durable_root_policy"], ast.Name)
+    assert writer_keywords["durable_root_policy"].id == "durable_policy"
+
+
+def test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    with tempfile.TemporaryDirectory(
+        prefix="izanagi-b10-forbidden-", dir="/tmp",
+    ) as raw_root:
+        forbidden_root = Path(raw_root).resolve()
+        monkeypatch.setenv(
+            "IZANAGI_OFFICIAL_OUTPUT_ROOT", os.fspath(forbidden_root),
+        )
+
+        resolved_output, policy = B._prepare_official_output(B.ENV_TAG)
+        claim_root = Path(resolved_output) / "env" / B.ENV_TAG / "claims"
+
+        assert Path(resolved_output) == forbidden_root
+        assert policy.forbidden_roots == (Path("/tmp"), Path("/scr"))
+        with pytest.raises(
+            DurableRootError, match="^candidate が forbidden root 配下$",
+        ):
+            write_capability_for_directory(claim_root, policy=policy)
+
+
+def test_t1905_a5_non_forbidden_external_official_root_is_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    with tempfile.TemporaryDirectory(
+        prefix="izanagi-b10-durable-", dir="/var/tmp",
+    ) as raw_root:
+        external_root = Path(raw_root).resolve()
+        monkeypatch.setenv(
+            "IZANAGI_OFFICIAL_OUTPUT_ROOT", os.fspath(external_root),
+        )
+
+        resolved_output, policy = B._prepare_official_output(B.ENV_TAG)
+        claim_root = Path(resolved_output) / "env" / B.ENV_TAG / "claims"
+        capability = write_capability_for_directory(claim_root, policy=policy)
+
+        assert Path(resolved_output) == external_root
+        assert external_root.is_relative_to(Path("/var/tmp"))
+        assert policy.forbidden_roots == (Path("/tmp"), Path("/scr"))
+        assert capability.root == claim_root.resolve()
 
 
 def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
