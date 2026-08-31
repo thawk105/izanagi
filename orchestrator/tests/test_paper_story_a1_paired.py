@@ -266,14 +266,13 @@ def _balanced_receipt_fixture(
     baseline = paired._workload_arm_by_role(
         policy, workload_name, "baseline",
     )["name"]
-    role_to_letter = {"variant": "A", "baseline": "B"}
     role_to_name = {"variant": variant, "baseline": baseline}
     rows = []
     blocks = []
-    arm_values = {"A": [], "B": []}
+    arm_values = {variant: [], baseline: []}
     clock = 1_000_000
     for block in plan["blocks"]:
-        letter = role_to_letter[block["role"]]
+        arm_name = role_to_name[block["role"]]
         values = []
         for position, pair_index in enumerate(block["pair_indices"]):
             tps = (
@@ -283,20 +282,19 @@ def _balanced_receipt_fixture(
             )
             values.append(tps)
             rows.append({
-                "arm": letter,
-                "block": block["block_number"],
-                "block_in_group": block["block_number"] % 4,
+                "arm": arm_name,
+                "block": block["pair_block_number"],
                 "block_position": position,
-                "finished_at_ns": clock + 5,
+                "ended_at_ns": clock + 5,
                 "group": block["group"],
                 "pair_index": pair_index,
                 "started_at_ns": clock,
                 "tps": tps,
             })
             clock += 10
-        arm_values[letter].extend(values)
+        arm_values[arm_name].extend(values)
         blocks.append({
-            "arm": letter,
+            "arm": arm_name,
             "block": block["block_number"],
             "block_in_group": block["block_number"] % 4,
             "cv": statistics.stdev(values) / statistics.fmean(values),
@@ -305,13 +303,12 @@ def _balanced_receipt_fixture(
         })
     arms = {}
     arm_results = {}
-    for role, letter in role_to_letter.items():
-        values = arm_values[letter]
-        name = role_to_name[role]
+    for _role, name in role_to_name.items():
+        values = arm_values[name]
         variant_id = f"variant-{name}"
-        arms[letter] = {
+        arms[name] = {
             "block_cvs": [
-                item["cv"] for item in blocks if item["arm"] == letter
+                item["cv"] for item in blocks if item["arm"] == name
             ],
             "cv": statistics.stdev(values) / statistics.fmean(values),
             "median_tps": statistics.median(values),
@@ -1146,6 +1143,7 @@ def test_v3_production_options_use_real_balanced_schedule_and_fail_closed() -> N
         root_seed=paired._workload_plan(
             policy, "balanced",
         )["schedule_root_seed"],
+        arm_names=paired._workload_arm_order(policy, "balanced"),
         receipt_name=paired.BALANCED_SCHEDULE_RECEIPT_NAME,
     )
     for missing in ("bench_max_rounds", "balanced_schedule"):
@@ -1157,7 +1155,25 @@ def test_v3_production_options_use_real_balanced_schedule_and_fail_closed() -> N
             paired._require_registered_execution_options(
                 policy, "balanced", broken,
             )
+    wrong_order = dict(options)
+    wrong_order["balanced_schedule"] = replace(
+        options["balanced_schedule"],
+        arm_names=tuple(reversed(options["balanced_schedule"].arm_names)),
+    )
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="must use the registered balanced schedule",
+    ):
+        paired._require_registered_execution_options(
+            policy, "balanced", wrong_order,
+        )
     assert paired._campaign_execution_options(_policy(), "balanced") == {}
+    assert paired.campaign_config(
+        policy, "balanced",
+    ).ccbench_commit == paired.CANONICAL_CCBENCH_OID
+    assert paired.campaign_config(
+        _policy(), "balanced",
+    ).ccbench_commit == paired.pin.CURRENT_PIN
     tree = ast.parse(Path(paired.__file__).read_text(encoding="utf-8"))
     measurement = next(
         node for node in tree.body
@@ -1181,6 +1197,19 @@ def test_v3_production_options_use_real_balanced_schedule_and_fail_closed() -> N
         and node.attr == "balanced_schedule_receipt"
         for node in ast.walk(receipt_keyword.value)
     )
+    forwarded = {"schema_version": "non-empty-v3-receipt"}
+    expression = ast.Expression(body=receipt_keyword.value)
+    ast.fix_missing_locations(expression)
+    assert eval(  # noqa: S307 - evaluates a reviewed production AST expression
+        compile(expression, paired.__file__, "eval"),
+        {},
+        {"summary": SimpleNamespace(balanced_schedule_receipt=forwarded)},
+    ) is forwarded
+    assert eval(  # noqa: S307 - same expression, legacy summary contract
+        compile(expression, paired.__file__, "eval"),
+        {},
+        {"summary": SimpleNamespace(balanced_schedule_receipt=None)},
+    ) is None
 
 
 @pytest.mark.parametrize("workload_name", paired.WORKLOAD_ORDER)
@@ -1196,8 +1225,10 @@ def test_v3_schedule_receipt_consumer_binds_placement_and_arm_tps(
         policy, workload_name, receipt, arm_results,
     ) == []
     mutated = copy.deepcopy(receipt)
-    mutated["reps"][0]["arm"] = (
-        "B" if mutated["reps"][0]["arm"] == "A" else "A"
+    expected_arms = paired._workload_arm_order(policy, workload_name)
+    mutated["reps"][0]["arm"] = next(
+        name for name in expected_arms
+        if name != mutated["reps"][0]["arm"]
     )
     assert "schedule-receipt-placement-mismatch" in (
         paired._balanced_schedule_receipt_errors(
@@ -1239,8 +1270,10 @@ def test_v3_collector_requires_schedule_receipt_and_sizing_projection_is_exact()
     ]
 
     workloads = []
+    receipts = []
     for index, name in enumerate(paired.WORKLOAD_ORDER):
         receipt, arm_results = _balanced_receipt_fixture(policy, name)
+        receipts.append(receipt)
         workloads.append({
             "arms": arm_results,
             "campaign_id": f"campaign-{index}",
@@ -1257,6 +1290,10 @@ def test_v3_collector_requires_schedule_receipt_and_sizing_projection_is_exact()
     assert pilot["final_estimate_eligible"] is False
     assert [item["workload"] for item in pilot["workloads"]] == list(
         paired.WORKLOAD_ORDER
+    )
+    assert all(
+        item["observations"] is receipt["reps"]
+        for item, receipt in zip(pilot["workloads"], receipts)
     )
     first = pilot["workloads"][0]["observations"][0]
     assert set(first) == {

@@ -786,6 +786,23 @@ def _campaign_schema(policy: Mapping[str, object]) -> str:
     )
 
 
+def _campaign_ccbench_commit(policy: Mapping[str, object]) -> str:
+    """Keep legacy identity short while binding v3 to its canonical full OID."""
+    if _policy_schema(policy) == POLICY_SCHEMA_V2:
+        return pin.CURRENT_PIN
+    acceptance = policy.get("ccbench_acceptance")
+    canonical_pin = (
+        acceptance.get("canonical_pin")
+        if type(acceptance) is dict else None
+    )
+    if (
+        type(canonical_pin) is not str
+        or re.fullmatch(r"[0-9a-f]{40}", canonical_pin) is None
+    ):
+        raise PaperStoryError("v3 canonical CCBench pin differs")
+    return canonical_pin
+
+
 def _workload_plan(
     policy: Mapping[str, object], workload_name: str,
 ) -> Mapping[str, object]:
@@ -1562,8 +1579,8 @@ _BALANCED_RECEIPT_BLOCK_KEYS = frozenset({
     "arm", "group", "block", "block_in_group", "cv", "tps",
 })
 _BALANCED_RECEIPT_REP_KEYS = frozenset({
-    "tps", "arm", "pair_index", "group", "block", "block_in_group",
-    "block_position", "started_at_ns", "finished_at_ns",
+    "tps", "arm", "pair_index", "group", "block", "block_position",
+    "started_at_ns", "ended_at_ns",
 })
 
 
@@ -1617,27 +1634,31 @@ def _balanced_schedule_receipt_errors(
     blocks = receipt.get("blocks")
     reps = receipt.get("reps")
     arms = receipt.get("arms")
+    arm_names = _workload_arm_order(policy, workload_name)
     if (
         type(blocks) is not list
         or len(blocks) != len(plan["blocks"])
         or type(reps) is not list
         or len(reps) != _expected_reps(policy, workload_name) * 2
         or type(arms) is not dict
-        or set(arms) != {"A", "B"}
+        or set(arms) != set(arm_names)
     ):
         errors.append("schedule-receipt-shape-mismatch")
         return sorted(set(errors))
 
-    role_to_letter = {"variant": "A", "baseline": "B"}
     role_to_name = {
         role: _workload_arm_by_role(policy, workload_name, role)["name"]
         for role in ("variant", "baseline")
     }
-    physical_tps: dict[str, list[float]] = {"A": [], "B": []}
-    block_cvs: dict[str, list[float]] = {"A": [], "B": []}
+    physical_tps: dict[str, list[float]] = {
+        name: [] for name in arm_names
+    }
+    block_cvs: dict[str, list[float]] = {
+        name: [] for name in arm_names
+    }
     previous_finished: int | None = None
     for block_number, planned_block in enumerate(plan["blocks"]):
-        letter = role_to_letter[planned_block["role"]]
+        arm_name = planned_block["arm"]
         observed_block = blocks[block_number]
         observed_rows = reps[block_number * 5:block_number * 5 + 5]
         if (
@@ -1651,7 +1672,7 @@ def _balanced_schedule_receipt_errors(
         expected_group = planned_block["group"]
         expected_block_in_group = block_number % 4
         if any((
-            observed_block.get("arm") != letter,
+            observed_block.get("arm") != arm_name,
             not _exact_receipt_int(
                 observed_block.get("group"), expected_group,
             ),
@@ -1668,14 +1689,13 @@ def _balanced_schedule_receipt_errors(
             observed_rows, planned_block["pair_indices"],
         )):
             started = row.get("started_at_ns")
-            finished = row.get("finished_at_ns")
+            finished = row.get("ended_at_ns")
             if any((
-                row.get("arm") != letter,
+                row.get("arm") != arm_name,
                 not _exact_receipt_int(row.get("pair_index"), pair_index),
                 not _exact_receipt_int(row.get("group"), expected_group),
-                not _exact_receipt_int(row.get("block"), block_number),
                 not _exact_receipt_int(
-                    row.get("block_in_group"), expected_block_in_group,
+                    row.get("block"), planned_block["pair_block_number"],
                 ),
                 not _exact_receipt_int(row.get("block_position"), position),
                 type(started) is not int,
@@ -1717,12 +1737,12 @@ def _balanced_schedule_receipt_errors(
             or not _numbers_equal(observed_block.get("cv"), cv)
         ):
             errors.append("schedule-receipt-block-projection-mismatch")
-        physical_tps[letter].extend(values)
-        block_cvs[letter].append(cv)
+        physical_tps[arm_name].extend(values)
+        block_cvs[arm_name].append(cv)
 
-    for role, letter in role_to_letter.items():
-        arm_record = arms.get(letter)
-        values = physical_tps[letter]
+    for _role, arm_name in role_to_name.items():
+        arm_record = arms.get(arm_name)
+        values = physical_tps[arm_name]
         if (
             type(arm_record) is not dict
             or set(arm_record) != _BALANCED_RECEIPT_ARM_KEYS
@@ -1732,9 +1752,8 @@ def _balanced_schedule_receipt_errors(
             continue
         mean = statistics.fmean(values)
         cv = statistics.stdev(values) / mean
-        expected_name = role_to_name[role]
         expected_arm = (
-            arm_results.get(expected_name)
+            arm_results.get(arm_name)
             if arm_results is not None else None
         )
         if any((
@@ -1745,11 +1764,11 @@ def _balanced_schedule_receipt_errors(
             arm_record.get("unstable") is not (cv > 0.05),
             (
                 type(arm_record.get("block_cvs")) is not list
-                or len(arm_record["block_cvs"]) != len(block_cvs[letter])
+                or len(arm_record["block_cvs"]) != len(block_cvs[arm_name])
                 or any(
                     not _numbers_equal(observed, expected)
                     for observed, expected in zip(
-                        arm_record["block_cvs"], block_cvs[letter],
+                        arm_record["block_cvs"], block_cvs[arm_name],
                     )
                 )
             ),
@@ -1838,24 +1857,10 @@ def _balanced_sizing_pilot_document(
                 f"balanced sizing pilot receipt differs: {name}: "
                 + ",".join(receipt_errors)
             )
-        letter_to_name = {
-            "A": _workload_arm_by_role(policy, name, "variant")["name"],
-            "B": _workload_arm_by_role(policy, name, "baseline")["name"],
-        }
-        observations = []
-        for row in document["reps"]:
-            pair_index = row["pair_index"]
-            observations.append({
-                "arm": letter_to_name[row["arm"]],
-                "block": pair_index // 5,
-                "block_position": pair_index % 5,
-                "ended_at_ns": row["finished_at_ns"],
-                "group": row["group"],
-                "pair_index": pair_index,
-                "started_at_ns": row["started_at_ns"],
-                "tps": row["tps"],
-            })
-        converted.append({"observations": observations, "workload": name})
+        converted.append({
+            "observations": document["reps"],
+            "workload": name,
+        })
     return {
         "final_estimate_eligible": False,
         "schema_version": BALANCED_SIZING_PILOT_SCHEMA,
@@ -1876,12 +1881,11 @@ def _campaign_execution_options(
         "balanced_schedule": BalancedScheduleConfig(
             workload=workload_name,
             root_seed=workload["schedule_root_seed"],
+            arm_names=_workload_arm_order(policy, workload_name),
             receipt_name=BALANCED_SCHEDULE_RECEIPT_NAME,
         ),
     }
-    return _require_registered_execution_options(
-        policy, workload_name, options,
-    )
+    return options
 
 
 def _require_registered_execution_options(
@@ -1901,6 +1905,7 @@ def _require_registered_execution_options(
         or type(schedule) is not BalancedScheduleConfig
         or schedule.workload != workload_name
         or schedule.root_seed != workload.get("schedule_root_seed")
+        or schedule.arm_names != _workload_arm_order(policy, workload_name)
         or schedule.receipt_name != BALANCED_SCHEDULE_RECEIPT_NAME
     ):
         raise PaperStoryError(
@@ -2028,7 +2033,7 @@ def campaign_config(
                 "A-1 variant minus baseline under balanced five-rep blocks"
             )
         ) + f", workload={workload_name}",
-        ccbench_commit=pin.CURRENT_PIN,
+        ccbench_commit=_campaign_ccbench_commit(policy),
         search_config=search_config,
         trial=study_id,
     )
@@ -2280,7 +2285,7 @@ def _assert_submit_a1_noncertifying_markers(
     cfg = CampaignConfig(
         spec_slug="paper-story-a1-submit-marker",
         spec_content="paper-story A-1 submit marker",
-        ccbench_commit=pin.CURRENT_PIN,
+        ccbench_commit=_campaign_ccbench_commit(policy),
         search_tag="paired",
         search_config={
             "schema": _campaign_schema(policy),
@@ -3944,7 +3949,7 @@ def _validate_campaign_preimage(
         f"workload={workload_name}"
     )
     if any((
-        value.get("ccbench_commit") != pin.CURRENT_PIN,
+        value.get("ccbench_commit") != _campaign_ccbench_commit(policy),
         value.get("trial") != study_id,
         value.get("search_tag") != "paired",
         value.get("spec_content") != expected_spec,

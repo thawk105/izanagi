@@ -605,8 +605,7 @@ def derive_balanced_schedule(
         raise ValueError("balanced schedule needs at least two exact-integer groups")
     for counter in range(16):
         effective_seed = root_seed if counter == 0 else hashlib.sha256(
-            ("a1-balanced5-redraw/v1|"
-             f"root_seed={root_seed}|counter={counter}").encode("utf-8")
+            f"{root_seed}|counter={counter}".encode("utf-8")
         ).hexdigest()
         bits = tuple(
             hashlib.sha256(

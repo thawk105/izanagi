@@ -1824,8 +1824,15 @@ def test_driver_reuses_run_campaign_without_direct_evaluate_call() -> None:
     ] == ["execution_options"]
     policy = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
     options = paired._campaign_execution_options(policy, "write-heavy")
-    assert type(options["balanced_schedule"]) is paired.BalancedScheduleConfig
+    schedule = options["balanced_schedule"]
+    assert type(schedule) is paired.BalancedScheduleConfig
     assert options["bench_max_rounds"] == 1
+    assert schedule.arm_names == paired._workload_arm_order(
+        policy, "write-heavy",
+    )
+    cfg = paired.campaign_config(policy, "write-heavy")
+    assert cfg.search_config["arm_order"] == list(schedule.arm_names)
+    assert cfg.ccbench_commit == paired.CANONICAL_CCBENCH_OID
 
 
 def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> None:

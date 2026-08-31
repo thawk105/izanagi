@@ -7635,61 +7635,92 @@ def test_pipeline_screening_boundary_and_fails_safe_matrix():
 
 
 def test_evaluate_commit_writes_are_syntactically_verify_gated():
-    """設計 §5-5(i): evaluate 内に verify なし COMMIT の構文位置を作れないことを固定。"""
+    """Prepare capability, sole writer, and both callers form one closed gate."""
     with open(pipeline.__file__, encoding="utf-8") as f:
         tree = ast.parse(f.read(), filename=pipeline.__file__)
-    evaluate_node = next(
-        n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "evaluate")
+    functions = {
+        node.name: node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    core = functions["_prepare_evaluation_core"]
+    writer = functions["_commit_prepared"]
 
-    parents = {}
-    for parent in ast.walk(evaluate_node):
-        for child in ast.iter_child_nodes(parent):
-            parents[child] = parent
+    prepared_calls = [
+        (owner.name, call)
+        for owner in functions.values()
+        for call in ast.walk(owner)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_PreparedEvaluation"
+    ]
+    assert len(prepared_calls) == 1
+    assert prepared_calls[0][0] == "_prepare_evaluation_core"
 
-    verify_loop = next(
-        n for n in ast.walk(evaluate_node)
-        if isinstance(n, ast.For)
-        and isinstance(n.iter, ast.Name) and n.iter.id == "passes")
-    certified_assignment = next(
-        n for n in ast.walk(evaluate_node)
-        if isinstance(n, ast.Assign)
-        and any(isinstance(t, ast.Attribute)
-                and isinstance(t.value, ast.Name) and t.value.id == "res"
-                and t.attr == "certified" for t in n.targets)
-        and isinstance(n.value, ast.Constant) and n.value.value is True)
-    assert verify_loop.end_lineno < certified_assignment.lineno
+    verify_loops = [
+        node for node in ast.walk(core)
+        if isinstance(node, ast.For)
+        and isinstance(node.iter, ast.Name)
+        and node.iter.id == "passes"
+    ]
+    certified_assignments = [
+        node for node in ast.walk(core)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "res"
+            and target.attr == "certified"
+            for target in node.targets
+        )
+        and isinstance(node.value, ast.Constant)
+        and node.value.value is True
+    ]
+    assert len(verify_loops) == len(certified_assignments) == 1
+    prepared_call = prepared_calls[0][1]
+    assert verify_loops[0].end_lineno < certified_assignments[0].lineno \
+        < prepared_call.lineno
 
-    commit_calls = []
-    for node in ast.walk(evaluate_node):
-        if not isinstance(node, ast.Call) or len(node.args) < 3:
-            continue
-        if not (isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "wal" and node.func.attr == "log"):
-            continue
-        stage = node.args[2]
-        if isinstance(stage, ast.Name) and stage.id == "STAGE_COMMIT":
-            commit_calls.append(node)
+    stage_commit_calls = []
+    for owner in functions.values():
+        for call in ast.walk(owner):
+            if not isinstance(call, ast.Call) or len(call.args) < 3:
+                continue
+            stage = call.args[2]
+            if isinstance(stage, ast.Name) and stage.id == "STAGE_COMMIT":
+                stage_commit_calls.append((owner.name, call))
+    assert [owner for owner, _call in stage_commit_calls] == [
+        "_commit_prepared", "_commit_prepared",
+    ]
+    assert {
+        ast.unparse(call.func) for _owner, call in stage_commit_calls
+    } == {
+        "wal.log", "prepared.qualification_policy.event_sink.emit",
+    }
 
-    assert len(commit_calls) == 2
-    for call in commit_calls:
-        assert call.lineno > certified_assignment.lineno
-        cur = parents.get(call)
-        inside_certified_if = False
-        while cur is not None and cur is not evaluate_node:
-            if (isinstance(cur, ast.If)
-                    and isinstance(cur.test, ast.Attribute)
-                    and isinstance(cur.test.value, ast.Name)
-                    and cur.test.value.id == "res"
-                    and cur.test.attr == "certified"):
-                inside_certified_if = True
-                break
-            cur = parents.get(cur)
-        assert inside_certified_if
+    guard = [
+        node for node in writer.body
+        if isinstance(node, ast.If)
+        and ast.unparse(node.test) == "not res.certified or res.aborted"
+    ]
+    assert len(guard) == 1
+    assert len(guard[0].body) == 1 and isinstance(guard[0].body[0], ast.Raise)
+    assert all(
+        guard[0].end_lineno < call.lineno
+        for _owner, call in stage_commit_calls
+    )
 
-    # mutation resistance: verify loop より前へ
-    # `if False: wal.log(..., STAGE_COMMIT, ...)` を挿すと call 数・行順・認証 if の
-    # いずれも満たせず、このテストが落ちることを意図した形状検査である。
+    writer_callers = collections.Counter(
+        owner.name
+        for owner in functions.values()
+        for call in ast.walk(owner)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_commit_prepared"
+    )
+    assert writer_callers == {
+        "evaluate": 1,
+        "_run_balanced_schedule": 1,
+    }
 
 
 def test_pipeline_screening_with_no_bench_is_immediate_value_error():
@@ -12956,7 +12987,7 @@ def _balanced_prepared_fixture(
 def _exercise_balanced_schedule(
         values_for_block, *, settle_result=None, competing_fn=None, reps=20,
         arm_names=("variant-arm", "baseline-arm"), use_perf=True,
-        perf_preflight_receipt=None):
+        perf_preflight_receipt=None, workload="balanced", root_seed="0" * 64):
     root = _tmpdir("izanagi_balanced_schedule_")
     layout = CampaignLayout(root)
     arm_a, events_a = _balanced_prepared_fixture(
@@ -13005,7 +13036,7 @@ def _exercise_balanced_schedule(
         return measured
 
     config = pipeline.BalancedScheduleConfig(
-        workload="balanced", root_seed="0" * 64, arm_names=arm_names,
+        workload=workload, root_seed=root_seed, arm_names=arm_names,
     )
     if settle_result is None:
         settle_result = {"settled": True, "load1": 0.0}
@@ -13108,6 +13139,63 @@ def test_balanced_schedule_receipt_rows_match_sizing_schema_exactly():
     assert all(start < end for start, end in intervals)
 
 
+def test_balanced_receipt_real_producer_round_trips_consumer_and_sizing():
+    """The producer's exact receipt is accepted unchanged by both consumers."""
+    from orchestrator.campaign import paper_story_a1_paired as paired
+
+    policy = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+    workloads = []
+    receipts = []
+    for workload_name in paired.WORKLOAD_ORDER:
+        arm_names = paired._workload_arm_order(policy, workload_name)
+        root_seed = paired._workload_plan(
+            policy, workload_name,
+        )["schedule_root_seed"]
+        run = _exercise_balanced_schedule(
+            lambda arm, block: [
+                float(
+                    10_000
+                    + (1_000 if arm == "A" else 0)
+                    + block * 10
+                    + index
+                )
+                for index in range(5)
+            ],
+            reps=60,
+            arm_names=arm_names,
+            workload=workload_name,
+            root_seed=root_seed,
+        )
+        receipt = run["receipt"]
+        arm_results = {
+            name: {
+                "raw_tps": receipt["arms"][name]["tps"],
+                "variant": receipt["arms"][name]["variant"],
+            }
+            for name in arm_names
+        }
+        assert paired._balanced_schedule_receipt_errors(
+            policy, workload_name, receipt, arm_results,
+        ) == []
+        receipts.append(receipt)
+        workloads.append({
+            "arms": arm_results,
+            "campaign_id": f"campaign-{workload_name}",
+            "errors": [],
+            "schedule_receipt": {"document": receipt},
+            "valid": True,
+            "workload": workload_name,
+        })
+
+    sizing = paired._balanced_sizing_pilot_document(
+        policy, {"complete": True, "workloads": workloads},
+    )
+    assert all(
+        workload["observations"] is receipt["reps"]
+        for workload, receipt in zip(sizing["workloads"], receipts)
+    )
+
+
 def test_balanced_schedule_requires_every_rep_at_the_runner_boundary():
     """A complete block is accepted only through runner's strict rep contract."""
     run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
@@ -13172,9 +13260,9 @@ def test_balanced_schedule_redraw_uses_registered_preimage():
     actual = pipeline.derive_balanced_schedule(root_seed, "balanced", 2)
     assert actual.seed_counter == 1
     assert actual.effective_root_seed == (
-        "d7fa903b67f9a2a943b9c9839bf67e8e98c646f62ac38ebed41c982412fe7ee9"
+        "e22dd77a1336ceffd09ed2b904703beee9924e68fae34dfa67159bdb13ba7897"
     )
-    assert actual.group_bits == (0, 1)
+    assert actual.group_bits == (1, 0)
 
 
 def test_canonical_build_source_state_accepts_exact_clean_checkout():
@@ -13279,46 +13367,83 @@ def test_balanced_loop_binds_build_guard_to_campaign_policy_pin():
 
 
 def test_production_passes_real_balanced_schedule_config_to_run_campaign():
-    """Production run_measurement must inline the real policy-bound config."""
+    """Production has one validated policy-options route into run_campaign."""
     source_path = Path(_REPOSITORY) / "orchestrator/campaign/paper_story_a1_paired.py"
     tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    functions = {
+        node.name: node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
     production = next(
         node for node in tree.body
         if isinstance(node, ast.FunctionDef) and node.name == "run_measurement"
     )
-    calls = [
+    execution_option_calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_campaign_execution_options"
+    ]
+    validator_calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_require_registered_execution_options"
+    ]
+    run_calls = [
         call for call in ast.walk(production)
         if isinstance(call, ast.Call)
         and isinstance(call.func, ast.Name)
         and call.func.id == "run_campaign"
     ]
-    assert len(calls) == 1
-    keywords = {item.arg: item.value for item in calls[0].keywords}
-    expected_selector = "_policy_schema(policy) == POLICY_SCHEMA_V3"
-    rounds = keywords["bench_max_rounds"]
-    assert isinstance(rounds, ast.IfExp)
-    assert ast.unparse(rounds.test) == expected_selector
-    assert ast.unparse(rounds.body) == "1"
-    assert ast.unparse(rounds.orelse) == "3"
-    schedule = keywords["balanced_schedule"]
-    assert isinstance(schedule, ast.IfExp)
-    assert ast.unparse(schedule.test) == expected_selector
-    assert isinstance(schedule.orelse, ast.Constant) and schedule.orelse.value is None
-    config = schedule.body
-    assert (
-        isinstance(config, ast.Call)
-        and isinstance(config.func, ast.Name)
-        and config.func.id == "BalancedScheduleConfig"
-    )
-    config_keywords = {item.arg: item.value for item in config.keywords}
-    assert set(config_keywords) == {"workload", "root_seed", "arm_names"}
-    assert ast.unparse(config_keywords["workload"]) == "workload_name"
-    assert ast.unparse(config_keywords["root_seed"]) == (
-        "_workload_plan(policy, workload_name)['schedule_root_seed']"
-    )
+    assert len(execution_option_calls) == len(validator_calls) == len(run_calls) == 1
+    assert execution_option_calls[0].lineno < validator_calls[0].lineno \
+        < run_calls[0].lineno
+    assert [
+        keyword.value.id for keyword in run_calls[0].keywords
+        if keyword.arg is None and isinstance(keyword.value, ast.Name)
+    ] == ["execution_options"]
+
+    options_helper = functions["_campaign_execution_options"]
+    configs = [
+        call for call in ast.walk(options_helper)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "BalancedScheduleConfig"
+    ]
+    assert len(configs) == 1
+    config_keywords = {item.arg: item.value for item in configs[0].keywords}
+    assert set(config_keywords) == {
+        "workload", "root_seed", "arm_names", "receipt_name",
+    }
     assert ast.unparse(config_keywords["arm_names"]) == (
         "_workload_arm_order(policy, workload_name)"
     )
+
+    from orchestrator.campaign import paper_story_a1_paired as paired
+    v3 = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+    for workload_name in paired.WORKLOAD_ORDER:
+        options = paired._campaign_execution_options(v3, workload_name)
+        registered = paired._require_registered_execution_options(
+            v3, workload_name, options,
+        )
+        schedule = registered["balanced_schedule"]
+        assert registered["bench_max_rounds"] == 1
+        assert schedule.arm_names == paired._workload_arm_order(
+            v3, workload_name,
+        )
+        assert schedule.root_seed == paired._workload_plan(
+            v3, workload_name,
+        )["schedule_root_seed"]
+        assert schedule.receipt_name == paired.BALANCED_SCHEDULE_RECEIPT_NAME
+        assert paired.campaign_config(
+            v3, workload_name,
+        ).ccbench_commit == paired.CANONICAL_CCBENCH_OID
+    legacy = paired.load_policy()[0]
+    assert paired._campaign_execution_options(legacy, "balanced") == {}
+    assert paired._require_registered_execution_options(
+        legacy, "balanced", {},
+    ) == {}
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
