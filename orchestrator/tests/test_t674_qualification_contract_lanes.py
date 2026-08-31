@@ -269,29 +269,30 @@ def _mentions_contract_key(node: ast.AST) -> bool:
     )
 
 
-def _is_certified_if(node: ast.AST) -> bool:
-    return (
-        isinstance(node, ast.If)
-        and isinstance(node.test, ast.Attribute)
-        and isinstance(node.test.value, ast.Name)
-        and node.test.value.id == "res"
-        and node.test.attr == "certified"
-    )
-
-
 def test_evaluate_all_commit_calls_preserve_wal_qualification_separation():
-    """module 全 COMMIT call を数え、D246 の 2+2 分離と evaluate 所有を固定する。
+    """受理: certified capability、sole writer、2 lane、全 caller を一体で固定する。
 
+    拒否: 未知 writer/caller と WAL key の qualification 混入を閉集合外にする。
     既知限界: 動的に計算・注入される stage 値は静的 census の対象外。
     """
     tree = ast.parse(
         Path(pipeline.__file__).read_text(encoding="utf-8"),
         filename=pipeline.__file__,
     )
-    evaluate_node = next(
-        node for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "evaluate"
+    function_nodes = [
+        node for node in tree.body if isinstance(node, ast.FunctionDef)
+    ]
+    target_function_counts = Counter(
+        node.name for node in function_nodes
+        if node.name in {"_prepare_evaluation_core", "_commit_prepared"}
     )
+    assert target_function_counts == Counter({
+        "_prepare_evaluation_core": 1,
+        "_commit_prepared": 1,
+    })
+    functions = {node.name: node for node in function_nodes}
+    prepare_node = functions["_prepare_evaluation_core"]
+    commit_node = functions["_commit_prepared"]
     parents: dict[ast.AST, ast.AST] = {}
     for parent in ast.walk(tree):
         for child in ast.iter_child_nodes(parent):
@@ -299,39 +300,139 @@ def test_evaluate_all_commit_calls_preserve_wal_qualification_separation():
 
     # writer/function 名を見ず、module alias と positional/keyword stage を正規化する。
     commit_calls = _commit_calls_in(tree)
-    assert len(commit_calls) == 4
+    assert len(commit_calls) == 2
 
     by_writer = Counter(_attribute_path(call.func) for call in commit_calls)
     assert by_writer == Counter({
-        "wal.log": 2,
-        "qualification_policy.event_sink.emit": 2,
+        "wal.log": 1,
+        "prepared.qualification_policy.event_sink.emit": 1,
     })
     for call in commit_calls:
         owner = parents.get(call)
         while owner is not None and not isinstance(
                 owner, (ast.FunctionDef, ast.AsyncFunctionDef)):
             owner = parents.get(owner)
-        assert owner is evaluate_node, (
-            f"COMMIT call at line {call.lineno} is outside evaluate"
+        assert owner is commit_node, (
+            f"COMMIT call at line {call.lineno} is outside _commit_prepared"
         )
 
-        writer = _attribute_path(call.func)
-        has_contract_key = _mentions_contract_key(_payload_node(call))
-        if writer == "wal.log":
-            assert has_contract_key, f"WAL COMMIT lacks contract key at line {call.lineno}"
-        else:
-            assert not has_contract_key, (
-                f"qualification COMMIT has campaign contract key at line {call.lineno}"
-            )
+    # _PreparedEvaluation is the sole commit capability.  It is created only
+    # on the top-level path after the verification loop certifies the result.
+    prepared_calls = [
+        call for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_PreparedEvaluation"
+    ]
+    assert len(prepared_calls) == 1
+    prepared_call = prepared_calls[0]
+    prepared_owner = parents[prepared_call]
+    while not isinstance(prepared_owner, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        prepared_owner = parents[prepared_owner]
+    assert prepared_owner is prepare_node
+    prepared_return = parents[prepared_call]
+    while parents.get(prepared_return) is not prepare_node:
+        prepared_return = parents[prepared_return]
+    assert isinstance(prepared_return, ast.Return)
 
-        current = parents.get(call)
-        while current is not None and current is not evaluate_node:
-            if _is_certified_if(current):
-                break
-            current = parents.get(current)
-        assert current is not None and current is not evaluate_node, (
-            f"COMMIT call at line {call.lineno} is outside if res.certified"
+    verify_loops = [
+        statement for statement in prepare_node.body
+        if isinstance(statement, ast.For)
+        and any(
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Name)
+            and call.func.id == "_run_one_pass"
+            for call in ast.walk(statement)
         )
+    ]
+    certified_assignments = [
+        statement for statement in ast.walk(prepare_node)
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and ast.unparse(statement.targets[0]) == "res.certified"
+        and isinstance(statement.value, ast.Constant)
+        and statement.value.value is True
+    ]
+    assert len(verify_loops) == 1
+    assert len(certified_assignments) == 1
+    assert (
+        prepare_node.body.index(verify_loops[0])
+        < prepare_node.body.index(certified_assignments[0])
+        < prepare_node.body.index(prepared_return)
+    )
+
+    # The certified/non-aborted rejection is a top-level guard before the one
+    # exact WAL/qualification split, so it dominates both terminal writers.
+    commit_guards = [
+        statement for statement in commit_node.body
+        if isinstance(statement, ast.If)
+        and ast.unparse(statement.test) == "not res.certified or res.aborted"
+        and len(statement.body) == 1
+        and isinstance(statement.body[0], ast.Raise)
+    ]
+    assert len(commit_guards) == 1
+    writer_splits = [
+        statement for statement in commit_node.body
+        if isinstance(statement, ast.If)
+        and ast.unparse(statement.test) == "prepared.qualification_policy is None"
+    ]
+    assert len(writer_splits) == 1
+    writer_split = writer_splits[0]
+    assert commit_node.body.index(commit_guards[0]) < commit_node.body.index(writer_split)
+    assert all(call in list(ast.walk(writer_split)) for call in commit_calls)
+
+    wal_call = next(call for call in commit_calls if _attribute_path(call.func) == "wal.log")
+    qualification_call = next(
+        call for call in commit_calls
+        if _attribute_path(call.func) == "prepared.qualification_policy.event_sink.emit"
+    )
+    assert wal_call in list(ast.walk(ast.Module(body=writer_split.body, type_ignores=[])))
+    assert qualification_call in list(
+        ast.walk(ast.Module(body=writer_split.orelse, type_ignores=[]))
+    )
+    assert ast.unparse(_payload_node(wal_call)) == "wal_payload"
+    wal_payload_assignments = [
+        statement for statement in writer_split.body
+        if isinstance(statement, ast.Assign)
+        and any(ast.unparse(target) == "wal_payload" for target in statement.targets)
+    ]
+    assert len(wal_payload_assignments) == 1
+    assert _mentions_contract_key(wal_payload_assignments[0].value)
+    assert ast.unparse(_payload_node(qualification_call)) == "commit_payload"
+    assert not _mentions_contract_key(_payload_node(qualification_call))
+    commit_payload_assignments = [
+        assignment for assignment in ast.walk(commit_node)
+        if isinstance(assignment, ast.Assign)
+        and any(
+            ast.unparse(target) == "commit_payload"
+            for target in assignment.targets
+        )
+    ]
+    assert len(commit_payload_assignments) == 2
+    assert all(
+        not _mentions_contract_key(assignment.value)
+        for assignment in commit_payload_assignments
+    )
+
+    helper_calls = [
+        call for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+        and (
+            (isinstance(call.func, ast.Name) and call.func.id == "_commit_prepared")
+            or (isinstance(call.func, ast.Attribute)
+                and call.func.attr == "_commit_prepared")
+        )
+    ]
+    helper_callers = Counter()
+    for call in helper_calls:
+        owner = parents[call]
+        while not isinstance(owner, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            owner = parents[owner]
+        helper_callers[owner.name] += 1
+    assert helper_callers == Counter({
+        "evaluate": 1,
+        "_run_balanced_schedule": 1,
+    })
 
 
 def test_commit_census_includes_keyword_stage_without_writer_prefilter():

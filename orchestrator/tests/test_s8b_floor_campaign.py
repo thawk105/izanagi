@@ -1586,6 +1586,10 @@ def test_resume_v3_rejects_session_without_rep_integrity_evidence(tmp_path):
 
 
 def test_production_use_perf_keyword_call_sites_are_a_closed_set():
+    """受理: 名指しした production site だけが use_perf を keyword 伝播する。
+
+    拒否: site の追加だけでなく、登録済み実体の消失も closed-set 不一致にする。
+    """
     call_sites = []
     target_functions = {
         "_build_cmd", "repro_command", "build_portable_run_cmd", "measure_point",
@@ -1609,6 +1613,7 @@ def test_production_use_perf_keyword_call_sites_are_a_closed_set():
         ("orchestrator/calibrator/runner.py", "repro_command"),
         ("orchestrator/campaign/between_run_floor.py", "measure_point"),
         ("orchestrator/campaign/between_run_floor.py", "measure_point"),
+        ("orchestrator/campaign/pipeline.py", "measure_point"),
         ("orchestrator/campaign/s8b_floor_campaign.py", "build_portable_run_cmd"),
         ("orchestrator/campaign/s8b_floor_campaign.py", "measure_point"),
         ("orchestrator/campaign/s8b_oracle_n_pilot.py", "measure_fn"),
@@ -6362,7 +6367,10 @@ def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
 
 
 def test_materializer_registry_covers_all_python_build_launches():
-    """Direct CMake は deny registry、buildcache caller は U1/U2 gateway 引数を必須化する。"""
+    """受理: exact gateway と名指しした非 materializer probe だけを分類する。
+
+    拒否: 未登録 launch と登録済み実体の消失をどちらも registry 不一致にする。
+    """
     campaign_root = ROOT / "orchestrator/campaign"
     direct_cmake: set[str] = {
         "orchestrator/campaign/s8b_expected_materialization.py:"
@@ -6371,9 +6379,19 @@ def test_materializer_registry_covers_all_python_build_launches():
     missing_admission: list[str] = []
     seen_gateways: set[str] = set()
     admitted_gateways = {
-        "orchestrator/campaign/pipeline.py:evaluate",
+        "orchestrator/campaign/pipeline.py:"
+        "_prepare_evaluation_core._build_one",
         "orchestrator/campaign/s8b_floor_campaign.py:invoke_build",
     }
+    explicit_non_materializer_process_sites = Counter({
+        # Fixed git -C rev-parse/status metadata probe with a 10-second
+        # timeout.  It binds each trace/perf build to the canonical checkout
+        # but never names or executes a CCBench binary.
+        "orchestrator/campaign/pipeline.py:"
+        "_require_canonical_build_source_state._git": 1,
+    })
+    observed_non_materializer_process_sites: Counter[str] = Counter()
+    non_materializer_process_calls: dict[str, ast.Call] = {}
 
     def static_keyword_names(call, owner) -> set[str]:
         """Direct keyword と呼出し前の単一 literal ``**dict`` だけを静的展開する。"""
@@ -6439,6 +6457,18 @@ def test_materializer_registry_covers_all_python_build_launches():
             function_name = owner.name if isinstance(
                 owner, (ast.FunctionDef, ast.AsyncFunctionDef)) else "<module>"
             site = f"{relative}:{function_name}"
+            scopes = []
+            scope = owner
+            while isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                scopes.append(scope.name)
+                scope = parents.get(scope)
+                while scope is not None and not isinstance(
+                        scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    scope = parents.get(scope)
+            scoped_site = f"{relative}:{'.'.join(reversed(scopes))}"
+            if qualified == "subprocess_runner":
+                observed_non_materializer_process_sites[scoped_site] += 1
+                non_materializer_process_calls[scoped_site] = call
             is_buildcache_call = (
                 qualified.endswith("buildcache.build")
                 or qualified.endswith("buildcache.build_v2")
@@ -6450,20 +6480,27 @@ def test_materializer_registry_covers_all_python_build_launches():
             if not is_buildcache_call and not is_floor_materializer_call:
                 continue
             required = {"admission", "build_context", "source_evidence"}
-            if site in admitted_gateways:
-                seen_gateways.add(site)
+            gateway_site = (
+                scoped_site
+                if scoped_site in admitted_gateways
+                else site
+            )
+            if gateway_site in admitted_gateways:
+                seen_gateways.add(gateway_site)
                 if is_floor_materializer_call:
                     keywords = static_keyword_names(call, owner)
                     if not (required | {"expected_toolchain_manifest"}) <= keywords:
                         missing_admission.append(
                             f"{relative}:{call.lineno}:{qualified}"
                         )
-                elif site.endswith(":evaluate"):
-                    function_strings = {
-                        node.value for node in ast.walk(owner)
-                        if isinstance(node, ast.Constant) and isinstance(node.value, str)
-                    }
-                    if not required <= function_strings:
+                else:
+                    binding_owner = parents.get(owner)
+                    while binding_owner is not None and not isinstance(
+                            binding_owner,
+                            (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        binding_owner = parents.get(binding_owner)
+                    keywords = static_keyword_names(call, binding_owner)
+                    if not required <= keywords:
                         missing_admission.append(
                             f"{relative}:{call.lineno}:{qualified}:gateway-preimage"
                         )
@@ -6475,6 +6512,47 @@ def test_materializer_registry_covers_all_python_build_launches():
     assert direct_cmake == set(s8b_materialization.NON_ADMISSIBLE_MATERIALIZERS)
     assert seen_gateways == admitted_gateways
     assert missing_admission == []
+    assert (
+        observed_non_materializer_process_sites
+        == explicit_non_materializer_process_sites
+    )
+
+    probe_site = (
+        "orchestrator/campaign/pipeline.py:"
+        "_require_canonical_build_source_state._git"
+    )
+    probe_call = non_materializer_process_calls[probe_site]
+    assert ast.unparse(probe_call.args[0]) == "['git', '-C', checkout, *args]"
+    probe_keywords = {
+        keyword.arg: ast.literal_eval(keyword.value)
+        for keyword in probe_call.keywords
+    }
+    assert probe_keywords == {
+        "capture_output": True,
+        "text": True,
+        "timeout": 10.0,
+    }
+
+    pipeline_tree = ast.parse(
+        (campaign_root / "pipeline.py").read_text(encoding="utf-8"),
+        filename=str(campaign_root / "pipeline.py"),
+    )
+    canonical_gate = next(
+        node for node in pipeline_tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_require_canonical_build_source_state"
+    )
+    fixed_git_calls = [
+        tuple(ast.literal_eval(argument) for argument in call.args)
+        for call in ast.walk(canonical_gate)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_git"
+    ]
+    assert fixed_git_calls == [
+        ("rev-parse", "--verify", "HEAD^{commit}"),
+        ("status", "--porcelain=v1", "--untracked-files=no"),
+    ]
 
 
 @pytest.mark.parametrize("seam_name,seam_value", [
