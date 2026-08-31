@@ -45,7 +45,7 @@ title: [T-1795] D965 に従い attempt 対応の永続証拠を二重条件で�
 - **受入全走は本 wave と無関係な赤で 1 度止まった。** `test_codex_reasoning_ab.py` の 26 node
   (5 failed + 21 error) が落ちたが、同 file は 1 byte も変更していない。現行 main 単独の
   probe worktree で同じ内訳が再現したので非帰属である。原因は repo 外へ pin した過去 session の
-  消失で、記録は {{F:pinned-external-session-vanished}}。**この赤は D1144 に従い停止理由にしない。**
+  消失で、記録は F20 の再発として残した (揮発領域の唯一コピーという同型)。**この赤は D1144 に従い停止理由にしない。**
   修正は編集面の衝突を避けるため別の単独 wave へ一本化し、本 wave は同 file を触らない。
   その修正が main へ着地した後に main を取り込んで受入を投げ直す (tip が変わるので再投入資格が立つ)。
 - **親は当初この赤の処置を「検出力は失われない」と見立てたが、独立相談が file:line で反証した。**
