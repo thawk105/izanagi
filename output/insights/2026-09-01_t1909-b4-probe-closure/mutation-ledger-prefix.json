@@ -1,0 +1,230 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3eba1f18ec97a2423b641642f467fe41/izdw-3eba1f18ec.o963072",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3eba1f18ec97a2423b641642f467fe41/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]\n59 passed in 57.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "598159b932e4867e22020a8cfcd33edafa7d6253c42d613804ac657c41f5f895"
+    },
+    "artifact_error": null,
+    "collection_sha256": "73bfd54727f87004622227902c73e23f34261f4b6f02199e026ecb2762cc6ab8",
+    "duration_s": 104.431,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "7823d41a2ef0474beb05fd717fa0ae15c02bcc10c9418ed339ec7a202ce54f60",
+    "repo_head": "cb4a11b6e9c5281b4aa1feb7c7c1b67315d62aa0",
+    "runner_sha256": "8ddc5a3824afed7cd04b4b74adf051a104e7593ad1e12349e1c1d8f48d9ddf49",
+    "spec_sha256": "f7503dbcf90334d1daed732d33c1747ac978fd200200b03e379814f6f0b4d018",
+    "status": "PASSED",
+    "test_output_sha256": "598159b932e4867e22020a8cfcd33edafa7d6253c42d613804ac657c41f5f895",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+  },
+  "date": "2026-08-31T16:21:07.370001+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2790fb9bfe7e23a0a328c1b6de695225/izdw-2790fb9bfe.o963083",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2790fb9bfe7e23a0a328c1b6de695225/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]\n59 passed in 57.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "7f9c0e2ad1e05182ed838d526248a6a10536ba6e68746f8b03dc1c5106ab6f5e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "73bfd54727f87004622227902c73e23f34261f4b6f02199e026ecb2762cc6ab8",
+      "duration_s": 78.372,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MWA",
+      "injection_diff_sha256": "2352dda65b5b9d1a10f3fe0f88121e36865ddd7824d5d4a857f80228d362ade8",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "9419a61c4199dc026ef7c406b6c25d3237c9f8319abd91b955d7dad25582e9ac",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[0]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+          "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+        }
+      ],
+      "repo_head": "cb4a11b6e9c5281b4aa1feb7c7c1b67315d62aa0",
+      "runner_sha256": "8ddc5a3824afed7cd04b4b74adf051a104e7593ad1e12349e1c1d8f48d9ddf49",
+      "spec_sha256": "f7503dbcf90334d1daed732d33c1747ac978fd200200b03e379814f6f0b4d018",
+      "status": "SURVIVED",
+      "test_output_sha256": "7f9c0e2ad1e05182ed838d526248a6a10536ba6e68746f8b03dc1c5106ab6f5e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e86b266da471c3b452623f7eff677aa5/izdw-e86b266da4.o963069",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e86b266da471c3b452623f7eff677aa5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_covers_exact_runtime_import_closure\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib\\nfrom . import p3_s4_loop as L-loader = importlib.import_module\\n    loader(name)-dynamic import]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys\\nfrom . import p3_s4_loop as L-mods = sys.modules\\n    mods[name].make_critic_digest()-sys.modules callable]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr\\n    getter(L, name)()-non-literal getattr]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()\\n    target()-unresolved local assignment]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\natexit.register(lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\ndef helper():\\n    atexit.register(lambda: None)\\nhelper()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\n@atexit.register\\ndef cleanup():\\n    pass]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal\\nsignal.signal(signal.SIGTERM, lambda *_: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref\\nweakref.finalize(object(), lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading\\nthreading.Thread().start()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import\norchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate\norchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived\norchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent\norchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site\norchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception\norchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields\norchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked\norchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes\n\n59 tests collected in 0.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "762827ef15856cfcb8742d112be1dfadfe4e644423b7615cf9920436034c8b07"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_covers_exact_runtime_import_closure",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib/nfrom . import p3_s4_loop as L-loader = importlib.import_module/n    loader(name)-dynamic import]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys/nfrom . import p3_s4_loop as L-mods = sys.modules/n    mods[name].make_critic_digest()-sys.modules callable]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr/n    getter(L, name)()-non-literal getattr]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()/n    target()-unresolved local assignment]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/natexit.register(lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/ndef helper():/n    atexit.register(lambda: None)/nhelper()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/n@atexit.register/ndef cleanup():/n    pass]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal/nsignal.signal(signal.SIGTERM, lambda *_: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref/nweakref.finalize(object(), lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading/nthreading.Thread().start()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+      ],
+      "duration_s": 21.909,
+      "rc": 0,
+      "repo_head": "cb4a11b6e9c5281b4aa1feb7c7c1b67315d62aa0",
+      "runner_sha256": "8ddc5a3824afed7cd04b4b74adf051a104e7593ad1e12349e1c1d8f48d9ddf49",
+      "spec_sha256": "f7503dbcf90334d1daed732d33c1747ac978fd200200b03e379814f6f0b4d018",
+      "status": "PASSED",
+      "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MWA": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "2352dda65b5b9d1a10f3fe0f88121e36865ddd7824d5d4a857f80228d362ade8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[0]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+            "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "7823d41a2ef0474beb05fd717fa0ae15c02bcc10c9418ed339ec7a202ce54f60",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "cb4a11b6e9c5281b4aa1feb7c7c1b67315d62aa0",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "1e8cdee41289bf1db8e8a120d12afee59c7bf5f8",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8ddc5a3824afed7cd04b4b74adf051a104e7593ad1e12349e1c1d8f48d9ddf49",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f7503dbcf90334d1daed732d33c1747ac978fd200200b03e379814f6f0b4d018",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c",
+  "updated_at": "2026-08-31T16:24:16.999338+00:00"
+}
