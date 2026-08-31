@@ -4879,6 +4879,45 @@ def test_job_run_rejects_allowlist_external_environment_before_child(tmp_path):
     assert "allowlist" in result["error"]
 
 
+def test_parent_cannot_inject_mutation_marker_through_request_environment(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "mutation",
+                "args": [
+                    "--spec",
+                    "spec.json",
+                    "--out",
+                    "ledger.json",
+                    "--runner-mode",
+                    "local",
+                    "--detached",
+                    "--",
+                    sys.executable,
+                    "tools/run_tests.py",
+                    "orchestrator/tests/test_pegasus_dispatch_compute.py",
+                ],
+                "environment": {
+                    DC.mutation_attempt_marker.MARKER_ENV: "forged"
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == DC.INFRA_RC
+    assert calls == []
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert result["stage"] == "bootstrap"
+    assert "allowlist" in result["error"]
+
+
 def test_valid_current_and_v1_environment_overlays_survive_child_enforcement(
     tmp_path,
 ):
@@ -5098,6 +5137,111 @@ def test_job_run_closes_stdin_uses_repo_cwd_and_cleans_mutation_env(
         "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "LD_PRELOAD", "IZANAGI_FORGED",
         DC._REQUEST_SHA256_ENV,
     }.isdisjoint(kwargs["env"])
+
+
+def test_m10_mutation_child_receives_compute_minted_marker_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv(DC.mutation_attempt_marker.MARKER_ENV, "parent-forged")
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "mutation",
+                "args": [
+                    "--spec",
+                    "spec.json",
+                    "--out",
+                    "ledger.json",
+                    "--runner-mode",
+                    "local",
+                    "--detached",
+                    "--",
+                    sys.executable,
+                    "tools/run_tests.py",
+                    "orchestrator/tests/test_pegasus_dispatch_compute.py",
+                ],
+                "environment": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == 0
+    assert len(calls) == 1
+    marker = json.loads(calls[0][1]["env"][DC.mutation_attempt_marker.MARKER_ENV])
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert marker == {
+        "schema_version": DC.mutation_attempt_marker.BINDING_SCHEMA,
+        "dispatch_root": str((_REPO / "output" / "pegasus-dispatch").resolve()),
+        "submission_dir": str(tmp_path.resolve()),
+        "pbs_jobid": _JOB_ID,
+        "hostname": "bnode114",
+        "request_sha256": result["request_sha256"],
+    }
+    assert DC.mutation_attempt_marker.MARKER_ENV not in DC.TASKS[
+        "mutation"
+    ].env_allowlist
+    assert DC.mutation_attempt_marker.MARKER_ENV not in DC._CLEAN_CHILD_ENV_KEYS
+
+
+@pytest.mark.parametrize(
+    ("task", "args"),
+    [
+        ("tests", ["orchestrator/tests/test_pegasus_dispatch_compute.py"]),
+        ("provenance", ["--range", "A..B"]),
+        ("generic", [sys.executable, "-c", "raise SystemExit(0)"]),
+    ],
+)
+def test_m9_non_mutation_children_never_receive_marker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    task: str,
+    args: list[str],
+) -> None:
+    monkeypatch.delenv(DC.mutation_attempt_marker.MARKER_ENV, raising=False)
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": task,
+                "args": args,
+                "environment": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == 0
+    assert len(calls) == 1
+    assert DC.mutation_attempt_marker.MARKER_ENV not in calls[0][1]["env"]
+
+
+def test_job_script_does_not_export_mutation_attempt_marker(tmp_path: Path) -> None:
+    submission = tmp_path / "submission"
+    submission.mkdir()
+    script = DC._job_script(
+        repo_root=_REPO,
+        submission_dir=submission,
+        request_path=submission / "request.json",
+        probe_path=submission / "interpreter_probe.py",
+        request_sha256="a" * 64,
+        walltime="00:30:00",
+        task="mutation",
+    )
+
+    assert DC.mutation_attempt_marker.MARKER_ENV not in script
 
 
 def test_generic_job_run_executes_direct_argv_with_clean_contract(tmp_path):

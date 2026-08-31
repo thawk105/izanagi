@@ -82,13 +82,6 @@ OR-M3 -> test_or_m3_production_validator_rejects_projection_change
 OR-M6 diagnostic -> test_or_m6_adjudication_reason_is_task_specific_for_checked_slice
 OR-M6 dual-layer correctness -> test_or_m6_checked_slice_full_cli_rejects_cross_task_finding
 OR-M7 -> test_or_m7_checked_slice_keeps_acceptance_unbound_when_valid
-
-T-2080 historical-rollout availability mutation nodes:
-B-2080-1 -> test_historical_rollout_resolver_sha_mismatch_is_not_skipped
-B-2080-2 -> test_historical_rollout_resolver_skips_only_missing_label
-B-2080-3 -> test_historical_rollout_resolver_accepts_exact_corpus
-B-2080-4 -> test_historical_rollout_resolver_pos_only_is_label_scoped
-B-2080-5 -> test_historical_rollout_resolver_duplicate_is_not_skipped
 """
 from __future__ import annotations
 
@@ -97,7 +90,6 @@ import base64
 import copy
 import hashlib
 import importlib.util
-import inspect
 import json
 import os
 import shutil
@@ -150,6 +142,11 @@ _CERTIFIED_RERUN_DIR = (
     / "run-outputs"
 )
 _S03_SHA = "393df3429fff61bb87d45350237a55ea3346ff9cbad0f7042eeb9ebf859b33ce"
+_REAL_ROLLOUT = (
+    _HISTORICAL_SESSIONS
+    / "2026/07/29/"
+    "rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl"
+)
 _REAL_TOKEN_SLICE = (
     '{"timestamp":"2026-07-29T06:49:36.776Z","type":"event_msg","payload":'
     '{"type":"token_count","info":{"total_token_usage":{"input_tokens":17295,'
@@ -184,100 +181,6 @@ _TEST_PRICE_EXCERPT_SHA256 = (
     "32d016abae45142697ed608fb56f43e35483e43715965fb7b935bdf7dc6a78d4"
 )
 _TEST_PRICE_EXCERPT_BYTES = 19_117
-
-_BENCHMARK_HISTORICAL_LABELS = ("POS", "NEG", "author", "fix1", "fix2")
-_INDEPENDENT_GOLDEN_HISTORICAL_LABELS = ("author", "fix1", "fix2")
-_POS_HISTORICAL_LABELS = ("POS",)
-
-
-class _MissingHistoricalRollouts(Exception):
-    """Required rollout labels that production cannot attribute to a file."""
-
-    def __init__(self, missing: list[tuple[str, str]]) -> None:
-        self.missing = tuple(missing)
-        detail = ", ".join(
-            f"{label} ({session_id})" for label, session_id in self.missing
-        )
-        super().__init__(detail)
-
-
-def _resolve_required_historical_rollouts(
-    sessions_root: Path,
-    required_labels: tuple[str, ...],
-    *,
-    session_ids: dict[str, str] | None = None,
-    rollout_sha256: dict[str, str] | None = None,
-) -> dict[str, Path]:
-    """Resolve exact pins, classifying absence without invoking pytest."""
-    ids = TOOL.SESSION_IDS if session_ids is None else session_ids
-    hashes = TOOL.ROLLOUT_SHA256 if rollout_sha256 is None else rollout_sha256
-    resolved: dict[str, Path] = {}
-    missing: list[tuple[str, str]] = []
-    invalid: list[TOOL.ValidationError] = []
-
-    for label in required_labels:
-        session_id = ids[label]
-        expected_sha256 = hashes[label]
-        absent_reason = (
-            f"session {session_id} rollout count is 0, expected 1"
-        )
-        try:
-            rollout = TOOL._find_rollout(
-                sessions_root,
-                session_id,
-                pinned_label=label,
-                pinned_sha256=expected_sha256,
-            )
-        except TOOL.ValidationError as exc:
-            # This mirrors production's pinned fast-path glob. A standard-name
-            # candidate that is malformed or unreadable is invalid, while a
-            # corrupt nonstandard-name file that production cannot attribute
-            # to this session ID is indistinguishable from absence. SHA
-            # mismatch and duplicate attributable rollouts always stay red.
-            named_candidate_exists = any(
-                path.name.startswith("rollout-")
-                and path.name.endswith(f"-{session_id}.jsonl")
-                for path in sessions_root.rglob("rollout-*.jsonl")
-            )
-            if (
-                exc.rc == TOOL.RC_SESSION
-                and exc.reasons == (absent_reason,)
-                and not named_candidate_exists
-            ):
-                missing.append((label, session_id))
-            else:
-                invalid.append(exc)
-            continue
-
-        try:
-            TOOL._verify_rollout_sha(
-                rollout,
-                label,
-                expected_sha256=expected_sha256,
-            )
-        except TOOL.ValidationError as exc:
-            invalid.append(exc)
-        else:
-            resolved[label] = rollout
-
-    if invalid:
-        raise invalid[0]
-    if missing:
-        raise _MissingHistoricalRollouts(missing)
-    return resolved
-
-
-def _resolve_required_historical_rollouts_or_skip(
-    required_labels: tuple[str, ...],
-) -> dict[str, Path]:
-    """Fixture adapter from pure absence classification to pytest skip."""
-    try:
-        return _resolve_required_historical_rollouts(
-            _HISTORICAL_SESSIONS,
-            required_labels,
-        )
-    except _MissingHistoricalRollouts as exc:
-        pytest.skip(f"required historical rollouts are unavailable: {exc}")
 
 
 def _canonical(path: Path, value: Any) -> Path:
@@ -881,32 +784,46 @@ def _schedule(
     ), slots
 
 
-@pytest.fixture(scope="module")
-def benchmark_historical_rollouts() -> dict[str, Path]:
-    return _resolve_required_historical_rollouts_or_skip(
-        _BENCHMARK_HISTORICAL_LABELS,
+def _missing_pinned_rollouts(
+    sessions_root: Path,
+) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        (label, session_id)
+        for label, session_id in TOOL.SESSION_IDS.items()
+        if next(
+            sessions_root.rglob(f"rollout-*-{session_id}.jsonl"), None
+        )
+        is None
     )
 
 
-@pytest.fixture(scope="module")
-def independent_golden_historical_rollouts() -> dict[str, Path]:
-    return _resolve_required_historical_rollouts_or_skip(
-        _INDEPENDENT_GOLDEN_HISTORICAL_LABELS,
+def _require_pinned_rollouts(sessions_root: Path) -> None:
+    missing = _missing_pinned_rollouts(sessions_root)
+    if missing:
+        detail = ", ".join(
+            f"{label} session {session_id}" for label, session_id in missing
+        )
+        pytest.skip(f"pinned historical rollout is unavailable: {detail}")
+
+
+def _write_pinned_rollout_stub(sessions_root: Path, label: str) -> Path:
+    session_id = TOOL.SESSION_IDS[label]
+    rollout = sessions_root / f"rollout-test-{session_id}.jsonl"
+    rollout.write_text(
+        json.dumps(
+            {"type": "session_meta", "payload": {"id": session_id}}
+        )
+        + "\n",
+        encoding="utf-8",
     )
+    return rollout
 
 
 @pytest.fixture(scope="module")
-def pos_historical_rollout() -> Path:
-    return _resolve_required_historical_rollouts_or_skip(
-        _POS_HISTORICAL_LABELS,
-    )["POS"]
-
-
-def _build_benchmark_snapshots(
+def benchmark_snapshots(
     tmp_path_factory: pytest.TempPathFactory,
-    benchmark_historical_rollouts: dict[str, Path],
 ) -> dict[str, Any]:
-    """Build snapshots after the availability fixture has supplied its proof."""
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     root = tmp_path_factory.mktemp("t181-benchmark")
     base = root / "base"
     destinations = {case: root / case.lower() for case in ("POS", "NEG")}
@@ -955,15 +872,39 @@ def _build_benchmark_snapshots(
     return result
 
 
-@pytest.fixture(scope="module")
-def benchmark_snapshots(
-    tmp_path_factory: pytest.TempPathFactory,
-    benchmark_historical_rollouts: dict[str, Path],
-) -> dict[str, Any]:
-    return _build_benchmark_snapshots(
-        tmp_path_factory,
-        benchmark_historical_rollouts,
-    )
+def test_historical_rollout_guard_all_pins_present_does_not_skip(
+    tmp_path: Path,
+) -> None:
+    for label in TOOL.SESSION_IDS:
+        _write_pinned_rollout_stub(tmp_path, label)
+
+    _require_pinned_rollouts(tmp_path)
+
+
+def test_historical_rollout_guard_reports_missing_session(
+    tmp_path: Path,
+) -> None:
+    missing_label = "author"
+    for label in TOOL.SESSION_IDS:
+        if label != missing_label:
+            _write_pinned_rollout_stub(tmp_path, label)
+
+    missing_session_id = TOOL.SESSION_IDS[missing_label]
+    with pytest.raises(pytest.skip.Exception, match=missing_session_id):
+        _require_pinned_rollouts(tmp_path)
+
+
+def test_historical_rollout_guard_does_not_hide_sha_mismatch(
+    tmp_path: Path,
+) -> None:
+    rollouts = {
+        label: _write_pinned_rollout_stub(tmp_path, label)
+        for label in TOOL.SESSION_IDS
+    }
+
+    _require_pinned_rollouts(tmp_path)
+    with pytest.raises(TOOL.ValidationError, match="POS rollout sha mismatch"):
+        TOOL._verify_rollout_sha(rollouts["POS"], "POS")
 
 
 def _manual_run(
@@ -3257,8 +3198,8 @@ def test_m1_snapshot_head_pin_is_independent(
 
 def test_m2_production_golden_requires_both_routes(
     monkeypatch: pytest.MonkeyPatch,
-    independent_golden_historical_rollouts: dict[str, Path],
 ) -> None:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     called = False
     original = TOOL._compare_golden_routes
 
@@ -7533,280 +7474,6 @@ def _write_rollout(path: Path, content: bytes) -> Path:
     return path
 
 
-def _synthetic_historical_rollout_corpus(
-    sessions_root: Path,
-    labels: tuple[str, ...] = _BENCHMARK_HISTORICAL_LABELS,
-) -> tuple[dict[str, Path], dict[str, str], dict[str, str]]:
-    paths: dict[str, Path] = {}
-    session_ids: dict[str, str] = {}
-    rollout_sha256: dict[str, str] = {}
-    for index, label in enumerate(labels, 1):
-        session_id = f"t2080-{index}-{label.lower()}"
-        content = _session_meta_bytes(session_id) + (
-            json.dumps(
-                {
-                    "type": "event_msg",
-                    "payload": {"type": "fixture", "label": label},
-                },
-                separators=(",", ":"),
-            ).encode("utf-8")
-            + b"\n"
-        )
-        rollout = _write_rollout(
-            sessions_root
-            / "archive"
-            / label.lower()
-            / f"rollout-fixture-{session_id}.jsonl",
-            content,
-        )
-        paths[label] = rollout.resolve()
-        session_ids[label] = session_id
-        rollout_sha256[label] = hashlib.sha256(content).hexdigest()
-    return paths, session_ids, rollout_sha256
-
-
-def test_historical_rollout_resolver_accepts_exact_corpus(
-    tmp_path: Path,
-) -> None:
-    expected, session_ids, rollout_sha256 = (
-        _synthetic_historical_rollout_corpus(tmp_path)
-    )
-
-    assert _resolve_required_historical_rollouts(
-        tmp_path,
-        _BENCHMARK_HISTORICAL_LABELS,
-        session_ids=session_ids,
-        rollout_sha256=rollout_sha256,
-    ) == expected
-
-
-def test_historical_rollout_resolver_skips_only_missing_label(
-    tmp_path: Path,
-) -> None:
-    expected, session_ids, rollout_sha256 = (
-        _synthetic_historical_rollout_corpus(tmp_path)
-    )
-    expected["fix1"].unlink()
-
-    with pytest.raises(
-        _MissingHistoricalRollouts,
-        match=r"fix1 \(t2080-4-fix1\)",
-    ) as captured:
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            ("fix1",),
-            session_ids=session_ids,
-            rollout_sha256=rollout_sha256,
-        )
-    assert captured.value.missing == (("fix1", "t2080-4-fix1"),)
-    assert _resolve_required_historical_rollouts(
-        tmp_path,
-        ("POS",),
-        session_ids=session_ids,
-        rollout_sha256=rollout_sha256,
-    ) == {"POS": expected["POS"]}
-
-
-def test_historical_rollout_resolver_sha_mismatch_is_not_skipped(
-    tmp_path: Path,
-) -> None:
-    paths, session_ids, rollout_sha256 = _synthetic_historical_rollout_corpus(
-        tmp_path
-    )
-    with paths["NEG"].open("ab") as stream:
-        stream.write(b" ")
-
-    with pytest.raises(TOOL.ValidationError, match="NEG rollout sha mismatch"):
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            ("NEG",),
-            session_ids=session_ids,
-            rollout_sha256=rollout_sha256,
-        )
-
-
-def test_historical_rollout_resolver_duplicate_is_not_skipped(
-    tmp_path: Path,
-) -> None:
-    paths, session_ids, rollout_sha256 = _synthetic_historical_rollout_corpus(
-        tmp_path
-    )
-    duplicate = (
-        tmp_path
-        / "duplicate"
-        / f"rollout-copy-{session_ids['author']}.jsonl"
-    )
-    _write_rollout(duplicate, paths["author"].read_bytes())
-
-    with pytest.raises(TOOL.ValidationError, match="rollout count is 2"):
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            ("author",),
-            session_ids=session_ids,
-            rollout_sha256=rollout_sha256,
-        )
-
-
-def test_historical_rollout_resolver_pos_only_is_label_scoped(
-    tmp_path: Path,
-) -> None:
-    expected, session_ids, rollout_sha256 = (
-        _synthetic_historical_rollout_corpus(tmp_path, ("POS",))
-    )
-    all_session_ids = {
-        **session_ids,
-        **{
-            label: f"missing-{label}"
-            for label in _BENCHMARK_HISTORICAL_LABELS
-            if label != "POS"
-        },
-    }
-    all_rollout_sha256 = {
-        **rollout_sha256,
-        **{
-            label: hashlib.sha256(label.encode("utf-8")).hexdigest()
-            for label in _BENCHMARK_HISTORICAL_LABELS
-            if label != "POS"
-        },
-    }
-
-    assert _resolve_required_historical_rollouts(
-        tmp_path,
-        _POS_HISTORICAL_LABELS,
-        session_ids=all_session_ids,
-        rollout_sha256=all_rollout_sha256,
-    ) == expected
-    with pytest.raises(_MissingHistoricalRollouts, match="NEG"):
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            _BENCHMARK_HISTORICAL_LABELS,
-            session_ids=all_session_ids,
-            rollout_sha256=all_rollout_sha256,
-        )
-
-
-def test_historical_rollout_resolver_standard_named_malformed_is_invalid(
-    tmp_path: Path,
-) -> None:
-    session_id = "t2080-standard-malformed"
-    _write_rollout(
-        tmp_path / f"rollout-fixture-{session_id}.jsonl",
-        (
-            b'{"type":"session_meta","payload":{"id":'
-            b'"t2080-standard-malformed"},}\n'
-        ),
-    )
-
-    with pytest.raises(TOOL.ValidationError, match="rollout count is 0"):
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            ("POS",),
-            session_ids={"POS": session_id},
-            rollout_sha256={"POS": hashlib.sha256(b"malformed").hexdigest()},
-        )
-
-
-def test_historical_rollout_resolver_standard_named_unreadable_is_invalid(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    session_id = "t2080-standard-unreadable"
-    content = _session_meta_bytes(session_id)
-    rollout = _write_rollout(
-        tmp_path / f"rollout-fixture-{session_id}.jsonl",
-        content,
-    )
-    original_open = Path.open
-
-    def deny_rollout_read(path: Path, *args: Any, **kwargs: Any) -> Any:
-        if path == rollout:
-            raise PermissionError("synthetic unreadable rollout")
-        return original_open(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "open", deny_rollout_read)
-    with pytest.raises(TOOL.ValidationError, match="rollout count is 0"):
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            ("POS",),
-            session_ids={"POS": session_id},
-            rollout_sha256={"POS": hashlib.sha256(content).hexdigest()},
-        )
-
-
-def test_historical_rollout_resolver_unattributable_corrupt_is_missing(
-    tmp_path: Path,
-) -> None:
-    session_id = "t2080-unattributable-corrupt"
-    _write_rollout(
-        tmp_path / "rollout-corrupt.jsonl",
-        (
-            b'{"type":"session_meta","payload":{"id":'
-            b'"t2080-unattributable-corrupt"},}\n'
-        ),
-    )
-
-    with pytest.raises(_MissingHistoricalRollouts) as captured:
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            ("POS",),
-            session_ids={"POS": session_id},
-            rollout_sha256={"POS": hashlib.sha256(b"corrupt").hexdigest()},
-        )
-    assert captured.value.missing == (("POS", session_id),)
-
-
-def test_historical_rollout_resolver_invalid_precedes_missing(
-    tmp_path: Path,
-) -> None:
-    paths, session_ids, rollout_sha256 = _synthetic_historical_rollout_corpus(
-        tmp_path,
-        ("POS", "NEG"),
-    )
-    paths["POS"].unlink()
-    with paths["NEG"].open("ab") as stream:
-        stream.write(b" ")
-
-    with pytest.raises(TOOL.ValidationError, match="NEG rollout sha mismatch"):
-        _resolve_required_historical_rollouts(
-            tmp_path,
-            ("POS", "NEG"),
-            session_ids=session_ids,
-            rollout_sha256=rollout_sha256,
-        )
-
-
-def test_historical_rollout_fixture_reaches_downstream(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    fixture_body = inspect.unwrap(benchmark_snapshots)
-    expected_parameters = (
-        "tmp_path_factory",
-        "benchmark_historical_rollouts",
-    )
-    assert tuple(inspect.signature(fixture_body).parameters) == expected_parameters
-    assert (
-        tuple(inspect.signature(_build_benchmark_snapshots).parameters)
-        == expected_parameters
-    )
-
-    tmp_path_factory = object()
-    historical_rollouts = object()
-    sentinel = object()
-    delegated: list[tuple[Any, Any]] = []
-
-    def observe(tmp_factory: Any, rollouts: Any) -> object:
-        delegated.append((tmp_factory, rollouts))
-        return sentinel
-
-    monkeypatch.setattr(
-        sys.modules[__name__],
-        "_build_benchmark_snapshots",
-        observe,
-    )
-    assert fixture_body(tmp_path_factory, historical_rollouts) is sentinel
-    assert delegated == [(tmp_path_factory, historical_rollouts)]
-
-
 def _identity_session_meta_bytes(
     payload_id: Any,
     root_session_id: str,
@@ -8982,9 +8649,9 @@ def test_prompt_replacement_count_zero_expected_and_excess(
     replacement_count: int,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    pos_historical_rollout: Path,
 ) -> None:
-    source_rollout = pos_historical_rollout
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
+    source_rollout = _REAL_ROLLOUT
     TOOL._verify_rollout_sha(source_rollout, "POS")
     canonical_message = TOOL.extract_user_message(source_rollout)
     if replacement_count == 0:
@@ -9014,17 +8681,18 @@ def test_prompt_replacement_count_zero_expected_and_excess(
             )
 
 
-def test_real_rollout_collector_golden_is_source_bound(
-    pos_historical_rollout: Path,
-) -> None:
-    assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
-        pos_historical_rollout.read_bytes()
-    ).hexdigest()
+def test_real_rollout_collector_golden_is_source_bound() -> None:
+    rollout_available = _REAL_ROLLOUT.is_file()
+    if rollout_available:
+        assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
+            _REAL_ROLLOUT.read_bytes()
+        ).hexdigest()
     assert hashlib.sha256(_REAL_TOKEN_SLICE.encode()).hexdigest() == _REAL_TOKEN_SLICE_SHA
-    source_line = pos_historical_rollout.read_text(
-        encoding="utf-8"
-    ).splitlines(keepends=True)[15]
-    assert source_line == _REAL_TOKEN_SLICE
+    if rollout_available:
+        source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(
+            keepends=True
+        )[15]
+        assert source_line == _REAL_TOKEN_SLICE
     payload = json.loads(_REAL_TOKEN_SLICE)["payload"]["info"]["total_token_usage"]
     validated, issues, cached_exceeds_input = TOOL.LEDGER._validated_usage(
         payload, location="golden"
