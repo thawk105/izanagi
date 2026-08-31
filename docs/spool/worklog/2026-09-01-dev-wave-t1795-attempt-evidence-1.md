@@ -42,6 +42,16 @@ title: [T-1795] D965 に従い attempt 対応の永続証拠を二重条件で�
   走っていない。** 束ね経路が 3 回目で通るのは worklog 977 と同型である。
 - 本 session では待ち手と Monitor の完了報告が繰り返し先行し、1 度は報告時刻が実時刻より
   15 分先だった。完了判定は完了マーカーの非空・期待成果物の実在・process の生死の 3 点で行った。
+- **受入全走は本 wave と無関係な赤で 1 度止まった。** `test_codex_reasoning_ab.py` の 26 node
+  (5 failed + 21 error) が落ちたが、同 file は 1 byte も変更していない。現行 main 単独の
+  probe worktree で同じ内訳が再現したので非帰属である。原因は repo 外へ pin した過去 session の
+  消失で、記録は {{F:pinned-external-session-vanished}}。**この赤は D1144 に従い停止理由にしない。**
+  修正は編集面の衝突を避けるため別の単独 wave へ一本化し、本 wave は同 file を触らない。
+  その修正が main へ着地した後に main を取り込んで受入を投げ直す (tip が変わるので再投入資格が立つ)。
+- **親は当初この赤の処置を「検出力は失われない」と見立てたが、独立相談が file:line で反証した。**
+  production の reject 述語は弱まらないが、実 corpus・独立 golden 二経路・実 prompt の置換数・
+  完全 replay の結合被覆には代替が無く、登録済み mutation killer も止まる。
+  **失われる検出力は実在する。** 見立てを訂正して記録した。
 
 ## 次の一手差分
 
