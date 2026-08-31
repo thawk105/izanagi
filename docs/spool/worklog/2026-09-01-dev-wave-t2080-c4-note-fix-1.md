@@ -51,6 +51,12 @@ title: [T-2080] paper-story C-4 注記の「1 本も走らせていない」を�
   言い換えだけなので親が当て、焦点再レビューは起動していない。
 - 焦点走 `orchestrator/tests/test_check_docs.py` = 571 passed / 3 skipped、rc=0
   (Pegasus dispatch request 963206.nqsv)。`python3 tools/check_docs.py` = 違反なし。
+- **受入全走は非帰属の環境赤で止まった。本 wave は land していない。** attempt 1 は
+  `21 error, 5 failed, 19033 passed, 67 skipped` で、赤 26 件はすべて
+  `orchestrator/tests/test_codex_reasoning_ab.py` に集中する。原因は repo の外にある
+  2026-07-29 の実 rollout corpus の消失で、本 wave の編集面とは交わらない。単独再走も同じ
+  26 件で落ちたので flake ではない。既存 F を証拠にできないので `DW-O18` の hold 登録は行わず、
+  裁定へ返した ({{F:historical-rollout-corpus-vanished}})。
   差分は `docs/paper-story/README.md` への 45 行追加のみで、削除は 0 行。凍結物
   (`2026-08-26.md` / `2026-08-23.md` / `figures/**` / `claim-evidence/2026-08-26.md` /
   `docs/related-work/claim-survey/` の各 artifact)、版の履歴表、既存の他注記、恒久 erratum の節は
