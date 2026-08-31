@@ -18,7 +18,10 @@ _REPO = os.path.dirname(_ORCH)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_sweep_report, wal                # noqa: E402
-from orchestrator.campaign.artifact_admission import CampaignReadPurpose   # noqa: E402
+from orchestrator.campaign.artifact_admission import (                    # noqa: E402
+    ArtifactAdmissionError,
+    CampaignReadPurpose,
+)
 from orchestrator.campaign.backoff_repro import _bench_tps                 # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout                    # noqa: E402
 from orchestrator.campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,    # noqa: E402
@@ -63,6 +66,9 @@ def _load_plot_module():
 
 def _fixture_layout(tmp_path):
     layout = CampaignLayout(str(tmp_path / "campaign")).ensure()
+    Path(layout.lock_file).write_text(
+        json.dumps({"fixture": "backoff repro"}), encoding="utf-8",
+    )
     screen_genome = "silo|BACK_OFF=1,BACKOFF_FIXED=10"
     certified_genome = "silo|BACK_OFF=1,BACKOFF_FIXED=5"
     wal.log(layout, "v-screen", STAGE_BUILD_START, "test", {"genome": screen_genome})
@@ -70,12 +76,25 @@ def _fixture_layout(tmp_path):
             {"median_tps": 999999.0, "tps": [999999.0], "screening": True})
     wal.log(layout, "v-screen", STAGE_ABORT, "test",
             {"reason": "screen-slower-than-floor", "screen": {"median_tps": 999999.0}})
+    attempt_id = "backoff-repro-certified"
     wal.log(layout, "v-certified", STAGE_BUILD_START, "test",
-            {"genome": certified_genome})
+            {"genome": certified_genome, "build_attempt_id": attempt_id})
     wal.log(layout, "v-certified", STAGE_BENCH_DONE, "test",
-            {"median_tps": 123456.0, "tps": [123456.0, 123457.0]})
+            {"median_tps": 123456.0, "tps": [123456.0, 123457.0],
+             "build_attempt_id": attempt_id})
+    wal.log(layout, "v-certified", "verify_done", "test", {
+        "build_attempt_id": attempt_id,
+        "verdict": "serializable",
+        "certified": True,
+        "anomalies": 0,
+        "workload": {"tag": "legacy"},
+    })
     receipt_support.log_receipted_commit(
-        layout, "v-certified", "test", {"fitness_tps": 123456.0},
+        layout, "v-certified", "test", {
+            "fitness_tps": 123456.0,
+            "build_attempt_id": attempt_id,
+        },
+        operation_identity=attempt_id,
     )
     dat = os.path.join(layout.reports_dir, "fixture.dat")
     with open(dat, "w", encoding="utf-8") as f:
@@ -338,6 +357,23 @@ def test_backoff_repro_bench_tps_requires_commit(tmp_path):
     wal.log(layout, "v-certified", STAGE_ABORT, "test",
             {"reason": "screen-slower-than-floor"})
     assert _bench_tps(layout, "v-certified") == 123456.0
+
+
+@pytest.mark.parametrize("consumer", ["backoff-repro"], ids=["backoff-repro"])
+def test_backoff_repro_requires_persisted_certification(tmp_path, consumer):
+    layout = _fixture_layout(tmp_path)
+    records = wal.read_records(layout)
+    verify = next(record for record in records if record.stage == "verify_done")
+    verify.payload["anomalies"] = 1
+    Path(layout.wal_file).write_text(
+        "".join(wal._record_to_line(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ArtifactAdmissionError, match="anomalies"):
+        _bench_tps(layout, "v-certified")
+
+    assert consumer == "backoff-repro"
 
 
 def test_plot_backoff_excludes_and_reports_uncertified_bench_done(tmp_path, capsys):

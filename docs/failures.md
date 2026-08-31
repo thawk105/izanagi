@@ -8456,6 +8456,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   memory `measure-state-dont-infer-from-proxy` の射程は自作の近似計算にも及ぶ。
   同 wave で構造的結論 (unit 内順序が保存される) だけは proxy でなく実装から得ており、
   こちらは撤回していない。
+
+- **再発: 2026-08-29** — 四度目。救出 wave で、対象 3 branch がいずれも `git merge-base
+  --is-ancestor <branch> main` rc=0 だった。ancestry だけを読めば「全部着地済み、救出対象なし」で
+  終わる形であり、`git cherry main <branch>` も全 commit を `-` にし、三点 diff
+  `git diff main...<branch>` は空を返す。**しかし救出材料は commit ではなく worktree の未 commit
+  差分であり、これら 3 手はいずれも構造的にそれを見ない。** 実際に 11 file 中 2 file
+  (`orchestrator/tests/conftest.py`、`orchestrator/tests/test_real_repo_serialization.py`) は main
+  未変更の実質的な差分を持っており、ancestry で打ち切っていれば中身を一度も見ずに捨てていた。
+  F270 本体および 2026-08-16 の再発が挙げる反転手 (patch-id 照合、タスク ID での台帳検索) は
+  どちらも commit を対象にするため、この面には効かない。族としては本体と同じ
+  「安価に測れる量を状態の代わりに読む」で、今回は代理指標が ancestry である。
+- 併記する実測: 判定を反転させたのは 1 手だった。**救出 file の追加行のうち、main の当該 file に
+  1 行も存在しないものだけを残余として数える行単位照合。** 11 file・約 4100 行の差分が、残余
+  0 行 (6 file)、数行 (3 file)、13 行 (2 file) に落ちた。読む対象が 4100 行から数十行になり、
+  かつ「main が同じ内容を別の書き方で持っているだけ」の見かけの差分を自動的に外せた。
+  なお残余ありの 3 file についても、内容を読むと main の後退 (旧名への改名、resume 再開支援の
+  撤去、main の現行意味と逆を主張する試験) であり、行単位照合は着地判定の**入口**であって
+  結論ではない — 残余が出た file は必ず中身を読む必要がある。
+- 恒久対応: 新規の機械検査は本 wave では入れない。memory `three-dot-diff-is-not-unlanded-volume`
+  と `cherry-plus-judged-by-content-not-path` に ancestry 面を追記し、救出 wave の入口で
+  「branch が main の祖先でも worktree の未 commit 差分は残りうる」を先に確認する規律とする。
+  lint 化の可否は F270 本体の恒久対応と同じく [T-1239] が持つ。
 ### F271. 複数 branch を 1 commit で束ねた land が全 wave の受入を決定的に赤にした [手順漏れ]
 
 - 事象: 2026-08-13 00:45:56 JST、rulings 系の land wave が **4 親の merge commit `d1de13ad`**
@@ -15509,6 +15531,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 履歴検査の変異で option を 1 つずつ外し、**それぞれに専用の kill node があるか**を
   見る。option を外しても死なない検査は、その option が守る経路の負例が無い。
 
+
+- **再発: 2026-08-29** — 救出依頼が「main へ一度も着地していない 7 file」という前提で来たが、
+  実際には 6 file が `5107ced3c` で着地し `c986c1459` (merge) で撤去されていた。
+  前提の裏取りに使った `git log --oneline --diff-filter=D --all -- <paths>` は 0 件を返す。
+  path 限定 `git log` は既定で merge の差分を出さないため、**merge commit の中でだけ起きた
+  削除は完全に不可視**であり、「削除 commit が無い」を「削除されていない」と読むと着地履歴を
+  丸ごと取り違える。ここでは `git ls-tree` による tree 突合 (着地時点にあり main に無い) と
+  `--ancestry-path` の 1 コミットずつの `cat-file -e` 走査で初めて撤去 merge に到達した。
+  着地・撤去の有無は `--diff-filter` の出力ではなく **tree の内容**で判定する。
 ### F561. /rulings が既裁定を項目単位でしか照合せず、絶対規律に触れる推奨を出した [手順漏れ]
 
 - 事象: `/rulings all` が裁定待ち 23 件を提示し、ユーザーが全件を推奨どおり裁定した後、
@@ -17395,6 +17426,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   入れる。本件は 2 本のうち 1 本 (運用レンズ) だけが検出し、正しさレンズは見落とした。
   変異では検出できない — stub 版でも制御フローの変異は正しく KILLED になるためである。
 
+
+- **再発: 2026-08-29** — 段 4 裁定が最重要と位置づけた正例 (resume 由来の不適格な earlier があっても
+  later の適格 run から candidate を作れる) を、段 5 実装子が earlier の `result.json` だけ複製し
+  `_derive_floor_selection_eligibility` を monkeypatch で False へ差し替えて書いた。導出不能時の
+  fail-closed 負例も実際の台帳破損ではなく例外 stub だった。段 6 の敵対レビュー 2 本のうち
+  運用レンズだけが検出し、正しさレンズは見落とした (F649 初出と同じ検出比)。恒久対応の
+  `DW-S05-C` への収容が現行 main に存在しないことを実測したため、本 wave で同節へ収容した。
 ### F650. 共有 hydrate 先を job が in-place でビルドし、2 本目以降が必ず fail-closed する [手順漏れ] [計測汚染]
 
 - 事象: mocc trace pilot の 2 本目が build 前に rc=1 で止まった。message は
@@ -19409,3 +19447,91 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave は `.done` で判定していたため誤判定には至っていない。
 - 再発検知: 待ち手を張った直後に receipt file の実在を確かめる。receipt が無いまま rc=0 で
   戻ったら待ち手が走っていない。
+
+### F761. 救出 manifest の分類語を一次資料と読み違え、着地可能な変更を破棄しかけた [捏造/幻覚] [手順漏れ]
+
+- 事象: 救出 manifest が `docs/related-work/README.md` と `docs/related-work/claim-survey/README.md` に
+  付けた `situation: UNTOUCHED_SINCE` を、親が「worktree はこの file を編集していない = 古い複製で
+  あって着地対象ではない」と読み、段 1 brief に実測事実として書いた。実際には両 file とも worktree が
+  編集した未着地の変更で、うち一方は着地済みの裁定 4 件を規則の正本へ書き下ろした 38 行だった。
+  この読みのまま進んでいれば、本 wave で唯一着地できた変更を破棄していた。
+- 根本原因: 道具が付けた**分類語の意味を、道具の定義に当たらずに文脈から推測した**。
+  `UNTOUCHED_SINCE` は「main 側がその path を base 以降さわっていない」ことしか言わず、worktree が
+  編集したかは言わない。manifest は sha256 も持っていたのに、親は blob 照合をせず語だけで判定した。
+- 恒久対応: 救出物・棚卸し道具の出力にある分類語は、それ自体を一次資料として扱わない。
+  「変更か否か」は worktree の bytes を **その worktree 自身の base commit の blob** と照合して決める。
+  main との差だけでは、main が先に進んだのか worktree が編集したのかを区別できない。
+- 再発検知: 本 wave では 2 経路で捕まえた。(i) 親が撤去前に `git status --porcelain` を 4 worktree で
+  走らせ、両 file が `M` として現れたことに気づいて blob 照合へ進んだ。(ii) 独立コンテキストの段 3
+  敵対検査が、同じ事実を独立に `REFUTED` として返した。分類語を根拠にした主張には、blob 照合か
+  独立検査のどちらかを必ず付ける。
+
+### F762. 変異 harness の待ち上限だけ上書きが届かず、混雑時に走らせられない [手順漏れ]
+
+- 事象: [T-2061] wave で変異走行が 4 回連続で起動できなかった。いずれも下位の
+  `DispatchError: queue-wait-timeout` で、子は 1 度も起動していない。実測の待ち時間は 902 秒で、
+  既定上限 900 秒 (`tools/pegasus/dispatch_compute.py` の `DEFAULT_QUEUE_WAIT_TIMEOUT_S`) を
+  わずかに超えていた。当時の gen_S は 61 待ち / 75 実行 / 49 保留。
+- 根本原因: `tools/run_tests.py` は `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` で待ち上限を
+  上書きできるが、**変異 harness は dispatch 時に `run_tests.py` を介さず
+  `tools/pegasus/dispatch_compute.py` を直接呼ぶ** (`tools/mutation_harness.py` の
+  collection / 本走の command 構築)。そのため上書きが届かず、上限は 900 秒に固定される。
+  `dispatch_compute.py` 側に同等の環境変数は無く、harness は `--queue-wait-timeout` を渡さない。
+- 逃げ場が無いこと: ローカル走行は harness が `receipt_path` / `job_stdout_path` の null を
+  要求する一方、`run_tests.py` は headroom を見て自動 dispatch する。強制ローカルの手段が無いため、
+  混雑時は dispatch の成功を待つ以外に選択肢が無い。
+- 恒久対応: 未実装。当面の回避は「失敗ごとに間隔を空けて自動で投げ直す」ことで、本 wave では
+  その形で通した (混雑が引いた回に baseline PASSED、15/15 KILLED)。
+  機械的な恒久対応は待ち上限の伝播経路を作ることだが、`dispatch_compute.py` の受理集合に
+  触れるため別裁定とする。
+- 再発検知: 変異走行が `rc=2` で止まり、`output/pegasus-dispatch/*/receipt.json` の
+  `outcome.reason` が `DispatchError: queue-wait-timeout` で `state_history` の末尾が
+  900 秒付近の `QUE` なら本件である。子が起動していないので**本 wave の赤ではない**。
+
+### F763. `/tmp/.git` の点滅生成で全 tmp_path が repository 内と判定される [計測汚染]
+
+- 事象: [T-2061] wave の焦点走で 18 件が
+  `ValueError: official output_root は repository 外でなければならない`
+  (`orchestrator/campaign/layout.py`) で落ちた。実装とは無関係だった。
+- 根本原因: `/tmp` 直下に空の `.git` directory が存在すると `_has_git_ancestor()` が真になり、
+  pytest の `tmp_path` (既定で `/tmp` 配下) がすべて repository 内と判定される。
+  他 session のテストが一時的に作っては消しており、`rmdir` しても再生成される。
+- 二次の罠: 回避のため `TMPDIR` を移すとき、`/work/1/SFC/tanab/dev-wave-jobs/` の下にも `.git` が
+  あるため同じ罠に落ちる。本 wave は最初にここを選んで 229 件の偽赤を出した。
+  `.git` の祖先が無い場所を選ぶ必要がある。
+- 恒久対応: 未実装。当面の回避は `.git` 祖先の無い専用 `TMPDIR` を wave ごとに用意すること。
+- 再発検知: `layout.py` の `official output_root は repository 外でなければならない` が
+  複数 test file で同時多発したら、失敗した `raw = ...` の path から祖先を辿って `.git` を探す。
+
+### F764. 閉包 member を未 commit のまま検査すると全域が drift で赤になる [手順漏れ]
+
+- 事象: [T-2061] wave で `orchestrator/campaign/artifact_admission.py` を編集した直後の焦点走が
+  11 件赤になった。本文は
+  `contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/artifact_admission.py`。
+- 根本原因: 同 file は `orchestrator/campaign/campaign_lock.py` の
+  `CONTRACT_LOADER_RELATIVE_PATHS` (exact 24 path の enforcement source closure) の member であり、
+  `contract_loader_binding` は disk bytes と HEAD blob の一致を要求する。編集して未 commit の間は
+  必ず drift になる。commit 後に同じ 3 file を再走して 74 passed で解消を確認した。
+- 恒久対応: 未実装。作法としては「閉包 member を編集する wave は、検査を走らせる前に commit する」。
+- 再発検知: `contract-loader-drift` の本文が名指しする path が
+  `CONTRACT_LOADER_RELATIVE_PATHS` に載っており、かつ `git status` でその path が未 commit なら本件。
+  **実装の回帰ではない。**
+
+### F765. 待ち手が生存中の子に対して完了を返した [恒真ゲート]
+
+- 事象: 1 wave の中で 8 回以上、背景の待ちが「完了」を返したのに、待っていた `.done` が
+  存在せず子は生きていた。`tools/dev_wave_wait.py producer` は
+  `/proc/<pid>/stat を読めないため pid-only へ縮退します` を出して戻り、素の
+  `until [ -f <done> ]; do sleep N; done` を背景投入した場合も同じく数十秒で「完了」になった。
+  子の生存は `ps -eo args` で確認しており、その後 `.done` は正しく現れた。
+- 根本原因: 未特定。**待ち手ツール固有ではない** — ツールを使わない素の bash ループでも同じ
+  現れ方をしたので、背景タスクの生存判定そのものが疑わしい。本 wave は原因の切り分けまでは
+  行っていない (観測の記録である)。
+- 影響: 待ち手の「完了」を根拠に次段へ進むと、**未完成の成果物を統合する。** 実際に本 wave では
+  子の途中出力を読みかけた場面が 1 度あり、`.done` 不在で気づいた。
+- 恒久対応: `docs/dev-wave/core.md` の `DW-C00`「完了は `.done` 非空で決める」と
+  `docs/dev-wave/operations.md` の `DW-O01`「完了は `.done` と exit code だけで判定し、
+  grep も通知も判定にしない」が既に防壁である。**本 wave はこの規律だけで 8 回すべてを弾いた。**
+  規律を足すのではなく、既存規律が実際に効いた実測として残す。
+- 再発検知: 待ちが戻った直後に `.done` の実在を確かめる手順を守る限り、同じ形で顕在化する。
+  「待ちが完了を返した」だけを進行の根拠にした瞬間に破れる。

@@ -323,6 +323,32 @@ def _rewrite_wal(campaign: Path, mutate) -> None:
     )
 
 
+def _replace_receipted_commit(
+        campaign: Path, mutate, *, operation_identity: str = "attempt-1",
+        receipt_tags=("legacy",),
+) -> None:
+    """Reissue one fixture COMMIT after mutating its terminal preimage."""
+    wal_path = campaign / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
+    commit = next(record for record in records if record["stage"] == "commit")
+    records.remove(commit)
+    terminal_payload = dict(commit["payload"])
+    terminal_payload.pop("commit_verification_receipt")
+    mutate(records, terminal_payload)
+    wal_path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+    receipt_support.log_receipted_commit(
+        CampaignLayout(root=str(campaign)), commit["variant"], commit["env_tag"],
+        terminal_payload, operation_identity=operation_identity,
+        tags=receipt_tags, ts=commit["ts"],
+    )
+
+
 def _fixture_git(repo: Path, *args: str) -> bytes:
     executable = shutil.which("git")
     if executable is None:
@@ -487,11 +513,22 @@ def _new_schema_campaign(
     records = [
         _record("build_start", start, ts=1.0, variant=variant, env_tag=env_tag),
         _record("build_done", terminal, ts=2.0, variant=variant, env_tag=env_tag),
-        _record("commit", commit, ts=3.0, variant=variant, env_tag=env_tag),
+        _record("verify_done", {
+            "build_attempt_id": attempt_id,
+            "verdict": "serializable",
+            "certified": True,
+            "anomalies": 0,
+            "workload": {"tag": "legacy"},
+        }, ts=3.0, variant=variant, env_tag=env_tag),
     ]
-    return _write_campaign(
+    campaign = _write_campaign(
         tmp_path / _campaign_id_for_lock(lock_text), lock_text, records,
     )
+    receipt_support.log_receipted_commit(
+        CampaignLayout(root=str(campaign)), variant, env_tag, commit,
+        operation_identity=attempt_id, tags=("legacy",), ts=4.0,
+    )
+    return campaign
 
 
 def _classify_as_trigger(
@@ -1152,6 +1189,285 @@ def test_certified_acceptance_admits_exact_e1_fixture(
     assert view.read_purpose is CERTIFIED
     assert not hasattr(view, "verifier_assessment_basis")
     assert A.require_certified_campaign_view(view) is view
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "anomalies-positive",
+        "receipt-terminal-mismatch",
+        "receipt-operation-mismatch",
+        "receipt-evidence-mismatch",
+        "verify-attempt-mismatch",
+    ),
+    ids=(
+        "anomalies-positive",
+        "receipt-terminal-mismatch",
+        "receipt-operation-mismatch",
+        "receipt-evidence-mismatch",
+        "verify-attempt-mismatch",
+    ),
+)
+def test_persisted_commit_gate_rejects(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+
+    if mutation == "anomalies-positive":
+        _rewrite_wal(campaign, lambda records: next(
+            record for record in records if record["stage"] == "verify_done"
+        )["payload"].update({"anomalies": 1}))
+    elif mutation == "receipt-terminal-mismatch":
+        _rewrite_wal(campaign, lambda records: next(
+            record for record in records if record["stage"] == "commit"
+        )["payload"].update({"fitness_tps": 1.0}))
+    elif mutation == "receipt-operation-mismatch":
+        _replace_receipted_commit(
+            campaign, lambda _records, _payload: None,
+            operation_identity="other-attempt",
+        )
+    elif mutation == "receipt-evidence-mismatch":
+        def change_wal_evidence(records, terminal_payload) -> None:
+            verify = next(
+                record for record in records
+                if record["stage"] == "verify_done"
+            )
+            verify["payload"]["workload"]["tag"] = "s2"
+            terminal_payload["verify_configs"] = ["s2"]
+
+        _replace_receipted_commit(
+            campaign, change_wal_evidence, receipt_tags=("legacy",),
+        )
+    else:
+        layout = CampaignLayout(root=str(campaign))
+        records = [
+            json.loads(line)
+            for line in Path(layout.wal_file).read_text().splitlines()
+        ]
+        commit = next(record for record in records if record["stage"] == "commit")
+        records.remove(commit)
+        start = next(record for record in records if record["stage"] == "build_start")
+        attempt_a = start["payload"]["build_attempt_id"]
+        receipt_sha = start["payload"]["build_admission_receipt_sha256"]
+        records.append(_record(
+            "abort", {
+                "reason": "build-error",
+                "build_attempt_id": attempt_a,
+                "build_admission_receipt_sha256": receipt_sha,
+            }, ts=4.0, variant=start["variant"], env_tag=start["env_tag"],
+        ))
+        Path(layout.wal_file).write_text(
+            "".join(
+                json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+                for record in records
+            ),
+            encoding="utf-8",
+        )
+        attempt_b = "attempt-2"
+        retry_start = dict(start["payload"])
+        retry_start["build_attempt_id"] = attempt_b
+        terminal = {
+            "build_attempt_id": attempt_b,
+            "build_admission_receipt_sha256": receipt_sha,
+            COMMIT_CONTRACT_SHA256_KEY:
+                commit["payload"][COMMIT_CONTRACT_SHA256_KEY],
+        }
+        wal.log(
+            layout, start["variant"], "build_start", start["env_tag"],
+            retry_start, ts=5.0,
+        )
+        wal.log(
+            layout, start["variant"], "build_done", start["env_tag"],
+            {key: terminal[key] for key in (
+                "build_attempt_id", "build_admission_receipt_sha256",
+            )}, ts=6.0,
+        )
+        receipt_support.log_receipted_commit(
+            layout, start["variant"], start["env_tag"], terminal,
+            operation_identity=attempt_b, tags=("legacy",), ts=7.0,
+        )
+
+    with pytest.raises(A.ArtifactAdmissionError):
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "aborted-red-attempt-coexists",
+        "no-commit-campaign",
+        "nonzero-aborts",
+    ),
+    ids=(
+        "aborted-red-attempt-coexists",
+        "no-commit-campaign",
+        "nonzero-aborts",
+    ),
+)
+def test_persisted_commit_gate_accepts(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    layout = CampaignLayout(root=str(campaign))
+    records = wal.read_records(layout)
+    start = next(record for record in records if record.stage == "build_start")
+    receipt_sha = start.payload["build_admission_receipt_sha256"]
+
+    if case == "aborted-red-attempt-coexists":
+        attempt_id = "red-attempt"
+        retry_start = dict(start.payload)
+        retry_start["build_attempt_id"] = attempt_id
+        terminal = {
+            "build_attempt_id": attempt_id,
+            "build_admission_receipt_sha256": receipt_sha,
+        }
+        wal.log(
+            layout, start.variant, "build_start", start.env_tag,
+            retry_start, ts=5.0,
+        )
+        wal.log(
+            layout, start.variant, "build_done", start.env_tag,
+            terminal, ts=6.0,
+        )
+        wal.log(
+            layout, start.variant, "verify_done", start.env_tag, {
+                "build_attempt_id": attempt_id,
+                "verdict": "non-serializable",
+                "certified": False,
+                "anomalies": 1,
+                "workload": {"tag": "legacy"},
+            }, ts=7.0,
+        )
+        wal.log(
+            layout, start.variant, "abort", start.env_tag, {
+                **terminal,
+                "reason": "verifier-red",
+            }, ts=8.0,
+        )
+    elif case == "no-commit-campaign":
+        def replace_commit(records_json) -> None:
+            commit = next(
+                record for record in records_json
+                if record["stage"] == "commit"
+            )
+            commit["stage"] = "abort"
+            commit["payload"] = {
+                "reason": "build-error",
+                "build_attempt_id": start.payload["build_attempt_id"],
+                "build_admission_receipt_sha256": receipt_sha,
+            }
+
+        _rewrite_wal(campaign, replace_commit)
+    else:
+        _rewrite_wal(campaign, lambda records_json: next(
+            record for record in records_json
+            if record["stage"] == "verify_done"
+        )["payload"].update({"aborts": 17}))
+
+    view = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    assert type(view) is A.CertifiedCampaignView
+
+
+@pytest.mark.parametrize("mutation", ("second-commit-invalid",))
+def test_certified_view_checks_every_commit(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    assert mutation == "second-commit-invalid"
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    layout = CampaignLayout(root=str(campaign))
+    records = wal.read_records(layout)
+    start = next(record for record in records if record.stage == "build_start")
+    first_commit = next(record for record in records if record.stage == "commit")
+    attempt_id = "attempt-2"
+    receipt_sha = start.payload["build_admission_receipt_sha256"]
+    retry_start = dict(start.payload)
+    retry_start["build_attempt_id"] = attempt_id
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt_sha,
+    }
+    wal.log(
+        layout, start.variant, "build_start", start.env_tag,
+        retry_start, ts=5.0,
+    )
+    wal.log(
+        layout, start.variant, "build_done", start.env_tag,
+        terminal, ts=6.0,
+    )
+    wal.log(
+        layout, start.variant, "verify_done", start.env_tag, {
+            "build_attempt_id": attempt_id,
+            "verdict": "serializable",
+            "certified": True,
+            "anomalies": 1,
+            "workload": {"tag": "legacy"},
+        }, ts=7.0,
+    )
+    receipt_support.log_receipted_commit(
+        layout, start.variant, start.env_tag, {
+            **terminal,
+            COMMIT_CONTRACT_SHA256_KEY:
+                first_commit.payload[COMMIT_CONTRACT_SHA256_KEY],
+        }, operation_identity=attempt_id, tags=("legacy",), ts=8.0,
+    )
+
+    with pytest.raises(A.ArtifactAdmissionError, match="anomalies"):
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+
+
+@pytest.mark.parametrize("mutation", ("incomplete-receipt",))
+def test_historical_raw_unaffected(
+        tmp_path: Path, mutation: str,
+) -> None:
+    assert mutation == "incomplete-receipt"
+    campaign = _new_schema_campaign(tmp_path)
+    _rewrite_wal(campaign, lambda records: next(
+        record for record in records if record["stage"] == "commit"
+    )["payload"]["commit_verification_receipt"].pop("receipt_id"))
+
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    assert type(view) is A.HistoricalCampaignView
+
+
+def test_persisted_commit_helper_accepts_immutable_view(tmp_path: Path) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    commit = next(record for record in view.records if record.stage == "commit")
+
+    assert A.require_persisted_certified_commit(
+        view.records,
+        commit,
+        campaign_lock_sha256=view.decision.campaign_lock_sha256,
+    ) is commit
+
+
+def test_persisted_commit_missing_attempt_is_artifact_admission_error(
+    tmp_path: Path,
+) -> None:
+    campaign = _new_schema_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    records = wal.read_records(layout)
+    commit = next(record for record in records if record.stage == "commit")
+    commit.payload.pop("build_attempt_id")
+    lock_sha256 = hashlib.sha256(
+        Path(layout.lock_file).read_bytes()
+    ).hexdigest()
+
+    with pytest.raises(
+        A.ArtifactAdmissionError,
+        match="build_attempt_id must be a non-empty exact str",
+    ):
+        A.require_persisted_certified_commit(
+            records,
+            commit,
+            campaign_lock_sha256=lock_sha256,
+        )
 
 
 def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(

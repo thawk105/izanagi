@@ -1,0 +1,189 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 51 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 2,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "arxiv",
+    "leaf_query_id": "AX1-20260829-E1-Q6-SM202206@arxiv",
+    "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+    "page_number": 1,
+    "pass_number": 2,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-Q6-SM202206@arxiv#p1",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 51,
+    "capacity_echo": 200,
+    "declared_total": 251,
+    "interpreted_query": "arXiv Query: search_query=(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:\"202206010000 TO 202206302359\"&id_list=&start=200&max_results=200",
+    "parse_errors": [],
+    "position_in": "200",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "90e61f4b3f7f2385022750ea1786e99780fdfb1ac17972f940f6be5ea1b60501",
+    "index_work_ids": [
+      "http://arxiv.org/abs/2206.13630v1",
+      "http://arxiv.org/abs/2206.08122v3",
+      "http://arxiv.org/abs/2206.02200v1",
+      "http://arxiv.org/abs/2206.02671v3",
+      "http://arxiv.org/abs/2206.05937v2",
+      "http://arxiv.org/abs/2206.12037v2",
+      "http://arxiv.org/abs/2206.08778v1",
+      "http://arxiv.org/abs/2206.03079v1",
+      "http://arxiv.org/abs/2206.01338v4",
+      "http://arxiv.org/abs/2207.12229v1",
+      "http://arxiv.org/abs/2206.02577v1",
+      "http://arxiv.org/abs/2206.13352v1",
+      "http://arxiv.org/abs/2206.12906v2",
+      "http://arxiv.org/abs/2206.01820v2",
+      "http://arxiv.org/abs/2206.11352v1",
+      "http://arxiv.org/abs/2206.07493v1",
+      "http://arxiv.org/abs/2206.02340v4",
+      "http://arxiv.org/abs/2206.14917v2",
+      "http://arxiv.org/abs/2206.05187v1",
+      "http://arxiv.org/abs/2206.04624v3",
+      "http://arxiv.org/abs/2206.05224v2",
+      "http://arxiv.org/abs/2206.08083v4",
+      "http://arxiv.org/abs/2206.05447v2",
+      "http://arxiv.org/abs/2206.12770v1",
+      "http://arxiv.org/abs/2207.05135v2",
+      "http://arxiv.org/abs/2206.04676v1",
+      "http://arxiv.org/abs/2206.05497v3",
+      "http://arxiv.org/abs/2206.09311v6",
+      "http://arxiv.org/abs/2206.01082v1",
+      "http://arxiv.org/abs/2206.02307v4",
+      "http://arxiv.org/abs/2206.07604v1",
+      "http://arxiv.org/abs/2206.12959v1",
+      "http://arxiv.org/abs/2206.06264v2",
+      "http://arxiv.org/abs/2206.04798v5",
+      "http://arxiv.org/abs/2206.00611v1",
+      "http://arxiv.org/abs/2206.09908v2",
+      "http://arxiv.org/abs/2206.09090v6",
+      "http://arxiv.org/abs/2206.11172v1",
+      "http://arxiv.org/abs/2206.14903v1",
+      "http://arxiv.org/abs/2206.02930v2",
+      "http://arxiv.org/abs/2206.05253v2",
+      "http://arxiv.org/abs/2206.04874v1",
+      "http://arxiv.org/abs/2206.05643v1",
+      "http://arxiv.org/abs/2206.13529v1",
+      "http://arxiv.org/abs/2206.00302v1",
+      "http://arxiv.org/abs/2206.10660v4",
+      "http://arxiv.org/abs/2206.10461v1",
+      "http://arxiv.org/abs/2206.14633v2",
+      "http://arxiv.org/abs/2206.03239v1",
+      "http://arxiv.org/abs/2206.01366v5",
+      "http://arxiv.org/abs/2206.13578v1"
+    ],
+    "occurrence_count": 51,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-Q6-SM202206@arxiv.pass2.415d65bc42c9.json"
+  },
+  "request": {
+    "encoded_url": "https://export.arxiv.org/api/query?search_query=%28abs%3A%22program+synthesis%22+OR+abs%3A%22automatic+generation%22+OR+abs%3A%22code+generation%22+OR+abs%3A%22evolutionary+search%22+OR+abs%3A%22genetic+programming%22+OR+abs%3A%22large+language+model%22+OR+abs%3A%22LLM+agent%22+OR+abs%3A%22reinforcement+learning%22+OR+abs%3A%22learned%22+OR+abs%3A%22auto-tuning%22+OR+abs%3A%22compiler+injection%22+OR+abs%3A%22superoptimization%22%29+AND+%28abs%3A%22protocol%22+OR+abs%3A%22algorithm%22+OR+abs%3A%22policy%22+OR+abs%3A%22source+code%22+OR+abs%3A%22implementation%22+OR+abs%3A%22intermediate+representation%22+OR+abs%3A%22action+space%22+OR+abs%3A%22design+space%22+OR+abs%3A%22variant%22%29+AND+%28abs%3A%22workload%22+OR+abs%3A%22benchmark%22+OR+abs%3A%22YCSB%22+OR+abs%3A%22TPC-C%22+OR+abs%3A%22contention%22+OR+abs%3A%22read-write+ratio%22+OR+abs%3A%22skew%22+OR+abs%3A%22many-core%22%29+AND+submittedDate%3A%5B202206010000+TO+202206302359%5D&start=200&max_results=200",
+    "expected_interpreted_query": "arXiv Query: search_query=(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:\"202206010000 TO 202206302359\"&id_list=&start=200&max_results=200",
+    "headers": [
+      [
+        "Accept",
+        "application/atom+xml"
+      ]
+    ],
+    "host": "export.arxiv.org",
+    "method": "GET",
+    "parent_response_sha256": "336f2fff6a59359be62175d7be6e3a03ba84fab2f31de31e20d5b7b17ddc6edd",
+    "path": "/api/query",
+    "position_in": "200",
+    "query_parameters": [
+      [
+        "search_query",
+        "(abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND (abs:\"workload\" OR abs:\"benchmark\" OR abs:\"YCSB\" OR abs:\"TPC-C\" OR abs:\"contention\" OR abs:\"read-write ratio\" OR abs:\"skew\" OR abs:\"many-core\") AND submittedDate:[202206010000 TO 202206302359]"
+      ],
+      [
+        "start",
+        "200"
+      ],
+      [
+        "max_results",
+        "200"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-Q6-SM202206@arxiv_p1.a02.body.gz",
+    "byte_count": 133121,
+    "content_type": "application/atom+xml",
+    "elapsed_s": 0.017929980996996164,
+    "final_url": "https://export.arxiv.org/api/query?search_query=%28abs%3A%22program+synthesis%22+OR+abs%3A%22automatic+generation%22+OR+abs%3A%22code+generation%22+OR+abs%3A%22evolutionary+search%22+OR+abs%3A%22genetic+programming%22+OR+abs%3A%22large+language+model%22+OR+abs%3A%22LLM+agent%22+OR+abs%3A%22reinforcement+learning%22+OR+abs%3A%22learned%22+OR+abs%3A%22auto-tuning%22+OR+abs%3A%22compiler+injection%22+OR+abs%3A%22superoptimization%22%29+AND+%28abs%3A%22protocol%22+OR+abs%3A%22algorithm%22+OR+abs%3A%22policy%22+OR+abs%3A%22source+code%22+OR+abs%3A%22implementation%22+OR+abs%3A%22intermediate+representation%22+OR+abs%3A%22action+space%22+OR+abs%3A%22design+space%22+OR+abs%3A%22variant%22%29+AND+%28abs%3A%22workload%22+OR+abs%3A%22benchmark%22+OR+abs%3A%22YCSB%22+OR+abs%3A%22TPC-C%22+OR+abs%3A%22contention%22+OR+abs%3A%22read-write+ratio%22+OR+abs%3A%22skew%22+OR+abs%3A%22many-core%22%29+AND+submittedDate%3A%5B202206010000+TO+202206302359%5D&start=200&max_results=200",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/atom+xml; charset=utf-8"
+      ]
+    ],
+    "sha256": "b9663021caf507a196b3720977ea3ed1b88ff288a9254a1702b553dbbb6bdb0a",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:55:22.186546Z",
+    "parsed_at": "2026-08-29T14:55:22.223201Z",
+    "prepared_at": "2026-08-29T14:55:19.260266Z",
+    "response_stored_at": "2026-08-29T14:55:22.219560Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:55:22.224996Z"
+  }
+}

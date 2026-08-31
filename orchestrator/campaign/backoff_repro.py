@@ -27,6 +27,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from . import env_contract, ident, source_digest, wal     # noqa: E402
+from .artifact_admission import (ArtifactAdmissionError,  # noqa: E402
+                                 require_persisted_certified_commit)
 from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context)
 from .backoff_sweep import _BASE                         # noqa: E402
@@ -79,15 +81,39 @@ def _config(tag: str, workload: dict) -> CampaignConfig:
 
 def _bench_tps(layout, v: str) -> Optional[float]:
     """campaign WAL から certified variant の median tps だけを引く。"""
+    try:
+        lock_bytes = Path(layout.lock_file).read_bytes()
+    except OSError as exc:
+        raise ArtifactAdmissionError(
+            "backoff repro campaign lock cannot be read"
+        ) from exc
+    campaign_lock_sha256 = hashlib.sha256(lock_bytes).hexdigest()
+    records = wal.read_records(layout)
+    try:
+        lock_sha256_after_records = hashlib.sha256(
+            Path(layout.lock_file).read_bytes()
+        ).hexdigest()
+    except OSError as exc:
+        raise ArtifactAdmissionError(
+            "backoff repro campaign lock cannot be re-read after WAL"
+        ) from exc
+    if lock_sha256_after_records != campaign_lock_sha256:
+        raise ArtifactAdmissionError(
+            "backoff repro campaign lock changed while reading WAL"
+        )
     pending_tps = None
     certified_tps = None
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in records:
         if r.variant != v:
             continue
         if r.stage == STAGE_BENCH_DONE:
             pending_tps = r.payload.get("median_tps")
         elif r.stage == STAGE_COMMIT:
+            require_persisted_certified_commit(
+                records, r,
+                campaign_lock_sha256=campaign_lock_sha256,
+            )
             certified_tps = pending_tps
             pending_tps = None
     return certified_tps

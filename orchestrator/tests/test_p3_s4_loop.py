@@ -5170,6 +5170,10 @@ def _dup_summary(v) -> CampaignSummary:
                            skipped=1, skipped_variants=[v] if v else [])
 
 
+def _write_duplicate_lock(layout: CampaignLayout) -> None:
+    L.wal.write_lock(layout, json.dumps({"search_config": {}}))
+
+
 def test_resolve_duplicate_recovers_certified_from_wal():
     """run_campaign が重複 (既存 terminal variant) としてスキップし summary.results が
     空になっても、_resolve_duplicate は summary.skipped_variants の確定済み id で既存 WAL の
@@ -5180,12 +5184,19 @@ def test_resolve_duplicate_recovers_certified_from_wal():
     genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 40})
     fake_src_tok = "deadbeef"
     v = variant_id(genome, fake_src_tok)
+    attempt_id = "certified-duplicate"
+    _write_duplicate_lock(lay)
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
-              {"genome": genome.canonical(), "src_token": fake_src_tok})
+              {"genome": genome.canonical(), "src_token": fake_src_tok,
+               "build_attempt_id": attempt_id})
     L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
-              {"verdict": "serializable", "certified": True, "commits": 1, "aborts": 1})
-    commit_receipt_support.append_legacy_raw_commit(
-        lay, v, L.ENV_TAG, {"fitness_tps": 491796.0, "cv": 0.009},
+              {"build_attempt_id": attempt_id, "verdict": "serializable",
+               "certified": True, "anomalies": 0,
+               "workload": {"tag": "legacy"}, "commits": 1, "aborts": 1})
+    commit_receipt_support.log_receipted_commit(
+        lay, v, L.ENV_TAG,
+        {"build_attempt_id": attempt_id, "fitness_tps": 491796.0, "cv": 0.009},
+        operation_identity=attempt_id,
     )
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="medium")
     state = L.LoopState(iteration=2, start_wall=time.time())
@@ -5226,10 +5237,19 @@ def test_resolve_duplicate_never_reresolves_source():
     lay = _tmp_layout("dupnores")
     genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 41})
     v = variant_id(genome, "feedface")
+    attempt_id = "no-reresolve"
+    _write_duplicate_lock(lay)
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
-              {"genome": genome.canonical(), "src_token": "feedface"})
-    commit_receipt_support.append_legacy_raw_commit(
-        lay, v, L.ENV_TAG, {"fitness_tps": 1.0, "cv": 0.0},
+              {"genome": genome.canonical(), "src_token": "feedface",
+               "build_attempt_id": attempt_id})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": attempt_id, "verdict": "serializable",
+               "certified": True, "anomalies": 0,
+               "workload": {"tag": "legacy"}})
+    commit_receipt_support.log_receipted_commit(
+        lay, v, L.ENV_TAG,
+        {"build_attempt_id": attempt_id, "fitness_tps": 1.0, "cv": 0.0},
+        operation_identity=attempt_id,
     )
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
     state = L.LoopState(iteration=2, start_wall=time.time())
@@ -5269,6 +5289,87 @@ def test_resolve_duplicate_single_implementation_across_axes():
     assert TRIGGER_LOOP._resolve_duplicate is L._resolve_duplicate
 
 
+@pytest.mark.parametrize("case", ("invalid-receipt",), ids=("invalid-receipt",))
+def test_resolve_duplicate_rejects_uncertified_commit_without_success_checkpoint(
+    case,
+):
+    """保存 COMMIT の receipt が不正なら whiteboard/checkpoint を fail に保つ。"""
+    assert case == "invalid-receipt"
+    lay = _tmp_layout("dupreceiptreject")
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 45})
+    v = variant_id(genome, "invalid-receipt-src")
+    attempt_id = "invalid-receipt-attempt"
+    _write_duplicate_lock(lay)
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": "invalid-receipt-src",
+               "build_attempt_id": attempt_id})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": attempt_id, "verdict": "serializable",
+               "certified": True, "anomalies": 0,
+               "workload": {"tag": "legacy"}})
+    commit_receipt_support.append_legacy_raw_commit(
+        lay, v, L.ENV_TAG,
+        {"build_attempt_id": attempt_id, "fitness_tps": 4.0},
+    )
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="decrease", magnitude="small",
+    )
+    state = L.LoopState(iteration=2, start_wall=time.time())
+
+    out = L._resolve_duplicate(lay, planner, state, _dup_summary(v))
+
+    assert out["outcome"] == "aborted"
+    assert out["verdict"] == ""
+    assert [entry.result for entry in state.whiteboard] == ["fail"]
+    L.save_loop_state(lay, state)
+    restored = L.load_loop_state(lay)
+    assert restored is not None
+    assert [entry.result for entry in restored.whiteboard] == ["fail"]
+
+
+def test_resolve_duplicate_rejects_lock_change_while_reading_wal(monkeypatch):
+    lay = _tmp_layout("duplockchange")
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 46})
+    v = variant_id(genome, "lock-change-src")
+    attempt_id = "lock-change-attempt"
+    _write_duplicate_lock(lay)
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": "lock-change-src",
+               "build_attempt_id": attempt_id})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": attempt_id, "verdict": "serializable",
+               "certified": True, "anomalies": 0,
+               "workload": {"tag": "legacy"}})
+    commit_receipt_support.log_receipted_commit(
+        lay, v, L.ENV_TAG,
+        {"build_attempt_id": attempt_id, "fitness_tps": 5.0},
+        operation_identity=attempt_id,
+    )
+    lock_path = Path(lay.lock_file)
+    original_read_bytes = Path.read_bytes
+    first_read = True
+
+    def replace_after_first_read(path):
+        nonlocal first_read
+        raw = original_read_bytes(path)
+        if path == lock_path and first_read:
+            first_read = False
+            lock_path.write_bytes(raw + b"\n")
+        return raw
+
+    monkeypatch.setattr(Path, "read_bytes", replace_after_first_read)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="increase", magnitude="medium",
+    )
+    state = L.LoopState(iteration=2, start_wall=time.time())
+
+    out = L._resolve_duplicate(lay, planner, state, _dup_summary(v))
+
+    assert not first_read
+    assert out["outcome"] == "aborted"
+    assert [entry.result for entry in state.whiteboard] == ["fail"]
+
+
 def test_resolve_duplicate_drops_verdict_when_commit_attempt_mismatches_verify():
     """commit と verify の attempt が異なると、後発した旧 verify の verdict を返さない。"""
     lay = _tmp_layout("dupcrosscommit")
@@ -5277,6 +5378,7 @@ def test_resolve_duplicate_drops_verdict_when_commit_attempt_mismatches_verify()
     v = variant_id(genome, fake_src_tok)
     old = "old"
     new = "new"
+    _write_duplicate_lock(lay)
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
               {"genome": genome.canonical(), "src_token": fake_src_tok,
                "build_attempt_id": old})
@@ -5293,10 +5395,12 @@ def test_resolve_duplicate_drops_verdict_when_commit_attempt_mismatches_verify()
     L.wal.log(lay, v, STAGE_BUILD_DONE, L.ENV_TAG,
               {"build_attempt_id": new})
     L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
-              {"build_attempt_id": new, "verdict": "new-verdict",
-               "certified": True})
-    commit_receipt_support.append_legacy_raw_commit(
+              {"build_attempt_id": new, "verdict": "serializable",
+               "certified": True, "anomalies": 0,
+               "workload": {"tag": "legacy"}})
+    commit_receipt_support.log_receipted_commit(
         lay, v, L.ENV_TAG, {"build_attempt_id": new, "fitness_tps": 2.0},
+        operation_identity=new,
     )
     L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
               {"build_attempt_id": old, "verdict": "stale-verdict",
@@ -5351,22 +5455,25 @@ def test_resolve_duplicate_keeps_verdict_when_attempt_ids_match():
     fake_src_tok = "matching-attempt-src"
     v = variant_id(genome, fake_src_tok)
     attempt = "matching"
+    _write_duplicate_lock(lay)
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
               {"genome": genome.canonical(), "src_token": fake_src_tok,
                "build_attempt_id": attempt})
     L.wal.log(lay, v, STAGE_BUILD_DONE, L.ENV_TAG,
               {"build_attempt_id": attempt})
     L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
-              {"build_attempt_id": attempt, "verdict": "matching-verdict",
-               "certified": True})
-    commit_receipt_support.append_legacy_raw_commit(
+              {"build_attempt_id": attempt, "verdict": "serializable",
+               "certified": True, "anomalies": 0,
+               "workload": {"tag": "legacy"}})
+    commit_receipt_support.log_receipted_commit(
         lay, v, L.ENV_TAG, {"build_attempt_id": attempt, "fitness_tps": 3.0},
+        operation_identity=attempt,
     )
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="large")
     state = L.LoopState(iteration=2, start_wall=time.time())
     out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
     assert out["outcome"] == "duplicate"
-    assert out["verdict"] == "matching-verdict"
+    assert out["verdict"] == "serializable"
 
 
 if __name__ == "__main__":

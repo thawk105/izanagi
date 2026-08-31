@@ -30,13 +30,12 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
-from . import model, pipeline, s1_stats, wal  # noqa: E402
+from . import artifact_admission, model, pipeline, s1_stats, wal  # noqa: E402
 from .artifact_admission import (  # noqa: E402
     ArtifactAdmissionError,
     CampaignReadPurpose,
     CampaignVerifierEpoch,
     CampaignVerifierEpochRejected,
-    require_campaign_verifier_epoch,
 )
 from .layout import repo_output_root  # noqa: E402
 from .s1_direct_comparison import (  # noqa: E402
@@ -291,7 +290,31 @@ def _validate_event_metadata(events: Sequence[Mapping], schedule: Sequence, role
             f"retry={retry_keys} starts={sorted(expected_retries)}")
 
 
-def _sample_from_segment(role: str, item, segment: Sequence) -> Tuple[Optional[Sample], Optional[Dict]]:
+def _read_campaign_lock_bytes(layout) -> bytes:
+    try:
+        return Path(layout.lock_file).read_bytes()
+    except OSError as exc:
+        raise ArtifactAdmissionError(
+            f"campaign.lock cannot be read: {layout.lock_file}"
+        ) from exc
+
+
+def _campaign_verifier_epoch_from_lock_bytes(
+        lock_bytes: bytes,
+) -> CampaignVerifierEpoch:
+    recorded = artifact_admission._recorded_campaign_verifier_epoch(
+        artifact_admission._decode_campaign_lock(lock_bytes)
+    )
+    return artifact_admission._require_verifier_epoch_for_purpose(
+        recorded, CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+
+
+def _sample_from_segment(
+        role: str, item, segment: Sequence, *, campaign_records=None,
+        campaign_lock_sha256: Optional[str] = None,
+        persisted_certification_error: Optional[str] = None,
+) -> Tuple[Optional[Sample], Optional[Dict]]:
     start = segment[0].payload
     results = [record.payload for record in segment if _event(record, "session-result")]
     successful = [result for result in results if result.get("status") == "success"]
@@ -320,6 +343,23 @@ def _sample_from_segment(role: str, item, segment: Sequence) -> Tuple[Optional[S
             "certified_commit_missing", "success session に一意な build_start/COMMIT がない",
             campaign=role, cell=item.freeze_cell_id, schedule_index=item.schedule_index,
             build_start_count=len(builds), commit_count=len(commits))
+    if persisted_certification_error is not None:
+        return None, _reason(
+            "persisted_certification_invalid", persisted_certification_error,
+            campaign=role, cell=item.freeze_cell_id,
+            schedule_index=item.schedule_index)
+    try:
+        artifact_admission.require_persisted_certified_commit(
+            campaign_records, commits[0],
+            campaign_lock_sha256=campaign_lock_sha256,
+        )
+    except (ArtifactAdmissionError, TypeError) as exc:
+        return None, _reason(
+            "persisted_certification_invalid",
+            f"保存済み COMMIT の certified 証拠が不正: {exc}",
+            campaign=role, cell=item.freeze_cell_id,
+            schedule_index=item.schedule_index,
+            error_type=type(exc).__name__)
     src_token = builds[0].payload.get("src_token")
     payload = commits[0].payload
     verify = payload.get("verify_configs")
@@ -382,10 +422,9 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
         # S1 は破損行と切断末尾を valid prefix とともに収集するため、WAL 全体を
         # admission reader へ渡さない。中央の lock-only gate を WAL 読取前に通す。
         try:
-            epoch = require_campaign_verifier_epoch(
-                layout,
-                purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
-            )
+            lock_bytes = _read_campaign_lock_bytes(layout)
+            campaign_lock_sha256 = hashlib.sha256(lock_bytes).hexdigest()
+            epoch = _campaign_verifier_epoch_from_lock_bytes(lock_bytes)
             epoch_projection = _epoch_projection(epoch)
         except CampaignVerifierEpochRejected as exc:
             epoch_projection = _rejected_epoch_projection(exc)
@@ -422,6 +461,20 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
             )
         # 物理問題を収集する read は 1 回だけ。問題があっても valid prefix の解析を続ける。
         records, line_issues, truncated_tail = wal.read_records_collected(layout)
+        persisted_certification_error = None
+        try:
+            lock_sha256_after_records = hashlib.sha256(
+                _read_campaign_lock_bytes(layout)
+            ).hexdigest()
+        except ArtifactAdmissionError as exc:
+            persisted_certification_error = (
+                f"WAL 読取後に campaign.lock を再検証できない: {exc}"
+            )
+        else:
+            if lock_sha256_after_records != campaign_lock_sha256:
+                persisted_certification_error = (
+                    "WAL 読取中に campaign.lock の SHA-256 が変化した"
+                )
         if truncated_tail:
             schedule_gate["reasons"].append(_reason(
                 "wal_truncated_tail",
@@ -470,7 +523,12 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
             item = by_index.get(index) if isinstance(index, int) and not isinstance(index, bool) else None
             if item is None:
                 continue
-            sample, issue = _sample_from_segment(role, item, segment)
+            sample, issue = _sample_from_segment(
+                role, item, segment,
+                campaign_records=records,
+                campaign_lock_sha256=campaign_lock_sha256,
+                persisted_certification_error=persisted_certification_error,
+            )
             if issue is not None:
                 issues.append(issue)
             if sample is not None:

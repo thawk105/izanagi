@@ -1,0 +1,169 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "interpreted query matches",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "actual element count matches the offset formula",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 27 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "response terminated normally and evidence is stored",
+      "passed": true,
+      "reason_code": null
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": null,
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T10@dblp",
+    "logical_query_id": "AX1-20260829-E1-T10@dblp",
+    "page_number": 0,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T10@dblp#p0",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 27,
+    "capacity_echo": 27,
+    "declared_total": 27,
+    "interpreted_query": "lock* manager*",
+    "parse_errors": [],
+    "position_in": "0",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "02213d37e076d6671ea58bb06c31e27e88e9aaa7a042e237877d9816dded23d3",
+    "index_work_ids": [
+      "conf/bda/DaynesGV94",
+      "journals/ese/GamageTMB26",
+      "journals/corr/abs-2505-04834",
+      "journals/ijnc/UchidaK24",
+      "journals/eait/SegbenyaM23",
+      "conf/ipps/UchidaK23",
+      "conf/simod/HaubenschildL23",
+      "conf/sc/ChenMCMLCWC22",
+      "journals/iacr/AroraBRSWW22",
+      "journals/jis/MarcellaL16",
+      "journals/vldb/RenTA15",
+      "conf/IEEEcloud/SouzaCBL15",
+      "journals/tods/JungHFHY14",
+      "conf/enter/NunthapiratLSA14",
+      "conf/sigmod/JungHFHY13",
+      "conf/dictap/BindahmanY12",
+      "conf/IEEEcit/ChoiCLY10",
+      "reference/db/X09xfw",
+      "conf/sofsem/SiirtolaV08",
+      "conf/hipc/MoizR07",
+      "conf/ideas/LometSJ05",
+      "conf/pdpta/JohnsonA04",
+      "conf/sbbd/HausteinH04",
+      "books/ph/kumar96/LehmanG96",
+      "conf/hicss/AldredGM95",
+      "conf/usenix/BhideS92",
+      "journals/tods/BriceS77"
+    ],
+    "occurrence_count": 27,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T10@dblp.pass1.fa12e5f90507.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=lock+manager&format=json&h=100&f=0",
+    "expected_interpreted_query": "lock* manager*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": null,
+    "path": "/search/publ/api",
+    "position_in": "0",
+    "query_parameters": [
+      [
+        "q",
+        "lock manager"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "0"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T10@dblp_p0.a01.body.gz",
+    "byte_count": 16476,
+    "content_type": "application/json",
+    "elapsed_s": 10.893386878073215,
+    "final_url": "https://dblp.org/search/publ/api?q=lock+manager&format=json&h=100&f=0",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "sha256": "616f796d02f2be2413592e5b351c2cc275792f684da91d8a334daa47ba7a6f04",
+    "status": 200
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:43:42.882105Z",
+    "parsed_at": "2026-08-29T14:43:53.791982Z",
+    "prepared_at": "2026-08-29T14:43:01.074116Z",
+    "response_stored_at": "2026-08-29T14:43:53.789475Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:43:53.793541Z"
+  }
+}

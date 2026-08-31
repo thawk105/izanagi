@@ -117,9 +117,9 @@ def _hermetic_t080_never_issued(monkeypatch):
 def _hermetic_certified_campaign_epoch(monkeypatch):
     """Report 単体テストを中央 gate の Git/worktree 状態から分離する。"""
     monkeypatch.setattr(
-        report._artifact_admission,
-        "require_campaign_verifier_epoch",
-        lambda campaign, *, purpose: _e1_epoch(),
+        report,
+        "_campaign_verifier_epoch_from_lock_bytes",
+        lambda _lock_bytes: _e1_epoch(),
     )
 
 
@@ -324,7 +324,9 @@ def _ratified_cli_manifest(
     Path, Path, artifacts.OfficialManifest, spec_fixture.ReviewedSpecFixture,
 ]:
     def fill_execution_snapshot(generation):
-        v2_fixture.fill(
+        # emitter が result.floors から独立投影した floor は保持し、
+        # report fixture に必要な budget だけを追加する。
+        generation["budget"] = v2_fixture.budget(
             generation, total_bench_s=1000.0, per_holdout_bench_s=1000.0,
         )
 
@@ -525,6 +527,11 @@ def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
                     *, block_id: str = "b0", receipt: dict | None = None,
                     t080_observation: object = _T080_DEFAULT,
                     measurement_manifest: dict | None = None) -> None:
+    lock_path = Path(layout.lock_file)
+    if not lock_path.exists():
+        lock_path.write_text(
+            json.dumps({"fixture": "s8b oracle report"}), encoding="utf-8",
+        )
     contract = env_contract.lookup("linux-baremetal")
     payload = {
         "manifest_sha256": oracle_manifest.manifest_sha256(manifest),
@@ -553,10 +560,15 @@ def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
     _session(layout, "campaign-start", payload)
 
 
-def _verify(layout, variant: str, tag: str, certified: bool) -> None:
+def _verify(
+        layout, variant: str, tag: str, certified: bool,
+        build_attempt_id: str,
+) -> None:
     wal.log(layout, variant, "verify_done", "fixture-env", {
+        "build_attempt_id": build_attempt_id,
         "verdict": "serializable" if certified else "cycle",
         "certified": certified,
+        "anomalies": 0 if certified else 1,
         "workload": {"tag": tag},
     })
 
@@ -579,6 +591,33 @@ def _fixture_log(layout, variant: str, stage: str, payload: object) -> None:
         stream.write(json.dumps(record, separators=(",", ":")) + "\n")
 
 
+def _append_receipted_commit_raw(
+        layout, variant: str, env_tag: str, payload: dict, *,
+        operation_identity: str, tags: tuple[str, ...],
+) -> None:
+    """Append a valid receipt without reparsing intentionally broken history."""
+    lock_identity = receipt_support.campaign_lock_sha256_or_absent(layout)
+    receipt = receipt_support.campaign_receipt(
+        layout, variant, payload,
+        operation_identity=operation_identity,
+        tags=tags,
+        lock_identity_sha256=lock_identity,
+    )
+    serialized = receipt_support.validate_live_receipt(
+        receipt,
+        sink_kind=receipt_support.CAMPAIGN_WAL_SINK,
+        lock_identity_sha256=lock_identity,
+        variant=variant,
+        terminal_payload=payload,
+    )
+    receipt_support.append_legacy_raw_commit(
+        layout, variant, env_tag, {
+            **payload,
+            receipt_support.RECEIPT_PAYLOAD_KEY: serialized,
+        },
+    )
+
+
 def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            attempt: int = 1,
            tps: tuple[float, ...] = (10.0, 11.0, 12.0, 13.0, 14.0),
@@ -587,14 +626,16 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            excluded_reason: str | None = None,
            verify_frontier: str = "s2",
            abort_payload: object = _DEFAULT_ABORT_PAYLOAD,
-           bench_payload_extra: Mapping | None = None) -> None:
+           bench_payload_extra: Mapping | None = None,
+           raw_receipted_commit: bool = False) -> None:
     def selected_abort_payload(default: object) -> object:
         if abort_payload is _DEFAULT_ABORT_PAYLOAD:
             return default
         if isinstance(default, dict) and isinstance(abort_payload, dict):
             merged = dict(abort_payload)
-            if "workload" in default and "workload" not in merged:
-                merged["workload"] = default["workload"]
+            for key in ("workload", "build_attempt_id"):
+                if key in default and key not in merged:
+                    merged[key] = default[key]
             return merged
         return abort_payload
 
@@ -604,29 +645,38 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
         "configuration_id": item["configuration_id"],
         "attempt": attempt,
     }
+    build_attempt_id = f"oracle-{item['schedule_index']}-{attempt}"
     _session(layout, "trial-start", identity)
     wal.log(layout, variant, "build_start", "fixture-env", {
         "genome": GENOME, "src_token": SRC_TOKEN,
+        "build_attempt_id": build_attempt_id,
     })
     if outcome == "build-failed":
         _fixture_log(
             layout, variant, "abort",
-            selected_abort_payload({"reason": "build-error"}),
+            selected_abort_payload({
+                "reason": "build-error", "build_attempt_id": build_attempt_id,
+            }),
         )
     else:
         wal.log(layout, variant, "build_done", "fixture-env", {
             "trace_bin": "trace", "perf_bin": "perf",
+            "build_attempt_id": build_attempt_id,
         })
         if outcome == "binary-mismatch":
             # C3-5: build_done 後・verify/bench 起動前の TOCTOU abort。
             _fixture_log(
                 layout, variant, "abort",
-                selected_abort_payload({"reason": "bench-binary-mismatch"}),
+                selected_abort_payload({
+                    "reason": "bench-binary-mismatch",
+                    "build_attempt_id": build_attempt_id,
+                }),
             )
         elif outcome == "legacy-red":
-            _verify(layout, variant, "legacy", False)
+            _verify(layout, variant, "legacy", False, build_attempt_id)
             _fixture_log(layout, variant, "abort", selected_abort_payload({
                 "reason": "cycle", "workload": {"tag": "legacy"},
+                "build_attempt_id": build_attempt_id,
             }))
         else:
             if (outcome in {"timeout", "verify-inconclusive"}
@@ -634,27 +684,33 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                 _fixture_log(layout, variant, "abort", selected_abort_payload({
                     "reason": ("trace-timeout" if outcome == "timeout" else "trace-empty"),
                     "workload": {"tag": "legacy"},
+                    "build_attempt_id": build_attempt_id,
                 }))
             else:
-                _verify(layout, variant, "legacy", True)
+                _verify(layout, variant, "legacy", True, build_attempt_id)
                 if outcome in {"timeout", "verify-inconclusive"}:
                     _fixture_log(layout, variant, "abort", selected_abort_payload({
                         "reason": (
                             "trace-timeout" if outcome == "timeout" else "trace-empty"
                         ),
                         "workload": {"tag": "s2"},
+                        "build_attempt_id": build_attempt_id,
                     }))
                 elif outcome == "s2-red":
-                    _verify(layout, variant, "s2", False)
+                    _verify(layout, variant, "s2", False, build_attempt_id)
                     _fixture_log(layout, variant, "abort", selected_abort_payload({
                         "reason": "cycle", "workload": {"tag": "s2"},
+                        "build_attempt_id": build_attempt_id,
                     }))
                 else:
-                    _verify(layout, variant, "s2", True)
+                    _verify(layout, variant, "s2", True, build_attempt_id)
                     if outcome == "bench-failed":
                         _fixture_log(
                             layout, variant, "abort",
-                            selected_abort_payload({"reason": "bench-no-throughput"}),
+                            selected_abort_payload({
+                                "reason": "bench-no-throughput",
+                                "build_attempt_id": build_attempt_id,
+                            }),
                         )
                     else:
                         payload = {
@@ -671,13 +727,25 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                             payload["screening"] = True
                         if bench_payload_extra is not None:
                             payload.update(dict(bench_payload_extra))
+                        payload["build_attempt_id"] = build_attempt_id
                         wal.log(layout, variant, "bench_done", "fixture-env", payload)
-                        receipt_support.append_legacy_raw_commit(
-                            layout, variant, "fixture-env", {
-                                "fitness_tps": sum(tps) / len(tps),
-                                "verify_configs": ["legacy", "s2"],
-                            },
-                        )
+                        commit_payload = {
+                            "build_attempt_id": build_attempt_id,
+                            "fitness_tps": sum(tps) / len(tps),
+                            "verify_configs": ["legacy", "s2"],
+                        }
+                        if raw_receipted_commit:
+                            _append_receipted_commit_raw(
+                                layout, variant, "fixture-env", commit_payload,
+                                operation_identity=build_attempt_id,
+                                tags=("legacy", "s2"),
+                            )
+                        else:
+                            receipt_support.log_receipted_commit(
+                                layout, variant, "fixture-env", commit_payload,
+                                operation_identity=build_attempt_id,
+                                tags=("legacy", "s2"),
+                            )
     declared = {
         "legacy-red": "correctness-red",
         "s2-red": "correctness-red",
@@ -703,14 +771,18 @@ def _finish_campaign(layout, manifest: dict, *, status: str = "completed",
     """新 campaign-terminal 契約へ追随する WAL fixture builder。"""
     schedule = manifest["schedule"]["rows"]
     if fill_missing:
-        records, _line_issues, _truncated_tail = wal.read_records_collected(layout)
+        records, line_issues, truncated_tail = wal.read_records_collected(layout)
+        raw_receipted_commit = bool(line_issues or truncated_tail)
         covered = {
             record.payload.get("schedule_index") for record in records
             if record.stage == SESSION and record.payload.get("event") == "trial-result"
         }
         for item in schedule:
             if item["schedule_index"] not in covered:
-                _trial(layout, item, "committed")
+                _trial(
+                    layout, item, "committed",
+                    raw_receipted_commit=raw_receipted_commit,
+                )
     _session(layout, "campaign-terminal", {
         "status": status,
         "scheduled_rows": len(schedule) if scheduled_rows is None else scheduled_rows,
@@ -803,8 +875,10 @@ def _retry(layout, item: dict, next_attempt: int = 2, **payload_overrides) -> No
 def _append_pipeline(layout, pipeline: list[tuple[str, object]] | None = None) -> None:
     for stage, payload in pipeline or _valid_committed_pipeline():
         if stage == "commit":
-            receipt_support.append_legacy_raw_commit(
+            receipt_support.log_receipted_commit(
                 layout, VARIANT, "fixture-env", payload,
+                operation_identity=payload["build_attempt_id"],
+                tags=("legacy", "s2"),
             )
             continue
         wal.log(layout, VARIANT, stage, "fixture-env", payload)
@@ -828,22 +902,29 @@ def _trial_result(layout, item: dict, attempt: int,
 
 
 def _valid_committed_pipeline() -> list[tuple[str, object]]:
+    build_attempt_id = "oracle-manual-attempt"
     return [
-        ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN}),
-        ("build_done", {"trace_bin": "trace", "perf_bin": "perf"}),
+        ("build_start", {"genome": GENOME, "src_token": SRC_TOKEN,
+                         "build_attempt_id": build_attempt_id}),
+        ("build_done", {"trace_bin": "trace", "perf_bin": "perf",
+                        "build_attempt_id": build_attempt_id}),
         ("verify_done", {
             "verdict": "serializable", "certified": True,
+            "anomalies": 0, "build_attempt_id": build_attempt_id,
             "workload": {"tag": "legacy"},
         }),
         ("verify_done", {
             "verdict": "serializable", "certified": True,
+            "anomalies": 0, "build_attempt_id": build_attempt_id,
             "workload": {"tag": "s2"},
         }),
         ("bench_done", {
             "tps": [10.0, 11.0, 12.0, 13.0, 14.0], "median_tps": 12.0,
             "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": build_attempt_id,
         }),
-        ("commit", {"fitness_tps": 12.0, "verify_configs": ["legacy", "s2"]}),
+        ("commit", {"fitness_tps": 12.0, "verify_configs": ["legacy", "s2"],
+                    "build_attempt_id": build_attempt_id}),
     ]
 
 
@@ -870,6 +951,31 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
     assert len(observations["expected_cells"]) == len(schedule)
 
 
+@pytest.mark.parametrize("consumer", ["s8b"], ids=["s8b"])
+def test_assess_window_requires_persisted_certification(tmp_path, consumer):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _trial(layout, item, "committed")
+    records = wal.read_records(layout)
+    verify = next(record for record in records if record.stage == "verify_done")
+    verify.payload["anomalies"] = 1
+    Path(layout.wal_file).write_text(
+        "".join(wal._record_to_line(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
+    )
+
+    assert consumer == "s8b"
+    row = observations["rows"][0]
+    assert row["status"] == "protocol_violation"
+    assert "persisted certification is invalid" in row["reason"]
+
+
 def test_report_projects_e1_epoch_from_resolved_campaign_layout(
         tmp_path, monkeypatch):
     manifest = _manifest(tmp_path)
@@ -877,13 +983,13 @@ def test_report_projects_e1_epoch_from_resolved_campaign_layout(
     _finish_campaign(layout, manifest)
     calls = []
 
-    def certified(campaign, *, purpose):
-        calls.append((campaign, purpose))
+    def certified(lock_bytes):
+        calls.append(lock_bytes)
         return _e1_epoch()
 
     monkeypatch.setattr(
-        report._artifact_admission,
-        "require_campaign_verifier_epoch",
+        report,
+        "_campaign_verifier_epoch_from_lock_bytes",
         certified,
     )
     observations = report.build_observations(
@@ -891,8 +997,7 @@ def test_report_projects_e1_epoch_from_resolved_campaign_layout(
     )
 
     assert len(calls) == 1
-    assert Path(calls[0][0].root) == Path(layout.root).resolve()
-    assert calls[0][1] is admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+    assert calls[0] == Path(layout.lock_file).read_bytes()
     assert observations["campaign_verifier_epochs"] == [{
         "campaign_id": "oracle-b0",
         "campaign_verifier_epoch": f"E1:{'e' * 64}",
@@ -930,12 +1035,12 @@ def test_report_keeps_non_e1_epoch_rejection_as_structured_evidence(
     layout = _layout(tmp_path, manifest)
     _finish_campaign(layout, manifest)
 
-    def rejected(campaign, *, purpose):
+    def rejected(_lock_bytes):
         raise admission.CampaignVerifierEpochRejected(epoch)
 
     monkeypatch.setattr(
-        report._artifact_admission,
-        "require_campaign_verifier_epoch",
+        report,
+        "_campaign_verifier_epoch_from_lock_bytes",
         rejected,
     )
     observations = report.build_observations(
@@ -964,12 +1069,12 @@ def test_report_keeps_unreadable_epoch_as_structured_rejection(
     layout = _layout(tmp_path, manifest)
     _finish_campaign(layout, manifest)
 
-    def unavailable(campaign, *, purpose):
+    def unavailable(_lock_bytes):
         raise admission.ArtifactAdmissionError("campaign.lock を読めない")
 
     monkeypatch.setattr(
-        report._artifact_admission,
-        "require_campaign_verifier_epoch",
+        report,
+        "_campaign_verifier_epoch_from_lock_bytes",
         unavailable,
     )
     observations = report.build_observations(
@@ -2256,10 +2361,11 @@ def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
     epoch_roots: list[Path] = []
     measurement_roots: list[Path] = []
     real_measurement_condition = report._measurement_condition_for_campaign
+    real_lock_reader = report._read_campaign_lock_bytes
 
-    def certified(campaign, *, purpose):
-        epoch_roots.append(Path(campaign.root))
-        return _e1_epoch()
+    def recording_lock_reader(layout):
+        epoch_roots.append(Path(layout.root))
+        return real_lock_reader(layout)
 
     def recording_measurement_condition(
             campaign_id, manifest_sha256, expected_block_ids, output_root):
@@ -2271,8 +2377,8 @@ def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
     with mock.patch.object(
         report, "_resolve_official_output_root", return_value=admitted,
     ), mock.patch.object(
-        report._artifact_admission, "require_campaign_verifier_epoch",
-        side_effect=certified,
+        report, "_read_campaign_lock_bytes",
+        side_effect=recording_lock_reader,
     ), mock.patch.object(
         report, "_measurement_condition_for_campaign",
         side_effect=recording_measurement_condition,
@@ -2282,7 +2388,10 @@ def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
         )
 
     assert observations["rows"][0]["bench_values"] == [1.0, 2.0, 3.0, 4.0, 5.0]
-    assert epoch_roots == [trusted_root / "campaigns/oracle-b0"]
+    assert epoch_roots == [
+        trusted_root / "campaigns/oracle-b0",
+        trusted_root / "campaigns/oracle-b0",
+    ]
     assert measurement_roots == [trusted_root.resolve()]
 
 

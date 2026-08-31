@@ -1,0 +1,146 @@
+{
+  "completion": [
+    {
+      "condition": 1,
+      "detail": "index query echo differs from the registered query",
+      "passed": false,
+      "reason_code": "interpreted_query_mismatch"
+    },
+    {
+      "condition": 2,
+      "detail": "page position is continuous",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 3,
+      "detail": "a stable nonnegative declared total is required",
+      "passed": false,
+      "reason_code": "declared_total_missing"
+    },
+    {
+      "condition": 4,
+      "detail": "preserved all 0 occurrences",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 5,
+      "detail": "page contribution retained for leaf-wide distinct-ID, shard, and independent-pass evaluation",
+      "passed": true,
+      "reason_code": null
+    },
+    {
+      "condition": 6,
+      "detail": "http_status_500",
+      "passed": false,
+      "reason_code": "parse_error"
+    }
+  ],
+  "document_type": "page_evidence",
+  "failure": {
+    "detail": "http_status_500",
+    "reason_code": "status_not_200"
+  },
+  "identity": {
+    "attempt_number": 1,
+    "catalog_path": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+    "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+    "index": "dblp",
+    "leaf_query_id": "AX1-20260829-E1-T09@dblp",
+    "logical_query_id": "AX1-20260829-E1-T09@dblp",
+    "page_number": 1,
+    "pass_number": 1,
+    "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+    "registration_epoch": "AX1-20260829-E1",
+    "request_id": "AX1-20260829-E1-T09@dblp#p1",
+    "run_id": "2026-08-29-t2033-axis1-retake",
+    "window_number": 1
+  },
+  "parse": {
+    "actual_count": 0,
+    "capacity_echo": null,
+    "declared_total": null,
+    "interpreted_query": "",
+    "parse_errors": [
+      "http_status_500"
+    ],
+    "position_in": "100",
+    "position_out": null
+  },
+  "quota": {
+    "cost_usd": null,
+    "credits_used": null,
+    "limit": null,
+    "observed_at": null,
+    "remaining": null,
+    "reset_observation": null
+  },
+  "records": {
+    "duplicate_occurrences": 0,
+    "index_work_id_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "index_work_ids": [],
+    "occurrence_count": 0,
+    "occurrence_ledger_path": "ledgers/AX1-20260829-E1-T09@dblp.pass1.202b7a10abf0.json"
+  },
+  "request": {
+    "encoded_url": "https://dblp.org/search/publ/api?q=transactional+memory&format=json&h=100&f=100",
+    "expected_interpreted_query": "transactional* memory*",
+    "headers": [
+      [
+        "Accept",
+        "application/json"
+      ]
+    ],
+    "host": "dblp.org",
+    "method": "GET",
+    "parent_response_sha256": "3f64540d9fe5a69e1f2b7009b6bc670cbb3f1e4f067368c9e7b25fc1e26df43e",
+    "path": "/search/publ/api",
+    "position_in": "100",
+    "query_parameters": [
+      [
+        "q",
+        "transactional memory"
+      ],
+      [
+        "format",
+        "json"
+      ],
+      [
+        "h",
+        "100"
+      ],
+      [
+        "f",
+        "100"
+      ]
+    ],
+    "scheme": "https",
+    "timeout_s": 60.0
+  },
+  "response": {
+    "body_path": "raw/AX1-20260829-E1-T09@dblp_p1.a01.body.gz",
+    "byte_count": 30277,
+    "content_type": "text/html",
+    "elapsed_s": 10.91560486331582,
+    "final_url": "https://dblp.org/search/publ/api?q=transactional+memory&format=json&h=100&f=100",
+    "redirect_chain": [],
+    "safe_headers": [
+      [
+        "content-type",
+        "text/html; charset=utf-8"
+      ]
+    ],
+    "sha256": "0b6b9db585965ea6423b90ab89024e49f5d13ef249dc3cdcd24fe63b1bb0dbc9",
+    "status": 500
+  },
+  "schema_version": "izanagi-axis1-search-page-evidence/v1",
+  "wal": {
+    "issued_at": "2026-08-29T14:31:42.879516Z",
+    "parsed_at": "2026-08-29T14:31:53.805378Z",
+    "prepared_at": "2026-08-29T14:31:06.423163Z",
+    "response_stored_at": "2026-08-29T14:31:53.803654Z",
+    "state": "terminal",
+    "terminal_at": "2026-08-29T14:31:53.806804Z"
+  }
+}

@@ -1,0 +1,63 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-da142ac38d)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2049-b4-raw-record-producer/output/pegasus-dispatch/orphan-holds/unknown-820fa257988c0b2e3b6903f3.json
+[Pegasus dispatch] request ID 958027.nqsv を受理しました
+[Pegasus dispatch] request 958027.nqsv の状態: QUE
+[Pegasus dispatch] request 958027.nqsv の状態: RUN
+[Pegasus dispatch] request 958027.nqsv の状態: END
+[Pegasus dispatch] request 958027.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2049-b4-raw-record-producer/output/pegasus-dispatch/orphan-holds/unknown-820fa257988c0b2e3b6903f3.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2049-b4-raw-record-producer/output/pegasus-dispatch/da142ac38dd7f180c4a63225687e01ed/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 958027.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+| 
+| ......................                                                   [100%]
+| ============================= slowest 25 durations =============================
+| 619.80s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_positive_201_block_certified_preserves_decimal_and_all_pair_protocol_bindings
+| 614.80s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_positive_201_block_all_terminal_records_absent
+| 7.42s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m14_busy_campaign_with_no_terminal_record_is_deferred_without_publish
+| 7.23s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m15_lock_free_campaign_with_no_terminal_record_is_published
+| 7.04s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m11_unproved_crash_and_stopped_before_dispositions_are_never_emitted
+| 7.02s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_abort_reason_is_projected_as_terminal_reason
+| 7.01s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m09_stable_nonterminal_wal_is_not_classified_as_executed
+| 6.74s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m18_symlinked_evidence_is_rejected_with_regular_control
+| 6.72s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m05_campaign_identity_lock_is_snapshotted_once_for_classification_and_commit_receipt
+| 6.70s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple
+| 6.69s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m04_final_assembly_rejects_different_on_off_pair_ids
+| 6.69s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m07_non_binary_exact_decimal_lexeme_is_preserved
+| 6.68s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m16_judgment_fields_are_unknown_request_fields
+| 6.68s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m13_integer_reference_and_complete_evidence_are_accepted
+| 6.68s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection
+| 6.67s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m02_only_the_issuer_planned_result_path_is_used
+| 6.66s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit
+| 6.65s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m17_terminal_receipt_original_is_opened_once_before_copy_validation
+| 6.65s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m10_certified_off_digest_absence_sets_treatment_fired_true
+| 6.65s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m01_precursor_is_copied_from_the_sealed_registry
+| 6.64s setup    orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m03_assignment_comes_from_attempt_wal_first_record_timestamps
+| 3.08s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m16_judgment_fields_are_unknown_request_fields
+| 0.81s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection
+| 0.79s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m02_only_the_issuer_planned_result_path_is_used
+| 0.79s call     orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m18_symlinked_evidence_is_rejected_with_regular_control
+| 22 passed in 623.91s (0:10:23)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 958027.nqsv child stdout end
+[Pegasus dispatch] request 958027.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| 
+| ============================================================
+| Request ID:             958027.nqsv
+| Request Name:           izdw-da142ac38d
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Sat Aug 29 11:44:09 2026
+| Started Request Time:   Sat Aug 29 11:44:17 2026
+| Ended Request Time:     Sat Aug 29 11:54:42 2026
+| Resources Information:
+|   Elapse:               629S
+|   Remaining Elapse:     2971S
+| ============================================================
+[Pegasus dispatch] request 958027.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

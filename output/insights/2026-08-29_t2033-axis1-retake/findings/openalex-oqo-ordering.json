@@ -1,0 +1,390 @@
+{
+ "differing_leaves": [],
+ "genuinely_different": 0,
+ "identical_modulo_ordering": 92,
+ "pages_compared": 92,
+ "sample": {
+  "actual_meta_x_query_oql": "works where date <= (2026-12-31)\n  and title/abstract has (\n    (\n      stemmed \"LLM agent\" or stemmed \"auto-tuning\"\n      or stemmed \"automatic generation\" or stemmed \"code generation\"\n      or stemmed \"compiler injection\" or stemmed \"evolutionary search\"\n      or stemmed \"genetic programming\" or stemmed \"large language model\"\n      or stemmed \"learned\" or stemmed \"program synthesis\"\n      or stemmed \"reinforcement learning\" or stemmed \"superoptimization\"\n    )\n    and (\n      stemmed \"OLTP\" or stemmed \"concurrency control\"\n      or stemmed \"conflict detection\" or stemmed \"isolation level\"\n      or stemmed \"lock manager\" or stemmed \"multi-version concurrency control\"\n      or stemmed \"optimistic concurrency control\" or stemmed \"serializability\"\n      or stemmed \"snapshot isolation\" or stemmed \"transaction processing\"\n      or stemmed \"transactional memory\" or stemmed \"two-phase locking\"\n    )\n    and (\n      stemmed \"action space\" or stemmed \"algorithm\" or stemmed \"design space\"\n      or stemmed \"implementation\" or stemmed \"intermediate representation\"\n      or stemmed \"policy\" or stemmed \"protocol\" or stemmed \"source code\"\n      or stemmed \"variant\"\n    )\n  )",
+  "actual_meta_x_query_oqo": {
+   "filter_rows": [
+    {
+     "column_id": "to_publication_date",
+     "value": "2026-12-31"
+    },
+    {
+     "filters": [
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"LLM agent\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"auto-tuning\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"automatic generation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"code generation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"compiler injection\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"evolutionary search\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"genetic programming\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"large language model\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"learned\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"program synthesis\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"reinforcement learning\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"superoptimization\""
+      }
+     ],
+     "join": "or"
+    },
+    {
+     "filters": [
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"OLTP\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"concurrency control\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"conflict detection\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"isolation level\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"lock manager\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"multi-version concurrency control\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"optimistic concurrency control\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"serializability\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"snapshot isolation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"transaction processing\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"transactional memory\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"two-phase locking\""
+      }
+     ],
+     "join": "or"
+    },
+    {
+     "filters": [
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"action space\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"algorithm\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"design space\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"implementation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"intermediate representation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"policy\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"protocol\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"source code\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"variant\""
+      }
+     ],
+     "join": "or"
+    }
+   ],
+   "get_rows": "works"
+  },
+  "leaf_query_id": "AX1-20260829-E1-Q1@openalex",
+  "registered_expected_openalex_oqo": {
+   "filter_rows": [
+    {
+     "column_id": "to_publication_date",
+     "value": "2026-12-31"
+    },
+    {
+     "filters": [
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"concurrency control\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"transaction processing\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"serializability\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"isolation level\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"two-phase locking\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"optimistic concurrency control\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"multi-version concurrency control\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"snapshot isolation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"transactional memory\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"lock manager\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"conflict detection\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"OLTP\""
+      }
+     ],
+     "join": "or"
+    },
+    {
+     "filters": [
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"program synthesis\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"automatic generation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"code generation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"evolutionary search\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"genetic programming\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"large language model\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"LLM agent\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"reinforcement learning\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"learned\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"auto-tuning\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"compiler injection\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"superoptimization\""
+      }
+     ],
+     "join": "or"
+    },
+    {
+     "filters": [
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"protocol\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"algorithm\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"policy\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"source code\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"implementation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"intermediate representation\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"action space\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"design space\""
+      },
+      {
+       "column_id": "title_and_abstract.search",
+       "operator": "has",
+       "value": "\"variant\""
+      }
+     ],
+     "join": "or"
+    }
+   ],
+   "get_rows": "works"
+  }
+ },
+ "source_run": "diagnostics-run-abspath",
+ "what": "登録した oqo と実応答の oqo が順序を除いて同一かを 78 頁で確かめた"
+}

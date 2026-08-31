@@ -58,8 +58,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (backoff_hole_grammar, coder_effect_gate, env_contract, ident,  # noqa: E402
-               trigger_gate_binding, wal)
+from . import (backoff_hole_grammar, campaign_lock as campaign_lock_codec,  # noqa: E402
+               coder_effect_gate, env_contract, ident, trigger_gate_binding, wal)
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -70,9 +70,12 @@ from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
 from .artifact_admission import (                         # noqa: E402
+    ArtifactAdmissionError,
     CampaignReadPurpose,
     CertifiedCampaignView,
+    RECEIPT_PAYLOAD_KEY,
     require_admitted_campaign,
+    require_persisted_certified_commit,
 )
 from .diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffRejectSubtype,
@@ -1028,6 +1031,47 @@ def _check_attribution_before_quarantine(
 
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
 
+def _duplicate_snapshot(layout: CampaignLayout, variant: str):
+    """Read duplicate evidence under one campaign-lock identity snapshot."""
+    lock_path = Path(layout.lock_file)
+    try:
+        lock_bytes = lock_path.read_bytes()
+        campaign_lock_sha256 = hashlib.sha256(lock_bytes).hexdigest()
+        decoded_lock = campaign_lock_codec.decode_campaign_lock_bytes(lock_bytes)
+    except (OSError, campaign_lock_codec.CampaignLockCodecError) as exc:
+        raise ArtifactAdmissionError(
+            "duplicate campaign lock cannot be read or decoded"
+        ) from exc
+
+    records = wal.read_records(layout)
+    try:
+        lock_sha256_after_records = hashlib.sha256(
+            lock_path.read_bytes()
+        ).hexdigest()
+    except OSError as exc:
+        raise ArtifactAdmissionError(
+            "duplicate campaign lock cannot be re-read after WAL"
+        ) from exc
+    if lock_sha256_after_records != campaign_lock_sha256:
+        raise ArtifactAdmissionError(
+            "duplicate campaign lock changed while reading WAL"
+        )
+
+    wal.validate_commit_contract_bindings(records, campaign_lock=decoded_lock)
+    wal.validate_trigger_bindings(records, campaign_lock=decoded_lock)
+    records_by_stage: Dict[str, Dict] = {}
+    commit_record = None
+    for index, record in enumerate(records):
+        if (record.variant == variant
+                and record.stage != trigger_gate_binding.WAL_RECORD_STAGE
+                and not wal._is_trigger_orphan_tombstone_at(records, index)):
+            payload = dict(record.payload)
+            payload.pop(RECEIPT_PAYLOAD_KEY, None)
+            records_by_stage[record.stage] = payload
+            if record.stage == STAGE_COMMIT:
+                commit_record = record
+    return records, records_by_stage, commit_record, campaign_lock_sha256
+
 def _resolve_duplicate(layout: CampaignLayout, planner: PlannerProposal,
                        state: LoopState, summary, log=print) -> Dict:
     """重複提案 (run_campaign がリカバリでスキップし summary.results が空) を解決する。
@@ -1045,10 +1089,35 @@ def _resolve_duplicate(layout: CampaignLayout, planner: PlannerProposal,
     実走 = coder が iteration 1 と独立に同じ値を再提案した実例で発見)。
     identity_skipped (id 未確定) の分は skipped_variants に無い → 成功を捏造せず fail 側。"""
     dup_v = summary.skipped_variants[0] if summary.skipped_variants else None
-    recs = wal.records_by_stage(layout, dup_v) if dup_v else {}
+    records = []
+    recs = {}
+    commit_record = None
+    campaign_lock_sha256 = None
+    snapshot_rejected = False
+    if dup_v:
+        try:
+            records, recs, commit_record, campaign_lock_sha256 = (
+                _duplicate_snapshot(layout, dup_v)
+            )
+        except ArtifactAdmissionError:
+            snapshot_rejected = True
+
     commit_payload = recs.get(STAGE_COMMIT)
     verify_payload = recs.get(STAGE_VERIFY_DONE, {})
-    if commit_payload is not None:
+    commit_admitted = False
+    if commit_payload is not None and commit_record is not None:
+        assert campaign_lock_sha256 is not None
+        try:
+            require_persisted_certified_commit(
+                records,
+                commit_record,
+                campaign_lock_sha256=campaign_lock_sha256,
+            )
+        except ArtifactAdmissionError:
+            snapshot_rejected = True
+        else:
+            commit_admitted = True
+    if commit_admitted:
         commit_attempt_id = commit_payload.get("build_attempt_id")
         verify_attempt_id = verify_payload.get("build_attempt_id")
         verdict = verify_payload.get("verdict", "")
@@ -1063,12 +1132,15 @@ def _resolve_duplicate(layout: CampaignLayout, planner: PlannerProposal,
     abort_payload = recs.get(STAGE_ABORT, {})
     abort_attempt_id = abort_payload.get("build_attempt_id")
     verify_attempt_id = verify_payload.get("build_attempt_id")
-    verdict = verify_payload.get("verdict", "")
+    verdict = "" if snapshot_rejected else verify_payload.get("verdict", "")
     if ((abort_attempt_id is not None or verify_attempt_id is not None)
             and abort_attempt_id != verify_attempt_id):
         verdict = ""
     project_whiteboard(state, planner, "fail")
-    log(f"  重複提案 (既存 aborted variant {dup_v} と同一 genome)")
+    if snapshot_rejected:
+        log(f"  重複提案 (既存 variant {dup_v} の certified 証拠を拒否)")
+    else:
+        log(f"  重複提案 (既存 aborted variant {dup_v} と同一 genome)")
     return {"outcome": "aborted", "variant": dup_v,
             "verdict": verdict, "records": recs}
 

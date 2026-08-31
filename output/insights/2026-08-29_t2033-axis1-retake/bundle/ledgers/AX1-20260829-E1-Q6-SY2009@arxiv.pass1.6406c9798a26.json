@@ -1,0 +1,126 @@
+{
+  "catalog_sha256": "878acfdfedb42521ac9bc4ddf3a8552153ee090caf090b3a885ab4abbea9d58e",
+  "distinct_index_work_id_count": 10,
+  "document_type": "record_occurrence_ledger",
+  "index": "arxiv",
+  "leaf_query_id": "AX1-20260829-E1-Q6-SY2009@arxiv",
+  "logical_query_id": "AX1-20260829-E1-Q6@arxiv",
+  "occurrence_count": 10,
+  "occurrences": [
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0907.3977"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0907.3977v3",
+      "interpreted_date": "2009-07-23",
+      "ordinal": 0,
+      "page_number": 0,
+      "raw_date_value": "2009-07-23T03:50:01Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0909.3472"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0909.3472v2",
+      "interpreted_date": "2009-09-18",
+      "ordinal": 1,
+      "page_number": 0,
+      "raw_date_value": "2009-09-18T15:54:51Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0904.4587"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0904.4587v1",
+      "interpreted_date": "2009-04-29",
+      "ordinal": 2,
+      "page_number": 0,
+      "raw_date_value": "2009-04-29T11:49:45Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0906.0470"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0906.0470v1",
+      "interpreted_date": "2009-06-02",
+      "ordinal": 3,
+      "page_number": 0,
+      "raw_date_value": "2009-06-02T11:52:36Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0912.5456"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0912.5456v1",
+      "interpreted_date": "2009-12-30",
+      "ordinal": 4,
+      "page_number": 0,
+      "raw_date_value": "2009-12-30T14:53:06Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0911.0485"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0911.0485v1",
+      "interpreted_date": "2009-11-03",
+      "ordinal": 5,
+      "page_number": 0,
+      "raw_date_value": "2009-11-03T04:07:19Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0904.2623"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0904.2623v2",
+      "interpreted_date": "2009-04-17",
+      "ordinal": 6,
+      "page_number": 0,
+      "raw_date_value": "2009-04-17T03:48:02Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0911.4046"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0911.4046v3",
+      "interpreted_date": "2009-11-20",
+      "ordinal": 7,
+      "page_number": 0,
+      "raw_date_value": "2009-11-20T13:44:28Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0912.0071"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0912.0071v5",
+      "interpreted_date": "2009-12-01",
+      "ordinal": 8,
+      "page_number": 0,
+      "raw_date_value": "2009-12-01T04:35:44Z"
+    },
+    {
+      "date_missing_reason": null,
+      "family_keys": [
+        "arxiv:0912.3924"
+      ],
+      "index_work_id": "http://arxiv.org/abs/0912.3924v1",
+      "interpreted_date": "2009-12-19",
+      "ordinal": 9,
+      "page_number": 0,
+      "raw_date_value": "2009-12-19T18:51:40Z"
+    }
+  ],
+  "primary_key_kind": "index_work_id",
+  "registration_commit": "d0ba65c01ab7319bd20393a55d21bccbf3716a5f",
+  "registration_epoch": "AX1-20260829-E1",
+  "run_id": "2026-08-29-t2033-axis1-retake",
+  "schema_version": "izanagi-axis1-search-record-occurrence-ledger/v1"
+}
