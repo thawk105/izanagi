@@ -72,8 +72,20 @@ B-4 事前登録 §5.1 (ii) の非標本 probe について、D1195 が要求す
 単独でも同一の 26 件が同一本文で再現した。原因は repo が pin する過去の codex rollout が
 `/home/SFC/tanab/.codex/sessions` に 1 件も無いことで、本 wave の差分からは到達できない。
 
-`DW-O18` は決定的な非帰属赤について「main 既存 F を証拠に hold を登録して投げ直す」と定めるが、
-**該当する F は台帳に存在しなかった。** 同節の「F 不在は登録せず裁定送り」に従い、
-hold を登録せず停止した。**本 wave は local main へ取り込んでいない。**
-受入 receipt は発行されていないので、この tip を land する経路は開いていない。
+処置は次のように決まった。**D1144 に従い wave は停止しない。** ただし land には緑の受入
+受領証が要るので取り込みもしない — 「止まらないが land もしない」形で、land 以外をすべて
+完了させて修正の着地を待つ。修理は編集面の衝突を避けて並行セッションへ一本化した。
+
+hold も復元も採れない。`orchestrator/tests/flaky_test_holds.py` は `green_observation` の
+非空 (115 行) と `green_run_count >= 1` (135-139 行) を必須とし、この 26 件は素材消失後に
+一度も緑になっていない。rollout の bytes は `~/.codex/sessions`、
+`~/.codex/thread_history_1.sqlite` (当該 thread の行は全テーブル 0、最古 thread は 8 月中旬)、
+repo、job dir、home のいずれにも残っていない。
+
+**これは事故ではなく運用である。** home の会話ログは容量制限のため定期的に削除される。
+剪定窓は実測で約 32-34 日、次の境界では `2026/08/01` の 173 件が落ちる。
+したがって復元も、消える場所への pin 張り替えも、同じ窓に繰り返し轢かれる。
+
+**本 wave は local main へ取り込んでいない。** 受入 receipt は発行されていないので、
+この tip を land する経路は開いていない。
 

@@ -49,9 +49,16 @@ title: [T-1909] D1195 の逆到達閉包を実測で検分し、第一権威点�
   赤 26 件はすべて本 wave が触っていない `test_codex_reasoning_ab.py` に集中した。
   本文はいずれも「repo が pin する過去の codex rollout が共有 sessions ディレクトリに
   1 件も無い」で、決定的である。単独再走でも、独立 clone 上の local main 単独でも、
-  同一の 26 件が同一本文で再現した。`DW-O18` の「main 既存 F を証拠に hold 登録」は
-  該当 F が存在しないため成立せず、同節に従い hold を登録せず**裁定へ送って停止した**。
-  したがって**本 wave は local main へ取り込んでいない。**
+  同一の 26 件が同一本文で再現した。緑だった直近の受入受領証は同日 00:49:31 で、
+  `~/.codex/sessions/2026` の mtime 00:54:20 との間に消えたことまで挟み込めた。
+- **hold も復元も成立しない。** `flaky_test_holds.py` は `green_observation` の非空と
+  `green_run_count >= 1` を必須とし、この 26 件は素材消失後に一度も緑になっていない。
+  rollout の bytes は sessions・sqlite・repo・job dir・home のいずれにも残っていない。
+  home の会話ログは容量制限のため定期的に削除される運用で、剪定窓は実測 32-34 日、
+  次の境界では別の 173 件が落ちる。したがって復元も pin の張り替えも同じ窓に繰り返し轢かれる。
+- **D1144 に従い wave は停止していない。** 修理は編集面の衝突を避けて並行セッションへ
+  一本化し、本 wave は land 以外をすべて完了させて修正の着地を待つ。
+  land には緑の受入受領証が要るので、**本 wave は local main へ取り込んでいない。**
 - 失敗の型は {{F:symmetric-looking-negative-controls-missed-one}} と
   {{F:pinned-historical-rollout-vanished-from-shared-sessions}} に残した。
 

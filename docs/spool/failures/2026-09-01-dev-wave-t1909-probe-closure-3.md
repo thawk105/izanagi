@@ -41,10 +41,17 @@ seq: 3
   `author` で、machine 上の rollout 7120 件のどれとも一致しない。
   **repo の pin が、repo の外にある共有ディレクトリの実体に依存している。**
   同ディレクトリは 2026-08-01 以降しか持たず、pin された session はそれより古い。
-- 恒久対応: 未実施。**この wave では修理していない。** 直し方は repo の外にある実体の復元か
-  pin の張り替えのいずれかで、どちらも本 wave の scope の外にある。
-  `DW-O18` は「main 既存 F を証拠に hold 登録」を求めるが本件の F は存在しなかったため、
-  同節に従い hold を登録せず裁定へ送って停止した。本エントリはその F を残すためのものである。
+- 恒久対応: 本 wave では未実施。修理は並行セッションへ一本化された。本 wave は編集面の衝突を
+  避けるため `tools/codex_reasoning_ab.py`・`orchestrator/tests/test_codex_reasoning_ab.py`・
+  `orchestrator/tests/flaky_test_holds.py` に触れない。
+  **hold 登録は構造的に不可能である** — `orchestrator/tests/flaky_test_holds.py` は
+  `green_observation` の非空 (115 行) と `green_run_count >= 1` (135-139 行) を必須とし、
+  この 26 件は素材消失後に一度も緑になっていない。
+  **復元も不成立である** — rollout の bytes は `~/.codex/sessions`、
+  `~/.codex/thread_history_1.sqlite` (当該 thread の行は全テーブル 0)、repo、job dir、
+  home のいずれにも存在しない。
+  D1144 に従い wave は停止せず、land 以外を完了して修正の着地を待つ。
+  本エントリは恒久対応を持つ主体へ一次資料を渡すためのものである。
 - 再発検知: 赤の本文が `rollout count is 0, expected 1` を含むなら本件型である。
   `find /home/SFC/tanab/.codex/sessions -name 'rollout-*.jsonl' | wc -l` で母集合を数え、
   `tools/codex_reasoning_ab.py` の `_LEGACY_SESSION_IDS` と `SESSION_IDS` の各 id が
@@ -53,3 +60,11 @@ seq: 3
   同じ本文で再現し、**独立 clone 上の local main 単独でも同一の 26 件が同一本文で再現した**
   (5 failed / 598 passed / 2 skipped / 21 errors)。F189 のとおり複製 checkout の走行は
   環境差で赤くなりうるが、本件は本文が worktree 走行と完全に一致するため checkout 依存ではない。
+- 補足: **壊れた時刻を挟み込めた。** 緑だった直近の受入受領証は 2026-09-01 00:49:31
+  (`verdict=child-green` / `red_nodeids=[]` / argv `['python3','tools/run_tests.py']`)。
+  `/home/SFC/tanab/.codex/sessions/2026` の mtime は同日 00:54:20 で、`2026/09` は
+  00:00:13 に作成済みなので、00:54 の更新は entry の削除を指す。本件の赤は 01:30 頃である。
+- 補足: **これは事故ではなく運用である。** home の会話ログは容量制限のため定期的に削除される。
+  剪定窓は実測で約 32-34 日 (pin は 5 件とも 2026-07-29、現存の最古は 2026-08-01)。
+  **次の境界では `2026/08/01` の 173 件が落ちる。** 同型の pin が他にあれば同じ壊れ方をする。
+  復元も、消える場所への pin 張り替えも、同じ窓に繰り返し轢かれる。
