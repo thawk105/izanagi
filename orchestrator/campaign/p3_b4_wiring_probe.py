@@ -4,11 +4,13 @@
 The evidence is deliberately composite: a static candidate-main path plus a
 direct call to the real switchpoint made by this probe.  It does not claim that
 the candidate main traversed that edge at runtime.  Generation interdiction is
-the reverse closure of three named seeds within the exact analyzed-module
-manifest recorded in evidence; modules outside that manifest and producers
-that reach none of those seeds are not covered by that layer.  Protected
-campaign viewing is handled by the audit layer.  Arbitrary native code and an
-equally privileged process are outside this probe's claim.
+the reverse closure over statically resolved call edges from three named seeds
+within the exact analyzed-module manifest recorded in evidence.  Modules
+outside that manifest, producers that reach none of those seeds, and callers
+within the manifest whose call binding cannot be statically resolved are not
+covered by that layer.  Protected campaign viewing is handled by the audit
+layer.  Arbitrary native code and an equally privileged process are outside
+this probe's claim.
 """
 from __future__ import annotations
 
@@ -2107,12 +2109,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             },
             "generation_seeds": list(_GENERATION_SEEDS),
             "generation_scope": (
-                "within the exact analyzed module set, functions reaching at least "
-                "one named seed are included by reverse closure"
+                "within the exact analyzed module set, reverse closure over "
+                "statically resolved call edges includes functions reaching at "
+                "least one named seed"
             ),
             "generation_scope_exclusion": (
                 "modules outside the exact analyzed set and producers reaching none "
-                "of the three seeds are not covered by this layer"
+                "of the three seeds, plus callers inside the analyzed set whose "
+                "call binding cannot be statically resolved, are not covered by "
+                "this layer"
             ),
             "viewing_scope": "protected campaign root reads and writes are audit-blocked",
             "inventory": inventory,
