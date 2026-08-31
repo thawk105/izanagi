@@ -4214,6 +4214,13 @@ def _build_cells_impl(
                     dependency=dependency_binding,
                 )
             build_kwargs = {}
+            if dependency_binding is not None:
+                # The run-scoped dependency source was validated before any
+                # cell build.  Reuse it only as the current compiler-input
+                # masstree root; the post-oracle capability remains sort-only.
+                build_kwargs["current_compiler_input_masstree_root"] = str(
+                    dependency_binding.source_root
+                )
             dependency_bound_sort = (
                 dependency_binding is not None
                 and configuration_id == "sort_best"
@@ -4223,7 +4230,7 @@ def _build_cells_impl(
                     raise FloorCampaignError(
                         "sort_best post-oracle capability の FetchContent base がない"
                     )
-                build_kwargs = {
+                build_kwargs.update({
                     "fetchcontent_base_dir": str(fetchcontent_base),
                     "fetchcontent_dependency_receipt": (
                         dependency_binding.cache_receipt()
@@ -4236,7 +4243,7 @@ def _build_cells_impl(
                             oracle_attempt, dependency_binding,
                         )
                     ),
-                }
+                })
                 if build_fn is not buildcache.build_v2:
                     raise FloorCampaignError(
                         "dependency-bound sort_best は exact buildcache.build_v2 "
@@ -4378,6 +4385,10 @@ def _build_cells_impl(
                     compiler_input_manifest=compiler_input_manifest,
                     compiler_input_manifest_sha256=(
                         compiler_input_manifest_sha256
+                    ),
+                    current_compiler_input_masstree_root=(
+                        str(dependency_binding.source_root)
+                        if dependency_binding is not None else None
                     ),
                 )
             except _binary_admission.BinaryAdmissionError as exc:
