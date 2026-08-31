@@ -346,6 +346,43 @@ def test_v2_manifest_classifies_fetchcontent_root_relative(tmp_path):
     assert str(base_b) not in repr(collected.manifest)
 
 
+def test_v2_manifest_with_normal_relative_path_validates(tmp_path):
+    snapshot, build = _fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET,
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot, target=TARGET,
+    ) == collected.manifest
+
+
+def test_v2_manifest_rejects_dot_path_as_compiler_input_error(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    manifest = {
+        "schema_version": compiler_input.MANIFEST_SCHEMA,
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": TARGET,
+        "depfile_count": 1,
+        "inputs": [{
+            "root": "snapshot",
+            "path": ".",
+            "sha256": "0" * 64,
+        }],
+    }
+
+    with pytest.raises(
+            compiler_input.CompilerInputError,
+            match="not normalized relative POSIX") as caught:
+        compiler_input.validate_compiler_input_manifest(
+            manifest, compiler_input.manifest_sha256(manifest),
+            snapshot_root=snapshot, target=TARGET,
+        )
+    assert type(caught.value) is compiler_input.CompilerInputError
+
+
 def test_v2_validator_rebinds_fetchcontent_inputs_to_current_root(tmp_path):
     snapshot, build, base_a, base_b, _relative = _fetchcontent_fixture(tmp_path)
     collected = compiler_input.collect_compiler_input_manifest(
@@ -395,7 +432,7 @@ def test_v2_missing_current_fetchcontent_input_is_rejected(tmp_path):
         )
 
 
-@pytest.mark.parametrize("symlink_kind", ["leaf", "component", "root"])
+@pytest.mark.parametrize("symlink_kind", ["leaf", "component"])
 def test_v2_current_fetchcontent_symlink_component_is_rejected(
         tmp_path, symlink_kind):
     snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
@@ -418,16 +455,51 @@ def test_v2_current_fetchcontent_symlink_component_is_rejected(
         include.rename(target)
         include.symlink_to(target, target_is_directory=True)
         current = root
-    else:
-        target = base_b / "masstree-real"
-        root.rename(target)
-        root.symlink_to(target, target_is_directory=True)
-        current = root
     with pytest.raises(compiler_input.CompilerInputError, match="symlink|canonical"):
         compiler_input.validate_compiler_input_manifest(
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot,
             current_fetchcontent_masstree_root=current,
+        )
+
+
+def test_symlink_spelled_root_collects_and_validates_identically(tmp_path):
+    snapshot, build = _fixture(tmp_path)
+    alias = tmp_path / "snapshot-link"
+    alias.symlink_to(snapshot, target_is_directory=True)
+
+    canonical = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET,
+    )
+    through_alias = compiler_input.collect_compiler_input_manifest(
+        build, alias, target=TARGET,
+    )
+
+    assert through_alias == canonical
+    assert compiler_input.validate_compiler_input_manifest(
+        through_alias.manifest, through_alias.manifest_sha256,
+        snapshot_root=alias, target=TARGET,
+    ) == canonical.manifest
+
+
+def test_symlink_component_beneath_root_remains_rejected(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    actual_include = snapshot / "actual-include"
+    actual_include.mkdir()
+    header = actual_include / "unrelated.hh"
+    header.write_bytes(b"#define VALUE 7\n")
+    (snapshot / "include").symlink_to(
+        actual_include, target_is_directory=True,
+    )
+    build = tmp_path / "build"
+    _write_build_shape(
+        build, snapshot, input_path=snapshot / "include" / header.name,
+    )
+
+    with pytest.raises(compiler_input.CompilerInputError, match="symlink component"):
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET,
         )
 
 

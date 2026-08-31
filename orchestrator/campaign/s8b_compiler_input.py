@@ -534,9 +534,7 @@ def _strict_root(
     if (type(raw) is not str or not raw or "\0" in raw
             or not os.path.isabs(raw)):
         raise CompilerInputError(f"{label} is not a canonical absolute directory")
-    absolute = os.path.abspath(raw)
-    if absolute != raw or os.path.realpath(raw) != absolute:
-        raise CompilerInputError(f"{label} is not a canonical absolute directory")
+    absolute = os.path.realpath(raw)
     required = ("O_DIRECTORY", "O_NOFOLLOW")
     if any(not hasattr(os, name) for name in required):
         raise CompilerInputError(f"{label} cannot be inspected without symlink following")
@@ -577,7 +575,7 @@ def _normalized_relative_posix(value: object, *, label: str) -> str:
     if type(value) is not str or not value or "\0" in value:
         raise CompilerInputError(f"{label} path is invalid")
     pure = PurePosixPath(value)
-    if (pure.is_absolute() or pure.as_posix() != value
+    if (not pure.parts or pure.is_absolute() or pure.as_posix() != value
             or any(part in {"", ".", ".."} for part in pure.parts)):
         raise CompilerInputError(f"{label} path is not normalized relative POSIX")
     return value
