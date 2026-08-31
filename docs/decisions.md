@@ -42748,3 +42748,37 @@ D287 / D1161 / D1174 のとおり不変である。
 - 行数だけを pin する — 内容の改竄を検出できない。
 - chain head だけを pin する — 台帳の不在と、行が 1 件も無い状態の区別を実装で潰しやすい。
   行数を正の整数として同時に要求することで、その潰れ方を塞ぐ。
+
+## D1338. compiler input manifest の schema を cache identity へ pin し、旧 v1 completion は移行せず別 namespace に置く (2026-09-01)
+
+**決定:** D1192 の根相対化を新しい manifest schema (`s8b-compiler-input/v2`) として発行し、
+その schema 文字列を **descriptor-bound cache の preimage へ入れる**。旧 `v1` completion は
+bytes を一切変えず、read-only の互換形式として検証だけを従来どおり通す。
+**v1 から v2 への移行経路は作らない。** 移行がないので、旧 completion は新しい identity では
+選ばれず、schema 遷移の 1 回だけ再 build になる。遷移後の v2 entry は base が変わっても
+再利用される。
+
+**理由:**
+
+- 移行の authority が実在しない。移行案は completion の
+  `fetchcontent_dependency.source_root_sha256` を根の帰属証明に使うが、実 completion に
+  この field は無い。あったとしても値は tree 内容ではなく実効 root の絶対 path 文字列の
+  SHA-256 であり、それ単独では D424 の同一 tree 要求を満たさない。path の suffix 一致と
+  同名 file の hash 一致も、job A と job B が同じ tree だった証明にはならない。
+- schema を pin しないと、旧 v1 entry が新しい要求で選ばれ、cache hit の検証が消えた絶対 path
+  を解決しようとして落ちる。今直そうとしている赤がそのまま残る。
+- D1192 が却下した「base の絶対 path を identity へ入れる」案とは効き方が違う。
+  あちらは base が変わるたびに毎 run 再利用を失う。schema pin が失うのは遷移時の 1 回だけで、
+  D1192 が守ろうとした「run 間の cache 再利用」は v2 の中で保たれる。
+- 移行を作る案は、根の帰属を推測で埋める経路を新設することになる。欠落した任意の external
+  path を、同名 file が現在の base にあるという理由だけで付け替えられてしまう。
+  これは受理集合を是正の副作用として広げる。
+
+**却下した選択肢:**
+
+- **旧 v1 completion を cache hit の時点で v2 へ移行する** — 上記のとおり移行の authority が
+  実在せず、suffix と hash 一致で代用すると根の帰属を推測で埋める経路が入る。
+- **schema を pin せず v1 entry も選ばせる** — 消えた絶対 path の解決で落ちるため、
+  是正にならない。
+- **旧 external path が消えた entry を cache miss へ降格する** — D1192 が既に却下している。
+  競合・隔離・回収規則の新設を伴い、受理集合の変更が副作用として入る。
