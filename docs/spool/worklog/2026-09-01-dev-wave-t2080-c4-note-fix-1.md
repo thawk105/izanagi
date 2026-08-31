@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-01
 wave: dev-wave-t2080-c4-note-fix
 seq: 1
-title: [T-2080] paper-story C-4 注記を実行本数の書き分けへ是正し、受入を止めていた消失 corpus の三値 guard も入れた (docs + test、branch worktree-dev-wave-t2080-c4-note-fix、変異 5/5 KILLED)
+title: [T-2080] paper-story C-4 注記の「1 本も走らせていない」を実行本数の書き分けへ是正した (docs のみ、branch worktree-dev-wave-t2080-c4-note-fix、受入 blocker の自前実装は別 wave の着地と重複したので落とした)
 ---
 
 ## 本文
@@ -52,11 +52,18 @@ title: [T-2080] paper-story C-4 注記を実行本数の書き分けへ是正し
   注記側の段 6 fix は 2 行の言い換えだけなので親が当て、焦点再レビューは起動していない。
 - 焦点走 `orchestrator/tests/test_check_docs.py` = 571 passed / 3 skipped、rc=0
   (Pegasus dispatch request 963206.nqsv)。`python3 tools/check_docs.py` = 違反なし。
-- **受入全走が非帰属の環境赤で止まり、ユーザー指示で codex と相談して blocker を裁定・実装した。**
+- **受入全走が F773 の環境赤で止まり、ユーザー指示で codex と相談して裁定・実装したが、
+  同じ blocker を別 wave が先に直して着地させていたので自前実装は落とした。**
   attempt 1 は `21 error, 5 failed, 19033 passed, 67 skipped` で、赤 26 件はすべて
   `orchestrator/tests/test_codex_reasoning_ab.py` に集中した。原因は repo の外にある
   2026-07-29 の実 rollout corpus の消失で、本 wave の編集面とは交わらない。単独再走も同じ
-  26 件で落ちたので flake ではない ({{F:historical-rollout-corpus-vanished}})。
+  26 件で落ちた。**本 wave が実装している間に、main 側で 2 commit
+  (`b227c23bb` / `267d72d4a`) が同じ blocker を直し、F773 として記録して着地した。**
+  取り込み時の競合解決では main 側の実体をそのまま採り、本 wave からは 1 行も混ぜていない
+  (`git diff main -- orchestrator/tests/test_codex_reasoning_ab.py` が空であることで確認)。
+  **したがって本 wave が main へ載せる実装面の差分はゼロである。**
+- **落とした実装から、記録に値する実測が 3 つ残った。** 成果物としては採用していないが、
+  同型の作業をする後続のために書く。
 - **blocker の裁定 — codex 2 本と相談し、親が (a) の限定版を採った。** 必要な pinned rollout が
   物理的に不在のときだけ、それに依存する node を skip する。pin・production 道具の fail-closed 挙動・
   凍結記録・hold 台帳は 1 つも変えない。**却下したのは 3 案。** (b) repo 内への再凍結は、消えた
@@ -82,11 +89,12 @@ title: [T-2080] paper-story C-4 注記を実行本数の書き分けへ是正し
   へ再照準して probe を取り直した。**本走は 5/5 KILLED、baseline PASSED、期待 node も完全一致
   (matching=5)。** 期待 node は probe で観測してから登録した。
 - 実装子・fix 子はいずれも計算ノードへ dispatch できず (`rc=16`)、**両方とも「実装済み・未実走」と
-  正しく申告した。実測はすべて親が行った。**
-- 焦点走 `orchestrator/tests/test_codex_reasoning_ab.py` = **608 passed / 28 skipped、rc=0**
-  (guard 適用前は 5 failed / 21 error)。skip 数 28 は、レビュー A が親と実装子の「26 node」を
-  訂正した値と一致する。レビュー B が指摘した collection 系メタテスト 4 node も緑。
-  差分は `docs/paper-story/README.md` への 45 行追加のみで、削除は 0 行。凍結物
+  正しく申告した。実測はすべて親が行った。** 落とした実装での焦点走は
+  `orchestrator/tests/test_codex_reasoning_ab.py` = 608 passed / 28 skipped / rc=0 で、
+  skip 数 28 はレビュー A が親と実装子の「26 node」を訂正した値と一致した。
+- **main への実装面の差分はゼロなので、本 wave に変異 matrix の義務は無い** (`DW-S04` の免除)。
+  上記 5/5 KILLED は落とした実装に対する実測であり、着地する成果物の証拠ではない。
+- 最終差分は `docs/paper-story/README.md` への 45 行追加のみで、削除は 0 行。凍結物
   (`2026-08-26.md` / `2026-08-23.md` / `figures/**` / `claim-evidence/2026-08-26.md` /
   `docs/related-work/claim-survey/` の各 artifact)、版の履歴表、既存の他注記、恒久 erratum の節は
   いずれも非接触。
