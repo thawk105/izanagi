@@ -32,12 +32,16 @@ seq: 3
   置換数、実 snapshot から完全 replay までの結合被覆に完全な代替は無く、登録済みの
   M1 / M2 / M3 mutation killer も止まる。合成 fixture 側
   (`orchestrator/tests/test_codex_reasoning_ab.py:7154-8010`、`:8366-8491`) に部分的な代替はある。
-  当座の対応は別の単独 wave が担い、同 file の可用性判定を実依存の粒度へ直す。述語は
-  「`rollout-*-<escaped session id>.jsonl` の候補が 0 件のときだけ skip」に限定し、候補が存在するのに
-  SHA 不一致・malformed・session 所有不一致・重複・読取不能なものは従来どおり赤のままにする。
-  既存 guard は root directory の有無という粗い粒度
-  (`orchestrator/tests/test_codex_reasoning_ab.py:788-790`) で、実際の依存である特定 5 session を
-  捉えられなかった。**本エントリの `再発検知` 欄は「再発時に機械化を再検討」と事前に登録して
+  当座の対応は別の単独 wave が `b227c23bb` (可用性判定を「根 directory の有無」から
+  「pin された rollout の実在」へ移し、guard を通らない 5 node にも条件を足し、guard 自身の
+  正例・負例を新設) と `267d72d4a` (可用性判定を共有 fixture にしない。module scope の fixture に
+  すると consumer 閉包の登録契約に当たるため helper の直接呼び出しへ戻した) で入れた。
+  **述語が「候補 0 件のときだけ skip」に限定され、存在するのに壊れているものは赤のまま**である
+  ことは、本 wave が commit の内容で確認した — `test_historical_rollout_guard_does_not_hide_sha_mismatch`
+  が SHA 不一致で `ValidationError` を要求し、skip へ倒れないことを固定している。
+  skip の理由文言も `pinned historical rollout is unavailable: <detail>` と不在対象を名指しする。
+  既存 guard が root directory の有無という粗い粒度で実際の依存である特定 5 session を
+  捉えられなかったことが、この再発の直接の穴だった。**本エントリの `再発検知` 欄は「再発時に機械化を再検討」と事前に登録して
   おり、今回がその再発である。** 結果を見てから条件を作ったのではなく、条件が先に書かれていた。
   本体が機械 lint を見送った理由は「唯一コピーか」の意味判定が要り恒真化するというものだったが、
   **今回の型はもっと狭く意味判定を要さない** — 「同一性 (ID や SHA-256) を pin する対象の root が
