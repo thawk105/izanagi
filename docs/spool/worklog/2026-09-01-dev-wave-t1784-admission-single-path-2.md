@@ -48,6 +48,13 @@ title: [T-1847] 受理記録の置き場所を driver ごとの要求 path 1 本
 - 検査: 変更前 baseline 焦点 3 file = 122 passed / rc=0。変更後 焦点 5 file = 161 passed / rc=0、
   焦点 8 file = 643 passed / rc=0 (いずれも計算ノード dispatch)。
   `check_ai_provenance.py` は message 事前検査・全史監査とも rc=0。
+- **受入全走は赤で、本 wave は land していない。** 19035 passed / 21 error / 5 failed。
+  赤 26 件はすべて `test_codex_reasoning_ab.py` に集中し、原因はホストの codex session store に
+  pin された rollout file が存在しないことで、本 wave の差分から到達しない
+  (`tools/codex_reasoning_ab.py` と同テストは main と byte 同一)。単独再走で 26 件が完全に再現し、
+  決定的な非帰属赤と確定した。`docs/failures.md` を全文検索しても同型 F は不在のため、
+  `DW-O18` に従い hold 登録はせず {{T:codex-reasoning-ab-host-session-pin}} として裁定へ返す。
+  受入 lease は未取得のため release 対象なし。
 - 子の工数: plan 1 本、consult 2 本、author 1 本、review 2 本の計 6 本。実装子は sandbox の
   scheduler socket 制約で pytest を実走できず (rc=16)、緑を 1 件も主張しなかった。
   テストの実測はすべて親が計算ノードで行った。
@@ -76,3 +83,14 @@ title: [T-1847] 受理記録の置き場所を driver ごとの要求 path 1 本
   他欄を保ったまま path だけ旧値へ変えた sidecar でも `protocol_ok` を満たせる。
   certified 経路は sidecar bytes 全体を byte 比較するので閉じている。
   raw arm-source の証拠に対して同等の照合を足すか、証拠の射程を明記するに留めるかを裁定する。
+
+- {{T:codex-reasoning-ab-host-session-pin}} **P1・新規・受入を止めている**: 受入全走が
+  `orchestrator/tests/test_codex_reasoning_ab.py` の 26 node (5 failed / 21 error) で
+  決定的に赤になる。原因は `tools/codex_reasoning_ab.py:200` が pin する session id
+  `019fac6b-4f74-7a03-aa4d-8a9de22b352c` の rollout file が、このホストの
+  `~/.codex/sessions/` に**1 件も存在しない**こと。同 file の `:633` が
+  `rollout count is 0, expected 1` で `ValidationError` を送出し、fixture setup ごと落ちる。
+  session store には 2026-08-01 以降の 7136 件が残っており、pin されている id は
+  その保持窓より前の世代である。**pin が実在しないホスト成果物を要求している。**
+  実装 pin をホスト状態から切り離すか、成果物を再生成するか、検査を環境条件付きにするかを裁定する。
+  この赤は wave の差分と無関係で、受入全走を通す全 wave を止める。
