@@ -26,6 +26,7 @@ _ORCHESTRATOR = _HERE.parent
 
 from . import axis_trigger_gating as trigger_axis  # noqa: E402
 from . import backoff_sweep, genome, s6_sort_sweep, s8a_trigger_sweep  # noqa: E402
+from . import sort_comparator_authority  # noqa: E402
 from . import trigger_gate_binding  # noqa: E402
 from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 from .model import Genome  # noqa: E402
@@ -81,6 +82,16 @@ ENTRY_KEYS = {
 
 class FreezeError(RuntimeError):
     """凍結生成・照合を fail-closed で止めるエラー。"""
+
+
+def _require_sort_name_comparator_binding(
+        name: object, comparator: object, *, workload: str) -> None:
+    try:
+        sort_comparator_authority.require_sort_name_comparator_binding(
+            name, comparator)
+    except sort_comparator_authority.SortComparatorAuthorityError as e:
+        raise FreezeError(
+            f"entries.{workload}.sort_best.name/comparator が権威集合と不一致") from e
 
 
 def _require_canonical_trigger_predicate(
@@ -492,6 +503,8 @@ def _sort_entry(workload: str) -> Dict:
             raise FreezeError("write-heavy 本走 provenance に entries.sk_ad.implementation がない") from e
         if not isinstance(comparator, str):
             raise FreezeError("entries.sk_ad.implementation が文字列でない")
+        _require_sort_name_comparator_binding(
+            "sk_ad", comparator, workload=workload)
         flags = dict(s6_sort_sweep._genome(1).flags)
         return {
             "name": "sk_ad", "flags": flags, "comparator": comparator,
@@ -523,6 +536,8 @@ def _sort_entry(workload: str) -> Dict:
         raise FreezeError(f"sort provenance implementation がない: {best['name']}") from e
     if not isinstance(comparator, str):
         raise FreezeError(f"sort comparator が文字列でない: {best['name']}")
+    _require_sort_name_comparator_binding(
+        best["name"], comparator, workload=workload)
 
     re_wal, re_prov = _find_sort_remeasure(workload)
     if workload == "balanced":
@@ -824,6 +839,15 @@ def _validate_schema(doc: Mapping) -> None:
                 workload=workload,
                 configuration=configuration,
             )
+        sort_record = entry.get("sort_best")
+        if not isinstance(sort_record, Mapping):
+            raise FreezeError(
+                f"entries.{workload}.sort_best が object ではない")
+        _require_sort_name_comparator_binding(
+            sort_record.get("name"),
+            sort_record.get("comparator"),
+            workload=workload,
+        )
     generator_doc = doc.get("generator")
     if not isinstance(generator_doc, dict) or set(generator_doc) != {"path", "sha256"}:
         raise FreezeError("generator schema が不一致")
