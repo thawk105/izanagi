@@ -66,7 +66,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import env_contract, ident, pin, wal                # noqa: E402
+from . import buildcache, condition_meaning_gate, env_contract, ident, pin, wal  # noqa: E402
 from . import p3_s4_loop as L                              # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -114,6 +114,30 @@ TEMPLATE_PATCH = "patches/silo-sort-variant.patch"  # 骨格 (hole) を敷く不
 # BACK_OFF を明示 (Options.cmake の CACHE 既定に暗黙依存しない、敵対レビュー 2026-07-10)。
 _BASE = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
          "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
+
+
+def _require_condition_gate(source_root: str, genome: Genome) -> None:
+    value = genome.flags["SORT_VARIANT"]
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.p3_s4_loop_sort",
+        macro="SORT_VARIANT", requested_value=value, default_value=0,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected P3 sort loop: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
 
 # 停止条件 (収束/逆方向枯渇/予算) は `L.check_stop` に完全委譲 — backoff driver と同じ
 # 規約 (`L.MAX_ITER`/`L.MAX_WALLTIME_S`、design v1 §4、D39 で凍結) をそのまま使う。
@@ -361,6 +385,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             return gate
         if not do_build:
             return {"outcome": "dry-pass", "variant": None}
+        _require_condition_gate(sub, genome)
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
                               authorization_contract=env_contract.authorize(ENV_TAG),

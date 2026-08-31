@@ -44,6 +44,24 @@ from orchestrator.campaign.pipeline import (
     s2_correctness_workload,
     variant_id,
 )
+
+_REAL_CONDITION_GATE_FAMILY = A2._require_condition_gate_family
+
+
+@pytest.fixture(autouse=True)
+def _avoid_condition_compiler_work_in_protocol_tests(monkeypatch):
+    monkeypatch.setattr(A2, "_require_condition_gate_family", lambda *_a, **_k: None)
+
+
+def test_paper_condition_gate_is_p_strict_and_precedes_campaign():
+    run_source = inspect.getsource(A2.run_workload)
+    assert run_source.index("_require_condition_gate_family(") < run_source.index(
+        "summary = run_campaign("
+    )
+    helper_source = inspect.getsource(_REAL_CONDITION_GATE_FAMILY)
+    assert 'use_class="paper"' in helper_source
+    assert '"BACKOFF_FIXED"' in helper_source
+    assert '"BACKOFF_NOINLINE"' in helper_source
 from orchestrator.tests import commit_receipt_support as receipt_support
 
 

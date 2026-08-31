@@ -14,6 +14,7 @@ import hashlib
 import inspect
 import json
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -63,6 +64,23 @@ from orchestrator.campaign.trigger_gate_binding import (                        
     TriggerGateBinding,
     expected_predicate_sha256,
 )
+
+_REAL_CONDITION_GATE = T._require_condition_gate
+
+
+@pytest.fixture(autouse=True)
+def _avoid_condition_compiler_work_in_mechanical_tests(monkeypatch):
+    monkeypatch.setattr(T, "_require_condition_gate", lambda *_a, **_k: None)
+
+
+def test_trigger_condition_gate_precedes_run_campaign():
+    source = inspect.getsource(T._run_one_iteration_resolved)
+    assert source.index("_require_condition_gate(") < source.index(
+        "summary = run_campaign("
+    )
+    helper = inspect.getsource(_REAL_CONDITION_GATE)
+    assert 'macro="BACKOFF_TRIGGER_GATING"' in helper
+    assert 'use_class="raw"' in helper
 from campaign_lock_test_support import build_v2_lock                # noqa: E402
 from test_p3_b4_closed_critic import (                              # noqa: E402
     _production_launch_context as _verified_b4_context,
@@ -92,8 +110,7 @@ _CODER_CONTEXT = build_run_context(
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (trigger-gating marker) を写した fixture。
 # silo-backoff-trigger-gating-variant.patch と同型 — hole は #if 枝の述語代入 1 行、
 # gate 変数宣言と gated call は marker 外 (coder 不可触)。
-_TEMPLATE = """#pragma once
-#include "backoff.hh"
+_TEMPLATE = """#include "../../include/backoff.hh"
 
 class TxExecutor {
  public:
@@ -166,6 +183,38 @@ def _mk_template_dir() -> str:
     with open(full, "w", encoding="utf-8") as f:
         f.write(_TEMPLATE)
     return d
+
+
+def _install_condition_gate_build_fixture(source_root: str) -> None:
+    """Add a real CMake owner-TU graph around the trigger source fixture."""
+    root = Path(source_root)
+    (root / "cmake").mkdir(parents=True)
+    (root / "cc" / "silo").mkdir(parents=True, exist_ok=True)
+    (root / "include").mkdir(parents=True, exist_ok=True)
+    (root / "CMakeLists.txt").write_text(
+        """cmake_minimum_required(VERSION 3.16)
+project(trigger_condition_gate_fixture LANGUAGES CXX)
+include(cmake/Options.cmake)
+ccbench_universal_definitions(condition_gate_defines)
+add_executable(ycsb_silo.exe cc/silo/transaction.cc)
+target_compile_definitions(ycsb_silo.exe PRIVATE ${condition_gate_defines})
+""",
+        encoding="utf-8",
+    )
+    (root / "cmake" / "Options.cmake").write_text(
+        """set(CCBENCH_BACKOFF_TRIGGER_GATING 0 CACHE STRING "trigger gate")
+function(ccbench_universal_definitions out_var)
+  set(${out_var}
+    BACKOFF_TRIGGER_GATING=${CCBENCH_BACKOFF_TRIGGER_GATING}
+    PARENT_SCOPE)
+endfunction()
+""",
+        encoding="utf-8",
+    )
+    (root / "include" / "backoff.hh").write_text(
+        "// condition gate preprocessing fixture\n",
+        encoding="utf-8",
+    )
 
 
 def _tmp_layout(
@@ -1260,6 +1309,15 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
         suffix="default_measurement_sink_test",
     )
     sub = _mk_template_dir()
+    _install_condition_gate_build_fixture(sub)
+    real_cxx = next(
+        (path for candidate in ("g++-13", "g++-12", "g++")
+         if (path := shutil.which(candidate)) is not None),
+        None,
+    )
+    if real_cxx is None or shutil.which("cmake") is None:
+        pytest.skip("condition gate fixture requires a real C++ compiler and CMake")
+    monkeypatch.setattr(fresh.buildcache, "DEFAULT_CXX", real_cxx)
     lay = _tmp_layout("fresh-default-measurement")
     calls = []
     monkeypatch.setattr(

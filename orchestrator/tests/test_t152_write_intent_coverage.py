@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import contextlib
+import inspect
 import json
 import os
 import subprocess
@@ -875,6 +876,13 @@ def test_payload_records_semantics_links_limitations_and_no_stdout_counts():
     for run in payload["runs"].values():
         assert "stdout_counts" not in run
         assert type(run["abort_exercised"]) is bool
+
+
+def test_all_write_intent_macros_are_gated_before_stock_build():
+    preflight = inspect.getsource(driver._preflight_condition_gates)
+    collect = inspect.getsource(driver._collect_payload)
+    assert "for patch_name, macro in _PATCHES.values()" in preflight
+    assert collect.index("_preflight_condition_gates") < collect.index("stock_binaries = _build")
 
 
 if __name__ == "__main__":

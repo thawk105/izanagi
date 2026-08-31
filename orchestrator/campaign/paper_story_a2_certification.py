@@ -23,6 +23,7 @@ import shutil
 import socket
 import stat
 import statistics
+import struct
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -34,7 +35,7 @@ from ..scheduler_nqsv import (
     QSTAT_REQUEST_ID_RE,
     target_bound_qstat_state_result,
 )
-from . import buildcache
+from . import buildcache, condition_meaning_gate
 from .pipeline import PerfConfig
 
 
@@ -524,6 +525,57 @@ def _genome_for_cell(policy: Policy, cell: CellSpec):
         protocol=policy.document["performance_common"]["ccbench_protocol"],
         flags=flags,
     )
+
+
+def _require_condition_gate_family(
+        source_root: Path, genomes: Sequence[object], *, cxx: str,
+        dependency_prefix: Path) -> None:
+    """Fail closed on both condition arms before a paper benchmark starts."""
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root,
+        configure_args=(f"-DCMAKE_PREFIX_PATH={dependency_prefix}",),
+    )
+    defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
+    supply_records = []
+    meaning_records = []
+    for index, genome in enumerate(genomes):
+        for macro in sorted(set(genome.flags) & set(defaults)):
+            value = genome.flags[macro]
+            request = condition_meaning_gate.make_define_request(
+                driver_id=(
+                    "orchestrator.campaign.paper_story_a2_certification:"
+                    f"cell-{index}"
+                ),
+                macro=macro, requested_value=value, default_value=defaults[macro],
+                stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
+            )
+            declaration = None
+            if macro == "BACKOFF_FIXED" and value >= 0:
+                bits = struct.pack(">d", float(value)).hex()
+                declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+                    macro,
+                    (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+                )
+            supply_records.append(
+                condition_meaning_gate.evaluate_define_supply_effectuation(
+                    captured, request=request, cxx=cxx, cmake="cmake",
+                )
+            )
+            meaning_records.append(
+                condition_meaning_gate.evaluate_define_runtime_meaning(
+                    captured, request=request, declaration=declaration, cxx=cxx,
+                )
+            )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class="paper",
+    )
+    if not admission.admitted:
+        reasons = ",".join(
+            f"{record.macro}:{record.arm}:{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+            if record.terminal_status != "green"
+        )
+        raise CertificationError(f"condition gate rejected paper workload: {reasons}")
 
 
 def _generator_input_sha256(policy: Policy, workload_id: str,
@@ -2930,6 +2982,9 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
     expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
         resolved_cc, resolved_cxx,
+    )
+    _require_condition_gate_family(
+        source_root, genomes, cxx=resolved_cxx, dependency_prefix=dependency,
     )
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
 

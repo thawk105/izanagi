@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SUBMIT = ROOT / "tools/pegasus/submit_certify.sh"
 JOB = ROOT / "tools/pegasus/certify_calibration.sh"
+COST_PROBE = ROOT / "tools/pegasus/probes/t1683_rr5_cost_probe.py"
 README = ROOT / "tools/pegasus/README.md"
 
 
@@ -34,6 +35,12 @@ def test_job_rechecks_the_submission_workload_and_records_it() -> None:
     assert 'ycsb_rratio=$CALIBRATION_RRATIO' in source
     assert '"calibration": {"workload": {"ycsb_rratio": rratio}}' in source
     assert "ycsb_rratio=50" not in source
+    assert source.index("condition_gate_argv=") < source.index("build_argv=")
+    assert "--macro BACKOFF_FIXED" in source
+    assert "--stock-comparison" in source
+    assert "--use-class certified-selection" in source
+    assert "-DCCBENCH_BACKOFF_FIXED=-1" in source
+    assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
 
 
 def test_calibration_shell_scripts_parse() -> None:
@@ -46,6 +53,13 @@ def test_calibration_shell_scripts_parse() -> None:
             check=False,
         )
         assert completed.returncode == 0, completed.stderr
+
+
+def test_cost_probe_condition_gate_dominates_first_buildcache_call() -> None:
+    source = COST_PROBE.read_text(encoding="utf-8")
+    main = source[source.index("def main()") :]
+    assert main.index("_require_condition_gates") < main.index("buildcache.build(")
+    assert 'int(adopted["BACKOFF_NOINLINE"])' in source
 
 
 def test_submitter_rejects_an_unregistered_ratio_before_side_effects(tmp_path: Path) -> None:

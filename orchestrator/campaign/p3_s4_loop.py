@@ -48,6 +48,7 @@ import math
 import os
 import re
 import secrets
+import struct
 import sys
 import time
 from dataclasses import dataclass, field, replace
@@ -58,7 +59,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (backoff_hole_grammar, campaign_lock as campaign_lock_codec,  # noqa: E402
+from . import (backoff_hole_grammar, buildcache,                         # noqa: E402
+               campaign_lock as campaign_lock_codec, condition_meaning_gate,
                coder_effect_gate, env_contract, ident, trigger_gate_binding, wal)
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
@@ -122,6 +124,37 @@ CONVERGE_STREAK = 3                   # 同一方向・magnitude=small が N 連
 REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改善なし → 枯渇
 
 B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
+
+
+def _require_condition_gate(source_root: str, genome: Genome) -> None:
+    """Run the independent supply and meaning arms before any benchmark build."""
+    value = genome.flags.get("BACKOFF_FIXED")
+    if value is None:
+        return
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.p3_s4_loop",
+        macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
+    )
+    bits = struct.pack(">d", float(value)).hex()
+    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+        "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=declaration, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected P3 S4 loop: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
 
 
 class B4ProtocolError(RuntimeError):
@@ -1256,6 +1289,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
             project_whiteboard(state, planner, "rejected")
             log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
+        _require_condition_gate(sub, genome)
         # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。

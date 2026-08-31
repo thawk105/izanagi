@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import json
 import math
 import os
@@ -19,6 +20,16 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import s1_verify_extime_calibration as M  # noqa: E402
 from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
 from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
+
+
+def test_condition_gate_precedes_extime_build():
+    source = inspect.getsource(M._build_target)
+    assert source.index("_require_condition_gate(str(sub), genome)") < source.index(
+        "built = buildcache.build("
+    )
+    helper = inspect.getsource(M._require_condition_gate)
+    assert 'macro="BACKOFF_TRIGGER_GATING"' in helper
+    assert 'use_class="raw"' in helper
 
 
 def _candidate(extime: int, wall: float, *, verdict: str = "serializable",

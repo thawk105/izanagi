@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import importlib.util
+import inspect
 import json
 import sys
 from pathlib import Path
@@ -19,6 +20,15 @@ assert _SPEC is not None and _SPEC.loader is not None
 probe = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = probe
 _SPEC.loader.exec_module(probe)
+
+
+def test_condition_gate_dominates_ccbench_configure():
+    source = inspect.getsource(probe._execute_ccbench_build)
+    assert source.index("_require_condition_gate") < source.index(
+        "profile.run(argv"
+    )
+    assert '"-DCCBENCH_BACKOFF_FIXED=-1"' in source
+    assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
 
 # 実装定数を共有しない。カテゴリ削除変異で parametrize 自体が消えない独立 oracle。
 EXPECTED_S3_CATEGORIES = (
@@ -117,12 +127,52 @@ def _good_s5() -> dict[str, dict[str, dict[str, Any]]]:
     }
 
 
+def _condition_gate_receipts() -> list[dict[str, Any]]:
+    gate = probe.condition_meaning_gate
+    request = gate.make_define_request(
+        driver_id="tools.pegasus.probes.t316_sandbox_backend_probe",
+        macro="BACKOFF_FIXED",
+        requested_value=-1,
+        default_value=None,
+        stock_comparison=True,
+    )
+    request_digest = gate._request_digest(request, ())
+    supply = gate._arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code="stock-inert-preprocess-identical",
+        request=request,
+        request_digest=request_digest,
+        evidence={
+            "comparison": "stock-identity",
+            "fixture": "independent-valid-record",
+        },
+    )
+    meaning = gate._arm_record(
+        arm="runtime-meaning",
+        terminal_status="unestablished",
+        reason_code="meaning-witness-undeclared",
+        request=request,
+        request_digest=request_digest,
+        evidence={"witness_declared": False},
+    )
+    admission = gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    return [
+        json.loads(supply.canonical_json()),
+        json.loads(meaning.canonical_json()),
+        json.loads(admission.canonical_json()),
+    ]
+
+
 def _good_s6() -> dict[str, Any]:
     return {
         "attempted": True, "source_identity_valid": True,
         "outside_success": True, "inside_success": True, "success": True,
         "trace_disabled": True, "failure_stage": None,
         "toolchain": {"host_valid": True, "sandbox_valid": True},
+        "condition_gates": _condition_gate_receipts(),
     }
 
 
@@ -739,6 +789,14 @@ def test_stage_judges_reject_injected_bad_observations(judge: Any, bad: dict[str
     verdict = judge(bad)
     assert verdict.verdict == expected
     assert verdict.verdict != "go"
+
+
+def test_s6_injected_success_without_condition_records_is_not_go() -> None:
+    observation = _good_s6()
+    observation.pop("condition_gates")
+    verdict = probe.verdict_s6(observation)
+    assert verdict.verdict == "inconclusive"
+    assert verdict.reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)
 
 
 def _run_injected(

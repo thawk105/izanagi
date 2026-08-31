@@ -28,6 +28,11 @@ import time
 from typing import Any, Iterable, Iterator, Mapping, Sequence
 import uuid
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from orchestrator.campaign import condition_meaning_gate  # noqa: E402
+
 
 SCHEMA_VERSION = "ss2pl-lock-study/v1"
 PERFORMANCE_ARMS = ("S", "C", "A", "B", "D")
@@ -1946,6 +1951,69 @@ def _configure(
     return expected
 
 
+def _require_condition_gates(
+    source: Path,
+    *,
+    gflags_prefix: Path,
+    glog_prefix: Path,
+    thirdparty_root: Path,
+) -> list[dict[str, Any]]:
+    configure_args = (
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        f"-DCMAKE_PREFIX_PATH={gflags_prefix};{glog_prefix}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={thirdparty_root / 'masstree'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={thirdparty_root / 'mimalloc'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={thirdparty_root / 'googletest'}",
+        "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+        "-DCCBENCH_VAL_SIZE=8",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_BACK_OFF=1",
+    )
+    captured = condition_meaning_gate.capture_define_inputs(
+        source, configure_args=configure_args,
+    )
+    supply_records = []
+    meaning_records = []
+    for macro, requested, default in (
+        ("SS2PL_LOCK_IMPL", 1, 0),
+        ("SS2PL_LOCK_KIND", 1, 0),
+        ("SS2PL_DLR", 2, 0),
+        ("SS2PL_WFG_DIAG", 1, 0),
+    ):
+        request = condition_meaning_gate.make_define_request(
+            driver_id="tools.pegasus.run_ss2pl_lock_study",
+            macro=macro,
+            requested_value=requested,
+            default_value=default,
+        )
+        supply_records.append(
+            condition_meaning_gate.evaluate_define_supply_effectuation(
+                captured, request=request, cxx="c++", cmake="cmake",
+            )
+        )
+        meaning_records.append(
+            condition_meaning_gate.evaluate_define_runtime_meaning(
+                captured, request=request, declaration=None, cxx="c++",
+            )
+        )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        states = ", ".join(
+            f"{record.macro}={record.terminal_status}/{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+        )
+        raise ContractError(f"condition gate rejected SS2PL study: {states}")
+    return [
+        *(json.loads(record.canonical_json()) for record in supply_records),
+        *(json.loads(record.canonical_json()) for record in meaning_records),
+        json.loads(admission.canonical_json()),
+    ]
+
+
 def _find_binary(build_dir: Path, target: str) -> Path:
     matches = [path for path in build_dir.rglob(target) if path.is_file() and os.access(path, os.X_OK)]
     if len(matches) != 1:
@@ -2008,6 +2076,12 @@ def build_target(
     build_dir = build_root / build_id
     if build_dir.exists():
         raise ContractError(f"build directory collision: {build_dir}")
+    condition_gates = _require_condition_gates(
+        source,
+        gflags_prefix=gflags_prefix,
+        glog_prefix=glog_prefix,
+        thirdparty_root=thirdparty_root,
+    )
     expected = _configure(
         source, build_dir, arm=arm, backoff=backoff,
         gflags_prefix=gflags_prefix, glog_prefix=glog_prefix,
@@ -2028,6 +2102,7 @@ def build_target(
         "binary": str(binary),
         "binary_sha256": binary_sha,
         "target": target,
+        "condition_gates": condition_gates,
     }
     if arm in PERFORMANCE_ARMS:
         record["wfg_absence"] = _wfg_absence_evidence(

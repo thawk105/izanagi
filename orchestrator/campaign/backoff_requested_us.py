@@ -39,6 +39,7 @@ from .backoff_extended_sweep import (  # noqa: E402
     _resolve_ccbench_dir,
     genomes,
 )
+from .backoff_sweep import _require_backoff_condition_gate  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -83,6 +84,38 @@ USAGE_ELIGIBILITY_KEYS = (
 )
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 UINT64_MAX = (1 << 64) - 1
+
+
+def _require_fixed_condition_gate_before_measurement(
+        source_root: str, *, stock_root: str, genome: Genome, cxx: str,
+):
+    """Prove the adaptive BACKOFF_FIXED=-1 baseline is stock-inert."""
+    if "BACKOFF_FIXED" not in genome.flags:
+        raise RuntimeError("fixed diagnostic genome omits BACKOFF_FIXED")
+    return _require_backoff_condition_gate(
+        source_root,
+        stock_root=stock_root,
+        driver_id="orchestrator/campaign/backoff_requested_us.py",
+        macro_values={"BACKOFF_FIXED": (genome.flags["BACKOFF_FIXED"],)},
+        cxx=cxx,
+        use_class="raw-measurement",
+    )
+
+
+def _require_requested_us_condition_gate_before_measurement(
+        source_root: str, *, genome: Genome, cxx: str,
+):
+    """Prove the requested-us diagnostic define changes its owner TU."""
+    if DIAGNOSTIC_FLAG not in genome.flags:
+        raise RuntimeError(f"diagnostic genome omits {DIAGNOSTIC_FLAG}")
+    return _require_backoff_condition_gate(
+        source_root,
+        stock_root=None,
+        driver_id="orchestrator/campaign/backoff_requested_us.py",
+        macro_values={DIAGNOSTIC_FLAG: (genome.flags[DIAGNOSTIC_FLAG],)},
+        cxx=cxx,
+        use_class="raw-measurement",
+    )
 
 
 def _canonical_json_bytes(value: object) -> bytes:
@@ -1019,6 +1052,12 @@ def measure(
         try:
             patchharness.apply_patch(str(fixed_patch), isolated_ccbench)
             _assert_backoff_fixed_materialized(isolated_ccbench)
+            _require_fixed_condition_gate_before_measurement(
+                isolated_ccbench,
+                stock_root=base_ccbench_dir,
+                genome=fixed_genome,
+                cxx=resolved_cxx,
+            )
             fixed_evidence = source_digest.resolve_evidence(
                 fixed_genome,
                 pin.CURRENT_PIN,
@@ -1031,6 +1070,11 @@ def measure(
 
             patchharness.apply_patch(str(diagnostic_patch), isolated_ccbench)
             _assert_backoff_fixed_materialized(isolated_ccbench)
+            _require_requested_us_condition_gate_before_measurement(
+                isolated_ccbench,
+                genome=diagnostic_genome,
+                cxx=resolved_cxx,
+            )
             evidence = source_digest.resolve_evidence(
                 diagnostic_genome,
                 pin.CURRENT_PIN,

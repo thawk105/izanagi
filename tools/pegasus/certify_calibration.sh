@@ -8,7 +8,7 @@
 # TSC(10) + cooldown_max(1200) + points(5)*sweep_reps(3)*120
 # + noise_reps(10)*120 + 2*sweep_reps(3)*120
 # + build_cap(CCBench=900 + gflags=60 + glog=120)(1080)
-# + finalize_reserve(600) = 6610。要求 7200 秒はこれを上回る。
+# + condition_gate(300) + finalize_reserve(600) = 6910。要求 7200 秒はこれを上回る。
 set -Eeuo pipefail
 umask 077
 
@@ -367,6 +367,22 @@ realpath "$CC_PATH" >"$ATTEMPT_DIR/compiler.path"
 "$CXX_PATH" --version >"$ATTEMPT_DIR/cxx.version" 2>&1
 "$CMAKE_PATH" --version >"$ATTEMPT_DIR/cmake.version" 2>&1
 
+run_condition_gate() {
+  local -a condition_gate_argv=(python3 -m orchestrator.campaign.condition_meaning_gate
+    --source-root "$BUILD_SOURCE" --stock-root "$CCBENCH_BASE"
+    --driver-id tools.pegasus.certify_calibration
+    --macro BACKOFF_FIXED --requested-value=-1 --stock-comparison
+    --cxx "$(realpath "$CXX_PATH")" --cmake "$CMAKE_PATH"
+    --use-class certified-selection)
+  local argument
+  for argument in "${configure_argv[@]:5}"; do
+    [[ $argument == -DCCBENCH_BACKOFF_FIXED=-1 ]] && continue
+    condition_gate_argv+=("--configure-arg=$argument")
+  done
+  (cd "$REPO_ROOT" && timeout 300 "${condition_gate_argv[@]}") \
+    >"$ATTEMPT_DIR/condition-gate.jsonl" 2>"$ATTEMPT_DIR/condition-gate.stderr"
+}
+
 # (iv-a) pinned-clean gflags を /scr で static build/install。build cache は一切参照しない。
 if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
   write_failure 2 gflags "gflags source path missing"
@@ -515,6 +531,7 @@ configure_argv=(cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Rele
   "-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"
   "-DIZANAGI_GLOG_SRC_HEAD=$GLOG_SOURCE_HEAD"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
+run_condition_gate
 build_argv=(cmake --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)
 timeout 900 "${configure_argv[@]}" >"$ATTEMPT_DIR/configure.stdout" 2>"$ATTEMPT_DIR/configure.stderr"
 timeout 900 "${build_argv[@]}" >"$ATTEMPT_DIR/build.stdout" 2>"$ATTEMPT_DIR/build.stderr"

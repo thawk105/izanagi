@@ -39,6 +39,7 @@ _IMPORT_ROOT = Path(__file__).resolve().parents[2]
 _ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
 
 from . import (
+    condition_meaning_gate,
     env_attestation,
     env_contract,
     execution_guard,
@@ -2060,6 +2061,77 @@ def _configure_argv(
         f"-DCMAKE_C_COMPILER={tools['gcc']}",
         f"-DCMAKE_CXX_COMPILER={tools['g++']}",
         f"-DCMAKE_CXX_FLAGS={flags}",
+    ]
+
+
+def _require_condition_gates(
+    *,
+    patched_source: Path,
+    stock_source: Path,
+    tools: Mapping[str, str],
+    prefix: str,
+    third_party_sources: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    configure_args = tuple(
+        argument for argument in _configure_argv(
+            source=patched_source,
+            build=Path("/condition-gate-unused-build"),
+            tools=tools,
+            prefix=prefix,
+            macros=[],
+            trace=0,
+            third_party_sources=third_party_sources,
+        )[5:]
+        if argument != "-DCCBENCH_BACKOFF_FIXED=-1"
+    )
+    captured = condition_meaning_gate.capture_define_inputs(
+        patched_source,
+        stock_root=stock_source,
+        configure_args=configure_args,
+    )
+    supply_records = []
+    meaning_records = []
+    for macro, requested, default, stock_comparison in (
+        ("BACKOFF_FIXED", -1, None, True),
+        (RUNG_MACRO, 1, 0, False),
+        (REPORT_MACRO, 1, 0, False),
+    ):
+        request = condition_meaning_gate.make_define_request(
+            driver_id="orchestrator.campaign.silo_ladder_rung1",
+            macro=macro,
+            requested_value=requested,
+            default_value=default,
+            stock_comparison=stock_comparison,
+        )
+        supply_records.append(
+            condition_meaning_gate.evaluate_define_supply_effectuation(
+                captured,
+                request=request,
+                cxx=tools["g++"],
+                cmake=tools["cmake"],
+            )
+        )
+        meaning_records.append(
+            condition_meaning_gate.evaluate_define_runtime_meaning(
+                captured,
+                request=request,
+                declaration=None,
+                cxx=tools["g++"],
+            )
+        )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        states = ", ".join(
+            f"{record.macro}={record.terminal_status}/{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+        )
+        raise DriverError(f"condition gate rejected rung1 driver: {states}")
+    return [
+        *(json.loads(record.canonical_json()) for record in supply_records),
+        *(json.loads(record.canonical_json()) for record in meaning_records),
+        json.loads(admission.canonical_json()),
     ]
 
 
@@ -4115,6 +4187,7 @@ def _gap_job_command(
     build_records: list[dict[str, Any]] = []
     binaries: dict[str, Path] = {}
     patched_surface: dict[str, str] = {}
+    condition_gates: list[dict[str, Any]] = []
     try:
         tools = capture_tool_identities()
         tool_paths = {item["name"]: item["realpath"] for item in tools}
@@ -4124,6 +4197,16 @@ def _gap_job_command(
                 policy["attestation_cap_s"], "attestation group",
             ),
         )
+        with patchharness.checkout(PIN, str(base)) as gate_stock_source:
+            with patchharness.checkout(PIN, str(base)) as gate_rung_source:
+                with patchharness.applied(str(patch), PIN, gate_rung_source):
+                    condition_gates = _require_condition_gates(
+                        patched_source=Path(gate_rung_source),
+                        stock_source=Path(gate_stock_source),
+                        tools=tool_paths,
+                        prefix=prefix,
+                        third_party_sources=third_party_sources,
+                    )
         build_deadline = overall_deadline.capped(
             policy["build_cap_s"], "three configure/build/replay group",
         )
@@ -4397,6 +4480,7 @@ def _gap_job_command(
             {"id": name, **value} for name, value in WORKLOADS.items()
         ],
         "schedule_receipt": schedule,
+        "condition_gates": condition_gates,
         "builds": build_records,
         "performance_runs": performance_runs,
         "liveness_runs": liveness_runs,

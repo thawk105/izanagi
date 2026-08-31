@@ -8,6 +8,7 @@ import copy
 import contextlib
 import errno
 import importlib.util
+import inspect
 import json
 import os
 import shutil
@@ -23,7 +24,8 @@ ORCH = TESTS.parent
 sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(ORCH.parent))
 
-from orchestrator.campaign import axis_trigger_gating, env_contract, pipeline, wal  # noqa: E402
+from orchestrator.campaign import (axis_trigger_gating, condition_meaning_gate,  # noqa: E402
+                                   env_contract, pipeline, wal)
 from orchestrator.campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -41,6 +43,23 @@ from s1_expected_goldens import (  # noqa: E402
     EXPECTED_SORT,
 )
 from campaign_lock_test_support import build_v2_lock              # noqa: E402
+
+_REAL_CONDITION_RECORDS_FOR_GENOME = S._condition_records_for_genome
+
+
+@pytest.fixture(autouse=True)
+def _avoid_condition_compiler_work_in_driver_tests(monkeypatch):
+    monkeypatch.setattr(
+        S, "_condition_records_for_genome",
+        lambda _root, genome, **_kwargs: _condition_records(genome),
+    )
+
+
+def test_prepare_cell_condition_family_uses_real_two_arm_api():
+    source = inspect.getsource(_REAL_CONDITION_RECORDS_FOR_GENOME)
+    assert "evaluate_define_supply_effectuation" in source
+    assert "evaluate_define_runtime_meaning" in source
+    assert "require_condition_gate_family" in source
 
 _OUTER_WHITESPACE = (
     ("space", " "),
@@ -182,8 +201,12 @@ def _write_freeze(tmp_path: Path, document: dict | None = None) -> Path:
 
 @contextlib.contextmanager
 def _prepared(cell, pin, *, cxx):
+    genome = Genome("silo", dict(cell["variant"]["flags"]))
+    supply, meaning = _condition_records(genome)
     yield S.PreparedCell(
-        Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache",
+        genome, "stock", "/ccbench", "/cache",
+        condition_supply_records=supply,
+        condition_meaning_records=meaning,
     )
 
 
@@ -297,9 +320,110 @@ def _run(tmp_path: Path, role: str, evaluate_fn, **kwargs) -> int:
         **kwargs)
 
 
+def _condition_records(genome: Genome):
+    supply = []
+    meaning = []
+    defaults = {
+        "BACKOFF_FIXED": -1,
+        "BACKOFF_NOINLINE": 0,
+        "BACKOFF_TRIGGER_GATING": 0,
+        "SORT_VARIANT": 0,
+    }
+    for macro in sorted(set(genome.flags) & set(defaults)):
+        request = condition_meaning_gate.make_define_request(
+            driver_id="test.s1_direct_comparison.injected",
+            macro=macro, requested_value=genome.flags[macro],
+            default_value=defaults[macro],
+        )
+        request_digest = condition_meaning_gate._request_digest(request, ())
+        supply.append(condition_meaning_gate._arm_record(
+            arm="supply-effectuation", terminal_status="green",
+            reason_code="requested-default-preprocess-different",
+            request=request, request_digest=request_digest, evidence={},
+        ))
+        meaning.append(condition_meaning_gate._arm_record(
+            arm="runtime-meaning", terminal_status="green",
+            reason_code="declared-meaning-observed",
+            request=request, request_digest=request_digest, evidence={},
+        ))
+    return tuple(supply), tuple(meaning)
+
+
+def _with_condition_records(result: EvalResult) -> EvalResult:
+    supply, meaning = _condition_records(result.genome)
+    result.condition_supply_records = supply
+    result.condition_meaning_records = meaning
+    return result
+
+
 def _green(genome, *args, **kwargs):
-    return EvalResult(genome=genome, variant=pipeline.variant_id(genome),
-                      certified=True, aborted=False, fitness_tps=100.0)
+    return _with_condition_records(EvalResult(
+        genome=genome, variant=pipeline.variant_id(genome),
+        certified=True, aborted=False, fitness_tps=100.0,
+    ))
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_injected_prepare_cell_without_condition_records_is_refused(tmp_path):
+    @contextlib.contextmanager
+    def evidence_less_prepare(cell, pin, *, cxx):
+        yield S.PreparedCell(
+            Genome("silo", dict(cell["variant"]["flags"])),
+            "stock", "/ccbench", "/cache",
+        )
+
+    with pytest.raises(S.DriverError, match="prepare_cell_fn return"):
+        S.run_role(
+            "develop", freeze_path=_write_freeze(tmp_path),
+            budget_path=tmp_path / "time_ledger.json",
+            output_root=str(tmp_path / "out"), verify_document=lambda doc: None,
+            evaluate_fn=_green, prepare_cell_fn=evidence_less_prepare,
+            single_tenant_fn=lambda: None, monotonic=_Clock(), log=lambda msg: None,
+        )
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_injected_evaluate_fn_certified_result_without_condition_records_is_refused(
+        tmp_path):
+    def evidence_less_evaluate(genome, *args, **kwargs):
+        return EvalResult(
+            genome=genome, variant=pipeline.variant_id(genome),
+            certified=True, aborted=False, fitness_tps=100.0,
+        )
+
+    with pytest.raises(S.DriverError, match="evaluate_fn return"):
+        _run(tmp_path, "develop", evidence_less_evaluate)
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_injected_callables_with_explicit_condition_records_are_accepted():
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    records = _REAL_CONDITION_RECORDS_FOR_GENOME(
+        str(TESTS / "fixtures" / "condition_meaning_gate" / "supplied"),
+        genome,
+        driver_id="test.s1_direct_comparison.real-positive",
+        use_class="raw",
+        cxx=_any_cxx(),
+    )
+    prepared = S.PreparedCell(
+        genome, "stock", "/ccbench", "/cache",
+        condition_supply_records=records[0],
+        condition_meaning_records=records[1],
+    )
+    S.require_returned_condition_evidence(
+        prepared, expected_macros=frozenset({"BACKOFF_FIXED"}),
+        use_class="raw", label="prepare_cell_fn return",
+    )
+    result = EvalResult(
+        genome=genome, variant=pipeline.variant_id(genome),
+        certified=True, aborted=False, fitness_tps=100.0,
+    )
+    result.condition_supply_records = records[0]
+    result.condition_meaning_records = records[1]
+    S.require_returned_condition_evidence(
+        result, expected_macros=frozenset({"BACKOFF_FIXED"}),
+        use_class="raw", label="evaluate_fn return", expected_records=records,
+    )
 
 
 def test_modified_freeze_is_refused_before_campaign_start(tmp_path):
@@ -1330,8 +1454,13 @@ def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
         prepare_calls.append(1)
         if len(prepare_calls) <= 2:
             raise OSError("temporary checkout failure")
+        genome = Genome("silo", dict(cell["variant"]["flags"]))
+        supply, meaning = _condition_records(genome)
         yield S.PreparedCell(
-            Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache")
+            genome, "stock", "/ccbench", "/cache",
+            condition_supply_records=supply,
+            condition_meaning_records=meaning,
+        )
 
     def evaluate(genome, *args, **kwargs):
         evaluate_calls.append(1)
@@ -1439,8 +1568,12 @@ def test_s1_oracle_unavailable_is_recorded_as_attempt_infra_before_retry(tmp_pat
                 ),
             )
             raise oracle.SortSwoOracleUnavailable(result)
+        genome = Genome("silo", dict(cell["variant"]["flags"]))
+        supply, meaning = _condition_records(genome)
         yield S.PreparedCell(
-            Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache",
+            genome, "stock", "/ccbench", "/cache",
+            condition_supply_records=supply,
+            condition_meaning_records=meaning,
         )
 
     output_root = str(tmp_path / "out")
@@ -1495,8 +1628,10 @@ def test_verifier_red_stops_without_retry(tmp_path):
 
     def red(genome, *args, **kwargs):
         calls.append(1)
-        return EvalResult(genome=genome, variant=pipeline.variant_id(genome),
-                          certified=False, aborted=True, verdict="non-serializable")
+        return _with_condition_records(EvalResult(
+            genome=genome, variant=pipeline.variant_id(genome),
+            certified=False, aborted=True, verdict="non-serializable",
+        ))
 
     rc = _run(tmp_path, "floor", red)
     assert rc == S.EXIT_VERIFIER_RED
@@ -1515,8 +1650,9 @@ def test_trace_timeout_retries_but_verify_payload_does_not(tmp_path):
         variant = pipeline.variant_id(genome)
         if len(timeout_calls) == 1:
             wal.log(layout, variant, "abort", S.ENV_TAG, {"reason": "trace-timeout"})
-            return EvalResult(genome=genome, variant=variant,
-                              certified=False, aborted=True)
+            return _with_condition_records(EvalResult(
+                genome=genome, variant=variant, certified=False, aborted=True,
+            ))
         return _green(genome)
 
     assert _run(tmp_path, "develop", timeout_then_green) == S.EXIT_OK
@@ -1531,8 +1667,9 @@ def test_trace_timeout_retries_but_verify_payload_does_not(tmp_path):
         variant = pipeline.variant_id(genome)
         wal.log(layout, variant, "abort", S.ENV_TAG,
                 {"reason": "trace-timeout", "verify": {"verdict": "red"}})
-        return EvalResult(genome=genome, variant=variant,
-                          certified=False, aborted=True)
+        return _with_condition_records(EvalResult(
+            genome=genome, variant=variant, certified=False, aborted=True,
+        ))
 
     assert _run(red_root, "develop", verifier_red) == S.EXIT_VERIFIER_RED
     assert red_calls == [1]
@@ -1576,8 +1713,10 @@ def test_verifier_red_in_one_campaign_blocks_other_campaign(tmp_path):
 
     def red(genome, *args, **kwargs):
         calls.append("red")
-        return EvalResult(genome=genome, variant=pipeline.variant_id(genome),
-                          certified=False, aborted=True, verdict="non-serializable")
+        return _with_condition_records(EvalResult(
+            genome=genome, variant=pipeline.variant_id(genome),
+            certified=False, aborted=True, verdict="non-serializable",
+        ))
 
     freeze_path = _write_freeze(tmp_path)
     common = dict(

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import struct
 import sys
 from pathlib import Path
 
@@ -31,7 +32,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import env_contract, ident, wal                     # noqa: E402
+from . import buildcache, condition_meaning_gate, env_contract, ident, wal  # noqa: E402
 from .build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
@@ -61,6 +62,37 @@ STATIC_G = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 50})
 
 NOOP_PATCH = "patches/variant-noop-else-copy.patch"
 STATIC_PATCH = "patches/variant-backoff-static50.patch"
+
+
+def _require_condition_gate(source_root: str, genome: Genome) -> None:
+    """Require both condition records before the first campaign build."""
+    value = genome.flags.get("BACKOFF_FIXED")
+    if value is None:
+        return
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.p3_kickoff",
+        macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
+    )
+    bits = struct.pack(">d", float(value)).hex()
+    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+        "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=declaration, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected p3 kickoff: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
 
 
 def _repo_root() -> str:
@@ -107,6 +139,8 @@ def main(argv=None) -> int:
     cfg, perf = ident.bind_admission_policy(_cfg(), build_context.policy), _perf()
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     assert_pinned_clean(sub, PIN)
+    with applied(os.path.join(root, STATIC_PATCH), PIN, sub):
+        _require_condition_gate(sub, STATIC_G)
     print("=== 完了条件 1: dirty no-op → coder namespace の cache-miss commit ===")
     with applied(os.path.join(root, NOOP_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,

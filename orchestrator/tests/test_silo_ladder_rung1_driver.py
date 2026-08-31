@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import inspect
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,17 @@ from orchestrator.campaign import silo_ladder_rung1 as driver  # noqa: E402
 
 def _fixture(name: str) -> dict:
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+def test_condition_family_dominates_stock_build_and_includes_companion_macro():
+    job = inspect.getsource(driver._gap_job_command)
+    gate = inspect.getsource(driver._require_condition_gates)
+    assert job.index("_require_condition_gates") < job.index("variant=\"stock\"")
+    assert '("BACKOFF_FIXED", -1, None, True)' in gate
+    assert "(REPORT_MACRO, 1, 0, False)" in gate
+    configure = inspect.getsource(driver._configure_argv)
+    assert '"-DCCBENCH_BACKOFF_FIXED=-1"' in configure
+    assert '"-DBACKOFF_FIXED=-1"' not in configure
 
 
 def _text_fixture(name: str) -> str:

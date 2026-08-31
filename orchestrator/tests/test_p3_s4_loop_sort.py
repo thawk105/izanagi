@@ -48,6 +48,23 @@ from test_p3_b4_closed_critic import (                               # noqa: E40
     _production_launch_context as _verified_b4_context,
 )
 
+_REAL_CONDITION_GATE = S._require_condition_gate
+
+
+@pytest.fixture(autouse=True)
+def _avoid_condition_compiler_work_in_mechanical_tests(monkeypatch):
+    monkeypatch.setattr(S, "_require_condition_gate", lambda *_a, **_k: None)
+
+
+def test_sort_condition_gate_precedes_run_campaign():
+    source = inspect.getsource(S.run_one_iteration)
+    assert source.index("_require_condition_gate(sub, genome)") < source.index(
+        "summary = run_campaign("
+    )
+    helper = inspect.getsource(_REAL_CONDITION_GATE)
+    assert 'macro="SORT_VARIANT"' in helper
+    assert 'use_class="raw"' in helper
+
 
 _B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
     driver_kind="sort"

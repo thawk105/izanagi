@@ -40,7 +40,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (axis_trigger_gating, buildcache, p3_s4_loop, pin,  # noqa: E402
+from . import (axis_trigger_gating, buildcache, condition_meaning_gate,  # noqa: E402
+                      p3_s4_loop, pin,
                       s1_known_axes_freeze, s8a_trigger_sweep, source_digest,
                       trigger_gate_binding)
 from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
@@ -82,6 +83,30 @@ DECISION_RULE = (
 
 class CalibrationError(RuntimeError):
     """校正入力・実走結果を安全に採用できないときの fail-closed 例外。"""
+
+
+def _require_condition_gate(source_root: str, genome) -> None:
+    value = genome.flags["BACKOFF_TRIGGER_GATING"]
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.s1_verify_extime_calibration",
+        macro="BACKOFF_TRIGGER_GATING", requested_value=value, default_value=0,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw",
+    )
+    if not admission.admitted:
+        raise CalibrationError(
+            "condition gate rejected extime calibration: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
 
 
 def _repo_root() -> Path:
@@ -346,6 +371,7 @@ def _build_target(target: Mapping) -> Dict:
         if not quarantine.passed:
             raise CalibrationError(
                 f"g_rl の diff quarantine が reject: {quarantine.reason}")
+        _require_condition_gate(str(sub), genome)
         build_context = build_run_context(generator_id=GeneratorId.S1_EXTIME_CALIBRATION)
         evidence = source_digest.resolve_evidence(genome, PIN, ccbench_dir=str(sub))
         src_token = evidence.src_token

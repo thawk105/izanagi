@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import math
 from pathlib import Path
@@ -28,6 +29,16 @@ def _load(name: str, path: Path):
 
 driver = _load("ss2pl_lock_study_driver_test", DRIVER_PATH)
 plot = _load("ss2pl_lock_study_plot_test", PLOT_PATH)
+
+
+def test_condition_family_dominates_first_study_configure_and_covers_all_axes():
+    build_source = inspect.getsource(driver.build_target)
+    gate_source = inspect.getsource(driver._require_condition_gates)
+    assert build_source.index("_require_condition_gates") < build_source.index("_configure")
+    for macro in (
+        "SS2PL_LOCK_IMPL", "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
+    ):
+        assert macro in gate_source
 
 
 def _preprocess_cost(text: str = "int fixture;") -> dict:
@@ -869,7 +880,6 @@ def _collect_inert_fixture(
     state = {"applied": True}
     monkeypatch.setattr(driver, "_tracked_at_head", lambda *_args: True)
     monkeypatch.setattr(driver, "_apply_patch", lambda *_args, **_kwargs: None)
-
     def preprocess(entry):
         source = Path(entry["file"]).resolve().relative_to(clone.resolve()).as_posix()
         baseline = Path(entry["file"]).read_bytes() + b" void init(); int load; int max;"

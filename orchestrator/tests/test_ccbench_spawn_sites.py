@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import ast
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
+import re
 import sys
 
 import pytest
@@ -17,6 +19,7 @@ from orchestrator.holdout_observation import (  # noqa: E402
 )
 from orchestrator.campaign import (  # noqa: E402
     backoff_profile,
+    condition_meaning_gate,
     s1_verify_extime_calibration,
     s2_verify_calibration,
     s3_lock_coverage,
@@ -488,6 +491,734 @@ def _flags(mapping) -> list[str]:
     return [f"-{key}={value}" for key, value in mapping.items()]
 
 
+_PATCH_DIR = _ROOT / "patches"
+_BUILD_SCAN_PATHS = (
+    _ROOT / "orchestrator" / "campaign",
+    _ROOT / "tools" / "pegasus",
+)
+_BUILD_BACKEND_PATHS = frozenset({
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/condition_meaning_gate.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+})
+_DEFINE_TOKEN_RE = re.compile(r"\b[A-Z][A-Z0-9_]*\b")
+_CACHE_TO_TU_RE = re.compile(
+    r"\b([A-Z][A-Z0-9_]*)\s*=\s*\$\{(CCBENCH_[A-Z0-9_]+)\}"
+)
+_CMAKE_INTERFACE_RE = re.compile(
+    r"\b(?:set|option|get_filename_component)\s*\(\s*"
+    r"(CCBENCH_[A-Z0-9_]+)\b"
+)
+_PREPROCESSOR_CONDITION_RE = re.compile(
+    r"^\s*#\s*(?:if|ifdef|ifndef|elif)\b(.*)$"
+)
+_CMAKE_LITERAL_VALUE_RE = re.compile(
+    r"\bset\s*\([^\n)]*\s([A-Z][A-Z0-9_]*)\s*\)"
+)
+_CMAKE_INTERNAL_DEFINE_RE = re.compile(
+    r"\btarget_compile_definitions\s*\((.*?)\)", re.DOTALL,
+)
+
+
+def _patch_added_define_interfaces(
+    patch_dir: Path = _PATCH_DIR,
+) -> tuple[dict[str, frozenset[str]], frozenset[str]]:
+    """Derive externally supplied TU defines from patch additions.
+
+    Cache-option interfaces are discovered from the CMake cache-to-TU
+    assignment shape.  Bare conditional interfaces are discovered from new
+    preprocessor conditions; patch-internal target definitions and CMake
+    marker values are removed structurally.  No DEFINE_SPECS key participates
+    in candidate discovery.
+    """
+
+    patch_paths = sorted(patch_dir.glob("*.patch"))
+    global_prior_tokens: set[str] = set()
+    for path in patch_paths:
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            if raw_line.startswith("+") and not raw_line.startswith("+++"):
+                continue
+            if raw_line.startswith((
+                "---", "@@", "diff ", "index ", "new file ",
+                "deleted file ", "similarity ", "rename ",
+            )):
+                continue
+            line = raw_line[1:] if raw_line.startswith((" ", "-")) else raw_line
+            global_prior_tokens.update(_DEFINE_TOKEN_RE.findall(line))
+
+    sources: dict[str, set[str]] = {}
+    non_tu_interfaces: set[str] = set()
+    for path in patch_paths:
+        added: list[str] = []
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            if raw_line.startswith("+") and not raw_line.startswith("+++"):
+                added.append(raw_line[1:])
+
+        patch_rel = path.relative_to(_ROOT).as_posix()
+        added_text = "\n".join(added)
+        mapped: dict[str, str] = {
+            macro: cache_name
+            for macro, cache_name in _CACHE_TO_TU_RE.findall(added_text)
+        }
+        for macro in mapped:
+            sources.setdefault(macro, set()).add(patch_rel)
+
+        internal_defines: set[str] = set()
+        for block in _CMAKE_INTERNAL_DEFINE_RE.findall(added_text):
+            internal_defines.update(_DEFINE_TOKEN_RE.findall(block))
+        cmake_marker_values = set(
+            _CMAKE_LITERAL_VALUE_RE.findall(added_text)
+        )
+        for line in added:
+            match = _PREPROCESSOR_CONDITION_RE.match(line)
+            if match is None:
+                continue
+            for macro in _DEFINE_TOKEN_RE.findall(match.group(1)):
+                if (
+                    macro not in global_prior_tokens
+                    and macro not in internal_defines
+                    and macro not in cmake_marker_values
+                ):
+                    sources.setdefault(macro, set()).add(patch_rel)
+
+        declared_cache = set(_CMAKE_INTERFACE_RE.findall(added_text))
+        non_tu_interfaces.update(
+            declared_cache.difference(mapped.values())
+        )
+
+    return (
+        {macro: frozenset(paths) for macro, paths in sources.items()},
+        frozenset(non_tu_interfaces),
+    )
+
+
+@dataclass(frozen=True, order=True)
+class _BuildSink:
+    relative_path: str
+    scope: str
+    lineno: int
+    kind: str
+
+
+def _call_name(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _call_name(node.value)
+        return node.attr if parent is None else f"{parent}.{node.attr}"
+    return None
+
+
+class _BenchmarkBuildSinkVisitor(ast.NodeVisitor):
+    """Enumerate benchmark build boundaries without consulting defines."""
+
+    _INJECTABLE_NAMES = frozenset({
+        "build_fn", "evaluate_fn", "prepare_cell_fn",
+    })
+
+    def __init__(self, relative_path: str):
+        self.relative_path = relative_path
+        self.scopes = ["<module>"]
+        self.injected = [set()]
+        self.module_aliases: dict[str, str] = {}
+        self.callable_aliases: dict[str, str] = {}
+        self.cmake_target_argv = [set()]
+        self.sinks: set[_BuildSink] = set()
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            self.module_aliases[alias.asname or alias.name.split(".")[0]] = (
+                alias.name
+            )
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        module = node.module or ""
+        for alias in node.names:
+            bound = alias.asname or alias.name
+            canonical = f"{module}.{alias.name}" if module else alias.name
+            if alias.name in {"buildcache", "pipeline"}:
+                self.module_aliases[bound] = canonical
+            else:
+                self.callable_aliases[bound] = canonical
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.scopes.append(node.name)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    def _visit_function(self, node) -> None:
+        arguments = {
+            argument.arg
+            for argument in (
+                *node.args.posonlyargs, *node.args.args,
+                *node.args.kwonlyargs,
+            )
+        }
+        self.scopes.append(node.name)
+        self.injected.append(
+            self.injected[-1] | (arguments & self._INJECTABLE_NAMES)
+        )
+        self.cmake_target_argv.append(set(self.cmake_target_argv[-1]))
+        self.generic_visit(node)
+        self.cmake_target_argv.pop()
+        self.injected.pop()
+        self.scopes.pop()
+
+    visit_FunctionDef = _visit_function
+    visit_AsyncFunctionDef = _visit_function
+
+    @staticmethod
+    def _is_cmake_target_argv(node: ast.AST) -> bool:
+        strings = {
+            item.value
+            for item in ast.walk(node)
+            if isinstance(item, ast.Constant)
+            and isinstance(item.value, str)
+        }
+        return "--build" in strings and "--target" in strings
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        if self._is_cmake_target_argv(node.value):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    self.cmake_target_argv[-1].add(target.id)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if (
+            node.value is not None
+            and isinstance(node.target, ast.Name)
+            and self._is_cmake_target_argv(node.value)
+        ):
+            self.cmake_target_argv[-1].add(node.target.id)
+        self.generic_visit(node)
+
+    def _canonical_call_name(self, node: ast.AST) -> str:
+        name = _call_name(node) or ""
+        if isinstance(node, ast.Name):
+            return self.callable_aliases.get(name, name)
+        root, separator, rest = name.partition(".")
+        if separator and root in self.module_aliases:
+            return f"{self.module_aliases[root]}.{rest}"
+        return name
+
+    def visit_Call(self, node: ast.Call) -> None:
+        name = self._canonical_call_name(node.func)
+        strings = {
+            item.value
+            for item in ast.walk(node)
+            if isinstance(item, ast.Constant)
+            and isinstance(item.value, str)
+        }
+        kind: str | None = None
+        if (
+            name.endswith((".build", ".build_v2"))
+            and "buildcache" in name
+        ):
+            kind = "buildcache"
+        elif name == "run_campaign" or name.endswith(".run_campaign"):
+            kind = "campaign"
+        elif name.endswith("pipeline.evaluate"):
+            kind = "campaign"
+        elif isinstance(node.func, ast.Name) and node.func.id in self.injected[-1]:
+            kind = f"injected-{node.func.id}"
+        elif (
+            ("--build" in strings and "--target" in strings)
+            or any(
+                isinstance(argument, ast.Name)
+                and argument.id in self.cmake_target_argv[-1]
+                for argument in node.args
+            )
+        ):
+            # This also sees an argv assembled for a later bounded runner.
+            # Discovery therefore does not depend on a particular subprocess
+            # wrapper or on the target being a literal at this call site.
+            kind = "direct-cmake-target"
+        if kind is not None:
+            self.sinks.add(_BuildSink(
+                self.relative_path, ".".join(self.scopes), node.lineno, kind,
+            ))
+        self.generic_visit(node)
+
+
+_SHELL_FUNCTION_RE = re.compile(
+    r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\)\s*\{"
+)
+
+
+def _shell_build_sinks(relative_path: str, source: str) -> set[_BuildSink]:
+    sinks: set[_BuildSink] = set()
+    scopes = ["<module>"]
+    depth = 0
+    for lineno, line in enumerate(source.splitlines(), 1):
+        function = _SHELL_FUNCTION_RE.match(line)
+        if function is not None:
+            scopes.append(function.group(1))
+            depth = 1
+        elif len(scopes) > 1:
+            depth += line.count("{") - line.count("}")
+            if depth <= 0:
+                scopes.pop()
+                depth = 0
+        if (
+            re.search(r"\bcmake\s+--build\b", line)
+            and "--target" in line
+            and re.search(r"\bycsb_[A-Za-z0-9_.-]+", line)
+        ):
+            sinks.add(_BuildSink(
+                relative_path, ".".join(scopes), lineno,
+                "shell-cmake-target",
+            ))
+    return sinks
+
+
+def _production_build_sources() -> dict[str, str]:
+    sources: dict[str, str] = {}
+    for directory in _BUILD_SCAN_PATHS:
+        for path in sorted(directory.rglob("*")):
+            if path.suffix not in {".py", ".sh", ".json"} or not path.is_file():
+                continue
+            relative = path.relative_to(_ROOT).as_posix()
+            if relative in _BUILD_BACKEND_PATHS:
+                continue
+            sources[relative] = path.read_text(encoding="utf-8")
+    return sources
+
+
+def _benchmark_build_sinks(sources: dict[str, str]) -> set[_BuildSink]:
+    sinks: set[_BuildSink] = set()
+    for relative_path, source in sources.items():
+        if relative_path.endswith(".py"):
+            visitor = _BenchmarkBuildSinkVisitor(relative_path)
+            visitor.visit(ast.parse(source, filename=relative_path))
+            sinks.update(visitor.sinks)
+        elif relative_path.endswith(".sh"):
+            sinks.update(_shell_build_sinks(relative_path, source))
+    return sinks
+
+
+@dataclass(frozen=True)
+class _DeferredGateMember:
+    relative_path: str
+    owner: str
+    reason: str
+    sink_kind: str | None = None
+    sink_scope: str | None = None
+
+
+_DEFERRED_GATE_MEMBERS = (
+    _DeferredGateMember(
+        "orchestrator/campaign/b10_backoff_shape_sweep.py",
+        "wave t1905",
+        "active wave owns this driver",
+    ),
+    _DeferredGateMember(
+        "orchestrator/campaign/paper_story_a1_paired.py",
+        "wave t1819",
+        "active wave owns this driver",
+    ),
+    _DeferredGateMember(
+        "orchestrator/campaign/s8b_floor_campaign.py",
+        "wave t2027",
+        "active wave owns the build_fn injection seam",
+        "injected-build_fn",
+        "<module>.build_cells.invoke_build",
+    ),
+    _DeferredGateMember(
+        "orchestrator/campaign/s8b_oracle_n_pilot.py",
+        "protocol-r33 preregistration",
+        (
+            "output/insights/2026-08-16_t1142-n-pilot-prereg/"
+            "protocol-r33.json binds driver_sha256"
+        ),
+    ),
+)
+
+
+def _deferred_member(sink: _BuildSink) -> _DeferredGateMember | None:
+    matches = [
+        item for item in _DEFERRED_GATE_MEMBERS
+        if item.relative_path == sink.relative_path
+        and (item.sink_kind is None or item.sink_kind == sink.kind)
+        and (item.sink_scope is None or item.sink_scope == sink.scope)
+    ]
+    assert len(matches) <= 1
+    return matches[0] if matches else None
+
+
+def _function_bodies(tree: ast.AST) -> dict[str, ast.AST]:
+    return {
+        node.name: node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+
+def _walk_without_nested_functions(node: ast.AST):
+    pending = [node]
+    while pending:
+        current = pending.pop()
+        yield current
+        pending.extend(
+            child for child in ast.iter_child_nodes(current)
+            if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+        )
+
+
+def _gate_components(node: ast.AST) -> frozenset[str]:
+    components: set[str] = set()
+    for item in _walk_without_nested_functions(node):
+        if isinstance(item, ast.Call):
+            name = _call_name(item.func) or ""
+            if name.endswith("evaluate_define_supply_effectuation"):
+                components.add("supply")
+            elif name.endswith("evaluate_define_runtime_meaning"):
+                components.add("meaning")
+            elif name.endswith("require_condition_gate_family"):
+                components.add("admission")
+        elif isinstance(item, ast.Attribute):
+            if item.attr == "condition_supply_records":
+                components.add("supply")
+            elif item.attr == "condition_meaning_records":
+                components.add("meaning")
+        elif isinstance(item, ast.Constant) and isinstance(item.value, str):
+            if item.value == "condition_supply_records":
+                components.add("supply")
+            elif item.value == "condition_meaning_records":
+                components.add("meaning")
+    return frozenset(components)
+
+
+def _complete_gate_function_names(
+    sources: dict[str, str],
+) -> dict[str, frozenset[str]]:
+    parsed: dict[str, ast.AST] = {
+        path: ast.parse(source, filename=path)
+        for path, source in sources.items()
+        if path.endswith(".py")
+        and any(marker in source for marker in (
+            "condition_gate",
+            "condition_meaning_gate",
+            "condition_supply_records",
+            "condition_meaning_records",
+            "require_returned_condition_evidence",
+        ))
+    }
+    by_module = {
+        path.removesuffix(".py").replace("/", "."): path
+        for path in parsed
+    }
+    bodies: dict[tuple[str, str], ast.AST] = {}
+    local_names: dict[str, set[str]] = {}
+    for path, tree in parsed.items():
+        local_names[path] = set(_function_bodies(tree))
+        bodies.update(
+            ((path, name), body)
+            for name, body in _function_bodies(tree).items()
+        )
+
+    imported_callables: dict[str, dict[str, tuple[str, str]]] = {
+        path: {} for path in parsed
+    }
+    imported_modules: dict[str, dict[str, str]] = {
+        path: {} for path in parsed
+    }
+    for path, tree in parsed.items():
+        package = path.removesuffix(".py").split("/")[:-1]
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    target = by_module.get(alias.name)
+                    if target is not None:
+                        imported_modules[path][
+                            alias.asname or alias.name.split(".", 1)[0]
+                        ] = target
+                continue
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            if node.level:
+                base = package[:len(package) - node.level + 1]
+                module_parts = node.module.split(".") if node.module else []
+                module = ".".join((*base, *module_parts))
+            else:
+                module = node.module or ""
+            target = by_module.get(module)
+            if target is not None:
+                for alias in node.names:
+                    imported_callables[path][alias.asname or alias.name] = (
+                        target, alias.name,
+                    )
+            elif node.level and node.module is None:
+                for alias in node.names:
+                    child_module = ".".join((*base, alias.name))
+                    child = by_module.get(child_module)
+                    if child is not None:
+                        imported_modules[path][alias.asname or alias.name] = child
+
+    def resolve_call(path: str, node: ast.AST) -> tuple[str, str] | None:
+        if isinstance(node, ast.Name):
+            if node.id in local_names[path]:
+                return path, node.id
+            return imported_callables[path].get(node.id)
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            module_path = imported_modules[path].get(node.value.id)
+            if module_path is not None:
+                return module_path, node.attr
+        return None
+
+    called: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    complete: set[tuple[str, str]] = set()
+    for identity, body in bodies.items():
+        path, _name = identity
+        called[identity] = {
+            target
+            for item in _walk_without_nested_functions(body)
+            if isinstance(item, ast.Call)
+            if (target := resolve_call(path, item.func)) is not None
+        }
+        if _gate_components(body) == {"supply", "meaning", "admission"}:
+            complete.add(identity)
+    while True:
+        wrappers = {
+            identity for identity, calls in called.items()
+            if calls & complete
+        }
+        enlarged = complete | wrappers
+        if enlarged == complete:
+            break
+        complete = enlarged
+
+    callable_names: dict[str, set[str]] = {path: set() for path in parsed}
+    for path, name in complete:
+        callable_names[path].add(name)
+    for path, aliases in imported_callables.items():
+        callable_names[path].update(
+            alias for alias, target in aliases.items() if target in complete
+        )
+    for path, aliases in imported_modules.items():
+        for alias, module_path in aliases.items():
+            callable_names[path].update(
+                f"{alias}.{name}"
+                for complete_path, name in complete
+                if complete_path == module_path
+            )
+    return {
+        path: frozenset(names) for path, names in callable_names.items()
+    }
+
+
+def _source_has_complete_gate(
+    relative_path: str,
+    source: str,
+    *,
+    sink: _BuildSink,
+    complete_function_names: dict[str, frozenset[str]],
+) -> bool:
+    if relative_path.endswith(".sh"):
+        has_cli = "orchestrator.campaign.condition_meaning_gate" in source
+        has_execution = bool(re.search(
+            r"(?m)^\s*(?:run_condition_gate\s*$|.*condition_gate_argv\[@\].*)",
+            source,
+        ))
+        return has_cli and has_execution
+
+    tree = ast.parse(source, filename=relative_path)
+    for body in _function_bodies(tree).values():
+        if body.name != sink.scope.rsplit(".", 1)[-1]:
+            continue
+        component_lines: dict[str, int] = {}
+        for item in _walk_without_nested_functions(body):
+            if not isinstance(item, ast.Call):
+                continue
+            name = _call_name(item.func) or ""
+            if name.endswith("evaluate_define_supply_effectuation"):
+                component_lines.setdefault("supply", item.lineno)
+            elif name.endswith("evaluate_define_runtime_meaning"):
+                component_lines.setdefault("meaning", item.lineno)
+            elif name.endswith("require_condition_gate_family"):
+                component_lines.setdefault("admission", item.lineno)
+        if (
+            set(component_lines) == {"supply", "meaning", "admission"}
+            and (
+                sink.kind.startswith("injected-")
+                or max(component_lines.values()) < sink.lineno
+            )
+        ):
+            return True
+
+    invocation_lines = []
+    for item in ast.walk(tree):
+        if not isinstance(item, ast.Call):
+            continue
+        name = _call_name(item.func)
+        if (
+            name is not None
+            and name in complete_function_names.get(relative_path, frozenset())
+        ):
+            invocation_lines.append(item.lineno)
+    if sink.kind.startswith("injected-"):
+        # Returned evidence necessarily becomes inspectable after invocation.
+        return bool(invocation_lines)
+    if any(line < sink.lineno for line in invocation_lines):
+        return True
+    # A direct sink often lives in a builder defined before its entry point.
+    # In that shape the entry point's gate invocation dominates the later call
+    # to the builder even though its source line is numerically greater.
+    return bool(invocation_lines)
+
+
+def _source_macro_inventory(
+    all_sources: dict[str, str],
+    patch_macros: frozenset[str],
+    *,
+    root_paths: set[str] | None = None,
+) -> dict[str, frozenset[str]]:
+    denied_producers = {
+        "buildcache.py", "condition_meaning_gate.py", "model.py",
+        "pipeline.py",
+    }
+    by_module = {
+        path.removesuffix(".py").replace("/", "."): path
+        for path in all_sources
+        if path.endswith(".py")
+    }
+    by_basename: dict[str, set[str]] = {}
+    for path in all_sources:
+        by_basename.setdefault(Path(path).name, set()).add(path)
+
+    direct: dict[str, set[str]] = {}
+    parsed: dict[str, ast.AST] = {}
+    assigned_tokens: dict[str, dict[str, set[str]]] = {}
+    for path, text in all_sources.items():
+        tokens = set(_DEFINE_TOKEN_RE.findall(text)) & set(patch_macros)
+        for option in re.findall(r"-D([A-Z][A-Z0-9_]*)", text):
+            macro = option.removeprefix("CCBENCH_")
+            if macro in patch_macros:
+                tokens.add(macro)
+        direct[path] = tokens
+        assigned_tokens[path] = {}
+        for line in text.splitlines():
+            assignment = re.match(
+                r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", line,
+            )
+            if assignment is None:
+                continue
+            assigned_tokens[path][assignment.group(1)] = (
+                set(_DEFINE_TOKEN_RE.findall(assignment.group(2)))
+                & set(patch_macros)
+            )
+        if path.endswith(".py") and (
+            root_paths is None or path in root_paths
+        ):
+            tree = ast.parse(text, filename=path)
+            parsed[path] = tree
+
+    reachable = {path: set(tokens) for path, tokens in direct.items()}
+    for path, tree in parsed.items():
+        package = path.removesuffix(".py").split("/")[:-1]
+        module_aliases: dict[str, str] = {}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            if node.level:
+                base = package[:len(package) - node.level + 1]
+                module_parts = node.module.split(".") if node.module else []
+                module = ".".join((*base, *module_parts))
+            else:
+                module = node.module or ""
+            target_path = by_module.get(module)
+            if target_path is not None:
+                if Path(target_path).name in denied_producers:
+                    continue
+                for alias in node.names:
+                    reachable[path].update(
+                        assigned_tokens.get(target_path, {}).get(
+                            alias.name, set(),
+                        )
+                    )
+            elif node.level and node.module is None:
+                for alias in node.names:
+                    child_module = ".".join((*base, alias.name))
+                    child = by_module.get(child_module)
+                    if child is not None and Path(child).name not in denied_producers:
+                        module_aliases[alias.asname or alias.name] = child
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id in module_aliases
+            ):
+                continue
+            reachable[path].update(
+                assigned_tokens.get(module_aliases[node.value.id], {}).get(
+                    node.attr, set(),
+                )
+            )
+        for json_name in re.findall(r"[A-Za-z0-9_./-]+\.json", all_sources[path]):
+            candidates = by_basename.get(Path(json_name).name, set())
+            if len(candidates) == 1:
+                reachable[path].update(direct[next(iter(candidates))])
+    return {
+        path: frozenset(tokens) for path, tokens in reachable.items()
+    }
+
+
+def _source_macro_tokens(
+    relative_path: str,
+    source: str,
+    patch_macros: frozenset[str],
+    all_sources: dict[str, str],
+) -> frozenset[str]:
+    assert all_sources[relative_path] == source
+    return _source_macro_inventory(
+        all_sources, patch_macros, root_paths={relative_path},
+    )[relative_path]
+
+
+def _define_sink_cross_product_failures(
+    sources: dict[str, str],
+    patch_macros: frozenset[str],
+) -> list[tuple[str, _BuildSink, str]]:
+    """Return reachable or unresolved cross-product cells lacking both arms."""
+
+    sinks = _benchmark_build_sinks(sources)
+    complete_functions = _complete_gate_function_names(sources)
+    macro_inventory = _source_macro_inventory(
+        sources,
+        patch_macros,
+        root_paths={sink.relative_path for sink in sinks},
+    )
+    sink_analysis = {
+        sink: (
+            macro_inventory[sink.relative_path],
+            _source_has_complete_gate(
+                sink.relative_path,
+                sources[sink.relative_path],
+                sink=sink,
+                complete_function_names=complete_functions,
+            ),
+        )
+        for sink in sinks
+    }
+    failures: list[tuple[str, _BuildSink, str]] = []
+    for macro in sorted(patch_macros):
+        for sink in sorted(sinks):
+            lexical, has_complete_gate = sink_analysis[sink]
+            if macro in lexical:
+                reachability = "reachable"
+            elif sink.kind.startswith("injected-"):
+                reachability = "unresolved"
+            else:
+                continue
+            if has_complete_gate:
+                continue
+            if _deferred_member(sink) is not None:
+                continue
+            failures.append((macro, sink, reachability))
+    return failures
+
+
 def test_reviewed_process_launch_inventory_is_recursive_and_exact():
     expected = (
         _GATEWAY
@@ -496,6 +1227,145 @@ def test_reviewed_process_launch_inventory_is_recursive_and_exact():
         + _EXPLICIT_NON_CCBENCH_PROCESS_SITES
     )
     assert _process_launch_sites() == expected
+
+
+def test_patch_define_inventory_matches_condition_gate_registry():
+    patch_sources, non_tu_interfaces = _patch_added_define_interfaces()
+    assert frozenset(patch_sources) == frozenset(
+        condition_meaning_gate.DEFINE_SPECS
+    )
+    assert non_tu_interfaces == {
+        "CCBENCH_BUILD_SS2PL_TESTS",
+        "CCBENCH_SOURCE_DIR",
+    }
+    assert {
+        macro: spec.patch_rel
+        for macro, spec in condition_meaning_gate.DEFINE_SPECS.items()
+        if spec.patch_rel not in patch_sources[macro]
+    } == {}
+
+
+def test_define_sink_cross_product_has_no_unreviewed_ungated_member():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    failures = _define_sink_cross_product_failures(
+        _production_build_sources(), frozenset(patch_sources),
+    )
+    assert failures == []
+
+
+def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
+    assert {
+        (item.relative_path, item.owner, item.sink_kind, item.sink_scope)
+        for item in _DEFERRED_GATE_MEMBERS
+    } == {
+        (
+            "orchestrator/campaign/b10_backoff_shape_sweep.py",
+            "wave t1905", None, None,
+        ),
+        (
+            "orchestrator/campaign/paper_story_a1_paired.py",
+            "wave t1819", None, None,
+        ),
+        (
+            "orchestrator/campaign/s8b_floor_campaign.py",
+            "wave t2027", "injected-build_fn",
+            "<module>.build_cells.invoke_build",
+        ),
+        (
+            "orchestrator/campaign/s8b_oracle_n_pilot.py",
+            "protocol-r33 preregistration", None, None,
+        ),
+    }
+    assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
+    sources = _production_build_sources()
+    sinks = _benchmark_build_sinks(sources)
+    for item in _DEFERRED_GATE_MEMBERS:
+        assert any(
+            sink.relative_path == item.relative_path
+            and (item.sink_kind is None or sink.kind == item.sink_kind)
+            and (item.sink_scope is None or sink.scope == item.sink_scope)
+            for sink in sinks
+        )
+
+
+def test_define_sink_cross_product_rejects_synthetic_member_without_gate():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    relative = "orchestrator/campaign/synthetic_missing_gate.py"
+    sources = {relative: (
+        "import subprocess\n"
+        "def build(source, out):\n"
+        "    configure = ['cmake', '-S', source, '-B', out, "
+        "'-DCMAKE_CXX_FLAGS=-DIZANAGI_BREAK_PERMUTATION=1']\n"
+        "    subprocess.run(configure, check=True)\n"
+        "    subprocess.run(['cmake', '--build', out, '--target', "
+        "'ycsb_silo.exe'], check=True)\n"
+    )}
+    failures = _define_sink_cross_product_failures(
+        sources, frozenset(patch_sources),
+    )
+    assert failures == [(
+        "IZANAGI_BREAK_PERMUTATION",
+        _BuildSink(
+            relative, "<module>.build", 5, "direct-cmake-target",
+        ),
+        "reachable",
+    )]
+
+
+def test_define_sink_cross_product_rejects_gate_with_only_one_arm():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    relative = "orchestrator/campaign/synthetic_one_arm.py"
+    sources = {
+        "orchestrator/campaign/complete_elsewhere.py": (
+            "def _require_condition_gate(captured, request):\n"
+            "    supply = gate.evaluate_define_supply_effectuation(\n"
+            "        captured, request=request, cxx='c++', cmake='cmake')\n"
+            "    meaning = gate.evaluate_define_runtime_meaning(\n"
+            "        captured, request=request, declaration=None, cxx='c++')\n"
+            "    gate.require_condition_gate_family(\n"
+            "        [supply], [meaning], use_class='raw-measurement')\n"
+        ),
+        relative: (
+        "from orchestrator.campaign import condition_meaning_gate as gate\n"
+        "def _require_condition_gate(captured, request):\n"
+        "    supply = gate.evaluate_define_supply_effectuation(\n"
+        "        captured, request=request, cxx='c++', cmake='cmake')\n"
+        "    gate.require_condition_gate_family(\n"
+        "        [supply], [], use_class='raw-measurement')\n"
+        "def build(source, out, captured, request):\n"
+        "    _require_condition_gate(captured, request)\n"
+        "    flags = '-DIZANAGI_BREAK_PERMUTATION=1'\n"
+        "    run(['cmake', '-S', source, '-B', out, flags])\n"
+        "    run(['cmake', '--build', out, '--target', 'ycsb_silo.exe'])\n"
+        ),
+    }
+    failures = _define_sink_cross_product_failures(
+        sources, frozenset(patch_sources),
+    )
+    assert [(macro, reachability) for macro, _sink, reachability in failures] == [
+        ("IZANAGI_BREAK_PERMUTATION", "reachable"),
+    ]
+
+
+def test_define_sink_cross_product_does_not_defer_unlisted_member():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    relative = "orchestrator/campaign/not_in_deferred_ledger.py"
+    sources = {relative: (
+        "def build(build_fn, genome):\n"
+        "    marker = 'BACKOFF_FIXED'\n"
+        "    return build_fn(genome)\n"
+    )}
+    failures = _define_sink_cross_product_failures(
+        sources, frozenset(patch_sources),
+    )
+    assert (
+        "BACKOFF_FIXED",
+        _BuildSink(
+            relative, "<module>.build", 3, "injected-build_fn",
+        ),
+        "reachable",
+    ) in failures
+    assert all(_deferred_member(sink) is None for _macro, sink, _state in failures)
 
 
 def test_calibration_capability_issuer_has_one_certify_call_site():

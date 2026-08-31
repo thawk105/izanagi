@@ -21,6 +21,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 _FIXTURES = Path(__file__).parent / "fixtures" / "condition_meaning_gate"
 _SUPPLIED = _FIXTURES / "supplied"
 _F707 = _FIXTURES / "f707-missing-supply"
+_IGNORED = _FIXTURES / "effectuation-ignored"
 _PATCH = _ROOT / "patches" / "silo-backoff-fixed.patch"
 
 
@@ -31,6 +32,13 @@ def _any_cxx() -> str:
     pytest.skip("no supported C++ compiler is installed")
 
 
+def _any_cmake() -> str:
+    candidate = shutil.which("cmake")
+    if candidate is None:
+        pytest.skip("cmake is not installed")
+    return candidate
+
+
 def _bits(value: int | float) -> str:
     return struct.pack(">d", float(value)).hex()
 
@@ -38,6 +46,29 @@ def _bits(value: int | float) -> str:
 def _case(value: int, expected: int | float | None = None) -> G.MeaningCase:
     bits = _bits(value if expected is None else expected)
     return G.MeaningCase(value, (bits, bits))
+
+
+def _stock_branch_case() -> G.MeaningCase:
+    return G.MeaningCase(-1, None, G.STOCK_ADAPTIVE_BRANCH)
+
+
+def _request(
+    value: int,
+    *,
+    default: int | None = -1,
+    stock: bool = False,
+) -> G.DefineRequest:
+    return G.make_define_request(
+        driver_id="test-condition-meaning-gate",
+        macro="BACKOFF_FIXED",
+        requested_value=value,
+        default_value=default,
+        stock_comparison=stock,
+    )
+
+
+def _declaration(*cases: G.MeaningCase) -> G.MeaningWitnessDeclaration:
+    return G.MeaningWitnessDeclaration("BACKOFF_FIXED", tuple(cases))
 
 
 def _copied_fixture(tmp_path: Path) -> Path:
@@ -230,6 +261,298 @@ def test_f718_1000_decodes_to_zero():
     assert error.context_index == 0
     assert error.expected == _bits(1000)
     assert error.observed == _bits(0)
+
+
+def test_generic_f707_is_supply_red_and_meaning_green():
+    captured = G.capture_define_inputs(_F707)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=_declaration(_case(5)), cxx=_any_cxx(),
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == ("red", "macro-not-supplied")
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-meaning-observed",
+    )
+
+
+def test_generic_f718_is_supply_green_and_meaning_red():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(1000)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=_declaration(_case(1000)), cxx=_any_cxx(),
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "decoded-meaning-mismatch",
+    )
+
+
+def test_cmake_cxx_flags_route_uses_real_owner_compile_command():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = G.make_define_request(
+        driver_id="test-condition-meaning-gate",
+        macro="IZANAGI_BREAK_PERMUTATION",
+        requested_value=1,
+        default_value=None,
+    )
+    record = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert any(
+        argument == "-DIZANAGI_BREAK_PERMUTATION=1"
+        for argument in evidence["requested_replay_argv"]
+    )
+
+
+def test_supply_effectuation_does_not_pin_volatile_fixture_hash(tmp_path: Path):
+    root = _copied_fixture(tmp_path)
+    owner = root / "cc" / "silo" / "transaction.cc"
+    owner.write_text(
+        owner.read_text(encoding="utf-8") + "\n// unrelated worktree drift\n",
+        encoding="utf-8",
+    )
+    captured = G.capture_define_inputs(root)
+    record = G.evaluate_define_supply_effectuation(
+        captured, request=_request(5), cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    assert (record.terminal_status, record.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+
+
+def test_ignored_define_has_identical_preprocessed_bytes_and_is_red():
+    captured = G.capture_define_inputs(_IGNORED)
+    request = _request(5)
+    record = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=_declaration(_case(5)), cxx=_any_cxx(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "preprocess-bytes-identical",
+    )
+    assert evidence["requested_digest"] == evidence["control_digest"]
+    assert evidence["requested_byte_length"] == evidence["control_byte_length"]
+    assert any(
+        argument == "-DBACKOFF_FIXED=5"
+        for argument in evidence["requested_replay_argv"]
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-meaning-observed",
+    )
+
+
+def test_backoff_fixed_minus_one_stock_preprocess_identity_is_green():
+    captured = G.capture_define_inputs(_SUPPLIED, stock_root=_SUPPLIED / "stock")
+    record = G.evaluate_define_supply_effectuation(
+        captured, request=_request(-1, default=None),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "green", "stock-inert-preprocess-identical",
+    )
+    assert evidence["requested_digest"] == evidence["control_digest"]
+
+
+def test_requested_default_inert_reaches_tu_and_matches_stock():
+    captured = G.capture_define_inputs(_SUPPLIED, stock_root=_SUPPLIED / "stock")
+    request = G.make_define_request(
+        driver_id="test-condition-meaning-gate",
+        macro="BACKOFF_NOINLINE",
+        requested_value=0,
+        default_value=0,
+    )
+    record = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "green", "stock-inert-preprocess-identical",
+    )
+    assert evidence["comparison"] == "stock-inert-identity"
+    assert evidence["requested_digest"] == evidence["control_digest"]
+    assert any(
+        argument == "-DBACKOFF_NOINLINE=0"
+        for argument in evidence["requested_replay_argv"]
+    )
+
+
+def test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green():
+    captured = G.capture_define_inputs(_F707, stock_root=_SUPPLIED / "stock")
+    request = _request(-1, default=-1)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request,
+        declaration=_declaration(_stock_branch_case()), cxx=_any_cxx(),
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "red", "macro-not-supplied",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-meaning-observed",
+    )
+    assert meaning.evidence["observed_branch"] == G.STOCK_ADAPTIVE_BRANCH
+
+
+def test_inert_supply_and_independent_branch_meaning_admit_certified_selection():
+    captured = G.capture_define_inputs(_SUPPLIED, stock_root=_SUPPLIED / "stock")
+    request = _request(-1, default=-1)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request,
+        declaration=_declaration(_stock_branch_case()), cxx=_any_cxx(),
+    )
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "stock-inert-preprocess-identical",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-meaning-observed",
+    )
+    assert meaning.evidence["proof_kind"] == G.BRANCH_MEANING_PROOF_KIND
+    assert meaning.evidence["observed_branch"] == G.STOCK_ADAPTIVE_BRANCH
+    assert supply.record_id != meaning.record_id
+    assert supply.record_digest != meaning.record_digest
+    assert admission.admitted is True
+
+
+def test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red(
+    tmp_path: Path,
+):
+    root = _copied_fixture(tmp_path)
+    _replace_source(root, "#if BACKOFF_FIXED >= 0", "#if BACKOFF_FIXED >= -1")
+    _replace_source(
+        root,
+        B10.EXPECTED_HOLE_LINE,
+        "    double now_backoff = Backoff_.load(std::memory_order_acquire);",
+    )
+    captured = G.capture_define_inputs(root, stock_root=root / "stock")
+    request = _request(-1, default=-1)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request,
+        declaration=_declaration(_stock_branch_case()), cxx=_any_cxx(),
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "stock-inert-preprocess-identical",
+    )
+    assert supply.evidence["requested_digest"] == supply.evidence["control_digest"]
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "selected-branch-mismatch",
+    )
+    assert meaning.evidence["expected"] == G.STOCK_ADAPTIVE_BRANCH
+    assert meaning.evidence["observed"] == G.SYNTHESIZED_BACKOFF_BRANCH
+
+
+def test_cli_accepts_inert_selected_branch_meaning_case():
+    cases = G._cli_meaning_cases([
+        f"-1:branch:{G.STOCK_ADAPTIVE_BRANCH}",
+    ])
+    assert cases == (_stock_branch_case(),)
+
+
+def test_backoff_fixed_minus_one_requires_stock_preprocess_identity(tmp_path: Path):
+    root = tmp_path / "supplied"
+    shutil.copytree(_SUPPLIED, root)
+    stock_header = root / "stock" / "include" / "backoff.hh"
+    stock_header.write_text(
+        "    double now_backoff = Backoff_.load(std::memory_order_acquire) + 1;\n",
+        encoding="utf-8",
+    )
+    captured = G.capture_define_inputs(root, stock_root=root / "stock")
+    record = G.evaluate_define_supply_effectuation(
+        captured, request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["requested_digest"] != evidence["control_digest"]
+
+
+def test_arm_records_have_distinct_ids_digests_statuses_and_reasons():
+    request = _request(5)
+    request_digest = G._request_digest(request, ())
+    supply = G._arm_record(
+        arm="supply-effectuation", terminal_status="green",
+        reason_code="requested-default-preprocess-different", request=request,
+        request_digest=request_digest, evidence={"requested_digest": "a" * 64},
+    )
+    meaning = G._arm_record(
+        arm="runtime-meaning", terminal_status="red",
+        reason_code="decoded-meaning-mismatch", request=request,
+        request_digest=request_digest, evidence={"observed": "b" * 16},
+    )
+
+    assert supply.record_id != meaning.record_id
+    assert supply.record_digest != meaning.record_digest
+    assert supply.terminal_status != meaning.terminal_status
+    assert supply.reason_code != meaning.reason_code
+    admission = G.require_condition_gate_family([supply], [meaning], use_class="raw")
+    serialized = admission.canonical_json()
+    assert admission.record_ids == (supply.record_id, meaning.record_id)
+    assert admission.admitted is False
+    assert "terminal_status" not in serialized
+    assert "reason_code" not in serialized
+    assert "evidence" not in serialized
+
+
+def test_undeclared_meaning_is_not_green_and_p_strict_blocks_promotion():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=_any_cxx(),
+    )
+    supply = G._arm_record(
+        arm="supply-effectuation", terminal_status="green",
+        reason_code="requested-default-preprocess-different", request=request,
+        request_digest=meaning.request_digest, evidence={},
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "unestablished", "meaning-witness-undeclared",
+    )
+    assert G.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    ).admitted is True
+    assert G.require_condition_gate_family(
+        [supply], [meaning], use_class="paper",
+    ).admitted is False
 
 
 def test_duplicate_correct_marker_blocks_are_rejected(tmp_path: Path):
@@ -500,21 +823,43 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 
 def test_v1_domain_and_claim_boundaries_are_exact():
-    assert G.SUPPORTED_MACROS == {"BACKOFF_FIXED"}
+    assert G.SUPPORTED_MACROS == {
+        "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
+        "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
+        "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
+        "IZANAGI_BREAK_PERMUTATION", "IZANAGI_BREAK_PERMUTATION_SWAP",
+        "IZANAGI_BREAK_LOCK_COVERAGE", "IZANAGI_BREAK_EARLY_UNLOCK",
+        "IZANAGI_BREAK_NOREAD_VALIDATION", "IZANAGI_BREAK_HIGHKEY_VALIDATION",
+        "IZANAGI_BREAK_WRITE_INTENT_ERASE", "IZANAGI_BREAK_WRITE_INTENT_FORGE",
+        "IZANAGI_BREAK_WRITE_INTENT_OPSWAP", "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+        "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
+        "IZANAGI_SILO_LADDER_RUNG1_REPORT",
+    }
     assert G.RELATED_DEFINE_DECODE_MACROS == {
-        "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_TRIGGER_GATING",
-        "SORT_VARIANT", "SS2PL_LOCK_IMPL", "SS2PL_LOCK_KIND", "SS2PL_DLR",
-        "SS2PL_WFG_DIAG",
+        "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
+        "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
+        "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
     }
-    assert G.RELATED_DEFINE_DECODE_MACROS - G.SUPPORTED_MACROS == {
-        "BACKOFF_NOINLINE", "BACKOFF_TRIGGER_GATING", "SORT_VARIANT",
-        "SS2PL_LOCK_IMPL", "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
-    }
+    assert G.RELATED_DEFINE_DECODE_MACROS <= G.SUPPORTED_MACROS
+    assert G.DEFINE_SPECS["SS2PL_LOCK_KIND"].companion_defines == (
+        ("SS2PL_LOCK_IMPL", "1"),
+    )
+    assert G.DEFINE_SPECS["BACKOFF_FIXED"].inert_values == ("-1",)
+    assert G.DEFINE_SPECS[
+        "IZANAGI_SILO_LADDER_RUNG1_REPORT"
+    ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
+    assert sum(
+        spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
+    ) == 9
+    assert sum(
+        spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
+    ) == 13
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
         with pytest.raises(ValueError):
             G.MeaningCase(invalid, (_bits(1), _bits(1)))
+    assert _stock_branch_case().expected_selected_branch == G.STOCK_ADAPTIVE_BRANCH
     captured = G.capture_backoff_fixed_inputs(_SUPPLIED)
     for invalid in (True, -1, 1.0, "1"):
         with pytest.raises(G.ConditionMeaningGateError) as raised:

@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import hashlib
 import inspect
 import json
 import os
+import shutil
 import struct
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -134,6 +137,11 @@ def _install_profile_point_spies(monkeypatch, runs=None) -> dict:
         "applied",
         lambda *args: contextlib.nullcontext(),
     )
+    monkeypatch.setattr(
+        subject,
+        "_condition_gate_scope",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
     monkeypatch.setattr(subject, "_assert_backoff_symbol_present", lambda *args: None)
     monkeypatch.setattr(subject, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(subject, "_profile_run", fake_run)
@@ -150,6 +158,30 @@ def _complete_report(include_symbols=True, entry="Backoff::backoff") -> str:
         "# Event count (approx.): 500\n"
         f"{line}"
     )
+
+
+def _available_executable(*names: str) -> str:
+    for name in names:
+        resolved = shutil.which(name)
+        if resolved is not None:
+            return resolved
+    pytest.skip(f"required executable is unavailable: {names!r}")
+
+
+def _independent_replay_digest(record) -> str:
+    argv = list(record.evidence["requested_replay_argv"])
+    index = 0
+    while index < len(argv):
+        if argv[index] in {"-MD", "-MMD", "-MP", "-MG"}:
+            del argv[index]
+            continue
+        if argv[index] == "-MF":
+            del argv[index:index + 2]
+            continue
+        index += 1
+    completed = subprocess.run(argv, check=True, capture_output=True)
+    assert completed.stderr == b""
+    return hashlib.sha256(completed.stdout).hexdigest()
 
 
 def _install_process_spy(
@@ -550,6 +582,11 @@ def test_m12_profile_workload_drives_the_frozen_seven_point_grid(monkeypatch):
         "applied",
         lambda *args: contextlib.nullcontext(),
     )
+    monkeypatch.setattr(
+        subject,
+        "_condition_gate_scope",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
 
     subject.profile_workload("balanced", _workload(), log=lambda _: None, runtime=runtime)
 
@@ -572,6 +609,20 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
             events.append(("exit",))
 
     monkeypatch.setattr(subject.patchharness, "applied", fake_applied)
+
+    @contextlib.contextmanager
+    def fake_condition_gate(_runtime, amounts):
+        if subject._BACKOFF_CONDITION_GATE_ACTIVE.get():
+            yield
+            return
+        events.append(("condition-gate", tuple(amounts)))
+        token = subject._BACKOFF_CONDITION_GATE_ACTIVE.set(True)
+        try:
+            yield
+        finally:
+            subject._BACKOFF_CONDITION_GATE_ACTIVE.reset(token)
+
+    monkeypatch.setattr(subject, "_condition_gate_scope", fake_condition_gate)
     monkeypatch.setattr(
         subject, "assert_holdout_observation_admitted", lambda **kwargs: None,
     )
@@ -645,12 +696,12 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
         for _amount in (None, 2, 5, 10, 25, 50, 100)
         for phase in ("resolve", "build")
     ]
-    gate_phases = ["hash-check", *("symbol-check" for _ in range(7))]
+    post_build_gates = ["hash-check", *("symbol-check" for _ in range(7))]
     measure_phases = ["measure" for _ in range(7 * 3)]
     assert [event[0] for event in events[1:-1]] == [
-        *build_phases, *gate_phases, *measure_phases,
+        "condition-gate", *build_phases, *post_build_gates, *measure_phases,
     ]
-    assert events[15] == (
+    assert events[16] == (
         "hash-check", (None, 2, 5, 10, 25, 50, 100),
     )
     assert checked_binaries == [f"/tmp/fake-ccbench-{index}" for index in range(1, 8)]
@@ -750,6 +801,42 @@ def test_fx12a_seven_distinct_buildresult_binary_hashes_pass():
     subject._assert_distinct_backoff_binary_hashes(
         _built_points(f"{index:064x}" for index in range(1, 8)),
     )
+
+
+def test_real_profile_driver_gate_recomputes_preprocessed_file_digest(tmp_path):
+    """The real profile wrapper admits both live macro paths before a build."""
+    _available_executable("cmake")
+    fixture = (
+        Path(__file__).parent / "fixtures" / "condition_meaning_gate" / "supplied"
+    )
+    source_root = tmp_path / "supplied"
+    shutil.copytree(fixture, source_root)
+    header = source_root / "include" / "backoff.hh"
+    header.write_text(
+        header.read_text(encoding="utf-8")
+        + "\n#if BACKOFF_NOINLINE\nint noinline_probe = 1;\n"
+          "#else\nint noinline_probe = 0;\n#endif\n",
+        encoding="utf-8",
+    )
+    run = subject._require_condition_gate_before_measurement(
+        str(source_root),
+        stock_root=str(source_root / "stock"),
+        amounts=[5],
+        cxx=_available_executable("g++-13", "g++-12", "g++"),
+    )
+
+    supply = next(
+        record for record in run.supply_records
+        if record.macro == "BACKOFF_FIXED"
+    )
+    noinline = next(
+        record for record in run.supply_records
+        if record.macro == "BACKOFF_NOINLINE"
+    )
+    assert run.admission.admitted is True
+    assert supply.driver_id == "orchestrator/campaign/backoff_profile.py"
+    assert noinline.terminal_status == "green"
+    assert _independent_replay_digest(supply) == supply.evidence["requested_digest"]
 
 
 def test_fx12a_duplicate_binary_hash_names_colliding_points():

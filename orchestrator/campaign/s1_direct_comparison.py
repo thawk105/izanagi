@@ -16,6 +16,7 @@ import math
 import os
 import re
 import subprocess
+import struct
 import sys
 import tempfile
 import time
@@ -32,7 +33,8 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
-from . import buildcache, env_contract, ident, source_digest, trigger_gate_binding, wal  # noqa: E402
+from . import (buildcache, condition_meaning_gate, env_contract, ident,  # noqa: E402
+               source_digest, trigger_gate_binding, wal)
 from .layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
 from .model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
 from .pipeline import EvalResult, PerfConfig  # noqa: E402
@@ -163,6 +165,114 @@ class PreparedCell:
     ccbench_dir: str
     cache_root: str
     oracle_attempt: Optional[Dict] = None
+    condition_supply_records: Optional[
+        tuple[condition_meaning_gate.ConditionArmRecord, ...]
+    ] = None
+    condition_meaning_records: Optional[
+        tuple[condition_meaning_gate.ConditionArmRecord, ...]
+    ] = None
+
+
+_CONDITION_DEFAULTS = {
+    "BACKOFF_FIXED": -1,
+    "BACKOFF_NOINLINE": 0,
+    "BACKOFF_TRIGGER_GATING": 0,
+    "SORT_VARIANT": 0,
+}
+
+
+def _condition_macros(flags: Mapping[str, object]) -> frozenset[str]:
+    return frozenset(set(flags) & set(condition_meaning_gate.DEFINE_SPECS))
+
+
+def _condition_records_for_genome(
+        source_root: str, genome: Genome, *, driver_id: str, use_class: str,
+        cxx: str) -> tuple[
+            tuple[condition_meaning_gate.ConditionArmRecord, ...],
+            tuple[condition_meaning_gate.ConditionArmRecord, ...],
+        ]:
+    macros = _condition_macros(genome.flags)
+    if not macros:
+        return (), ()
+    unknown_defaults = macros - set(_CONDITION_DEFAULTS)
+    if unknown_defaults:
+        raise DriverError(
+            f"condition gate default が未宣言: {sorted(unknown_defaults)!r}"
+        )
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    supply_records = []
+    meaning_records = []
+    for macro in sorted(macros):
+        value = genome.flags[macro]
+        request = condition_meaning_gate.make_define_request(
+            driver_id=driver_id, macro=macro, requested_value=value,
+            default_value=_CONDITION_DEFAULTS[macro],
+            stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
+        )
+        declaration = None
+        if macro == "BACKOFF_FIXED" and value >= 0:
+            bits = struct.pack(">d", float(value)).hex()
+            declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+                macro,
+                (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+            )
+        supply_records.append(
+            condition_meaning_gate.evaluate_define_supply_effectuation(
+                captured, request=request, cxx=cxx, cmake="cmake",
+            )
+        )
+        meaning_records.append(
+            condition_meaning_gate.evaluate_define_runtime_meaning(
+                captured, request=request, declaration=declaration, cxx=cxx,
+            )
+        )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class=use_class,
+    )
+    if not admission.admitted:
+        reasons = ",".join(
+            f"{record.macro}:{record.arm}:{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+            if record.terminal_status != "green"
+        )
+        raise DriverError(f"condition gate rejected prepared cell: {reasons}")
+    return tuple(supply_records), tuple(meaning_records)
+
+
+def require_returned_condition_evidence(
+        value: object, *, expected_macros: frozenset[str], use_class: str,
+        label: str,
+        expected_records: Optional[tuple[
+            tuple[condition_meaning_gate.ConditionArmRecord, ...],
+            tuple[condition_meaning_gate.ConditionArmRecord, ...],
+        ]] = None) -> None:
+    """Validate both records on an injected callable's returned object."""
+    supply = getattr(value, "condition_supply_records", None)
+    meaning = getattr(value, "condition_meaning_records", None)
+    if type(supply) is not tuple or type(meaning) is not tuple:
+        raise DriverError(f"{label} が condition gate の両 record を返さなかった")
+    if ({record.macro for record in supply} != set(expected_macros)
+            or {record.macro for record in meaning} != set(expected_macros)):
+        raise DriverError(f"{label} の condition gate macro 集合が入力と不一致")
+    if not expected_macros:
+        return
+    try:
+        admission = condition_meaning_gate.require_condition_gate_family(
+            supply, meaning, use_class=use_class,
+        )
+    except condition_meaning_gate.ConditionMeaningGateError as exc:
+        raise DriverError(
+            f"{label} の condition gate record が不正: {exc.reason_code}"
+        ) from exc
+    if not admission.admitted:
+        raise DriverError(f"{label} の condition gate admission が拒否")
+    if expected_records is not None:
+        expected_supply, expected_meaning = expected_records
+        if ([record.record_id for record in supply]
+                != [record.record_id for record in expected_supply]
+                or [record.record_id for record in meaning]
+                != [record.record_id for record in expected_meaning]):
+            raise DriverError(f"{label} の condition gate record が準備済み evidence と不一致")
 
 
 def _iso_now() -> str:
@@ -593,6 +703,7 @@ def _session_wall_upper_bound_s(role: str) -> float:
 @contextlib.contextmanager
 def prepare_cell(
         cell: Mapping, ccbench_pin: str, *, cxx: str,
+        condition_use_class: str = "floor",
         oracle_dependency_root: Optional[os.PathLike[str] | str] = None,
         oracle_compiler: Optional[os.PathLike[str] | str] = None,
         oracle_phase_marker: Optional[Callable[[], None]] = None):
@@ -711,6 +822,16 @@ def prepare_cell(
         elif patch_only_path is not None:
             stack.enter_context(patchharness.applied(
                 str(patch_only_path), ccbench_pin, ccbench_dir=sub))
+        condition_supply_records, condition_meaning_records = (
+            _condition_records_for_genome(
+                sub, genome,
+                driver_id=(
+                    "orchestrator.campaign.s1_direct_comparison.prepare_cell:"
+                    f"{configuration}"
+                ),
+                use_class=condition_use_class, cxx=cxx,
+            )
+        )
         # The materializer boundary re-resolves and validates full SourceEvidence.
         # Preparation only needs the stable variant token for scheduling/identity.
         src_token = source_digest.resolve(
@@ -720,6 +841,8 @@ def prepare_cell(
             genome=genome, src_token=src_token,
             ccbench_dir=sub, cache_root=cache_root,
             oracle_attempt=oracle_attempt,
+            condition_supply_records=condition_supply_records,
+            condition_meaning_records=condition_meaning_records,
         )
 
 
@@ -791,6 +914,7 @@ def run_role(
     point = _operating_point(document)
     workload_flags = _workload_flags(document)
     schedule = schedule_for_role(document, role)
+    condition_use_class = "raw" if role == "develop" else "certified-selection"
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     authorization_contract = env_contract.authorize(ENV_TAG)
     authorized_contract = pipeline.execution_guard.require_certified_writer_authorization(
@@ -932,8 +1056,25 @@ def run_role(
             variant = f"prepare-failure-{index}-{attempt}"
             session_started = False
             try:
+                prepare_kwargs = {"cxx": cxx}
+                if prepare_cell_fn is prepare_cell:
+                    prepare_kwargs["condition_use_class"] = condition_use_class
                 with prepare_cell_fn(
-                        item.cell, cfg.ccbench_commit, cxx=cxx) as prepared:
+                        item.cell, cfg.ccbench_commit, **prepare_kwargs) as prepared:
+                    variant_flags = item.cell.get("variant", {}).get("flags", {})
+                    expected_condition_macros = (
+                        _condition_macros(variant_flags)
+                        if isinstance(variant_flags, Mapping) else frozenset()
+                    )
+                    require_returned_condition_evidence(
+                        prepared, expected_macros=expected_condition_macros,
+                        use_class=condition_use_class,
+                        label="prepare_cell_fn return",
+                    )
+                    prepared_records = (
+                        prepared.condition_supply_records,
+                        prepared.condition_meaning_records,
+                    )
                     review_input_sha = hashlib.sha256(
                         json.dumps(item.cell, sort_keys=True, separators=(",", ":"),
                                    ensure_ascii=True).encode("utf-8")
@@ -983,8 +1124,18 @@ def run_role(
                             authorization_contract=authorization_contract,
                             **kwargs,
                             **perf_evaluate_kwargs)
+                        if evaluate_fn is not pipeline.evaluate:
+                            require_returned_condition_evidence(
+                                result,
+                                expected_macros=expected_condition_macros,
+                                use_class=condition_use_class,
+                                label="evaluate_fn return",
+                                expected_records=prepared_records,
+                            )
                     except (wal.WalAppendError, wal.WalFramingError):
                         # 不確かな同一 WAL に retry/session-result を重ねない。
+                        raise
+                    except DriverError:
                         raise
                     except Exception as exc:  # evaluate の例外は閉じた retry 対象 (a)。
                         status, reason = "retryable", f"{type(exc).__name__}: {exc}"

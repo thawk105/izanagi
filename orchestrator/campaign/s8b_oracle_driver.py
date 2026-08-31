@@ -58,7 +58,13 @@ from .layout import (  # noqa: E402
 )
 from .layout import write_capability_for_directory  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
-from .s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
+from .s1_direct_comparison import (  # noqa: E402
+    DriverError as S1DriverError,
+    PreparedCell,
+    _condition_macros,
+    prepare_cell,
+    require_returned_condition_evidence,
+)
 from .s8b_materialization import (  # noqa: E402
     MaterializationError,
     binding_entry,
@@ -1290,11 +1296,10 @@ def run_block(
 
     gate 拒否時は一切書き込まず ``status="refused"`` を返す。
 
-    ``evaluate_fn`` は既存 oracle テスト用 seam であり、その callable が
-    ``pipeline.buildcache.build_v2`` を呼ばない場合、descriptor 関門は通らない。
-    既存 fixture は build 0 回の callable を完了扱いにする契約を持つため、この driver
-    は cell ごとの descriptor 付き build 回数を保証しない。production の既定
-    ``pipeline.evaluate`` が呼ぶ実 build だけを
+    ``evaluate_fn`` は既存 oracle テスト用 seam だが、注入 callable の返却物にも
+    materializer が採取した supply/meaning の二 record と完全一致する evidence を要求する。
+    build 0 回で evidence の無い callable は terminal outcome へ進めない。production の既定
+    ``pipeline.evaluate`` が呼ぶ実 build は引き続き
     ``_assert_v2_build_contract_for_snapshot`` が descriptor 付きにする。
 
     戻り値 JSON 契約 (CLI が ``_exit_code`` で終了コードへ射影する):
@@ -1668,6 +1673,20 @@ def run_block(
                         configuration_id=configuration_id,
                         ccbench_pin=run_contract["ccbench_pin"],
                         cxx=cxx, prepare_fn=prepare_fn) as (actual_binding, prepared):
+                    expected_entry = binding_entry(
+                        freeze, holdout_id, configuration_id,
+                    )
+                    expected_condition_macros = _condition_macros(
+                        expected_entry["flags"],
+                    )
+                    require_returned_condition_evidence(
+                        prepared, expected_macros=expected_condition_macros,
+                        use_class="oracle", label="oracle prepare_fn return",
+                    )
+                    prepared_records = (
+                        prepared.condition_supply_records,
+                        prepared.condition_meaning_records,
+                    )
                     expected_binding = _expected_binding(
                         manifest, holdout_id, configuration_id,
                     )
@@ -1706,6 +1725,8 @@ def run_block(
                         src_token=prepared.src_token,
                         ccbench_dir=prepared.ccbench_dir,
                         cache_root=str(output_root / "s8b-build-cache"),
+                        condition_supply_records=prepared.condition_supply_records,
+                        condition_meaning_records=prepared.condition_meaning_records,
                     )
                     perf = _perf_for_holdout(freeze, holdout_id, run_contract)
                     before = len(wal.read_records(layout))
@@ -1762,9 +1783,21 @@ def run_block(
                                 ),
                                 **perf_evaluate_kwargs,
                             )
+                            if evaluate_fn is not pipeline.evaluate:
+                                require_returned_condition_evidence(
+                                    result,
+                                    expected_macros=expected_condition_macros,
+                                    use_class="oracle",
+                                    label="oracle evaluate_fn return",
+                                    expected_records=prepared_records,
+                                )
                     except (wal.WalAppendError, wal.WalFramingError):
                         # 不確かな同一 WAL へ trial-result/deviation を重ねない。
                         raise
+                    except S1DriverError as exc:
+                        raise OracleDriverError(
+                            f"oracle condition evidence rejected: {exc}"
+                        ) from exc
                     except Exception as exc:
                         result = pipeline.EvalResult(
                             genome=prepared_for_eval.genome,

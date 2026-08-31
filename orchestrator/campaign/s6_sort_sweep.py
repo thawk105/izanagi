@@ -57,8 +57,9 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (campaign_lock as campaign_lock_codec, env_contract, ident,  # noqa: E402
-               pin, pipeline, screening_driver, source_digest, wal)
+from . import (buildcache, campaign_lock as campaign_lock_codec,  # noqa: E402
+               condition_meaning_gate, env_contract, ident, pin,
+               pipeline, screening_driver, source_digest, wal)
 from . import p3_s4_loop as L                              # noqa: E402
 from . import p3_s4_loop_sort as S                         # noqa: E402
 from .artifact_admission import (                          # noqa: E402
@@ -214,6 +215,45 @@ def _genome(sort_variant: int) -> Genome:
     return Genome("silo", {**S._BASE, "SORT_VARIANT": sort_variant})
 
 
+def _require_condition_gate(source_root: str) -> dict:
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, configure_args=tuple(_genome(1).cmake_defines()),
+    )
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.s6_sort_sweep",
+        macro="SORT_VARIANT",
+        requested_value=1,
+        default_value=0,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=buildcache.DEFAULT_CXX, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=buildcache.DEFAULT_CXX,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        raise condition_meaning_gate.ConditionMeaningGateError(
+            "condition-family-rejected",
+            "SORT_VARIANT: "
+            f"supply={supply.terminal_status}/{supply.reason_code}, "
+            f"meaning={meaning.terminal_status}/{meaning.reason_code}",
+        )
+    return {
+        "supply": json.loads(supply.canonical_json()),
+        "meaning": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
+
+
+def _preflight_condition_gate(source_root: str, patch: str) -> dict:
+    from .patchharness import applied
+    with applied(patch, PIN, source_root):
+        return _require_condition_gate(source_root)
+
+
 def _capability_resolver(name: str, context: BuildRunContext, implementation: str | None):
     """Return source-bound capability evidence for one deterministic candidate."""
     if name == STOCK_NAME:
@@ -266,6 +306,7 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
             f"{len(sel_names)} 点 (campaign {layout.root}) ===")
     try:
         with wt_cm as sub:
+            _preflight_condition_gate(sub, patch)
             active_screening = None
             if screening_enabled:
                 baseline_ref = _candidate_ref(STOCK_NAME, cfg, sub, patch)
@@ -306,6 +347,8 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
                     raise
                 except BuildAdmissionError:
                     # admission の誤配線を候補固有の transient driver error に丸めない。
+                    raise
+                except condition_meaning_gate.ConditionMeaningGateError:
                     raise
                 except Exception as e:
                     # run_campaign の外側 (applied/quarantine/resolve) の例外も候補単位で
