@@ -47,8 +47,9 @@ title: [T-1909] D1195 の逆到達閉包を実測で検分し、第一権威点�
   観測点を共有木から外すため独立 clone を `--source-repo` に渡して取り直し、rc=0 を得た。
 - **受入全走は緑にならなかった。** `19033 passed` の一方で `5 failed, 21 errors` を返し、
   赤 26 件はすべて本 wave が触っていない `test_codex_reasoning_ab.py` に集中した。
-  本文はいずれも「repo が pin する過去の codex rollout が共有 sessions ディレクトリに
-  1 件も無い」で、決定的である。単独再走でも、独立 clone 上の local main 単独でも、
+  本文は 3 種で、21 件が閉包解決の `rollout count is 0`、4 件が POS session の固定絶対 path への
+  `FileNotFoundError`、1 件が前者と同じ本文である。**pin された 5 session は全件消えている**
+  (現存 7169 rollout を 5 つの期待 SHA で全件 hash 照合して 0 件)。決定的である。単独再走でも、独立 clone 上の local main 単独でも、
   同一の 26 件が同一本文で再現した。緑だった直近の受入受領証は同日 00:49:31 で、
   `~/.codex/sessions/2026` の mtime 00:54:20 との間に消えたことまで挟み込めた。
 - **hold も復元も成立しない。** `flaky_test_holds.py` は `green_observation` の非空と

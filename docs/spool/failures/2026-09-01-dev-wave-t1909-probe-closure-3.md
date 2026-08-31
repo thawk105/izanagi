@@ -32,9 +32,15 @@ seq: 3
 - 事象: [T-1909] wave の受入全走が `19033 passed` の一方で
   `5 failed, 21 errors` を返した。赤 26 件はすべて
   `orchestrator/tests/test_codex_reasoning_ab.py` に集中し、本 wave が 1 度も触っていない
-  file である。junit の本文はいずれも
-  `ValidationError: session 019fac6b-4f74-7a03-aa4d-8a9de22b352c rollout count is 0, expected 1`
-  で、`benchmark_snapshots` fixture の setup で落ちる。
+  file である。junit の first line は **3 種**で、内訳は次のとおり (全 26 件を数えた)。
+  - 21 件 (error): `failed on setup with "ValidationError: session 019fac6b-4f74-7a03-aa4d-8a9de22b352c rollout count is 0, expected 1"`。`benchmark_snapshots` fixture の setup。
+  - 1 件 (failed): 同じ `ValidationError` 本文。`test_m2_production_golden_requires_both_routes`。
+  - 4 件 (failed): `FileNotFoundError: [Errno 2] No such file or directory: '/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl'`。
+    `test_prompt_replacement_count_zero_expected_and_excess[0]` `[9]` `[10]` と
+    `test_real_rollout_collector_golden_is_source_bound`。**POS session を固定の絶対 path で
+    直接読む経路**であり、fixture 経由ではない。
+  **消えたのは author 1 本ではない。** 現存 7169 rollout を 5 つの期待 SHA すべてで
+  全件 hash 照合した結果、POS / NEG / fix2 / author / fix1 のいずれも 0 件だった。
 - 根本原因: `tools/codex_reasoning_ab.py` の `_find_rollout` は
   `/home/SFC/tanab/.codex/sessions` を `rollout-*.jsonl` で全走査し、repo が pin した
   session id にちょうど 1 件一致することを要求する。当該 id は `_LEGACY_SESSION_IDS` の
@@ -52,7 +58,10 @@ seq: 3
   home のいずれにも存在しない。
   D1144 に従い wave は停止せず、land 以外を完了して修正の着地を待つ。
   本エントリは恒久対応を持つ主体へ一次資料を渡すためのものである。
-- 再発検知: 赤の本文が `rollout count is 0, expected 1` を含むなら本件型である。
+- 再発検知: 赤の本文が `rollout count is 0, expected 1` または
+  `~/.codex/sessions` 配下への `FileNotFoundError` を含むなら本件型である。
+  **2 経路あることに注意する** — fixture 経由の閉包解決と、POS session を固定の絶対 path で
+  直接読む経路で、後者は fixture を直しても掛からない。
   `find /home/SFC/tanab/.codex/sessions -name 'rollout-*.jsonl' | wc -l` で母集合を数え、
   `tools/codex_reasoning_ab.py` の `_LEGACY_SESSION_IDS` と `SESSION_IDS` の各 id が
   何件一致するかを個別に数える。0 件の id が本件の対象である。
@@ -68,3 +77,8 @@ seq: 3
   剪定窓は実測で約 32-34 日 (pin は 5 件とも 2026-07-29、現存の最古は 2026-08-01)。
   **次の境界では `2026/08/01` の 173 件が落ちる。** 同型の pin が他にあれば同じ壊れ方をする。
   復元も、消える場所への pin 張り替えも、同じ窓に繰り返し轢かれる。
+- 補足: **hold の循環は既知である。** wave の fragment が land まで canonical F にならない
+  構造的循環は F766 に記録済みで、D1160 が placeholder 契約を裁定しているが、
+  `orchestrator/tests/flaky_test_holds.py` の現行 regex は未実装である。
+  したがって本件で循環を断てるのは、exact node 名と各 failure signature を持つ F を
+  別の先行 wave が canonical main へ先に land する経路だけである。

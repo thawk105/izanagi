@@ -65,8 +65,13 @@ B-4 事前登録 §5.1 (ii) の非標本 probe について、D1195 が要求す
 
 受入全走 attempt 1 は `19033 passed` の一方で `5 failed, 21 errors` を返した。
 赤 26 件はすべて `orchestrator/tests/test_codex_reasoning_ab.py` に集中し、本 wave が
-1 度も触っていない file である。本文はいずれも
-`ValidationError: session 019fac6b-4f74-7a03-aa4d-8a9de22b352c rollout count is 0, expected 1`。
+1 度も触っていない file である。本文は 3 種である。21 件 (error) と 1 件 (failed) が
+`ValidationError: session 019fac6b-... rollout count is 0, expected 1`、
+残る 4 件 (failed) が POS session の固定絶対 path
+`/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-....jsonl`
+への `FileNotFoundError` である。**後者は fixture を経由しない直接読みなので、
+fixture だけを直しても掛からない。** pin された 5 session は全件消えており、
+現存 7169 rollout を 5 つの期待 SHA で全件 hash 照合しても 0 件だった。
 
 **決定的な赤である。** 単独再走でも同じ 26 件が同じ本文で再現し、独立 clone 上の local main
 単独でも同一の 26 件が同一本文で再現した。原因は repo が pin する過去の codex rollout が
