@@ -1394,8 +1394,8 @@ def _collect_compiler_inputs(
         build_dir: str, snapshot_root: str, *, target: str,
         allow_external_inputs: bool,
         expected_evolve_block_sources: Optional[Mapping[str, str]],
-        origin_fetchcontent_masstree_root: str,
-        current_fetchcontent_masstree_root: str,
+        origin_fetchcontent_masstree_root: Optional[str],
+        current_fetchcontent_masstree_root: Optional[str],
 ) -> s8b_compiler_input.CompilerInputManifest:
     """Call the production collector with the descriptor-bound policy.
 
@@ -2610,13 +2610,14 @@ def _build_v2_impl(
                 # .o.d は staging 破棄後に失われる。build 成功と同じ lifetime 内で
                 # strict metadata と実効 masstree origin を同じ lifetime 内で採る。
                 try:
-                    effective_root = _masstree_source_root_from_cmake_cache(
-                        staging
+                    effective_root = (
+                        _masstree_source_root_from_cmake_cache(staging)
+                        if allow_external_compiler_inputs else None
                     )
                     validation_root = (
                         canonical_compiler_input_masstree_root
                         or effective_root
-                    )
+                    ) if allow_external_compiler_inputs else None
                     compiler_inputs = _collect_compiler_inputs(
                         staging, sub,
                         target=f"ycsb_{genome.protocol}.exe",

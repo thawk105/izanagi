@@ -1,0 +1,197 @@
+{
+  "estimated_run_seconds": 300,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_collects_manifest_before_staging_discard",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_fresh_completion_and_result_expose_compiler_input_manifest",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_rebinds_fetchcontent_inputs_to_current_root",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_rejects_completion_without_compiler_input_proof",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_revalidates_compiler_input_bytes_without_rebuilding",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_validation_failure_never_rebuilds[hash]",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_validation_failure_never_rebuilds[missing]",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_validation_failure_never_rebuilds[symlink]",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_identity_optional_snapshot_preserves_legacy_digest_and_separates_proof",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_rejects_snapshot_changed_during_build",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_schema_pin_separates_legacy_completion_without_fallback",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_snapshot_only_bound_build_collects_without_masstree_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1-SCHEMA-PIN-OMITTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "",
+          "old": "        preimage[\"compiler_input_manifest_schema\"] = (\n            s8b_compiler_input.MANIFEST_SCHEMA\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_current_fetchcontent_bytes_drift_is_rejected",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_current_fetchcontent_nonregular_leaf_is_rejected",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_current_fetchcontent_symlink_component_is_rejected[component]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_current_fetchcontent_symlink_component_is_rejected[leaf]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_manifest_classifies_fetchcontent_root_relative",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_missing_current_fetchcontent_input_is_rejected",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_rejects_noncanonical_root_tag",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_validator_rebinds_fetchcontent_inputs_to_current_root"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2-FETCH-ROOT-AS-FILESYSTEM",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "                        root = \"filesystem\"\n                        selected_root = origin_masstree\n",
+          "old": "                        root = \"fetchcontent-masstree\"\n                        selected_root = origin_masstree\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_rebinds_fetchcontent_inputs_to_current_root"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3-CURRENT-BASE-IGNORED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "                        current_fetchcontent_masstree_root=None,\n",
+          "old": "                        current_fetchcontent_masstree_root=(\n                            current_compiler_input_masstree_root\n                        ),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_rejects_noncanonical_root_tag"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M7-ROOT-CANONICALITY-SKIPPED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "                if False and any(\n                    absolute == special or special in absolute.parents\n                    for special in special_roots\n                ):\n",
+          "old": "                if any(\n                    absolute == special or special in absolute.parents\n                    for special in special_roots\n                ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_issue_v2_receipt_rechecks_current_fetchcontent_root",
+        "orchestrator/tests/test_s8b_binary_admission.py::test_portable_validator_accepts_v1_and_v2_without_live_paths",
+        "orchestrator/tests/test_s8b_binary_admission.py::test_portable_validator_rejects_nonexact_v2_manifest_after_resealing",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M8-RECEIPT-RECHECK-OMITTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "new": "            current_fetchcontent_masstree_root=None,\n",
+          "old": "            current_fetchcontent_masstree_root=(\n                current_compiler_input_masstree_root\n            ),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10-NON-SORT-CURRENT-ROOT-OMITTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "            if (dependency_binding is not None\n                    and configuration_id == \"sort_best\"):\n                # The run-scoped dependency source was validated before any\n                # cell build.  Reuse it only as the current compiler-input\n                # masstree root; the post-oracle capability remains sort-only.\n",
+          "old": "            if dependency_binding is not None:\n                # The run-scoped dependency source was validated before any\n                # cell build.  Reuse it only as the current compiler-input\n                # masstree root; the post-oracle capability remains sort-only.\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_manifest_rejects_dot_path_as_compiler_input_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M11-DOT-PATH-ACCEPTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "    if (pure.is_absolute() or pure.as_posix() != value\n",
+          "old": "    if (not pure.parts or pure.is_absolute() or pure.as_posix() != value\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_collects_manifest_before_staging_discard",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_fresh_completion_and_result_expose_compiler_input_manifest",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_rejects_completion_without_compiler_input_proof",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_revalidates_compiler_input_bytes_without_rebuilding",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_rejects_snapshot_changed_during_build",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_schema_pin_separates_legacy_completion_without_fallback",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_snapshot_only_bound_build_collects_without_masstree_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M12-MASSTREE-ROOT-ALWAYS-REQUIRED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "                    effective_root = _masstree_source_root_from_cmake_cache(\n                        staging\n                    )\n",
+          "old": "                    effective_root = (\n                        _masstree_source_root_from_cmake_cache(staging)\n                        if allow_external_compiler_inputs else None\n                    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_symlink_spelled_root_collects_and_validates_identically"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M13-SYMLINK-ROOT-REJECTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "    absolute = os.path.abspath(raw)\n    if absolute != raw or os.path.realpath(raw) != absolute:\n        raise CompilerInputError(f\"{label} is not a canonical absolute directory\")\n",
+          "old": "    absolute = os.path.realpath(raw)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_double_slash_input_matches_single_slash_manifest_and_digest",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_double_slash_unknown_fetchcontent_root_is_compiler_input_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M14-DOUBLE-SLASH-ACCEPTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "            absolute = Path(os.path.normpath(os.path.abspath(raw_path)))\n",
+          "old": "            absolute_text = os.path.normpath(os.path.abspath(raw_path))\n            absolute = Path(os.sep + absolute_text.lstrip(os.sep))\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 2400
+}
