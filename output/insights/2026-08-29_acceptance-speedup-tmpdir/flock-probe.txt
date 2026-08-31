@@ -1,0 +1,28 @@
+flock と O_EXCL の probe 生出力 (単一 host、pegasus02)。
+script は repo 外の /home/SFC/tanab/.claude/jobs/97c251d1/tmp/flock_probe.py。
+
+検査項目:
+  acquire           単一 process が LOCK_EX を取れるか
+  mutual_exclusion  別 process が保持中に LOCK_NB が正しく弾かれるか
+  o_excl            O_CREAT|O_EXCL の 2 回目が FileExistsError になるか
+
+host=pegasus02
+root=/tmp/izanagi-flockprobe acquire=ok mutual_exclusion=ok (正しく弾かれた) o_excl=ok
+root=/work/1/SFC/tanab/.izanagi-flockprobe acquire=ok mutual_exclusion=ok (正しく弾かれた) o_excl=ok
+root=/home/SFC/tanab/.izanagi-flockprobe acquire=ok mutual_exclusion=ok (正しく弾かれた) o_excl=ok
+
+mount option (/proc/mounts):
+  .../lustre/work /work lustre rw,flock,user_xattr,lazystatfs,encrypt 0 0
+  .../lustre/home /home lustre rw,flock,user_xattr,lazystatfs,encrypt 0 0
+
+`localflock` ではなく `flock` である。
+
+=== 主張の限界 (重要) ===
+
+**この probe は単一 host でしか走らせていない。**
+mount option が `flock` であることは cluster 全体で効くことの強い状況証拠だが、**実測ではない**。
+「Lustre の flock は cluster 全体で効く」と断定するには二 host probe が要る。本 wave では行っていない。
+
+また、一時領域が担う正しさ契約は flock と O_EXCL だけではない。
+`os.replace`、file と directory の `fsync`、`os.link`、別 client からの即時可視性も
+load-bearing であり (段 3 レンズ A の指摘)、**いずれも本 probe では検査していない。**
