@@ -404,7 +404,7 @@ EXPECTED_TEST_COLLATERAL_NOTES = {
         "shared module-scoped candidate fixture, so the fixture does not start. "
         "Holding this node removes the fixed checks for candidate/report identity, "
         "inactive effectiveness, the exact 12 predicate count, ordered PREDICATE_IDS, "
-        "and zero satisfied predicates."
+        "and C10 as the sole satisfied predicate."
     ),
     "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan": (
         "Together, holding these exact five nodes removes every consumer of the "

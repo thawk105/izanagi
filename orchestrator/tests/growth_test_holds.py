@@ -115,7 +115,7 @@ _S8C_DECIDER_BINDING_COLLATERAL = _s8c_candidate_fixture_collateral(
 )
 _S8C_PREDICATE_COLLATERAL = _s8c_candidate_fixture_collateral(
     "the fixed checks for candidate/report identity, inactive effectiveness, the exact "
-    "12 predicate count, ordered PREDICATE_IDS, and zero satisfied predicates"
+    "12 predicate count, ordered PREDICATE_IDS, and C10 as the sole satisfied predicate"
 )
 _S8C_HOLDOUT_SCAN_COLLATERAL = _s8c_candidate_fixture_collateral(
     "the fixed checks for WAVE_REQUIRED_PATHS inclusion, freeze-path presence, "
