@@ -18,6 +18,10 @@ seq: 2
   `ValidationError: session 019fac6b-4f74-7a03-aa4d-8a9de22b352c rollout count is 0, expected 1`
   (22 件) と `FileNotFoundError: /home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-...jsonl`
   (4 件)。単独再走も同じ 26 件で落ちたので flake ではない。
+  **同時刻帯の別 wave 3 本も同じ 21 error / 5 failed を出している** —
+  `dev-wave-t2027-d1192-rebind` (02:06、19,040 passed)、`dev-wave-t1909-probe-closure` (01:41)、
+  `t2075-layer3-bypass-hard-failure` (01:37、いずれも 19,033 passed)。**特定 wave の赤ではなく、
+  現時点の repo 全体で受入が通らない状態である。**
 - 根本原因: 同 test は `_HISTORICAL_SESSIONS = Path("/home/SFC/tanab/.codex/sessions")` という
   **repo の外にある実 corpus** に束縛されている。その 2026/07 配下は既に存在せず
   (`~/.codex/sessions/2026` の直下は `08` と `09` だけ)、`~/.codex/` に archived_sessions も無い。
