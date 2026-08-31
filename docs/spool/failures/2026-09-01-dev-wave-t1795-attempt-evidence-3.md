@@ -27,7 +27,17 @@ seq: 3
   運用であり (2026-09-01 に中継されたユーザー指示)、同じ pin は今後も落ちる。消えた 26 node は
   「緑になった」のではなく「実行されていない」。受入 receipt は skip node ID を保持せず red と
   flake だけを持つため (`tools/dev_wave_land.py:102-130`、`tools/task_runs/pytest_stats.py:18-20`)、
-  総数だけを見ると通ったように読める。独立相談が file:line で確認したとおり失われる検出力は
+  総数だけを見ると通ったように読める。**沈黙した件数は本 wave の 2 つの実測で閉じている** —
+  修正前の main 単独 (`24014bdb2`) で当該 file は `5 failed / 598 passed / 2 skipped / 21 errors`
+  (collected 626)、修正後 (`dbdacb666` 取り込み後) は `602 passed / 27 skipped` (collected 629)。
+  **赤 26 件の内訳は 25 件が skip へ落ち、1 件は緑に戻った。** skip の 27 件は
+  その 25 件に、修正前から `IZANAGI_GROWTH_HOLD_V1` で skip されていた 2 件
+  (`test_forbidden_commits_are_unreachable_in_both_cases`、
+  `test_parent_numstat_controls_remain_pinned`) を足したものである。collected の +3 は
+  修正が新設した guard 自身の自己検査で、常時実行される。緑に戻った 1 件は
+  `test_real_rollout_collector_golden_is_source_bound` で、file を読む assert だけが条件化され、
+  token slice の digest 照合と `input_tokens` の断定は無条件で走る。
+  **したがって恒久に沈黙する生きた防壁は 25 件である。** 独立相談が file:line で確認したとおり失われる検出力は
   実在し、2026-07-29 の実 corpus そのもの、独立 golden 二経路の実 patch 合成、実 prompt の
   置換数、実 snapshot から完全 replay までの結合被覆に完全な代替は無く、登録済みの
   M1 / M2 / M3 mutation killer も止まる。合成 fixture 側
