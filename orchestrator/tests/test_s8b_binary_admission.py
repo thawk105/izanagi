@@ -62,13 +62,14 @@ def _honest_record(
     tmp_path: Path, *, root_name: str = "root-a", cell_id: str = "h1::cfg",
     holdout_id: str = "h1", configuration_id: str = "cfg",
     binary_bytes: bytes = b"honest-s8b-binary",
+    compiler_schema: str = "v1", before_issue=None,
 ) -> dict:
     source_root = Path(tempfile.mkdtemp(prefix=f"{root_name}-", dir=tmp_path))
     compiler_input = source_root / "include" / "fixture.hh"
     compiler_input.parent.mkdir()
     compiler_input.write_bytes(b"fixture compiler input\n")
     compiler_input_manifest = {
-        "schema_version": "s8b-compiler-input/v1",
+        "schema_version": f"s8b-compiler-input/{compiler_schema}",
         "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
         "target": "ycsb_fixture.exe",
         "depfile_count": 1,
@@ -77,6 +78,22 @@ def _honest_record(
             "sha256": hashlib.sha256(compiler_input.read_bytes()).hexdigest(),
         }],
     }
+    current_masstree_root = None
+    if compiler_schema == "v2":
+        current_masstree_root = tmp_path / f"{root_name}-masstree"
+        current_input = current_masstree_root / "include" / "fixture.hh"
+        current_input.parent.mkdir(parents=True)
+        current_input.write_bytes(b"fixture compiler input\n")
+        compiler_input_manifest["input_policy"] = (
+            "snapshot-and-external-hashes/v1"
+        )
+        compiler_input_manifest["inputs"] = [{
+            "root": "fetchcontent-masstree",
+            "path": "include/fixture.hh",
+            "sha256": hashlib.sha256(current_input.read_bytes()).hexdigest(),
+        }]
+    elif compiler_schema != "v1":
+        raise ValueError(compiler_schema)
     compiler_input_manifest_sha256 = _canonical_sha(compiler_input_manifest)
     source = SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA,
@@ -98,6 +115,8 @@ def _honest_record(
     binary.write_bytes(binary_bytes)
     binary_sha = hashlib.sha256(binary_bytes).hexdigest()
     binding = _binding()
+    if before_issue is not None:
+        before_issue(current_masstree_root)
     receipt = A.issue_binary_admission_receipt(
         admission=admission, expected_policy=context.policy, source=source,
         cell_id=cell_id, holdout_id=holdout_id, configuration_id=configuration_id,
@@ -107,6 +126,7 @@ def _honest_record(
         expected_materialization_sha256=_EXPECTED_MATERIALIZATION_SHA,
         compiler_input_manifest=compiler_input_manifest,
         compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        current_compiler_input_masstree_root=current_masstree_root,
     )
     record = {
         "cell_id": cell_id,
@@ -151,6 +171,76 @@ def test_issue_and_validate_binary_admission_receipt_round_trip(tmp_path: Path):
     record = _honest_record(tmp_path)
     assert _validate(record) == record["admission_receipt"]
     assert set(record) == set(A.PORTABLE_BUILT_KEYS)
+
+
+def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
+        tmp_path: Path, monkeypatch):
+    original_validate = A.s8b_compiler_input.validate_compiler_input_manifest
+
+    def issuer_boundary_validate(
+            manifest, expected_sha256, *, snapshot_root, target=None,
+            expected_evolve_block_sources=None,
+            current_fetchcontent_masstree_root=None):
+        # Isolate the issuer boundary: omitting the live root must not receive
+        # an independent fail-closed assist from the lower validator.
+        if current_fetchcontent_masstree_root is None:
+            return A.s8b_compiler_input._normalized_manifest(
+                manifest, target=target,
+            )
+        return original_validate(
+            manifest, expected_sha256,
+            snapshot_root=snapshot_root,
+            target=target,
+            expected_evolve_block_sources=expected_evolve_block_sources,
+            current_fetchcontent_masstree_root=(
+                current_fetchcontent_masstree_root
+            ),
+        )
+
+    monkeypatch.setattr(
+        A.s8b_compiler_input,
+        "validate_compiler_input_manifest",
+        issuer_boundary_validate,
+    )
+
+    def drift(root):
+        (root / "include" / "fixture.hh").write_bytes(b"receipt-time drift\n")
+
+    with pytest.raises(A.BinaryAdmissionError, match="compiler input manifest"):
+        _honest_record(
+            tmp_path, compiler_schema="v2", before_issue=drift,
+        )
+
+
+def test_portable_validator_accepts_v1_and_v2_without_live_paths(tmp_path: Path):
+    legacy = _honest_record(tmp_path, root_name="legacy", compiler_schema="v1")
+    current = _honest_record(tmp_path, root_name="current", compiler_schema="v2")
+    assert _validate(legacy) == legacy["admission_receipt"]
+    current_manifest = current["admission_receipt"]["proof"][
+        "compiler_input_manifest"
+    ]
+    current_root = tmp_path / "current-masstree"
+    import shutil
+    shutil.rmtree(current_root)
+    assert current_manifest["schema_version"] == "s8b-compiler-input/v2"
+    assert _validate(current) == current["admission_receipt"]
+
+
+def test_portable_validator_rejects_nonexact_v2_manifest_after_resealing(
+        tmp_path: Path):
+    record = _honest_record(tmp_path, compiler_schema="v2")
+    receipt = record["admission_receipt"]
+    manifest = receipt["proof"]["compiler_input_manifest"]
+    manifest["inputs"][0]["unexpected"] = True
+    receipt["subject"]["compiler_input_manifest_sha256"] = _canonical_sha(
+        manifest
+    )
+    unsigned = dict(receipt)
+    unsigned.pop("receipt_sha256")
+    receipt["receipt_sha256"] = _canonical_sha(unsigned)
+
+    with pytest.raises(A.BinaryAdmissionError, match="manifest が不正"):
+        _validate(record)
 
 
 def test_conditional_portable_key_sets_and_sort_round_trip(tmp_path: Path):

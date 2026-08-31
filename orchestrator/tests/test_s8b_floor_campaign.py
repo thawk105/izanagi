@@ -473,6 +473,7 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
                    fetchcontent_base_dir="", fetchcontent_dependency_receipt=None,
                    fetchcontent_archive_sha256=None,
                    post_oracle_dependency_binding=None,
+                   current_compiler_input_masstree_root=None,
                    masstree_source_dir=None, mimalloc_source_dir=None,
                    googletest_source_dir=None):
         del jobs
@@ -543,6 +544,8 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
             masstree_source_root_sha256 = hashlib.sha256(
                 str(Path(fetchcontent_base_dir) / "masstree-src").encode("utf-8")
             ).hexdigest()
+        if current_compiler_input_masstree_root is not None:
+            assert Path(current_compiler_input_masstree_root).name == "masstree-src"
         if post_oracle_dependency_binding is not None:
             configure_argv.append("-DFETCHCONTENT_FULLY_DISCONNECTED=ON")
         compiler_input_rel = "include/fixture.hh"
@@ -551,11 +554,12 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
             compiler_input_rel = "CMakeLists.txt"
             compiler_input = Path(effective_ccbench) / compiler_input_rel
         compiler_input_manifest = {
-            "schema_version": "s8b-compiler-input/v1",
+            "schema_version": "s8b-compiler-input/v2",
             "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
             "target": f"ycsb_{genome.protocol}.exe",
             "depfile_count": 1,
             "inputs": [{
+                "root": "snapshot",
                 "path": compiler_input_rel,
                 "sha256": hashlib.sha256(
                     compiler_input.read_bytes()
@@ -2649,11 +2653,12 @@ def test_real_floor_prepare_material_oracle_and_capability_series_when_configure
         base = Path(capability["fetchcontent_base_dir"])
         compiler_input = Path(kwargs["ccbench_dir"]) / "CMakeLists.txt"
         compiler_input_manifest = {
-            "schema_version": "s8b-compiler-input/v1",
+            "schema_version": "s8b-compiler-input/v2",
             "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
             "target": f"ycsb_{genome.protocol}.exe",
             "depfile_count": 1,
             "inputs": [{
+                "root": "snapshot",
                 "path": "CMakeLists.txt",
                 "sha256": hashlib.sha256(
                     compiler_input.read_bytes()
@@ -3044,10 +3049,12 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     all_cells = s8b_floor_campaign.enumerate_cells(
         freeze, stock_configuration=_STOCK,
     )
+    holdout_id = "rr79"
     cells = [
-        next(cell for cell in all_cells if cell["configuration_id"] == _STOCK),
-        next(cell for cell in all_cells if cell["configuration_id"] == "sort_best"),
+        cell for cell in all_cells
+        if cell["cell_id"].startswith(f"{holdout_id}::")
     ]
+    assert {cell["configuration_id"] for cell in cells} == set(_CONFIGS)
     contract = ec.lookup(ENV_TAG)
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     marker_root = tmp_path / "job-staging"
@@ -3058,8 +3065,13 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
         _fixture_dependency_binding(base),
         transport_mode="source-dir",
     )
+    shared_header = dependency.source_root / "include" / "fixture.hh"
+    shared_header.parent.mkdir(parents=True)
+    shared_header.write_bytes(b"shared masstree compiler input\n")
+    shared_header_sha256 = hashlib.sha256(shared_header.read_bytes()).hexdigest()
     events = []
     build_kwargs = {}
+    receipt_roots = {}
 
     def prebuild(observed_base, **_kwargs):
         assert observed_base == base.resolve()
@@ -3083,7 +3095,34 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
         cell_id = _FIXTURE_CELL_BY_TOKEN.get(kwargs["src_token"])
         build_kwargs[cell_id] = dict(kwargs)
         events.append(f"build:{cell_id}")
-        return fake_build(genome, **kwargs)
+        result = fake_build(genome, **kwargs)
+        snapshot_header = Path(kwargs["ccbench_dir"]) / "include" / "fixture.hh"
+        result.compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v2",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "input_policy": "snapshot-and-external-hashes/v1",
+            "target": f"ycsb_{genome.protocol}.exe",
+            "depfile_count": 1,
+            "inputs": [
+                {
+                    "root": "fetchcontent-masstree",
+                    "path": "include/fixture.hh",
+                    "sha256": shared_header_sha256,
+                },
+                {
+                    "root": "snapshot",
+                    "path": "include/fixture.hh",
+                    "sha256": hashlib.sha256(
+                        snapshot_header.read_bytes()
+                    ).hexdigest(),
+                },
+            ],
+        }
+        result.compiler_input_manifest_sha256 = hashlib.sha256(json.dumps(
+            result.compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        return result
 
     monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
     monkeypatch.setattr(
@@ -3094,6 +3133,21 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
         lambda _result, _argv, **_kwargs: dependency,
     )
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build)
+    original_issue = (
+        s8b_floor_campaign._binary_admission.issue_binary_admission_receipt
+    )
+
+    def issue_spy(**kwargs):
+        receipt_roots[kwargs["cell_id"]] = kwargs.get(
+            "current_compiler_input_masstree_root"
+        )
+        return original_issue(**kwargs)
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._binary_admission,
+        "issue_binary_admission_receipt",
+        issue_spy,
+    )
     built = s8b_floor_campaign.build_cells(
         freeze, cells, ccbench_pin="0" * 40,
         out_root=tmp_path / "out", prepare_fn=production_prepare,
@@ -3103,7 +3157,9 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     assert events.count("prebuild") == 1
     assert events.index("prebuild") < events.index("oracle")
     sort_id = next(key for key in built if key.endswith("::sort_best"))
-    stock_id = next(key for key in built if key.endswith(f"::{_STOCK}"))
+    non_sort_ids = set(built) - {sort_id}
+    assert len(built) == len(_CONFIGS)
+    assert len(non_sort_ids) == len(_CONFIGS) - 1
     assert build_kwargs[sort_id]["fetchcontent_base_dir"] == str(base.resolve())
     assert build_kwargs[sort_id]["fetchcontent_dependency_receipt"] == (
         _FIXTURE_DEPENDENCY_RECEIPT
@@ -3117,10 +3173,31 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     assert build_kwargs[sort_id]["googletest_source_dir"] == str(
         base.resolve() / "googletest-src"
     )
-    assert "fetchcontent_base_dir" not in build_kwargs[stock_id]
-    assert "fetchcontent_dependency_receipt" not in build_kwargs[stock_id]
+    current_root = str(dependency.source_root)
+    # 受理: 同じ relative path と hash の current root なら全 cell で receipt 検証が通る。
+    assert {
+        cell_id: kwargs["current_compiler_input_masstree_root"]
+        for cell_id, kwargs in build_kwargs.items()
+    } == {cell_id: current_root for cell_id in built}
+    assert receipt_roots == {cell_id: current_root for cell_id in built}
+    # 拒否: non-sort には oracle capability を付与しない。
+    sort_only_keys = {
+        "fetchcontent_base_dir",
+        "fetchcontent_dependency_receipt",
+        "fetchcontent_archive_sha256",
+        "post_oracle_dependency_binding",
+        "masstree_source_dir",
+        "mimalloc_source_dir",
+        "googletest_source_dir",
+    }
+    assert sort_only_keys <= set(build_kwargs[sort_id])
+    for cell_id in non_sort_ids:
+        assert sort_only_keys.isdisjoint(build_kwargs[cell_id])
     assert "_fetchcontent_base_dir" in built[sort_id]
-    assert "_fetchcontent_base_dir" not in built[stock_id]
+    assert all(
+        "_fetchcontent_base_dir" not in built[cell_id]
+        for cell_id in non_sort_ids
+    )
     store_root = tmp_path / "out" / "store"
     s8b_floor_campaign.store_binaries(
         built, store_root, out_root=tmp_path / "out",

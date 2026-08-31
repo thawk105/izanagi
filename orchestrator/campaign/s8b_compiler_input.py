@@ -8,13 +8,19 @@ generators, incomplete metadata, make variables, response files, symlinked
 metadata, and ambiguous target directories are rejected rather than treated as
 an empty or partial manifest.
 
-Snapshot inputs are persisted as root-independent relative paths.  Inputs
-outside the snapshot are persisted as normalized absolute paths with content
-hashes; they are not required to be snapshot members.  Descriptor-bound S8b
-collection also carries an independently captured pre-build EVOLVE-BLOCK
-source entry and requires its post-build snapshot bytes to match.  That check
-does not depend on the source merely appearing in the target dependency list.
-The manifest does not prove dynamic predicate reachability.
+Version 2 persists every compiler input as a tagged root plus a root-relative
+POSIX path.  The only portable FetchContent root admitted by the measured S8b
+surface is masstree.  Snapshot and filesystem inputs retain their established
+bytes checks, while masstree inputs are rebound to a caller-supplied current
+canonical root at every live validation boundary.  Version 1 remains a strict
+read-only compatibility format; its absolute external paths are never migrated
+or softened.
+
+Descriptor-bound S8b collection also carries an independently captured
+pre-build EVOLVE-BLOCK source entry and requires its post-build snapshot bytes
+to match.  That check does not depend on the source merely appearing in the
+target dependency list.  The manifest does not prove dynamic predicate
+reachability.
 """
 from __future__ import annotations
 
@@ -29,9 +35,11 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 
-MANIFEST_SCHEMA = "s8b-compiler-input/v1"
+LEGACY_MANIFEST_SCHEMA = "s8b-compiler-input/v1"
+MANIFEST_SCHEMA = "s8b-compiler-input/v2"
 _METADATA_SCHEMA = "cmake-unix-makefiles-cxx-depfile/v1"
 _EXTERNAL_INPUT_POLICY = "snapshot-and-external-hashes/v1"
+_V2_ROOTS = frozenset({"snapshot", "fetchcontent-masstree", "filesystem"})
 _LOWER_HEX = frozenset("0123456789abcdef")
 _TARGET_RE = re.compile(r"[A-Za-z0-9_.+-]+\Z")
 _FLAGS_KEYS = ("CXX_DEFINES", "CXX_INCLUDES", "CXX_FLAGS")
@@ -515,6 +523,156 @@ def _file_sha256(path: Path) -> str:
             os.close(descriptor)
 
 
+def _strict_root(
+        value: os.PathLike[str] | str, *, label: str,
+) -> Path:
+    """Return one canonical absolute directory after no-follow traversal."""
+    try:
+        raw = os.fspath(value)
+    except TypeError as exc:
+        raise CompilerInputError(f"{label} is unavailable") from exc
+    if (type(raw) is not str or not raw or "\0" in raw
+            or not os.path.isabs(raw)):
+        raise CompilerInputError(f"{label} is not a canonical absolute directory")
+    absolute = os.path.abspath(raw)
+    if absolute != raw or os.path.realpath(raw) != absolute:
+        raise CompilerInputError(f"{label} is not a canonical absolute directory")
+    required = ("O_DIRECTORY", "O_NOFOLLOW")
+    if any(not hasattr(os, name) for name in required):
+        raise CompilerInputError(f"{label} cannot be inspected without symlink following")
+    flags = (
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    descriptor = -1
+    try:
+        descriptor = os.open(os.sep, flags)
+        for part in Path(absolute).parts[1:]:
+            before = os.stat(part, dir_fd=descriptor, follow_symlinks=False)
+            if stat.S_ISLNK(before.st_mode) or not stat.S_ISDIR(before.st_mode):
+                raise CompilerInputError(
+                    f"{label} traverses a symlink or non-directory component"
+                )
+            child = os.open(part, flags, dir_fd=descriptor)
+            after = os.fstat(child)
+            if (
+                not stat.S_ISDIR(after.st_mode)
+                or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+            ):
+                os.close(child)
+                raise CompilerInputError(f"{label} changed during traversal")
+            os.close(descriptor)
+            descriptor = child
+        return Path(absolute)
+    except CompilerInputError:
+        raise
+    except OSError as exc:
+        raise CompilerInputError(f"{label} is unavailable") from exc
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _normalized_relative_posix(value: object, *, label: str) -> str:
+    if type(value) is not str or not value or "\0" in value:
+        raise CompilerInputError(f"{label} path is invalid")
+    pure = PurePosixPath(value)
+    if (pure.is_absolute() or pure.as_posix() != value
+            or any(part in {"", ".", ".."} for part in pure.parts)):
+        raise CompilerInputError(f"{label} path is not normalized relative POSIX")
+    return value
+
+
+def _hash_relative_nofollow(
+        root: Path, relative: str, *, label: str,
+) -> str:
+    """Hash a regular leaf reached from a held root fd without following links."""
+    parts = PurePosixPath(
+        _normalized_relative_posix(relative, label=label)
+    ).parts
+    directory_flags = (
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    leaf_flags = (
+        os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    root_fd = current_fd = leaf_fd = -1
+    try:
+        root_fd = os.open(root, directory_flags)
+        current_fd = root_fd
+        for part in parts[:-1]:
+            before = os.stat(part, dir_fd=current_fd, follow_symlinks=False)
+            if stat.S_ISLNK(before.st_mode) or not stat.S_ISDIR(before.st_mode):
+                raise CompilerInputError(f"{label} traverses a symlink component")
+            child_fd = os.open(part, directory_flags, dir_fd=current_fd)
+            after = os.fstat(child_fd)
+            if (
+                not stat.S_ISDIR(after.st_mode)
+                or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+            ):
+                os.close(child_fd)
+                raise CompilerInputError(f"{label} changed during traversal")
+            if current_fd != root_fd:
+                os.close(current_fd)
+            current_fd = child_fd
+        entry = os.stat(parts[-1], dir_fd=current_fd, follow_symlinks=False)
+        if stat.S_ISLNK(entry.st_mode) or not stat.S_ISREG(entry.st_mode):
+            raise CompilerInputError(f"{label} is not a non-symlink regular file")
+        leaf_fd = os.open(parts[-1], leaf_flags, dir_fd=current_fd)
+        before = os.fstat(leaf_fd)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or (entry.st_dev, entry.st_ino) != (before.st_dev, before.st_ino)
+        ):
+            raise CompilerInputError(f"{label} changed during open")
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(leaf_fd, 1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            digest.update(chunk)
+        after = os.fstat(leaf_fd)
+        stable_before = (
+            before.st_dev, before.st_ino, before.st_size,
+            before.st_mtime_ns, before.st_ctime_ns,
+        )
+        stable_after = (
+            after.st_dev, after.st_ino, after.st_size,
+            after.st_mtime_ns, after.st_ctime_ns,
+        )
+        if total != before.st_size or stable_before != stable_after:
+            raise CompilerInputError(f"{label} changed while hashing")
+        return digest.hexdigest()
+    except CompilerInputError:
+        raise
+    except OSError as exc:
+        raise CompilerInputError(f"{label} is unavailable or cannot be hashed") from exc
+    finally:
+        if leaf_fd >= 0:
+            os.close(leaf_fd)
+        if current_fd >= 0 and current_fd != root_fd:
+            os.close(current_fd)
+        if root_fd >= 0:
+            os.close(root_fd)
+
+
+def _roots_overlap(left: Path, right: Path) -> bool:
+    try:
+        left.relative_to(right)
+        return True
+    except ValueError:
+        pass
+    try:
+        right.relative_to(left)
+        return True
+    except ValueError:
+        return False
+
+
 def _normalized_hashed_entries(
         value: object, *, label: str, allow_absolute: bool,
 ) -> list[dict[str, str]]:
@@ -571,7 +729,82 @@ def _normalized_expected_evolve_sources(
     )
 
 
-def _normalized_manifest(manifest: object, *, target: str | None) -> dict[str, Any]:
+def _normalized_v1_manifest(
+        manifest: object, *, target: str | None,
+) -> dict[str, Any]:
+    base_keys = {
+        "schema_version", "metadata_schema", "target", "depfile_count", "inputs",
+    }
+    descriptor_keys = base_keys | {"input_policy"}
+    if type(manifest) is not dict or set(manifest) not in (
+        base_keys,
+        descriptor_keys,
+        descriptor_keys | {"evolve_block_sources"},
+    ):
+        raise CompilerInputError("compiler input manifest field set is invalid")
+    if manifest["schema_version"] != LEGACY_MANIFEST_SCHEMA:
+        raise CompilerInputError("compiler input manifest schema is invalid")
+    if manifest["metadata_schema"] != _METADATA_SCHEMA:
+        raise CompilerInputError("compiler input metadata schema is invalid")
+    selected_target = _target_name(manifest["target"])
+    if target is not None and selected_target != _target_name(target):
+        raise CompilerInputError("compiler input manifest target is inconsistent")
+    if type(manifest["depfile_count"]) is not int or manifest["depfile_count"] <= 0:
+        raise CompilerInputError("compiler input depfile count is invalid")
+    input_policy = manifest.get("input_policy")
+    if input_policy is not None and input_policy != _EXTERNAL_INPUT_POLICY:
+        raise CompilerInputError("compiler input policy is invalid")
+    inputs = _normalized_hashed_entries(
+        manifest["inputs"], label="compiler input",
+        allow_absolute=input_policy == _EXTERNAL_INPUT_POLICY,
+    )
+    normalized = {
+        "schema_version": LEGACY_MANIFEST_SCHEMA,
+        "metadata_schema": _METADATA_SCHEMA,
+        "target": selected_target,
+        "depfile_count": manifest["depfile_count"],
+        "inputs": inputs,
+    }
+    if input_policy is not None:
+        normalized["input_policy"] = input_policy
+    if "evolve_block_sources" in manifest:
+        normalized["evolve_block_sources"] = _normalized_hashed_entries(
+            manifest["evolve_block_sources"],
+            label="EVOLVE-BLOCK source", allow_absolute=False,
+        )
+    return normalized
+
+
+def _normalized_v2_inputs(value: object) -> list[dict[str, str]]:
+    if type(value) is not list or not value:
+        raise CompilerInputError("compiler input is empty")
+    normalized: list[dict[str, str]] = []
+    previous: tuple[str, str] | None = None
+    for entry in value:
+        if type(entry) is not dict or set(entry) != {"root", "path", "sha256"}:
+            raise CompilerInputError("compiler input entry field set is invalid")
+        root = entry["root"]
+        if type(root) is not str or root not in _V2_ROOTS:
+            raise CompilerInputError("compiler input root is invalid")
+        path = _normalized_relative_posix(
+            entry["path"], label="compiler input",
+        )
+        digest = entry["sha256"]
+        if not _is_sha256(digest):
+            raise CompilerInputError("compiler input bytes hash is invalid")
+        key = (root, path)
+        if previous is not None and key <= previous:
+            raise CompilerInputError(
+                "compiler input entries are not unique and sorted"
+            )
+        normalized.append({"root": root, "path": path, "sha256": digest})
+        previous = key
+    return normalized
+
+
+def _normalized_v2_manifest(
+        manifest: object, *, target: str | None,
+) -> dict[str, Any]:
     base_keys = {
         "schema_version", "metadata_schema", "target", "depfile_count", "inputs",
     }
@@ -594,11 +827,12 @@ def _normalized_manifest(manifest: object, *, target: str | None) -> dict[str, A
     input_policy = manifest.get("input_policy")
     if input_policy is not None and input_policy != _EXTERNAL_INPUT_POLICY:
         raise CompilerInputError("compiler input policy is invalid")
-    inputs = _normalized_hashed_entries(
-        manifest["inputs"], label="compiler input",
-        allow_absolute=input_policy == _EXTERNAL_INPUT_POLICY,
-    )
-    normalized = {
+    inputs = _normalized_v2_inputs(manifest["inputs"])
+    if input_policy is None and any(entry["root"] != "snapshot" for entry in inputs):
+        raise CompilerInputError(
+            "external compiler input root requires descriptor input policy"
+        )
+    normalized: dict[str, Any] = {
         "schema_version": MANIFEST_SCHEMA,
         "metadata_schema": _METADATA_SCHEMA,
         "target": selected_target,
@@ -615,10 +849,22 @@ def _normalized_manifest(manifest: object, *, target: str | None) -> dict[str, A
     return normalized
 
 
+def _normalized_manifest(manifest: object, *, target: str | None) -> dict[str, Any]:
+    if type(manifest) is not dict:
+        raise CompilerInputError("compiler input manifest field set is invalid")
+    schema = manifest.get("schema_version")
+    if schema == LEGACY_MANIFEST_SCHEMA:
+        return _normalized_v1_manifest(manifest, target=target)
+    if schema == MANIFEST_SCHEMA:
+        return _normalized_v2_manifest(manifest, target=target)
+    raise CompilerInputError("compiler input manifest schema is invalid")
+
+
 def validate_compiler_input_manifest(
     manifest: object, expected_sha256: object, *,
     snapshot_root: os.PathLike[str] | str, target: str | None = None,
     expected_evolve_block_sources: Mapping[str, str] | None = None,
+    current_fetchcontent_masstree_root: os.PathLike[str] | str | None = None,
 ) -> dict[str, Any]:
     """Validate all input bytes and any independent EVOLVE-BLOCK source proof."""
     normalized = _normalized_manifest(manifest, target=target)
@@ -626,24 +872,75 @@ def validate_compiler_input_manifest(
         raise CompilerInputError("compiler input manifest sha256 is invalid")
     if manifest_sha256(normalized) != expected_sha256:
         raise CompilerInputError("compiler input manifest sha256 mismatch")
-    snapshot = _directory(
-        snapshot_root, label="source snapshot", allow_symlink_root=True,
-    )
-    for entry in normalized["inputs"]:
-        recorded, path = _compiler_input_entry(
-            entry["path"], build_root=snapshot, snapshot_root=snapshot,
-            allow_external_inputs=True,
+    if normalized["schema_version"] == LEGACY_MANIFEST_SCHEMA:
+        snapshot = _directory(
+            snapshot_root, label="source snapshot", allow_symlink_root=True,
         )
-        if recorded != entry["path"]:
-            raise CompilerInputError("compiler input path changed during validation")
-        if _file_sha256(path) != entry["sha256"]:
-            if Path(entry["path"]).is_absolute():
-                raise CompilerInputError(
-                    "external compiler input bytes differ from the manifest"
-                )
-            raise CompilerInputError(
-                "compiler input bytes differ from the snapshot entry"
+        for entry in normalized["inputs"]:
+            recorded, path = _compiler_input_entry(
+                entry["path"], build_root=snapshot, snapshot_root=snapshot,
+                allow_external_inputs=True,
             )
+            if recorded != entry["path"]:
+                raise CompilerInputError("compiler input path changed during validation")
+            if _file_sha256(path) != entry["sha256"]:
+                if Path(entry["path"]).is_absolute():
+                    raise CompilerInputError(
+                        "external compiler input bytes differ from the manifest"
+                    )
+                raise CompilerInputError(
+                    "compiler input bytes differ from the snapshot entry"
+                )
+    else:
+        snapshot = _strict_root(snapshot_root, label="source snapshot")
+        needs_current_context = any(
+            entry["root"] != "snapshot" for entry in normalized["inputs"]
+        )
+        current_masstree = (
+            _strict_root(
+                current_fetchcontent_masstree_root,
+                label="current FetchContent masstree root",
+            )
+            if (
+                current_fetchcontent_masstree_root is not None
+                and needs_current_context
+            ) else None
+        )
+        if current_masstree is not None and _roots_overlap(snapshot, current_masstree):
+            raise CompilerInputError(
+                "source snapshot and current FetchContent masstree roots overlap"
+            )
+        for entry in normalized["inputs"]:
+            root = entry["root"]
+            if root == "snapshot":
+                selected_root = snapshot
+                difference = "compiler input bytes differ from the snapshot entry"
+            elif root == "fetchcontent-masstree":
+                if current_masstree is None:
+                    raise CompilerInputError(
+                        "current FetchContent masstree root is required"
+                    )
+                selected_root = current_masstree
+                difference = (
+                    "current FetchContent masstree input bytes differ from the manifest"
+                )
+            else:
+                selected_root = Path(os.sep)
+                absolute = selected_root.joinpath(*PurePosixPath(entry["path"]).parts)
+                special_roots = [snapshot]
+                if current_masstree is not None:
+                    special_roots.extend((current_masstree, current_masstree.parent))
+                if any(
+                    absolute == special or special in absolute.parents
+                    for special in special_roots
+                ):
+                    raise CompilerInputError(
+                        "compiler input root tag is not canonical for its live path"
+                    )
+                difference = "external compiler input bytes differ from the manifest"
+            if _hash_relative_nofollow(
+                    selected_root, entry["path"], label="compiler input") != entry["sha256"]:
+                raise CompilerInputError(difference)
     expected_sources = _normalized_expected_evolve_sources(
         expected_evolve_block_sources,
     )
@@ -653,10 +950,16 @@ def validate_compiler_input_manifest(
             "EVOLVE-BLOCK source proof differs from the admitted snapshot entry"
         )
     for entry in recorded_sources or ():
-        relative, path = _snapshot_entry(
-            entry["path"], build_root=snapshot, snapshot_root=snapshot,
-        )
-        if relative != entry["path"] or _file_sha256(path) != entry["sha256"]:
+        if normalized["schema_version"] == LEGACY_MANIFEST_SCHEMA:
+            relative, path = _snapshot_entry(
+                entry["path"], build_root=snapshot, snapshot_root=snapshot,
+            )
+            matches = relative == entry["path"] and _file_sha256(path) == entry["sha256"]
+        else:
+            matches = _hash_relative_nofollow(
+                snapshot, entry["path"], label="EVOLVE-BLOCK source",
+            ) == entry["sha256"]
+        if not matches:
             raise CompilerInputError(
                 "EVOLVE-BLOCK source bytes differ from the admitted snapshot entry"
             )
@@ -668,6 +971,8 @@ def collect_compiler_input_manifest(
     snapshot_root: os.PathLike[str] | str,
     *, target: str, allow_external_inputs: bool = False,
     expected_evolve_block_sources: Mapping[str, str] | None = None,
+    origin_fetchcontent_masstree_root: os.PathLike[str] | str | None = None,
+    current_fetchcontent_masstree_root: os.PathLike[str] | str | None = None,
 ) -> CompilerInputManifest:
     """Collect one strict manifest, optionally admitting hashed external inputs."""
     if type(allow_external_inputs) is not bool:
@@ -677,9 +982,30 @@ def collect_compiler_input_manifest(
             "EVOLVE-BLOCK source proof requires descriptor input policy"
         )
     build = _directory(build_dir, label="CMake build directory")
-    snapshot = _directory(
-        snapshot_root, label="source snapshot", allow_symlink_root=True,
+    snapshot = _strict_root(snapshot_root, label="source snapshot")
+    origin_masstree = (
+        _strict_root(
+            origin_fetchcontent_masstree_root,
+            label="origin FetchContent masstree root",
+        )
+        if origin_fetchcontent_masstree_root is not None else None
     )
+    current_masstree = (
+        _strict_root(
+            current_fetchcontent_masstree_root,
+            label="current FetchContent masstree root",
+        )
+        if current_fetchcontent_masstree_root is not None else None
+    )
+    if current_masstree is not None and origin_masstree is None:
+        raise CompilerInputError(
+            "current FetchContent masstree root requires an origin root"
+        )
+    for root in (origin_masstree, current_masstree):
+        if root is not None and _roots_overlap(snapshot, root):
+            raise CompilerInputError(
+                "source snapshot and FetchContent masstree roots overlap"
+            )
     selected_target = _target_name(target)
     _require_unix_makefiles(build)
     target_dir = _target_directory(build, selected_target)
@@ -696,19 +1022,52 @@ def collect_compiler_input_manifest(
         raise CompilerInputError(
             "link.txt objects and compiler depfiles are not an exact set"
         )
-    entries: dict[str, str] = {}
+    entries: dict[tuple[str, str], str] = {}
     for depfile in depfiles:
         raw_inputs, compiler_working_directory = _parse_depfile(
             build, target_dir, depfile,
         )
         for raw_input in raw_inputs:
-            relative, path = _compiler_input_entry(
-                raw_input, build_root=compiler_working_directory,
-                snapshot_root=snapshot,
-                allow_external_inputs=allow_external_inputs,
+            raw_path = Path(raw_input)
+            if not raw_path.is_absolute():
+                raw_path = compiler_working_directory / raw_path
+            absolute = Path(os.path.normpath(os.path.abspath(raw_path)))
+            try:
+                relative = absolute.relative_to(snapshot)
+                root = "snapshot"
+                selected_root = snapshot
+            except ValueError:
+                if not allow_external_inputs:
+                    raise CompilerInputError(
+                        "compiler input is outside the source snapshot"
+                    )
+                if origin_masstree is not None:
+                    try:
+                        relative = absolute.relative_to(origin_masstree)
+                        root = "fetchcontent-masstree"
+                        selected_root = origin_masstree
+                    except ValueError:
+                        try:
+                            absolute.relative_to(origin_masstree.parent)
+                        except ValueError:
+                            pass
+                        else:
+                            raise CompilerInputError(
+                                "unsupported FetchContent compiler input root"
+                            )
+                        root = "filesystem"
+                        selected_root = Path(os.sep)
+                        relative = absolute.relative_to(selected_root)
+                else:
+                    root = "filesystem"
+                    selected_root = Path(os.sep)
+                    relative = absolute.relative_to(selected_root)
+            relative_text = relative.as_posix()
+            digest = _hash_relative_nofollow(
+                selected_root, relative_text, label="compiler input",
             )
-            digest = _file_sha256(path)
-            previous = entries.setdefault(relative, digest)
+            key = (root, relative_text)
+            previous = entries.setdefault(key, digest)
             if previous != digest:
                 raise CompilerInputError("compiler input hash is inconsistent")
     manifest = {
@@ -717,8 +1076,8 @@ def collect_compiler_input_manifest(
         "target": selected_target,
         "depfile_count": len(depfiles),
         "inputs": [
-            {"path": relative, "sha256": entries[relative]}
-            for relative in sorted(entries)
+            {"root": root, "path": relative, "sha256": entries[(root, relative)]}
+            for root, relative in sorted(entries)
         ],
     }
     if allow_external_inputs:
@@ -732,5 +1091,8 @@ def collect_compiler_input_manifest(
     normalized = validate_compiler_input_manifest(
         manifest, digest, snapshot_root=snapshot, target=selected_target,
         expected_evolve_block_sources=expected_evolve_block_sources,
+        current_fetchcontent_masstree_root=(
+            current_masstree if current_masstree is not None else origin_masstree
+        ),
     )
     return CompilerInputManifest(normalized, digest)
