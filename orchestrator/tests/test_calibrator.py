@@ -472,6 +472,41 @@ def test_measure_point_survives_partial_rep_failure():
     assert pt.rep_observations is None  # P5: opt-in しない既存 caller は無影響
 
 
+def test_measure_point_require_all_reps_rejects_partial_rep_failure():
+    """Balanced caller's strict mode aborts at the first missing rep."""
+    from orchestrator.calibrator import runner
+    calls = {"n": 0}
+    observations = []
+    good = (
+        {"throughput[tps]": "1000", "maxrss": "100 kB"},
+        PerfCounters(llc_load_misses=10, llc_loads=100),
+        0.5,
+    )
+
+    def fake_run_once(*_args, **_kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("injected missing rep")
+        return good
+
+    original = runner.run_once
+    runner.run_once = fake_run_once
+    try:
+        try:
+            runner.measure_point(
+                "dummy", records=1000, threads=4, clocks_per_us=1800,
+                reps=3, rep_observations=observations,
+                require_all_reps=True,
+            )
+        except RuntimeError as exc:
+            assert "rep1/3 fatal" in str(exc)
+        else:
+            raise AssertionError("strict partial rep failure was accepted")
+    finally:
+        runner.run_once = original
+    assert calls["n"] == 2
+
+
 def test_measure_point_rep_observations_are_indexed_across_timeout_exception_and_rc():
     """M3: timeout/例外/非 0/success が logical rep index からずれず全件残る。"""
     from orchestrator.calibrator import runner

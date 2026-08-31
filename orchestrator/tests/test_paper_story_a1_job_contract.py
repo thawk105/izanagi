@@ -50,13 +50,16 @@ EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS = frozenset({
     "orchestrator/campaign/paper_story_a1_paired.v2.json",
     "orchestrator/campaign/pipeline.py",
     "tools/pegasus/paper_story_a1_paired.sh",
-    "orchestrator/calibrator/runner.py",
     "orchestrator/campaign/campaign_lock.py",
     "orchestrator/campaign/ident.py",
     "orchestrator/campaign/wal.py",
     "orchestrator/campaign/loop.py",
     "orchestrator/campaign/trial_registry.py",
 })
+EXPECTED_V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS = (
+    EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    | {"orchestrator/calibrator/runner.py"}
+)
 
 
 def _gate_args(tmp_path: Path) -> dict:
@@ -243,12 +246,15 @@ def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() 
         "orchestrator/campaign/paper_story_a1_paired.v2.json",
         "orchestrator/campaign/pipeline.py",
         "tools/pegasus/paper_story_a1_paired.sh",
-        "orchestrator/calibrator/runner.py",
     )
     assert frozenset(paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == (
         EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
     )
-    assert len(paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == 10
+    assert len(paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == 9
+    assert frozenset(paired.V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == (
+        EXPECTED_V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    )
+    assert len(paired.V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS) == 10
     script = JOB.read_text(encoding="utf-8")
     match = re.search(
         r"(?ms)^NON_CERTIFYING_SOURCE_RELATIVE_PATHS=\(\n(?P<body>.*?)^\)\s*$",
@@ -258,7 +264,22 @@ def test_non_certifying_source_closure_matches_shell_and_preserves_legacy_set() 
     shell_paths = tuple(re.findall(r'^\s*"([^"]+)"\s*$', match["body"], re.M))
     assert shell_paths == paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
     assert frozenset(shell_paths) == EXPECTED_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
-    assert len(shell_paths) == 10
+    assert len(shell_paths) == 9
+    assert script.count(
+        'NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=("orchestrator/calibrator/runner.py")'
+    ) == 1
+    legacy = paired.load_policy()[0]
+    pilot = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+    assert paired._source_relative_paths(
+        legacy, non_certifying=True,
+    ) == paired.NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    assert paired._source_relative_paths(
+        pilot, non_certifying=True,
+    ) == tuple(
+        paired.V3_PILOT_POLICY_RELATIVE_PATH
+        if item == paired.POLICY_RELATIVE_PATH else item
+        for item in paired.V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    )
 
 
 def _clone_canonical_ccbench(tmp_path: Path) -> Path:
@@ -1250,6 +1271,9 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
 
 
 def test_job_body_dispatches_legacy_pilot_and_future_sized_studies() -> None:
+    """Acceptance: the case statement selects each policy and one v3 bit.
+    Rejection: the terminal consumer may not re-select by enumerating study IDs.
+    """
     source = JOB.read_text(encoding="utf-8")
     assert source.count("paper-story-a1-20260826-sized-v1") == 2
     assert source.count("paper-story-a1-20260901-balanced5-pilot-v1") == 1
@@ -1261,6 +1285,15 @@ def test_job_body_dispatches_legacy_pilot_and_future_sized_studies() -> None:
         'POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v3-sized.json"'
     ) == 1
     assert source.count('V3_STUDY=1') == 2
+    assert source.count(
+        '"$V3_STUDY" "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD"'
+    ) == 1
+    assert source.count(
+        'if v3_study_raw not in {"0", "1"}:'
+    ) == 1
+    assert source.count('v3_study = v3_study_raw == "1"') == 1
+    assert source.count("if v3_study:") == 2
+    assert 'study_id != "paper-story-a1-20260826-sized-v1"' not in source
     assert 'refuse "study ID differs"' in source
 
 
@@ -1767,9 +1800,32 @@ def test_driver_reuses_run_campaign_without_direct_evaluate_call() -> None:
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
     }
     assert "run_campaign" in imported
+    assert "BalancedScheduleConfig" in imported
     assert "run_campaign" in called
+    assert "_campaign_execution_options" in called
+    assert "_require_registered_execution_options" in called
     assert "evaluate" not in imported
     assert "evaluate" not in called
+    measurement = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_measurement"
+    )
+    production_calls = [
+        node for node in ast.walk(measurement)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_campaign"
+    ]
+    assert len(production_calls) == 1
+    assert [
+        keyword.value.id
+        for keyword in production_calls[0].keywords
+        if keyword.arg is None and isinstance(keyword.value, ast.Name)
+    ] == ["execution_options"]
+    policy = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+    options = paired._campaign_execution_options(policy, "write-heavy")
+    assert type(options["balanced_schedule"]) is paired.BalancedScheduleConfig
+    assert options["bench_max_rounds"] == 1
 
 
 def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> None:

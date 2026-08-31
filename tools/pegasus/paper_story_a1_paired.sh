@@ -48,7 +48,6 @@ NON_CERTIFYING_SOURCE_RELATIVE_PATHS=(
   "orchestrator/campaign/paper_story_a1_paired.v2.json"
   "orchestrator/campaign/pipeline.py"
   "tools/pegasus/paper_story_a1_paired.sh"
-  "orchestrator/calibrator/runner.py"
   "orchestrator/campaign/campaign_lock.py"
   "orchestrator/campaign/ident.py"
   "orchestrator/campaign/wal.py"
@@ -57,6 +56,7 @@ NON_CERTIFYING_SOURCE_RELATIVE_PATHS=(
 )
 if [[ "$V3_STUDY" -eq 1 ]]; then
   NON_CERTIFYING_SOURCE_RELATIVE_PATHS[1]="$POLICY_RELATIVE"
+  NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=("orchestrator/calibrator/runner.py")
 fi
 
 [[ -n "${PBS_JOBID:-}" ]] || refuse "PBS_JOBID is required"
@@ -506,7 +506,7 @@ write_terminal() {
   IZANAGI_A1_TERMINAL_JOB_RELATIVE="$JOB_RELATIVE" \
   IZANAGI_A1_TERMINAL_RUNNER_RELATIVE="orchestrator/calibrator/runner.py" \
   "$PYTHON_BIN" - "$TERMINAL_PATH" "$REPO_ROOT" "$EXPECTED_STUDY_ID" \
-  "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD" "$DRIVER_RC" "$shell_rc" \
+  "$V3_STUDY" "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD" "$DRIVER_RC" "$shell_rc" \
     "$RESULT_ROOT" "$IZANAGI_A1_ACQUISITION_RECEIPT" "$ACQUISITION_SHA" \
     "$IZANAGI_A1_COMPLETION_RECEIPT" "$ATTEMPT_ROOT" \
     "$PBS_O_HOST" "$PBS_O_WORKDIR" <<'PY'
@@ -519,20 +519,25 @@ import sys
 import time
 
 (
-    path, repo, study_id, pbs_jobid, expected_head, driver_rc_raw,
+    path, repo, study_id, v3_study_raw, pbs_jobid, expected_head, driver_rc_raw,
     shell_rc_raw, result_root, acquisition_path, acquisition_sha,
     completion_path, attempt_root, pbs_o_host, pbs_o_workdir,
 ) = sys.argv[1:]
-source_paths = tuple(
+if v3_study_raw not in {"0", "1"}:
+    raise SystemExit("terminal v3 selector differs")
+v3_study = v3_study_raw == "1"
+source_paths = [
     os.environ[key]
     for key in (
         "IZANAGI_A1_TERMINAL_DRIVER_RELATIVE",
         "IZANAGI_A1_TERMINAL_POLICY_RELATIVE",
         "IZANAGI_A1_TERMINAL_PIPELINE_RELATIVE",
         "IZANAGI_A1_TERMINAL_JOB_RELATIVE",
-        "IZANAGI_A1_TERMINAL_RUNNER_RELATIVE",
     )
-)
+]
+if v3_study:
+    source_paths.append(os.environ["IZANAGI_A1_TERMINAL_RUNNER_RELATIVE"])
+source_paths = tuple(source_paths)
 driver_rc = int(driver_rc_raw)
 shell_rc = int(shell_rc_raw)
 
@@ -555,7 +560,7 @@ def git(*args):
 
 observed_head = git("rev-parse", "HEAD")
 status_args = ["status"]
-if study_id != "paper-story-a1-20260826-sized-v1":
+if v3_study:
     status_args.append("--ignore-submodules=all")
 status_args.extend(("--porcelain", "--untracked-files=all"))
 porcelain = git(*status_args)

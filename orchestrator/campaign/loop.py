@@ -273,11 +273,13 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 or bench_max_rounds != 1
                 or cfg.search_config.get("pairing_design")
                 != "balanced-a5b5-b5a5-v1"
+                or cfg.search_config.get("arm_order")
+                != list(balanced_schedule.arm_names)
                 or type(search_workload) is not dict
                 or search_workload.get("name") != balanced_schedule.workload):
             raise ValueError(
                 "balanced schedule requires two arms, bench, max_rounds=1, "
-                "the balanced pairing design, and its bound workload"
+                "the balanced pairing design, its arm order, and its bound workload"
             )
     if declared_use_class == "official":
         layout_constructor = campaign_layout
@@ -518,6 +520,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                         build_context=build_context,
                         capability_resolver=capability_resolver,
                         source_evidence=source_evidence,
+                        canonical_build_pin=cfg.ccbench_commit,
                         **evaluate_options,
                     )
                 else:

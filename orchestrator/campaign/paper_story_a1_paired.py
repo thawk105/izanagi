@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """D95 paper-story A-1 exploratory two-arm measurement and materializer.
 
-The measurement path deliberately reuses ``loop.run_campaign``.  It does not
-disable the producer's default remeasurement.  Instead, a selected bench round
-is eligible only when the WAL says ``rounds == 1``.  Invalid campaigns remain
-first-class raw results and are never silently replaced or promoted.
+The measurement path deliberately reuses ``loop.run_campaign``.  Legacy v2
+retains the producer's default remeasurement, while v3 is fail-closed onto the
+registered one-round balanced executor.  Invalid campaigns remain first-class
+raw results and are never silently replaced or promoted.
 """
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
@@ -64,7 +65,7 @@ from .model import (  # noqa: E402
     STAGE_COMMIT,
     STAGE_VERIFY_DONE,
 )
-from .pipeline import PerfConfig  # noqa: E402
+from .pipeline import BalancedScheduleConfig, PerfConfig  # noqa: E402
 from .p2_2 import _assert_single_tenant  # noqa: E402
 from .reservation import (  # noqa: E402
     ReservationBinding,
@@ -138,7 +139,6 @@ SOURCE_RELATIVE_PATHS = (
     POLICY_RELATIVE_PATH,
     PIPELINE_RELATIVE_PATH,
     JOB_RELATIVE_PATH,
-    "orchestrator/calibrator/runner.py",
 )
 NON_CERTIFYING_SOURCE_RELATIVE_PATHS = SOURCE_RELATIVE_PATHS + (
     "orchestrator/campaign/campaign_lock.py",
@@ -147,13 +147,26 @@ NON_CERTIFYING_SOURCE_RELATIVE_PATHS = SOURCE_RELATIVE_PATHS + (
     "orchestrator/campaign/loop.py",
     "orchestrator/campaign/trial_registry.py",
 )
+V3_SOURCE_RELATIVE_PATHS = SOURCE_RELATIVE_PATHS + (
+    "orchestrator/calibrator/runner.py",
+)
+V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS = (
+    NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+    + ("orchestrator/calibrator/runner.py",)
+)
+BALANCED_SCHEDULE_RECEIPT_NAME = "balanced-schedule-receipt.json"
+BALANCED_SIZING_CERTIFICATE_SCHEMA = (
+    "paper-story-a1-balanced-sizing-certificate/v1"
+)
+BALANCED_SIZING_PILOT_SCHEMA = "paper-story-a1-balanced-sizing-pilot/v1"
+BALANCED_SIZING_PILOT_FILENAME = "sizing-pilot.json"
 MATERIALIZATION_RELATIVE_PATH = Path(
     "output/insights/2026-08-26_paper-story-a1-sized"
 )
 COMPLETION_MARKER = ".complete.json"
 POLICY_SHA256 = "83b9c1a1ca4cce1e6394ce3338b491b14663427259eb3e129560fe5b50b99b5b"
 V3_PILOT_POLICY_SHA256 = (
-    "4a2012792c4450351f918ce944fd5dd054f4be9a79065d1fd6d36bbce210a767"
+    "405e26b976fc421203cda0d29f74b762f53e7a982bcd536dc8da4a42a5c079c4"
 )
 CANONICAL_CCBENCH_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PREREGISTRATION_SHA256 = (
@@ -955,6 +968,145 @@ def _validate_v3_fraction(
         raise PaperStoryError(f"v3 policy {label} differs")
 
 
+def _positive_decimal(value: object, label: str) -> Decimal:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise PaperStoryError(f"{label} is not a positive decimal")
+    try:
+        decimal = Decimal(str(value))
+    except InvalidOperation as exc:
+        raise PaperStoryError(f"{label} is not a positive decimal") from exc
+    if not decimal.is_finite() or decimal <= 0:
+        raise PaperStoryError(f"{label} is not a positive decimal")
+    return decimal
+
+
+def _read_sized_input_binding(
+    label: str, binding: Mapping[str, object],
+) -> tuple[Path, bytes]:
+    relative = binding.get("path")
+    expected_sha = binding.get("sha256")
+    if (
+        type(relative) is not str
+        or not relative
+        or Path(relative).is_absolute()
+        or Path(relative).as_posix() != relative
+        or any(part in {"", ".", ".."} for part in Path(relative).parts)
+        or type(expected_sha) is not str
+        or _FULL_SHA256.fullmatch(expected_sha) is None
+    ):
+        raise PaperStoryError(f"v3 sized {label} binding differs")
+    try:
+        repo_root = _repo_root().resolve(strict=True)
+        path = (repo_root / relative).resolve(strict=True)
+    except OSError as exc:
+        raise PaperStoryError(f"v3 sized {label} input is unavailable") from exc
+    if not _is_within(path, repo_root):
+        raise PaperStoryError(f"v3 sized {label} path escaped repository")
+    raw = _read_bytes_once(path)
+    if raw is None or not hmac.compare_digest(_sha256_bytes(raw), expected_sha):
+        raise PaperStoryError(f"v3 sized {label} hash differs")
+    return path, raw
+
+
+def _validate_v3_sized_certificate(
+    policy: Mapping[str, object], bindings: Mapping[str, object],
+) -> None:
+    _pilot_path, pilot_raw = _read_sized_input_binding(
+        "pilot_result", bindings["pilot_result"],
+    )
+    _certificate_path, certificate_raw = _read_sized_input_binding(
+        "sizing_certificate", bindings["sizing_certificate"],
+    )
+    pilot = _decode_json_bytes(pilot_raw, "v3 sized pilot result")
+    certificate = _decode_json_bytes(
+        certificate_raw, "v3 sized sizing certificate",
+    )
+    try:
+        canonical_certificate = (
+            json.dumps(
+                certificate,
+                ensure_ascii=False,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise PaperStoryError("v3 sized sizing certificate is not canonical") from exc
+    if certificate_raw != canonical_certificate:
+        raise PaperStoryError("v3 sized sizing certificate is not canonical")
+    certificate_pilot = certificate.get("inputs")
+    certificate_pilot = (
+        certificate_pilot.get("pilot")
+        if type(certificate_pilot) is dict else None
+    )
+    if (
+        pilot.get("schema_version") != BALANCED_SIZING_PILOT_SCHEMA
+        or pilot.get("study_id") != V3_PILOT_STUDY_ID
+        or pilot.get("final_estimate_eligible") is not False
+        or certificate.get("schema_version")
+        != BALANCED_SIZING_CERTIFICATE_SCHEMA
+        or certificate.get("status") != "selected"
+        or type(certificate_pilot) is not dict
+        or certificate_pilot.get("path")
+        != bindings["pilot_result"].get("path")
+        or certificate_pilot.get("sha256")
+        != bindings["pilot_result"].get("sha256")
+    ):
+        raise PaperStoryError("v3 sized certificate input binding differs")
+    certificate_workloads = certificate.get("workloads")
+    if (
+        type(certificate_workloads) is not list
+        or [
+            item.get("workload") for item in certificate_workloads
+            if type(item) is dict
+        ] != list(WORKLOAD_ORDER)
+    ):
+        raise PaperStoryError("v3 sized certificate workload set differs")
+    for name, certificate_workload in zip(
+        WORKLOAD_ORDER, certificate_workloads,
+    ):
+        if type(certificate_workload) is not dict:
+            raise PaperStoryError(
+                f"v3 sized certificate workload differs: {name}"
+            )
+        selected = certificate_workload.get("selected")
+        policy_workload = _workload_plan(policy, name)
+        if (
+            certificate_workload.get("status") != "selected"
+            or type(selected) is not dict
+            or type(selected.get("n")) is not int
+            or isinstance(selected.get("n"), bool)
+            or type(selected.get("df")) is not int
+            or isinstance(selected.get("df"), bool)
+            or policy_workload.get("reps") != selected.get("n")
+            or policy_workload.get("df") != selected.get("df")
+        ):
+            raise PaperStoryError(
+                f"v3 sized n or df differs from certificate: {name}"
+            )
+        if _positive_decimal(
+            policy_workload.get("k"), f"v3 sized policy k: {name}",
+        ) != _positive_decimal(
+            selected.get("t_critical"),
+            f"v3 sized certificate t critical: {name}",
+        ):
+            raise PaperStoryError(
+                f"v3 sized k differs from certificate: {name}"
+            )
+        if _positive_decimal(
+            policy_workload.get("planned_sigma_tps"),
+            f"v3 sized policy planned sigma: {name}",
+        ) != _positive_decimal(
+            certificate_workload.get("planned_sigma_tps"),
+            f"v3 sized certificate planned sigma: {name}",
+        ):
+            raise PaperStoryError(
+                f"v3 sized planned sigma differs from certificate: {name}"
+            )
+
+
 def _validate_policy_v3_semantics(policy: object) -> dict:
     if type(policy) is not dict:
         raise PaperStoryError("policy must be an exact JSON object")
@@ -1091,7 +1243,7 @@ def _validate_policy_v3_semantics(policy: object) -> dict:
         or redraw.get("counter_initial") != 0
         or redraw.get("counter_limit_exclusive") != 16
         or redraw.get("effective_root_seed_preimage")
-        != "a1-balanced5-redraw/v1|root_seed=<64-lowercase-hex>|counter=<zero-based decimal>"
+        != "<64-lowercase-hex>|counter=<zero-based decimal>"
         or redraw.get("predicate")
         != "all workload group order bits are 0 or all workload group order bits are 1"
         or redraw.get("rule")
@@ -1244,6 +1396,7 @@ def _validate_policy_v3_semantics(policy: object) -> dict:
                 or _FULL_SHA256.fullmatch(binding["sha256"]) is None
             ):
                 raise PaperStoryError(f"v3 sized {label} binding differs")
+        _validate_v3_sized_certificate(policy, bindings)
     return policy
 
 
@@ -1329,10 +1482,7 @@ def _schedule_group_bits(
     for counter in range(16):
         effective_seed = root_seed
         if counter:
-            redraw_preimage = (
-                "a1-balanced5-redraw/v1|"
-                f"root_seed={root_seed}|counter={counter}"
-            )
+            redraw_preimage = f"{root_seed}|counter={counter}"
             effective_seed = hashlib.sha256(
                 redraw_preimage.encode("utf-8")
             ).hexdigest()
@@ -1398,17 +1548,385 @@ def _balanced_schedule_plan(
     }
 
 
+_BALANCED_RECEIPT_KEYS = frozenset({
+    "schema_version", "pairing_design", "workload", "root_seed",
+    "effective_root_seed", "seed_counter", "group_bits",
+    "bench_max_rounds", "rounds", "settled", "schedule_wall_s", "arms",
+    "blocks", "reps",
+})
+_BALANCED_RECEIPT_ARM_KEYS = frozenset({
+    "variant", "rounds", "tps", "median_tps", "cv", "unstable",
+    "block_cvs",
+})
+_BALANCED_RECEIPT_BLOCK_KEYS = frozenset({
+    "arm", "group", "block", "block_in_group", "cv", "tps",
+})
+_BALANCED_RECEIPT_REP_KEYS = frozenset({
+    "tps", "arm", "pair_index", "group", "block", "block_in_group",
+    "block_position", "started_at_ns", "finished_at_ns",
+})
+
+
+def _exact_receipt_int(value: object, expected: int) -> bool:
+    return type(value) is int and value == expected
+
+
+def _balanced_schedule_receipt_errors(
+    policy: Mapping[str, object], workload_name: str, receipt: object,
+    arm_results: Mapping[str, Mapping[str, object]] | None = None,
+) -> list[str]:
+    if type(receipt) is not dict:
+        return ["schedule-receipt-missing"]
+    errors: list[str] = []
+    if set(receipt) != _BALANCED_RECEIPT_KEYS:
+        errors.append("schedule-receipt-shape-mismatch")
+    plan = _balanced_schedule_plan(policy, workload_name)
+    derivation = plan["derivation"]
+    workload = _workload_plan(policy, workload_name)
+    if any((
+        receipt.get("schema_version")
+        != policy["pairing"]["schedule_receipt_schema"],
+        receipt.get("pairing_design") != _pairing_design(policy),
+        receipt.get("workload") != workload_name,
+        receipt.get("root_seed") != workload.get("schedule_root_seed"),
+        receipt.get("effective_root_seed")
+        != derivation["effective_root_seed"],
+        not _exact_receipt_int(
+            receipt.get("seed_counter"), derivation["counter"],
+        ),
+        (
+            type(receipt.get("group_bits")) is not list
+            or any(type(bit) is not int for bit in receipt["group_bits"])
+            or receipt["group_bits"] != derivation["order_bits"]
+        ),
+        not _exact_receipt_int(receipt.get("bench_max_rounds"), 1),
+        not _exact_receipt_int(receipt.get("rounds"), 1),
+        type(receipt.get("settled")) is not dict,
+        (
+            receipt.get("settled", {}).get("settled") is not True
+            if type(receipt.get("settled")) is dict else True
+        ),
+        not _finite_number(receipt.get("schedule_wall_s")),
+        (
+            float(receipt["schedule_wall_s"]) < 0
+            if _finite_number(receipt.get("schedule_wall_s")) else False
+        ),
+    )):
+        errors.append("schedule-receipt-header-mismatch")
+
+    blocks = receipt.get("blocks")
+    reps = receipt.get("reps")
+    arms = receipt.get("arms")
+    if (
+        type(blocks) is not list
+        or len(blocks) != len(plan["blocks"])
+        or type(reps) is not list
+        or len(reps) != _expected_reps(policy, workload_name) * 2
+        or type(arms) is not dict
+        or set(arms) != {"A", "B"}
+    ):
+        errors.append("schedule-receipt-shape-mismatch")
+        return sorted(set(errors))
+
+    role_to_letter = {"variant": "A", "baseline": "B"}
+    role_to_name = {
+        role: _workload_arm_by_role(policy, workload_name, role)["name"]
+        for role in ("variant", "baseline")
+    }
+    physical_tps: dict[str, list[float]] = {"A": [], "B": []}
+    block_cvs: dict[str, list[float]] = {"A": [], "B": []}
+    previous_finished: int | None = None
+    for block_number, planned_block in enumerate(plan["blocks"]):
+        letter = role_to_letter[planned_block["role"]]
+        observed_block = blocks[block_number]
+        observed_rows = reps[block_number * 5:block_number * 5 + 5]
+        if (
+            type(observed_block) is not dict
+            or set(observed_block) != _BALANCED_RECEIPT_BLOCK_KEYS
+            or any(type(row) is not dict for row in observed_rows)
+            or any(set(row) != _BALANCED_RECEIPT_REP_KEYS for row in observed_rows)
+        ):
+            errors.append("schedule-receipt-shape-mismatch")
+            continue
+        expected_group = planned_block["group"]
+        expected_block_in_group = block_number % 4
+        if any((
+            observed_block.get("arm") != letter,
+            not _exact_receipt_int(
+                observed_block.get("group"), expected_group,
+            ),
+            not _exact_receipt_int(
+                observed_block.get("block"), block_number,
+            ),
+            not _exact_receipt_int(
+                observed_block.get("block_in_group"), expected_block_in_group,
+            ),
+        )):
+            errors.append("schedule-receipt-placement-mismatch")
+        values: list[float] = []
+        for position, (row, pair_index) in enumerate(zip(
+            observed_rows, planned_block["pair_indices"],
+        )):
+            started = row.get("started_at_ns")
+            finished = row.get("finished_at_ns")
+            if any((
+                row.get("arm") != letter,
+                not _exact_receipt_int(row.get("pair_index"), pair_index),
+                not _exact_receipt_int(row.get("group"), expected_group),
+                not _exact_receipt_int(row.get("block"), block_number),
+                not _exact_receipt_int(
+                    row.get("block_in_group"), expected_block_in_group,
+                ),
+                not _exact_receipt_int(row.get("block_position"), position),
+                type(started) is not int,
+                isinstance(started, bool),
+                type(finished) is not int,
+                isinstance(finished, bool),
+                (
+                    finished < started
+                    if type(started) is int and not isinstance(started, bool)
+                    and type(finished) is int and not isinstance(finished, bool)
+                    else False
+                ),
+                (
+                    started < previous_finished
+                    if previous_finished is not None
+                    and type(started) is int and not isinstance(started, bool)
+                    else False
+                ),
+                not _finite_number(row.get("tps")),
+                (
+                    float(row["tps"]) <= 0
+                    if _finite_number(row.get("tps")) else False
+                ),
+            )):
+                errors.append("schedule-receipt-placement-mismatch")
+            if (
+                type(finished) is int and not isinstance(finished, bool)
+                and type(started) is int and not isinstance(started, bool)
+                and finished >= started
+            ):
+                previous_finished = finished
+            if _finite_number(row.get("tps")) and float(row["tps"]) > 0:
+                values.append(float(row["tps"]))
+        if len(values) != 5:
+            continue
+        cv = statistics.stdev(values) / statistics.fmean(values)
+        if (
+            observed_block.get("tps") != [row["tps"] for row in observed_rows]
+            or not _numbers_equal(observed_block.get("cv"), cv)
+        ):
+            errors.append("schedule-receipt-block-projection-mismatch")
+        physical_tps[letter].extend(values)
+        block_cvs[letter].append(cv)
+
+    for role, letter in role_to_letter.items():
+        arm_record = arms.get(letter)
+        values = physical_tps[letter]
+        if (
+            type(arm_record) is not dict
+            or set(arm_record) != _BALANCED_RECEIPT_ARM_KEYS
+            or len(values) != _expected_reps(policy, workload_name)
+        ):
+            errors.append("schedule-receipt-arm-projection-mismatch")
+            continue
+        mean = statistics.fmean(values)
+        cv = statistics.stdev(values) / mean
+        expected_name = role_to_name[role]
+        expected_arm = (
+            arm_results.get(expected_name)
+            if arm_results is not None else None
+        )
+        if any((
+            not _exact_receipt_int(arm_record.get("rounds"), 1),
+            arm_record.get("tps") != values,
+            not _numbers_equal(arm_record.get("median_tps"), statistics.median(values)),
+            not _numbers_equal(arm_record.get("cv"), cv),
+            arm_record.get("unstable") is not (cv > 0.05),
+            (
+                type(arm_record.get("block_cvs")) is not list
+                or len(arm_record["block_cvs"]) != len(block_cvs[letter])
+                or any(
+                    not _numbers_equal(observed, expected)
+                    for observed, expected in zip(
+                        arm_record["block_cvs"], block_cvs[letter],
+                    )
+                )
+            ),
+            (
+                type(arm_record.get("variant")) is not str
+                or not arm_record["variant"]
+            ),
+            (
+                expected_arm is not None
+                and arm_record.get("variant") != expected_arm.get("variant")
+            ),
+            (
+                expected_arm is not None
+                and arm_record.get("tps") != expected_arm.get("raw_tps")
+            ),
+        )):
+            errors.append("schedule-receipt-arm-projection-mismatch")
+    return sorted(set(errors))
+
+
+def _snapshot_balanced_schedule_receipt(
+    policy: Mapping[str, object], workload_name: str, layout: CampaignLayout,
+    expected_receipt: object = None,
+) -> tuple[dict[str, object] | None, list[str]]:
+    if _policy_schema(policy) != POLICY_SCHEMA_V3:
+        return None, []
+    path = Path(layout.root) / BALANCED_SCHEDULE_RECEIPT_NAME
+    errors: list[str] = []
+    try:
+        raw = _read_bytes_once(path, missing_ok=True)
+    except PaperStoryError as exc:
+        raw = None
+        errors.append(f"schedule-receipt-open-error:{exc}")
+    evidence: dict[str, object] = {
+        "path": os.fspath(path.resolve(strict=False)),
+        "size": len(raw) if raw is not None else 0,
+        "sha256": _sha256_bytes(raw) if raw is not None else None,
+        "document": None,
+    }
+    if raw is None:
+        errors.append("schedule-receipt-missing")
+        return evidence, errors
+    try:
+        document = _decode_json_bytes(raw, "balanced schedule receipt")
+    except PaperStoryError as exc:
+        errors.append(f"schedule-receipt-decode-error:{exc}")
+        return evidence, errors
+    evidence["document"] = document
+    if expected_receipt is not None and document != expected_receipt:
+        errors.append("schedule-receipt-summary-mismatch")
+    return evidence, errors
+
+
+def _balanced_sizing_pilot_document(
+    policy: Mapping[str, object], result: Mapping[str, object],
+) -> dict[str, object]:
+    if (
+        _policy_schema(policy) != POLICY_SCHEMA_V3
+        or _policy_study_id(policy) != V3_PILOT_STUDY_ID
+        or policy.get("final_estimate_eligible") is not False
+        or result.get("complete") is not True
+    ):
+        raise PaperStoryError(
+            "balanced sizing pilot requires one complete registered pilot"
+        )
+    workloads = result.get("workloads")
+    if (
+        type(workloads) is not list
+        or [item.get("workload") for item in workloads if type(item) is dict]
+        != list(WORKLOAD_ORDER)
+    ):
+        raise PaperStoryError("balanced sizing pilot workload set differs")
+    converted = []
+    for item in workloads:
+        name = item["workload"]
+        evidence = item.get("schedule_receipt")
+        document = evidence.get("document") if type(evidence) is dict else None
+        receipt_errors = _balanced_schedule_receipt_errors(
+            policy,
+            name,
+            document,
+            item.get("arms") if type(item.get("arms")) is dict else None,
+        )
+        if receipt_errors:
+            raise PaperStoryError(
+                f"balanced sizing pilot receipt differs: {name}: "
+                + ",".join(receipt_errors)
+            )
+        letter_to_name = {
+            "A": _workload_arm_by_role(policy, name, "variant")["name"],
+            "B": _workload_arm_by_role(policy, name, "baseline")["name"],
+        }
+        observations = []
+        for row in document["reps"]:
+            pair_index = row["pair_index"]
+            observations.append({
+                "arm": letter_to_name[row["arm"]],
+                "block": pair_index // 5,
+                "block_position": pair_index % 5,
+                "ended_at_ns": row["finished_at_ns"],
+                "group": row["group"],
+                "pair_index": pair_index,
+                "started_at_ns": row["started_at_ns"],
+                "tps": row["tps"],
+            })
+        converted.append({"observations": observations, "workload": name})
+    return {
+        "final_estimate_eligible": False,
+        "schema_version": BALANCED_SIZING_PILOT_SCHEMA,
+        "study_id": V3_PILOT_STUDY_ID,
+        "workloads": converted,
+    }
+
+
+def _campaign_execution_options(
+    policy: Mapping[str, object], workload_name: str,
+) -> dict[str, object]:
+    """Return the only registered execution route for this policy schema."""
+    if _policy_schema(policy) == POLICY_SCHEMA_V2:
+        return {}
+    workload = _workload_plan(policy, workload_name)
+    options: dict[str, object] = {
+        "bench_max_rounds": policy["execution"]["bench_max_rounds"],
+        "balanced_schedule": BalancedScheduleConfig(
+            workload=workload_name,
+            root_seed=workload["schedule_root_seed"],
+            receipt_name=BALANCED_SCHEDULE_RECEIPT_NAME,
+        ),
+    }
+    return _require_registered_execution_options(
+        policy, workload_name, options,
+    )
+
+
+def _require_registered_execution_options(
+    policy: Mapping[str, object], workload_name: str,
+    options: Mapping[str, object],
+) -> dict[str, object]:
+    """Fail closed if a v3 caller could fall through to loop.py defaults."""
+    if _policy_schema(policy) == POLICY_SCHEMA_V2:
+        if dict(options):
+            raise PaperStoryError("v2 execution options differ from legacy route")
+        return {}
+    workload = _workload_plan(policy, workload_name)
+    schedule = options.get("balanced_schedule")
+    if (
+        set(options) != {"bench_max_rounds", "balanced_schedule"}
+        or options.get("bench_max_rounds") != 1
+        or type(schedule) is not BalancedScheduleConfig
+        or schedule.workload != workload_name
+        or schedule.root_seed != workload.get("schedule_root_seed")
+        or schedule.receipt_name != BALANCED_SCHEDULE_RECEIPT_NAME
+    ):
+        raise PaperStoryError(
+            "v3 execution must use the registered balanced schedule"
+        )
+    return dict(options)
+
+
 def _source_relative_paths(
     policy: Mapping[str, object], *, non_certifying: bool,
 ) -> tuple[str, ...]:
-    policy_relative = _policy_relative_path(policy)
-    source = tuple(
-        policy_relative if item == POLICY_RELATIVE_PATH else item
-        for item in SOURCE_RELATIVE_PATHS
+    is_v3 = _policy_schema(policy) == POLICY_SCHEMA_V3
+    paths = (
+        V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+        if is_v3 and non_certifying else
+        NON_CERTIFYING_SOURCE_RELATIVE_PATHS
+        if non_certifying else
+        V3_SOURCE_RELATIVE_PATHS
+        if is_v3 else
+        SOURCE_RELATIVE_PATHS
     )
-    if not non_certifying:
-        return source
-    return source + NON_CERTIFYING_SOURCE_RELATIVE_PATHS[len(SOURCE_RELATIVE_PATHS):]
+    policy_relative = _policy_relative_path(policy)
+    return tuple(
+        policy_relative if item == POLICY_RELATIVE_PATH else item
+        for item in paths
+    )
 
 
 def genomes(
@@ -3139,6 +3657,8 @@ def _validate_arm(
             errors.append("bench-median-does-not-match-tps")
         if not _numbers_equal(bench.get("cv"), cv):
             errors.append("bench-cv-does-not-match-tps")
+        if is_v3 and bench.get("unstable") is not (cv > 0.05):
+            errors.append("bench-unstable-does-not-match-aggregate-cv")
     if (
         not _numbers_equal(commit.get("fitness_tps"), bench.get("median_tps"))
         or not _numbers_equal(commit.get("cv"), bench.get("cv"))
@@ -3224,6 +3744,7 @@ def validate_workload_evidence(
     preexisting_errors: Sequence[str] = (),
     campaign_binding: Mapping[str, object] | None = None,
     non_certifying_lock: bool = False,
+    schedule_receipt_evidence: Mapping[str, object] | None = None,
 ) -> dict:
     validate_policy(policy)
     _assert_ccbench_acceptance(
@@ -3264,6 +3785,16 @@ def validate_workload_evidence(
         arm_results[arm_policy["name"]] = arm_result
         errors.extend(f"{arm_policy['name']}:{item}" for item in arm_result["errors"])
 
+    is_v3 = _policy_schema(policy) == POLICY_SCHEMA_V3
+    if is_v3:
+        schedule_document = (
+            schedule_receipt_evidence.get("document")
+            if type(schedule_receipt_evidence) is dict else None
+        )
+        errors.extend(_balanced_schedule_receipt_errors(
+            policy, workload_name, schedule_document, arm_results,
+        ))
+
     valid = not errors and all(item.get("valid") for item in arm_results.values())
     stats = None
     if valid:
@@ -3291,7 +3822,7 @@ def validate_workload_evidence(
             "reasons": sorted(set(errors)),
         }
     )
-    return {
+    result = {
         "workload": workload_name,
         "campaign_id": campaign_id,
         "valid": valid,
@@ -3302,6 +3833,11 @@ def validate_workload_evidence(
         "wal_evidence": _json_safe(dict(wal_evidence)),
         "campaign_binding": _json_safe(dict(campaign_binding or {})),
     }
+    if is_v3:
+        result["schedule_receipt"] = _json_safe(
+            dict(schedule_receipt_evidence or {})
+        )
+    return result
 
 
 def _infer_arm_name(
@@ -3543,6 +4079,7 @@ def collect_workload(
     campaign_error: str | None = None,
     expected_campaign_preimage: str | None = None,
     expected_layout_root: str | None = None,
+    expected_schedule_receipt: object = None,
 ) -> dict:
     wal_path = Path(layout.wal_file)
     preexisting_errors: list[str] = []
@@ -3681,6 +4218,15 @@ def collect_workload(
     arm_evidence = _arm_evidence_from_snapshot(
         physical_frames, policy, workload_name,
     )
+    schedule_receipt_evidence, schedule_receipt_errors = (
+        _snapshot_balanced_schedule_receipt(
+            policy,
+            workload_name,
+            layout,
+            expected_receipt=expected_schedule_receipt,
+        )
+    )
+    preexisting_errors.extend(schedule_receipt_errors)
     return validate_workload_evidence(
         policy,
         workload_name=workload_name,
@@ -3695,6 +4241,7 @@ def collect_workload(
             type(decoded_snapshot_lock)
             is campaign_lock_codec.DecodedNonCertifyingCampaignLock
         ),
+        schedule_receipt_evidence=schedule_receipt_evidence,
     )
 
 
@@ -4186,7 +4733,7 @@ def _validate_non_certifying_observation_contents(
         item["campaign_id"] for item in expected_campaigns
     ]:
         raise PaperStoryError("non-certifying common campaign IDs differ")
-    _revalidate_raw_wals(result, receipt)
+    _revalidate_raw_wals(result, receipt, policy)
     _assert_observation_anomalies_zero(result)
     if (
         result.get("complete") is not True
@@ -4506,6 +5053,12 @@ def run_measurement(args) -> int:
                     generator_input_sha256=_sha256_bytes(generator_input),
                 )
 
+            execution_options = _campaign_execution_options(
+                policy, workload_name,
+            )
+            execution_options = _require_registered_execution_options(
+                policy, workload_name, execution_options,
+            )
             summary = run_campaign(
                 cfg,
                 genomes(policy, workload_name),
@@ -4523,6 +5076,7 @@ def run_measurement(args) -> int:
                 declared_use_class=DECLARED_USE_CLASS,
                 capability_resolver=capability_resolver,
                 durable_root_policy=durable_policy,
+                **execution_options,
             )
             campaign_id = summary.campaign_id
             layout = CampaignLayout(summary.layout_root)
@@ -4540,6 +5094,10 @@ def run_measurement(args) -> int:
             campaign_error=campaign_error,
             expected_campaign_preimage=campaign_preimage,
             expected_layout_root=expected_layout_root,
+            expected_schedule_receipt=(
+                summary.balanced_schedule_receipt
+                if summary is not None else None
+            ),
         )
         workload_results.append(collected)
 
@@ -4802,6 +5360,28 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
     for item in workloads:
         if type(item) is not dict:
             raise PaperStoryError("result workload is not an object")
+        if _policy_schema(policy) == POLICY_SCHEMA_V3:
+            schedule_evidence = item.get("schedule_receipt")
+            schedule_document = (
+                schedule_evidence.get("document")
+                if type(schedule_evidence) is dict else None
+            )
+            arms = item.get("arms")
+            schedule_errors = _balanced_schedule_receipt_errors(
+                policy,
+                item.get("workload"),
+                schedule_document,
+                arms if type(arms) is dict else None,
+            )
+            recorded_errors = item.get("errors")
+            if (
+                type(recorded_errors) is not list
+                or any(error not in recorded_errors for error in schedule_errors)
+                or (item.get("valid") is True and schedule_errors)
+            ):
+                raise PaperStoryError(
+                    "balanced schedule receipt does not match workload validity"
+                )
         if item.get("valid") is True:
             arms = item.get("arms")
             expected_names = _workload_arm_order(
@@ -5333,6 +5913,7 @@ def _publish_materialization_bundle(
     destination: Path,
     materialized_receipt: Mapping[str, object],
     result: Mapping[str, object],
+    policy: Mapping[str, object] | None = None,
 ) -> None:
     if result.get("all_workloads_terminal") is not True:
         raise PaperStoryError(
@@ -5354,13 +5935,25 @@ def _publish_materialization_bundle(
         _exclusive_write(staging / "receipt.json", materialized_receipt)
         _exclusive_write(staging / "result.json", published_result)
         _exclusive_write_text(staging / "README.md", _readme(published_result))
+        materialized_names = ["README.md", "receipt.json", "result.json"]
+        if (
+            policy is not None
+            and _policy_schema(policy) == POLICY_SCHEMA_V3
+            and _policy_study_id(policy) == V3_PILOT_STUDY_ID
+            and result.get("complete") is True
+        ):
+            _exclusive_write(
+                staging / BALANCED_SIZING_PILOT_FILENAME,
+                _balanced_sizing_pilot_document(policy, result),
+            )
+            materialized_names.append(BALANCED_SIZING_PILOT_FILENAME)
         completion = {
             "schema_version": "paper-story-a1-paired-materialization-complete/v1",
             "destination": os.fspath(destination),
             "publish": publish_evidence,
             "files": {
                 name: _sha256_file(staging / name)
-                for name in ("README.md", "receipt.json", "result.json")
+                for name in materialized_names
             },
         }
         _publish_complete_staging(
@@ -5502,6 +6095,7 @@ def run_materialize(args) -> int:
         destination,
         materialized_receipt,
         _materialized_result(result, completion, terminal),
+        policy,
     )
     return 0
 

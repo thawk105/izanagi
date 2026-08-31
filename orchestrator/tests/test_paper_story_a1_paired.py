@@ -29,6 +29,7 @@ from orchestrator.campaign.build_admission import (
 )
 from orchestrator.campaign.layout import exploration_campaign_layout
 from orchestrator.campaign.model import COMMIT_CONTRACT_SHA256_KEY, WalRecord
+from orchestrator.campaign.pipeline import BalancedScheduleConfig
 from orchestrator.campaign.source_digest import SourceEvidence
 from orchestrator.tests import commit_receipt_support as receipt_support
 
@@ -253,6 +254,92 @@ def _policy() -> dict:
 
 def _v3_pilot_policy() -> dict:
     return paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+
+
+def _balanced_receipt_fixture(
+    policy: dict, workload_name: str,
+) -> tuple[dict, dict[str, dict[str, object]]]:
+    plan = paired._balanced_schedule_plan(policy, workload_name)
+    variant = paired._workload_arm_by_role(
+        policy, workload_name, "variant",
+    )["name"]
+    baseline = paired._workload_arm_by_role(
+        policy, workload_name, "baseline",
+    )["name"]
+    role_to_letter = {"variant": "A", "baseline": "B"}
+    role_to_name = {"variant": variant, "baseline": baseline}
+    rows = []
+    blocks = []
+    arm_values = {"A": [], "B": []}
+    clock = 1_000_000
+    for block in plan["blocks"]:
+        letter = role_to_letter[block["role"]]
+        values = []
+        for position, pair_index in enumerate(block["pair_indices"]):
+            tps = (
+                1_010_000.0 + pair_index * 3.0
+                if block["role"] == "variant"
+                else 1_000_000.0 + pair_index * 2.0
+            )
+            values.append(tps)
+            rows.append({
+                "arm": letter,
+                "block": block["block_number"],
+                "block_in_group": block["block_number"] % 4,
+                "block_position": position,
+                "finished_at_ns": clock + 5,
+                "group": block["group"],
+                "pair_index": pair_index,
+                "started_at_ns": clock,
+                "tps": tps,
+            })
+            clock += 10
+        arm_values[letter].extend(values)
+        blocks.append({
+            "arm": letter,
+            "block": block["block_number"],
+            "block_in_group": block["block_number"] % 4,
+            "cv": statistics.stdev(values) / statistics.fmean(values),
+            "group": block["group"],
+            "tps": values,
+        })
+    arms = {}
+    arm_results = {}
+    for role, letter in role_to_letter.items():
+        values = arm_values[letter]
+        name = role_to_name[role]
+        variant_id = f"variant-{name}"
+        arms[letter] = {
+            "block_cvs": [
+                item["cv"] for item in blocks if item["arm"] == letter
+            ],
+            "cv": statistics.stdev(values) / statistics.fmean(values),
+            "median_tps": statistics.median(values),
+            "rounds": 1,
+            "tps": values,
+            "unstable": False,
+            "variant": variant_id,
+        }
+        arm_results[name] = {"raw_tps": values, "variant": variant_id}
+    derivation = plan["derivation"]
+    return {
+        "arms": arms,
+        "bench_max_rounds": 1,
+        "blocks": blocks,
+        "effective_root_seed": derivation["effective_root_seed"],
+        "group_bits": derivation["order_bits"],
+        "pairing_design": paired.V3_PAIRING_DESIGN,
+        "reps": rows,
+        "root_seed": paired._workload_plan(
+            policy, workload_name,
+        )["schedule_root_seed"],
+        "rounds": 1,
+        "schedule_wall_s": 1.0,
+        "schema_version": "paper-story-a1-balanced-schedule-receipt/v1",
+        "seed_counter": derivation["counter"],
+        "settled": {"settled": True},
+        "workload": workload_name,
+    }, arm_results
 
 
 def _validated_workload(name: str = "write-heavy", campaign_id: str = "campaign-a"):
@@ -818,20 +905,40 @@ def test_policy_file_is_the_exact_preregistered_contract() -> None:
 
 def test_legacy_frozen_bytes_have_independent_literal_goldens() -> None:
     repo_root = Path(paired.__file__).resolve().parents[2]
-    assert hashlib.sha256(
-        (repo_root / "orchestrator/campaign/paper_story_a1_paired.v2.json")
-        .read_bytes()
-    ).hexdigest() == (
-        "83b9c1a1ca4cce1e6394ce3338b491b14663427259eb3e129560fe5b50b99b5b"
+    literal_goldens = {
+        "orchestrator/campaign/paper_story_a1_paired.v2.json": "83b9c1a1ca4cce1e6394ce3338b491b14663427259eb3e129560fe5b50b99b5b",
+        "output/insights/2026-08-26_paper-story-a1-sized-preregistration/README.md": "c85279e997c7483060f3282836aa4800f473b95fe5f0fc1807431f06a0817fea",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/MUTATION.md": "40e297edfb1b377445667e1e8ff7364c05de4b683983ffedc1a3edccfefaa93a",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/README.md": "6133e2143f73c47d8b69909755f5953f926a755df9c62fce4e7bb1a0f29aae03",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/mutation-attempts.final.json": "0d7e844c74228d26a3db3440b3de9f3e8f17eebbd79653dc29be39fbf7a60f6a",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/mutation-ledger.final.json": "13e5e27695aede3ea8ef40f5ce11f23e3ca41f33d8faffdfa25d43453dea4148",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/mutation-ledger.m06-correction.json": "ec507c8f5e72e62c7271664fd1ccd68743ea35dd6a45a920f064108a9e95daa2",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/mutation-spec.final.json": "6d10323b30644074b7f306fbf2094d7576cba12edb3514de1ea5a0a705becc77",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/mutation-spec.m06-correction.json": "d48c7cb2fb4e551f67da131053d73131be0a242471ce020d42c965618f2a0fd2",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/sizing-certificate.failed-v1.json": "da511809ba1ef855c39f78aacee3feba5524c222b80d77f2884b61223aa10efd",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/sizing-certificate.v2.json": "4f4735cf43f227f421b0bfcc2c9f17328736a105def15071838e0ba5d5a3e18a",
+        "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/sizing-replay-receipt.v2.json": "269f070b4603e93b42ebc6433d0f8deb370a021be6afcd452320a63e9a9f0ff3",
+        "orchestrator/campaign/paper_story_a1_headline.py": "08ee08ad505d5a1a1c9186bd2838545f5f830d6a9f9ff0a0376069cc466f0edf",
+        "orchestrator/campaign/paper_story_a1_headline.v1.json": "b38a728fc73ab01834355b809c3565e3f71bafb0786b5c9bcb26bc38968eb746",
+        "tools/size_paper_story_a1_headline.py": "9755faec6f5f3731f2c1eea25c6ce5568c58f6bb344ac30a66f941841e180596",
+        "tools/verify_paper_story_a1_headline_sizing.py": "248835d4d7f295a3caa928efe0aa823ff7cc6cdbb895161ca8a33d00ab46ad94",
+    }
+    for relative, expected_sha in literal_goldens.items():
+        assert hashlib.sha256((repo_root / relative).read_bytes()).hexdigest() == expected_sha
+    preregistration_root = (
+        repo_root
+        / "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration"
     )
-    assert hashlib.sha256(
-        (repo_root / (
-            "output/insights/2026-08-26_paper-story-a1-sized-"
-            "preregistration/README.md"
-        )).read_bytes()
-    ).hexdigest() == (
-        "c85279e997c7483060f3282836aa4800f473b95fe5f0fc1807431f06a0817fea"
-    )
+    assert {
+        path.relative_to(repo_root).as_posix()
+        for path in preregistration_root.rglob("*")
+        if path.is_file()
+    } == {
+        relative for relative in literal_goldens
+        if relative.startswith(
+            "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/"
+        )
+    }
 
 
 def test_policy_schema_dispatch_preserves_v2_and_rejects_unknown() -> None:
@@ -908,14 +1015,50 @@ def test_v3_rejects_legacy_top_level_arm_fields(forbidden: str) -> None:
 def test_v3_loader_accepts_future_sized_policy_shape(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Acceptance: certificate-selected n/k/sigma are accepted exactly.
+    Rejection: policy drift or an unavailable certificate is rejected.
+    """
     sized = copy.deepcopy(_v3_pilot_policy())
     sized["study_id"] = paired.V3_SIZED_STUDY_ID
     sized["final_estimate_eligible"] = True
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    pilot_relative = "pilot.json"
+    certificate_relative = "sizing-certificate.json"
+    pilot = {
+        "final_estimate_eligible": False,
+        "schema_version": paired.BALANCED_SIZING_PILOT_SCHEMA,
+        "study_id": paired.V3_PILOT_STUDY_ID,
+        "workloads": [],
+    }
+    pilot_path = repo / pilot_relative
+    pilot_path.write_text(json.dumps(pilot, sort_keys=True) + "\n", encoding="utf-8")
+    pilot_sha = hashlib.sha256(pilot_path.read_bytes()).hexdigest()
+    certificate = {
+        "inputs": {"pilot": {"path": pilot_relative, "sha256": pilot_sha}},
+        "schema_version": paired.BALANCED_SIZING_CERTIFICATE_SCHEMA,
+        "status": "selected",
+        "workloads": [
+            {
+                "planned_sigma_tps": "100000.0",
+                "selected": {"df": 29, "n": 30, "t_critical": "2.0"},
+                "status": "selected",
+                "workload": name,
+            }
+            for name in paired.WORKLOAD_ORDER
+        ],
+    }
+    certificate_path = repo / certificate_relative
+    certificate_path.write_text(
+        json.dumps(certificate, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    certificate_sha = hashlib.sha256(certificate_path.read_bytes()).hexdigest()
     sized["sizing_inputs"] = {
-        "pilot_result": {"path": "output/pilot/result.json", "sha256": "a" * 64},
+        "pilot_result": {"path": pilot_relative, "sha256": pilot_sha},
         "sizing_certificate": {
-            "path": "output/prereg/sizing-certificate.json",
-            "sha256": "b" * 64,
+            "path": certificate_relative,
+            "sha256": certificate_sha,
         },
     }
     for workload in sized["workloads"]:
@@ -929,11 +1072,27 @@ def test_v3_loader_accepts_future_sized_policy_shape(
         json.dumps(sized, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
+    monkeypatch.setattr(paired, "_repo_root", lambda: repo)
     monkeypatch.setattr(paired, "V3_SIZED_POLICY_PATH", path)
     loaded, digest = paired.load_policy(paired.V3_SIZED_STUDY_ID)
     assert loaded == sized
     assert digest == hashlib.sha256(path.read_bytes()).hexdigest()
     assert paired.genomes(loaded, "balanced")[0].flags["BACKOFF_FIXED"] == 5
+    for field, value in (("reps", 40), ("k", 2.1), ("planned_sigma_tps", 99999.0)):
+        drifted = copy.deepcopy(sized)
+        drifted["workloads"][0][field] = value
+        if field == "reps":
+            drifted["workloads"][0]["df"] = 39
+            drifted["workloads"][0]["pair_indices"]["stop_exclusive"] = 40
+        with pytest.raises(paired.PaperStoryError, match="certificate"):
+            paired._validate_policy_semantics(drifted)
+    unavailable = copy.deepcopy(sized)
+    unavailable["sizing_inputs"]["sizing_certificate"] = {
+        "path": "missing-certificate.json",
+        "sha256": "0" * 64,
+    }
+    with pytest.raises(paired.PaperStoryError, match="unavailable"):
+        paired._validate_policy_semantics(unavailable)
 
 
 def test_v3_seed_preimage_is_literal_and_excludes_study_and_date_M4() -> None:
@@ -956,6 +1115,9 @@ def test_v3_seed_preimage_is_literal_and_excludes_study_and_date_M4() -> None:
 
 def test_v3_all_identical_seed_bits_are_redrawn_before_schedule_M5() -> None:
     policy = copy.deepcopy(_v3_pilot_policy())
+    assert policy["pairing"]["seed"]["all_identical_redraw"][
+        "effective_root_seed_preimage"
+    ] == "<64-lowercase-hex>|counter=<zero-based decimal>"
     write = next(
         item for item in policy["workloads"] if item["name"] == "write-heavy"
     )
@@ -964,8 +1126,161 @@ def test_v3_all_identical_seed_bits_are_redrawn_before_schedule_M5() -> None:
     )
     schedule = paired._schedule_group_bits(policy, "write-heavy")
     assert schedule["counter"] == 1
-    assert schedule["order_bits"] == [1, 1, 1, 0, 1, 1]
+    assert schedule["effective_root_seed"] == (
+        "98d1957c592d4ce0d057b1cf2441c1e24ac202326c860f8b7d904857e6fe6efc"
+    )
+    assert schedule["order_bits"] == [0, 0, 0, 0, 1, 0]
     assert len(set(schedule["order_bits"])) == 2
+
+
+def test_v3_production_options_use_real_balanced_schedule_and_fail_closed() -> None:
+    """Acceptance: v3 selects the real BalancedScheduleConfig and one round.
+    Rejection: deleting either registered option is rejected before run_campaign.
+    """
+    policy = _v3_pilot_policy()
+    options = paired._campaign_execution_options(policy, "balanced")
+    assert options["bench_max_rounds"] == 1
+    assert type(options["balanced_schedule"]) is BalancedScheduleConfig
+    assert options["balanced_schedule"] == BalancedScheduleConfig(
+        workload="balanced",
+        root_seed=paired._workload_plan(
+            policy, "balanced",
+        )["schedule_root_seed"],
+        receipt_name=paired.BALANCED_SCHEDULE_RECEIPT_NAME,
+    )
+    for missing in ("bench_max_rounds", "balanced_schedule"):
+        broken = {key: value for key, value in options.items() if key != missing}
+        with pytest.raises(
+            paired.PaperStoryError,
+            match="must use the registered balanced schedule",
+        ):
+            paired._require_registered_execution_options(
+                policy, "balanced", broken,
+            )
+    assert paired._campaign_execution_options(_policy(), "balanced") == {}
+    tree = ast.parse(Path(paired.__file__).read_text(encoding="utf-8"))
+    measurement = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_measurement"
+    )
+    collectors = [
+        node for node in ast.walk(measurement)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "collect_workload"
+    ]
+    assert len(collectors) == 1
+    receipt_keyword = next(
+        keyword for keyword in collectors[0].keywords
+        if keyword.arg == "expected_schedule_receipt"
+    )
+    assert any(
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "summary"
+        and node.attr == "balanced_schedule_receipt"
+        for node in ast.walk(receipt_keyword.value)
+    )
+
+
+@pytest.mark.parametrize("workload_name", paired.WORKLOAD_ORDER)
+def test_v3_schedule_receipt_consumer_binds_placement_and_arm_tps(
+    workload_name: str,
+) -> None:
+    """Acceptance: the frozen receipt and WAL-arm projections agree exactly.
+    Rejection: one physical placement mutation makes the receipt invalid.
+    """
+    policy = _v3_pilot_policy()
+    receipt, arm_results = _balanced_receipt_fixture(policy, workload_name)
+    assert paired._balanced_schedule_receipt_errors(
+        policy, workload_name, receipt, arm_results,
+    ) == []
+    mutated = copy.deepcopy(receipt)
+    mutated["reps"][0]["arm"] = (
+        "B" if mutated["reps"][0]["arm"] == "A" else "A"
+    )
+    assert "schedule-receipt-placement-mismatch" in (
+        paired._balanced_schedule_receipt_errors(
+            policy, workload_name, mutated, arm_results,
+        )
+    )
+    coerced = copy.deepcopy(receipt)
+    coerced["reps"][0]["pair_index"] = False
+    assert "schedule-receipt-placement-mismatch" in (
+        paired._balanced_schedule_receipt_errors(
+            policy, workload_name, coerced, arm_results,
+        )
+    )
+
+
+def test_v3_collector_requires_schedule_receipt_and_sizing_projection_is_exact() -> None:
+    """Acceptance: a valid receipt projects to the exact sizing pilot schema.
+    Rejection: a missing receipt is an explicit collector error.
+    """
+    policy = _v3_pilot_policy()
+    assert paired._balanced_schedule_receipt_errors(
+        policy, "write-heavy", None, {},
+    ) == ["schedule-receipt-missing"]
+    tree = ast.parse(Path(paired.__file__).read_text(encoding="utf-8"))
+    collector = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "validate_workload_evidence"
+    )
+    receipt_calls = [
+        node for node in ast.walk(collector)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_balanced_schedule_receipt_errors"
+    ]
+    assert len(receipt_calls) == 1
+    assert [argument.id for argument in receipt_calls[0].args[:2]] == [
+        "policy", "workload_name",
+    ]
+
+    workloads = []
+    for index, name in enumerate(paired.WORKLOAD_ORDER):
+        receipt, arm_results = _balanced_receipt_fixture(policy, name)
+        workloads.append({
+            "arms": arm_results,
+            "campaign_id": f"campaign-{index}",
+            "errors": [],
+            "schedule_receipt": {"document": receipt},
+            "valid": True,
+            "workload": name,
+        })
+    pilot = paired._balanced_sizing_pilot_document(
+        policy,
+        {"complete": True, "workloads": workloads},
+    )
+    assert pilot["schema_version"] == paired.BALANCED_SIZING_PILOT_SCHEMA
+    assert pilot["final_estimate_eligible"] is False
+    assert [item["workload"] for item in pilot["workloads"]] == list(
+        paired.WORKLOAD_ORDER
+    )
+    first = pilot["workloads"][0]["observations"][0]
+    assert set(first) == {
+        "arm", "block", "block_position", "ended_at_ns", "group",
+        "pair_index", "started_at_ns", "tps",
+    }
+    assert first["arm"] in {"fixed10", "no-backoff"}
+    assert first["block"] == first["pair_index"] // 5
+    assert first["block_position"] == first["pair_index"] % 5
+    publisher = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_publish_materialization_bundle"
+    )
+    sizing_calls = [
+        node for node in ast.walk(publisher)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_balanced_sizing_pilot_document"
+    ]
+    assert len(sizing_calls) == 1
+    assert [argument.id for argument in sizing_calls[0].args] == [
+        "policy", "result",
+    ]
 
 
 @pytest.mark.parametrize("workload_name", paired.WORKLOAD_ORDER)
@@ -2182,6 +2497,7 @@ def test_production_materialize_route_calls_raw_wal_rederivation_F2() -> None:
     assert [argument.id for argument in rederivations[0].args] == [
         "result",
         "receipt",
+        "policy",
     ]
     publishes = [
         node
@@ -2194,6 +2510,25 @@ def test_production_materialize_route_calls_raw_wal_rederivation_F2() -> None:
     ]
     assert len(publishes) == 1
     assert rederivations[0].lineno < publishes[0].lineno
+
+
+def test_v3_non_certifying_completion_rederives_with_tracked_policy() -> None:
+    tree = ast.parse(Path(paired.__file__).read_text(encoding="utf-8"))
+    consumer = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_validate_non_certifying_observation_contents"
+    )
+    calls = [
+        node for node in ast.walk(consumer)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_revalidate_raw_wals"
+    ]
+    assert len(calls) == 1
+    assert [argument.id for argument in calls[0].args] == [
+        "result", "receipt", "policy",
+    ]
 
 
 @pytest.mark.parametrize(

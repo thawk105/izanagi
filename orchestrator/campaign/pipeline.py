@@ -467,12 +467,74 @@ BALANCED_SCHEDULE_RECEIPT_SCHEMA = (
 BALANCED_BLOCK_REPS = 5
 
 
+class _CanonicalBuildSourceStateError(RuntimeError):
+    """The build-local CCBench checkout cannot satisfy the canonical policy."""
+
+    def __init__(self, build_kind: str, detail: str):
+        super().__init__(detail)
+        self.build_kind = build_kind
+
+
+def _require_canonical_build_source_state(
+        ccbench_dir: str, canonical_pin: str, *, build_kind: str,
+        subprocess_runner: Callable[..., object] = subprocess.run,
+) -> None:
+    """Require exact HEAD and tracked-clean CCBench immediately before a build."""
+    if build_kind not in {"trace", "perf"}:
+        raise ValueError("build_kind must be trace or perf")
+    if (type(canonical_pin) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", canonical_pin) is None):
+        raise _CanonicalBuildSourceStateError(
+            build_kind, "canonical CCBench pin must be 40 lowercase hex characters",
+        )
+    checkout = ccbench_dir or buildcache._ccbench_dir()
+
+    def _git(*args: str) -> str:
+        try:
+            completed = subprocess_runner(
+                ["git", "-C", checkout, *args],
+                capture_output=True,
+                text=True,
+                timeout=10.0,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise _CanonicalBuildSourceStateError(
+                build_kind,
+                f"cannot inspect CCBench checkout: {type(exc).__name__}: {exc}",
+            ) from exc
+        returncode = getattr(completed, "returncode", None)
+        stdout = getattr(completed, "stdout", "")
+        stderr = getattr(completed, "stderr", "")
+        if type(returncode) is not int or returncode != 0 or type(stdout) is not str:
+            raise _CanonicalBuildSourceStateError(
+                build_kind,
+                "cannot inspect CCBench checkout: "
+                f"rc={returncode!r} stderr={str(stderr)[-400:]}",
+            )
+        return stdout.strip()
+
+    observed_head = _git("rev-parse", "--verify", "HEAD^{commit}")
+    if observed_head != canonical_pin:
+        raise _CanonicalBuildSourceStateError(
+            build_kind,
+            f"CCBench HEAD differs from canonical pin: {observed_head!r}",
+        )
+    tracked_status = _git(
+        "status", "--porcelain=v1", "--untracked-files=no",
+    )
+    if tracked_status:
+        raise _CanonicalBuildSourceStateError(
+            build_kind, "CCBench tracked files are not clean",
+        )
+
+
 @dataclass(frozen=True)
 class BalancedScheduleConfig:
     """Opt-in contract for one two-arm balanced A-1 workload schedule."""
 
     workload: str
     root_seed: str
+    arm_names: Tuple[str, str]
     receipt_name: str = "balanced-schedule-receipt.json"
 
     def __post_init__(self) -> None:
@@ -481,6 +543,11 @@ class BalancedScheduleConfig:
         if (type(self.root_seed) is not str
                 or re.fullmatch(r"[0-9a-f]{64}", self.root_seed) is None):
             raise ValueError("balanced root_seed must be 64 lowercase hex characters")
+        if (type(self.arm_names) is not tuple
+                or len(self.arm_names) != 2
+                or any(type(name) is not str or not name for name in self.arm_names)
+                or self.arm_names[0] == self.arm_names[1]):
+            raise ValueError("balanced arm_names must be two distinct non-empty exact strings")
         if (type(self.receipt_name) is not str
                 or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", self.receipt_name) is None):
             raise ValueError("balanced receipt_name must be one plain file name")
@@ -538,7 +605,8 @@ def derive_balanced_schedule(
         raise ValueError("balanced schedule needs at least two exact-integer groups")
     for counter in range(16):
         effective_seed = root_seed if counter == 0 else hashlib.sha256(
-            f"{root_seed}|counter={counter}".encode("utf-8")
+            ("a1-balanced5-redraw/v1|"
+             f"root_seed={root_seed}|counter={counter}").encode("utf-8")
         ).hexdigest()
         bits = tuple(
             hashlib.sha256(
@@ -837,6 +905,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              ] = None,
              use_perf: bool = True,
              perf_preflight_receipt: Optional[dict] = None,
+             canonical_build_pin: Optional[str] = None,
              ) -> EvalResult | _PreparedEvaluation:
     """Build and verify one genome, preserving state for later bench/commit.
 
@@ -1122,20 +1191,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     # --- build (trace + perf 別ビルド, 絶対規律1)。ビルド失敗はこの variant 固有の
     #     失敗として abort 隔離 (campaign 全体を落とさず前進, overnight 耐性) ---
     try:
-        if env_contract is None:
-            tr = buildcache.build(
-                genome, ccbench_commit, trace=True, src_token=src_tok,
-                ccbench_dir=ccbench_dir, cache_root=cache_root,
-                admission=admission, build_context=build_context,
-                source_evidence=evidence,
-            )
-            pf = buildcache.build(
-                genome, ccbench_commit, trace=False, src_token=src_tok,
-                ccbench_dir=ccbench_dir, cache_root=cache_root,
-                admission=admission, build_context=build_context,
-                source_evidence=evidence,
-            )
-        else:
+        common = None
+        if env_contract is not None:
             if not isinstance(env_contract, ExecutionEnvironmentContract):
                 raise TypeError(
                     "env_contract は ExecutionEnvironmentContract でなければならない"
@@ -1167,18 +1224,35 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 common["expected_toolchain_manifest"] = expected_toolchain_manifest
             if declared_use_class is not None:
                 common["declared_use_class"] = declared_use_class
+
+        def _build_one(*, trace: bool):
+            build_kind = "trace" if trace else "perf"
+            if canonical_build_pin is not None:
+                _require_canonical_build_source_state(
+                    ccbench_dir, canonical_build_pin, build_kind=build_kind,
+                )
+            if common is None:
+                return buildcache.build(
+                    genome, ccbench_commit, trace=trace, src_token=src_tok,
+                    ccbench_dir=ccbench_dir, cache_root=cache_root,
+                    admission=admission, build_context=build_context,
+                    source_evidence=evidence,
+                )
             if qualification_policy is None:
-                tr = buildcache.build_v2(genome, trace=True, **common)
-                pf = buildcache.build_v2(genome, trace=False, **common)
-            else:
-                tr = buildcache.build_v2(
-                    genome, trace=True,
-                    timeout_s=qualification_policy.build_timeout_s, **common,
-                )
-                pf = buildcache.build_v2(
-                    genome, trace=False,
-                    timeout_s=qualification_policy.build_timeout_s, **common,
-                )
+                return buildcache.build_v2(genome, trace=trace, **common)
+            return buildcache.build_v2(
+                genome, trace=trace,
+                timeout_s=qualification_policy.build_timeout_s, **common,
+            )
+
+        tr = _build_one(trace=True)
+        pf = _build_one(trace=False)
+    except _CanonicalBuildSourceStateError as e:
+        return _abort(
+            "build-source-state-error",
+            f"{e.build_kind} build 直前の CCBench source state が不正 → reject ({e})",
+            {"error": _exc_summary(e), "build_kind": e.build_kind},
+        )
     except (RuntimeError, subprocess.SubprocessError) as e:
         # 例外要約を payload に載せる (D50 教訓): reason="build-error" だけだと WAL から
         # 失敗原因 (configure 即死か compile error か) を帰属できず調査が build dir の
@@ -1711,7 +1785,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                  HoldoutObservationAdmission
              ] = None,
              use_perf: bool = True,
-             perf_preflight_receipt: Optional[dict] = None) -> EvalResult:
+             perf_preflight_receipt: Optional[dict] = None,
+             canonical_build_pin: Optional[str] = None) -> EvalResult:
     """Preserve the historical evaluate API as prepare, bench, then commit."""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -1760,6 +1835,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         holdout_observation_admission=holdout_observation_admission,
         use_perf=use_perf,
         perf_preflight_receipt=perf_preflight_receipt,
+        canonical_build_pin=canonical_build_pin,
     )
     passes = (outcome,)
     for prepared in passes:
@@ -1776,72 +1852,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         return bench
     if not res.certified:
         raise AssertionError("verify completion was lost before commit")
-
-    if res.certified:
-        _require_measurement_site("campaign COMMIT 記録")
-        if bench is None:
-            commit_payload = {
-                "fitness_tps": None,
-                "note": "no-bench",
-                "verify_configs": outcome.verify_tags,
-                "build_attempt_id": outcome.build_attempt_id,
-                "build_admission_receipt_sha256": (
-                    outcome.build_admission_receipt_sha256
-                ),
-            }
-            if outcome.qualification_policy is None:
-                wal_payload = {
-                    **commit_payload,
-                    COMMIT_CONTRACT_SHA256_KEY: outcome.contract_sha256,
-                }
-                wal.log(
-                    outcome.layout, res.variant, STAGE_COMMIT, outcome.env_tag,
-                    wal_payload,
-                    commit_receipt=outcome.receipt_for(wal_payload),
-                )
-            else:
-                outcome.qualification_policy.event_sink.emit(
-                    outcome.layout, res.variant, STAGE_COMMIT, outcome.env_tag,
-                    commit_payload,
-                    commit_receipt=outcome.receipt_for(commit_payload),
-                )
-            return res
-
-        assert type(bench) is _BenchResult
-        res.fitness_tps, res.cv, res.unstable = (
-            bench.median_tps, bench.cv, bench.unstable,
-        )
-        commit_payload = {
-            "fitness_tps": bench.median_tps,
-            "cv": bench.cv,
-            "high_variance": bench.high_variance,
-            "unstable": bench.unstable,
-            "verify_configs": outcome.verify_tags,
-            "build_attempt_id": outcome.build_attempt_id,
-            "build_admission_receipt_sha256": (
-                outcome.build_admission_receipt_sha256
-            ),
-        }
-        if outcome.active_screening is not None:
-            commit_payload["screened"] = True
-        if outcome.qualification_policy is None:
-            wal_payload = {
-                **commit_payload,
-                COMMIT_CONTRACT_SHA256_KEY: outcome.contract_sha256,
-            }
-            wal.log(
-                outcome.layout, res.variant, STAGE_COMMIT, outcome.env_tag,
-                wal_payload,
-                commit_receipt=outcome.receipt_for(wal_payload),
-            )
-        else:
-            outcome.qualification_policy.event_sink.emit(
-                outcome.layout, res.variant, STAGE_COMMIT, outcome.env_tag,
-                commit_payload,
-                commit_receipt=outcome.receipt_for(commit_payload),
-            )
-        return res
-    raise AssertionError("certified evaluation did not commit")
+    return _commit_prepared(outcome, bench)
 
 
 def _prepare_evaluation(*args, **kwargs) -> EvalResult | _PreparedEvaluation:
@@ -1903,6 +1914,7 @@ def _run_balanced_schedule(
             or any(type(item) is not _PreparedEvaluation for item in prepared_arms)):
         raise ValueError("balanced schedule requires exactly two prepared evaluations")
     arm_map = {"A": prepared_arms[0], "B": prepared_arms[1]}
+    arm_names = dict(zip(("A", "B"), config.arm_names))
     first = prepared_arms[0]
     if any(
         prepared.layout != first.layout
@@ -2008,6 +2020,7 @@ def _run_balanced_schedule(
                             extra_env={"IZANAGI_TRACE_DIR": dummy_dirs[arm]},
                             rep_observations=rep_observations,
                             rep_timestamps=rep_timestamps,
+                            require_all_reps=True,
                             use_perf=prepared.use_perf,
                             holdout_observation_admission=(
                                 prepared.holdout_observation_admission
@@ -2040,11 +2053,12 @@ def _run_balanced_schedule(
                         for observation in rep_observations
                         if type(observation.get("throughput")) in (int, float)
                     ]
-                    if not block_values:
+                    if len(block_values) != BALANCED_BLOCK_REPS:
                         failure = (
                             "bench-no-throughput",
-                            "balanced block produced no throughput → reject workload",
-                            {"group": group, "block": global_block},
+                            "balanced block did not produce five throughputs → reject workload",
+                            {"group": group, "block": global_block,
+                             "throughputs": len(block_values)},
                         )
                         break
                     arm_tps[arm].extend(float(value) for value in block_values)
@@ -2052,7 +2066,7 @@ def _run_balanced_schedule(
                     arm_run_cmd[arm] = point.run_cmd
                     block_nf = noise_floor(block_values)
                     block_diagnostics.append({
-                        "arm": arm,
+                        "arm": arm_names[arm],
                         "group": group,
                         "block": global_block,
                         "block_in_group": block_in_group,
@@ -2064,14 +2078,13 @@ def _run_balanced_schedule(
                             rep_timestamps, rep_observations)):
                         rows.append({
                             "tps": observation.get("throughput"),
-                            "arm": arm,
+                            "arm": arm_names[arm],
                             "pair_index": pair_base + position,
                             "group": group,
-                            "block": global_block,
-                            "block_in_group": block_in_group,
+                            "block": group * 2 + (block_in_group // 2),
                             "block_position": position,
                             "started_at_ns": timing["started_at_ns"],
-                            "finished_at_ns": timing["finished_at_ns"],
+                            "ended_at_ns": timing["finished_at_ns"],
                         })
                     global_block += 1
     finally:
@@ -2116,7 +2129,7 @@ def _run_balanced_schedule(
             unstable=aggregate_unstable,
             leading_indicators=leading,
         )
-        arm_records[arm] = {
+        arm_records[arm_names[arm]] = {
             "variant": prepared.result.variant,
             "rounds": 1,
             "tps": list(values),
@@ -2124,7 +2137,8 @@ def _run_balanced_schedule(
             "cv": nf.cv,
             "unstable": aggregate_unstable,
             "block_cvs": [
-                item["cv"] for item in block_diagnostics if item["arm"] == arm
+                item["cv"] for item in block_diagnostics
+                if item["arm"] == arm_names[arm]
             ],
         }
 
@@ -2165,6 +2179,13 @@ def _run_balanced_schedule(
             "rep_notes": arm_notes[arm],
             "run_cmd": arm_run_cmd[arm],
         }
+        perf_observation = _perf_preflight.build_perf_observation(
+            prepared.perf_preflight_receipt,
+            run_cmd=arm_run_cmd[arm],
+            leading_indicators=bench.leading_indicators,
+        )
+        if perf_observation is not None:
+            payload["perf_observation"] = perf_observation
         _assert_bench_done_payload_keys(payload)
         prepared.emit(
             prepared.layout, prepared.result.variant, STAGE_BENCH_DONE,

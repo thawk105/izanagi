@@ -221,6 +221,8 @@ _REVIEWED_PREDICATES = (
     _Predicate("C", "orchestrator/campaign/pipeline.py",
                "_run_bench", "build_perf_observation"),
     _Predicate("C", "orchestrator/campaign/pipeline.py",
+               "_run_balanced_schedule", "build_perf_observation"),
+    _Predicate("C", "orchestrator/campaign/pipeline.py",
                "evaluate", "validate_perf_preflight_receipt"),
     _Predicate("C", "orchestrator/campaign/pipeline.py",
                "evaluate", "use_perf_from_receipt"),
@@ -783,6 +785,7 @@ def test_balanced_schedule_uses_lock_free_blocks_under_one_outer_lock() -> None:
     assert calls["bench_lock"] == 1
     assert calls["measure_point"] == 1
     assert calls["_run_bench"] == 0
+    assert calls["build_perf_observation"] == 1
 
 
 def test_campaign_loop_has_distinct_legacy_and_balanced_split_calls() -> None:

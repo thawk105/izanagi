@@ -68,7 +68,7 @@
       "all_identical_redraw": {
         "counter_initial": 0,
         "counter_limit_exclusive": 16,
-        "effective_root_seed_preimage": "a1-balanced5-redraw/v1|root_seed=<64-lowercase-hex>|counter=<zero-based decimal>",
+        "effective_root_seed_preimage": "<64-lowercase-hex>|counter=<zero-based decimal>",
         "failure": "fail-closed when counter reaches 16 without a non-identical bit sequence",
         "predicate": "all workload group order bits are 0 or all workload group order bits are 1",
         "rule": "increment the fixed counter and redraw the entire workload bit sequence before observing or selecting any realized schedule"

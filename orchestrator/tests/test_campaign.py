@@ -8009,20 +8009,19 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
 
 
 def test_pipeline_fullscale_verify_and_bench_share_numactl_expression():
-    """fullscale verify と 2 本の bench 呼出しを同じ numactl 式へ固定する。"""
+    """Split prepare/carrier/bench topology shares one immutable numactl value."""
     with open(pipeline.__file__, encoding="utf-8") as stream:
         tree = ast.parse(stream.read(), filename=pipeline.__file__)
-    evaluate_nodes = [
-        node for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "evaluate"
-    ]
-    assert len(evaluate_nodes) == 1, (
-        "pipeline.py の top-level evaluate FunctionDef を exact 1 件探したが "
-        f"{len(evaluate_nodes)} 件だった"
-    )
-    evaluate_node = evaluate_nodes[0]
+    functions = {
+        node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)
+    }
+    assert {
+        "_prepare_evaluation_core", "_bench_prepared",
+    } <= set(functions)
+    prepare = functions["_prepare_evaluation_core"]
+    bench = functions["_bench_prepared"]
     fullscale_ifs = [
-        node for node in ast.walk(evaluate_node)
+        node for node in ast.walk(prepare)
         if isinstance(node, ast.If)
         and isinstance(node.test, ast.Name)
         and node.test.id == "fullscale_isolated"
@@ -8041,27 +8040,31 @@ def test_pipeline_fullscale_verify_and_bench_share_numactl_expression():
         and call.func.id == "_run_one_pass"
     ]
     bench_calls = [
-        node for node in ast.walk(evaluate_node)
+        node for node in ast.walk(bench)
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
         and node.func.id == "_run_bench"
     ]
+    carriers = [
+        node for node in ast.walk(prepare)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_PreparedEvaluation"
+    ]
     assert len(verify_calls) == 1, (
         "fullscale_isolated If 内の _run_one_pass 呼出を exact 1 件要求する"
     )
-    assert len(bench_calls) == 2, (
-        "evaluate 内の _run_bench 呼出を exact 2 件要求する"
+    assert len(carriers) == 1, "prepared carrier must be constructed exactly once"
+    assert len(bench_calls) == 1, "split bench must call _run_bench exactly once"
+    carrier_keywords = {item.arg: item.value for item in carriers[0].keywords}
+    prefixes = (
+        verify_calls[0].args[2],
+        carrier_keywords["numactl"],
+        bench_calls[0].args[3],
     )
-    prefixes = [verify_calls[0].args[2], *(call.args[3] for call in bench_calls)]
-    assert all(
-        isinstance(prefix, ast.Name) and prefix.id == "numactl"
-        for prefix in prefixes
-    )
-    expected = ast.dump(prefixes[0], include_attributes=False)
-    assert all(
-        ast.dump(prefix, include_attributes=False) == expected
-        for prefix in prefixes[1:]
-    )
+    assert ast.unparse(prefixes[0]) == "numactl"
+    assert ast.unparse(prefixes[1]) == "numactl"
+    assert ast.unparse(prefixes[2]) == "prepared.numactl"
 
 
 def test_pipeline_fullscale_verify_and_bench_share_immutable_numactl():
@@ -12903,7 +12906,8 @@ def test_loop_does_not_append_abort_after_wal_io_error():
         assert wal.read_records(layout) == []
 
 
-def _balanced_prepared_fixture(layout, arm, *, reps=20):
+def _balanced_prepared_fixture(
+        layout, arm, *, reps=20, use_perf=True, perf_preflight_receipt=None):
     events = []
     result = EvalResult(
         genome=Genome("silo", {"BACK_OFF": int(arm == "A")}),
@@ -12941,8 +12945,8 @@ def _balanced_prepared_fixture(layout, arm, *, reps=20):
         record_rep_returncodes=False,
         qualification_policy=None,
         holdout_observation_admission=None,
-        use_perf=True,
-        perf_preflight_receipt=None,
+        use_perf=use_perf,
+        perf_preflight_receipt=perf_preflight_receipt,
         active_screening=None,
         screening_disabled_payload=None,
     )
@@ -12950,14 +12954,23 @@ def _balanced_prepared_fixture(layout, arm, *, reps=20):
 
 
 def _exercise_balanced_schedule(
-        values_for_block, *, settle_result=None, competing_fn=None):
+        values_for_block, *, settle_result=None, competing_fn=None, reps=20,
+        arm_names=("variant-arm", "baseline-arm"), use_perf=True,
+        perf_preflight_receipt=None):
     root = _tmpdir("izanagi_balanced_schedule_")
     layout = CampaignLayout(root)
-    arm_a, events_a = _balanced_prepared_fixture(layout, "A")
-    arm_b, events_b = _balanced_prepared_fixture(layout, "B")
+    arm_a, events_a = _balanced_prepared_fixture(
+        layout, "A", reps=reps, use_perf=use_perf,
+        perf_preflight_receipt=perf_preflight_receipt,
+    )
+    arm_b, events_b = _balanced_prepared_fixture(
+        layout, "B", reps=reps, use_perf=use_perf,
+        perf_preflight_receipt=perf_preflight_receipt,
+    )
     probes = []
     locks = []
     block_calls = []
+    block_kwargs = []
     writes_during_blocks = []
     clock = iter(range(1_000_000, 2_000_000))
 
@@ -12973,6 +12986,7 @@ def _exercise_balanced_schedule(
         )
         block_index = len(block_calls)
         block_calls.append(binary)
+        block_kwargs.append(dict(kwargs))
         values = list(values_for_block(binary, block_index))
         observations = kwargs["rep_observations"]
         timestamps = kwargs["rep_timestamps"]
@@ -12991,7 +13005,7 @@ def _exercise_balanced_schedule(
         return measured
 
     config = pipeline.BalancedScheduleConfig(
-        workload="balanced", root_seed="0" * 64,
+        workload="balanced", root_seed="0" * 64, arm_names=arm_names,
     )
     if settle_result is None:
         settle_result = {"settled": True, "load1": 0.0}
@@ -13018,6 +13032,7 @@ def _exercise_balanced_schedule(
         "probes": probes,
         "locks": locks,
         "blocks": block_calls,
+        "block_kwargs": block_kwargs,
         "events": events_a + events_b,
         "writes_during_blocks": writes_during_blocks,
         "root": root,
@@ -13049,7 +13064,7 @@ def test_balanced_schedule_records_aggregate_unstable_not_constant_false():
         lambda _arm, block: [10.0, 20.0, 30.0, 40.0, 50.0]
         if block % 2 == 0 else [100.0, 200.0, 300.0, 400.0, 500.0]
     )
-    assert run["receipt"]["arms"]["A"]["unstable"] is True
+    assert run["receipt"]["arms"]["variant-arm"]["unstable"] is True
 
 
 def test_balanced_schedule_cv_is_all_rep_cv_not_mean_block_cv():
@@ -13061,9 +13076,72 @@ def test_balanced_schedule_cv_is_all_rep_cv_not_mean_block_cv():
         return [float(seen[arm] * 100)] * 5
 
     run = _exercise_balanced_schedule(values)
-    arm = run["receipt"]["arms"]["A"]
+    arm = run["receipt"]["arms"]["variant-arm"]
     expected = statistics.stdev(arm["tps"]) / statistics.mean(arm["tps"])
     assert arm["cv"] == expected and arm["cv"] != statistics.mean(arm["block_cvs"])
+
+
+def test_balanced_schedule_receipt_rows_match_sizing_schema_exactly():
+    """One 60-pair workload emits 12 five-pair blocks in sizing row form."""
+    run = _exercise_balanced_schedule(
+        lambda arm, block: [float(1000 + block * 10 + index)
+                            for index in range(5)],
+        reps=60,
+        arm_names=("fixed5", "no-backoff"),
+    )
+    rows = run["receipt"]["reps"]
+    assert len(rows) == 120
+    assert {row["arm"] for row in rows} == {"fixed5", "no-backoff"}
+    assert {row["pair_index"] for row in rows} == set(range(60))
+    assert {row["block"] for row in rows} == set(range(12))
+    assert all(set(row) == {
+        "arm", "block", "block_position", "ended_at_ns", "group",
+        "pair_index", "started_at_ns", "tps",
+    } for row in rows)
+    assert all(row["group"] == row["pair_index"] // 10 for row in rows)
+    assert all(row["block"] == row["pair_index"] // 5 for row in rows)
+    assert all(
+        row["block_position"] == row["pair_index"] % 5 for row in rows
+    )
+    intervals = [(row["started_at_ns"], row["ended_at_ns"]) for row in rows]
+    assert intervals == sorted(intervals)
+    assert all(start < end for start, end in intervals)
+
+
+def test_balanced_schedule_requires_every_rep_at_the_runner_boundary():
+    """A complete block is accepted only through runner's strict rep contract."""
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert run["block_kwargs"]
+    assert all(
+        kwargs.get("require_all_reps") is True
+        for kwargs in run["block_kwargs"]
+    )
+
+
+def test_balanced_schedule_records_canonical_perf_observation():
+    """A no-perf preflight is projected into each real balanced BENCH_DONE."""
+    receipt = perf_preflight_module.probe_perf_availability(
+        perf_candidates=(),
+        subprocess_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            FileNotFoundError("perf")
+        ),
+    )
+    run = _exercise_balanced_schedule(
+        lambda _arm, _block: [100.0] * 5,
+        use_perf=False,
+        perf_preflight_receipt=receipt,
+    )
+    bench_payloads = [
+        event[2] for event in run["events"]
+        if event[:2] == ("emit", STAGE_BENCH_DONE)
+    ]
+    assert len(bench_payloads) == 2
+    assert all(
+        payload["perf_observation"]["use_perf"] is False
+        and payload["perf_observation"]["counter_status"] == "not_required"
+        and payload["perf_observation"]["preflight"] == receipt
+        for payload in bench_payloads
+    )
 
 
 def test_balanced_schedule_seed_bit_mapping_is_independently_rederived():
@@ -13086,6 +13164,161 @@ def test_balanced_schedule_seed_bit_mapping_is_independently_rederived():
         root_seed, "balanced", 2,
     )
     assert actual.blocks == expected
+
+
+def test_balanced_schedule_redraw_uses_registered_preimage():
+    """M5: a homogeneous first draw uses the policy's exact counter preimage."""
+    root_seed = "0" * 63 + "5"
+    actual = pipeline.derive_balanced_schedule(root_seed, "balanced", 2)
+    assert actual.seed_counter == 1
+    assert actual.effective_root_seed == (
+        "d7fa903b67f9a2a943b9c9839bf67e8e98c646f62ac38ebed41c982412fe7ee9"
+    )
+    assert actual.group_bits == (0, 1)
+
+
+def test_canonical_build_source_state_accepts_exact_clean_checkout():
+    """Acceptance implication: exact policy HEAD plus tracked-clean passes."""
+    sub, head, _git = _fake_ccbench_repo()
+    Path(sub, "untracked-build-output").write_text("ignored", encoding="utf-8")
+    pipeline._require_canonical_build_source_state(
+        sub, head, build_kind="trace",
+    )
+
+
+def test_canonical_build_source_state_rejects_pin_or_tracked_drift():
+    """Rejection implication: either wrong HEAD or tracked dirt rejects locally."""
+    sub, head, _git = _fake_ccbench_repo()
+    for build_kind, mutation in (("trace", "pin"), ("perf", "tracked")):
+        if mutation == "tracked":
+            Path(sub, "include/backoff.hh").write_text(
+                "tracked drift\n", encoding="utf-8",
+            )
+        try:
+            pipeline._require_canonical_build_source_state(
+                sub,
+                ("0" * 40 if mutation == "pin" else head),
+                build_kind=build_kind,
+            )
+        except pipeline._CanonicalBuildSourceStateError as exc:
+            assert exc.build_kind == build_kind
+        else:
+            raise AssertionError(f"{mutation} build source drift was accepted")
+
+
+def test_balanced_build_boundary_is_one_guarded_trace_perf_wrapper():
+    """M10 build layer: one guard dominates exact trace and perf build calls."""
+    tree = ast.parse(Path(pipeline.__file__).read_text(encoding="utf-8"))
+    core = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_prepare_evaluation_core"
+    )
+    wrapper = next(
+        node for node in ast.walk(core)
+        if isinstance(node, ast.FunctionDef) and node.name == "_build_one"
+    )
+    wrapper_calls = [
+        node for node in ast.walk(wrapper) if isinstance(node, ast.Call)
+    ]
+    assert sum(
+        isinstance(call.func, ast.Name)
+        and call.func.id == "_require_canonical_build_source_state"
+        for call in wrapper_calls
+    ) == 1
+    build_calls = collections.Counter(
+        ast.unparse(call.func) for call in wrapper_calls
+        if ast.unparse(call.func) in {"buildcache.build", "buildcache.build_v2"}
+    )
+    assert build_calls == {
+        "buildcache.build": 1,
+        "buildcache.build_v2": 2,
+    }
+    invocations = [
+        call for call in ast.walk(core)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_build_one"
+    ]
+    assert len(invocations) == 2
+    assert [ast.unparse(call.keywords[0].value) for call in invocations] == [
+        "True", "False",
+    ]
+    handlers = [
+        handler for handler in ast.walk(core)
+        if isinstance(handler, ast.ExceptHandler)
+        and isinstance(handler.type, ast.Name)
+        and handler.type.id == "_CanonicalBuildSourceStateError"
+    ]
+    assert len(handlers) == 1
+    assert "'build-source-state-error'" in ast.unparse(handlers[0])
+
+
+def test_balanced_loop_binds_build_guard_to_campaign_policy_pin():
+    """The balanced split passes the campaign's policy-derived pin verbatim."""
+    from orchestrator.campaign import loop as campaign_loop
+
+    tree = ast.parse(Path(campaign_loop.__file__).read_text(encoding="utf-8"))
+    production = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_campaign"
+    )
+    calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_prepare_evaluation"
+    ]
+    assert len(calls) == 1
+    keywords = {item.arg: item.value for item in calls[0].keywords}
+    assert ast.unparse(keywords["canonical_build_pin"]) == "cfg.ccbench_commit"
+    assert (
+        "cfg.search_config.get('arm_order') != list(balanced_schedule.arm_names)"
+        in ast.unparse(production)
+    )
+
+
+def test_production_passes_real_balanced_schedule_config_to_run_campaign():
+    """Production run_measurement must inline the real policy-bound config."""
+    source_path = Path(_REPOSITORY) / "orchestrator/campaign/paper_story_a1_paired.py"
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    production = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_measurement"
+    )
+    calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "run_campaign"
+    ]
+    assert len(calls) == 1
+    keywords = {item.arg: item.value for item in calls[0].keywords}
+    expected_selector = "_policy_schema(policy) == POLICY_SCHEMA_V3"
+    rounds = keywords["bench_max_rounds"]
+    assert isinstance(rounds, ast.IfExp)
+    assert ast.unparse(rounds.test) == expected_selector
+    assert ast.unparse(rounds.body) == "1"
+    assert ast.unparse(rounds.orelse) == "3"
+    schedule = keywords["balanced_schedule"]
+    assert isinstance(schedule, ast.IfExp)
+    assert ast.unparse(schedule.test) == expected_selector
+    assert isinstance(schedule.orelse, ast.Constant) and schedule.orelse.value is None
+    config = schedule.body
+    assert (
+        isinstance(config, ast.Call)
+        and isinstance(config.func, ast.Name)
+        and config.func.id == "BalancedScheduleConfig"
+    )
+    config_keywords = {item.arg: item.value for item in config.keywords}
+    assert set(config_keywords) == {"workload", "root_seed", "arm_names"}
+    assert ast.unparse(config_keywords["workload"]) == "workload_name"
+    assert ast.unparse(config_keywords["root_seed"]) == (
+        "_workload_plan(policy, workload_name)['schedule_root_seed']"
+    )
+    assert ast.unparse(config_keywords["arm_names"]) == (
+        "_workload_arm_order(policy, workload_name)"
+    )
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
@@ -13154,6 +13387,7 @@ def test_balanced_schedule_quality_gate_signatures_reject_each_named_condition()
         ("bench-competing-tenant", None, lambda: ["999 ycsb_silo.exe"],
          [100.0] * 5),
         ("bench-no-throughput", None, None, []),
+        ("bench-no-throughput", None, None, [100.0] * 4 + [None]),
         ("bench-cv-undefined", None, None, [0.0] * 5),
     )
     for reason, settled, probe, values in cases:
