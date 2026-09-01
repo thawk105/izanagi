@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "axis3_search_page_evidence.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stream_id",
+    "pass_number",
+    "page_number",
+    "request",
+    "status",
+    "final_url",
+    "content_type",
+    "response_received_at",
+    "entity_body_byte_count",
+    "body_capture_kind",
+    "alternative_provenance"
+  ],
+  "properties": {
+    "schema_version": {"const": "axis3-search-page-evidence/v1"},
+    "stream_id": {"type": "string", "pattern": "^AX3A1-"},
+    "pass_number": {"type": "integer", "minimum": 0},
+    "page_number": {"type": "integer", "minimum": 0},
+    "request": {"$ref": "#/definitions/request"},
+    "status": {"type": "integer", "minimum": 100, "maximum": 599},
+    "final_url": {"type": "string", "pattern": "^https://"},
+    "content_type": {"type": "string", "minLength": 1},
+    "response_received_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "entity_body_byte_count": {"type": "integer", "minimum": 0},
+    "body_capture_kind": {
+      "const": "http_client_exposed_entity_body_before_parser"
+    },
+    "alternative_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint",
+        "required_response_fields",
+        "observed_response_fields",
+        "observed_response_headers",
+        "entity_body_sha256",
+        "digest_scope"
+      ],
+      "properties": {
+        "endpoint": {"type": "string", "pattern": "^https://"},
+        "required_response_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^/"}
+        },
+        "observed_response_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^/"}
+        },
+        "observed_response_headers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "value"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "value": {"type": "string"}
+            }
+          }
+        },
+        "entity_body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "digest_scope": {
+          "const": "http_client_exposed_entity_body_bytes_before_parser"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "headerPair": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"type": "string"}
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stream_id",
+        "index",
+        "method",
+        "url",
+        "headers",
+        "body_sha256",
+        "position_kind"
+      ],
+      "properties": {
+        "stream_id": {"type": "string", "pattern": "^AX3A1-"},
+        "index": {"enum": ["arxiv", "openalex", "dblp"]},
+        "method": {"const": "GET"},
+        "url": {"type": "string", "pattern": "^https://"},
+        "headers": {"type": "array", "items": {"$ref": "#/definitions/headerPair"}},
+        "body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "position_kind": {"enum": ["offset", "cursor", "fixed"]}
+      }
+    }
+  }
+}
