@@ -3368,7 +3368,15 @@ def _seed_b4_admitted_history(layout, cfg):
             source_rel=_SRC_REL, write=False,
         )
         assert not result.passed
-        L.record_diff_reject(layout, _G, implementation, result)
+        L.record_diff_reject(
+            layout,
+            _G,
+            implementation,
+            result,
+            backoff_grammar_version=cfg.search_config.get(
+                BHG.BACKOFF_GRAMMAR_VERSION_KEY
+            ),
+        )
         expected_record_count = 2
     admitted = require_admitted_campaign(
         layout.root,
