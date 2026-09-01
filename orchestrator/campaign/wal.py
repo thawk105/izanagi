@@ -35,6 +35,7 @@ from .build_admission import (
     resolve_current_build_admission_policy,
     validate_build_admission_receipt,
 )
+from . import backoff_hole_grammar
 from . import campaign_lock as campaign_lock_codec
 from . import env_contract
 from .layout import CampaignLayout
@@ -624,7 +625,8 @@ def _append_record(
         raise CommitReceiptError("commit receipt supplied for non-COMMIT record")
     lock_snapshot = None
     decoded_lock = None
-    if record.stage == STAGE_COMMIT or allow_a1_non_certifying:
+    if (record.stage in {STAGE_BUILD_START, STAGE_COMMIT}
+            or allow_a1_non_certifying):
         lock_snapshot, decoded_lock = _decode_lock_for_b4_classification(
             layout, allow_a1_non_certifying=allow_a1_non_certifying,
         )
@@ -640,6 +642,23 @@ def _append_record(
                 expected_driver_kind=_b4_driver_kind_from_lock(decoded_lock),
                 expected_campaign_id=_b4_campaign_id_from_lock(decoded_lock),
                 expected_arm=search_config.get("reflux"),
+            )
+    if record.stage == STAGE_BUILD_START:
+        grammar_version = _declared_backoff_grammar_version(decoded_lock)
+        if grammar_version is not None:
+            key = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY
+            if (key in record.payload
+                    and (type(record.payload[key]) is not int
+                         or record.payload[key] != grammar_version)):
+                raise AttemptTopologyError(
+                    "build_start: backoff grammar version が campaign.lock と不一致"
+                )
+            record = WalRecord(
+                variant=record.variant,
+                stage=record.stage,
+                env_tag=record.env_tag,
+                ts=record.ts,
+                payload={**record.payload, key: grammar_version},
             )
     line = _record_to_line(record) + "\n"
     parse_line(line)
@@ -1145,6 +1164,41 @@ def _campaign_lock_identity(lock_value: object) -> object:
     return lock_value
 
 
+def _declared_backoff_grammar_version(campaign_lock: object) -> Optional[int]:
+    """Read an exact positive grammar version only from campaign identity."""
+
+    identity = _campaign_lock_identity(campaign_lock)
+    search = identity.get("search_config") if type(identity) is dict else None
+    key = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY
+    if type(search) is not dict or key not in search:
+        return None
+    version = search.get(key)
+    if type(version) is not int or version < 1:
+        raise AttemptTopologyError(
+            "campaign.lock backoff grammar version が exact positive integer でない"
+        )
+    return version
+
+
+def validate_backoff_grammar_bindings(
+    records: List[WalRecord], *, campaign_lock: object,
+) -> None:
+    """Require every BUILD_START to repeat a versioned lock's exact value."""
+
+    expected = _declared_backoff_grammar_version(campaign_lock)
+    if expected is None:
+        return
+    key = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY
+    for record in records:
+        if record.stage != STAGE_BUILD_START:
+            continue
+        actual = record.payload.get(key)
+        if type(actual) is not int or actual != expected:
+            raise AttemptTopologyError(
+                "build_start: backoff grammar version が欠落または campaign.lock と不一致"
+            )
+
+
 def is_trigger_proposal_campaign_lock(campaign_lock: object) -> bool:
     """Classify proposal-driven trigger campaigns from their search config."""
     identity = _campaign_lock_identity(campaign_lock)
@@ -1466,6 +1520,9 @@ def _validate_attempt_topology(
 ) -> Dict[str, Dict[str, BuildAttemptState]]:
     if type(admission_policy) is not BuildAdmissionPolicy:
         raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
+    validate_backoff_grammar_bindings(
+        records, campaign_lock=campaign_lock,
+    )
     validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     by_variant: Dict[str, Dict[str, BuildAttemptState]] = {}
     global_attempts: Dict[str, BuildAttemptState] = {}
