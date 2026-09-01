@@ -181,6 +181,22 @@ validate_throughput() {
     }' "$input" >"$output"
 }
 
+run_condition_gate() {
+  local -a condition_gate_argv=(python3 -m orchestrator.campaign.condition_meaning_gate
+    --source-root "$STAGE/src-probe" --stock-root "$STAGE/src-stock"
+    --driver-id tools.pegasus.probes.t139_positive_control_probe
+    --macro BACKOFF_FIXED --requested-value=-1 --stock-comparison
+    --cxx "$(command -v g++)" --cmake "$(command -v cmake)"
+    --use-class raw-measurement)
+  local argument
+  for argument in "${COMMON[@]}" -DCCBENCH_ADD_ANALYSIS=0; do
+    [[ $argument == -DCCBENCH_BACKOFF_FIXED=-1 ]] && continue
+    condition_gate_argv+=("--configure-arg=$argument")
+  done
+  (cd "$REPO_ROOT" && deadline_run 90 "${condition_gate_argv[@]}") \
+    >"$OUT/condition-gate.jsonl" 2>"$OUT/condition-gate.stderr"
+}
+
 self_check() {
   SELF_TMP=$(mktemp -d "${TMPDIR:-/tmp}/t139-self-check.XXXXXX")
   local self_tmp=$SELF_TMP
@@ -290,9 +306,10 @@ fi
    -n ${IZANAGI_CCBENCH_SNAPSHOT:-} && -n ${IZANAGI_RUN_COMMIT:-} &&
    -n ${IZANAGI_CCBENCH_PIN:-} && -n ${IZANAGI_PREREGISTRATION_BLOB:-} &&
    -n ${IZANAGI_RUNTIME_PBS_SHA256:-} &&
-   -n ${IZANAGI_T139_STATE_DIR:-} ]] || exit 2
+   -n ${IZANAGI_T139_STATE_DIR:-} && -n ${IZANAGI_REPO_ROOT:-} ]] || exit 2
 STAGE=$(realpath -e "$IZANAGI_PROBE_STAGE")
 BUNDLE=$(realpath -e "$IZANAGI_PROBE_BUNDLE")
+REPO_ROOT=$(realpath -e "$IZANAGI_REPO_ROOT")
 CCBENCH_SNAPSHOT=$(realpath -e "$IZANAGI_CCBENCH_SNAPSHOT")
 PREREGISTRATION=$(realpath -e "$IZANAGI_PREREGISTRATION_BLOB")
 STATE_DIR=$(realpath -e "$IZANAGI_T139_STATE_DIR")
@@ -367,9 +384,9 @@ preregistration_sha=$(sha256sum "$PREREGISTRATION" | awk '{print $1}')
   printf 'preregistration_sha256\t%s\n' "$preregistration_sha"
 } >"$OUT/preregistration-witness.tsv"
 
-# Driver inner caps: writable copies/identity/patch 180 + six
-# configure/build/receipt groups 1500 + six liveness runs 180 + thirty
-# performance runs 450 = 2310 seconds; PBS
+# Driver inner caps: writable copies/identity/patch 180 + condition gate 90 +
+# six configure/build/receipt groups 1500 + six liveness runs 180 + thirty
+# performance runs 450 = 2400 seconds; PBS
 # gives the whole driver a 2400-second cap.
 make_writable_consumer_copy() {
   local destination=$1 name=$2
@@ -409,6 +426,7 @@ declare -A DEF=([stock]="" [mode1]="-DIZANAGI_T139_PC_MODE1=1"
  [modeX]="-DIZANAGI_T139_PC_MODEX=1" [stock-live]=""
  [mode1-live]="-DIZANAGI_T139_PC_MODE1=1"
  [modeX-live]="-DIZANAGI_T139_PC_MODEX=1")
+run_condition_gate
 printf 'arm\tsource\ttrace_zero_count\tadd_analysis_one_count\tmode1_count\tmodeX_count\n' \
   >"$OUT/compile-argv.tsv"
 printf 'arm\tmode1_mutex_symbols\tmodeX_mutex_symbols\ttrace_symbols\n' \

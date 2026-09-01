@@ -1,0 +1,59 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "M01-UNCOND-BINDING-PAIR-REMOVED",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    (\"proposal_build_source_bindings\", \"proposal.build_source_bindings\"),\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M04-EXACT-EQUALITY-WEAKENED-TO-SUBSET",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "        == _C10_EXPECTED_FIELD_PATHS\n",
+          "new": "        >= _C10_EXPECTED_FIELD_PATHS\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M01-COND-E2-DIGEST-EQUALITY-NEUTERED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "                if preimage_sha256 != source.source_bytes_sha256:\n",
+          "new": "                if False and preimage_sha256 != source.source_bytes_sha256:\n"
+        }
+      ]
+    }
+  ]
+}

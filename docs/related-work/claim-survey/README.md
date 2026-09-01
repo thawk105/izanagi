@@ -33,5 +33,11 @@
 | 2026-08-27 | `2026-08-27-axis1-adjudication-3.md` | 軸 1 分類 pilot に残る `要裁定` 3 件 (`2404.13359` / `2512.18746` / `2605.22721`) を一次資料で解いた記録。A の読み方の明示、件数保存則、`docs/paper-story/` §3 の 1 が落としてはならない 3 つの限定 |
 | 2026-08-27 | `2026-08-27-axis1-pilot-cd-provenance.md` | 軸 1 分類 pilot 29 行の**現行値の統合表示**と、C/D 欄の証拠階層 (一次資料 4 行 / 監査前要約 25 行)。集計と行間比較の恒久禁止 (D1156)。新しい判定はしていない |
 | 2026-08-27 | `2026-08-27-axis1-search-execution.md` | 事前登録した軸 1 検索の**実行記録**。枝ごとの完走判定、control、未完走の理由の分類、`AX1-Q6@dblp` の宣言的除外 (D1155)。生証拠は `output/insights/2026-08-27_t1969-axis1-search-execution/`。**軸 1 は `未完走` であり成熟度は `RW1` のまま** |
-| 2026-08-27 | `2026-08-27-axis3-search-preregistration.md` | 軸 3 の 7.7.4 事前登録。事実層と仮説層の二層分類、74 語 10 枝、arXiv / OpenAlex の完全 query と DBLP の server 側連言 1523 本、typed AST による期待 echo 照合、補助探索の完走述語、query 単位の失敗境界、母集合の外、`RW3` 前に閉じるべき未決 7 件。**登録であって実行ではない。軸 3 は `RW0` のままである** |
+| 2026-08-27 | `2026-08-27-axis3-search-preregistration.md` | 軸 3 の 7.7.4 事前登録。事実層と仮説層の二層分類、74 語 10 枝、arXiv / OpenAlex の完全 query と DBLP の server 側連言 1523 本、typed AST による期待 echo 照合、補助探索の完走述語、query 単位の失敗境界、母集合の外、`RW3` 前に閉じるべき blocking 5 件 (B1〜B5) と non-blocking 4 件 (N1〜N4)。**登録であって実行ではない。軸 3 は `RW0` のままである** |
 | 2026-08-27 | `2026-08-27-axis3-index-measurements.md` | 軸 3 の事前登録に用いた索引実測。arXiv の 6 syntax class、OpenAlex の echo 正規化とレート制限、DBLP の前方一致連言・三分ハイフン・ページング・1 対の集合等価性。**構文事実の観測であって本検索ではない** |
+| 2026-08-28 | `2026-08-28-axis1-a-reaudit.md` | 軸 1 の A 欄の再監査 |
+| 2026-08-29 | `2026-08-29-axis1-search-amendment.md` | 軸 1 の検索契約の改訂 (事前登録)。旧契約と旧実行記録の bytes は変えていない (D1207 / D1208) |
+| 2026-08-29 | `2026-08-29-axis1-search-catalog.json` | 軸 1 の改訂契約に対応する query program (機械可読 catalog) |
+| 2026-08-30 | `2026-08-30-axis1-search-execution.md` | 改訂契約による軸 1 の**実行記録**。生証拠は `output/insights/2026-08-29_t2033-axis1-retake/`。**軸 1 は `未完走` であり成熟度は `RW1` のまま** |
+| 2026-09-01 | `2026-09-01-axis3-search-amendment.md` | 軸 3 の検索契約の改訂 (事前登録)。旧 1543 主 query ID を supersede し、arXiv 360 年 shard・OpenAlex 10・DBLP 1523 の計 1893 主 query と非主 229 stream を後継化する。旧登録 §7.1 条件 1 を 3 索引すべてへ適用し、registration seal の受理 closure を実行器 source 2・schema 4・凍結入力 2 に限る。**登録であって実行ではない。軸 3 は `RW0` のままである** |
+| 2026-09-01 | `2026-09-01-axis3-registration-preflight.md` | 軸 3 の **network-zero な registration preflight の実行記録**。2122 行 catalog と registration seal を発行し、blocking のうち B4 (規範 parser の正例 7・負例 6) だけが閉じた。**外部 request は 1 本も出していない。軸 3 は `RW0` であり、世界の不在は支持しない** |

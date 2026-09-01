@@ -50,6 +50,28 @@ def test_mu6_aa_binding_is_fail_closed_before_measurement():
     assert source.index("require_complete_bindings") < source.index("buildcache.build_v2")
 
 
+def test_condition_gate_uses_backoff_flags_from_imported_genomes(monkeypatch):
+    captured = {}
+
+    def require(*_args, **kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(M, "_require_backoff_condition_gate", require)
+    references = S.genomes("balanced")
+    M._require_condition_gate_before_measurement(
+        "/patched", stock_root="/stock", references=references, cxx="c++",
+    )
+
+    assert captured["driver_id"] == "orchestrator/campaign/backoff_overthrottle.py"
+    assert captured["macro_values"] == {
+        "BACKOFF_FIXED": tuple(
+            M._aa_genome(reference).flags["BACKOFF_FIXED"]
+            for reference in references
+        ),
+    }
+
+
 def test_mu9_only_back_off_zero_accepts_structural_missing_spin():
     none = next(genome for genome in S.genomes("balanced") if genome.flags["BACK_OFF"] == 0)
     adaptive = next(
@@ -96,11 +118,13 @@ def test_aa_build_uses_the_job_supplied_cache_root():
 
 def test_aa_applies_patch_and_checks_all_binary_hashes_before_first_rep():
     source = inspect.getsource(M.measure)
+    checkout = source.index("with patchharness.checkout")
     patch = source.index("with patchharness.applied")
+    condition_gate = source.index("_require_condition_gate_before_measurement")
     build = source.index("buildcache.build_v2")
     identity = source.index("_require_distinct_static_binary_hashes")
     measure = source.index("_run_rep")
-    assert patch < build < identity < measure
+    assert checkout < patch < condition_gate < build < identity < measure
 
 
 def _run():

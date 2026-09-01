@@ -1066,6 +1066,7 @@ def measure_point(binary: str, records: int, threads: int,
                   subprocess_runner: Callable[..., object] = subprocess.run,
                   rep_returncodes: Optional[List[int]] = None,
                   rep_observations: Optional[List[Dict[str, object]]] = None, *,
+                  rep_timestamps: Optional[List[Dict[str, int]]] = None,
                   use_perf: bool = True,
                   holdout_observation_admission: Optional[
                       HoldoutObservationAdmission
@@ -1116,6 +1117,8 @@ def measure_point(binary: str, records: int, threads: int,
         ]
     rep_results = []
     n_exec_fail = 0
+    if rep_timestamps is not None:
+        rep_timestamps[:] = []
     for index in range(reps):
         local_returncodes: Optional[List[int]] = (
             [] if rep_observations is not None else None
@@ -1124,6 +1127,7 @@ def measure_point(binary: str, records: int, threads: int,
             event: None for event in PERF_EVENTS
         }
         throughput = None
+        started_at_ns = time.time_ns()
         try:
             run_kwargs = {
                 "numactl": numactl,
@@ -1183,6 +1187,13 @@ def measure_point(binary: str, records: int, threads: int,
             )
             continue
         finally:
+            finished_at_ns = time.time_ns()
+            if rep_timestamps is not None:
+                rep_timestamps.append({
+                    "rep_index": index,
+                    "started_at_ns": started_at_ns,
+                    "finished_at_ns": finished_at_ns,
+                })
             if rep_observations is not None:
                 if rep_returncodes is not None and local_returncodes:
                     rep_returncodes.extend(local_returncodes)

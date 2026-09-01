@@ -23,7 +23,11 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 
-from .s8b_ratified_freeze import load_ratified_freeze
+from .s8b_ratified_freeze import (
+    RatifiedFreezeError,
+    assert_g1_floor_selection_identity,
+    load_ratified_freeze,
+)
 
 
 __all__ = ("verify_floor_bytes", "judge", "publish_result_table")
@@ -84,6 +88,14 @@ class _ResultJudgeError(ValueError):
 
 class _FloorVerificationError(_ResultJudgeError):
     """A ratified floor binding or its bytes could not be verified."""
+
+
+class _RatifiedFloorSelectionError(_ResultJudgeError):
+    """The ratified g1 floor violates its recorded selection constraints."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
 
 
 class _PreregistrationNotEffectiveError(_ResultJudgeError):
@@ -2060,6 +2072,15 @@ def _ratified_floor_binding(ratified: Any) -> _RatifiedFloorBinding:
     )
 
 
+def _load_selection_checked_ratified_floor() -> Any:
+    ratified = load_ratified_freeze()
+    try:
+        assert_g1_floor_selection_identity(ratified)
+    except RatifiedFreezeError as exc:
+        raise _RatifiedFloorSelectionError(exc.reason) from exc
+    return ratified
+
+
 def _floor_candidate_path(floor_refs: Any) -> tuple[tuple[Path, str], ...]:
     if isinstance(floor_refs, Mapping):
         if set(floor_refs) != {"floor_protocol", "floor_source"}:
@@ -2105,7 +2126,7 @@ def verify_floor_bytes(
 ) -> _VerifiedFloorEvidence:
     """Verify both ratified floor artifacts and return provenance only."""
     try:
-        ratified = load_ratified_freeze()
+        ratified = _load_selection_checked_ratified_floor()
         binding = _ratified_floor_binding(ratified)
         candidates = _floor_candidate_path(floor_refs)
         expected = (
@@ -2159,6 +2180,10 @@ def verify_floor_bytes(
         )
     except _FloorVerificationError:
         raise
+    except _RatifiedFloorSelectionError as exc:
+        raise _FloorVerificationError(
+            f"ratified floor selection is invalid: {exc.reason}",
+        ) from exc
     except Exception as exc:  # noqa: BLE001 - public boundary is one dedicated error
         raise _FloorVerificationError("floor artifact verification failed") from exc
 
@@ -2185,7 +2210,11 @@ def _validate_verified_floor(evidence: Any) -> _VerifiedFloorEvidence:
     ):
         raise _ResultTableError("floor receipt contains an invalid frozen_at_head")
     try:
-        current = _ratified_floor_binding(load_ratified_freeze())
+        current = _ratified_floor_binding(_load_selection_checked_ratified_floor())
+    except _RatifiedFloorSelectionError as exc:
+        raise _ResultTableError(
+            f"current ratified floor binding is unavailable: {exc.reason}",
+        ) from exc
     except Exception as exc:  # noqa: BLE001 - publish has one fail-closed boundary
         raise _ResultTableError("current ratified floor binding is unavailable") from exc
     expected = (

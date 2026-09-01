@@ -433,6 +433,9 @@ def test_caller_built_serialized_receipt_cannot_become_replay_evidence(
         records=view.records,
         decision=view.decision,
         campaign_verifier_epoch=view.campaign_verifier_epoch,
+        persisted_certified_commit_count=sum(
+            record.stage == STAGE_COMMIT for record in view.records
+        ),
         _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
         _replay_admission_capability=FakeReplayAuthority(),
     )
@@ -531,6 +534,9 @@ def _receiptless_certified_source_view(tmp_path: Path):
     return artifact_admission.CertifiedCampaignView(
         layout=source, records=records, decision=decision,
         campaign_verifier_epoch=epoch,
+        persisted_certified_commit_count=sum(
+            record.stage == STAGE_COMMIT for record in records
+        ),
         _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
     )
 
@@ -651,13 +657,39 @@ def _commit_calls(path: Path) -> list[tuple[str, int]]:
 
 
 def test_production_commit_producer_census_is_exactly_five():
+    """Keep the historical nodeid while shrinking raw writers below five."""
     pipeline_calls = _commit_calls(Path(pipeline.__file__))
     guided_calls = _commit_calls(Path(guided.__file__))
     assert [name for name, _line in pipeline_calls] == [
-        "wal.log", "qualification_policy.event_sink.emit",
-        "wal.log", "qualification_policy.event_sink.emit",
+        "wal.log", "prepared.qualification_policy.event_sink.emit",
     ]
     assert [name for name, _line in guided_calls] == ["wal.log"]
+
+    pipeline_tree = ast.parse(
+        Path(pipeline.__file__).read_text(encoding="utf-8"),
+        filename=pipeline.__file__,
+    )
+    writer_owners = []
+    helper_callers = []
+    for function in (
+            node for node in pipeline_tree.body if isinstance(node, ast.FunctionDef)):
+        if _commit_calls_in_node := [
+            call for call in ast.walk(function)
+            if isinstance(call, ast.Call)
+            and len(call.args) >= 3
+            and isinstance(call.args[2], ast.Name)
+            and call.args[2].id == "STAGE_COMMIT"
+        ]:
+            writer_owners.extend([function.name] * len(_commit_calls_in_node))
+        if any(
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Name)
+            and call.func.id == "_commit_prepared"
+            for call in ast.walk(function)
+        ):
+            helper_callers.append(function.name)
+    assert writer_owners == ["_commit_prepared", "_commit_prepared"]
+    assert helper_callers == ["evaluate", "_run_balanced_schedule"]
 
     all_calls = []
     for path in sorted(_ORCH.rglob("*.py")):
@@ -670,9 +702,7 @@ def test_production_commit_producer_census_is_exactly_five():
     assert all_calls == [
         ("campaign/guided.py", "wal.log"),
         ("campaign/pipeline.py", "wal.log"),
-        ("campaign/pipeline.py", "qualification_policy.event_sink.emit"),
-        ("campaign/pipeline.py", "wal.log"),
-        ("campaign/pipeline.py", "qualification_policy.event_sink.emit"),
+        ("campaign/pipeline.py", "prepared.qualification_policy.event_sink.emit"),
     ]
 
 

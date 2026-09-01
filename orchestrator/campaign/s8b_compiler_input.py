@@ -8,12 +8,13 @@ generators, incomplete metadata, make variables, response files, symlinked
 metadata, and ambiguous target directories are rejected rather than treated as
 an empty or partial manifest.
 
-Version 2 persists every compiler input as a tagged root plus a root-relative
-POSIX path.  The only portable FetchContent root admitted by the measured S8b
-surface is masstree.  Snapshot and filesystem inputs retain their established
-bytes checks, while masstree inputs are rebound to a caller-supplied current
-canonical root at every live validation boundary.  Version 1 remains a strict
-read-only compatibility format; its absolute external paths are never migrated
+Versions 2 and 3 persist every compiler input as a tagged root plus a
+root-relative POSIX path.  The only portable FetchContent root admitted by the
+measured S8b surface is masstree.  Version 3 additionally admits measured
+dependency-prefix roots.  Snapshot and filesystem inputs retain their
+established bytes checks, while portable inputs are rebound to caller-supplied
+current canonical roots at every live validation boundary.  Versions 1 and 2
+remain strict read-only compatibility formats; their inputs are never migrated
 or softened.
 
 Descriptor-bound S8b collection also carries an independently captured
@@ -36,10 +37,12 @@ from typing import Any, Mapping
 
 
 LEGACY_MANIFEST_SCHEMA = "s8b-compiler-input/v1"
-MANIFEST_SCHEMA = "s8b-compiler-input/v2"
+PREVIOUS_MANIFEST_SCHEMA = "s8b-compiler-input/v2"
+MANIFEST_SCHEMA = "s8b-compiler-input/v3"
 _METADATA_SCHEMA = "cmake-unix-makefiles-cxx-depfile/v1"
 _EXTERNAL_INPUT_POLICY = "snapshot-and-external-hashes/v1"
 _V2_ROOTS = frozenset({"snapshot", "fetchcontent-masstree", "filesystem"})
+_V3_ROOTS = _V2_ROOTS | frozenset({"dependency-prefix"})
 _LOWER_HEX = frozenset("0123456789abcdef")
 _TARGET_RE = re.compile(r"[A-Za-z0-9_.+-]+\Z")
 _FLAGS_KEYS = ("CXX_DEFINES", "CXX_INCLUDES", "CXX_FLAGS")
@@ -523,10 +526,11 @@ def _file_sha256(path: Path) -> str:
             os.close(descriptor)
 
 
-def _strict_root(
+def _strict_root_or_none(
         value: os.PathLike[str] | str, *, label: str,
-) -> Path:
-    """Return one canonical absolute directory after no-follow traversal."""
+        allow_missing: bool,
+) -> Path | None:
+    """Inspect one root, optionally returning None only when it is absent."""
     try:
         raw = os.fspath(value)
     except TypeError as exc:
@@ -534,9 +538,7 @@ def _strict_root(
     if (type(raw) is not str or not raw or "\0" in raw
             or not os.path.isabs(raw)):
         raise CompilerInputError(f"{label} is not a canonical absolute directory")
-    absolute = os.path.abspath(raw)
-    if absolute != raw or os.path.realpath(raw) != absolute:
-        raise CompilerInputError(f"{label} is not a canonical absolute directory")
+    absolute = os.path.realpath(raw)
     required = ("O_DIRECTORY", "O_NOFOLLOW")
     if any(not hasattr(os, name) for name in required):
         raise CompilerInputError(f"{label} cannot be inspected without symlink following")
@@ -564,6 +566,10 @@ def _strict_root(
             os.close(descriptor)
             descriptor = child
         return Path(absolute)
+    except FileNotFoundError as exc:
+        if allow_missing:
+            return None
+        raise CompilerInputError(f"{label} is unavailable") from exc
     except CompilerInputError:
         raise
     except OSError as exc:
@@ -573,11 +579,20 @@ def _strict_root(
             os.close(descriptor)
 
 
+def _strict_root(
+        value: os.PathLike[str] | str, *, label: str,
+) -> Path:
+    root = _strict_root_or_none(value, label=label, allow_missing=False)
+    if root is None:  # pragma: no cover - allow_missing=False is fail closed.
+        raise CompilerInputError(f"{label} is unavailable")
+    return root
+
+
 def _normalized_relative_posix(value: object, *, label: str) -> str:
     if type(value) is not str or not value or "\0" in value:
         raise CompilerInputError(f"{label} path is invalid")
     pure = PurePosixPath(value)
-    if (pure.is_absolute() or pure.as_posix() != value
+    if (not pure.parts or pure.is_absolute() or pure.as_posix() != value
             or any(part in {"", ".", ".."} for part in pure.parts)):
         raise CompilerInputError(f"{label} path is not normalized relative POSIX")
     return value
@@ -671,6 +686,85 @@ def _roots_overlap(left: Path, right: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _canonical_dependency_prefix_roots(
+        value: object, *, label: str,
+) -> tuple[Path, ...]:
+    """Canonicalize present roots for order-independent membership matching."""
+    if type(value) not in (list, tuple):
+        raise CompilerInputError(f"{label} is not a root sequence")
+    roots = tuple(
+        root
+        for element in value
+        if (
+            root := _strict_root_or_none(
+                element, label=f"{label} element", allow_missing=True,
+            )
+        ) is not None
+    )
+    for index, root in enumerate(roots):
+        for other in roots[:index]:
+            if _roots_overlap(root, other):
+                raise CompilerInputError(f"{label} elements overlap")
+    return roots
+
+
+def _relative_regular_exists_nofollow(
+        root: Path, relative: str, *, label: str,
+) -> bool:
+    """Report absence, but reject symlink and non-regular spellings."""
+    parts = PurePosixPath(
+        _normalized_relative_posix(relative, label=label)
+    ).parts
+    flags = (
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    root_fd = current_fd = -1
+    try:
+        root_fd = os.open(root, flags)
+        current_fd = root_fd
+        for part in parts[:-1]:
+            try:
+                entry = os.stat(
+                    part, dir_fd=current_fd, follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                return False
+            if stat.S_ISLNK(entry.st_mode) or not stat.S_ISDIR(entry.st_mode):
+                raise CompilerInputError(f"{label} traverses a symlink or non-directory")
+            child_fd = os.open(part, flags, dir_fd=current_fd)
+            opened = os.fstat(child_fd)
+            if (
+                not stat.S_ISDIR(opened.st_mode)
+                or (entry.st_dev, entry.st_ino) != (opened.st_dev, opened.st_ino)
+            ):
+                os.close(child_fd)
+                raise CompilerInputError(f"{label} changed during traversal")
+            if current_fd != root_fd:
+                os.close(current_fd)
+            current_fd = child_fd
+        try:
+            leaf = os.stat(
+                parts[-1], dir_fd=current_fd, follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            return False
+        if stat.S_ISLNK(leaf.st_mode) or not stat.S_ISREG(leaf.st_mode):
+            raise CompilerInputError(
+                f"{label} is not a non-symlink regular file"
+            )
+        return True
+    except CompilerInputError:
+        raise
+    except OSError as exc:
+        raise CompilerInputError(f"{label} is unavailable") from exc
+    finally:
+        if current_fd >= 0 and current_fd != root_fd:
+            os.close(current_fd)
+        if root_fd >= 0:
+            os.close(root_fd)
 
 
 def _normalized_hashed_entries(
@@ -815,7 +909,7 @@ def _normalized_v2_manifest(
         descriptor_keys | {"evolve_block_sources"},
     ):
         raise CompilerInputError("compiler input manifest field set is invalid")
-    if manifest["schema_version"] != MANIFEST_SCHEMA:
+    if manifest["schema_version"] != PREVIOUS_MANIFEST_SCHEMA:
         raise CompilerInputError("compiler input manifest schema is invalid")
     if manifest["metadata_schema"] != _METADATA_SCHEMA:
         raise CompilerInputError("compiler input metadata schema is invalid")
@@ -828,6 +922,80 @@ def _normalized_v2_manifest(
     if input_policy is not None and input_policy != _EXTERNAL_INPUT_POLICY:
         raise CompilerInputError("compiler input policy is invalid")
     inputs = _normalized_v2_inputs(manifest["inputs"])
+    if input_policy is None and any(entry["root"] != "snapshot" for entry in inputs):
+        raise CompilerInputError(
+            "external compiler input root requires descriptor input policy"
+        )
+    normalized: dict[str, Any] = {
+        "schema_version": PREVIOUS_MANIFEST_SCHEMA,
+        "metadata_schema": _METADATA_SCHEMA,
+        "target": selected_target,
+        "depfile_count": manifest["depfile_count"],
+        "inputs": inputs,
+    }
+    if input_policy is not None:
+        normalized["input_policy"] = input_policy
+    if "evolve_block_sources" in manifest:
+        normalized["evolve_block_sources"] = _normalized_hashed_entries(
+            manifest["evolve_block_sources"],
+            label="EVOLVE-BLOCK source", allow_absolute=False,
+        )
+    return normalized
+
+
+def _normalized_v3_inputs(value: object) -> list[dict[str, str]]:
+    if type(value) is not list or not value:
+        raise CompilerInputError("compiler input is empty")
+    normalized: list[dict[str, str]] = []
+    previous: tuple[str, str] | None = None
+    for entry in value:
+        if type(entry) is not dict or set(entry) != {"root", "path", "sha256"}:
+            raise CompilerInputError("compiler input entry field set is invalid")
+        root = entry["root"]
+        if type(root) is not str or root not in _V3_ROOTS:
+            raise CompilerInputError("compiler input root is invalid")
+        path = _normalized_relative_posix(
+            entry["path"], label="compiler input",
+        )
+        digest = entry["sha256"]
+        if not _is_sha256(digest):
+            raise CompilerInputError("compiler input bytes hash is invalid")
+        key = (root, path)
+        if previous is not None and key <= previous:
+            raise CompilerInputError(
+                "compiler input entries are not unique and sorted"
+            )
+        normalized.append({"root": root, "path": path, "sha256": digest})
+        previous = key
+    return normalized
+
+
+def _normalized_v3_manifest(
+        manifest: object, *, target: str | None,
+) -> dict[str, Any]:
+    base_keys = {
+        "schema_version", "metadata_schema", "target", "depfile_count", "inputs",
+    }
+    descriptor_keys = base_keys | {"input_policy"}
+    if type(manifest) is not dict or set(manifest) not in (
+        base_keys,
+        descriptor_keys,
+        descriptor_keys | {"evolve_block_sources"},
+    ):
+        raise CompilerInputError("compiler input manifest field set is invalid")
+    if manifest["schema_version"] != MANIFEST_SCHEMA:
+        raise CompilerInputError("compiler input manifest schema is invalid")
+    if manifest["metadata_schema"] != _METADATA_SCHEMA:
+        raise CompilerInputError("compiler input metadata schema is invalid")
+    selected_target = _target_name(manifest["target"])
+    if target is not None and selected_target != _target_name(target):
+        raise CompilerInputError("compiler input manifest target is inconsistent")
+    if type(manifest["depfile_count"]) is not int or manifest["depfile_count"] <= 0:
+        raise CompilerInputError("compiler input depfile count is invalid")
+    input_policy = manifest.get("input_policy")
+    if input_policy is not None and input_policy != _EXTERNAL_INPUT_POLICY:
+        raise CompilerInputError("compiler input policy is invalid")
+    inputs = _normalized_v3_inputs(manifest["inputs"])
     if input_policy is None and any(entry["root"] != "snapshot" for entry in inputs):
         raise CompilerInputError(
             "external compiler input root requires descriptor input policy"
@@ -855,8 +1023,10 @@ def _normalized_manifest(manifest: object, *, target: str | None) -> dict[str, A
     schema = manifest.get("schema_version")
     if schema == LEGACY_MANIFEST_SCHEMA:
         return _normalized_v1_manifest(manifest, target=target)
-    if schema == MANIFEST_SCHEMA:
+    if schema == PREVIOUS_MANIFEST_SCHEMA:
         return _normalized_v2_manifest(manifest, target=target)
+    if schema == MANIFEST_SCHEMA:
+        return _normalized_v3_manifest(manifest, target=target)
     raise CompilerInputError("compiler input manifest schema is invalid")
 
 
@@ -865,6 +1035,7 @@ def validate_compiler_input_manifest(
     snapshot_root: os.PathLike[str] | str, target: str | None = None,
     expected_evolve_block_sources: Mapping[str, str] | None = None,
     current_fetchcontent_masstree_root: os.PathLike[str] | str | None = None,
+    current_dependency_prefix_roots: object = None,
 ) -> dict[str, Any]:
     """Validate all input bytes and any independent EVOLVE-BLOCK source proof."""
     normalized = _normalized_manifest(manifest, target=target)
@@ -893,6 +1064,18 @@ def validate_compiler_input_manifest(
                 )
     else:
         snapshot = _strict_root(snapshot_root, label="source snapshot")
+        is_v3 = normalized["schema_version"] == MANIFEST_SCHEMA
+        if is_v3 and current_dependency_prefix_roots is None:
+            raise CompilerInputError(
+                "current dependency prefix root context is required"
+            )
+        current_dependency_roots = (
+            _canonical_dependency_prefix_roots(
+                current_dependency_prefix_roots,
+                label="current dependency prefix roots",
+            )
+            if is_v3 else ()
+        )
         needs_current_context = any(
             entry["root"] != "snapshot" for entry in normalized["inputs"]
         )
@@ -910,6 +1093,18 @@ def validate_compiler_input_manifest(
             raise CompilerInputError(
                 "source snapshot and current FetchContent masstree roots overlap"
             )
+        for dependency_root in current_dependency_roots:
+            if _roots_overlap(snapshot, dependency_root):
+                raise CompilerInputError(
+                    "source snapshot and current dependency prefix roots overlap"
+                )
+            if (
+                current_masstree is not None
+                and _roots_overlap(current_masstree, dependency_root)
+            ):
+                raise CompilerInputError(
+                    "current FetchContent masstree and dependency prefix roots overlap"
+                )
         for entry in normalized["inputs"]:
             root = entry["root"]
             if root == "snapshot":
@@ -924,12 +1119,37 @@ def validate_compiler_input_manifest(
                 difference = (
                     "current FetchContent masstree input bytes differ from the manifest"
                 )
+            elif root == "dependency-prefix":
+                matches = [
+                    (
+                        dependency_root,
+                        _hash_relative_nofollow(
+                            dependency_root, entry["path"],
+                            label="dependency prefix compiler input",
+                        ),
+                    )
+                    for dependency_root in current_dependency_roots
+                    if _relative_regular_exists_nofollow(
+                        dependency_root, entry["path"],
+                        label="dependency prefix compiler input",
+                    )
+                ]
+                if len(matches) != 1:
+                    raise CompilerInputError(
+                        "dependency prefix compiler input does not have one current root"
+                    )
+                if matches[0][1] != entry["sha256"]:
+                    raise CompilerInputError(
+                        "current dependency prefix input bytes differ from the manifest"
+                    )
+                continue
             else:
                 selected_root = Path(os.sep)
                 absolute = selected_root.joinpath(*PurePosixPath(entry["path"]).parts)
                 special_roots = [snapshot]
                 if current_masstree is not None:
                     special_roots.extend((current_masstree, current_masstree.parent))
+                special_roots.extend(current_dependency_roots)
                 if any(
                     absolute == special or special in absolute.parents
                     for special in special_roots
@@ -973,6 +1193,8 @@ def collect_compiler_input_manifest(
     expected_evolve_block_sources: Mapping[str, str] | None = None,
     origin_fetchcontent_masstree_root: os.PathLike[str] | str | None = None,
     current_fetchcontent_masstree_root: os.PathLike[str] | str | None = None,
+    origin_dependency_prefix_roots: object = None,
+    current_dependency_prefix_roots: object = None,
 ) -> CompilerInputManifest:
     """Collect one strict manifest, optionally admitting hashed external inputs."""
     if type(allow_external_inputs) is not bool:
@@ -997,14 +1219,57 @@ def collect_compiler_input_manifest(
         )
         if current_fetchcontent_masstree_root is not None else None
     )
+    origin_dependency_roots = (
+        _canonical_dependency_prefix_roots(
+            origin_dependency_prefix_roots,
+            label="origin dependency prefix roots",
+        )
+        if origin_dependency_prefix_roots is not None else ()
+    )
+    current_dependency_roots = (
+        _canonical_dependency_prefix_roots(
+            current_dependency_prefix_roots,
+            label="current dependency prefix roots",
+        )
+        if current_dependency_prefix_roots is not None
+        else origin_dependency_roots
+    )
     if current_masstree is not None and origin_masstree is None:
         raise CompilerInputError(
             "current FetchContent masstree root requires an origin root"
+        )
+    if current_dependency_roots and origin_dependency_prefix_roots is None:
+        raise CompilerInputError(
+            "current dependency prefix roots require origin roots"
         )
     for root in (origin_masstree, current_masstree):
         if root is not None and _roots_overlap(snapshot, root):
             raise CompilerInputError(
                 "source snapshot and FetchContent masstree roots overlap"
+            )
+    for dependency_root in origin_dependency_roots:
+        if _roots_overlap(snapshot, dependency_root):
+            raise CompilerInputError(
+                "source snapshot and origin dependency prefix roots overlap"
+            )
+        if (
+            origin_masstree is not None
+            and _roots_overlap(origin_masstree, dependency_root)
+        ):
+            raise CompilerInputError(
+                "origin FetchContent masstree and dependency prefix roots overlap"
+            )
+    for dependency_root in current_dependency_roots:
+        if _roots_overlap(snapshot, dependency_root):
+            raise CompilerInputError(
+                "source snapshot and current dependency prefix roots overlap"
+            )
+        if (
+            current_masstree is not None
+            and _roots_overlap(current_masstree, dependency_root)
+        ):
+            raise CompilerInputError(
+                "current FetchContent masstree and dependency prefix roots overlap"
             )
     selected_target = _target_name(target)
     _require_unix_makefiles(build)
@@ -1031,7 +1296,8 @@ def collect_compiler_input_manifest(
             raw_path = Path(raw_input)
             if not raw_path.is_absolute():
                 raw_path = compiler_working_directory / raw_path
-            absolute = Path(os.path.normpath(os.path.abspath(raw_path)))
+            absolute_text = os.path.normpath(os.path.abspath(raw_path))
+            absolute = Path(os.sep + absolute_text.lstrip(os.sep))
             try:
                 relative = absolute.relative_to(snapshot)
                 root = "snapshot"
@@ -1047,21 +1313,59 @@ def collect_compiler_input_manifest(
                         root = "fetchcontent-masstree"
                         selected_root = origin_masstree
                     except ValueError:
-                        try:
-                            absolute.relative_to(origin_masstree.parent)
-                        except ValueError:
-                            pass
-                        else:
+                        dependency_matches = []
+                        for dependency_root in origin_dependency_roots:
+                            try:
+                                dependency_relative = absolute.relative_to(
+                                    dependency_root
+                                )
+                            except ValueError:
+                                continue
+                            dependency_matches.append((
+                                dependency_root, dependency_relative,
+                            ))
+                        if len(dependency_matches) > 1:
                             raise CompilerInputError(
-                                "unsupported FetchContent compiler input root"
+                                "compiler input belongs to ambiguous dependency prefix roots"
                             )
+                        if dependency_matches:
+                            selected_root, relative = dependency_matches[0]
+                            root = "dependency-prefix"
+                        else:
+                            try:
+                                absolute.relative_to(origin_masstree.parent)
+                            except ValueError:
+                                pass
+                            else:
+                                raise CompilerInputError(
+                                    "unsupported FetchContent compiler input root"
+                                )
+                            root = "filesystem"
+                            selected_root = Path(os.sep)
+                            relative = absolute.relative_to(selected_root)
+                else:
+                    dependency_matches = []
+                    for dependency_root in origin_dependency_roots:
+                        try:
+                            dependency_relative = absolute.relative_to(
+                                dependency_root
+                            )
+                        except ValueError:
+                            continue
+                        dependency_matches.append((
+                            dependency_root, dependency_relative,
+                        ))
+                    if len(dependency_matches) > 1:
+                        raise CompilerInputError(
+                            "compiler input belongs to ambiguous dependency prefix roots"
+                        )
+                    if dependency_matches:
+                        selected_root, relative = dependency_matches[0]
+                        root = "dependency-prefix"
+                    else:
                         root = "filesystem"
                         selected_root = Path(os.sep)
                         relative = absolute.relative_to(selected_root)
-                else:
-                    root = "filesystem"
-                    selected_root = Path(os.sep)
-                    relative = absolute.relative_to(selected_root)
             relative_text = relative.as_posix()
             digest = _hash_relative_nofollow(
                 selected_root, relative_text, label="compiler input",
@@ -1094,5 +1398,6 @@ def collect_compiler_input_manifest(
         current_fetchcontent_masstree_root=(
             current_masstree if current_masstree is not None else origin_masstree
         ),
+        current_dependency_prefix_roots=current_dependency_roots,
     )
     return CompilerInputManifest(normalized, digest)

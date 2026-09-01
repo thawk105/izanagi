@@ -198,6 +198,9 @@ def replay_evidence(
         records=records,
         decision=decision,
         campaign_verifier_epoch=epoch,
+        persisted_certified_commit_count=sum(
+            record.stage == STAGE_COMMIT for record in records
+        ),
         _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
         _replay_admission_capability=replay_capability,
     )

@@ -2417,7 +2417,7 @@ def test_m5_dual_layer_interpreter_rejection_changes_acceptance_only_together(
                 mock.patch.object(DC.sys, "version_info", (3, 9, 13)), \
                 mock.patch.object(DC.os, "uname", return_value=fake_uname), \
                 mock.patch.object(DC.os, "chdir"), \
-                mock.patch.object(DC.subprocess, "call", return_value=0):
+                mock.patch.object(DC, "_run_isolated_child", return_value=0):
             pipeline_rc = DC._job_run(request)
 
     assert pipeline_rc == DC.INFRA_RC
@@ -2437,6 +2437,30 @@ def test_interpreter_stage_failure_is_fail_closed_and_preserved_in_receipt(
     assert scheduler.qstat_calls == 4
     assert receipt["qdel"]["cleanup_policy"] == "fresh-qstat-gate/v1"
     assert receipt["qdel"]["gate"]["scheduler_state"] == "END"
+
+
+def test_login_rejects_red_guard_at_existing_stage_gate(tmp_path):
+    scheduler = _Scheduler(
+        stage=DC._RESULT_GUARD_STAGE,
+        child_rc=DC.INFRA_RC,
+    )
+
+    rc, submission = _dispatch(tmp_path, scheduler)
+
+    receipt = json.loads(
+        (submission / "receipt.json").read_text(encoding="utf-8")
+    )
+    assert rc == DC.INFRA_RC
+    assert receipt["result"]["pbs_jobid"] == _JOB_ID
+    assert receipt["result"]["request_sha256"] == receipt["request"]["sha256"]
+    assert receipt["result"]["stage"] == DC._RESULT_GUARD_STAGE
+    assert receipt["scheduler_logs"]["accounting_present"] is True
+    assert receipt["f49_compute_marker"]["valid"] is True
+    assert receipt["outcome"]["kind"] == "infra"
+    assert receipt["outcome"]["reason"] == (
+        "DispatchError: job bootstrap failure: "
+        f"stage={DC._RESULT_GUARD_STAGE}"
+    )
 
 
 def test_m6_qstat_success_without_request_skips_qdel_and_create_only_latches(
@@ -4069,16 +4093,593 @@ def _job_run_with_mocked_child(
     calls: list[tuple[list[str], dict]] = []
 
     def record(argv, **kwargs):
-        calls.append((list(argv), kwargs))
+        calls.append((list(argv), {
+            "cwd": str(kwargs["cwd"]),
+            "env": kwargs["env"],
+            "stdin": (
+                subprocess.DEVNULL
+                if kwargs.get("stdin_bytes") is None else subprocess.PIPE
+            ),
+            "shell": False,
+            "submission_dir": kwargs["submission_dir"],
+        }))
         return child_rc
 
     with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}), \
             mock.patch.object(DC.os, "uname", return_value=fake_uname), \
             mock.patch.object(DC.os, "chdir"), \
             mock.patch.object(DC, "_import_probe_modules"), \
-            mock.patch.object(DC.subprocess, "call", side_effect=record):
+            mock.patch.object(DC, "_run_isolated_child", side_effect=record):
         rc = DC._job_run(request_path, expected)
     return rc, calls
+
+
+def _write_bound_job_run_request(
+    submission: Path,
+    *,
+    repo_root: Path,
+    task: str,
+    args: list[str],
+    environment: dict[str, str] | None = None,
+) -> tuple[Path, str]:
+    submission.mkdir(parents=True, exist_ok=True)
+    request_path = submission / "request.json"
+    payload = {
+        "schema_version": DC._REQUEST_SCHEMA,
+        "repo_root": str(repo_root.resolve()),
+        "task": task,
+        "args": args,
+        "environment": {} if environment is None else environment,
+        "request_binding": DC._REQUEST_BINDING,
+    }
+    request_path.write_text(
+        DC._canonical_json_text(payload), encoding="utf-8"
+    )
+    request_sha256 = hashlib.sha256(request_path.read_bytes()).hexdigest()
+    probe_path = submission / "interpreter_probe.py"
+    probe_path.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    (submission / "dispatch.sh").write_text(
+        DC._job_script(
+            repo_root=repo_root,
+            submission_dir=submission,
+            request_path=request_path,
+            probe_path=probe_path,
+            request_sha256=request_sha256,
+            walltime="00:30:00",
+            task=task,
+        ),
+        encoding="utf-8",
+    )
+    return request_path, request_sha256
+
+
+def _actual_job_run(request_path: Path, request_sha256: str) -> int:
+    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+    original_cwd = Path.cwd()
+    try:
+        with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}), \
+                mock.patch.object(DC.os, "uname", return_value=fake_uname):
+            return DC._job_run(request_path, request_sha256)
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_inspected_child_result_operations_are_kernel_rejected(tmp_path):
+    submission = tmp_path / "submission"
+    observation = tmp_path / "result-operation-errno.json"
+    child_source = "\n".join((
+        "import errno, json, os, subprocess, sys",
+        "from pathlib import Path",
+        "result = Path(sys.argv[1])",
+        "observation = Path(sys.argv[2])",
+        "replacement = observation.with_name('replacement-source')",
+        "retreated = observation.with_name('retreated-result')",
+        "linked = observation.with_name('linked-result')",
+        "replacement.write_bytes(b'forged-child-result')",
+        "records = {}",
+        "remount = subprocess.run(",
+        "    ['/usr/bin/mount', '-o', 'remount,bind,rw', str(result.parent)],",
+        "    check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,",
+        ")",
+        "records['remount-rw'] = 'REJECTED' if remount.returncode else 'ALLOWED'",
+        "def attempt(name, operation):",
+        "    try:",
+        "        operation()",
+        "    except OSError as exc:",
+        "        records[name] = errno.errorcode.get(exc.errno, str(exc.errno))",
+        "    else:",
+        "        records[name] = 'ALLOWED'",
+        "def opened(flags):",
+        "    descriptor = os.open(result, flags, 0o600)",
+        "    try:",
+        "        os.write(descriptor, b'forged-child-result')",
+        "    finally:",
+        "        os.close(descriptor)",
+        "attempt('create', lambda: opened(os.O_WRONLY | os.O_CREAT | os.O_EXCL))",
+        "attempt('overwrite', lambda: opened(os.O_WRONLY | os.O_TRUNC))",
+        "attempt('chmod', lambda: os.chmod(result, 0o777))",
+        "attempt('unlink', result.unlink)",
+        "attempt('rename-replace', lambda: os.replace(replacement, result))",
+        "attempt('rename-retreat', lambda: os.rename(result, retreated))",
+        "attempt('link', lambda: os.link(result, linked))",
+        "observation.write_text(json.dumps(records, sort_keys=True), encoding='ascii')",
+        "raise SystemExit(23)",
+    ))
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[
+            sys.executable,
+            "-I",
+            "-c",
+            child_source,
+            str(submission / "result.json"),
+            str(observation),
+        ],
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    observed = json.loads(observation.read_text(encoding="ascii"))
+    assert observed == {
+        "chmod": "EROFS",
+        "create": "EEXIST",
+        "link": "EXDEV",
+        "overwrite": "EROFS",
+        "remount-rw": "REJECTED",
+        "rename-replace": "EXDEV",
+        "rename-retreat": "EXDEV",
+        "unlink": "EROFS",
+    }
+    result_bytes = (submission / "result.json").read_bytes()
+    result = json.loads(result_bytes)
+    assert rc == 23
+    assert result["stage"] == "child"
+    assert result["child_rc"] == 23
+    assert result_bytes != b"forged-child-result"
+
+
+def test_inspected_child_cannot_rename_ancestors_but_can_write_inside_them(
+    tmp_path,
+):
+    protected_root = tmp_path / "protected-root"
+    protected_parent = protected_root / "protected-parent"
+    submission = protected_parent / "submission"
+    observation = tmp_path / "ancestor-rename-observation.json"
+    writable_probe = protected_root / "child-write-succeeded"
+    renamed_root = tmp_path / "renamed-root"
+    renamed_parent = protected_root / "renamed-parent"
+    child_source = "\n".join((
+        "import errno, json, os, sys",
+        "from pathlib import Path",
+        "protected_root = Path(sys.argv[1])",
+        "protected_parent = Path(sys.argv[2])",
+        "renamed_root = Path(sys.argv[3])",
+        "renamed_parent = Path(sys.argv[4])",
+        "writable_probe = Path(sys.argv[5])",
+        "observation = Path(sys.argv[6])",
+        "records = {}",
+        "def attempt(name, source, destination):",
+        "    try:",
+        "        os.rename(source, destination)",
+        "    except OSError as exc:",
+        "        records[name] = errno.errorcode.get(exc.errno, str(exc.errno))",
+        "    else:",
+        "        records[name] = 'ALLOWED'",
+        "attempt('parent', protected_parent, renamed_parent)",
+        "attempt('root', protected_root, renamed_root)",
+        "writable_probe.write_text('child-write-succeeded', encoding='ascii')",
+        "observation.write_text(json.dumps(records, sort_keys=True), encoding='ascii')",
+        "raise SystemExit(0)",
+    ))
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[
+            sys.executable,
+            "-I",
+            "-c",
+            child_source,
+            str(protected_root),
+            str(protected_parent),
+            str(renamed_root),
+            str(renamed_parent),
+            str(writable_probe),
+            str(observation),
+        ],
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    assert json.loads(observation.read_text(encoding="ascii")) == {
+        "parent": "EBUSY",
+        "root": "EBUSY",
+    }
+    assert writable_probe.read_text(encoding="ascii") == "child-write-succeeded"
+    assert not renamed_root.exists()
+    assert not renamed_parent.exists()
+    result = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == 0
+    assert result["stage"] == "child"
+    assert result["child_rc"] == 0
+
+
+def test_isolation_mount_failure_does_not_launch_child_and_leaves_red_guard(
+    tmp_path, monkeypatch,
+):
+    submission = tmp_path / "submission"
+    child_marker = tmp_path / "child-started"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[
+            sys.executable,
+            "-I",
+            "-c",
+            "from pathlib import Path; Path(__import__('sys').argv[1]).touch()",
+            str(child_marker),
+        ],
+    )
+    monkeypatch.setattr(
+        DC, "_ISOLATION_MOUNT_COMMAND", "/missing/t536-mount"
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    guard = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == DC.INFRA_RC
+    assert not child_marker.exists()
+    assert guard["schema_version"] == "pegasus-dispatch-result/v1"
+    assert guard["stage"] == DC._RESULT_GUARD_STAGE
+    assert guard["child_rc"] == DC.INFRA_RC
+
+
+def test_isolation_status_failure_is_infra_and_not_a_child_rc(
+    tmp_path, monkeypatch,
+):
+    submission = tmp_path / "submission"
+    child_marker = tmp_path / "child-started"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[sys.executable, "-c", f"open({str(child_marker)!r}, 'w').close()"],
+    )
+    monkeypatch.setattr(DC, "_ISOLATED_CHILD_BOOTSTRAP", "raise SystemExit(0)")
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    guard = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == DC.INFRA_RC
+    assert not child_marker.exists()
+    assert guard["stage"] == DC._RESULT_GUARD_STAGE
+    assert guard["child_rc"] == DC.INFRA_RC
+
+
+def test_isolated_exec_failure_is_infra_and_not_child_rc_16(tmp_path):
+    submission = tmp_path / "submission"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=["/missing/t536-inspected-argv"],
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    guard = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == DC.INFRA_RC
+    assert guard["stage"] == DC._RESULT_GUARD_STAGE
+    assert guard["child_rc"] == DC.INFRA_RC
+
+
+def test_exec_error_proof_rejects_otherwise_valid_signal_status():
+    raw_status = (
+        b'{"event":"setup-complete"}\n'
+        + json.dumps({
+            "event": "wait-status",
+            "status": signal.SIGTERM,
+        }, sort_keys=True, separators=(",", ":")).encode("ascii")
+        + b"\n"
+    )
+
+    with pytest.raises(DC._ChildIsolationError, match="exec failed"):
+        DC._isolated_child_rc(
+            raw_status,
+            b"FileNotFoundError: inspected argv is missing\n",
+            0,
+        )
+
+
+def test_status_fd_is_close_on_exec_and_pid_namespace_is_not_added():
+    source = DC._ISOLATED_CHILD_BOOTSTRAP
+    assert "os.set_inheritable(status_fd, False)" in source
+    assert "os.set_inheritable(exec_error_fd, False)" in source
+    assert "os.close(exec_error_fd)" in source
+    assert source.index('emit("setup-complete")') < source.index("os.execvpe(")
+    assert "CLONE_NEWPID" not in source
+    assert "0x20000000" not in source
+
+
+def test_isolated_child_identity_matches_direct_execution(tmp_path):
+    direct_observation = tmp_path / "direct-identity.json"
+    isolated_observation = tmp_path / "isolated-identity.json"
+    child_source = "\n".join((
+        "import json, os, sys",
+        "from pathlib import Path",
+        "observation = Path(sys.argv[1])",
+        "observation.write_text('pending', encoding='ascii')",
+        "status = Path('/proc/self/status').read_text(encoding='ascii')",
+        "cap_eff = next(",
+        "    line.split(':', 1)[1].strip()",
+        "    for line in status.splitlines() if line.startswith('CapEff:')",
+        ")",
+        "owner = observation.stat()",
+        "payload = {",
+        "    'uid': os.getuid(),",
+        "    'euid': os.geteuid(),",
+        "    'gid': os.getgid(),",
+        "    'egid': os.getegid(),",
+        "    'cap_eff': cap_eff,",
+        "    'owner_uid': owner.st_uid,",
+        "    'owner_gid': owner.st_gid,",
+        "}",
+        "observation.write_text(json.dumps(payload, sort_keys=True), encoding='ascii')",
+    ))
+    direct_argv = [
+        sys.executable,
+        "-I",
+        "-c",
+        child_source,
+        str(direct_observation),
+    ]
+    subprocess.run(
+        direct_argv,
+        check=True,
+        cwd=_REPO,
+        env={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
+    )
+    submission = tmp_path / "identity-submission"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[
+            sys.executable,
+            "-I",
+            "-c",
+            child_source,
+            str(isolated_observation),
+        ],
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    direct = json.loads(direct_observation.read_text(encoding="ascii"))
+    isolated = json.loads(isolated_observation.read_text(encoding="ascii"))
+    assert rc == 0
+    assert isolated == direct
+    assert isolated["uid"] == os.getuid()
+    assert isolated["gid"] == os.getgid()
+
+
+def test_result_replace_fsyncs_parent_directory_after_publish(
+    tmp_path, monkeypatch,
+):
+    result_path = tmp_path / "result.json"
+    result_path.write_text("guard\n", encoding="ascii")
+    events = []
+    real_replace = DC.os.replace
+
+    def observe_replace(source, destination):
+        events.append(("replace", Path(destination)))
+        return real_replace(source, destination)
+
+    def observe_fsync(path):
+        events.append(("fsync", Path(path)))
+
+    monkeypatch.setattr(DC.os, "replace", observe_replace)
+    monkeypatch.setattr(DC, "_fsync_dir", observe_fsync)
+
+    DC._write_result_replace(result_path, {"stage": "child", "child_rc": 0})
+
+    assert events == [
+        ("replace", result_path),
+        ("fsync", tmp_path),
+    ]
+    assert json.loads(result_path.read_text(encoding="utf-8")) == {
+        "stage": "child",
+        "child_rc": 0,
+    }
+
+
+def test_guard_create_failure_never_reaches_isolated_launcher(tmp_path):
+    submission = tmp_path / "submission"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[sys.executable, "-c", "raise SystemExit(0)"],
+    )
+    result_path = submission / "result.json"
+    original = b"preexisting-result\n"
+    result_path.write_bytes(original)
+
+    with mock.patch.object(DC, "_run_isolated_child") as launcher:
+        rc = _actual_job_run(request_path, request_sha256)
+
+    assert rc == DC.INFRA_RC
+    launcher.assert_not_called()
+    assert result_path.read_bytes() == original
+
+
+def test_parent_owned_result_publish_uses_actual_child_rc(tmp_path):
+    submission = tmp_path / "submission"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[sys.executable, "-I", "-c", "raise SystemExit(7)"],
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    result = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == 7
+    assert result["stage"] == "child"
+    assert result["child_rc"] == 7
+    assert result["request_sha256"] == request_sha256
+
+
+def test_real_child_rc_16_is_not_confused_with_isolation_infra(tmp_path):
+    submission = tmp_path / "submission"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[sys.executable, "-I", "-c", "raise SystemExit(16)"],
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    result = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == DC.INFRA_RC
+    assert result["stage"] == "child"
+    assert result["child_rc"] == DC.INFRA_RC
+    assert result["error"] is None
+
+
+def test_real_child_signal_is_published_from_wait_status(tmp_path):
+    submission = tmp_path / "submission"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[
+            sys.executable,
+            "-I",
+            "-c",
+            "import os, signal; "
+            "signal.signal(signal.SIGTERM, signal.SIG_DFL); "
+            "signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM}); "
+            "os.kill(os.getpid(), signal.SIGTERM)",
+        ],
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    result = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == -signal.SIGTERM
+    assert result["stage"] == "child"
+    assert result["child_rc"] == -signal.SIGTERM
+
+
+def test_result_publish_failure_is_infra_and_guard_remains(
+    tmp_path, monkeypatch,
+):
+    submission = tmp_path / "submission"
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=_REPO,
+        task="generic",
+        args=[sys.executable, "-I", "-c", "raise SystemExit(0)"],
+    )
+    result_path = submission / "result.json"
+    real_replace = DC.os.replace
+
+    def fail_result_publish(source, destination):
+        if Path(destination) == result_path:
+            raise OSError("injected result publish failure")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(DC.os, "replace", fail_result_publish)
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    guard = json.loads(result_path.read_text(encoding="utf-8"))
+    assert rc == DC.INFRA_RC
+    assert guard["stage"] == DC._RESULT_GUARD_STAGE
+    assert guard["child_rc"] == DC.INFRA_RC
+
+
+def test_mutation_child_reads_marker_from_read_only_submission_dir(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    observation = tmp_path / "mutation-marker-observation.json"
+    (tools / "mutation_worktree.py").write_text(
+        "\n".join((
+            "import json, os, sys",
+            "from pathlib import Path",
+            f"binding = json.loads(os.environ[{DC.mutation_attempt_marker.MARKER_ENV!r}])",
+            "submission = Path(binding['submission_dir'])",
+            "payload = {",
+            "    'binding': binding,",
+            "    'request': json.loads((submission / 'request.json').read_text()),",
+            f"    'marker': json.loads((submission / {DC._COMPUTE_MARKER_NAME!r}).read_text()),",
+            "}",
+            "out = Path(sys.argv[sys.argv.index('--out') + 1])",
+            "out.write_text(json.dumps(payload, sort_keys=True), encoding='ascii')",
+            "raise SystemExit(0)",
+        )) + "\n",
+        encoding="utf-8",
+    )
+    submission = repo / "output" / "pegasus-dispatch" / "mutation-read"
+    mutation_args = [
+        "--spec", "spec.json",
+        "--out", str(observation),
+        "--runner-mode", "local",
+        "--detached",
+        "--", sys.executable, "tools/run_tests.py",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py",
+    ]
+    request_path, request_sha256 = _write_bound_job_run_request(
+        submission,
+        repo_root=repo,
+        task="mutation",
+        args=mutation_args,
+    )
+    (submission / DC._COMPUTE_MARKER_NAME).write_text(
+        json.dumps({
+            "schema_version": "pegasus-compute-visible/v1",
+            "pbs_jobid": _JOB_ID,
+            "hostname": "bnode114",
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc = _actual_job_run(request_path, request_sha256)
+
+    observed = json.loads(observation.read_text(encoding="ascii"))
+    assert rc == 0
+    assert observed["binding"]["submission_dir"] == str(submission.resolve())
+    assert observed["binding"]["request_sha256"] == request_sha256
+    assert observed["request"]["task"] == "mutation"
+    assert observed["marker"] == {
+        "schema_version": "pegasus-compute-visible/v1",
+        "pbs_jobid": _JOB_ID,
+        "hostname": "bnode114",
+    }
 
 
 def _binding_environment(write_fd: int, *, shard_count: str = "1") -> dict[str, str]:
@@ -4149,6 +4750,8 @@ def test_bound_child_executes_main_blob_not_worktree(tmp_path):
             return main_source
         return original_read_bytes(path)
 
+    submission = tmp_path / "submission"
+    submission.mkdir()
     # M8 owns the execution-source distinction. M9 separately owns pathname
     # re-hashing, so keep that independent mutation from changing this fixture.
     with mock.patch.object(Path, "read_bytes", main_bytes_for_digest):
@@ -4161,6 +4764,7 @@ def test_bound_child_executes_main_blob_not_worktree(tmp_path):
             },
             binding,
             tmp_path,
+            submission,
         )
 
     assert rc == 0
@@ -4209,12 +4813,15 @@ def test_bound_child_reports_digest_of_executed_buffer(tmp_path):
         "shard_count": 1,
         "shard_index": 0,
     }
+    submission = tmp_path / "submission"
+    submission.mkdir()
     rc, digest = DC._run_bound_tests_child(
         repo,
         [],
         {"PATH": os.environ.get("PATH", ""), "PYTHONDONTWRITEBYTECODE": "1"},
         binding,
         tmp_path,
+        submission,
     )
 
     assert rc == 0
@@ -4404,6 +5011,7 @@ def _run_synthetic_bound_child(case, *, child_env=None):
         environment,
         case["binding"],
         case["site_root"],
+        case["submission"],
     )
 
 
@@ -4879,6 +5487,45 @@ def test_job_run_rejects_allowlist_external_environment_before_child(tmp_path):
     assert "allowlist" in result["error"]
 
 
+def test_parent_cannot_inject_mutation_marker_through_request_environment(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "mutation",
+                "args": [
+                    "--spec",
+                    "spec.json",
+                    "--out",
+                    "ledger.json",
+                    "--runner-mode",
+                    "local",
+                    "--detached",
+                    "--",
+                    sys.executable,
+                    "tools/run_tests.py",
+                    "orchestrator/tests/test_pegasus_dispatch_compute.py",
+                ],
+                "environment": {
+                    DC.mutation_attempt_marker.MARKER_ENV: "forged"
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == DC.INFRA_RC
+    assert calls == []
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert result["stage"] == "bootstrap"
+    assert "allowlist" in result["error"]
+
+
 def test_valid_current_and_v1_environment_overlays_survive_child_enforcement(
     tmp_path,
 ):
@@ -5098,6 +5745,111 @@ def test_job_run_closes_stdin_uses_repo_cwd_and_cleans_mutation_env(
         "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "LD_PRELOAD", "IZANAGI_FORGED",
         DC._REQUEST_SHA256_ENV,
     }.isdisjoint(kwargs["env"])
+
+
+def test_m10_mutation_child_receives_compute_minted_marker_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv(DC.mutation_attempt_marker.MARKER_ENV, "parent-forged")
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "mutation",
+                "args": [
+                    "--spec",
+                    "spec.json",
+                    "--out",
+                    "ledger.json",
+                    "--runner-mode",
+                    "local",
+                    "--detached",
+                    "--",
+                    sys.executable,
+                    "tools/run_tests.py",
+                    "orchestrator/tests/test_pegasus_dispatch_compute.py",
+                ],
+                "environment": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == 0
+    assert len(calls) == 1
+    marker = json.loads(calls[0][1]["env"][DC.mutation_attempt_marker.MARKER_ENV])
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert marker == {
+        "schema_version": DC.mutation_attempt_marker.BINDING_SCHEMA,
+        "dispatch_root": str((_REPO / "output" / "pegasus-dispatch").resolve()),
+        "submission_dir": str(tmp_path.resolve()),
+        "pbs_jobid": _JOB_ID,
+        "hostname": "bnode114",
+        "request_sha256": result["request_sha256"],
+    }
+    assert DC.mutation_attempt_marker.MARKER_ENV not in DC.TASKS[
+        "mutation"
+    ].env_allowlist
+    assert DC.mutation_attempt_marker.MARKER_ENV not in DC._CLEAN_CHILD_ENV_KEYS
+
+
+@pytest.mark.parametrize(
+    ("task", "args"),
+    [
+        ("tests", ["orchestrator/tests/test_pegasus_dispatch_compute.py"]),
+        ("provenance", ["--range", "A..B"]),
+        ("generic", [sys.executable, "-c", "raise SystemExit(0)"]),
+    ],
+)
+def test_m9_non_mutation_children_never_receive_marker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    task: str,
+    args: list[str],
+) -> None:
+    monkeypatch.delenv(DC.mutation_attempt_marker.MARKER_ENV, raising=False)
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": task,
+                "args": args,
+                "environment": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == 0
+    assert len(calls) == 1
+    assert DC.mutation_attempt_marker.MARKER_ENV not in calls[0][1]["env"]
+
+
+def test_job_script_does_not_export_mutation_attempt_marker(tmp_path: Path) -> None:
+    submission = tmp_path / "submission"
+    submission.mkdir()
+    script = DC._job_script(
+        repo_root=_REPO,
+        submission_dir=submission,
+        request_path=submission / "request.json",
+        probe_path=submission / "interpreter_probe.py",
+        request_sha256="a" * 64,
+        walltime="00:30:00",
+        task="mutation",
+    )
+
+    assert DC.mutation_attempt_marker.MARKER_ENV not in script
 
 
 def test_generic_job_run_executes_direct_argv_with_clean_contract(tmp_path):

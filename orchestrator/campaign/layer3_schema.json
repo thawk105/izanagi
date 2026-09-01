@@ -10,6 +10,7 @@
         "properties": {"certifying_input": {"const": true}}
       },
       "then": {
+        "not": {"required": ["current_verifier_conformance"]},
         "properties": {
           "campaign_verifier_epoch": {
             "not": {"required": ["verifier_assessment_basis"]}
@@ -238,6 +239,7 @@
         "verifier_assessment_basis": {"const": "recorded-at-original-verifier-epoch"}
       }
     },
+    "current_verifier_conformance": {"const": "unknown"},
     "acceptance_receipt": {
       "oneOf": [
         {"type": "null"},
@@ -252,8 +254,8 @@
     "floor_source": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
     "floor_result": {
       "oneOf": [
-        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "object"}, "provenance": {"const": "env-record"}, "source": {"$ref": "#/definitions/floor_source"}, "search": {"type": "null"}}},
-        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "null"}, "provenance": {"const": "no-matching-env-record"}, "source": {"type": "null"}, "search": {"type": "object"}}}
+        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "object"}, "provenance": {"const": "env-record"}, "protocol": {"type": "string", "minLength": 1}, "protocol_match_basis": {"const": "genome-absent-legacy-record"}, "source": {"$ref": "#/definitions/floor_source"}, "search": {"type": "null"}}},
+        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "null"}, "provenance": {"const": "no-matching-env-record"}, "protocol": {"type": "string", "minLength": 1}, "source": {"type": "null"}, "search": {"type": "object"}}}
       ]
     }
   }

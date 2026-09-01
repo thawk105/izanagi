@@ -4,11 +4,13 @@
 The evidence is deliberately composite: a static candidate-main path plus a
 direct call to the real switchpoint made by this probe.  It does not claim that
 the candidate main traversed that edge at runtime.  Generation interdiction is
-the reverse closure of three named seeds within the exact analyzed-module
-manifest recorded in evidence; modules outside that manifest and producers
-that reach none of those seeds are not covered by that layer.  Protected
-campaign viewing is handled by the audit layer.  Arbitrary native code and an
-equally privileged process are outside this probe's claim.
+the reverse closure over statically resolved call edges from three named seeds
+within the exact analyzed-module manifest recorded in evidence.  Modules
+outside that manifest, producers that reach none of those seeds, and callers
+within the manifest whose call binding cannot be statically resolved are not
+covered by that layer.  Protected campaign viewing is handled by the audit
+layer.  Arbitrary native code and an equally privileged process are outside
+this probe's claim.
 """
 from __future__ import annotations
 
@@ -1390,7 +1392,13 @@ def _validate_fixture_payload(payload: Mapping[str, object]) -> dict[str, object
     return dict(payload)
 
 
-def _record_probe_diff_reject(workspace: object, layout: object, payload: Mapping[str, object]) -> str:
+def _record_probe_diff_reject(
+    workspace: object,
+    layout: object,
+    payload: Mapping[str, object],
+    *,
+    backoff_grammar_version: int | None = None,
+) -> str:
     runtime = _require_active_runtime()
     expected = _layout_for_workspace(workspace)
     if type(layout) is not type(expected) or _resolved(layout.root) != _resolved(expected.root):
@@ -1416,6 +1424,7 @@ def _record_probe_diff_reject(workspace: object, layout: object, payload: Mappin
     )
     return runtime.L.record_diff_reject(
         layout, genome, checked["implementation"], rejection,
+        backoff_grammar_version=backoff_grammar_version,
     )
 
 
@@ -1453,6 +1462,7 @@ def _make_probe_view():
             generator_id=runtime.build_admission.GeneratorId.BACKOFF_SWEEP,
         )
         cfg = runtime.L.default_cfg(reflux=False)
+        backoff_grammar_version = runtime.L._require_backoff_grammar_version(cfg)
         if cfg.search_config.get("build_admission") != context.policy.as_preimage():
             raise ProbeIsolationError("fixture config is not bound to current admission policy")
         binding = runtime.loader_binding
@@ -1471,7 +1481,12 @@ def _make_probe_view():
             ),
         )
         runtime.L.wal.write_lock(layout, lock_text)
-        _record_probe_diff_reject(workspace, layout, _fixture_payload_from_types())
+        _record_probe_diff_reject(
+            workspace,
+            layout,
+            _fixture_payload_from_types(),
+            backoff_grammar_version=backoff_grammar_version,
+        )
         view = runtime.artifact_admission.require_admitted_campaign(
             layout,
             purpose=runtime.artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
@@ -2107,12 +2122,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             },
             "generation_seeds": list(_GENERATION_SEEDS),
             "generation_scope": (
-                "within the exact analyzed module set, functions reaching at least "
-                "one named seed are included by reverse closure"
+                "within the exact analyzed module set, reverse closure over "
+                "statically resolved call edges includes functions reaching at "
+                "least one named seed"
             ),
             "generation_scope_exclusion": (
                 "modules outside the exact analyzed set and producers reaching none "
-                "of the three seeds are not covered by this layer"
+                "of the three seeds, plus callers inside the analyzed set whose "
+                "call binding cannot be statically resolved, are not covered by "
+                "this layer"
             ),
             "viewing_scope": "protected campaign root reads and writes are audit-blocked",
             "inventory": inventory,

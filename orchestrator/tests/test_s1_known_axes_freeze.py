@@ -51,6 +51,39 @@ def _trigger_provenance(
     }
 
 
+def _sort_implementation(name: str) -> str:
+    implementations = [
+        implementation
+        for candidate_name, _category, implementation in M.s6_sort_sweep.CANDIDATES
+        if candidate_name == name
+    ]
+    assert len(implementations) == 1
+    return implementations[0]
+
+
+def _call_sort_entry_with_mocked_provenance(
+        *, workload: str, selected_name: str, comparator: str):
+    provenance = {
+        "entries": {selected_name: {"implementation": comparator}},
+    }
+    unexpected = AssertionError("sort binding rejection did not precede output assembly")
+    with mock.patch.object(M, "_campaign_file", return_value=M.ROOT / "mocked"), \
+            mock.patch.object(
+                M.s6_sort_sweep, "_genome", side_effect=unexpected), \
+            mock.patch.object(M, "_source", side_effect=unexpected), \
+            mock.patch.object(M, "_find_sort_remeasure", side_effect=unexpected):
+        if workload == "read-heavy":
+            with mock.patch.object(M, "_load_json", return_value=provenance):
+                return M._sort_entry(workload)
+        rows = [{
+            "name": selected_name,
+            "category": "full-order",
+            "fitness_tps": 1.0,
+        }]
+        with mock.patch.object(M, "_named_commit_rows", return_value=(rows, provenance)):
+            return M._sort_entry(workload)
+
+
 def _call_trigger_entries_with_mocked_provenance(
         *, workload: str, gate_name: str, provenance: dict):
     with mock.patch.object(M, "_campaign_file", side_effect=(
@@ -107,6 +140,74 @@ def test_current_six_frozen_trigger_predicates_pass_semantic_membership():
     ]
     assert len(predicates) == 6
     M._validate_schema(doc)
+
+
+def test_validate_schema_accepts_frozen_sort_entries():
+    doc = _current_frozen_document()
+    observed = {
+        workload: (
+            doc["entries"][workload]["sort_best"]["name"],
+            len(doc["entries"][workload]["sort_best"]["comparator"]),
+        )
+        for workload in M.WORKLOADS
+    }
+    assert observed == {
+        "balanced": ("sp_dd", 268),
+        "write-heavy": ("sk_ad", 262),
+        "read-heavy": ("sk_ad", 262),
+    }
+    M._validate_schema(doc)
+
+
+def test_validate_schema_rejects_sort_comparator_outside_authority():
+    doc = _current_frozen_document()
+    record = doc["entries"]["balanced"]["sort_best"]
+    record["comparator"] = record["comparator"] + "\n"
+    with pytest.raises(M.FreezeError) as excinfo:
+        M._validate_schema(doc)
+    assert type(excinfo.value) is M.FreezeError
+    assert "sort_best.name/comparator が権威集合と不一致" in str(excinfo.value)
+
+
+def test_validate_schema_rejects_sort_name_comparator_mismatch():
+    doc = _current_frozen_document()
+    record = doc["entries"]["balanced"]["sort_best"]
+    assert record["name"] == "sp_dd"
+    record["comparator"] = _sort_implementation("sk_ad")
+    with pytest.raises(M.FreezeError) as excinfo:
+        M._validate_schema(doc)
+    assert type(excinfo.value) is M.FreezeError
+    assert "sort_best.name/comparator が権威集合と不一致" in str(excinfo.value)
+
+
+def test_sort_entry_rejects_comparator_outside_authority_before_output():
+    for workload, selected_name in (
+            ("read-heavy", "sk_ad"), ("balanced", "sp_dd")):
+        comparator = _sort_implementation(selected_name) + "\n"
+        with pytest.raises(M.FreezeError) as excinfo:
+            _call_sort_entry_with_mocked_provenance(
+                workload=workload,
+                selected_name=selected_name,
+                comparator=comparator,
+            )
+        assert type(excinfo.value) is M.FreezeError
+        assert "sort_best.name/comparator が権威集合と不一致" in str(
+            excinfo.value)
+
+
+def test_sort_entry_rejects_name_comparator_mismatch_before_output():
+    for workload, selected_name, mismatched_name in (
+            ("read-heavy", "sk_ad", "sp_dd"),
+            ("balanced", "sp_dd", "sk_ad")):
+        with pytest.raises(M.FreezeError) as excinfo:
+            _call_sort_entry_with_mocked_provenance(
+                workload=workload,
+                selected_name=selected_name,
+                comparator=_sort_implementation(mismatched_name),
+            )
+        assert type(excinfo.value) is M.FreezeError
+        assert "sort_best.name/comparator が権威集合と不一致" in str(
+            excinfo.value)
 
 
 def test_trigger_name_mask_binding_accepts_all_32_masks():
@@ -576,13 +677,26 @@ def test_verify_rejects_one_byte_freeze_tamper(tmp_path):
     path = tmp_path / "known_axes_freeze.json"
     path.write_text(serialized, encoding="utf-8")
     original = path.read_bytes()
-    assert b'"sp_dd"' in original
-    tampered = original.replace(b'"sp_dd"', b'"xp_dd"', 1)
+    assert b'"what": "S-1' in original
+    tampered = original.replace(b'"what": "S-1', b'"what": "X-1', 1)
     assert len(tampered) == len(original)
     path.write_bytes(tampered)
     with pytest.raises(M.FreezeError) as excinfo:
         M.verify(path)
     assert str(excinfo.value) == "freeze JSON の内容が現行 generator による機械再構成と不一致"
+
+
+def test_verify_rejects_sort_name_tamper_at_authority_layer():
+    original = (M.ROOT / M.FREEZE_REL).read_bytes()
+    assert b'"sp_dd"' in original
+    tampered = original.replace(b'"sp_dd"', b'"xp_dd"', 1)
+    assert len(tampered) == len(original)
+    doc = json.loads(tampered)
+    with pytest.raises(M.FreezeError) as excinfo:
+        M._validate_schema(doc)
+    assert type(excinfo.value) is M.FreezeError
+    assert str(excinfo.value) == (
+        "entries.balanced.sort_best.name/comparator が権威集合と不一致")
 
 
 def test_verify_rejects_tampered_source_copy(tmp_path):
@@ -636,6 +750,87 @@ def test_verify_rejects_foreign_ccbench_pin(monkeypatch):
             M.verify_document(doc)
     assert str(excinfo.value).startswith("ccbench_pin 不一致")
     assert "0" * 40 in str(excinfo.value)
+
+
+def _forge_pairing_with_same_configuration(
+        doc: dict, *, workload: str, source_configuration: str) -> dict:
+    forged = copy.deepcopy(doc)
+    target_configuration = (
+        "system_gate" if source_configuration == "ident_all" else "ident_all")
+    entry = forged["entries"][workload]
+    source = entry[source_configuration]
+    target = entry[target_configuration]
+    target["name"] = source["name"]
+    target["gate_predicate"] = f"  {source['gate_predicate']}  "
+    target["flags"] = copy.deepcopy(source["flags"])
+    pair = next(
+        candidate
+        for candidate in forged["s1b_pairing"]
+        if candidate["workload"] == workload
+    )
+    pair["gate_on"] = entry["system_gate"]["name"]
+    pair["gate_off"] = entry["ident_all"]["name"]
+    return forged
+
+
+def test_s1b_pairing_accepts_distinct_masks_for_all_workloads():
+    doc = _current_frozen_document()
+    for workload in M.WORKLOADS:
+        entry = doc["entries"][workload]
+        gate_mask = M.trigger_gate_binding.mask_for_canonical_predicate(
+            entry["system_gate"]["gate_predicate"])
+        ident_mask = M.trigger_gate_binding.mask_for_canonical_predicate(
+            entry["ident_all"]["gate_predicate"])
+        assert gate_mask != ident_mask
+    M.assert_s1b_pairing(doc)
+
+
+def test_s1b_pairing_rejects_mask_31_alias_for_all_workloads():
+    doc = _current_frozen_document()
+    for workload in M.WORKLOADS:
+        forged = _forge_pairing_with_same_configuration(
+            doc, workload=workload, source_configuration="ident_all")
+        entry = forged["entries"][workload]
+        gate = entry["system_gate"]
+        ident = entry["ident_all"]
+        assert gate["gate_predicate"] != ident["gate_predicate"]
+        gate_mask = M.trigger_gate_binding.mask_for_canonical_predicate(
+            gate["gate_predicate"])
+        ident_mask = M.trigger_gate_binding.mask_for_canonical_predicate(
+            ident["gate_predicate"])
+        assert gate_mask == ident_mask == 31
+        M._validate_schema(forged)
+        with pytest.raises(M.FreezeError) as excinfo:
+            M.assert_s1b_pairing(forged)
+        assert type(excinfo.value) is M.FreezeError
+
+
+def test_s1b_pairing_rejects_same_non_all_mask():
+    doc = _current_frozen_document()
+    forged = _forge_pairing_with_same_configuration(
+        doc, workload="balanced", source_configuration="system_gate")
+    entry = forged["entries"]["balanced"]
+    gate = entry["system_gate"]
+    ident = entry["ident_all"]
+    assert gate["gate_predicate"] != ident["gate_predicate"]
+    gate_mask = M.trigger_gate_binding.mask_for_canonical_predicate(
+        gate["gate_predicate"])
+    ident_mask = M.trigger_gate_binding.mask_for_canonical_predicate(
+        ident["gate_predicate"])
+    assert gate_mask == ident_mask == 8
+    M._validate_schema(forged)
+    with pytest.raises(M.FreezeError) as excinfo:
+        M.assert_s1b_pairing(forged)
+    assert type(excinfo.value) is M.FreezeError
+
+
+def test_s1b_pairing_wraps_noncanonical_predicate():
+    doc = _current_frozen_document()
+    doc["entries"]["balanced"]["system_gate"][
+        "gate_predicate"] = _NONCANONICAL_PREDICATE
+    with pytest.raises(M.FreezeError) as excinfo:
+        M.assert_s1b_pairing(doc)
+    assert type(excinfo.value) is M.FreezeError
 
 
 def test_s1b_pairing_rejects_mismatched_flags():

@@ -43,7 +43,7 @@ from tools import run_tests as RT
 _EXPECTED_HOLD_COUNT = 50
 _EXPECTED_KEY_SHA256 = "ac015d7cfc40c5fdcac58aee914d5be8e86a5b167e2ae59ecad8a4639d7c7e37"
 _EXPECTED_ROW_CONTRACT_SHA256 = "0b5a699c6dc30e16c4854318cf2285b172f8e5f991eaed513000cef4da9ef094"
-_EXPECTED_FULL_ROW_SHA256 = "ec33a70d03dddc656bb17cb26add4fde60c28ccc06ad5d70f887b769db1183f4"
+_EXPECTED_FULL_ROW_SHA256 = "5395ef9b5627a12978dbd64907cc2ddbcc0cc42326548701e9e81c93e5c6f3c3"
 _LEGACY_HOLD_COUNT = 45
 _LEGACY_KEY_SHA256 = "5a5f7a4f918684cbde6b9267d5535455974d441fa847ab8f070cc8b2e77d3429"
 _LEGACY_ROW_CONTRACT_SHA256 = "8cf20b5f685a38bd9aee4e306792a509d5ebc0314a436a1e16c0fc129466d945"
@@ -141,8 +141,8 @@ _T1434_EXPECTED_HOLDS = {
         measured_seconds=None,
         collateral_note=_s8c_candidate_fixture_collateral(
             "the fixed checks for candidate/report identity, inactive effectiveness, "
-            "the exact 12 predicate count, ordered PREDICATE_IDS, and zero satisfied "
-            "predicates"
+            "the exact 12 predicate count, ordered PREDICATE_IDS, and C10 as the sole "
+            "satisfied predicate"
         ),
     ),
     "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan": GrowthTestHold(

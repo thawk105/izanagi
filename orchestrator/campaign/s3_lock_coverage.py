@@ -39,7 +39,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import buildcache, pin, site_policy, source_digest       # noqa: E402
+from . import (buildcache, condition_meaning_gate, pin,        # noqa: E402
+               site_policy, source_digest)
 from .build_admission import (GeneratorId, build_run_context,  # noqa: E402
                                       derive_build_admission)
 from .layout import repo_output_root                           # noqa: E402
@@ -75,6 +76,50 @@ HIGH_FLAGS = {**SINGLE_FLAGS, "thread_num": "4"}
 
 def _repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _require_condition_gate(source_root: str, macro: str) -> dict:
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root,
+        configure_args=(*STOCK_G.cmake_defines(), "-DCCBENCH_TRACE=1"),
+    )
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.s3_lock_coverage",
+        macro=macro,
+        requested_value=1,
+        default_value=0,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=buildcache.DEFAULT_CXX, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=buildcache.DEFAULT_CXX,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            f"condition gate rejected {macro}: "
+            f"supply={supply.terminal_status}/{supply.reason_code}, "
+            f"meaning={meaning.terminal_status}/{meaning.reason_code}"
+        )
+    return {
+        "supply": json.loads(supply.canonical_json()),
+        "meaning": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
+
+
+def _preflight_condition_gates(root: str, sub: str) -> list[dict]:
+    records = []
+    for patch_name, macro in (
+        (LOCKSKIP_PATCH, LOCKSKIP_DEFINE),
+        (EARLY_UNLOCK_PATCH, EARLY_UNLOCK_DEFINE),
+    ):
+        with applied(os.path.join(root, "patches", patch_name), PIN, sub):
+            records.append(_require_condition_gate(sub, macro))
+    return records
 
 
 def _run_trace(binary: str, flags: dict) -> str:
@@ -149,6 +194,7 @@ def _build_broken(
     with applied(patch, PIN, sub):
         defines = STOCK_G.cmake_defines() + [
             "-DCCBENCH_TRACE=1", f"-DCMAKE_CXX_FLAGS=-D{define}=1"]
+        _require_condition_gate(sub, define)
         cfg = ["cmake", "-S", sub, "-B", bdir, "-DCMAKE_BUILD_TYPE=Release",
                "-DENABLE_SANITIZER=OFF",
                f"-DCMAKE_C_COMPILER={buildcache.DEFAULT_CC}",
@@ -185,9 +231,11 @@ def main() -> int:
     root = _repo_root()
     sub = os.path.join(root, "external", "ccbench")
     assert_pinned_clean(sub, PIN)
+    condition_gates = _preflight_condition_gates(root, sub)
 
     result = {"env_tag": ENV_TAG, "ccbench_commit": PIN,
               "genome": STOCK_G.canonical(), "clocks_per_us": CLK,
+              "condition_gates": condition_gates,
               "diagnostic_build_admission": non_admissible_materializer(
                   "orchestrator.campaign.s3_lock_coverage._build_broken"),
               "runs": {}}

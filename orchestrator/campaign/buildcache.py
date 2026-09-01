@@ -682,6 +682,8 @@ class BuildResult:
     # v2 compiler-input proof。legacy build() は additive default None。
     compiler_input_manifest: Optional[Dict[str, Any]] = None
     compiler_input_manifest_sha256: Optional[str] = None
+    # live validation だけに使う。completion / receipt へ絶対 root を保存しない。
+    compiler_input_dependency_prefix_roots: tuple[str, ...] = ()
     # Declaration gate output.  Descriptor-less callers retain None exactly.
     source_snapshot_sha256: Optional[str] = None
     expected_materialization_sha256: Optional[str] = None
@@ -1405,8 +1407,10 @@ def _collect_compiler_inputs(
         build_dir: str, snapshot_root: str, *, target: str,
         allow_external_inputs: bool,
         expected_evolve_block_sources: Optional[Mapping[str, str]],
-        origin_fetchcontent_masstree_root: str,
-        current_fetchcontent_masstree_root: str,
+        origin_fetchcontent_masstree_root: Optional[str],
+        current_fetchcontent_masstree_root: Optional[str],
+        origin_dependency_prefix_roots: tuple[str, ...],
+        current_dependency_prefix_roots: tuple[str, ...],
 ) -> s8b_compiler_input.CompilerInputManifest:
     """Call the production collector with the descriptor-bound policy.
 
@@ -1426,6 +1430,8 @@ def _collect_compiler_inputs(
             and "expected_evolve_block_sources" in parameters
             and "origin_fetchcontent_masstree_root" in parameters
             and "current_fetchcontent_masstree_root" in parameters
+            and "origin_dependency_prefix_roots" in parameters
+            and "current_dependency_prefix_roots" in parameters
         )
         or any(
             parameter.kind is inspect.Parameter.VAR_KEYWORD
@@ -1442,10 +1448,16 @@ def _collect_compiler_inputs(
             "current_fetchcontent_masstree_root": (
                 current_fetchcontent_masstree_root
             ),
+            "origin_dependency_prefix_roots": (
+                origin_dependency_prefix_roots
+            ),
+            "current_dependency_prefix_roots": (
+                current_dependency_prefix_roots
+            ),
         })
     elif expected_evolve_block_sources or allow_external_inputs:
         raise BuildCacheError(
-            "compiler input collector does not expose v2 root binding"
+            "compiler input collector does not expose current root binding"
         )
     result = collector(build_dir, snapshot_root, **kwargs)
     return result
@@ -1605,6 +1617,9 @@ def _validate_v2_entry(
         compiler_target: Optional[str] = None,
         expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
         current_compiler_input_masstree_root: Optional[str] = None,
+        current_compiler_input_dependency_prefix_roots: Optional[
+            tuple[str, ...]
+        ] = None,
         complete_toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         complete_toolchain_manifest_sha256: Optional[str] = None,
         parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
@@ -1712,6 +1727,9 @@ def _validate_v2_entry(
                         ),
                         current_fetchcontent_masstree_root=(
                             current_compiler_input_masstree_root
+                        ),
+                        current_dependency_prefix_roots=(
+                            current_compiler_input_dependency_prefix_roots
                         ),
                     )
                 )
@@ -2081,6 +2099,7 @@ def _v2_result(
         toolchain_manifest_sha256: Optional[str] = None,
         compiler_input_manifest: Optional[Dict[str, Any]] = None,
         compiler_input_manifest_sha256: Optional[str] = None,
+        compiler_input_dependency_prefix_roots: tuple[str, ...] = (),
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
@@ -2105,6 +2124,9 @@ def _v2_result(
         toolchain_manifest_sha256=toolchain_manifest_sha256,
         compiler_input_manifest=compiler_input_manifest,
         compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        compiler_input_dependency_prefix_roots=(
+            compiler_input_dependency_prefix_roots
+        ),
         fetchcontent_base_dir=fetchcontent_base_dir,
         masstree_source_root_sha256=masstree_source_root_sha256,
     )
@@ -2229,6 +2251,7 @@ def _build_v2_impl(
         contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
+        backoff_grammar_version: Optional[int] = None,
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
@@ -2453,6 +2476,11 @@ def _build_v2_impl(
             os.environ.get("CMAKE_PREFIX_PATH")
         )
         configure_dependency_prefix = ""
+    compiler_input_dependency_prefix_roots = (
+        tuple(effective_dependency_prefix)
+        if source_snapshot_sha256 is not None and allow_external_compiler_inputs
+        else ()
+    )
 
     fetchcontent_transport_mode = "source-dir" if source_dirs else None
 
@@ -2555,6 +2583,9 @@ def _build_v2_impl(
                 current_compiler_input_masstree_root=(
                     canonical_compiler_input_masstree_root
                 ),
+                current_compiler_input_dependency_prefix_roots=(
+                    compiler_input_dependency_prefix_roots
+                ),
                 complete_toolchain_manifest=complete_toolchain_manifest,
                 complete_toolchain_manifest_sha256=complete_toolchain_manifest_sha256,
                 parent_fd=parent_fd, bdir_name=bdir_name,
@@ -2563,6 +2594,7 @@ def _build_v2_impl(
                 _recheck_source_evidence(
                     genome, ccbench_commit, sub, cxx, source_evidence, bdir,
                     built_fresh=False,
+                    backoff_grammar_version=backoff_grammar_version,
                 )
                 _assert_trace_diff(
                     genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
@@ -2602,6 +2634,7 @@ def _build_v2_impl(
                 masstree_source_root_sha256,
                 complete_toolchain_manifest, complete_toolchain_manifest_sha256,
                 compiler_input_manifest, compiler_input_manifest_sha256,
+                compiler_input_dependency_prefix_roots,
                 post_oracle_binding,
             )
 
@@ -2684,13 +2717,14 @@ def _build_v2_impl(
                 # .o.d は staging 破棄後に失われる。build 成功と同じ lifetime 内で
                 # strict metadata と実効 masstree origin を同じ lifetime 内で採る。
                 try:
-                    effective_root = _masstree_source_root_from_cmake_cache(
-                        staging
+                    effective_root = (
+                        _masstree_source_root_from_cmake_cache(staging)
+                        if allow_external_compiler_inputs else None
                     )
                     validation_root = (
                         canonical_compiler_input_masstree_root
                         or effective_root
-                    )
+                    ) if allow_external_compiler_inputs else None
                     compiler_inputs = _collect_compiler_inputs(
                         staging, sub,
                         target=f"ycsb_{genome.protocol}.exe",
@@ -2700,6 +2734,12 @@ def _build_v2_impl(
                         ),
                         origin_fetchcontent_masstree_root=effective_root,
                         current_fetchcontent_masstree_root=validation_root,
+                        origin_dependency_prefix_roots=(
+                            compiler_input_dependency_prefix_roots
+                        ),
+                        current_dependency_prefix_roots=(
+                            compiler_input_dependency_prefix_roots
+                        ),
                     )
                     if type(compiler_inputs) is not (
                             s8b_compiler_input.CompilerInputManifest):
@@ -2716,6 +2756,9 @@ def _build_v2_impl(
                                 expected_evolve_block_sources
                             ),
                             current_fetchcontent_masstree_root=validation_root,
+                            current_dependency_prefix_roots=(
+                                compiler_input_dependency_prefix_roots
+                            ),
                         )
                     )
                     if compiler_input_manifest.get(
@@ -2793,6 +2836,7 @@ def _build_v2_impl(
             _recheck_source_evidence(
                 genome, ccbench_commit, sub, cxx, source_evidence, staging,
                 built_fresh=True,
+                backoff_grammar_version=backoff_grammar_version,
             )
             _assert_trace_diff(
                 genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
@@ -2881,6 +2925,7 @@ def _build_v2_impl(
             masstree_source_root_sha256,
             complete_toolchain_manifest, complete_toolchain_manifest_sha256,
             compiler_input_manifest, compiler_input_manifest_sha256,
+            compiler_input_dependency_prefix_roots,
             post_oracle_binding,
         )
     finally:
@@ -2897,6 +2942,7 @@ def build_v2(
         contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
+        backoff_grammar_version: Optional[int] = None,
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
@@ -2959,6 +3005,8 @@ def build_v2(
             current_compiler_input_masstree_root
         ),
     }
+    if backoff_grammar_version is not None:
+        common["backoff_grammar_version"] = backoff_grammar_version
     if expected_materialization_descriptor is None:
         return _build_v2_impl(
             genome,
@@ -3052,7 +3100,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
           jobs: Optional[int] = None, ccbench_dir: str = "",
           src_token: Optional[str] = None, *, admission: BuildAdmission,
           build_context: BuildRunContext, source_evidence: SourceEvidence,
-          site: Optional[str] = None) -> BuildResult:
+          site: Optional[str] = None,
+          backoff_grammar_version: Optional[int] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     ``build_context`` / ``source_evidence`` / evidence-derived ``admission`` を exact
@@ -3127,6 +3176,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                         _recheck_source_evidence(
                             genome, ccbench_commit, sub, cxx, source_evidence,
                             bdir, built_fresh=False,
+                            backoff_grammar_version=backoff_grammar_version,
                         )
                         _assert_trace_diff(
                             genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
@@ -3191,6 +3241,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
             _recheck_source_evidence(
                 genome, ccbench_commit, sub, cxx, source_evidence,
                 staging, built_fresh=True,
+                backoff_grammar_version=backoff_grammar_version,
             )
             _assert_trace_diff(
                 genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
@@ -3256,7 +3307,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
 
 def _recheck_source_evidence(
         genome: Genome, ccbench_commit: str, sub: str, cxx: str,
-        expected: SourceEvidence, bdir: str, built_fresh: bool,
+        expected: SourceEvidence, bdir: str, built_fresh: bool, *,
+        backoff_grammar_version: Optional[int] = None,
 ) -> None:
     """build 出口で current SourceEvidence 全体を exact 再照合する。
 
@@ -3265,8 +3317,14 @@ def _recheck_source_evidence(
     (phase3.md タスク定義)。新規ビルドの不一致は汚染バイナリの永続を防ぐため build dir を
     破棄する。cache hit の不一致は既存 (過去の正当な) 成果物なので破棄せず停止のみ。"""
     try:
+        source_options = {}
+        if backoff_grammar_version is not None:
+            source_options["backoff_grammar_version"] = (
+                backoff_grammar_version
+            )
         actual = source_digest.resolve_evidence(
             genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,
+            **source_options,
         )
     except RuntimeError:
         # resolve 自体の失敗 (TOCTOU 汚染 / git・g++ の transient 障害を区別できない)。

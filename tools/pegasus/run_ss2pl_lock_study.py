@@ -28,6 +28,11 @@ import time
 from typing import Any, Iterable, Iterator, Mapping, Sequence
 import uuid
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from orchestrator.campaign import condition_meaning_gate  # noqa: E402
+
 
 SCHEMA_VERSION = "ss2pl-lock-study/v1"
 PERFORMANCE_ARMS = ("S", "C", "A", "B", "D")
@@ -49,6 +54,7 @@ AXIS_CACHE_KEYS = {
     "dlr": "CCBENCH_SS2PL_DLR",
     "wfg": "CCBENCH_SS2PL_WFG_DIAG",
 }
+AXIS_DEFAULTS = {"impl": 0, "kind": 1, "dlr": 1, "wfg": 0}
 CACHE_TO_DEFINE = {
     "CCBENCH_SS2PL_LOCK_IMPL": "SS2PL_LOCK_IMPL",
     "CCBENCH_SS2PL_LOCK_KIND": "SS2PL_LOCK_KIND",
@@ -1928,8 +1934,12 @@ def _configure(
     gflags_prefix: Path,
     glog_prefix: Path,
     thirdparty_root: Path,
+    expected_cache: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    expected = _expected_cache(arm, backoff=backoff)
+    derived = _expected_cache(arm, backoff=backoff)
+    expected = derived if expected_cache is None else dict(expected_cache)
+    if expected != derived:
+        raise ContractError("provided configure cache differs from arm/backoff")
     argv = [
         "cmake", "-S", str(source), "-B", str(build_dir),
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
@@ -1944,6 +1954,94 @@ def _configure(
     observed = _cmake_cache(build_dir / "CMakeCache.txt")
     _validate_cache(expected, observed)
     return expected
+
+
+def _condition_request_inputs(
+    expected_cache: Mapping[str, str],
+) -> tuple[tuple[str, str, int, int], ...]:
+    rows = []
+    for axis, macro in (
+        ("impl", "SS2PL_LOCK_IMPL"),
+        ("kind", "SS2PL_LOCK_KIND"),
+        ("dlr", "SS2PL_DLR"),
+        ("wfg", "SS2PL_WFG_DIAG"),
+    ):
+        cache_key = AXIS_CACHE_KEYS[axis]
+        try:
+            requested = int(expected_cache[cache_key])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ContractError(
+                f"condition request lacks integer cache value for {cache_key}"
+            ) from exc
+        rows.append((axis, macro, requested, AXIS_DEFAULTS[axis]))
+    return tuple(rows)
+
+
+def _require_condition_gates(
+    source: Path,
+    *,
+    arm: str,
+    stock_source: Path,
+    expected_cache: Mapping[str, str],
+    gflags_prefix: Path,
+    glog_prefix: Path,
+    thirdparty_root: Path,
+) -> list[dict[str, Any]]:
+    configure_args = (
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        f"-DCMAKE_PREFIX_PATH={gflags_prefix};{glog_prefix}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={thirdparty_root / 'masstree'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={thirdparty_root / 'mimalloc'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={thirdparty_root / 'googletest'}",
+        "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+        *(
+            f"-D{key}={value}"
+            for key, value in expected_cache.items()
+            if key not in AXIS_CACHE_KEYS.values()
+        ),
+    )
+    supply_records = []
+    meaning_records = []
+    for _axis, macro, requested, default in _condition_request_inputs(
+        expected_cache
+    ):
+        captured = condition_meaning_gate.capture_define_inputs(
+            source,
+            stock_root=stock_source,
+            configure_args=configure_args,
+        )
+        request = condition_meaning_gate.make_define_request(
+            driver_id=f"tools.pegasus.run_ss2pl_lock_study:{arm}",
+            macro=macro,
+            requested_value=requested,
+            default_value=default,
+            stock_comparison=requested == default,
+        )
+        supply_records.append(
+            condition_meaning_gate.evaluate_define_supply_effectuation(
+                captured, request=request, cxx="c++", cmake="cmake",
+            )
+        )
+        meaning_records.append(
+            condition_meaning_gate.evaluate_define_runtime_meaning(
+                captured, request=request, declaration=None, cxx="c++",
+            )
+        )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        states = ", ".join(
+            f"{record.macro}={record.terminal_status}/{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+        )
+        raise ContractError(f"condition gate rejected SS2PL study: {states}")
+    return [
+        *(json.loads(record.canonical_json()) for record in supply_records),
+        *(json.loads(record.canonical_json()) for record in meaning_records),
+        json.loads(admission.canonical_json()),
+    ]
 
 
 def _find_binary(build_dir: Path, target: str) -> Path:
@@ -1992,6 +2090,7 @@ def _wfg_absence_evidence(
 
 def build_target(
     source: Path,
+    stock_source: Path,
     build_root: Path,
     *,
     build_id: str,
@@ -2008,11 +2107,24 @@ def build_target(
     build_dir = build_root / build_id
     if build_dir.exists():
         raise ContractError(f"build directory collision: {build_dir}")
+    requested_cache = _expected_cache(arm, backoff=backoff)
+    condition_gates = _require_condition_gates(
+        source,
+        arm=arm,
+        stock_source=stock_source,
+        expected_cache=requested_cache,
+        gflags_prefix=gflags_prefix,
+        glog_prefix=glog_prefix,
+        thirdparty_root=thirdparty_root,
+    )
     expected = _configure(
         source, build_dir, arm=arm, backoff=backoff,
         gflags_prefix=gflags_prefix, glog_prefix=glog_prefix,
         thirdparty_root=thirdparty_root,
+        expected_cache=requested_cache,
     )
+    if expected != requested_cache:
+        raise ContractError("condition requests differ from configure cache values")
     _run_checked(["cmake", "--build", str(build_dir), "--target", target, "--parallel", str(jobs)], timeout=1800)
     binary = _find_binary(build_dir, target)
     entries = _target_compile_entries(build_dir, target)
@@ -2028,6 +2140,7 @@ def build_target(
         "binary": str(binary),
         "binary_sha256": binary_sha,
         "target": target,
+        "condition_gates": condition_gates,
     }
     if arm in PERFORMANCE_ARMS:
         record["wfg_absence"] = _wfg_absence_evidence(
@@ -2959,6 +3072,7 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         },
     }
     clone: Path | None = None
+    stock_clone: Path | None = None
     patch_state = {"applied": False}
     preprocess_cache = PreprocessCache()
     baseline_source_state_sha256 = ""
@@ -2987,8 +3101,10 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
                 attempt_root = scratch_root / f"ss2pl-lock-study-{occasion['occasion_id']}"
                 attempt_root.mkdir(mode=0o700)
                 clone = attempt_root / "ccbench"
+                stock_clone = attempt_root / "condition-gate-stock"
                 build_root = attempt_root / "builds"
                 build_root.mkdir()
+                clone_network_free(Path(canonical["path"]), stock_clone)
                 clone_network_free(Path(canonical["path"]), clone)
                 _apply_patch(clone, patch, reverse=False)
                 patch_state["applied"] = True
@@ -3018,7 +3134,8 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             with _timed_phase(document, "builds"):
                 for arm in PERFORMANCE_ARMS:
                     builds[arm] = build_target(
-                        clone, build_root, build_id=arm, arm=arm, backoff=1,
+                        clone, stock_clone, build_root,
+                        build_id=arm, arm=arm, backoff=1,
                         gflags_prefix=gflags_prefix, glog_prefix=glog_prefix,
                         thirdparty_root=thirdparty_root, jobs=args.jobs,
                         preprocess_cache=preprocess_cache,
@@ -3028,7 +3145,8 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
                     for arm in ("B", "D"):
                         key = f"{arm}-backoff0"
                         builds[key] = build_target(
-                            clone, build_root, build_id=key, arm=arm, backoff=0,
+                            clone, stock_clone, build_root,
+                            build_id=key, arm=arm, backoff=0,
                             gflags_prefix=gflags_prefix, glog_prefix=glog_prefix,
                             thirdparty_root=thirdparty_root, jobs=args.jobs,
                             preprocess_cache=preprocess_cache,
@@ -3036,7 +3154,8 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
                         )
                     for phase in ("phase1", "phase2"):
                         builds[phase] = build_target(
-                            clone, build_root, build_id=phase, arm=phase, backoff=1,
+                            clone, stock_clone, build_root,
+                            build_id=phase, arm=phase, backoff=1,
                             gflags_prefix=gflags_prefix, glog_prefix=glog_prefix,
                             thirdparty_root=thirdparty_root, jobs=args.jobs,
                             preprocess_cache=preprocess_cache,

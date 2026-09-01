@@ -305,8 +305,10 @@ def _campaign_verifier_epoch_from_lock_bytes(
     recorded = artifact_admission._recorded_campaign_verifier_epoch(
         artifact_admission._decode_campaign_lock(lock_bytes)
     )
+    if recorded.diagnostic.state == "E0":
+        raise CampaignVerifierEpochRejected(recorded.diagnostic)
     return artifact_admission._require_verifier_epoch_for_purpose(
-        recorded, CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        recorded, CampaignReadPurpose.HISTORICAL_RAW,
     )
 
 

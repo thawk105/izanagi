@@ -185,6 +185,7 @@ def record_run(request):
         )
 
 
+@pytest.mark.xdist_group("mutation-group")
 @pytest.mark.parametrize("case", ["one", "two", "three"])
 def test_gate(case):
     value = TARGET.read_text(encoding="utf-8").splitlines()[0].split("=", 1)[1].strip()
@@ -312,6 +313,9 @@ def _argv(
     *,
     resume: bool = False,
     expected_spec_sha256: str | None = None,
+    runner_mode: str = "local",
+    attempt_out: Path | None = None,
+    wrapper_attempt: int = 1,
 ) -> list[str]:
     os.environ["IZANAGI_MUTATION_TEST_CALLS"] = str(calls)
     os.environ["IZANAGI_MUTATION_TEST_MODE"] = (
@@ -327,9 +331,18 @@ def _argv(
         "--out",
         str(out),
         "--runner-mode",
-        "local",
+        runner_mode,
         "--detached",
     ]
+    if attempt_out is not None:
+        args.extend(
+            [
+                "--attempt-out",
+                str(attempt_out),
+                "--wrapper-attempt",
+                str(wrapper_attempt),
+            ]
+        )
     if resume:
         args.append("--resume")
     args.extend(
@@ -346,12 +359,69 @@ def _argv(
     return args
 
 
+def _group_argv(
+    repo: Path,
+    spec: Path,
+    out: Path,
+    calls: Path,
+    mode: Path,
+    *,
+    resume: bool = False,
+) -> list[str]:
+    return [
+        *_argv(repo, spec, out, calls, mode, resume=resume),
+        "-n",
+        "2",
+        "--dist",
+        "loadgroup",
+    ]
+
+
 def _single_spec(path: Path) -> None:
     _write_spec(path, [_mutation("M1", "VALUE = 0", "VALUE = 1", "one")])
 
 
 def _calls(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
+
+def _install_local_attempt_marker(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> dict[str, str]:
+    from tools.pegasus import dispatch_compute
+
+    dispatch_root = root / "dispatch-root"
+    submission = dispatch_root / "submission"
+    submission.mkdir(parents=True)
+    request = submission / "request.json"
+    request.write_bytes(b'{"task":"mutation"}\n')
+    (submission / MH.mutation_attempt_marker.COMPUTE_MARKER_NAME).write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-compute-visible/v1",
+                "pbs_jobid": "0:424242.nqsv",
+                "hostname": "bnode114.example",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    binding = MH.mutation_attempt_marker.build_binding(
+        dispatch_root=dispatch_root,
+        submission_dir=submission,
+        pbs_jobid="0:424242.nqsv",
+        hostname="bnode114.example",
+        request_sha256=hashlib.sha256(request.read_bytes()).hexdigest(),
+        is_regular_pbs_jobid=dispatch_compute._is_regular_pbs_jobid,
+    )
+    monkeypatch.setenv(
+        MH.mutation_attempt_marker.MARKER_ENV,
+        MH.mutation_attempt_marker.encode_binding(binding),
+    )
+    monkeypatch.setattr(MH.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MH.site_policy.socket, "gethostname", lambda: "bnode114")
+    return binding
 
 
 @pytest.mark.parametrize(
@@ -455,6 +525,158 @@ def test_dispatch_mode_does_not_consult_local_site_gate(
     with pytest.raises(MH.HarnessError, match="未知の spec schema"):
         MH.main(argv)
     assert not calls.exists()
+
+
+def test_i2_dispatch_attempt_does_not_call_local_marker_validator(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "dispatch-attempts.json"
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["schema"] = "izanagi-dev-wave-mutation-spec/v999"
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        MH.mutation_attempt_marker,
+        "require_local_attempt_marker",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("dispatch mode で marker validator を呼んだ")
+        ),
+    )
+
+    with pytest.raises(MH.HarnessError, match="未知の spec schema"):
+        MH.main(
+            _argv(
+                repo,
+                spec,
+                out,
+                calls,
+                mode,
+                runner_mode="dispatch",
+                attempt_out=attempts,
+            )
+        )
+    assert not attempts.exists()
+
+
+def test_i3_local_without_attempt_does_not_call_marker_validator(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    monkeypatch.setattr(
+        MH.mutation_attempt_marker,
+        "require_local_attempt_marker",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("attempt 無し local で marker validator を呼んだ")
+        ),
+    )
+    argv = _argv(repo, spec, out, calls, mode)
+    argv.insert(argv.index("--"), "--plan-only")
+
+    assert MH.main(argv) == 0
+    assert not calls.exists()
+
+
+def test_m2_direct_harness_local_attempt_without_marker_is_rejected(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "attempts.json"
+    monkeypatch.setattr(MH.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MH.site_policy.socket, "gethostname", lambda: "bnode114")
+    monkeypatch.delenv(MH.mutation_attempt_marker.MARKER_ENV, raising=False)
+    monkeypatch.setattr(
+        MH,
+        "_lock_for",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("marker 拒否後の lock へ到達した")
+        ),
+    )
+
+    with pytest.raises(MH.HarnessError, match="marker がありません"):
+        MH.main(_argv(repo, spec, out, calls, mode, attempt_out=attempts))
+    assert not attempts.exists()
+
+
+def test_direct_harness_forged_marker_is_rejected_before_lock(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "attempts.json"
+    binding = _install_local_attempt_marker(repo.parent / "marker", monkeypatch)
+    forged = {**binding, "request_sha256": "0" * 64}
+    monkeypatch.setenv(
+        MH.mutation_attempt_marker.MARKER_ENV,
+        MH.mutation_attempt_marker.encode_binding(forged),
+    )
+    monkeypatch.setattr(
+        MH,
+        "_lock_for",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("偽造 marker 拒否後の lock へ到達した")
+        ),
+    )
+
+    with pytest.raises(MH.HarnessError, match="SHA-256.*不一致"):
+        MH.main(_argv(repo, spec, out, calls, mode, attempt_out=attempts))
+    assert not attempts.exists()
+
+
+def test_m11_m12_direct_harness_local_attempt_persists_authorization_and_schema(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    attempts = repo.parent / "attempts.json"
+    binding = _install_local_attempt_marker(repo.parent / "marker", monkeypatch)
+
+    assert MH.main(_argv(repo, spec, out, calls, mode, attempt_out=attempts)) == 0
+
+    sidecar = json.loads(attempts.read_text(encoding="utf-8"))
+    assert sidecar["schema"] == MH.LOCAL_ATTEMPT_SCHEMA
+    assert sidecar["local_authorization"] == binding
+    assert [entry["phase"] for entry in sidecar["attempts"]] == [
+        "collection",
+        "baseline",
+        "mutation",
+    ]
+    assert all(entry["state"] == "finished" for entry in sidecar["attempts"])
+    assert all(entry["request"] is None for entry in sidecar["attempts"])
+
+    loaded_spec, loaded_sha256 = MH._load_spec(spec)
+    resumed = MH._new_attempt_recorder(
+        attempts,
+        resume=True,
+        wrapper_attempt_ordinal=2,
+        head=sidecar["repo_head"],
+        spec=loaded_spec,
+        spec_sha256=loaded_sha256,
+        runner_sha256=sidecar["runner_sha256"],
+        tool_sha256=sidecar["tool_sha256"],
+        local_authorization=binding,
+    )
+    assert resumed.document["local_authorization"] == binding
+    forged = {**binding, "pbs_jobid": "0:777777.nqsv"}
+    with pytest.raises(MH.HarnessError, match="local_authorization.*不一致"):
+        MH._new_attempt_recorder(
+            attempts,
+            resume=True,
+            wrapper_attempt_ordinal=2,
+            head=sidecar["repo_head"],
+            spec=loaded_spec,
+            spec_sha256=loaded_sha256,
+            runner_sha256=sidecar["runner_sha256"],
+            tool_sha256=sidecar["tool_sha256"],
+            local_authorization=forged,
+        )
 
 
 def _pid_is_alive(pid: int) -> bool:
@@ -643,6 +865,84 @@ def test_expected_node_must_exist_in_pytest_collection(repo: Path) -> None:
     assert not out.exists()
 
 
+def test_group_suffixed_expected_node_is_collected_and_killed(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = _mutation("M1", "VALUE = 0", "VALUE = 1", "one")
+    mutation["expected_nodes"] = [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    _write_spec(spec, [mutation])
+
+    assert MH.main(_group_argv(repo, spec, out, calls, mode)) == 0
+
+    ledger = json.loads(out.read_text(encoding="utf-8"))
+    record = ledger["mutations"][0]
+    assert record["status"] == "KILLED"
+    assert record["failed_nodes"] == [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    assert ledger["procedure"]["collection"]["collected_nodes"] == [
+        "tests/test_gate.py::test_gate[one]",
+        "tests/test_gate.py::test_gate[two]",
+        "tests/test_gate.py::test_gate[three]",
+    ]
+    assert ledger["procedure"]["registration_preflight"]["M1"][
+        "expected_nodes"
+    ] == ["tests/test_gate.py::test_gate[one]@mutation-group"]
+
+
+def test_group_unsuffixed_expected_node_matches_suffixed_failure(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _write_spec(spec, [_mutation("M1", "VALUE = 0", "VALUE = 1", "one")])
+
+    assert MH.main(_group_argv(repo, spec, out, calls, mode)) == 0
+
+    record = json.loads(out.read_text(encoding="utf-8"))["mutations"][0]
+    assert record["status"] == "KILLED"
+    assert record["failed_nodes"] == [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    assert record["expected_nodes"] == ["tests/test_gate.py::test_gate[one]"]
+
+
+def test_group_suffixed_expected_node_resume_reuses_valid_ledger(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = _mutation("M1", "VALUE = 0", "VALUE = 1", "one")
+    mutation["expected_nodes"] = [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    _write_spec(spec, [mutation])
+    assert MH.main(_group_argv(repo, spec, out, calls, mode)) == 0
+    calls_before_resume = _calls(calls)
+
+    assert MH.main(
+        _group_argv(repo, spec, out, calls, mode, resume=True)
+    ) == 0
+
+    assert _calls(calls) == calls_before_resume
+    record = json.loads(out.read_text(encoding="utf-8"))["mutations"][0]
+    assert record["status"] == "KILLED"
+    assert record["expected_nodes"] == [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+
+
+def test_registration_rejects_group_suffix_alias_as_duplicate(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = _mutation("M1", "VALUE = 0", "VALUE = 1", "one")
+    mutation["expected_nodes"] = [
+        "tests/test_gate.py::test_gate[one]",
+        "tests/test_gate.py::test_gate[one]@mutation-group",
+    ]
+    _write_spec(spec, [mutation])
+
+    with pytest.raises(MH.HarnessError, match="expected_nodes .*正規化後に重複"):
+        MH.main(_group_argv(repo, spec, out, calls, mode))
+
+    assert not calls.exists()
+    assert not out.exists()
+
+
 def test_parameter_suffix_is_matched_exactly(repo: Path) -> None:
     spec, out, calls, mode = _paths(repo)
     _write_spec(spec, [_mutation("M1", "VALUE = 0", "VALUE = 2", "one")])
@@ -661,6 +961,22 @@ def test_failed_nodes_strict_superset_never_counts_as_killed(repo: Path) -> None
         result={"timed_out": False, "rc": 1, "artifact_error": None},
         failed=failed,
         expected=expected,
+        repo=repo,
+    )
+
+    assert status == "MISMATCH"
+
+
+def test_group_suffix_normalization_keeps_strict_superset_as_mismatch(
+    repo: Path,
+) -> None:
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[
+            "tests/test_gate.py::test_gate[one]@mutation-group",
+            "tests/test_gate.py::test_gate[two]@mutation-group",
+        ],
+        expected=["tests/test_gate.py::test_gate[one]"],
         repo=repo,
     )
 
@@ -732,6 +1048,65 @@ def test_match_key_keeps_distinct_pytest_nodes_separate(
     assert status == "MISMATCH"
 
 
+@pytest.mark.parametrize(
+    "node",
+    [
+        (
+            "orchestrator/tests/test_axis1_search_runner.py::"
+            "test_real_catalog_leaf_resolves_every_runner_field"
+            "[arxiv-AX1-20260829-E1-Q1@arxiv]"
+        ),
+        (
+            "orchestrator/tests/test_acceptance_schedule_order.py::"
+            "test_g3_splitter_exactly_matches_loadgroup_scheduler[@]"
+        ),
+        (
+            "orchestrator/tests/test_acceptance_schedule_order.py::"
+            "test_g3_splitter_exactly_matches_loadgroup_scheduler[試験::場合@直列]"
+        ),
+        (
+            "orchestrator/tests/test_acceptance_schedule_order.py::"
+            "test_g3_splitter_exactly_matches_loadgroup_scheduler[試験::場合[値@例]]"
+        ),
+    ],
+)
+def test_match_key_preserves_real_parametrize_ids_containing_at(
+    repo: Path, node: str
+) -> None:
+    assert MH._match_key(node, repo) == node
+
+
+def test_match_key_removes_only_group_after_nested_real_parametrize_id(
+    repo: Path,
+) -> None:
+    suffixed = (
+        "orchestrator/tests/test_acceptance_schedule_order.py::"
+        "test_g3_splitter_exactly_matches_loadgroup_scheduler"
+        "[試験::場合[値@例]]@mutation-group"
+    )
+
+    assert MH._match_key(suffixed, repo) == (
+        "orchestrator/tests/test_acceptance_schedule_order.py::"
+        "test_g3_splitter_exactly_matches_loadgroup_scheduler"
+        "[試験::場合[値@例]]"
+    )
+
+
+def test_match_key_does_not_collapse_at_in_realistic_paths(repo: Path) -> None:
+    left = "tests@left/x.py::test_case"
+    right = "tests@right/x.py::test_case"
+
+    assert MH._match_key(left, repo) == "tests@left/x.py::test_case"
+    assert MH._match_key(right, repo) == "tests@right/x.py::test_case"
+    assert MH._match_key(left, repo) != MH._match_key(right, repo)
+    assert MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[right],
+        expected=[left],
+        repo=repo,
+    ) == "MISMATCH"
+
+
 @pytest.mark.parametrize("rc", [2, 3, 5])
 def test_abnormal_pytest_rc_never_counts_as_killed(repo: Path, rc: int) -> None:
     expected = ["tests/test_gate.py::test_gate[one]"]
@@ -752,6 +1127,19 @@ def test_mutation_nonzero_normal_rc_without_failed_nodes_is_parse_error(
         result={"timed_out": False, "rc": 1, "artifact_error": None},
         failed=[],
         expected=["tests/test_gate.py::test_gate[one]"],
+        repo=repo,
+    )
+
+    assert status == "PARSE_ERROR"
+
+
+def test_group_suffixed_expected_with_nonzero_rc_and_no_failures_is_parse_error(
+    repo: Path,
+) -> None:
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[],
+        expected=["tests/test_gate.py::test_gate[one]@mutation-group"],
         repo=repo,
     )
 

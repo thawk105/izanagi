@@ -356,6 +356,41 @@ def test_real_wal_replay_landscape_requires_commit(tmp_path, monkeypatch):
     assert _REJECTED_GENOME not in landscape
 
 
+def test_real_wal_replay_landscape_rejects_e1_without_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "output"
+    layout = CampaignLayout(str(
+        root / "campaigns" / "p2-2-silo-real-screen-enumerate-fixture"
+    )).ensure()
+    _write_admitted_real_fixture(Path(layout.root))
+    _upgrade_to_fixed_e1(layout, tmp_path, monkeypatch)
+    records = [
+        record
+        for record in wal.read_records(layout)
+        if record.stage != STAGE_COMMIT
+    ]
+    Path(layout.wal_file).write_text(
+        "".join(
+            json.dumps({
+                "ts": record.ts,
+                "stage": record.stage,
+                "variant": record.variant,
+                "env_tag": record.env_tag,
+                "payload": record.payload,
+            }, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ArtifactAdmissionError,
+        match="at least one persisted COMMIT",
+    ):
+        replay.load_landscape("real-screen", str(root))
+
+
 def test_real_wal_p2_2_report_ranking_requires_commit(admitted_real_screen_layout):
     view = require_admitted_campaign(
         admitted_real_screen_layout,

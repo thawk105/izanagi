@@ -30,12 +30,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if os.fspath(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, os.fspath(_REPO_ROOT))
 
-from orchestrator.campaign import site_policy  # noqa: E402
+from orchestrator.campaign import mutation_attempt_marker, site_policy  # noqa: E402
 
 
 SPEC_SCHEMA = "izanagi-dev-wave-mutation-spec/v1"
 LEDGER_SCHEMA = "izanagi-dev-wave-mutation/v4"
 ATTEMPT_SCHEMA = "izanagi-dev-wave-mutation-attempts/v1"
+LOCAL_ATTEMPT_SCHEMA = "izanagi-dev-wave-mutation-attempts-local/v1"
 ORPHAN_STOP_SCHEMA = "izanagi-dev-wave-mutation-orphan-stop/v1"
 ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
 ORPHAN_HOLD_NAME = "orphan-hold.json"
@@ -947,15 +948,22 @@ def _new_attempt_recorder(
     spec_sha256: str,
     runner_sha256: str,
     tool_sha256: str,
+    local_authorization: dict[str, Any] | None,
 ) -> AttemptRecorder:
     expected = {
-        "schema": ATTEMPT_SCHEMA,
+        "schema": (
+            LOCAL_ATTEMPT_SCHEMA
+            if local_authorization is not None
+            else ATTEMPT_SCHEMA
+        ),
         "repo_head": head,
         "spec_sha256": spec_sha256,
         "runner_sha256": runner_sha256,
         "tool_sha256": tool_sha256,
         "expected_initial_requests": len(spec.mutations) + 2,
     }
+    if local_authorization is not None:
+        expected["local_authorization"] = local_authorization
     if resume:
         try:
             if path.is_symlink() or not path.is_file():
@@ -1227,7 +1235,12 @@ def _normalize_node(node: str, repo: Path) -> str:
 
 
 def _match_key(node: str, repo: Path) -> str:
-    return _normalize_node(node, repo)
+    normalized = _normalize_node(node, repo)
+    path_part, separator, test_part = normalized.partition("::")
+    suffix_start = test_part.rfind("@")
+    if suffix_start > test_part.rfind("]"):
+        test_part = test_part[:suffix_start]
+    return f"{path_part}{separator}{test_part}"
 
 
 def _failed_nodes(output: str, repo: Path) -> list[str]:
@@ -1299,7 +1312,10 @@ def _reject_flaky_hold_expected_nodes(
     repo: Path,
 ) -> None:
     expected_keys = {_match_key(node, repo) for node in expected}
-    held = expected_keys.intersection(_flaky_hold_node_ids_for_policy(repo))
+    held_keys = {
+        _match_key(node, repo) for node in _flaky_hold_node_ids_for_policy(repo)
+    }
+    held = expected_keys.intersection(held_keys)
     if held:
         raise HarnessError(
             "policy mismatch: mutation expected failure node is isolated: "
@@ -1458,10 +1474,10 @@ def _collect_expected_nodes(
             f"rc={result['rc']}, collected={len(collected)}, "
             f"artifact_error={result.get('artifact_error')!r}"
         )
-    collected_set = set(collected)
+    collected_set = {_match_key(node, repo) for node in collected}
     missing = sorted(
         {
-            _normalize_node(node, repo)
+            _match_key(node, repo)
             for mutation in spec.mutations
             for node in mutation.expected_nodes
         }
@@ -2370,11 +2386,11 @@ def _validate_collection_record(
         raise HarnessError("collection record の collected_nodes が artifact と不一致")
     missing = sorted(
         {
-            _normalize_node(node, repo)
+            _match_key(node, repo)
             for mutation in spec.mutations
             for node in mutation.expected_nodes
         }
-        - set(collected)
+        - {_match_key(node, repo) for node in collected}
     )
     if missing:
         raise HarnessError(f"collection record に期待 node がない: {missing}")
@@ -2952,8 +2968,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         isinstance(args.wrapper_attempt, bool) or args.wrapper_attempt < 1
     ):
         raise HarnessError("--wrapper-attempt は 1 以上の int でなければならない")
-    if args.attempt_out is not None and args.runner_mode != "dispatch":
-        raise HarnessError("attempt sidecar は --runner-mode dispatch でのみ使用できる")
+    local_authorization: dict[str, Any] | None = None
+    if args.attempt_out is not None and args.runner_mode == "local":
+        try:
+            from tools.pegasus import dispatch_compute
+
+            local_authorization = mutation_attempt_marker.require_local_attempt_marker(
+                normalize_request_id=dispatch_compute._normalize_request_id,
+                is_regular_pbs_jobid=dispatch_compute._is_regular_pbs_jobid,
+            )
+        except mutation_attempt_marker.MutationAttemptMarkerError as exc:
+            raise HarnessError(
+                f"local attempt authorization が不正です: {exc}"
+            ) from exc
     command = list(args.command)
     if command and command[0] == "--":
         command.pop(0)
@@ -3028,6 +3055,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 spec_sha256=spec_sha256,
                 runner_sha256=runner_sha256,
                 tool_sha256=tool_sha256,
+                local_authorization=local_authorization,
             )
             if attempt_out is not None and not args.plan_only
             else None

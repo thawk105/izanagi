@@ -10,7 +10,7 @@
 prompt非空を先に検査し、既存`.done`を消去・再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
 wait側`--receipt-file`はworker launcher receiptと別pathにする（同じpathは証拠を上書きする）。
-完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
+完了は `.done` と exit code だけで判定し、grep も通知も待ち手 rc も判定にしない。成果物は最終メッセージから読む（F23/F24）。
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
 `<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。
 `--artifact-root`自身を先に作る。出力は`<root>/<wave>/`だけ、不在はrc=2。
@@ -59,11 +59,11 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
-着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
+着手前に `git grep -n "<成果物パス>"` を使い、
 bytes を pin する台帳・test・trust root を全列挙する。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
 review ledger、全 field から同一性 hash を導く dataclass・schema も対象に含める。path 検索が見つけるのは path を key にする
-pin だけである。review ledger のように role 名を key に張る pin は key 側でも検索し、
+pin だけである。role 名や xdist group 名など path 以外を key に張る pin も key 側で検索し、
 path の hit 0 件を pin なしと結論しない（F30）。
 durable manifest が未発行か再発行要かを区別して brief の不変条件へ書く（F27/F30、D84）。
 統一系 wave では各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類してから
@@ -170,8 +170,8 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 **wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
-成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
-既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価後に再試行する。
+成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは停止せず既存branchのまま
+新main監査、固定SHAのwave-side merge、条件再評価をやり直しlandedまで再試行する。
 他session所有物、rebase、force、remote、pushで解消しない。
 ## DW-O25 — ff-only land の全史 provenance 関門
 

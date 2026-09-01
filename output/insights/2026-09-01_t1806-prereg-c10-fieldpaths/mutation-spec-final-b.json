@@ -1,0 +1,25 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "M01-COND-E2-DIGEST-EQUALITY-NEUTERED",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m03_rejects_source_preimage_digest_mutation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[proposal_build_source_bindings]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "                if preimage_sha256 != source.source_bytes_sha256:\n",
+          "new": "                if False and preimage_sha256 != source.source_bytes_sha256:\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1188,6 +1188,7 @@ def test_certified_acceptance_admits_exact_e1_fixture(
     )
     assert view.read_purpose is CERTIFIED
     assert not hasattr(view, "verifier_assessment_basis")
+    assert view.persisted_certified_commit_count == 1
     assert A.require_certified_campaign_view(view) is view
 
 
@@ -1370,13 +1371,21 @@ def test_persisted_commit_gate_accepts(
 
     view = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
     assert type(view) is A.CertifiedCampaignView
+    expected_count = sum(
+        record.stage == "commit" for record in wal.read_records(layout)
+    )
+    assert view.persisted_certified_commit_count == expected_count
+    if case == "no-commit-campaign":
+        assert view.persisted_certified_commit_count == 0
 
 
-@pytest.mark.parametrize("mutation", ("second-commit-invalid",))
+@pytest.mark.parametrize(
+    "mutation",
+    ("second-commit-invalid", "both-commits-valid"),
+)
 def test_certified_view_checks_every_commit(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
 ) -> None:
-    assert mutation == "second-commit-invalid"
     repo = _committed_closure_repo(tmp_path)
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
     campaign = _new_schema_campaign(tmp_path / "campaign")
@@ -1405,7 +1414,9 @@ def test_certified_view_checks_every_commit(
             "build_attempt_id": attempt_id,
             "verdict": "serializable",
             "certified": True,
-            "anomalies": 1,
+            "anomalies": (
+                1 if mutation == "second-commit-invalid" else 0
+            ),
             "workload": {"tag": "legacy"},
         }, ts=7.0,
     )
@@ -1417,8 +1428,12 @@ def test_certified_view_checks_every_commit(
         }, operation_identity=attempt_id, tags=("legacy",), ts=8.0,
     )
 
-    with pytest.raises(A.ArtifactAdmissionError, match="anomalies"):
-        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    if mutation == "second-commit-invalid":
+        with pytest.raises(A.ArtifactAdmissionError, match="anomalies"):
+            A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    else:
+        view = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert view.persisted_certified_commit_count == 2
 
 
 @pytest.mark.parametrize("mutation", ("incomplete-receipt",))
@@ -1575,6 +1590,58 @@ def test_certified_acceptance_distinguishes_current_closure_unavailable(
     assert excinfo.value.reason_code == "current-closure-unavailable"
 
 
+def test_historical_raw_with_dirty_current_closure_preserves_recorded_view_structure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+    live_path.write_bytes(live_path.read_bytes() + b"dirty live bytes\n")
+
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    assert type(view) is A.HistoricalCampaignView
+    assert view.read_purpose is HISTORICAL
+    assert view.campaign_verifier_epoch.state == "E1"
+    assert view.campaign_verifier_epoch.reason_code == "recorded-closure"
+    assert (
+        view.campaign_verifier_epoch.campaign_verifier_epoch
+        == _expected_fixture_epoch()
+    )
+
+
+def test_historical_view_reports_unknown_current_verifier_conformance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+    live_path.write_bytes(live_path.read_bytes() + b"dirty live bytes\n")
+
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    assert view.current_verifier_conformance == "unknown"
+
+
+def test_certified_acceptance_rejects_dirty_current_closure_with_exact_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+    live_path.write_bytes(live_path.read_bytes() + b"dirty live bytes\n")
+
+    with pytest.raises(A.CampaignVerifierEpochRejected) as excinfo:
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+
+    assert type(excinfo.value) is A.CampaignVerifierEpochRejected
+    assert excinfo.value.epoch_state == "E1-stale"
+    assert excinfo.value.reason_code == "current-closure-unavailable"
+
+
 def test_legacy_recorded_current_closure_mismatch_diagnostic_remains_readable(
 ) -> None:
     epoch = A.CampaignVerifierEpoch(
@@ -1616,6 +1683,81 @@ def test_historical_epoch_display_is_independent_of_live_closure_bytes(
         before.verifier_assessment_basis = "current-verifier-revalidated"
 
 
+def _private_zero_commit_certified_view(
+    tmp_path: Path, *, count: object = None,
+) -> A.CertifiedCampaignView:
+    records = ()
+    projected_count = (
+        sum(record.stage == A.STAGE_COMMIT for record in records)
+        if count is None
+        else count
+    )
+    decision = A.CampaignAdmissionDecision(
+        classification="test",
+        admission_status="admitted",
+        verification_status="certified",
+        campaign_id="private-zero-commit",
+        campaign_path=str(tmp_path),
+        campaign_lock_sha256="a" * 64,
+        wal_sha256="b" * 64,
+        policy_sha256=None,
+        attempt_receipt_sha256s=(),
+        overlay_ledger_sha256="c" * 64,
+        overlay_record_key=None,
+        validator_sha256="d" * 64,
+    )
+    epoch = A.CampaignVerifierEpoch(
+        campaign_verifier_epoch="E1:" + "e" * 64,
+        state="E1",
+        reason_code="recorded-closure",
+    )
+    return A.CertifiedCampaignView(
+        layout=CampaignLayout(root=str(tmp_path)),
+        records=records,
+        decision=decision,
+        campaign_verifier_epoch=epoch,
+        persisted_certified_commit_count=projected_count,
+        _certification_token=A._CERTIFIED_VIEW_TOKEN,
+    )
+
+
+def test_certified_commit_evidence_rejects_no_commit_campaign(
+    tmp_path: Path,
+) -> None:
+    view = _private_zero_commit_certified_view(tmp_path)
+
+    with pytest.raises(
+        A.ArtifactAdmissionError,
+        match="at least one persisted COMMIT",
+    ):
+        A.require_certified_commit_evidence(view)
+
+
+def test_certified_view_rejects_non_exact_commit_count(tmp_path: Path) -> None:
+    class IntSubclass(int):
+        pass
+
+    with pytest.raises(TypeError, match="exact int"):
+        _private_zero_commit_certified_view(tmp_path, count=IntSubclass(0))
+
+
+def test_certified_view_rejects_bool_commit_count(tmp_path: Path) -> None:
+    with pytest.raises(TypeError, match="exact int"):
+        _private_zero_commit_certified_view(tmp_path, count=False)
+
+
+def test_certified_view_rejects_negative_commit_count(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="non-negative"):
+        _private_zero_commit_certified_view(tmp_path, count=-1)
+
+
+def test_certified_view_rejects_commit_count_snapshot_mismatch(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="does not match WAL snapshot"):
+        _private_zero_commit_certified_view(tmp_path, count=1)
+
+
 def test_historical_view_cannot_cross_certified_type_boundary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1634,6 +1776,10 @@ def test_historical_view_cannot_cross_certified_type_boundary(
             records=historical.records,
             decision=historical.decision,
             campaign_verifier_epoch=historical.campaign_verifier_epoch,
+            persisted_certified_commit_count=sum(
+                record.stage == A.STAGE_COMMIT
+                for record in historical.records
+            ),
             _certification_token=object(),
         )
 

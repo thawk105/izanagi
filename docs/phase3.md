@@ -269,7 +269,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 |---|---|---|
 | **完了群**: H3 hooks / cache_key+variant_id 拡張 / 観測者効果二重検査 / S4 / C1 | **完了・解消済み** | **現役の一次防壁 (方針 A):** 偽 cache hit は cache_key+variant_id digest で、TRACE 混入は観測者効果二重検査 (payload 検査に依存しない diff-of-diffs、buildcache.build 出口 hit/fresh 両経路、fails-closed) で塞ぐ。H3 hooks は最小第二防壁 (D30/D33)。規律3 配線 = S4 (verify-red 構造化 anomaly → abort payload + load_rejections、還流は段 4 で消化)。C1 は worktree 隔離 (`patchharness.checkout()`) で解消、driver 宣言値リテラルは IDENT-1/IDENT-3 により意図的据え置き。詳細・経緯は archive (`phase3-s6-s8a-completed-details.md`) と D30/D33/D34/D37/D40 |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。pipeline 配線も完了 (段 5、D36 決定 4、opt-in = legacy+s2)** |
-| S1 (別 protocol trace-hook) | **現状 non-blocking** / 旧 headline 2 復活または段 7 cross-protocol 着手時に発火 | silo 内に閉じる現行 S-1/8b/層3には不要。trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) ため、cross-protocol 比較を復活させる場合は S1 移植か「stock 専用計測経路を規律2 と整合させる設計」のどちらかを先に決める (後続段 6 の休眠タスク (a) / 段 7) |
+| S1 (別 protocol trace-hook) | **現状 non-blocking** / 旧 headline 2 復活または段 7 cross-protocol 着手時に発火 | silo 内に閉じる現行 S-1/8b/層3には不要。trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) 。**成立方法は 2026-08-11 のユーザー裁定で確定済み (T-755 Q1〜Q3 全問 (a)、worklog entry 389)** — trace-hook 移植だけが certified な cross-protocol 比較を成立させる。stock 専用計測経路は非認証の別成果物にしかならず、公式 report・selector・比較表・順位・headline へ入れない (偵察としての解禁も「なし」と裁定)。初手は mocc、trace v2 化を単独 wave で先行。**残るのは裁定ではなく実装** — protocol 別 genome 空間・較正・between-run floor と公式成果物への接続 (後続段 6 の休眠タスク (a) / 段 7) |
 
 ---
 
@@ -353,9 +353,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 
    以下の前提タスク台帳は旧 headline の契約を保存する。(a)〜(e) は旧 headline を復活させない限り休眠、
    (f)(g) は上の S-1 checklist で現役、(h)〜(j) は完了済み:
-   (a) **S1 移植 or stock 専用計測経路の設計判断** (headline 2 の前提。must 表参照。
-   D44 注意: stock 専用計測経路を選ぶ場合、対抗馬だけ certified 要件を免除する非対称比較になる — その扱いを
-   設計時に明文化する)、
+   (a) **S1 移植の設計判断 — 2026-08-11 ユーザー裁定で決着済み (T-755 Q1〜Q3 全問 (a)、worklog entry 389)**
+   (headline 2 の前提。must 表参照。trace v2 単独 wave 先行 → 初手 mocc。stock 専用計測経路は certified 比較を
+   成立させないため採らず、偵察としての解禁も「なし」と裁定した。D44 が警告した「対抗馬だけ certified 要件を
+   免除する非対称比較」はこの裁定で閉じている)、
    (b) SPACES への mocc/tictoc/cicada 登録 + protocol 別 calibration + between-run floor の対象別再実測、
    (c) ランダム変異生成器と生成分布の確定 (ベースライン 3)、(d) 機械 sweep 駆動と軸命名手順の固定 (ベースライン 4。
    phase3-main-experiment.md 2026-07-10 追記の sweep-matched / sweep-ceiling 分離に従う)、
@@ -1020,11 +1021,25 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   満たしている。凍結表からの事後復元は監査の便宜で論文の主張に効かず、新しい凍結手続きと consumer の
   設計を要する。再訪条件 = 同型の実害 1 件。
 
+- [T-1844] 事前登録 §5 残り 9 欄の型検査 — 理由: 裁定 2026-08-31 (/rulings 全件、推奨どおり見送り):
+  D1000 が §5 の機械検査を構文的非空と grammar に限ると定めており、記入は人間 1 人で型の誤りは
+  その場で分かる。防御的堅牢化の既定見送り (D1332)。
+  再訪条件 = 記入時の型の誤りが実際に 1 件観測されたとき。
+
+- [T-1477] **批准追記の執行経路の再設計** — 理由: 2026-09-01 ユーザー裁定
+  (D1394)。陳腐化 = D1139 が enforcement source closure の
+  批准突き合わせ自体を廃止したため、待っていた執行経路の対象が存在しない。
+  再訪条件 = 批准突き合わせに相当する関門が新たに設けられたとき。
+- [T-2132] **2 つの根クラスへの durable root commitment** — 理由: 2026-09-01 ユーザー裁定
+  (D1390)。両根クラス全体へ bytes 級 provenance を導入する設計であり、
+  粗い provenance で足りるという方針 (D1139) に当たる。現行成果物への実害も示されていない。
+  再訪条件 = origin への帰属を検証できないことに起因する実害 1 件。
+
 ### 研究・計測系
 
 - [T-021] **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - [T-022] **over-throttle 有用 IPC 低下の機序分離** (B-012, 出所 `docs/phase3.md`) — MLP または cache 余熱への因果帰属を対外説明・consumer が採る時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
-- [T-023] **mocc trace-hook / verifier 第2 protocol** (B-013, 出所 `docs/phase3.md`) — 旧 headline 2 / 段 7 cross-protocol で mocc を採る時、または visible-invisible correctness ablation を承認した時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- [T-023] **mocc trace-hook / verifier 第2 protocol** (B-013, 出所 `docs/phase3.md`) — 旧 headline 2 / 段 7 cross-protocol で mocc を採る時、または visible-invisible correctness ablation を承認した時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。 発火記録: 2026-08-11 の S1 設計択一 Q2 裁定 (初手 mocc) で発火条件が成立し、mocc trace-hook は実装・pilot 実走・G2 判別子の実機 1 セルまで到達した。追加裁定はせず記録のみ。
 - [T-024] **ermia cross-check の再定義 (前提消滅・要再定義)** (B-014, 出所 `docs/phase3.md`) — si と ermia を cross-check protocol 集合へ再採用する時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - [T-025] **calibration 下限 K 感度** (B-015, 出所 `docs/archive/worklog-phase1-2.md`) — 裁定 2026-07-19: K=4 を設計定数として明示承認し、感度主張は行わず終了。論文の機序図または K=4 依存主張の凍結直前に再評価、証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - [T-026] **thread 数変更時の再 calibration** (B-016, 出所 `docs/archive/worklog-phase1-2.md`) — 承認 performance thread に qualifying calibration が無く live floor carrier も無い時。裁定 2026-07-19 保留承認、between-run floor は現行チェックポイントの floor 実測工程が部分的に運ぶ。述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
@@ -2227,7 +2242,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-2015] /rulings が起動する consult 子の依頼文に、check_codex_output.py が要求する出力形式 (## 総括 節)… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
-- [T-2019] 択 (A) 採用 — 全 live Git 経路へ抑止を入れて閉包を広げる。reader 分類の前提を壊す書き込みが残ると D1008 の a… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
+- [T-2019] 択 (A) 採用 — 全 live Git 経路へ抑止を入れて閉包を広げる。reader 分類の前提を壊す書き込みが残ると D1008 の a… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。 2026-09-01 に登録外 reader の file:line 証拠が増えた (`test_b10_backoff_shape_sweep.py:1096`、`test_s8b_approved.py:34`、`orchestrator/tests/conftest.py:576` 経由の oracle environment 25 node、`test_mocc_trace_pair.py:121`/`:154`)。追加裁定はせず記録のみ。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-2020] 共有 filesystem 上の lock を採る。成立しなければ親 tree と共有ベンチマークの双方を隔離する (D1210)。 **親の… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
@@ -2255,6 +2270,11 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-2071] dispatch変異のtimeoutをqueue / Pre-runningと child実行に分離し、child開始前の混雑でsource変… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
+
+- [T-2128] **land の plan 作成を協調 lock の外へ移す** — 理由: 2026-09-01 ユーザー裁定
+  (D1393)。land 前 `--dry-run` の義務化で同じ実害を塞いでおり、
+  既存策の不足を示す実測が無い。D1368 の scope 外判断を追認する。
+  再訪条件 = `--dry-run` の義務化をすり抜けた重複 plan の実害 1 件。
 
 ### 外部環境系
 
@@ -2584,6 +2604,11 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 - [T-1060] **DW-** への [T-908] land 契約の収容** — 理由: 2026-08-15 棚卸し (価値小 = docs 予算で機械的に発火しない)。docs/dev-wave/** の削除経路は 3 度の棚卸しと独立 2 wave が候補ゼロを実証しており、予算上限の引き上げは既裁定で不可。再訪条件 = [T-959] が L2 の空き枠を設計し収容先ができたとき。
 - [T-1083] **evidence_grace_s の receipt v4 での封印** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
 - [T-1100] **受入試行の一次資料の所在 2 行** — 理由: 2026-08-15 棚卸し (価値小 = docs 予算で機械的に発火しない)。docs/dev-wave/** の削除経路は 3 度の棚卸しと独立 2 wave が候補ゼロを実証しており、予算上限の引き上げは既裁定で不可。再訪条件 = [T-959] が L2 の空き枠を設計し収容先ができたとき。
+
+- [T-1933] 受入 wall の nodeid から worker への対応表 — 理由: 裁定 2026-08-31
+  (/rulings 全件、推奨どおり見送り): D1298 が単一 node の短縮では makespan が動かないことを
+  実測で確定しており、内訳が分かっても打ち手が増えない (D1327)。
+  再訪条件 = 受入 wall が再び実害として観測され、かつ frontier の構成が変わったとき。
 
 ### RuleOps hardening (P3、T-143 残余)
 

@@ -21,6 +21,7 @@ PROBE_PATH = ROOT / "tools/pegasus/probes/t139_r4_env_probe.py"
 CONTRACT_PATH = ROOT / "tools/pegasus/probes/t139_r4_env_probe_contract.json"
 SH_PATH = ROOT / "tools/pegasus/probes/t139_r4_env_probe.sh"
 PBS_PATH = ROOT / "tools/pegasus/probes/t139_r4_env_probe.pbs"
+POSITIVE_CONTROL_PATH = ROOT / "tools/pegasus/probes/t139_positive_control_probe.sh"
 
 SPEC = importlib.util.spec_from_file_location("t139_r4_env_probe", PROBE_PATH)
 assert SPEC is not None and SPEC.loader is not None
@@ -808,6 +809,7 @@ raise SystemExit(probe.main())
         "IZANAGI_GFLAGS_SRC_HEAD": "b" * 40,
         "IZANAGI_GLOG_SRC_HEAD": "c" * 40,
         "IZANAGI_RUN_COMMIT": "d" * 40,
+        "IZANAGI_T139_EXPECTED_WORKTREE_ROOT": str(ROOT),
         "IZANAGI_PROBE_STAGE": str(stage),
         "IZANAGI_TEST_PHASE_MARKER": str(phase_marker),
         "IZANAGI_TEST_WAIT_FIFO": str(wait_fifo),
@@ -924,6 +926,7 @@ exit {child_rc}
         "IZANAGI_GFLAGS_SRC_HEAD": "b" * 40,
         "IZANAGI_GLOG_SRC_HEAD": "c" * 40,
         "IZANAGI_RUN_COMMIT": "d" * 40,
+        "IZANAGI_T139_EXPECTED_WORKTREE_ROOT": str(ROOT),
         "IZANAGI_PROBE_STAGE": str(stage),
         "IZANAGI_TEST_TIMEOUT_MARKER": str(timeout_marker),
         "PBS_JOBID": "cap.1",
@@ -1213,6 +1216,10 @@ def test_driver_static_caps_order_and_finalizer_contract() -> None:
     assert "driver_run 960" in shell
     assert "record_one_build trace0 0 0 60 180" in shell
     assert "record_one_build trace1 1 1 90 420" in shell
+    assert shell.index("condition_gate_argv=") < shell.index("record_one_build trace0")
+    assert "--use-class raw-measurement" in shell
+    assert "-DCCBENCH_BACKOFF_FIXED=-1" in shell
+    assert "-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1" not in shell
     assert shell.index("record_one_build trace0") < shell.index("sample --state")
     assert shell.index("trap finalize_driver EXIT") < shell.index("monotonic-ns")
     assert "before-build-$kind" in shell
@@ -1225,6 +1232,15 @@ def test_driver_static_caps_order_and_finalizer_contract() -> None:
     assert "rc <= 192" not in shell
     assert "time.monotonic_ns" not in shell  # delegated to the Python monotonic clock
     assert "monotonic-ns" in shell
+
+
+def test_positive_control_condition_gate_dominates_first_ccbench_build() -> None:
+    shell = POSITIVE_CONTROL_PATH.read_text(encoding="utf-8")
+    assert shell.index("condition_gate_argv=") < shell.index("for arm in stock")
+    assert "--macro BACKOFF_FIXED" in shell
+    assert "--stock-comparison" in shell
+    assert "-DCCBENCH_BACKOFF_FIXED=-1" in shell
+    assert "-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1" not in shell
 
 
 def test_pbs_contract_blob_namespace_and_phase_budget_are_static() -> None:

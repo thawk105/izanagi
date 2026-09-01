@@ -6,11 +6,15 @@
 `orchestrator/campaign/env_contract_activation.py`、activation record、上位権限束の設計と fixture
 manifest が優先する。
 
-- 観測日時: 2026-08-25T13:36:00+09:00
-- 基準 commit: `c9f88dfe1429fc2d1476647d63d705d3a09f9306`
-- 観測 checkout: `dev-wave-t1633-stage0-blocker-scope`
-- 結論: **未充足**。g2 の静的 registry と較正は揃うが、上位権限束、paired freeze、pre-X 段が未閉鎖である。
-- 非実施: record 発行、reviewed head 更新、上位 A/X、freeze seal、holdout 解禁、rr80/rr20 登録。
+- 観測日時: 2026-09-01T21:25:00+09:00
+- 基準 commit: `3c1156056b9f7d9606a6af1ebac6f386eea642ac`
+- 観測 checkout: `dev-wave-t425-a4a6a7-prep`
+- 結論: **未充足**。A4 と A6 は認証対象のまま official activation record / 凍結 g1 の承認済み
+  successor を欠き、A5 と A7 は `unmet` かつ非認証である。非認証は activation 許可を意味しない。
+- 非実施: `output/s8b-freeze/approvals/` の承認 record 発行、`output/s8b-freeze/active/` の
+  有効 pointer 発効、`env_contract_activations/00000002.json` の発行、`BUDGET_APPROVAL_SHA256`
+  の記入、reviewed head 更新、official floor run、上位 A/X、freeze seal、holdout 解禁、
+  rr80/rr20 登録。
 
 ## 証拠種別
 
@@ -24,15 +28,23 @@ manifest が優先する。
 `met` はその行だけの充足であり、activation 可を意味しない。上位段 0 の `complete` も後続段へ
 進むための必要条件であって、単独の十分条件ではない。
 
-| ID | 必要条件 | 現在値 | authority / source | 証拠 | 未充足理由 | remediation owner |
-|---|---|---|---|---|---|---|
-| A1 | current head が record chain・registry・較正に一致する | `met`: serial 1、linux-baremetal g1、pegasus g1、state `f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed` | `env_contract.py` の reviewed head と `env_contract_activations/00000001.json` | `checkout-pinned`; `current_activation_state()` 成功、record 1 件 | なし | none (充足済み) |
-| A2 | pegasus g2 が exact +1 successor として generation registry にある | `met`: g2 contract `1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c` | `env_contract.py` の `GENERATIONS` / `is_valid_successor` | `checkout-pinned`; g1→g2 は calibration ref の対だけが変更 | なし | none (充足済み) |
-| A3 | g2 の較正 artifact が successor artifact gate を通る | `met`: `calibration-94a4b79fa31bba3c.json`、declared / actual SHA-256 は `94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9` | `env_contract.py` の `_validate_activation_successor_artifact` と較正 bytes | `checkout-pinned`; acquisition receipt あり、quality `accepted`、self-consistency と現行 clock method 一致 | なし | none (充足済み) |
-| A4 | 発行対象の exact activation bytes が、その時点の landed checkout で schema・chain・全 env・exact +1・registered successor gate を通る | `unmet`: official candidate / serial 2 record は存在しない | `env_contract_activation.py` と `issue_env_contract_activation.py` | `transient calculation`; linux-baremetal g1 据置 + pegasus g2 の仮 object は検証成功し、診断 state は `398b192013e0e3996ca225454049a14cb2866ef256b581fc3dfbfda02476bed8` | 計算値は候補 artifact でも発行 record でもなく、発行時 HEAD の exact bytes を代替しない | `unassigned`。引用した authority は candidate 構築・record 発行 actor を割り当てず、本行は発行を許可しない。発効 X は human |
-| A5 | 上位権限束の段 0 status が `complete` になる | `unmet`: `incomplete`。`raw_pending_count` 5、`excluded_stage0_pending_count` 5、`stage0_blocking_pending_count` 0、`applicable_unresolved_count` 2、`raw_blocking_gate_count` 4、`excluded_stage0_gate_count` 1、`stage0_blocking_gate_count` 3 | D778、`docs/calibration-freeze-authority-bundle-design.md` §10 / §10.2 / §12.3、fixture manifest、`orchestrator/tests/calibration_freeze_authority_contract.py` | `checkout-pinned`; `validate_repository()` は整合し、`require_stage0_complete()` は effective `0 / 2 / 3` で拒否する。`require_stage0_fixture_obligations_discharged()` は raw pending 5 で拒否する | 残るのは裁定 profile の applicable unresolved 2 件と、owner が段 1 以降でない blocking gate 3 件だけである。**開始順は D778 で解決済み**であり、pending fixture 5 件と fixture assignment gate は段 0 blocker に数えない | 下表の owner。段 0 そのものの owner は D778 により次の環境世代準備 wave (AI) |
-| A6 | paired freeze successor の readiness が landed head 上で証明される | `unmet`: landed head に canonical proof がない | 上位権限束設計の lockstep と下位 freeze authority | `checkout-pinned`: 上位 namespace は absent、floor protocol は g1 contract / current ccbench pin の 1 件。`concurrent unlanded`: floor-restart wave の差分は不採用 | 別 wave の未land作業を readiness 証拠へ合成できない。将来その作業が条件を閉じるかは unknown | `unassigned` |
-| A7 | 上位束の pre-X 段 1〜5が実装・検証され、段 6 X の正当な候補がある | `unmet`: 上位 resolver / authority namespace と pre-X 閉包が未成立 | 上位権限束設計 §10 | `checkout-pinned`; 上位 namespace は absent | 段 0 と paired freeze が未閉鎖で、後続実装へ未到達 | `unassigned` |
+`認証扱い` 列は D1264 / D1339 が定めた**裁定上の区分の記録**であり、観測値ではない。値は
+`認証対象` と `非認証` の 2 つだけとし、未充足を空欄や省略で表さない (D1339 決定 3)。
+**`非認証` は `met` を意味せず、activation を許可せず、その条件の未充足を免除しない。**
+D1264 が求めた「A5 / A7 の完成待ちを置換または非認証化する設計」自体は未着手のまま残る。
+
+`remediation owner` 列は主体ではなく**工程**で割る (D1339 決定 2)。準備と検証は AI、
+承認 record の発行と有効 pointer の発効は人間である。
+
+| ID | 必要条件 | 現在値 | 認証扱い | authority / source | 証拠 | 未充足理由 | remediation owner |
+|---|---|---|---|---|---|---|---|
+| A1 | current head が record chain・registry・較正に一致する | `met`: serial 1、linux-baremetal g1、pegasus g1、state `f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed` | `認証対象` | `env_contract.py` の reviewed head と `env_contract_activations/00000001.json` | `checkout-pinned`; `current_activation_state()` 成功、record 1 件 | なし | none (充足済み) |
+| A2 | pegasus g2 が exact +1 successor として generation registry にある | `met`: g2 contract `1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c` | `認証対象` | `env_contract.py` の `GENERATIONS` / `is_valid_successor` | `checkout-pinned`; g1→g2 は calibration ref の対だけが変更 | なし | none (充足済み) |
+| A3 | g2 の較正 artifact が successor artifact gate を通る | `met`: `calibration-94a4b79fa31bba3c.json`、declared / actual SHA-256 は `94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9` | `認証対象` | `env_contract.py` の `_validate_activation_successor_artifact` と較正 bytes | `checkout-pinned`; acquisition receipt あり、quality `accepted`、self-consistency と現行 clock method 一致 | なし | none (充足済み) |
+| A4 | 発行対象の exact activation bytes が、その時点の landed checkout で schema・chain・全 env・exact +1・registered successor gate を通る | `unmet`: official candidate / serial 2 record は存在しない | `認証対象` | `env_contract_activation.py` の `validate_activation_records()`、`env_contract.py` の `_REGISTERED_CONTRACT_CATALOG` / `_is_valid_activation_successor_with_artifact` / `_is_valid_activation_successor_for_issue`、`issue_env_contract_activation.py` | `transient calculation`; linux-baremetal g1 据置 + pegasus g2 の仮 object に対し、**replay 経路と発行時経路の両方**で `validate_activation_records()` が成功した。発行時経路は `issue_env_contract_activation.py` と同じ配線で、未 active successor に現行 `EFFECTIVE_CLOCK_METHOD` との一致を追加要求する。診断 state はいずれも `398b192013e0e3996ca225454049a14cb2866ef256b581fc3dfbfda02476bed8` | 計算値は候補 artifact でも発行 record でもなく、発行時 HEAD の exact bytes を代替しない。発行時経路を通したことは、将来の発行時 HEAD での成功を保証しない | 準備・検証: AI (本行の候補 bytes 検証は実施済み)。承認 record の発行と有効 pointer の発効: 人間。本行は発行・発効を許可しない。D437 により環境世代と凍結世代は lockstep で、片側だけの発効は却下済み |
+| A5 | 上位権限束の段 0 status が `complete` になる | `unmet`: `incomplete`。`raw_pending_count` 5、`excluded_stage0_pending_count` 5、`stage0_blocking_pending_count` 0、`applicable_unresolved_count` 2、`raw_blocking_gate_count` 4、`excluded_stage0_gate_count` 1、`stage0_blocking_gate_count` 3 | `非認証` | D778、`docs/calibration-freeze-authority-bundle-design.md` §10 / §10.2 / §12.3、fixture manifest、`orchestrator/tests/calibration_freeze_authority_contract.py` | `checkout-pinned`; `validate_repository()` は整合し、`require_stage0_complete()` は effective `0 / 2 / 3` で拒否する。`require_stage0_fixture_obligations_discharged()` は raw pending 5 で拒否する | 残るのは裁定 profile の applicable unresolved 2 件と、owner が段 1 以降でない blocking gate 3 件だけである。**開始順は D778 で解決済み**であり、pending fixture 5 件と fixture assignment gate は段 0 blocker に数えない | 下表の owner。段 0 そのものの owner は D778 により次の環境世代準備 wave (AI) |
+| A6 | paired freeze の**凍結 g1 の承認済み successor** の readiness が landed head 上で証明される (D1339 決定 1。環境世代を g2 へ進めることは要求しない) | `unmet`: 凍結 g1 の承認済み successor が landed head 上にない | `認証対象` | D1339、`s8b_holdout_freeze.py` の `build_v2_g1_candidate()` / `_budget_approval_authority()`、`s8b_ratified_freeze.py` の `certificate-generation-scope`、上位権限束設計の lockstep と下位 freeze authority | `checkout-pinned`; canonical freeze chain は v1 (`output/s8b-freeze/holdout_freeze.json`) だけで、canonical 世代文書 `output/s8b-freeze/holdout_freeze.v2.g1.json`・`output/s8b-freeze/approvals/`・`output/s8b-freeze/active/` はいずれも不在。未発効の候補置き場 `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` も不在。`build_v2_g1_candidate()` は実在するが `BUDGET_APPROVAL_SHA256` が `None` のため `budget-approval-not-ratified` で停止する。`output/s8b-freeze-budget-approvals/g1.json` と official floor run も不在 | 凍結 g1 の承認済み successor が無い。**候補文書の生成**は D589 と同じ 3 条件 (承認 artifact 不在・pin 未批准・official result 不在) で今日も到達不能で、うち official floor run は D1396 の staged transport 不適格が塞いでいる。**一方、下位 freeze authority を exact 正本へ適合させる準備作業は D1391 が解禁済みで着手可能であり、`T-2105` が持つ。** 本行を「AI 準備完了」とは読まない | 準備・検証: AI。ただし候補文書の生成は上流 (人間手番の budget 承認批准、別タスクの official floor run) 待ちで、着手可能な準備は `T-2105` (D1391) にある。承認 record の発行と有効 pointer の発効: 人間。本行は発行・発効を許可しない |
+| A7 | 上位束の pre-X 段 1〜5が実装・検証され、段 6 X の正当な候補がある | `unmet`: 上位 resolver / authority namespace と pre-X 閉包が未成立 | `非認証` | 上位権限束設計 §10 | `checkout-pinned`; **在るもの** — fixture manifest は閉じており、10 fixture のうち 5 件が executable (`activation-head-consistency` ほか)、5 件が pending。段 6 candidate gate adapter (`calibration_freeze_stage6_candidate_gate.py`) は実装済み。**無いもの** — 上位 namespace `output/calibration-freeze-authority/`、上位 resolver、候補入口、operational caller (0 件)、pre-X 閉包 | 段 0 と paired freeze が未閉鎖で、後続実装へ未到達。部分実装は在るので「全物不在」ではない | 準備・検証: AI。発効前閉包に含まれる承認 record の発行と有効 pointer の発効: 人間。本行は発行・発効を許可しない |
 
 ### 上位段 0 blocker の内訳
 
@@ -90,3 +102,22 @@ raw pending が 0 かつ fixture assignment gate が非 blocking になるまで
   代用にしない。repo-external observation は再 hash しない限り現存を主張しない。
 - concurrent unlanded 差分は land 後の commit として再照合するまで current checkout の証拠にしない。
 - 本 index は条件を追加・削除・緩和せず、activation 可否を自動判定しない。
+
+### 2026-09-01 の再照合で確かめた範囲
+
+基準 commit を `3c1156056b9f7d9606a6af1ebac6f386eea642ac` へ進めるにあたり、全 `checkout-pinned`
+行を再照合した。A1〜A3 の serial / state / contract hash / 較正 hash、段 0 blocker の 7 数値と
+gate ID 3 件、繰越 fixture 5 件の ID、繰越 gate ID、段 6 adapter の caller 件数は、いずれも
+旧基準 `c9f88dfe...` の記録値と一致した。「activation 後または独立に残る項目」の member 2 は
+D547 が「g1 が活性である限り `unmet`」と構造的に定めており、A1 で g1 活性を確認した。
+rr80/rr20 行の 2026-08-24 の hash は repo-external observation として当時の観測のまま残し、
+再 hash していないので現存を主張しない。
+
+### 繰越義務表と機械 pin の関係
+
+`orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py` は、本書のうち
+「到達可能な段 6 production 経路が義務述語を通る」で始まる**行 1 本だけ**を選び、その行の
+exact 6 セルを固定する。したがって非波及の条件は「別の表だから」ではなく、
+**当該行の行頭文字列・セル数 6・全セル値が不変であること**である。A1〜A7 表の列追加は
+この行を選ばないため波及しない。将来の再照合で当該行に差が出た場合は、行と期待値の
+どちらも黙って変えず、停止してユーザー裁定へ返す。

@@ -784,10 +784,46 @@ def _schedule(
     ), slots
 
 
+def _missing_pinned_rollouts(
+    sessions_root: Path,
+) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        (label, session_id)
+        for label, session_id in TOOL.SESSION_IDS.items()
+        if next(
+            sessions_root.rglob(f"rollout-*-{session_id}.jsonl"), None
+        )
+        is None
+    )
+
+
+def _require_pinned_rollouts(sessions_root: Path) -> None:
+    missing = _missing_pinned_rollouts(sessions_root)
+    if missing:
+        detail = ", ".join(
+            f"{label} session {session_id}" for label, session_id in missing
+        )
+        pytest.skip(f"pinned historical rollout is unavailable: {detail}")
+
+
+def _write_pinned_rollout_stub(sessions_root: Path, label: str) -> Path:
+    session_id = TOOL.SESSION_IDS[label]
+    rollout = sessions_root / f"rollout-test-{session_id}.jsonl"
+    rollout.write_text(
+        json.dumps(
+            {"type": "session_meta", "payload": {"id": session_id}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return rollout
+
+
 @pytest.fixture(scope="module")
-def benchmark_snapshots(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
-    if not _HISTORICAL_SESSIONS.is_dir():
-        pytest.skip("historical rollout root is unavailable")
+def benchmark_snapshots(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, Any]:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     root = tmp_path_factory.mktemp("t181-benchmark")
     base = root / "base"
     destinations = {case: root / case.lower() for case in ("POS", "NEG")}
@@ -834,6 +870,41 @@ def benchmark_snapshots(tmp_path_factory: pytest.TempPathFactory) -> dict[str, A
             "prompt_receipt": prompt_receipt,
         }
     return result
+
+
+def test_historical_rollout_guard_all_pins_present_does_not_skip(
+    tmp_path: Path,
+) -> None:
+    for label in TOOL.SESSION_IDS:
+        _write_pinned_rollout_stub(tmp_path, label)
+
+    _require_pinned_rollouts(tmp_path)
+
+
+def test_historical_rollout_guard_reports_missing_session(
+    tmp_path: Path,
+) -> None:
+    missing_label = "author"
+    for label in TOOL.SESSION_IDS:
+        if label != missing_label:
+            _write_pinned_rollout_stub(tmp_path, label)
+
+    missing_session_id = TOOL.SESSION_IDS[missing_label]
+    with pytest.raises(pytest.skip.Exception, match=missing_session_id):
+        _require_pinned_rollouts(tmp_path)
+
+
+def test_historical_rollout_guard_does_not_hide_sha_mismatch(
+    tmp_path: Path,
+) -> None:
+    rollouts = {
+        label: _write_pinned_rollout_stub(tmp_path, label)
+        for label in TOOL.SESSION_IDS
+    }
+
+    _require_pinned_rollouts(tmp_path)
+    with pytest.raises(TOOL.ValidationError, match="POS rollout sha mismatch"):
+        TOOL._verify_rollout_sha(rollouts["POS"], "POS")
 
 
 def _manual_run(
@@ -3128,6 +3199,7 @@ def test_m1_snapshot_head_pin_is_independent(
 def test_m2_production_golden_requires_both_routes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     called = False
     original = TOOL._compare_golden_routes
 
@@ -6482,6 +6554,55 @@ def _bound_price_schedule(
     }
 
 
+def _cross_arm_cost_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
+    task_manifest = _synthetic_task_manifest(
+        (
+            ("alpha", "POS", "positive", "alpha-finding"),
+            ("beta", "POS", "positive", "beta-finding"),
+        )
+    )
+    task_manifest["tasks"]["beta"]["stage"] = "stage-2"
+    slot_specs = (
+        ("s01", "alpha", "stage-1", "b02", 1, "max", "gpt-5.6-sol"),
+        ("s02", "alpha", "stage-1", "b02", 2, "high", "gpt-5.6-luna"),
+        ("s03", "alpha", "stage-1", "b01", 1, "max", "gpt-5.6-sol"),
+        ("s04", "alpha", "stage-1", "b01", 2, "high", "gpt-5.6-luna"),
+        ("s05", "beta", "stage-2", "b03", 1, "max", "gpt-5.6-sol"),
+        ("s06", "beta", "stage-2", "b03", 2, "high", "gpt-5.6-luna"),
+    )
+    schedule = {
+        "schema_version": 3,
+        "price_snapshot": {
+            "path": _TEST_PRICE_SNAPSHOT_PATH,
+            "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
+        },
+        "slots": [
+            {
+                **_v3_slot(
+                    slot_id=slot_id,
+                    task_id=task_id,
+                    block_id=block_id,
+                    block_order=block_order,
+                    arm=arm,
+                    requested_model=requested_model,
+                    stage=stage,
+                ),
+                "price_version": _TEST_PRICE_VERSION,
+            }
+            for (
+                slot_id,
+                task_id,
+                stage,
+                block_id,
+                block_order,
+                arm,
+                requested_model,
+            ) in slot_specs
+        ],
+    }
+    return task_manifest, schedule
+
+
 def test_cli_real_import_loads_dataclass_price_verifier() -> None:
     completed = subprocess.run(
         [sys.executable, os.fspath(_TOOL_PATH), "--help"],
@@ -8578,6 +8699,7 @@ def test_prompt_replacement_count_zero_expected_and_excess(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     source_rollout = _REAL_ROLLOUT
     TOOL._verify_rollout_sha(source_rollout, "POS")
     canonical_message = TOOL.extract_user_message(source_rollout)
@@ -8609,12 +8731,17 @@ def test_prompt_replacement_count_zero_expected_and_excess(
 
 
 def test_real_rollout_collector_golden_is_source_bound() -> None:
-    assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
-        _REAL_ROLLOUT.read_bytes()
-    ).hexdigest()
+    rollout_available = _REAL_ROLLOUT.is_file()
+    if rollout_available:
+        assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
+            _REAL_ROLLOUT.read_bytes()
+        ).hexdigest()
     assert hashlib.sha256(_REAL_TOKEN_SLICE.encode()).hexdigest() == _REAL_TOKEN_SLICE_SHA
-    source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(keepends=True)[15]
-    assert source_line == _REAL_TOKEN_SLICE
+    if rollout_available:
+        source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(
+            keepends=True
+        )[15]
+        assert source_line == _REAL_TOKEN_SLICE
     payload = json.loads(_REAL_TOKEN_SLICE)["payload"]["info"]["total_token_usage"]
     validated, issues, cached_exceeds_input = TOOL.LEDGER._validated_usage(
         payload, location="golden"
@@ -15560,6 +15687,74 @@ def _bound_cost_aggregate(
     )
 
 
+def _cross_arm_cost_aggregate(
+    tmp_path: Path,
+    attempts: list[dict[str, Any]],
+    *,
+    has_schedule_descriptor: bool = True,
+    material_manifest_sha256: str | None = "d" * 64,
+) -> dict[str, Any]:
+    task_manifest, schedule = _cross_arm_cost_fixture()
+    slots, schedule_reasons = TOOL._validate_schedule(
+        schedule, task_manifest=task_manifest
+    )
+    assert schedule_reasons == []
+    assert len(attempts) == len(slots)
+    verdicts: dict[str, dict[str, Any]] = {}
+    for index, (slot, attempt) in enumerate(zip(slots, attempts), 1):
+        attempt.update(
+            {
+                "run_id": f"cross-arm-cost-r{index:02d}",
+                "slot_id": slot["slot_id"],
+                "benchmark_task_id": slot["benchmark_task_id"],
+                "legacy_case": slot["legacy_case"],
+                "case": slot["case"],
+                "stage": slot["stage"],
+                "requested_model": slot["requested_model"],
+                "cache_condition": slot["cache_condition"],
+                "price_version": slot["price_version"],
+                "oracle_kind": slot["oracle_kind"],
+                "arm": slot["arm"],
+                "block_id": slot["block_id"],
+                "block_order": slot["block_order"],
+            }
+        )
+        verdicts[slot["slot_id"]] = {
+            "oracle_kind": slot["oracle_kind"],
+            "r1_detected": True,
+            "findings": [],
+            "reader_agreement": True,
+        }
+    manifest = _canonical(
+        tmp_path / "cross-arm-cost-manifest.json",
+        {"schedule": {"path": "schedule.json", "sha256": "0" * 64}},
+    )
+    return TOOL._aggregate_verified(
+        manifest,
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+        has_schedule_descriptor=has_schedule_descriptor,
+        validated_price_snapshot=slots.price_snapshot,
+        material_manifest_sha256=material_manifest_sha256,
+    )
+
+
+def _axis_cost(
+    result: dict[str, Any],
+    *,
+    benchmark_task_id: str,
+    arm: str,
+) -> dict[str, Any]:
+    return next(
+        row
+        for row in result["normalized_cost_axis_ledger"]
+        if row["benchmark_task_id"] == benchmark_task_id and row["arm"] == arm
+    )
+
+
 def test_m10_cost_snapshot_loader_reads_and_validates_one_byte_observation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -15694,6 +15889,474 @@ def _walk_json_values(value: Any) -> list[Any]:
     if isinstance(value, list):
         return [value, *[item for child in value for item in _walk_json_values(child)]]
     return [value]
+
+
+def test_cross_arm_comparability_is_self_describing_and_model_normalized(
+    tmp_path: Path,
+) -> None:
+    result = _cross_arm_cost_aggregate(
+        tmp_path, [_cost_attempt() for _ in range(6)]
+    )
+    assert result["valid"] is True
+    resources = result["resource_ledger"]
+    assert {(row["benchmark_task_id"], row["stage"]) for row in resources} == {
+        ("alpha", "stage-1"),
+        ("beta", "stage-2"),
+    }
+    assert {
+        (
+            row["normalized_cost"]["comparability"]["basis_key"][
+                "comparison_scope"
+            ]["benchmark_task_id"],
+            row["normalized_cost"]["comparability"]["basis_key"][
+                "comparison_scope"
+            ]["stage"],
+        )
+        for row in resources
+    } == {("alpha", "stage-1"), ("beta", "stage-2")}
+
+    alpha_max = resources[0]
+    alpha_high = resources[1]
+    assert (alpha_max["arm"], alpha_high["arm"]) == ("max", "high")
+    max_cost = alpha_max["normalized_cost"]
+    high_cost = alpha_high["normalized_cost"]
+    max_comparability = max_cost["comparability"]
+    high_comparability = high_cost["comparability"]
+    assert max_cost["unit_prices"] != high_cost["unit_prices"]
+    assert max_comparability["basis_key"] == high_comparability["basis_key"]
+    assert (
+        max_comparability["accounted_total_key"]
+        == high_comparability["accounted_total_key"]
+    )
+    assert max_comparability["accounted_total_key"] == {
+        "attempt_count": 1,
+        "unavailable_count": 0,
+        "not_incurred_count": 0,
+        "scheduled_attempt_count": 1,
+        "pair_units_by_status": {
+            "observed": [{"block_id": "b02", "attempt": 1}],
+            "unavailable": [],
+            "not-incurred": [],
+        },
+    }
+    basis_key = max_comparability["basis_key"]
+    assert basis_key["comparison_scope"] == {
+        "benchmark_task_id": "alpha",
+        "stage": "stage-1",
+        "cache_condition": None,
+    }
+    assert basis_key["comparison_universe"] == {
+        "material_manifest_sha256": "d" * 64,
+    }
+    basis_tree_keys = {
+        key
+        for value in _walk_json_values(basis_key)
+        if isinstance(value, dict)
+        for key in value
+    }
+    assert {
+        "requested_model",
+        "unit_prices",
+        "arm",
+        "accounted_amount",
+    }.isdisjoint(basis_tree_keys)
+    assert "partial accounted component totals" in max_comparability["rule"]
+    assert "per-attempt averages" in max_comparability["rule"]
+    assert "complete costs" in max_comparability["rule"]
+    assert "actual billed amounts" in max_comparability["rule"]
+
+    max_axis = _axis_cost(result, benchmark_task_id="alpha", arm="max")
+    high_axis = _axis_cost(result, benchmark_task_id="alpha", arm="high")
+    assert max_axis["comparability"]["basis_key"] == high_axis["comparability"][
+        "basis_key"
+    ]
+    assert (
+        max_axis["comparability"]["accounted_total_key"]
+        == high_axis["comparability"]["accounted_total_key"]
+    )
+    for axis in (max_axis, high_axis):
+        total_key = axis["comparability"]["accounted_total_key"]
+        assert total_key == {
+            "attempt_count": 2,
+            "unavailable_count": 0,
+            "not_incurred_count": 0,
+            "scheduled_attempt_count": 2,
+            "pair_units_by_status": {
+                "observed": [
+                    {"block_id": "b01", "attempt": 1},
+                    {"block_id": "b02", "attempt": 1},
+                ],
+                "unavailable": [],
+                "not-incurred": [],
+            },
+        }
+        assert {
+            key: axis[key]
+            for key in (
+                "attempt_count",
+                "unavailable_count",
+                "not_incurred_count",
+                "scheduled_attempt_count",
+            )
+        } == {
+            key: total_key[key]
+            for key in (
+                "attempt_count",
+                "unavailable_count",
+                "not_incurred_count",
+                "scheduled_attempt_count",
+            )
+        }
+
+
+def test_equal_counts_with_swapped_pair_units_are_not_comparable(
+    tmp_path: Path,
+) -> None:
+    unavailable = {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+    }
+    attempts = [
+        _cost_attempt(),
+        _cost_attempt(**unavailable),
+        _cost_attempt(**unavailable),
+        _cost_attempt(),
+        _cost_attempt(),
+        _cost_attempt(),
+    ]
+    result = _cross_arm_cost_aggregate(tmp_path, attempts)
+    max_axis = _axis_cost(result, benchmark_task_id="alpha", arm="max")
+    high_axis = _axis_cost(result, benchmark_task_id="alpha", arm="high")
+    max_comparability = max_axis["comparability"]
+    high_comparability = high_axis["comparability"]
+    assert max_comparability["basis_key"] == high_comparability["basis_key"]
+    max_total = max_comparability["accounted_total_key"]
+    high_total = high_comparability["accounted_total_key"]
+    assert (
+        max_total["attempt_count"],
+        max_total["unavailable_count"],
+        max_total["not_incurred_count"],
+        max_total["scheduled_attempt_count"],
+    ) == (1, 1, 0, 2)
+    assert (
+        high_total["attempt_count"],
+        high_total["unavailable_count"],
+        high_total["not_incurred_count"],
+        high_total["scheduled_attempt_count"],
+    ) == (1, 1, 0, 2)
+    assert max_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b02", "attempt": 1}],
+        "unavailable": [{"block_id": "b01", "attempt": 1}],
+        "not-incurred": [],
+    }
+    assert high_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b01", "attempt": 1}],
+        "unavailable": [{"block_id": "b02", "attempt": 1}],
+        "not-incurred": [],
+    }
+    assert max_total != high_total
+    assert all(
+        "comparability" in row["normalized_cost"]
+        for row in result["resource_ledger"]
+    )
+
+
+def test_attempt_number_distinguishes_equal_count_pair_unit_identities(
+    tmp_path: Path,
+) -> None:
+    unavailable = {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+    }
+    result = _cross_arm_cost_aggregate(
+        tmp_path,
+        [
+            _cost_attempt(attempt=2),
+            _cost_attempt(attempt=1),
+            _cost_attempt(attempt=1, **unavailable),
+            _cost_attempt(attempt=2, **unavailable),
+            _cost_attempt(),
+            _cost_attempt(),
+        ],
+    )
+    max_total = _axis_cost(
+        result, benchmark_task_id="alpha", arm="max"
+    )["comparability"]["accounted_total_key"]
+    high_total = _axis_cost(
+        result, benchmark_task_id="alpha", arm="high"
+    )["comparability"]["accounted_total_key"]
+    count_keys = (
+        "attempt_count",
+        "unavailable_count",
+        "not_incurred_count",
+        "scheduled_attempt_count",
+    )
+    assert tuple(max_total[key] for key in count_keys) == (1, 1, 0, 2)
+    assert tuple(high_total[key] for key in count_keys) == (1, 1, 0, 2)
+    assert max_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b02", "attempt": 2}],
+        "unavailable": [{"block_id": "b01", "attempt": 1}],
+        "not-incurred": [],
+    }
+    assert high_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b02", "attempt": 1}],
+        "unavailable": [{"block_id": "b01", "attempt": 2}],
+        "not-incurred": [],
+    }
+    assert max_total != high_total
+
+
+def test_distinct_non_null_manifest_digests_propagate_to_every_cost_row(
+    tmp_path: Path,
+) -> None:
+    first = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        material_manifest_sha256="d" * 64,
+    )
+    second = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        material_manifest_sha256="e" * 64,
+    )
+
+    first_universes = [
+        row["normalized_cost"]["comparability"]["basis_key"][
+            "comparison_universe"
+        ]
+        for row in first["resource_ledger"]
+    ] + [
+        row["comparability"]["basis_key"]["comparison_universe"]
+        for row in first["normalized_cost_axis_ledger"]
+    ]
+    second_universes = [
+        row["normalized_cost"]["comparability"]["basis_key"][
+            "comparison_universe"
+        ]
+        for row in second["resource_ledger"]
+    ] + [
+        row["comparability"]["basis_key"]["comparison_universe"]
+        for row in second["normalized_cost_axis_ledger"]
+    ]
+    assert first_universes
+    assert second_universes
+    assert all(
+        universe == {"material_manifest_sha256": "d" * 64}
+        for universe in first_universes
+    )
+    assert all(
+        universe == {"material_manifest_sha256": "e" * 64}
+        for universe in second_universes
+    )
+    assert first_universes[0] != second_universes[0]
+
+
+def test_comparability_rule_preserves_polarity_and_null_locality_branch(
+    tmp_path: Path,
+) -> None:
+    non_null = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        material_manifest_sha256="e" * 64,
+    )
+    null = _bound_cost_aggregate(
+        tmp_path, [_cost_attempt(), _cost_attempt()]
+    )
+    base_rule = (
+        "basis_key and accounted_total_key must both match exactly to compare "
+        "partial accounted component totals; this does not establish "
+        "comparability of per-attempt averages, complete costs, or actual "
+        "billed amounts"
+    )
+    null_locality = (
+        "; when comparison_universe.material_manifest_sha256 is null, "
+        "comparison is limited to rows in the same aggregate result"
+    )
+    non_null_rules = {
+        row["normalized_cost"]["comparability"]["rule"]
+        for row in non_null["resource_ledger"]
+    } | {
+        row["comparability"]["rule"]
+        for row in non_null["normalized_cost_axis_ledger"]
+    }
+    null_rules = {
+        row["normalized_cost"]["comparability"]["rule"]
+        for row in null["resource_ledger"]
+    } | {
+        row["comparability"]["rule"]
+        for row in null["normalized_cost_axis_ledger"]
+    }
+    assert non_null_rules == {base_rule}
+    assert null_rules == {base_rule + null_locality}
+
+
+def test_comparability_presence_and_mismatch_do_not_change_acceptance(
+    tmp_path: Path,
+) -> None:
+    observed_attempts = [_cost_attempt() for _ in range(6)]
+    matching = _cross_arm_cost_aggregate(tmp_path, observed_attempts)
+
+    zero_tokens = {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+    }
+    mismatching = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt(**zero_tokens)]
+        + [_cost_attempt() for _ in range(5)],
+    )
+    not_incurred = _cross_arm_cost_aggregate(
+        tmp_path,
+        [
+            _cost_attempt(
+                **zero_tokens,
+                model_calls=0,
+                prelaunch_failure={"kind": "prelaunch-exception"},
+            )
+        ]
+        + [_cost_attempt() for _ in range(5)],
+    )
+    without_declaration = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        has_schedule_descriptor=False,
+    )
+
+    assert all(
+        "comparability" in row["normalized_cost"]
+        for row in matching["resource_ledger"]
+    )
+    assert (
+        _axis_cost(mismatching, benchmark_task_id="alpha", arm="max")[
+            "comparability"
+        ]["accounted_total_key"]
+        != _axis_cost(mismatching, benchmark_task_id="alpha", arm="high")[
+            "comparability"
+        ]["accounted_total_key"]
+    )
+    not_incurred_cost = not_incurred["resource_ledger"][0]["normalized_cost"]
+    assert not_incurred_cost["token_availability"] == "not-incurred"
+    assert not_incurred_cost["comparability"]["accounted_total_key"] == {
+        "attempt_count": 0,
+        "unavailable_count": 0,
+        "not_incurred_count": 1,
+        "scheduled_attempt_count": 1,
+        "pair_units_by_status": {
+            "observed": [],
+            "unavailable": [],
+            "not-incurred": [{"block_id": "b02", "attempt": 1}],
+        },
+    }
+    not_incurred_axis = _axis_cost(
+        not_incurred, benchmark_task_id="alpha", arm="max"
+    )["comparability"]["accounted_total_key"]
+    assert not_incurred_axis == {
+        "attempt_count": 1,
+        "unavailable_count": 0,
+        "not_incurred_count": 1,
+        "scheduled_attempt_count": 2,
+        "pair_units_by_status": {
+            "observed": [{"block_id": "b01", "attempt": 1}],
+            "unavailable": [],
+            "not-incurred": [{"block_id": "b02", "attempt": 1}],
+        },
+    }
+    assert "normalized_cost_axis_ledger" not in without_declaration
+    assert all(
+        "normalized_cost" not in row
+        for row in without_declaration["resource_ledger"]
+    )
+    assert [
+        (
+            result["valid"],
+            result["failure_reasons"],
+            result["experiment_complete"],
+        )
+        for result in (
+            matching,
+            mismatching,
+            not_incurred,
+            without_declaration,
+        )
+    ] == [(True, [], True)] * 4
+
+    malformed = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt(input_tokens=-1)]
+        + [_cost_attempt() for _ in range(5)],
+    )
+    assert "comparability" in malformed["resource_ledger"][0]["normalized_cost"]
+    assert (
+        malformed["valid"],
+        malformed["failure_reasons"],
+        malformed["experiment_complete"],
+    ) == (
+        False,
+        [
+            "cross-arm-cost-r01: normalized cost unavailable: "
+            "normalized cost input_tokens is negative"
+        ],
+        False,
+    )
+
+
+def test_final_cost_artifact_comparability_contains_no_float_and_keeps_rounding(
+    tmp_path: Path,
+) -> None:
+    result = _cross_arm_cost_aggregate(
+        tmp_path, [_cost_attempt() for _ in range(6)]
+    )
+    final_values = _walk_json_values(result)
+    comparability_trees = [
+        value
+        for value in final_values
+        if isinstance(value, dict)
+        and set(value) == {"rule", "basis_key", "accounted_total_key"}
+    ]
+    assert len(comparability_trees) == (
+        len(result["resource_ledger"])
+        + len(result["normalized_cost_axis_ledger"])
+    )
+    assert not any(
+        isinstance(value, float)
+        for tree in comparability_trees
+        for value in _walk_json_values(tree)
+    )
+    for resource in result["resource_ledger"]:
+        cost = resource["normalized_cost"]
+        assert cost["rounding"] == {
+            "decimal_places": 8,
+            "mode": "ROUND_HALF_EVEN",
+        }
+        assert type(cost["rounding"]["decimal_places"]) is int
+        nested_rounding = cost["comparability"]["basis_key"][
+            "accounting_basis"
+        ]["rounding"]
+        assert nested_rounding == cost["rounding"]
+        assert type(nested_rounding["decimal_places"]) is int
+
+
+def test_null_comparison_universe_is_limited_to_same_aggregate_result(
+    tmp_path: Path,
+) -> None:
+    result = _bound_cost_aggregate(
+        tmp_path, [_cost_attempt(), _cost_attempt()]
+    )
+    comparability_trees = [
+        row["normalized_cost"]["comparability"]
+        for row in result["resource_ledger"]
+    ] + [row["comparability"] for row in result["normalized_cost_axis_ledger"]]
+    for comparability in comparability_trees:
+        assert comparability["basis_key"]["comparison_universe"] == {
+            "material_manifest_sha256": None,
+        }
+        assert "same aggregate result" in comparability["rule"]
 
 
 def test_m01_unavailable_zero_tokens_never_enter_cost_denominator(

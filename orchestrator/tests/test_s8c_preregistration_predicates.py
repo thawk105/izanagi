@@ -232,8 +232,17 @@ def test_require_unchanged_head_rejects_mismatched_oids() -> None:
 def test_current_repository_snapshot_has_zero_satisfied_predicates(
     current_commit_snapshot: _CurrentCommitSnapshot,
 ) -> None:
-    _, _, results, _, _ = current_commit_snapshot
-    assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0
+    _, _, results, evaluated_head, actual = current_commit_snapshot
+    satisfied = {
+        item.id
+        for item in results
+        if item.status is core.PredicateStatus.SATISFIED
+    }
+    actual_by_id = {item.id: item for item in actual}
+    assert satisfied == {"C10"}
+    assert actual_by_id["C10"].status is core.PredicateStatus.SATISFIED
+    assert actual_by_id["C10"].reason_code == "cross-binding-readiness-satisfied"
+    assert core.activation_report_at(_ROOT, evaluated_head).effective is False
     for item in results:
         assert item.evidence
         assert all(ref.path and len(ref.blob_sha256) == 64 for ref in item.evidence)
@@ -247,6 +256,26 @@ def test_current_repository_snapshot_exactly_matches_head(
     current_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
     _require_unchanged_head(evaluated_head, current_head)
     assert snapshot == actual
+    verifier_source = _git(
+        _ROOT,
+        "show",
+        f"{evaluated_head}:orchestrator/campaign/autonomous_trial_completeness.py",
+    ).decode("utf-8")
+    verifier_module = ast.parse(verifier_source)
+    verifier = next(
+        node
+        for node in verifier_module.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "verify_s8c_cross_binding"
+    )
+    assert "proposal_build_source_bindings" in {
+        node.value
+        for node in ast.walk(verifier)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    c10 = next(item for item in actual if item.id == "C10")
+    assert c10.status is core.PredicateStatus.SATISFIED
+    assert c10.reason_code == "cross-binding-readiness-satisfied"
 
 
 @pytest.mark.xdist_group("s8c-predicate-snapshot")
@@ -291,8 +320,8 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
             "completion-proof-not-machine-checkable",
         ),
         "C10": (
-            core.PredicateStatus.EVIDENCE_UNDEFINED,
-            "completion-proof-not-machine-checkable",
+            core.PredicateStatus.SATISFIED,
+            "cross-binding-readiness-satisfied",
         ),
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C12": (
@@ -859,8 +888,8 @@ def verify_s8c_cross_binding():
     fields = (
         "input_payload_sha256", "raw_response_path", "raw_response_sha256",
         "provider_payload_sha256", "provider_envelope_sha256", "proposal_path",
-        "proposal_sha256", "build_records", "bench_records", "artifact_refs",
-        "source_refs", "admission_decision",
+        "proposal_sha256", "proposal_build_source_bindings", "build_records",
+        "bench_records", "artifact_refs", "source_refs", "admission_decision",
     )
     read_and_verify_bytes()
     return fields
@@ -871,6 +900,81 @@ def verify_s8c_cross_binding(): pass
 def assert_trial_registry_acceptance():
     return verify_s8c_cross_binding()
 """
+
+C10_SATISFIED_VERIFIER = """
+import hashlib
+from pathlib import Path
+
+def read_and_verify_bytes(path, *, expected_sha256):
+    raw = Path(path).read_bytes()
+    actual_sha256 = hashlib.sha256(raw).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise ValueError("digest mismatch")
+    return raw
+
+def verify_s8c_cross_binding(event):
+    fields = (
+        "input_payload_sha256", "provider_payload_sha256",
+        "provider_envelope_sha256", "proposal_path", "proposal_sha256",
+        "build_records", "bench_records", "artifact_refs", "source_refs",
+        "proposal_build_source_bindings",
+        "admission_decision",
+    )
+    raw = read_and_verify_bytes(
+        event.get("raw_response_path"),
+        expected_sha256=event.get("raw_response_sha256"),
+    )
+    return fields, raw
+"""
+
+C10_SATISFIED_REGISTRY = """
+from .autonomous_trial_completeness import verify_s8c_cross_binding
+
+def assert_trial_registry_acceptance(event):
+    try:
+        receipt = verify_s8c_cross_binding(event)
+    except ValueError as exc:
+        raise RuntimeError("cross binding failed") from exc
+    return {"cross_binding_receipt_sha256": receipt}
+"""
+
+ACTIVE_VALUE_CHECK_C10 = """
+import hashlib
+from pathlib import Path
+
+def read_and_verify_bytes(path, *, expected_sha256):
+    raw = Path(path).read_bytes()
+    actual_sha256 = hashlib.sha256(raw).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise ValueError("digest mismatch")
+    return raw
+
+def _never():
+    return False
+
+def verify_s8c_cross_binding(actual, expected):
+    fields = (
+        "input_payload_sha256", "raw_response_path", "raw_response_sha256",
+        "provider_payload_sha256", "provider_envelope_sha256", "proposal_path",
+        "proposal_sha256", "proposal_build_source_bindings", "build_records",
+        "bench_records", "artifact_refs", "source_refs", "admission_decision",
+    )
+    read_and_verify_bytes(
+        actual["raw_response_path"],
+        expected_sha256=actual["raw_response_sha256"],
+    )
+    actual_value = actual["proposal_build_source_bindings"]
+    expected_value = expected["proposal_build_source_bindings"]
+    if actual_value != expected_value:
+        raise ValueError("proposal_build_source_bindings differs")
+    return fields
+"""
+
+NEUTERED_VALUE_CHECK_C10 = ACTIVE_VALUE_CHECK_C10.replace(
+    "    if actual_value != expected_value:\n",
+    "    if _never() and actual_value != expected_value:\n",
+)
+assert NEUTERED_VALUE_CHECK_C10 != ACTIVE_VALUE_CHECK_C10
 
 TOKEN_ONLY_C11 = """
 MAX_APPROVED_GENERATIONS = 2
@@ -1152,8 +1256,11 @@ def _negative_control_case(
         )
     if identifier == "nc_c10_raw_response_unbound":
         verifier = "orchestrator/campaign/autonomous_trial_completeness.py"
-        sources = {verifier: TOKEN_ONLY_C10, registry: TOKEN_ONLY_C10_REGISTRY}
-        return sources, verifier, TOKEN_ONLY_C10.replace(
+        sources = {
+            verifier: C10_SATISFIED_VERIFIER,
+            registry: C10_SATISFIED_REGISTRY,
+        }
+        return sources, verifier, C10_SATISFIED_VERIFIER.replace(
             '"raw_response_sha256"', '"raw_response_digest"', 1
         )
     if identifier == "nc_c11_generation_cap_reverts_to_one":
@@ -2778,7 +2885,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
     assert machine_checkable == {
         "C01", "C02", "C04", "C05", "C06", "C07", "C09", "C10", "C11", "C12"
     }
-    assert M.SATISFIABLE_CONDITION_IDS == frozenset()
+    assert M.SATISFIABLE_CONDITION_IDS == frozenset({"C10"})
     assert M.SATISFIABLE_CONDITION_IDS <= M.MACHINE_CHECKABLE_CONDITION_IDS
     exercised = 0
     for identifier in machine_checkable:
@@ -2816,8 +2923,144 @@ def test_static_negative_control_binds_c08_to_its_contract_case() -> None:
 
 
 @pytest.mark.parametrize(
+    "mutation",
+    (
+        "unexpected-extra-field-path",
+        "binding-pair-removed",
+        "verifier-literal-removed",
+    ),
+)
+def test_c10_load_bearing_check_requires_live_literals_not_semantic_guards_or_value_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    """literal な常偽枝は除外するが、意味的に常偽の guard と値束縛は証明しない。"""
+    assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13
+    assert len(M._C10_FIELDS) == 13
+    assert len(M._C10_EXPECTED_FIELD_PATHS) == 13
+    root = _init_repo(tmp_path)
+    verifier_path = "orchestrator/campaign/autonomous_trial_completeness.py"
+    registry_path = "orchestrator/campaign/trial_registry.py"
+    _write(root, verifier_path, C10_SATISFIED_VERIFIER)
+    _write(root, registry_path, C10_SATISFIED_REGISTRY)
+    baseline_head = _commit(root, "C10 production-equivalent 13 of 13")
+    baseline = _result(root, baseline_head, "C10")
+    assert baseline.status is core.PredicateStatus.SATISFIED
+    assert baseline.reason_code == "cross-binding-readiness-satisfied"
+
+    if mutation == "unexpected-extra-field-path":
+        contract = json.loads(CONTRACT_FILE.read_bytes())
+        requirement = next(
+            item
+            for item in contract["conditions"][9]["required_evidence"]
+            if item["artifact_kind"] == "cross_binding_verifier"
+        )
+        assert len(requirement["field_paths"]) == 13
+        requirement["field_paths"].append("proposal.unimplemented_field")
+        assert len(requirement["field_paths"]) == 14
+        _write(
+            root,
+            core.EVIDENCE_CONTRACT_PATH,
+            json.dumps(contract, ensure_ascii=False).encode("utf-8"),
+        )
+        mutated_head = _commit(root, "C10 unexpected fourteenth field path")
+    elif mutation == "binding-pair-removed":
+        bindings = tuple(
+            binding
+            for binding in M._C10_CROSS_BINDING_FIELD_BINDINGS
+            if binding[0] != "proposal_build_source_bindings"
+        )
+        assert len(bindings) == 12
+        monkeypatch.setattr(M, "_C10_CROSS_BINDING_FIELD_BINDINGS", bindings)
+        monkeypatch.setattr(
+            M, "_C10_FIELDS", frozenset(literal for literal, _ in bindings)
+        )
+        monkeypatch.setattr(
+            M, "_C10_EXPECTED_FIELD_PATHS", frozenset(path for _, path in bindings)
+        )
+        mutated_head = baseline_head
+    else:
+        assert mutation == "verifier-literal-removed"
+        _write(
+            root,
+            verifier_path,
+            C10_SATISFIED_VERIFIER.replace(
+                '        "proposal_build_source_bindings",\n', "", 1
+            ),
+        )
+        mutated_head = _commit(root, "C10 verifier literal removed")
+
+    mutated = _result(root, mutated_head, "C10")
+    assert mutated.status is core.PredicateStatus.UNSATISFIED
+    assert mutated.reason_code == "cross-binding-verifier-incomplete"
+
+
+def test_c10_gate_survives_semantically_false_guard_and_unbound_proposal_value(
+    tmp_path: Path,
+) -> None:
+    """live literal 検査は literal な常偽枝を落とすが、値照合の恒真化は拒否できない。
+
+    定数でない述語による意味的な常偽 guard と値束縛は、producer 側の functional test の責務である。
+    """
+    raw_response = tmp_path / "raw-response.bin"
+    raw_response_bytes = b"fixture raw response"
+    raw_response.write_bytes(raw_response_bytes)
+    actual = {
+        "proposal_build_source_bindings": ["actual"],
+        "raw_response_path": str(raw_response),
+        "raw_response_sha256": core._sha256(raw_response_bytes),
+    }
+    expected = {"proposal_build_source_bindings": ["expected"]}
+    active_namespace: dict[str, object] = {}
+    exec(ACTIVE_VALUE_CHECK_C10, active_namespace)
+    active_verify = active_namespace["verify_s8c_cross_binding"]
+    assert callable(active_verify)
+    with pytest.raises(ValueError, match="proposal_build_source_bindings differs"):
+        active_verify(actual, expected)
+    neutered_namespace: dict[str, object] = {}
+    exec(NEUTERED_VALUE_CHECK_C10, neutered_namespace)
+    neutered_verify = neutered_namespace["verify_s8c_cross_binding"]
+    assert callable(neutered_verify)
+    neutered_fields = neutered_verify(actual, expected)
+    assert "proposal_build_source_bindings" in neutered_fields
+
+    results: dict[str, core.PredicateResult] = {}
+    for name, source in (
+        ("active-value-check", ACTIVE_VALUE_CHECK_C10),
+        ("neutered-value-check", NEUTERED_VALUE_CHECK_C10),
+    ):
+        root = _init_repo(tmp_path, name)
+        _write(
+            root,
+            "orchestrator/campaign/autonomous_trial_completeness.py",
+            source,
+        )
+        _write(
+            root,
+            "orchestrator/campaign/trial_registry.py",
+            C10_SATISFIED_REGISTRY,
+        )
+        head = _commit(root, f"C10 {name}")
+        results[name] = _result(root, head, "C10")
+
+    assert results["active-value-check"].status is core.PredicateStatus.SATISFIED
+    assert results["active-value-check"].reason_code == (
+        "cross-binding-readiness-satisfied"
+    )
+    assert results["neutered-value-check"].status is core.PredicateStatus.SATISFIED
+    assert results["neutered-value-check"].reason_code == (
+        "cross-binding-readiness-satisfied"
+    )
+
+
+@pytest.mark.parametrize(
     ("negative_control_id", "identifier"),
-    tuple(NEGATIVE_CONTROL_CASES.items()),
+    tuple(
+        (negative_control_id, identifier)
+        for negative_control_id, identifier in NEGATIVE_CONTROL_CASES.items()
+        if identifier != "C10"
+    ),
 )
 def test_noop_and_token_only_fixtures_never_satisfy(
     tmp_path: Path, negative_control_id: str, identifier: str
@@ -2848,6 +3091,423 @@ def test_noop_and_token_only_fixtures_never_satisfy(
     }
     assert mutated_result.status is core.PredicateStatus.UNSATISFIED
     assert mutated_result.reason_code == expected_reasons[identifier]
+
+
+def test_c10_token_only_fixture_never_satisfies(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    verifier = "orchestrator/campaign/autonomous_trial_completeness.py"
+    registry = "orchestrator/campaign/trial_registry.py"
+    _write(root, verifier, TOKEN_ONLY_C10)
+    _write(root, registry, TOKEN_ONLY_C10_REGISTRY)
+    head = _commit(root, "C10 token-only no-op reader")
+
+    result = _result(root, head, "C10")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "cross-binding-verifier-incomplete"
+
+
+def test_c10_registered_negative_control_pairs_with_satisfied_fixture(
+    tmp_path: Path,
+) -> None:
+    control_id = "nc_c10_raw_response_unbound"
+    assert NEGATIVE_CONTROL_CASES[control_id] == "C10"
+    sources, mutated_path, mutated_source = _negative_control_case(control_id)
+    root = _init_repo(tmp_path)
+    for path, source in sources.items():
+        _write(root, path, source)
+    baseline = _commit(root, "C10 substantive readiness fixture")
+    baseline_result = _result(root, baseline, "C10")
+    assert baseline_result.status is core.PredicateStatus.SATISFIED
+    assert baseline_result.reason_code == "cross-binding-readiness-satisfied"
+
+    _write(root, mutated_path, mutated_source)
+    mutated = _commit(root, "C10 raw response digest unbound")
+    mutated_result = _result(root, mutated, "C10")
+    assert mutated_result.status is core.PredicateStatus.UNSATISFIED
+    assert mutated_result.reason_code == "cross-binding-verifier-incomplete"
+
+
+_C10_READER_CALL = """    raw = read_and_verify_bytes(
+        event.get("raw_response_path"),
+        expected_sha256=event.get("raw_response_sha256"),
+    )
+"""
+
+
+C10_SINGLE_REASON_READER_VERIFIER = C10_SATISFIED_VERIFIER.replace(
+    "def verify_s8c_cross_binding(event):\n",
+    """class NamedReaderDecoy:
+    @staticmethod
+    def read_and_verify_bytes(event):
+        return b"decoy"
+
+named_reader_decoy = NamedReaderDecoy()
+
+def verify_s8c_cross_binding(event):
+""",
+    1,
+).replace(
+    '        "admission_decision",\n',
+    '        "admission_decision", "raw_response_path", "raw_response_sha256",\n',
+    1,
+).replace(
+    _C10_READER_CALL,
+    """    raw = named_reader_decoy.read_and_verify_bytes(event)
+    if False:
+        raw = read_and_verify_bytes(
+            event.get("raw_response_path"),
+            expected_sha256=event.get("raw_response_sha256"),
+        )
+""",
+    1,
+)
+
+C10_SINGLE_REASON_ACCEPTANCE_REGISTRY = """
+from .autonomous_trial_completeness import verify_s8c_cross_binding
+
+class NamedVerifierDecoy:
+    @staticmethod
+    def verify_s8c_cross_binding(event):
+        return {"decoy": True}
+
+named_verifier_decoy = NamedVerifierDecoy()
+
+def assert_trial_registry_acceptance(event):
+    receipt = named_verifier_decoy.verify_s8c_cross_binding(event)
+    if False:
+        receipt = verify_s8c_cross_binding(event)
+    return {"cross_binding_receipt_sha256": receipt}
+"""
+
+C10_SUPPRESSED_REGISTRY = """
+from contextlib import suppress as ignore_verifier_failure
+from .autonomous_trial_completeness import verify_s8c_cross_binding
+
+def assert_trial_registry_acceptance(event):
+    with ignore_verifier_failure(Exception):
+        receipt = verify_s8c_cross_binding(event)
+    return {"cross_binding_receipt_sha256": receipt}
+"""
+
+C10_GENERAL_WITH_REGISTRY = """
+from contextlib import nullcontext as acceptance_scope
+from .autonomous_trial_completeness import verify_s8c_cross_binding
+
+def assert_trial_registry_acceptance(event):
+    with acceptance_scope():
+        receipt = verify_s8c_cross_binding(event)
+    return {"cross_binding_receipt_sha256": receipt}
+"""
+
+
+@pytest.mark.parametrize(
+    ("mutated_path", "mutated_source", "expected_reason"),
+    (
+        pytest.param(
+            "orchestrator/campaign/autonomous_trial_completeness.py",
+            C10_SATISFIED_VERIFIER.replace(
+                _C10_READER_CALL,
+                """    if False:
+        raw = read_and_verify_bytes(
+            event.get("raw_response_path"),
+            expected_sha256=event.get("raw_response_sha256"),
+        )
+""",
+                1,
+            ),
+            "cross-binding-verifier-incomplete",
+            id="N2-reader-literal-dead-branch",
+        ),
+        pytest.param(
+            "orchestrator/campaign/autonomous_trial_completeness.py",
+            C10_SATISFIED_VERIFIER.replace(
+                "def verify_s8c_cross_binding(event):\n",
+                """def harmless_reader(*args, **kwargs):
+    return b""
+
+read_and_verify_bytes = harmless_reader
+
+def verify_s8c_cross_binding(event):
+""",
+                1,
+            ),
+            "cross-binding-verifier-incomplete",
+            id="N3-reader-alias-decoy",
+        ),
+        pytest.param(
+            "orchestrator/campaign/autonomous_trial_completeness.py",
+            TOKEN_ONLY_C10,
+            "cross-binding-verifier-incomplete",
+            id="N4-reader-no-op",
+        ),
+        pytest.param(
+            "orchestrator/campaign/autonomous_trial_completeness.py",
+            C10_SINGLE_REASON_READER_VERIFIER,
+            "cross-binding-verifier-incomplete",
+            id="N2-single-reader-live-exact-call",
+        ),
+        pytest.param(
+            "orchestrator/campaign/trial_registry.py",
+            C10_SATISFIED_REGISTRY.replace(
+                "        receipt = verify_s8c_cross_binding(event)\n",
+                """        if False:
+            receipt = verify_s8c_cross_binding(event)
+""",
+                1,
+            ),
+            "cross-binding-acceptance-unreachable",
+            id="N5-acceptance-literal-dead-branch",
+        ),
+        pytest.param(
+            "orchestrator/campaign/trial_registry.py",
+            C10_SATISFIED_REGISTRY.replace(
+                "def assert_trial_registry_acceptance(event):\n",
+                """def harmless_verifier(event):
+    return {}
+
+verify_s8c_cross_binding = harmless_verifier
+
+def assert_trial_registry_acceptance(event):
+""",
+                1,
+            ),
+            "cross-binding-acceptance-unreachable",
+            id="N6-acceptance-alias-decoy",
+        ),
+        pytest.param(
+            "orchestrator/campaign/trial_registry.py",
+            C10_SATISFIED_REGISTRY.replace(
+                '        raise RuntimeError("cross binding failed") from exc\n',
+                "        pass\n",
+                1,
+            ),
+            "cross-binding-acceptance-unreachable",
+            id="N7-acceptance-catch-and-continue",
+        ),
+        pytest.param(
+            "orchestrator/campaign/trial_registry.py",
+            C10_SINGLE_REASON_ACCEPTANCE_REGISTRY,
+            "cross-binding-acceptance-unreachable",
+            id="N5-single-acceptance-live-exact-call",
+        ),
+        pytest.param(
+            "orchestrator/campaign/trial_registry.py",
+            C10_SUPPRESSED_REGISTRY,
+            "cross-binding-acceptance-unreachable",
+            id="N8-acceptance-suppress-context-manager",
+        ),
+    ),
+)
+def test_c10_readiness_rejects_registered_spoof_classes(
+    tmp_path: Path,
+    mutated_path: str,
+    mutated_source: str,
+    expected_reason: str,
+) -> None:
+    verifier = "orchestrator/campaign/autonomous_trial_completeness.py"
+    registry = "orchestrator/campaign/trial_registry.py"
+    root = _init_repo(tmp_path)
+    _write(root, verifier, C10_SATISFIED_VERIFIER)
+    _write(root, registry, C10_SATISFIED_REGISTRY)
+    baseline = _commit(root, "C10 readiness baseline")
+    baseline_result = _result(root, baseline, "C10")
+    assert baseline_result.status is core.PredicateStatus.SATISFIED
+    assert baseline_result.reason_code == "cross-binding-readiness-satisfied"
+
+    _write(root, mutated_path, mutated_source)
+    mutated = _commit(root, "C10 spoof mutation")
+    mutated_result = _result(root, mutated, "C10")
+    assert mutated_result.status is core.PredicateStatus.UNSATISFIED
+    assert mutated_result.reason_code == expected_reason
+
+
+def _c10_probe(
+    tmp_path: Path,
+    name: str,
+    *,
+    verifier_source: str = C10_SATISFIED_VERIFIER,
+    registry_source: str = C10_SATISFIED_REGISTRY,
+) -> M._ConditionProbe:
+    root = _init_repo(tmp_path, name)
+    _write(
+        root,
+        "orchestrator/campaign/autonomous_trial_completeness.py",
+        verifier_source,
+    )
+    _write(root, "orchestrator/campaign/trial_registry.py", registry_source)
+    head = _commit(root, name)
+    contract_raw = core.read_blob_at(
+        root, head, core.EVIDENCE_CONTRACT_PATH, required=True
+    )
+    contract = M.load_contract_bytes(contract_raw)
+    return M._ConditionProbe(
+        root,
+        head,
+        contract.condition(10),
+        core.EvidenceRef(
+            core.EVIDENCE_CONTRACT_PATH,
+            core._sha256(contract_raw),
+        ),
+        {},
+        {},
+        declared_paths=contract.evidence_paths,
+    )
+
+
+def _c10_readiness_checks(probe: M._ConditionProbe) -> dict[str, bool]:
+    verifier = probe.python_kind("cross_binding_verifier")
+    assert verifier is not None
+    verifier_path = probe.requirement("cross_binding_verifier").path
+    verify = M._c10_single_function(verifier, "verify_s8c_cross_binding")
+    reader = M._c10_single_function(verifier, "read_and_verify_bytes")
+    assert verify is not None
+    assert reader is not None
+    live_strings = {
+        node.value
+        for node in M._live_nodes(verify)
+        if isinstance(node, ast.Constant) and type(node.value) is str
+    }
+    reader_calls = M._calls_named(verify, "read_and_verify_bytes")
+    verifier_graph = M._ReachabilityExplorer(probe).walk(
+        (verifier_path, "verify_s8c_cross_binding")
+    )
+
+    registry = probe.python_kind("trial_registry")
+    assert registry is not None
+    registry_path = probe.requirement("trial_registry").path
+    accept = M._functions(registry).get("assert_trial_registry_acceptance")
+    assert accept is not None
+    acceptance_calls = M._calls_named(accept, "verify_s8c_cross_binding")
+    acceptance_graph = M._ReachabilityExplorer(probe).walk(
+        (registry_path, "assert_trial_registry_acceptance")
+    )
+    return {
+        "verifier-single-definition": verify is not None,
+        "reader-single-definition": reader is not None,
+        "reader-not-noop": M._c10_reader_is_not_noop(reader),
+        "fields-live": M._C10_FIELDS <= live_strings,
+        "reader-named-live-call": bool(reader_calls),
+        "reader-exact-live-call": M._declared_call(
+            probe,
+            verifier_graph,
+            (verifier_path, "read_and_verify_bytes"),
+        ),
+        "acceptance-definition": accept is not None,
+        "acceptance-named-live-call": bool(acceptance_calls),
+        "acceptance-exact-live-call": M._declared_call(
+            probe,
+            acceptance_graph,
+            (verifier_path, "verify_s8c_cross_binding"),
+        ),
+        "acceptance-not-catch-and-continue": all(
+            M._c10_call_is_not_catch_and_continue(registry, accept, call)
+            for call in acceptance_calls
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "verifier_source", "registry_source", "sole_failed_check", "reason"),
+    (
+        pytest.param(
+            "c10-reader-live-exact-only",
+            C10_SINGLE_REASON_READER_VERIFIER,
+            C10_SATISFIED_REGISTRY,
+            "reader-exact-live-call",
+            "cross-binding-verifier-incomplete",
+            id="N2-single-reader-live-exact-call",
+        ),
+        pytest.param(
+            "c10-acceptance-live-exact-only",
+            C10_SATISFIED_VERIFIER,
+            C10_SINGLE_REASON_ACCEPTANCE_REGISTRY,
+            "acceptance-exact-live-call",
+            "cross-binding-acceptance-unreachable",
+            id="N5-single-acceptance-live-exact-call",
+        ),
+    ),
+)
+def test_c10_single_reason_fixtures_fail_only_the_intended_check(
+    tmp_path: Path,
+    name: str,
+    verifier_source: str,
+    registry_source: str,
+    sole_failed_check: str,
+    reason: str,
+) -> None:
+    probe = _c10_probe(
+        tmp_path,
+        name,
+        verifier_source=verifier_source,
+        registry_source=registry_source,
+    )
+    checks = _c10_readiness_checks(probe)
+    assert {check for check, passed in checks.items() if not passed} == {
+        sole_failed_check
+    }
+    result = M._evaluate_c10(probe)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == reason
+
+
+@pytest.mark.parametrize(
+    ("import_line", "context_expression"),
+    (
+        pytest.param(
+            "import contextlib",
+            "contextlib.suppress",
+            id="contextlib-suppress",
+        ),
+        pytest.param(
+            "import contextlib as error_handling",
+            "error_handling.suppress",
+            id="contextlib-module-alias",
+        ),
+        pytest.param(
+            "from contextlib import suppress",
+            "suppress",
+            id="suppress-direct-import",
+        ),
+        pytest.param(
+            "from contextlib import suppress as ignore_failure",
+            "ignore_failure",
+            id="suppress-import-alias",
+        ),
+    ),
+)
+def test_c10_suppress_context_manager_spellings_are_rejected(
+    tmp_path: Path,
+    import_line: str,
+    context_expression: str,
+) -> None:
+    registry_source = f"""
+{import_line}
+from .autonomous_trial_completeness import verify_s8c_cross_binding
+
+def assert_trial_registry_acceptance(event):
+    with {context_expression}(Exception):
+        receipt = verify_s8c_cross_binding(event)
+    return {{"cross_binding_receipt_sha256": receipt}}
+"""
+    probe = _c10_probe(
+        tmp_path,
+        f"c10-suppress-{context_expression}",
+        registry_source=registry_source,
+    )
+    result = M._evaluate_c10(probe)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "cross-binding-acceptance-unreachable"
+
+
+def test_c10_general_with_context_manager_remains_satisfied(tmp_path: Path) -> None:
+    probe = _c10_probe(
+        tmp_path,
+        "c10-general-with",
+        registry_source=C10_GENERAL_WITH_REGISTRY,
+    )
+    result = M._evaluate_c10(probe)
+    assert result.status is core.PredicateStatus.SATISFIED
+    assert result.reason_code == "cross-binding-readiness-satisfied"
 
 
 def test_runtime_satisfiable_allowlist_rejects_unlisted_evaluator_success(

@@ -1,0 +1,100 @@
+受入 artifact の全数解析 4 本の生出力。新規走行は 0 本。
+対象 = /work/SFC/tanab/.izanagi-acceptance-shards 配下の既存成果物。
+script は repo 外の /home/SFC/tanab/.claude/jobs/97c251d1/tmp/ に置いた。
+
+=== 解析 1: session の相所要 (session_phases.py) ===
+
+母集合 session 数: 568
+  dispatch-intents なしで除外: 1
+  confirm/handled 欠落で除外: 18
+  集計対象: 549
+
+confirm から handled までの所要 (秒。queue 待ち + 実行を含む proxy)
+  min          25.0
+  p25         293.0
+  median      338.0
+  p75         508.0
+  p90         659.0
+  max        3681.0
+
+参考: 5 分 (300 秒) 以下の session 数 = 161 / 549 (29.3%)
+参考: login-collection.log を持つ session = 549、size 中央値 = 2009229 bytes
+
+最長 5 session:
+   3681.0  1488cf285f75661f2e1dc57129aa5610
+   3626.0  89ceeb0478587b9d3e26df7693279164
+   3624.0  f486ae07c1b3519a093630c37e6185e3
+   1478.0  5903692ebd88befa540404eb32a779f9
+   1148.0  b0fe3d4e0c2bdcfe1526ef2563a9f9e3
+
+注: mtime は proxy であり job 内部の Elapse ではない。handled は親が完了を認識した時刻。
+
+=== 解析 2: dispatch 結末 (dispatch_outcomes.py) ===
+
+receipt 総数: 1327
+  読めなかった: 0
+  outcome を持たない: 0
+  集計対象: 1327
+
+outcome.kind:
+  child            1269
+  infra              58
+
+outcome.rc:
+  0                1024
+  1                 236
+  16                 67
+
+outcome.reason (上位 12):
+    1269  <none>
+      41  _SignalAbort: signal 15
+      14  DispatchError: queue-wait-timeout
+       2  DispatchError: cannot write runner binding report
+       1  DispatchError: result/log/accounting-grace-expired
+
+shard を持つ session 数: 549
+うち queue-wait-timeout を 1 本以上含む session: 14 (2.6%)
+
+注: 最初に開いた 1 session (4a8031caf48d425a605a91cc837fb986) は shard-0 が
+    queue-wait-timeout で qdel されていた。確認せず一般化すれば「受入の所要は
+    timeout が支配している」と誤読しうる。全数では 2.6% 側の例外である。
+
+=== 解析 3: NQSV 会計サマリによる queue 待ちと実行の分解 (accounting_decomp.py) ===
+
+job stderr file 総数: 1297
+  会計サマリ無し: 0
+  parse 失敗: 0
+  集計対象: 1297
+
+queue 待ち Created→Started   n=1297  min     7.0  p25     8.0  median     9.0  p75    75.0  p90   307.0  max   1231.0
+実行 Elapse                  n=1297  min     7.0  p25   149.0  median   191.0  p75   273.0  p90   311.0  max   3609.0
+合計 Created→Ended           n=1297  min    11.0  p25   169.0  median   263.0  p75   341.0  p90   523.0  max   3614.0
+
+中央値の比: queue 待ち 9.0 秒 / 実行 191.0 秒
+job あたり queue 待ちが占める割合の中央値: 5.1%
+
+注: receipt の `queue_wait_s` は別量である (中央値 5.2 秒、n=1294)。測点が違うが、
+    どちらも中央値では小さいという向きは一致する。会計サマリを権威とする。
+
+=== 解析 4: pytest wall と shard 不均衡 (pytest_wall.py) ===
+
+job stdout file 総数: 1297
+  読めなかった: 0
+  pytest 要約行が無い: 28
+  集計対象 shard: 1269
+  session 数: 533
+
+pytest wall / shard (秒)        n=1269  min   105.8  p25   137.6  median   181.4  p75   262.4  p90   298.7  max    680.4
+session 内の最大 shard (秒)         n=533   min   122.5  p25   243.8  median   268.8  p75   295.8  p90   336.0  max    680.4
+session 内 shard の総和 (秒)        n=533   min   122.5  p25   419.3  median   469.4  p75   531.9  p90   603.5  max    961.2
+
+3 shard すべて揃った session: 206 / 533
+  そのうち最大 shard (秒)             n=206   min   161.2  p25   218.4  median   244.9  p75   277.8  p90   351.4  max    600.2
+  shard 間の最大差 (秒)              n=206   min     7.8  p25    89.5  median   116.3  p75   144.7  p90   225.0  max    473.7
+
+注: 3 shard 揃った session の最大 shard 中央値 244.9 秒は、D1260 が paired K=3 で測った
+    244.810 / 245.707 秒と一致する。D1260 は 3 走ずつだったので、206 session による独立な裏取り。
+
+注: shard 間最大差 116.3 秒は割付では取れない。D1019 が「完璧な予言者でも利得は 0.0 秒」を
+    実測済みで、real-repo の排他 group が 1 worker に直列で載り続けることが理由である。
+    本集計は D1019 を反証せず、K=3 でも同じ大きさで残ることを示して裏取りする。

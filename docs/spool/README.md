@@ -83,7 +83,10 @@ git add -- docs/spool
 
 `base:` が古いまま land すると、fold は land の協調 lock の**中で**赤になる。そこで止まると
 `landed` を返せず、同じ wave 内へ巻き戻さず fresh context で再開することになる。
-`--dry-run` はその赤を手前で出すためにある。
+
+**land へ入る前に `python3 tools/spool_fold.py --dry-run` を rc=0 まで通すこと。**
+これは `base:` の不一致と、生成後 canonical の見送り台帳 ID 重複を lock の外で出す唯一の関門である。
+省くと初回検出が lock の中になり、`landed` を返せないまま受入をもう一度取り直すことになる。
 
 **wave 側で fold してはならない。** fold は `tools/dev_wave_land.py` が local main へ ff-only した
 直後、同じ協調 lock を保持したまま実行する。これにより採番・追記・ローテーションが直列化され、
