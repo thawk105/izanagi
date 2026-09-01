@@ -4577,7 +4577,10 @@ def test_real_child_signal_is_published_from_wait_status(tmp_path):
             sys.executable,
             "-I",
             "-c",
-            "import os, signal; os.kill(os.getpid(), signal.SIGTERM)",
+            "import os, signal; "
+            "signal.signal(signal.SIGTERM, signal.SIG_DFL); "
+            "signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM}); "
+            "os.kill(os.getpid(), signal.SIGTERM)",
         ],
     )
 
