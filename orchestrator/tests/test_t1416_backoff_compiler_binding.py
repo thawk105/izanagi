@@ -2,6 +2,7 @@
 """T-1416 の campaign-level toolchain binding 配線を固定する。"""
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -27,6 +28,10 @@ from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.pipeline import PerfConfig  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.verifier.model import VerifyResult  # noqa: E402
+from condition_gate_test_support import (  # noqa: E402
+    condition_gate_compilers,
+    install_backoff_condition_gate_roots,
+)
 
 
 def _manifest() -> dict[str, dict[str, str]]:
@@ -72,12 +77,34 @@ def _expected_contract(site: str):
     [(backoff_sweep, "backoff"), (p2_2, "p2")],
 )
 def test_campaign_resolves_once_and_forwards_expected_toolchain(
-        module, runner, monkeypatch):
+        module, runner, monkeypatch, tmp_path):
     site = site_policy.OTHER
     expected_contract = _expected_contract(site)
     manifest = _manifest()
     observed = []
     captured = []
+    expected_compilers = ("site-cc", "site-cxx")
+    if runner == "backoff":
+        resolved = condition_gate_compilers()
+        if resolved is None:
+            pytest.skip("condition gate fixture requires real compilers and CMake")
+        expected_compilers = resolved
+        patched_root, stock_root = install_backoff_condition_gate_roots(
+            tmp_path / "condition-gate",
+        )
+
+        @contextlib.contextmanager
+        def checkout(*_args, **_kwargs):
+            yield str(stock_root)
+
+        monkeypatch.setattr(
+            module.buildcache, "_ccbench_dir", lambda: str(patched_root),
+        )
+        monkeypatch.setattr(module.patchharness, "checkout", checkout)
+        monkeypatch.setattr(
+            module.patchharness, "applied",
+            lambda *_args, **_kwargs: contextlib.nullcontext(),
+        )
 
     monkeypatch.setattr(module, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(p2_2.site_policy, "current_site", lambda: site)
@@ -86,12 +113,12 @@ def test_campaign_resolves_once_and_forwards_expected_toolchain(
     )
     monkeypatch.setattr(
         module.buildcache, "compilers_for_current_site",
-        lambda: ("site-cc", "site-cxx"),
+        lambda: expected_compilers,
     )
     if runner == "backoff":
         monkeypatch.setattr(
             module, "_compilers_for_current_site",
-            lambda: ("site-cc", "site-cxx"),
+            lambda: expected_compilers,
         )
     monkeypatch.setattr(
         module.buildcache, "observed_toolchain_manifest",
@@ -119,7 +146,7 @@ def test_campaign_resolves_once_and_forwards_expected_toolchain(
             log=lambda *_args: None,
         )
 
-    assert observed == [("site-cc", "site-cxx")]
+    assert observed == [expected_compilers]
     assert len(captured) == 1
     kwargs = captured[0][1]
     assert captured[0][0][3] == expected_contract.env_tag
@@ -132,7 +159,7 @@ def test_campaign_resolves_once_and_forwards_expected_toolchain(
 
 
 def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate(
-        monkeypatch):
+        monkeypatch, tmp_path):
     site = site_policy.OTHER
     expected_contract = _expected_contract(site)
     manifest = _manifest()
@@ -140,6 +167,25 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     calls = []
     source_calls = []
     prepare_calls = []
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate fixture requires real compilers and CMake")
+    patched_root, stock_root = install_backoff_condition_gate_roots(
+        tmp_path / "condition-gate",
+    )
+
+    @contextlib.contextmanager
+    def checkout(*_args, **_kwargs):
+        yield str(stock_root)
+
+    monkeypatch.setattr(
+        backoff_sweep.buildcache, "_ccbench_dir", lambda: str(patched_root),
+    )
+    monkeypatch.setattr(backoff_sweep.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        backoff_sweep.patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
 
     monkeypatch.setattr(backoff_sweep, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(p2_2.site_policy, "current_site", lambda: site)
@@ -150,7 +196,7 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     )
     monkeypatch.setattr(
         backoff_sweep, "_compilers_for_current_site",
-        lambda: ("site-cc", "site-cxx"),
+        lambda: compilers,
     )
     monkeypatch.setattr(
         backoff_sweep.buildcache, "observed_toolchain_manifest",
@@ -202,7 +248,7 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
         log=lambda *_args: None,
     )
 
-    assert observed == [("site-cc", "site-cxx")]
+    assert observed == [compilers]
     assert captured_calibrations == [expected_contract]
     assert len(prepare_calls) == 1
     assert prepare_calls[0]["env_tag"] == expected_contract.env_tag

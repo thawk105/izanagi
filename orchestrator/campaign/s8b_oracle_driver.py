@@ -1290,6 +1290,22 @@ def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
         ) from exc
 
 
+def _evaluate_with_optional_injection(
+        evaluate_fn, *args, authorization_contract, **kwargs):
+    """Keep the production writer statically named while retaining the seam."""
+    if evaluate_fn is None:
+        return pipeline.evaluate(
+            *args,
+            authorization_contract=authorization_contract,
+            **kwargs,
+        )
+    return evaluate_fn(
+        *args,
+        authorization_contract=authorization_contract,
+        **kwargs,
+    )
+
+
 def run_block(
         *, manifest_path, block_id, freeze_path, root, output_root, budget_path,
         marker_root=None, evaluate_fn=None, prepare_fn=None,
@@ -1442,8 +1458,8 @@ def run_block(
     campaign_id = block["campaign_id"]
     run_contract = block["run_contract"]
     env_tag = run_contract["env_tag"]
-    evaluate_fn = evaluate_fn or pipeline.evaluate
-    prepare_fn = prepare_fn or prepare_cell
+    if prepare_fn is None:
+        prepare_fn = prepare_cell
     _, cxx = buildcache.compilers_for_current_site()
     # Human-reviewed admission の persistent receipt に generator id は入らない。run context
     # の閉じた registry member には S8b の直前 producer である S8a を用いる。
@@ -1749,7 +1765,8 @@ def run_block(
                                 ccbench_pin=run_contract["ccbench_pin"],
                                 cxx=cxx,
                                 prepared=prepared_for_eval):
-                            result = evaluate_fn(
+                            result = _evaluate_with_optional_injection(
+                                evaluate_fn,
                                 prepared_for_eval.genome, layout, env_tag,
                                 run_contract["ccbench_pin"], perf,
                                 # C3-9: clocks/numactl は env 契約 lookup 結果を使う
@@ -1791,7 +1808,7 @@ def run_block(
                                 ),
                                 **perf_evaluate_kwargs,
                             )
-                            if evaluate_fn is not pipeline.evaluate:
+                            if evaluate_fn is not None:
                                 require_returned_condition_evidence(
                                     result,
                                     expected_request_digests=expected_request_digests,

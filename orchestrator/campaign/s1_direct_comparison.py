@@ -981,13 +981,30 @@ def _attempts_for(events: Sequence[Mapping], index: int) -> int:
     return max(attempts) + 1
 
 
+def _evaluate_with_optional_injection(
+        evaluate_fn: Optional[Callable], *args,
+        authorization_contract, **kwargs):
+    """Keep the production writer statically named while retaining the seam."""
+    if evaluate_fn is None:
+        return pipeline.evaluate(
+            *args,
+            authorization_contract=authorization_contract,
+            **kwargs,
+        )
+    return evaluate_fn(
+        *args,
+        authorization_contract=authorization_contract,
+        **kwargs,
+    )
+
+
 def run_role(
         role: str, *, dry_run: bool = False,
         freeze_path: Path = ROOT / FREEZE_REL,
         budget_path: Path = Path(repo_output_root()) / "s1-budget" / "time_ledger.json",
         output_root: str = "",
         verify_document: Optional[Callable[[Mapping], None]] = None,
-        evaluate_fn: Callable = pipeline.evaluate,
+        evaluate_fn: Optional[Callable] = None,
         prepare_cell_fn: Callable = prepare_cell,
         single_tenant_fn: Optional[Callable[[], None]] = None,
         monotonic: Callable[[], float] = time.monotonic,
@@ -1211,13 +1228,14 @@ def run_role(
                         capability_resolver=review_capability,
                     )
                     try:
-                        result = evaluate_fn(
+                        result = _evaluate_with_optional_injection(
+                            evaluate_fn,
                             prepared.genome, layout, ENV_TAG, cfg.ccbench_commit, perf,
                             CLOCKS_PER_US,
                             authorization_contract=authorization_contract,
                             **kwargs,
                             **perf_evaluate_kwargs)
-                        if evaluate_fn is not pipeline.evaluate:
+                        if evaluate_fn is not None:
                             require_returned_condition_evidence(
                                 result,
                                 expected_request_digests=expected_request_digests,

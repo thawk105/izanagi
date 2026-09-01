@@ -2,6 +2,7 @@
 """T-1444 p2/backoff の site-aware runtime contract 境界。"""
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import sys
@@ -21,6 +22,10 @@ from orchestrator.campaign import (  # noqa: E402
     p2_2,
     screening_driver,
     site_policy,
+)
+from condition_gate_test_support import (  # noqa: E402
+    condition_gate_compilers,
+    install_backoff_condition_gate_roots,
 )
 
 
@@ -368,7 +373,8 @@ def test_p2_2_run_campaign_receives_one_contract_for_all_runtime_arguments(monke
     assert kwargs["declared_use_class"] == "official"
 
 
-def test_backoff_sweep_screening_reuses_one_resolved_runtime(monkeypatch):
+def test_backoff_sweep_screening_reuses_one_resolved_runtime(
+        monkeypatch, tmp_path):
     site = site_policy.PEGASUS_COMPUTE
     expected = _expected_contract(site)
     manifest = _manifest()
@@ -380,6 +386,16 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(monkeypatch):
     evaluate_calls = []
     screening_receipt = {"schema": "fixture-screening-receipt"}
     screening_verified_calibration = object()
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate fixture requires real compilers and CMake")
+    patched_root, stock_root = install_backoff_condition_gate_roots(
+        tmp_path / "condition-gate",
+    )
+
+    @contextlib.contextmanager
+    def checkout(*_args, **_kwargs):
+        yield str(stock_root)
 
     monkeypatch.setattr(p2_2.site_policy, "current_site", lambda: site)
     runtime = p2_2.resolve_site_runtime()
@@ -405,7 +421,15 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(monkeypatch):
         backoff_sweep,
         "_compilers_for_current_site",
         lambda: compiler_sites.append(p2_2.site_policy.current_site())
-        or ("gcc", "g++"),
+        or compilers,
+    )
+    monkeypatch.setattr(
+        backoff_sweep.buildcache, "_ccbench_dir", lambda: str(patched_root),
+    )
+    monkeypatch.setattr(backoff_sweep.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        backoff_sweep.patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     monkeypatch.setattr(
         backoff_sweep.buildcache,
@@ -458,7 +482,7 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(monkeypatch):
     assert resolver_calls == [True]
     assert calibration_calls == [expected]
     assert compiler_sites == [site]
-    assert compiler_observations == [("gcc", "g++")]
+    assert compiler_observations == [compilers]
     assert len(prepare_calls) == 1
     prepare_cfg, prepare_kwargs = prepare_calls[0]
     assert prepare_cfg.bound_environment_contract == expected
