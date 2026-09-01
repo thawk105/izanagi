@@ -2429,6 +2429,53 @@ def test_b10_binary_path_policy_emits_only_macro_map_and_rpath_suppression(
         buildcache._v2_commands(**common, binary_path_policy="unknown/v1")
 
 
+def test_b10_binary_path_policy_maps_exact_staging_root_only_for_policy(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    fake_run = buildcache._run
+    configure_calls = []
+
+    def record_run(cmd, what, timeout_s=None, *, site=None, env=None):
+        if what == "configure":
+            configure_calls.append(tuple(cmd))
+        return fake_run(cmd, what, timeout_s, site=site, env=env)
+
+    monkeypatch.setattr(buildcache, "_run", record_run)
+    monkeypatch.setenv(
+        buildcache.B10_BINARY_PATH_POLICY_ENV,
+        buildcache.B10_BINARY_PATH_POLICY,
+    )
+    _build(tmp_path, _contract(1))
+    monkeypatch.delenv(buildcache.B10_BINARY_PATH_POLICY_ENV)
+    _build(tmp_path, _contract(1))
+
+    assert len(configure_calls) == 2
+    configured, default_configure = configure_calls
+    staging = Path(configured[configured.index("-B") + 1]).resolve()
+    default_staging = Path(
+        default_configure[default_configure.index("-B") + 1]
+    ).resolve()
+    source = (tmp_path / "ccbench").resolve()
+    expected_cxx_flags = (
+        "-DCMAKE_CXX_FLAGS="
+        f"-fmacro-prefix-map={source}="
+        f"{buildcache.B10_LOGICAL_SOURCE_ROOT} "
+        f"-fdebug-prefix-map={staging}="
+        f"{buildcache.B10_LOGICAL_BUILD_ROOT}"
+    )
+
+    assert staging.name.startswith(".staging-")
+    assert default_staging.name.startswith(".staging-")
+    assert [
+        token for token in configured if "-fdebug-prefix-map=" in token
+    ] == [expected_cxx_flags]
+    assert [
+        token for token in default_configure if "-fdebug-prefix-map=" in token
+    ] == []
+    assert "-DCMAKE_SKIP_RPATH=ON" in configured
+
+
 def test_b10_macro_prefix_map_real_compiler_normalizes_bytes_without_text_change(
         tmp_path):
     cxx = shutil.which("g++")

@@ -75,6 +75,7 @@ _FETCHCONTENT_FULLY_DISCONNECTED_DEFINE = (
 B10_BINARY_PATH_POLICY_ENV = "IZANAGI_B10_BINARY_PATH_POLICY"
 B10_BINARY_PATH_POLICY = "b10-macro-prefix-map-no-rpath/v1"
 B10_LOGICAL_SOURCE_ROOT = "/__izanagi_b10__/source"
+B10_LOGICAL_BUILD_ROOT = "/__izanagi_b10__/build"
 
 _SECURE_FLAG_NAMES = (
     "O_CLOEXEC", "O_DIRECTORY", "O_EXCL", "O_NOFOLLOW", "O_NONBLOCK",
@@ -1869,6 +1870,7 @@ def _binary_path_policy_from_environment() -> Optional[str]:
 
 def _binary_path_cmake_defines(
         binary_path_policy: Optional[str], source_root: str,
+        staging_root: Optional[str] = None,
 ) -> List[str]:
     if binary_path_policy is None:
         return []
@@ -1882,8 +1884,19 @@ def _binary_path_cmake_defines(
     macro_map = (
         f"-fmacro-prefix-map={canonical_root}={B10_LOGICAL_SOURCE_ROOT}"
     )
+    cxx_flags = [macro_map]
+    if staging_root is not None:
+        canonical_staging_root = os.path.realpath(os.path.abspath(staging_root))
+        if "\0" in canonical_staging_root or "=" in canonical_staging_root:
+            raise BuildCacheError(
+                "B-10 debug prefix map の staging root に NUL/= は使えない"
+            )
+        cxx_flags.append(
+            f"-fdebug-prefix-map={canonical_staging_root}="
+            f"{B10_LOGICAL_BUILD_ROOT}"
+        )
     return [
-        f"-DCMAKE_CXX_FLAGS={macro_map}",
+        f"-DCMAKE_CXX_FLAGS={' '.join(cxx_flags)}",
         "-DCMAKE_SKIP_RPATH=ON",
     ]
 
@@ -1893,6 +1906,7 @@ def _v2_commands(
         toolchain: Dict[str, Dict[str, str]], jobs: Optional[int] = None,
         *, site: Optional[str] = None, dependency_prefix: str = "",
         binary_path_policy: Optional[str] = None,
+        binary_path_staging_root: Optional[str] = None,
         fetchcontent_base_dir: str = "",
         masstree_source_dir: Optional[object] = None,
         mimalloc_source_dir: Optional[object] = None,
@@ -1928,7 +1942,7 @@ def _v2_commands(
         )
     source_defines = _fetchcontent_source_defines(source_dirs)
     binary_path_defines = _binary_path_cmake_defines(
-        binary_path_policy, sub,
+        binary_path_policy, sub, binary_path_staging_root,
     )
     configure = [
         toolchain["cmake"]["realpath"], "-S", sub, "-B", bdir,
@@ -2252,9 +2266,10 @@ def _build_v2_impl(
     ``official`` のときは expected の省略を build 前に拒否する。その他の caller では
     既定 ``None`` の受理集合と実行順を変えない。
 
-    B-10 専用 policy env が exact token のときだけ、source root の macro 展開を論理 root
-    へ写し、RPATH を生成しない CMake define を加える。policy ID は preimage に加えるが、
-    admission の実 ``source_root`` と dependency prefix は投影せず従来どおり保持する。
+    B-10 専用 policy env が exact token のときだけ、source root の macro 展開と buildcache
+    staging root の debug path を論理 root へ写し、RPATH を生成しない CMake define を加える。
+    policy ID は preimage に加えるが、admission の実 ``source_root`` と dependency prefix は
+    投影せず従来どおり保持する。
 
     ``source_snapshot_sha256`` が指定されたときは Unit A の snapshot tree digest として
     build 前後で ``ccbench_dir`` の実体と exact 照合する。fresh build の成功直後、staging
@@ -2614,6 +2629,9 @@ def _build_v2_impl(
                 genome, trace, sub, staging, toolchain, site=resolved_site,
                 dependency_prefix=configure_dependency_prefix,
                 binary_path_policy=binary_path_policy,
+                binary_path_staging_root=(
+                    staging if binary_path_policy is not None else None
+                ),
                 fetchcontent_base_dir=canonical_fetchcontent_base,
                 masstree_source_dir=(
                     source_dirs.get("masstree") if source_dirs else None
