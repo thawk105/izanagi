@@ -1,0 +1,65 @@
+[
+  {
+    "clean_evaluator_agrees": true,
+    "differing_cells": [
+      {
+        "cells": 144,
+        "corpus": 0
+      },
+      {
+        "cells": 144,
+        "corpus": 1
+      }
+    ],
+    "ir": [
+      "single",
+      "storage",
+      "asc"
+    ],
+    "mutated_evaluator_detected": true,
+    "mutation": "signed-storage",
+    "outcome": "KILLED"
+  },
+  {
+    "clean_evaluator_agrees": true,
+    "differing_cells": [
+      {
+        "cells": 108,
+        "corpus": 0
+      },
+      {
+        "cells": 108,
+        "corpus": 1
+      }
+    ],
+    "ir": [
+      "single",
+      "pointer",
+      "asc"
+    ],
+    "mutated_evaluator_detected": true,
+    "mutation": "reversed-pointer-rank",
+    "outcome": "KILLED"
+  },
+  {
+    "clean_evaluator_agrees": true,
+    "differing_cells": [
+      {
+        "cells": 12,
+        "corpus": 0
+      },
+      {
+        "cells": 14,
+        "corpus": 1
+      }
+    ],
+    "ir": [
+      "single",
+      "key",
+      "asc"
+    ],
+    "mutated_evaluator_detected": true,
+    "mutation": "nul-truncated-key",
+    "outcome": "KILLED"
+  }
+]
