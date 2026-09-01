@@ -896,6 +896,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
+             backoff_grammar_version: Optional[int] = None,
              expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
              declared_use_class: Optional[str] = None,
              trigger_gate_binding=None,
@@ -1083,11 +1084,17 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 expected_toolchain_manifest,
             )
         evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
+        source_options = {}
+        if backoff_grammar_version is not None:
+            source_options["backoff_grammar_version"] = (
+                backoff_grammar_version
+            )
         current_evidence = source_digest.resolve_evidence(
             genome,
             ccbench_commit,
             ccbench_dir=ccbench_dir,
             cxx=evidence_cxx,
+            **source_options,
         )
         if source_evidence is not None:
             if type(source_evidence) is not SourceEvidence:
@@ -1223,6 +1230,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 common["expected_toolchain_manifest"] = expected_toolchain_manifest
             if declared_use_class is not None:
                 common["declared_use_class"] = declared_use_class
+            if backoff_grammar_version is not None:
+                common["backoff_grammar_version"] = backoff_grammar_version
 
         def _build_one(*, trace: bool):
             build_kind = "trace" if trace else "perf"
@@ -1231,11 +1240,17 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     ccbench_dir, canonical_build_pin, build_kind=build_kind,
                 )
             if common is None:
+                build_options = {}
+                if backoff_grammar_version is not None:
+                    build_options["backoff_grammar_version"] = (
+                        backoff_grammar_version
+                    )
                 return buildcache.build(
                     genome, ccbench_commit, trace=trace, src_token=src_tok,
                     ccbench_dir=ccbench_dir, cache_root=cache_root,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
+                    **build_options,
                 )
             if qualification_policy is None:
                 return buildcache.build_v2(genome, trace=trace, **common)
@@ -1777,6 +1792,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
+             backoff_grammar_version: Optional[int] = None,
              expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
              declared_use_class: Optional[str] = None,
              trigger_gate_binding=None,
@@ -1828,6 +1844,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         build_context=build_context,
         capability_resolver=capability_resolver,
         source_evidence=source_evidence,
+        backoff_grammar_version=backoff_grammar_version,
         expected_toolchain_manifest=expected_toolchain_manifest,
         declared_use_class=declared_use_class,
         trigger_gate_binding=trigger_gate_binding,

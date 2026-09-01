@@ -211,6 +211,7 @@ def _make_clean_admitted_fixture(
     )
     receipt = admission.as_wal_receipt()
     candidate = variant_id(_CLEAN_GENOME, src_token)
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     wal.log(
         layout,
         candidate,
@@ -224,7 +225,6 @@ def _make_clean_admitted_fixture(
             "build_admission_receipt_sha256": receipt["receipt_sha256"],
         },
     )
-    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     state = L.LoopState(iteration=iteration, start_wall=1.0)
     state.whiteboard.append(L.WhiteboardEntry(
         iteration=iteration,

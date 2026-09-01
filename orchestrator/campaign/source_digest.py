@@ -66,7 +66,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping
+from typing import Dict, Iterable, List, Mapping, Optional
 
 from .model import Genome
 
@@ -2105,8 +2105,38 @@ def baseline(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     return _digest(parts)
 
 
+def _bind_backoff_grammar_version(
+    raw_digest: str, backoff_grammar_version: Optional[int],
+) -> str:
+    """Domain-separate a non-stock source digest for one explicit grammar."""
+
+    if backoff_grammar_version is None:
+        return raw_digest
+    if (type(backoff_grammar_version) is not int
+            or backoff_grammar_version < 1):
+        raise ValueError(
+            "backoff_grammar_version must be None or an exact positive integer"
+        )
+    preimage = (
+        b"backoff-src-token/v1\0grammar="
+        + str(backoff_grammar_version).encode("ascii")
+        + b"\0source="
+        + raw_digest.encode("ascii")
+    )
+    return hashlib.sha256(preimage).hexdigest()
+
+
+def _resolved_src_token(
+    current: str, baseline_digest: str, backoff_grammar_version: Optional[int],
+) -> str:
+    if current == baseline_digest:
+        return STOCK
+    return _bind_backoff_grammar_version(current, backoff_grammar_version)
+
+
 def src_token(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
-              cxx: str = "g++-13") -> str:
+              cxx: str = "g++-13", *,
+              backoff_grammar_version: Optional[int] = None) -> str:
     """identity に織り込む src トークン。
 
     working-tree が stock/inert (HEAD baseline と同一 digest) なら "stock" (後方互換:
@@ -2114,7 +2144,7 @@ def src_token(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     """
     cur = compute(genome, ccbench_dir, cxx)
     base = baseline(genome, ccbench_commit, ccbench_dir, cxx)
-    return STOCK if cur == base else cur
+    return _resolved_src_token(cur, base, backoff_grammar_version)
 
 
 def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
@@ -2198,6 +2228,7 @@ def resolve_evidence(
     *,
     ccbench_dir: str = "",
     cxx: str = "g++-13",
+    backoff_grammar_version: Optional[int] = None,
 ) -> SourceEvidence:
     """Resolve build evidence and bind it to the inspected source root.
 
@@ -2220,7 +2251,7 @@ def resolve_evidence(
     assert_conditional_macros_covered(genome, sub, cxx)
     current = compute(genome, sub, cxx)
     base = baseline(genome, ccbench_commit, sub, cxx)
-    token = STOCK if current == base else current
+    token = _resolved_src_token(current, base, backoff_grammar_version)
     genome_sha256 = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
     return SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA,
@@ -2236,7 +2267,8 @@ def resolve_evidence(
 
 
 def resolve(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
-            cxx: str = "g++-13") -> str:
+            cxx: str = "g++-13", *,
+            backoff_grammar_version: Optional[int] = None) -> str:
     """variant の identity (src_token) を確定する単一窓口 = allowlist 検査 + src_token。
 
     **WAL は書かない** (呼び手が skip 判定・abort 記録を担う) ので、loop (評価前に skip キーを
@@ -2247,4 +2279,10 @@ def resolve(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     assert_worktree_within_allowlist(ccbench_dir)
     assert_includes_match_head(genome, ccbench_commit, ccbench_dir, cxx)  # #include 死角 (最小案)
     assert_conditional_macros_covered(genome, ccbench_dir, cxx)           # マクロ文脈死角 (T-148)
-    return src_token(genome, ccbench_commit, ccbench_dir, cxx)
+    return src_token(
+        genome,
+        ccbench_commit,
+        ccbench_dir,
+        cxx,
+        backoff_grammar_version=backoff_grammar_version,
+    )
