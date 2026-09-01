@@ -68,6 +68,50 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/qualification/artifacts.py",
     "orchestrator/qualification/t126_driver.py",
     "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+)
+_FIXED_SYNTHETIC_E1_EPOCH = (
+    "E1:78920efc47f4eb280b956a8fb92abed16b888495db544b62b1a15bf1f61004e9"
+)
+_FIXED_ORDERED_CLOSURE_PATHS_SHA256 = (
+    "b274387d0be033a98e86d54e5225667221bde79776832e73fb3d07cebfc6067a"
 )
 _GIT_ENV_ALLOWLIST = (
     "LANG",
@@ -401,7 +445,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 24-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 62-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -435,6 +479,14 @@ def _expected_fixture_epoch() -> str:
         )
     )
     return f"E1:{hashlib.sha256(payload).hexdigest()}"
+
+
+def _ordered_fixture_path_list_sha256() -> str:
+    payload = b"".join(
+        relative.encode("utf-8") + b"\0"
+        for relative in _EXPECTED_E1_CLOSURE_PATHS
+    )
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _new_schema_campaign(
@@ -1043,13 +1095,15 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
     assert excinfo.value.identity_scope == (
-        "enforcement source closure (exact 24 path; witness gate、S8C 判定器、"
-        "receipt 発行・検証面を含む)"
+        "enforcement source closure (curated exact 62 path; 2026-09-01 の静的 import "
+        "発見集合 131 module のうち、既存 24、明示 import 先 36、実行時 package 初期化 "
+        "2 を収載; source-import 推移閉包ではない)"
     )
     assert excinfo.value.excluded_scope == (
-        "verifier package のうち orchestrator/verifier/__main__.py と "
-        "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
-        "implementation bytes は束縛しない"
+        "同発見集合の未収載 69 module、orchestrator/verifier/__main__.py、"
+        "orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および "
+        "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
+        "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
     )
 
 
@@ -1167,13 +1221,19 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 24
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 62
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
 def test_certified_acceptance_admits_exact_e1_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 62
+    assert _expected_fixture_epoch() == _FIXED_SYNTHETIC_E1_EPOCH
+    assert (
+        _ordered_fixture_path_list_sha256()
+        == _FIXED_ORDERED_CLOSURE_PATHS_SHA256
+    )
     repo = _committed_closure_repo(tmp_path)
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
     campaign = _new_schema_campaign(tmp_path / "campaign")
@@ -1184,7 +1244,7 @@ def test_certified_acceptance_admits_exact_e1_fixture(
     assert view.campaign_verifier_epoch.state == "E1"
     assert (
         view.campaign_verifier_epoch.campaign_verifier_epoch
-        == _expected_fixture_epoch()
+        == _FIXED_SYNTHETIC_E1_EPOCH
     )
     assert view.read_purpose is CERTIFIED
     assert not hasattr(view, "verifier_assessment_basis")
