@@ -224,6 +224,32 @@ def test_silo_space_size_and_constraint():
                 != g.flags["NO_WAIT_OF_TICTOC"])
 
 
+def test_mocc_space_has_eight_operable_ycsb_boolean_genomes():
+    gs = genome.space_for("mocc")
+    assert gs.raw_size() == 8
+    assert set(gs.axes) == {"BACK_OFF", "TEMPERATURE_RESET_OPT", "KEY_SORT"}
+    enumerated = gs.enumerate()
+    assert len(enumerated) == 8
+    assert len({item.canonical() for item in enumerated}) == 8
+    assert all(item.protocol == "mocc" for item in enumerated)
+
+
+def test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope():
+    gs = genome.space_for("mocc")
+    assert not ({
+        "RWLOCK", "INSERT_READ_DELAY_MS", "INSERT_BATCH_DELAY_MS", "TRACE",
+    } & set(gs.axes))
+    assert "RWLOCK" in gs.notes and "bare define" in gs.notes
+    assert "INSERT_*_DELAY_MS" in gs.notes and "計測撹乱ノブ" in gs.notes
+    assert "YCSB workload" in gs.notes and "include/ycsb.hh" in gs.notes
+
+
+def test_tictoc_and_cicada_remain_unregistered():
+    for protocol in ("tictoc", "cicada"):
+        with pytest.raises(KeyError, match="未登録"):
+            genome.space_for(protocol)
+
+
 def test_buildcache_detects_trace_symbol_leak():
     """規律1: nm 出力に izanagi_trace があれば perf build への漏れと判定 (継続執行)。"""
     clean = "0000 T main\n0000 t _ZN4silo6commitEv\n0000 T makeDB\n"
