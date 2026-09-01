@@ -23,6 +23,7 @@ import shutil
 import socket
 import stat
 import statistics
+import struct
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -34,7 +35,7 @@ from ..scheduler_nqsv import (
     QSTAT_REQUEST_ID_RE,
     target_bound_qstat_state_result,
 )
-from . import buildcache
+from . import buildcache, condition_meaning_gate, patchharness
 from .pipeline import PerfConfig
 
 
@@ -524,6 +525,82 @@ def _genome_for_cell(policy: Policy, cell: CellSpec):
         protocol=policy.document["performance_common"]["ccbench_protocol"],
         flags=flags,
     )
+
+
+def _require_condition_gate_family(
+        source_root: Path, genomes: Sequence[object], *, cxx: str,
+        dependency_prefix: Path, current_pin: str) -> list[dict[str, object]]:
+    """Fail closed on both condition arms before a paper benchmark starts."""
+    defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
+    receipts = []
+    with patchharness.checkout(
+            current_pin, base_dir=os.fspath(source_root)) as stock_root:
+        captured = condition_meaning_gate.capture_define_inputs(
+            source_root, stock_root=stock_root,
+            configure_args=(f"-DCMAKE_PREFIX_PATH={dependency_prefix}",),
+        )
+        for index, genome in enumerate(genomes):
+            supply_records = []
+            meaning_records = []
+            for macro in sorted(set(genome.flags) & set(defaults)):
+                value = genome.flags[macro]
+                request = condition_meaning_gate.make_define_request(
+                    driver_id=(
+                        "orchestrator.campaign.paper_story_a2_certification:"
+                        f"cell-{index}"
+                    ),
+                    macro=macro, requested_value=value, default_value=defaults[macro],
+                    stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
+                )
+                declaration = None
+                if macro == "BACKOFF_FIXED" and value == -1:
+                    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+                        macro,
+                        (condition_meaning_gate.MeaningCase(
+                            -1, None,
+                            expected_selected_branch=(
+                                condition_meaning_gate.STOCK_ADAPTIVE_BRANCH
+                            ),
+                        ),),
+                    )
+                elif macro == "BACKOFF_FIXED" and value >= 0:
+                    bits = struct.pack(">d", float(value)).hex()
+                    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+                        macro,
+                        (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+                    )
+                supply_records.append(
+                    condition_meaning_gate.evaluate_define_supply_effectuation(
+                        captured, request=request, cxx=cxx, cmake="cmake",
+                    )
+                )
+                meaning_records.append(
+                    condition_meaning_gate.evaluate_define_runtime_meaning(
+                        captured, request=request, declaration=declaration, cxx=cxx,
+                    )
+                )
+            admission = condition_meaning_gate.require_condition_gate_family(
+                supply_records, meaning_records, use_class="paper",
+            )
+            if not admission.admitted:
+                reasons = ",".join(
+                    f"{record.macro}:{record.arm}:{record.reason_code}"
+                    for record in (*supply_records, *meaning_records)
+                    if record.terminal_status != "green"
+                )
+                raise CertificationError(
+                    f"condition gate rejected paper workload cell-{index}: {reasons}"
+                )
+            receipts.append({
+                "supply_records": [
+                    json.loads(record.canonical_json()) for record in supply_records
+                ],
+                "meaning_records": [
+                    json.loads(record.canonical_json()) for record in meaning_records
+                ],
+                "admission": json.loads(admission.canonical_json()),
+            })
+    return receipts
 
 
 def _generator_input_sha256(policy: Policy, workload_id: str,
@@ -2931,6 +3008,10 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
         resolved_cc, resolved_cxx,
     )
+    condition_gate_receipts = _require_condition_gate_family(
+        source_root, genomes, cxx=resolved_cxx, dependency_prefix=dependency,
+        current_pin=current_pin,
+    )
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
 
     def capability_resolver(evidence):
@@ -2956,6 +3037,7 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     )
     if len(summary.results) != len(cells) or summary.skipped != 0:
         raise CertificationError("fresh workload did not evaluate exactly two cells")
+    summary.condition_gate_receipts = condition_gate_receipts
     raw_payloads = []
     for cell, result in zip(cells, summary.results):
         payload = _raw_cell_from_wal(
@@ -4023,6 +4105,9 @@ def _run_workload_command(args: argparse.Namespace) -> int:
         "campaign_id": summary.campaign_id,
         "committed": summary.committed,
         "aborted": summary.aborted,
+        "condition_gate_receipts": getattr(
+            summary, "condition_gate_receipts", None,
+        ),
     }, ensure_ascii=True, sort_keys=True))
     return 0
 

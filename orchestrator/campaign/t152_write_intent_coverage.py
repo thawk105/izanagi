@@ -33,6 +33,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
+from . import condition_meaning_gate  # noqa: E402
 from .layout import repo_output_root  # noqa: E402
 from .patchharness import applied, checkout  # noqa: E402
 from .materializer_admission import non_admissible_materializer  # noqa: E402
@@ -166,6 +167,76 @@ def _run_process(argv: list[str], *, timeout: float, cwd: str | None = None,
             f"{(proc.stderr or proc.stdout).strip()[-500:]}"
         )
     return proc
+
+
+def _require_condition_gate(
+    source_root: str,
+    *,
+    macro: str,
+    cmake: str,
+    cxx: str,
+    configure_args: Iterable[str],
+) -> dict[str, Any]:
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, configure_args=tuple(configure_args),
+    )
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.t152_write_intent_coverage",
+        macro=macro,
+        requested_value=1,
+        default_value=0,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            f"condition gate rejected {macro}: "
+            f"supply={supply.terminal_status}/{supply.reason_code}, "
+            f"meaning={meaning.terminal_status}/{meaning.reason_code}"
+        )
+    return {
+        "supply": json.loads(supply.canonical_json()),
+        "meaning": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
+
+
+def _preflight_condition_gates(
+    *,
+    sha: str,
+    ccbench_base: str,
+    root: str,
+    cmake: str,
+    cc: str,
+    cxx: str,
+    cmake_prefix_path: str,
+) -> list[dict[str, Any]]:
+    configure_args = (
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        f"-DCMAKE_C_COMPILER={cc}",
+        f"-DCMAKE_PREFIX_PATH={cmake_prefix_path}",
+        *_BASE_DEFINES,
+    )
+    records = []
+    for patch_name, macro in _PATCHES.values():
+        with checkout(sha, base_dir=ccbench_base) as source_root:
+            with applied(os.path.join(root, "patches", patch_name), sha, source_root):
+                records.append(_require_condition_gate(
+                    source_root,
+                    macro=macro,
+                    cmake=cmake,
+                    cxx=cxx,
+                    configure_args=configure_args,
+                ))
+    return records
 
 
 def _resolve_executable(command: str, role: str) -> str:
@@ -379,6 +450,16 @@ def _build(
             configure.append(f"-DCMAKE_PROJECT_INCLUDE={dependency_probe}")
         if macro is not None:
             configure.append(f"-DCMAKE_CXX_FLAGS=-D{macro}=1")
+            _require_condition_gate(
+                ccbench_dir,
+                macro=macro,
+                cmake=cmake,
+                cxx=cxx,
+                configure_args=(
+                    argument for argument in configure[5:]
+                    if not argument.startswith("-DCMAKE_CXX_FLAGS=")
+                ),
+            )
         _run_process(
             configure,
             timeout=CONFIGURE_TIMEOUT_S,
@@ -698,6 +779,7 @@ def _make_payload(
     linked_dependencies: dict[str, str],
     jobs: int,
     runs: dict[str, dict[str, Any]],
+    condition_gates: Iterable[dict[str, Any]] = (),
 ) -> dict[str, Any]:
     evaluated = _evaluate_checks(runs)
     return {
@@ -715,6 +797,7 @@ def _make_payload(
         "toolchain": {"cc": cc_record, "cxx": cxx_record},
         "deps_prefix": deps_record,
         "build_jobs": jobs,
+        "condition_gates": list(condition_gates),
         "runs_meta": {
             "cmake_cache_linked_dependencies": linked_dependencies,
             "performance_semantics": _PERFORMANCE_SEMANTICS,
@@ -748,6 +831,15 @@ def _collect_payload() -> tuple[dict[str, Any], str]:
     with contextlib.ExitStack() as resources:
         temporary_root = resources.enter_context(
             tempfile.TemporaryDirectory(prefix="izanagi_t152_builds_")
+        )
+        condition_gates = _preflight_condition_gates(
+            sha=sha,
+            ccbench_base=ccbench_base,
+            root=root,
+            cmake=cmake,
+            cc=cc_record["realpath"],
+            cxx=cxx_record["realpath"],
+            cmake_prefix_path=cmake_prefix_path,
         )
         stock_build_dir = os.path.join(temporary_root, "stock")
         stock_binaries = _build(
@@ -823,6 +915,7 @@ def _collect_payload() -> tuple[dict[str, Any], str]:
             linked_dependencies=linked_dependencies,
             jobs=jobs,
             runs=runs,
+            condition_gates=condition_gates,
         )
         output_path = os.path.join(
             repo_output_root(),

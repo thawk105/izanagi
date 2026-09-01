@@ -38,6 +38,13 @@ from orchestrator.campaign.build_admission import (BuildAdmissionError, BuildRun
                                       add_coder_build_authority_argument,
                                       build_run_context)
 from orchestrator.campaign.layout import exploration_campaign_layout             # noqa: E402
+from condition_gate_test_support import (                                        # noqa: E402
+    SORT_VARIANT_SOURCE,
+    TRIGGER_GATING_SOURCE,
+    backoff_fixed_source,
+    condition_gate_compilers,
+    install_condition_gate_build_fixture,
+)
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 
@@ -166,6 +173,46 @@ _PAPER_STORY_REQUIRED_OPTIONS = frozenset({
     "--result-root",
     "--dependency-prefix",
 })
+
+
+def _install_real_condition_compilers(monkeypatch) -> tuple[str, str]:
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate fixture requires real compilers and CMake")
+    monkeypatch.setattr(buildcache, "compilers_for_current_site", lambda: compilers)
+    return compilers
+
+
+def _install_driver_condition_gate_fixture(
+        monkeypatch, tmp_path: Path, module) -> Path:
+    """Give a synthetic public driver a real condition-gate build graph."""
+    _install_real_condition_compilers(monkeypatch)
+    repo_root = tmp_path / f"{module.__name__.rsplit('.', 1)[-1]}-condition-repo"
+    source_root = install_condition_gate_build_fixture(
+        repo_root / "external" / "ccbench",
+    )
+    if module is SORT:
+        (source_root / SORT.SOURCE_REL).write_text(
+            SORT_VARIANT_SOURCE, encoding="utf-8",
+        )
+    elif module is TRIGGER:
+        (source_root / TRIGGER.SOURCE_REL).write_text(
+            TRIGGER_GATING_SOURCE, encoding="utf-8",
+        )
+    elif module is LOOP:
+        (source_root / LOOP.SOURCE_REL).write_text(
+            backoff_fixed_source(20), encoding="utf-8",
+        )
+    elif module.__name__.endswith(".p3_kickoff"):
+        (source_root / "include" / "backoff.hh").write_text(
+            backoff_fixed_source(50), encoding="utf-8",
+        )
+    elif module.__name__.endswith(".p3_s4_red"):
+        (source_root / "include" / "backoff.hh").write_text(
+            backoff_fixed_source(1_000_000_000), encoding="utf-8",
+        )
+    monkeypatch.setattr(module, "_repo_root", lambda: str(repo_root))
+    return source_root
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1033,6 +1080,11 @@ def test_driver_build_spy_receives_exact_run_context(
         harness.assert_complete(1)
         return
 
+    if hasattr(module, "_require_condition_gate"):
+        _install_driver_condition_gate_fixture(
+            monkeypatch, tmp_path, module,
+        )
+
     def capture(*_args, **kwargs):
         context = kwargs["build_context"]
         seen.append(context)
@@ -1152,6 +1204,7 @@ def test_iteration_public_entry_routes_runtime_layout_and_selector(
         monkeypatch, tmp_path, name, module):
     """public `run_one_iteration` が実際に導出した root と sink selector を検査。"""
     contract = _driver_contract(name, _DRIVER_CONTRACTS)
+    _install_real_condition_compilers(monkeypatch)
     roots, layout_calls = _spy_driver_layout(monkeypatch, tmp_path, module)
     selectors = []
 
@@ -1198,26 +1251,7 @@ class Backoff {
         cfg, perf = module.default_cfg(), module.default_perf()
     else:
         if module is SORT:
-            template = '''#pragma once
-#include "storage.hh"
-class TxExecutor {
- public:
-  bool validationPhase() {
-#ifndef SORT_VARIANT
-#error "SORT_VARIANT must be defined"
-#endif
-    // EVOLVE-BLOCK-BEGIN silo-writeset-sort
-    // fixture
-#if SORT_VARIANT
-    sort(write_set_.begin(), write_set_.end());
-#else
-    sort(write_set_.begin(), write_set_.end());
-#endif
-    // EVOLVE-BLOCK-END silo-writeset-sort
-    return true;
-  }
-};
-'''
+            template = SORT_VARIANT_SOURCE
             coder = module.CoderProposalSort(
                 axis=module.MARKER_ID,
                 implementation=(
@@ -1228,33 +1262,7 @@ class TxExecutor {
             )
             cfg, perf = module.default_cfg(), module.default_perf()
         else:
-            template = '''#pragma once
-#include "backoff.hh"
-class TxExecutor {
- public:
-  void abort() {
-#ifndef BACKOFF_TRIGGER_GATING
-#error "BACKOFF_TRIGGER_GATING must be defined"
-#endif
-#if BACKOFF_TRIGGER_GATING
-  bool izanagi_gate_pass = true;
-#endif
-  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
-  // fixture
-#if BACKOFF_TRIGGER_GATING
-  izanagi_gate_pass = true;
-#else
-  Backoff::backoff(FLAGS_clocks_per_us);
-#endif
-  // EVOLVE-BLOCK-END silo-backoff-trigger-gating
-#if BACKOFF_TRIGGER_GATING
-  if (izanagi_gate_pass) {
-    Backoff::backoff(FLAGS_clocks_per_us);
-  }
-#endif
-  }
-};
-'''
+            template = TRIGGER_GATING_SOURCE
             coder = module.CoderProposalTriggerGating(
                 axis=module.MARKER_ID,
                 wire="10100",
@@ -1278,6 +1286,7 @@ class TxExecutor {
     source = sub / module.SOURCE_REL
     source.parent.mkdir(parents=True)
     source.write_text(template, encoding="utf-8")
+    install_condition_gate_build_fixture(sub)
     if module is LOOP:
         module.run_one_iteration(
             cfg, perf, planner, coder, state, str(sub), True,
@@ -1406,6 +1415,11 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
 
     roots, layout_calls = _spy_driver_layout(monkeypatch, tmp_path, module)
     selectors = []
+
+    if hasattr(module, "_require_condition_gate"):
+        _install_driver_condition_gate_fixture(
+            monkeypatch, tmp_path, module,
+        )
 
     def run_sink(*run_args, **kwargs):
         selectors.append(kwargs.get("declared_use_class"))

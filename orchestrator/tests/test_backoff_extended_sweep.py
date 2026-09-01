@@ -5,6 +5,7 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 from contextlib import contextmanager
@@ -98,6 +99,12 @@ def _stub_patch_and_prebuild(monkeypatch, events=None):
             observed.append(("patch-exit",))
 
     monkeypatch.setattr(M.patchharness, "applied", applied)
+
+    @contextmanager
+    def checkout(_pin_commit, base_dir=""):
+        yield f"{base_dir}/stock"
+
+    monkeypatch.setattr(M.patchharness, "checkout", checkout)
     monkeypatch.setattr(
         M, "_assert_backoff_fixed_materialized",
         lambda _ccbench_dir: observed.append(("patch-materialized",)),
@@ -106,7 +113,40 @@ def _stub_patch_and_prebuild(monkeypatch, events=None):
         M, "_prebuild_backoff_binaries",
         lambda *_args, **_kwargs: observed.append(("prebuild",)) or {},
     )
+    monkeypatch.setattr(
+        M,
+        "_require_condition_gate_before_measurement",
+        lambda *_args, **_kwargs: observed.append(("condition-gate",)) or object(),
+    )
     return observed
+
+
+def _condition_fixture(name: str) -> Path:
+    return Path(_HERE) / "fixtures" / "condition_meaning_gate" / name
+
+
+def _available_executable(*names: str) -> str:
+    for name in names:
+        resolved = shutil.which(name)
+        if resolved is not None:
+            return resolved
+    pytest.skip(f"required executable is unavailable: {names!r}")
+
+
+def _independent_replay_digest(record) -> str:
+    argv = list(record.evidence["requested_replay_argv"])
+    index = 0
+    while index < len(argv):
+        if argv[index] in {"-MD", "-MMD", "-MP", "-MG"}:
+            del argv[index]
+            continue
+        if argv[index] == "-MF":
+            del argv[index:index + 2]
+            continue
+        index += 1
+    completed = subprocess.run(argv, check=True, capture_output=True)
+    assert completed.stderr == b""
+    return hashlib.sha256(completed.stdout).hexdigest()
 
 
 def test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint():
@@ -260,6 +300,23 @@ def test_distinct_backoff_fixed_amounts_produce_distinct_build_results(monkeypat
     assert len(set(hashes)) == 2
 
 
+def test_real_extended_driver_gate_recomputes_preprocessed_file_digest():
+    """The real extended-driver wrapper admits an effective owner-TU request."""
+    _available_executable("cmake")
+    source_root = _condition_fixture("supplied")
+    run = M._require_condition_gate_before_measurement(
+        str(source_root),
+        stock_root=str(source_root / "stock"),
+        points=[M.Genome("silo", {"BACKOFF_FIXED": 5})],
+        cxx=_available_executable("g++-13", "g++-12", "g++"),
+    )
+
+    supply = run.supply_records[0]
+    assert run.admission.admitted is True
+    assert supply.driver_id == "orchestrator/campaign/backoff_extended_sweep.py"
+    assert _independent_replay_digest(supply) == supply.evidence["requested_digest"]
+
+
 def test_duplicate_static_binary_hash_stops_before_campaign(monkeypatch):
     points = [
         M.Genome("silo", {"BACK_OFF": 1, "BACKOFF_FIXED": amount})
@@ -375,7 +432,8 @@ def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):
     assert observed["config"].search_config["records"] == 1_000_000
     assert observed["cache_root"] == "/tmp/b10-test-cache"
     assert [event[0] for event in events] == [
-        "patch-enter", "patch-materialized", "prebuild", "campaign", "patch-exit",
+        "patch-enter", "patch-materialized", "condition-gate", "prebuild",
+        "campaign", "patch-exit",
     ]
     argv = O._flags(M.WORKLOAD_BY_TAG["balanced"], contract)
     assert "-ycsb_tuple_num=1000000" in argv
