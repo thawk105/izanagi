@@ -7078,6 +7078,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`git show main:tools/check_ai_provenance.py`) に当該 SHA が登録されているかを見る。
   登録済みなら wave 側 checker の陳腐化であって、履歴の欠陥ではない。
 
+
+- **再発: 2026-09-01** — 今度は手動の incoming gate ではなく、受入待ち手が claim 後に回す
+  `merge-history-provenance` 段で同型が出た。wave 側 worktree が base で止まっている間に
+  main 側が既知違反 entry を 1 件足しており、古い checker がそれを
+  `known provenance violation data index-only member does not match HEAD` として
+  実行不能と報告して rc=70 になった。**F206 の再発検知手順どおり incoming 側を見れば足りる** —
+  当該 entry は `git cat-file -e main:tools/known_violations/<name>.json` で実在し、
+  wave 側 HEAD にだけ無かった。実装差分とは無関係な非帰属赤である。`DW-O20` の
+  「HEAD 差は `--ff-only` で揃える」に従って解消し、取り込み後の full 監査は同じ木で
+  rc=0 (7454 件、新規違反なし) になった。**恒久対応は増やさない** — 既存の `DW-O20` と
+  F206 の再発検知手順で説明でき、待ち手側の gate は設計どおり fail-closed に働いている。
 ### F207. 派生関数を期待値の出所にしたテストは、その派生関数の変異を検出できない [恒真ゲート] [検出力]
 
 - 事象: docs 権威から起動値を導出する機構で、`derive_launch` の段 6 effort を別の許容値へ
@@ -16578,6 +16589,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   停止裁定は「実装しない」という裁定であって作業なしではなく、対象が activation の正しさ関門である
   以上 `DW-C00` の「正しさ防壁に触る段では独立の敵対検証子を省かない」に該当する。**停止で終える
   wave を軽量版の根拠にしてはならない。** 実害は誤った報告 1 通で止まり、実装・land には至っていない。
+
+- **再発: 2026-09-01 (2 件、同一 wave)** — 既存例は親が「呼び出しの存在」を保証の発火と
+  取り違えた型だったのに対し、本件は **(a) 親が隣接する検証経路の成功を production 関門の
+  検証と読んだ**型と、**(b) 親が実測だけから一般化し、既に解禁している裁定を引かなかった**型
+  である。いずれも [T-425] の段 1 brief で起き、段 3 の敵対 2 レンズが独立に反証した。
+  (a) A4 の候補 activation bytes を `_is_valid_activation_successor_with_artifact`
+  (replay 用) で検証し「production 配線で検証済み」と書いたが、発行器
+  `tools/issue_env_contract_activation.py` は `_is_valid_activation_successor_for_issue` を使い、
+  未 active successor に現行 `EFFECTIVE_CLOCK_METHOD` との一致を追加要求する。
+  発行時 predicate で測り直すと通ったため結論は変わらず、実害は根拠の不足だけで止まった。
+  **同じ module の隣接する述語は、名前が似ていても production の関門とは限らない。**
+  呼び手 (CLI・loader) から predicate を逆に辿って同一性を確かめる必要がある。
+  (b) `build_v2_g1_candidate()` が `budget-approval-not-ratified` で止まる実測から
+  「A6 の AI 側準備は今日は実行不能」と一般化したが、D1391 が凍結側下位実装の exact 正本適合と
+  「人間承認直前までの successor 準備」を既に解禁していた。候補文書の生成が到達不能であることと、
+  A6 の準備工程全体が不能であることは別命題である。**実測が塞がりを示しても、
+  同じ主題の既裁定を引くまで「できない」と一般化してはならない。**
+  実害は brief 1 通で止まり、段 4 で scope を [T-2105] への handoff へ訂正した。
+  本件は `DW-C00` の敵対検証子を省かない規定が 2 度目に機能した事例であり、
+  同規定を正しさ防壁に触る wave へ緩めてはならないことを重ねて示す。
 ### F598. 変異 harness の起動条件で 5 回連続ではじかれた [手順漏れ]
 
 - 事象: `tools/mutation_harness.py` の起動が 5 回連続で rc=2 停止した。停止理由は
