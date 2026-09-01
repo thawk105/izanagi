@@ -181,7 +181,7 @@ CHECKPOINT_STATE_ACTIONS: Mapping[str, frozenset[str]] = {
 FROZEN_SEMANTICS_SHA256 = "b1e3a611c2a61409df07e399e09fc96c5d251d58d830754cc9e8a0494a80bcf4"
 FROZEN_OQL_FIXTURE_SHA256 = "dfcef2c4e5bf1cfa7d18e4dacfa70a1b29b8fd26a93359366cbea32cd57ce97e"
 FROZEN_PREREGISTRATION_SHA256 = "eace24a94ed3e206b401e8264675f81b7e7278b6aa90b39a55ac26353d1cb89c"
-FROZEN_AMENDMENT_SHA256 = "d9fe5e737ce60cc776b3bdae6d9031eb9fbb26b53761de6b51cd2d709b46d41c"
+FROZEN_AMENDMENT_SHA256 = "1fb7517081f5cc73a37021768aabf08443970b71365ba41816c623be90302b39"
 FROZEN_MAIN_REQUEST_ORACLE_SHA256 = "c6d741fdb9e8fbe2e0b70a6097cd505d2100c849c375e44e99df29226a531191"
 PHASE_SEMANTIC_CONTRACT_SHA256 = "7aee223744adbda6d36dfa03fdc8e08562062b486caa71689eefe149b6f0f6f6"
 
@@ -2881,8 +2881,6 @@ def _validate_dblp_interpreted_query(
 
 
 def observed_response_locators(index: str, entity_body: bytes, status: int) -> list[str]:
-    if status != 200:
-        return []
     locators: list[str] = []
     if index == "arxiv":
         try:
@@ -2922,14 +2920,11 @@ def observed_response_locators(index: str, entity_body: bytes, status: int) -> l
         return locators
     if index == "dblp":
         result = value.get("result")
-        try:
-            hits = result["hits"]
-        except (KeyError, TypeError):
-            return []
-        if not isinstance(hits, Mapping):
-            return []
         if isinstance(result, Mapping) and "query" in result:
             locators.append("/result/query")
+        hits = result.get("hits") if isinstance(result, Mapping) else None
+        if not isinstance(hits, Mapping):
+            return locators
         for name in ("@total", "@first", "@sent"):
             if name in hits:
                 locators.append(f"/result/hits/{name}")
@@ -3046,28 +3041,40 @@ def _frozen_input_digest_entries(
     paths: Sequence[Path], repo_root: Path
 ) -> list[dict[str, str]]:
     entries = []
-    preregistration_label = _relative_label(FROZEN_INPUT_PATHS[0], repo_root)
-    amendment_label = _relative_label(FROZEN_INPUT_PATHS[1], repo_root)
+    preregistration_label = (
+        "docs/related-work/claim-survey/"
+        "2026-08-27-axis3-search-preregistration.md"
+    )
+    amendment_label = (
+        "docs/related-work/claim-survey/"
+        "2026-09-01-axis3-search-amendment.md"
+    )
     for path in paths:
         path = Path(path)
         label = _relative_label(path, repo_root)
-        if path.exists():
-            digest = _sha256(path.read_bytes())
-            if label == preregistration_label and digest != FROZEN_PREREGISTRATION_SHA256:
-                raise ContractError(
-                    "frozen_input_stale",
-                    "旧凍結登録bytesが独立literal digestと不一致",
-                )
-            if label == amendment_label and digest != FROZEN_AMENDMENT_SHA256:
-                raise ContractError("frozen_input_stale", "amendment bytesが段5凍結digestと不一致")
-        elif label == amendment_label:
-            # This author worktree intentionally excludes docs.  The literal is
-            # the SHA-256 of the exact amendment bytes in the adjudicated patch.
-            digest = FROZEN_AMENDMENT_SHA256
-        else:
-            raise ContractError("seal_path", f"旧凍結登録を読めない: {path}")
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            raise ContractError("seal_path", f"凍結入力を読めない: {path}") from exc
+        digest = _sha256(data)
+        if label == preregistration_label and digest != FROZEN_PREREGISTRATION_SHA256:
+            raise ContractError(
+                "frozen_input_stale",
+                "旧凍結登録bytesが独立literal digestと不一致",
+            )
+        if label == amendment_label:
+            _validate_frozen_amendment_bytes(data)
         entries.append({"path": label, "sha256": digest})
     return sorted(entries, key=lambda entry: entry["path"])
+
+
+def _validate_frozen_amendment_bytes(data: bytes) -> None:
+    """Compare the actual frozen amendment bytes with the independent literal."""
+
+    if _sha256(data) != FROZEN_AMENDMENT_SHA256:
+        raise ContractError(
+            "frozen_input_stale", "amendment bytesが凍結digestと不一致"
+        )
 
 
 def _head_blob_bytes(repo_root: Path, label: str) -> bytes:
@@ -3368,7 +3375,7 @@ def build_registration_seal(
     source_paths: Sequence[Path] = SOURCE_PATHS,
     schema_paths: Sequence[Path] = SCHEMA_PATHS,
     frozen_input_paths: Sequence[Path] = FROZEN_INPUT_PATHS,
-    enforce_head: bool = False,
+    enforce_head: bool = True,
     package_init_path: Path | None = None,
     resolved_head_commit: str | None = None,
 ) -> dict[str, Any]:
@@ -3464,7 +3471,7 @@ def validate_registration_seal(
     source_paths: Sequence[Path] = SOURCE_PATHS,
     schema_paths: Sequence[Path] = SCHEMA_PATHS,
     frozen_input_paths: Sequence[Path] = FROZEN_INPUT_PATHS,
-    enforce_head: bool = False,
+    enforce_head: bool = True,
 ) -> None:
     _validate_with_schema(seal, SCHEMA_PATHS[3])
     sealed_payload = copy.deepcopy(dict(seal))
@@ -4168,7 +4175,10 @@ def _replay_preflight_wal(
         "byte_count": valid_byte_count,
         # record_count remains the compact logical count for compatibility;
         # frame_count exposes all durable physical records, including raw.
-        "record_count": sum(record["event"] != "response_received" for record in records),
+        "record_count": sum(
+            record["event"] in {"attempt_started", "response_committed"}
+            for record in records
+        ),
         "frame_count": len(records),
         "tail_sha256": previous_digest,
         "page_count": len(pages),
@@ -5854,6 +5864,23 @@ def _finish_report(report: dict[str, Any]) -> dict[str, Any]:
     return report
 
 
+def _finalize_preflight_report(
+    report: dict[str, Any],
+    catalog: Mapping[str, Any],
+    seal: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Finalize, serialize, read back, and validate a complete report in memory."""
+
+    finished = _finish_report(report)
+    restored = json.loads(_canonical_json(finished).decode("utf-8"))
+    validate_preflight_report(restored, catalog, seal)
+    if restored != finished:
+        raise ContractError(
+            "preflight_report", "finalized reportのread-backがproducer値と不一致"
+        )
+    return finished
+
+
 def _validate_preflight_wal_attempt_sequence(
     catalog: Mapping[str, Any], evidences: Sequence[Mapping[str, Any]]
 ) -> dict[str, Any]:
@@ -5861,15 +5888,7 @@ def _validate_preflight_wal_attempt_sequence(
 
     rows_by_id = {row["stream_id"]: row for row in catalog["rows"]}
     availability_id = "AX3A1-L-ID-01@openalex"
-    planned_ids = [
-        availability_id,
-        *(
-            row["stream_id"]
-            for row in catalog["rows"]
-            if row["stream_id"] != availability_id
-            and row["request_factory"]["state"] == "complete"
-        ),
-    ]
+    planned_ids = _preflight_planned_stream_ids(catalog)
     history: list[Mapping[str, Any]] = []
     initial_offset = 0
 
@@ -5942,6 +5961,37 @@ def _validate_preflight_wal_attempt_sequence(
         "next_initial_stream_id": next_initial,
         "retry_stream_id": retry_stream_id() if next_initial is None else None,
     }
+
+
+def _preflight_planned_stream_ids(catalog: Mapping[str, Any]) -> list[str]:
+    """Return the exact registered preflight order without executing transport."""
+
+    availability_id = "AX3A1-L-ID-01@openalex"
+    return [
+        availability_id,
+        *(
+            row["stream_id"]
+            for row in catalog["rows"]
+            if row["stream_id"] != availability_id
+            and row["request_factory"]["state"] == "complete"
+        ),
+    ]
+
+
+def _ordered_ready_rows(
+    catalog: Mapping[str, Any], statuses: Mapping[str, str]
+) -> list[Mapping[str, Any]]:
+    """Return every ready row in the frozen arXiv/OpenAlex/DBLP order."""
+
+    rank = {"arxiv": 0, "openalex": 1, "dblp": 2}
+    return sorted(
+        (
+            row
+            for row in catalog["rows"]
+            if statuses.get(row["stream_id"]) == "ready"
+        ),
+        key=lambda row: (rank[row["index"]], row["stream_id"]),
+    )
 
 
 def _derive_preflight_report_from_wal(
@@ -6046,9 +6096,7 @@ def _derive_preflight_report_from_wal(
             "phase_argv_contract_sha256"
         ],
     }
-    finished = _finish_report(report)
-    validate_preflight_report(finished, catalog, seal)
-    return finished
+    return _finalize_preflight_report(report, catalog, seal)
 
 
 def _quota_checkpoint(
@@ -6119,9 +6167,19 @@ def run_preflight(
 ) -> dict[str, Any]:
     """Run live page-0 probes only after the registration closure is valid."""
 
-    if isinstance(transport, LiveHTTPTransport) and bundle_dir is None:
+    if type(transport) is LiveSearchSession and bundle_dir is None:
         raise ContractError("bundle_preflight", "live preflightはraw bundle無しで実行できない")
     validate_catalog(catalog)
+    observed_argv = list(effective_argv if effective_argv is not None else argv)
+    phase_argv = validate_effective_phase_argv(observed_argv, "preflight")
+    _bind_transport_semantics(phase_argv, transport)
+    _bind_semantic_path(phase_argv, "--bundle", bundle_dir)
+    _bind_semantic_path(phase_argv, "--checkpoint", checkpoint_path)
+    if bundle_dir is not None and phase_argv["artifact_class"] != "production":
+        raise ContractError(
+            "bundle_nonproduction",
+            "simulation transportはtop-level preflight bundleを発行できない",
+        )
     validate_registration_seal(
         seal,
         catalog_data,
@@ -6130,12 +6188,8 @@ def run_preflight(
         repo_root=repo_root,
         source_paths=source_paths,
         schema_paths=schema_paths,
+        enforce_head=phase_argv["artifact_class"] == "production",
     )
-    observed_argv = list(effective_argv if effective_argv is not None else argv)
-    phase_argv = validate_effective_phase_argv(observed_argv, "preflight")
-    _bind_transport_semantics(phase_argv, transport)
-    _bind_semantic_path(phase_argv, "--bundle", bundle_dir)
-    _bind_semantic_path(phase_argv, "--checkpoint", checkpoint_path)
     writer = (
         _open_bundle_writer(
             transport,
@@ -6241,7 +6295,7 @@ def run_preflight(
                 "phase_argv_contract_sha256"
             ],
         }
-        finished = _finish_report(report)
+        finished = _finalize_preflight_report(report, catalog, seal)
         if writer is not None:
             writer._write_state_pointer()
         return finished
@@ -6365,7 +6419,7 @@ def run_preflight(
         "effective_argv_sha256": _sha256(_canonical_json(observed_argv)),
         "phase_argv_contract_sha256": phase_argv["phase_argv_contract_sha256"],
     }
-    finished = _finish_report(report)
+    finished = _finalize_preflight_report(report, catalog, seal)
     if writer is not None:
         eligibility = _derive_finalize_eligibility(
             kind="preflight",
@@ -6379,7 +6433,6 @@ def run_preflight(
                 bundle_dir,
                 catalog,
                 seal,
-                _allow_nonproduction=phase_argv["artifact_class"] != "production",
             )
         else:
             writer._write_state_pointer()
@@ -6809,6 +6862,13 @@ def run_ready(
             "production run-readyはpreflight bundleとfinal raw bundleが必要",
         )
     validate_catalog(catalog)
+    observed_argv = list(effective_argv if effective_argv is not None else argv)
+    phase_argv = validate_effective_phase_argv(observed_argv, "run-ready")
+    _bind_transport_semantics(phase_argv, transport)
+    _bind_semantic_path(phase_argv, "--bundle", bundle_dir)
+    _bind_semantic_path(
+        phase_argv, "--preflight-bundle", preflight_bundle_dir
+    )
     validate_registration_seal(
         seal,
         catalog_data,
@@ -6817,20 +6877,13 @@ def run_ready(
         repo_root=repo_root,
         source_paths=source_paths,
         schema_paths=schema_paths,
-    )
-    observed_argv = list(effective_argv if effective_argv is not None else argv)
-    phase_argv = validate_effective_phase_argv(observed_argv, "run-ready")
-    _bind_transport_semantics(phase_argv, transport)
-    _bind_semantic_path(phase_argv, "--bundle", bundle_dir)
-    _bind_semantic_path(
-        phase_argv, "--preflight-bundle", preflight_bundle_dir
+        enforce_head=phase_argv["artifact_class"] == "production",
     )
     parent_preflight_manifest_sha256: str | None = None
     bundled_report, parent_preflight_manifest_sha256 = load_preflight_bundle(
         preflight_bundle_dir,
         catalog,
         seal,
-        _allow_nonproduction=phase_argv["artifact_class"] != "production",
     )
     if preflight_report is not None and preflight_report != bundled_report:
         raise ContractError("bundle_preflight", "引数reportがbundle内reportと不一致")
@@ -6855,11 +6908,7 @@ def run_ready(
         first_external_request_at=first,
     )
     statuses = {row["stream_id"]: row["status"] for row in preflight_report["rows"]}
-    rank = {"arxiv": 0, "openalex": 1, "dblp": 2}
-    ready_rows = sorted(
-        (row for row in catalog["rows"] if statuses[row["stream_id"]] == "ready"),
-        key=lambda row: (rank[row["index"]], row["stream_id"]),
-    )
+    ready_rows = _ordered_ready_rows(catalog, statuses)
     results = []
     executed_rows = []
     for row in ready_rows:
@@ -6909,8 +6958,6 @@ def run_ready(
                 catalog=catalog,
                 seal=seal,
                 parent_preflight_bundle_dir=preflight_bundle_dir,
-                _allow_nonproduction=phase_argv["artifact_class"]
-                != "production",
             )
         else:
             writer._write_state_pointer()
@@ -7140,9 +7187,11 @@ def _derive_latest_stream_result(
                 )
             pass_groups.append((pass_number, [material]))
     if [number for number, _ in pass_groups] != list(
-        range(pass_groups[0][0], pass_groups[0][0] + len(pass_groups))
+        range(1, len(pass_groups) + 1)
     ):
-        raise ContractError("bundle_page_progress", "restart pass番号が連続でない")
+        raise ContractError(
+            "bundle_page_progress", "stream pass番号は1始まりの連続列が必要"
+        )
     derived = [
         _derive_stream_result(row, group) for _number, group in pass_groups
     ]
@@ -7151,6 +7200,30 @@ def _derive_latest_stream_result(
             "bundle_page_progress", "完走済みpassの後にbranchをrestartできない"
         )
     return derived[-1]
+
+
+def _validate_bundle_checkpoint_entries(
+    checkpoints: Sequence[Any],
+) -> list[Mapping[str, Any]]:
+    """Reject legacy string descriptors before checkpoint material validation."""
+
+    if any(not isinstance(entry, Mapping) for entry in checkpoints):
+        raise ContractError(
+            "bundle_checkpoint_downgrade",
+            "旧文字列checkpoint entryへのdowngradeを拒否",
+        )
+    return list(checkpoints)
+
+
+def _validate_checkpoint_ledger_prefix(
+    checkpoint: Mapping[str, Any], expected_prefix: str
+) -> None:
+    """Bind one replayed checkpoint to its independently derived ledger prefix."""
+
+    if checkpoint.get("ledger_prefix_sha256") != expected_prefix:
+        raise ContractError(
+            "bundle_checkpoint_ledger", "checkpointがledger prefixと不一致"
+        )
 
 
 def validate_bundle(
@@ -7203,6 +7276,7 @@ def validate_bundle(
         catalog_bytes(catalog),
         argv=seal_argv,
         commit=seal_commit,
+        enforce_head=artifact_class == "production",
     )
     if (
         manifest.get("registration_seal_sha256") != seal.get("seal_sha256")
@@ -7608,11 +7682,7 @@ def validate_bundle(
             raise ContractError("bundle_lifecycle", "finalized finalはrun-result必須")
     elif report_descriptor is not None or run_descriptor is not None:
         raise ContractError("bundle_lifecycle", "in-progress bundleにfinal resultを置けない")
-    if any(not isinstance(entry, Mapping) for entry in checkpoints):
-        raise ContractError(
-            "bundle_checkpoint_downgrade",
-            "旧文字列checkpoint entryへのdowngradeを拒否",
-        )
+    checkpoints = _validate_bundle_checkpoint_entries(checkpoints)
     if ledger is None:
         raise ContractError("bundle_checkpoint", "producer bundleはledgerが必要")
     if packed_replayed is None and len(checkpoints) != len(pages):
@@ -7663,8 +7733,7 @@ def validate_bundle(
         previous_wire_attempts = checkpoint["wire_attempt_count"]
         assert ledger is not None
         expected_prefix = ledger_prefix_digests[page_ordinal - 1]
-        if checkpoint["ledger_prefix_sha256"] != expected_prefix:
-            raise ContractError("bundle_checkpoint_ledger", "checkpointがledger prefixと不一致")
+        _validate_checkpoint_ledger_prefix(checkpoint, expected_prefix)
         evidence = page_evidence[page_ordinal - 1]
         intent = committed_intents[page_ordinal - 1]
         expected_checkpoint_pass = 1 if kind == "preflight" else evidence["pass_number"]
@@ -7805,16 +7874,8 @@ def validate_bundle(
                     "bundle_checkpoint_rederived",
                     "final checkpoint wire countが親attemptとraw page数からの再導出値に不一致",
                 )
-        rank = {"arxiv": 0, "openalex": 1, "dblp": 2}
         statuses = {row["stream_id"]: row["status"] for row in parent_report["rows"]}
-        ready_rows = sorted(
-            (
-                row
-                for row in catalog["rows"]
-                if statuses.get(row["stream_id"]) == "ready"
-            ),
-            key=lambda row: (rank[row["index"]], row["stream_id"]),
-        )
+        ready_rows = _ordered_ready_rows(catalog, statuses)
         ready_ids = [row["stream_id"] for row in ready_rows]
         grouped: list[tuple[str, list[tuple[Mapping[str, Any], bytes, Mapping[str, Any]]]]] = []
         for evidence, body, checkpoint in zip(
@@ -8265,7 +8326,6 @@ def _resume_preflight_from_wal(
         root,
         catalog,
         seal,
-        _allow_nonproduction=manifest.get("artifact_class") != "production",
     )
     return {
         "schema_version": "axis3-search-resume/v1",
@@ -8413,6 +8473,39 @@ def _resume_final_request_sequence(
         page_number += 1
 
 
+def _finalized_run_resume_status(
+    root: Path,
+    descriptor: Mapping[str, Any],
+    phase_argv: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Report lifecycle finality separately from the saved axis predicate."""
+
+    try:
+        run_result = json.loads(
+            _safe_bundle_path(root, descriptor.get("path")).read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ContractError("bundle_run", "finalized run resultを読めない") from exc
+    axis_complete = run_result.get("axis_complete") if isinstance(
+        run_result, Mapping
+    ) else None
+    if not isinstance(axis_complete, bool):
+        raise ContractError("bundle_run", "finalized run resultにaxis_completeが無い")
+    return {
+        "schema_version": "axis3-search-resume/v1",
+        "status": "already_finalized",
+        "lifecycle_complete": True,
+        "axis_complete": axis_complete,
+        "complete": axis_complete,
+        "wire_attempt_count": None,
+        "checkpoint": None,
+        "run_result_sha256": descriptor["sha256"],
+        **phase_argv,
+    }
+
+
 def resume_bundle(
     bundle_dir: Path,
     catalog: Mapping[str, Any],
@@ -8429,7 +8522,6 @@ def resume_bundle(
     """Reconstruct saved state, resume exactly, then rejoin the ready-order loop."""
 
     validate_catalog(catalog)
-    validate_registration_seal(seal, catalog_data, argv=argv, commit=commit)
     root = Path(bundle_dir)
     manifest, _, _, _ = _read_bundle_manifest(root)
     phase_argv = validate_effective_phase_argv(
@@ -8440,18 +8532,26 @@ def resume_bundle(
     _bind_semantic_path(
         phase_argv, "--preflight-bundle", preflight_bundle_dir
     )
+    validate_registration_seal(
+        seal,
+        catalog_data,
+        argv=argv,
+        commit=commit,
+        enforce_head=phase_argv["artifact_class"] == "production",
+    )
     if manifest.get("artifact_class") != phase_argv.get("artifact_class"):
         raise ContractError(
             "bundle_nonproduction",
             "resume transport classがorigin artifact classと不一致",
         )
-    _validate_bundle_for_resume(
+    validate_bundle(
         bundle_dir,
         catalog=catalog,
         seal=seal,
         parent_preflight_bundle_dir=(
             preflight_bundle_dir if manifest.get("kind") == "final" else None
         ),
+        _allow_in_progress=True,
     )
     if manifest.get("_finalize_recovered") is True:
         recovery_writer = _open_bundle_writer(
@@ -8492,16 +8592,9 @@ def resume_bundle(
         descriptor = manifest.get("run_result")
         if not isinstance(descriptor, Mapping):
             raise ContractError("bundle_lifecycle", "finalized final run-resultが無い")
-        return {
-            "schema_version": "axis3-search-resume/v1",
-            "status": "already_finalized",
-            "complete": True,
-            "wire_attempt_count": None,
-            "checkpoint": None,
-            "run_result_sha256": descriptor["sha256"],
-            "manifest_sha256": _read_bundle_manifest(root)[2],
-            **phase_argv,
-        }
+        resumed = _finalized_run_resume_status(root, descriptor, phase_argv)
+        resumed["manifest_sha256"] = _read_bundle_manifest(root)[2]
+        return resumed
     checkpoints = manifest.get("checkpoints")
     if not isinstance(checkpoints, list) or not checkpoints:
         raise ContractError("bundle_resume", "resume可能なcheckpointが無い")
@@ -8626,16 +8719,11 @@ def resume_bundle(
         preflight_bundle_dir,
         catalog,
         seal,
-        _allow_nonproduction=phase_argv["artifact_class"] != "production",
     )
     if parent_digest != current_manifest["parent_preflight_manifest_sha256"]:
         raise ContractError("bundle_parent", "resume preflight親digestが不一致")
     statuses = {item["stream_id"]: item["status"] for item in parent_report["rows"]}
-    rank = {"arxiv": 0, "openalex": 1, "dblp": 2}
-    ready_rows = sorted(
-        (item for item in catalog["rows"] if statuses[item["stream_id"]] == "ready"),
-        key=lambda item: (rank[item["index"]], item["stream_id"]),
-    )
+    ready_rows = _ordered_ready_rows(catalog, statuses)
     ready_ids = [item["stream_id"] for item in ready_rows]
     if [stream_id for stream_id, _ in materials_by_stream] != ready_ids[
         : len(materials_by_stream)
@@ -8708,7 +8796,6 @@ def resume_bundle(
         catalog=catalog,
         seal=seal,
         parent_preflight_bundle_dir=preflight_bundle_dir,
-        _allow_nonproduction=phase_argv["artifact_class"] != "production",
     )
     current_result = next(
         result for result in results if result["stream_id"] == row["stream_id"]

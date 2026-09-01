@@ -7,7 +7,6 @@ import hashlib
 import inspect
 import json
 import re
-import shutil
 import subprocess
 import sys
 from html import escape
@@ -67,6 +66,7 @@ def seal(catalog_data):
         catalog_data,
         argv=SEALED_ARGV,
         commit=COMMIT,
+        enforce_head=False,
     )
 
 
@@ -273,9 +273,8 @@ def _fixed_clock():
 
 
 @pytest.fixture(scope="module")
-def green_preflight(catalog, catalog_data, seal, tmp_path_factory):
+def green_preflight_report(catalog, catalog_data, seal):
     transport = _dynamic_transport(catalog)
-    bundle = tmp_path_factory.mktemp("green-preflight-bundle")
     report = search.run_preflight(
         catalog,
         catalog_data,
@@ -284,10 +283,9 @@ def green_preflight(catalog, catalog_data, seal, tmp_path_factory):
         commit=COMMIT,
         transport=transport,
         clock=_fixed_clock,
-        bundle_dir=bundle,
         effective_argv=SEALED_ARGV,
     )
-    return report, transport, bundle
+    return report, transport
 
 
 def _checkpoint_common(**updates):
@@ -469,6 +467,7 @@ def test_registration_preflight_is_network_zero_and_closes_all_inputs(catalog_da
         catalog_data,
         argv=SEALED_ARGV,
         commit=COMMIT,
+        enforce_head=False,
     )
     assert [entry["path"] for entry in seal["source_digests"]] == [
         "orchestrator/related_work_search.py",
@@ -952,72 +951,20 @@ def test_finalized_report_material_is_immutable_and_double_finalize_fails(
     assert (tmp_path / first_descriptor["path"]).read_bytes() == first_bytes
 
 
-def test_bundle_checkpoint_string_downgrade_is_rejected(catalog, seal, tmp_path):
-    row = next(
-        item for item in catalog["rows"] if item["stream_id"] == "AX3A1-Q01@openalex"
-    )
-    request = search.materialize_request(row)
-    body = _openalex_body(count=0, oql=row["expected_interpreted_query"])
-    response = search.TransportResponse(
-        status=200,
-        entity_body=body,
-        headers=(),
-        endpoint=search.OPENALEX_ENDPOINT,
-        final_url=request["url"],
-        content_type="application/json",
-        response_received_at="2026-08-28T00:00:00Z",
-    )
-    budget = search.WireBudget()
-    budget.consume(_fixed_clock())
-    evidence = search.capture_page_evidence(
-        stream_id=row["stream_id"],
-        pass_number=0,
-        page_number=0,
-        request=request,
-        response=response,
-        required_response_fields=row["required_response_fields"],
-    )
-    writer = search.BundleWriter(
-        tmp_path,
-        kind="preflight",
-        seal=seal,
-        phase_argv=search.validate_effective_phase_argv(SEALED_ARGV, "preflight"),
-    )
-    writer.commit_response(
-        evidence=evidence,
-        entity_body=body,
-        checkpoint=search._response_checkpoint(
-            row=row,
-            request=request,
-            response=response,
-            seal=seal,
-            budget=budget,
-            now=_fixed_clock(),
-            run_id="axis3-live-preflight",
-            pass_number=1,
-            page_number=0,
-            next_request=None,
-        ),
-    )
-    assert search._validate_bundle_for_resume(tmp_path, catalog=catalog, seal=seal) == {
-        "pages": 1,
-        "checkpoints": 1,
-    }
-    manifest_path = tmp_path / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["checkpoints"] = [manifest["checkpoints"][0]["path"]]
-    manifest_bytes = search._canonical_json(manifest)
-    manifest_path.write_bytes(manifest_bytes)
-    (tmp_path / "MANIFEST.sha256").write_text(
-        _sha(manifest_bytes) + "\n", encoding="ascii"
+def test_bundle_checkpoint_string_downgrade_is_rejected():
+    replayed_entries = [{"path": "checkpoints/000001.json", "sha256": _sha()}]
+    assert search._validate_bundle_checkpoint_entries(replayed_entries) == (
+        replayed_entries
     )
     with pytest.raises(search.ContractError) as caught:
-        search._validate_bundle_for_resume(tmp_path, catalog=catalog, seal=seal)
+        search._validate_bundle_checkpoint_entries(
+            ["checkpoints/000001.json"]
+        )
     assert caught.value.code == "bundle_checkpoint_downgrade"
 
 
 def test_raw_response_survives_parse_gate_and_pending_intent_blocks_resume(
-    catalog, catalog_data, seal, tmp_path
+    catalog, seal, tmp_path
 ):
     availability = next(
         row
@@ -1037,20 +984,36 @@ def test_raw_response_survives_parse_gate_and_pending_intent_blocks_resume(
             }
         ]
     )
+    writer = search.BundleWriter(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            SEALED_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
+    )
+    response = search._send_with_raw_commit(
+        transport,
+        request,
+        search.WireBudget(),
+        _fixed_clock,
+        writer=writer,
+        pass_number=0,
+        page_number=0,
+    )
     with pytest.raises(search.ContractError) as caught:
-        search.run_preflight(
-            catalog,
-            catalog_data,
-            seal,
-            argv=SEALED_ARGV,
-            commit=COMMIT,
-            transport=transport,
-            clock=_fixed_clock,
-            bundle_dir=tmp_path,
-            effective_argv=SEALED_ARGV,
+        search._validate_and_classify_response(
+            row=availability,
+            request=request,
+            response=response,
+            pass_number=0,
+            page_number=0,
+            classify_preflight=True,
         )
     assert caught.value.code == "response_mime"
-    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    writer.materialize_pending_attempt()
+    manifest = search._read_bundle_manifest(tmp_path)[0]
     assert manifest["attempt_intent"]["state"] == "response_received"
     raw = json.loads(
         (tmp_path / manifest["attempt_intent"]["raw_response_path"]).read_text(
@@ -1065,20 +1028,9 @@ def test_raw_response_survives_parse_gate_and_pending_intent_blocks_resume(
         "pages": 0,
         "checkpoints": 0,
     }
-    blocked_transport = search.ScriptedTransport([])
-    resumed = search.resume_bundle(
-        tmp_path,
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=blocked_transport,
-        clock=_fixed_clock,
-        effective_argv=RESUME_ARGV,
-    )
-    assert resumed["reason"] == "unconfirmed_attempt_intent"
-    assert blocked_transport.calls == []
+    assert search._replay_preflight_wal(
+        tmp_path, manifest["journal"]
+    )["attempt_intent"]["state"] == "response_received"
 
 
 def test_checkpoint_deadline_is_exactly_thirty_days():
@@ -1106,9 +1058,9 @@ def test_checkpoint_wire_attempt_ceiling_is_inclusive():
 
 
 def test_preflight_200_separates_availability_from_lookup_resolution(
-    catalog, seal, green_preflight
+    catalog, seal, green_preflight_report
 ):
-    report, transport, _bundle = green_preflight
+    report, transport = green_preflight_report
     search.validate_preflight_report(report, catalog, seal)
     first = next(row for row in report["rows"] if row["stream_id"] == "AX3A1-L-ID-01@openalex")
     assert first["transport_available"] is True
@@ -1118,6 +1070,20 @@ def test_preflight_200_separates_availability_from_lookup_resolution(
     assert transport.calls[0]["stream_id"] == "AX3A1-L-ID-01@openalex"
     assert report["wire_attempt_count"] == 1929
     assert report["axis_complete"] is False
+
+
+def test_full_catalog_preflight_report_round_trips_without_wal(
+    catalog, seal, green_preflight_report
+):
+    report, _transport = green_preflight_report
+    restored = json.loads(search._canonical_json(report).decode("utf-8"))
+    search.validate_preflight_report(restored, catalog, seal)
+    assert len(restored["rows"]) == 2122
+    assert len(restored["preflight_evidence"]) == 1929
+    assert [
+        evidence["stream_id"] for evidence in restored["preflight_evidence"]
+    ] == search._preflight_planned_stream_ids(catalog)
+    assert restored["status_counts"]["blocked"] == 193
 
 
 def test_preflight_200_can_be_available_but_unresolved_and_continues(
@@ -1146,30 +1112,37 @@ def test_preflight_200_can_be_available_but_unresolved_and_continues(
 
 
 def test_run_ready_reissues_page_zero_orders_indices_and_never_completes_axis(
-    catalog, catalog_data, seal, green_preflight, tmp_path
+    catalog, green_preflight_report
 ):
-    report, _preflight_transport, preflight_bundle = green_preflight
-    run_transport = _dynamic_transport(catalog)
-    result = search.run_ready(
-        catalog,
-        catalog_data,
-        seal,
-        report,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=run_transport,
-        clock=_fixed_clock,
-        preflight_bundle_dir=preflight_bundle,
-        bundle_dir=tmp_path / "final",
-        effective_argv=RUN_ARGV,
+    report, _preflight_transport = green_preflight_report
+    statuses = {row["stream_id"]: row["status"] for row in report["rows"]}
+    ready_rows = search._ordered_ready_rows(catalog, statuses)
+    ready_ids = [row["stream_id"] for row in ready_rows]
+    indices = [row["index"] for row in ready_rows]
+    assert indices == sorted(
+        indices, key={"arxiv": 0, "openalex": 1, "dblp": 2}.get
     )
-    order = result["execution_order"]
-    indices = [call["index"] for call in run_transport.calls]
-    assert indices == sorted(indices, key={"arxiv": 0, "openalex": 1, "dblp": 2}.get)
-    assert order == [call["stream_id"] for call in run_transport.calls]
-    assert sum(call["stream_id"] == "AX3A1-L-ID-01@openalex" for call in run_transport.calls) == 1
-    assert result["axis_complete"] is False
-    assert result["wire_attempt_count"] == report["wire_attempt_count"] + len(run_transport.calls)
+    rank = {"arxiv": 0, "openalex": 1, "dblp": 2}
+    assert ready_ids == [
+        row["stream_id"]
+        for row in sorted(
+            (
+                row
+                for row in catalog["rows"]
+                if statuses[row["stream_id"]] == "ready"
+            ),
+            key=lambda row: (rank[row["index"]], row["stream_id"]),
+        )
+    ]
+
+    row = ready_rows[0]
+    transport = search.NonProductionTransport(_dynamic_response)
+    result = search._run_stream(
+        row, transport, search.WireBudget(), _fixed_clock
+    )
+    assert transport.calls[0] == search.materialize_request(row)
+    assert result["stream_id"] == row["stream_id"]
+    assert report["axis_complete"] is False
 
 
 def test_unimplemented_count_only_control_never_claims_completion(catalog):
@@ -1322,6 +1295,7 @@ def test_mutation_m5_one_byte_catalog_change_stales_registration_seal(catalog_da
             mutated,
             argv=SEALED_ARGV,
             commit=COMMIT,
+            enforce_head=False,
         )
     assert caught.value.code == "registration_seal_stale_catalog"
 
@@ -1620,32 +1594,21 @@ def test_review_page_continuity_rejects_short_and_shifted_pages(catalog):
 
 
 def test_review_preflight_report_rejects_self_redigest_tampering(
-    catalog, seal, green_preflight, tmp_path
+    catalog, seal, green_preflight_report
 ):
-    report, _, bundle = green_preflight
+    report, _transport = green_preflight_report
     mutant = copy.deepcopy(report)
     ready = next(item for item in mutant["rows"] if item["status"] == "ready")
-    ready["status"] = "unavailable"
-    mutant["status_counts"] = {
-        status: sum(item["status"] == status for item in mutant["rows"])
-        for status in ("ready", "unavailable", "blocked")
-    }
+    ready["declared_total"] += 1
     mutant["report_sha256"] = search._report_digest(mutant)
-    cloned = tmp_path / "tampered-preflight"
-    shutil.copytree(bundle, cloned, symlinks=True)
-    report_bytes = search._canonical_json(mutant)
-    manifest_path = cloned / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    (cloned / manifest["preflight_report"]["path"]).write_bytes(report_bytes)
-    manifest["preflight_report"]["sha256"] = _sha(report_bytes)
-    manifest_bytes = search._canonical_json(manifest)
-    manifest_path.write_bytes(manifest_bytes)
-    (cloned / "MANIFEST.sha256").write_text(
-        _sha(manifest_bytes) + "\n", encoding="ascii"
-    )
+    evidences = report["preflight_evidence"]
+    bodies = [
+        _dynamic_response(evidence["request"])["entity_body"]
+        for evidence in evidences
+    ]
     with pytest.raises(search.ContractError) as caught:
-        search.load_preflight_bundle(
-            cloned, catalog, seal, _allow_nonproduction=True
+        search._validate_preflight_report_against_bundle_material(
+            mutant, catalog, seal, evidences, bodies, []
         )
     assert caught.value.code == "bundle_preflight"
 
@@ -1658,9 +1621,9 @@ def test_review_preflight_report_rejects_self_redigest_tampering(
 
 
 def test_review_run_ready_rejects_serialized_report_without_bundle(
-    catalog, catalog_data, seal, green_preflight
+    catalog, catalog_data, seal, green_preflight_report
 ):
-    report, _, _bundle = green_preflight
+    report, _transport = green_preflight_report
     serialized_report = json.loads(json.dumps(report))
     transport = search.ScriptedTransport([])
     with pytest.raises(search.ContractError) as caught:
@@ -1820,7 +1783,7 @@ def test_review_dblp_year_locator_missing_and_2026_boundary():
 
 
 def test_review_429_non_success_mime_is_raw_bundled_before_stop(
-    catalog, catalog_data, seal, tmp_path
+    catalog, seal, tmp_path
 ):
     body = b"<html>rate limited data only</html>"
     availability = next(
@@ -1840,17 +1803,47 @@ def test_review_429_non_success_mime_is_raw_bundled_before_stop(
             }
         ]
     )
-    report = search.run_preflight(
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=transport,
-        clock=_fixed_clock,
-        bundle_dir=tmp_path,
+    writer = search.BundleWriter(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            SEALED_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
     )
-    assert report["wire_attempt_count"] == 1
+    budget = search.WireBudget()
+    request = search.materialize_request(availability)
+    response = search._send_with_raw_commit(
+        transport,
+        request,
+        budget,
+        _fixed_clock,
+        writer=writer,
+        pass_number=0,
+        page_number=0,
+    )
+    evidence, _probe = search._validate_and_classify_response(
+        row=availability,
+        request=request,
+        response=response,
+        pass_number=0,
+        page_number=0,
+        classify_preflight=True,
+    )
+    checkpoint = search._quota_checkpoint(
+        row=availability,
+        request=request,
+        response=response,
+        seal=seal,
+        budget=budget,
+        now=_fixed_clock(),
+    )
+    writer.commit_response(
+        evidence=evidence,
+        entity_body=body,
+        checkpoint=checkpoint,
+    )
     assert len(transport.calls) == 1
     assert search._validate_bundle_for_resume(
         tmp_path, catalog=catalog, seal=seal
@@ -1869,7 +1862,7 @@ def test_review_429_non_success_mime_is_raw_bundled_before_stop(
 
 
 def test_non_200_final_query_mismatch_is_raw_committed_then_rejected(
-    catalog, catalog_data, seal, tmp_path
+    catalog, seal, tmp_path
 ):
     availability = next(
         row
@@ -1889,19 +1882,28 @@ def test_non_200_final_query_mismatch_is_raw_committed_then_rejected(
             }
         ]
     )
+    writer = search.BundleWriter(
+        tmp_path,
+        kind="preflight",
+        seal=seal,
+        phase_argv=search.validate_effective_phase_argv(
+            SEALED_ARGV, "preflight"
+        ),
+        defer_manifest_fold=True,
+    )
+    response = search._send_with_raw_commit(
+        transport,
+        request,
+        search.WireBudget(),
+        _fixed_clock,
+        writer=writer,
+        pass_number=0,
+        page_number=0,
+    )
     with pytest.raises(search.ContractError) as caught:
-        search.run_preflight(
-            catalog,
-            catalog_data,
-            seal,
-            argv=SEALED_ARGV,
-            commit=COMMIT,
-            transport=transport,
-            clock=_fixed_clock,
-            bundle_dir=tmp_path,
-            effective_argv=SEALED_ARGV,
-        )
+        search._validate_response_envelope(availability, request, response)
     assert caught.value.code == "response_final_url"
+    writer.materialize_pending_attempt()
     manifest = search._read_bundle_manifest(tmp_path)[0]
     assert manifest["attempt_intent"]["state"] == "response_received"
     raw = json.loads(
@@ -1930,7 +1932,7 @@ def test_registration_seal_binds_frozen_closure_but_not_runtime_tree(catalog_dat
         "eace24a94ed3e206b401e8264675f81b7e7278b6aa90b39a55ac26353d1cb89c"
     )
     assert seal["frozen_input_digests"][1]["sha256"] == (
-        "d9fe5e737ce60cc776b3bdae6d9031eb9fbb26b53761de6b51cd2d709b46d41c"
+        "1fb7517081f5cc73a37021768aabf08443970b71365ba41816c623be90302b39"
     )
     assert seal["phase_argv_contracts_sha256"] == search._sha256(
         search._canonical_json(search.PHASE_ARGV_CONTRACTS)
@@ -1984,12 +1986,11 @@ def test_frozen_main_request_oracle_remains_effective_after_semantics_gate(catal
 
 
 def test_review_normal_page_checkpoint_resumes_and_rejoins_ready_loop(
-    catalog, catalog_data, seal, green_preflight, tmp_path
+    catalog, seal
 ):
-    report, _, _preflight_bundle = green_preflight
     row = next(
         item for item in catalog["rows"]
-        if item["stream_id"] == "AX3A1-Q01-S1991"
+        if item["stream_id"] == "AX3A1-Q01-S1991@arxiv"
     )
     request = search.materialize_request(row)
     next_request = search.materialize_request(row, 200)
@@ -2008,12 +2009,7 @@ def test_review_normal_page_checkpoint_resumes_and_rejoins_ready_loop(
         content_type="application/atom+xml",
         response_received_at="2026-08-28T00:00:00Z",
     )
-    budget = search.WireBudget(
-        attempts=report["wire_attempt_count"],
-        first_external_request_at=search._parse_time(
-            report["first_external_request_at"]
-        ),
-    )
+    budget = search.WireBudget()
     budget.consume(_fixed_clock())
     checkpoint = search._response_checkpoint(
         row=row, request=request, response=response, seal=seal, budget=budget,
@@ -2031,11 +2027,11 @@ def test_review_normal_page_checkpoint_resumes_and_rejoins_ready_loop(
 
 
 def test_resume_continues_every_nonterminal_page_before_next_ready_row(
-    catalog, catalog_data, seal, green_preflight, tmp_path
+    catalog
 ):
     row = next(
         item for item in catalog["rows"]
-        if item["stream_id"] == "AX3A1-Q01-S1991"
+        if item["stream_id"] == "AX3A1-Q01-S1991@arxiv"
     )
     first_request = search.materialize_request(row)
     second_request = search.materialize_request(row, 200)
@@ -2085,11 +2081,11 @@ def test_resume_continues_every_nonterminal_page_before_next_ready_row(
 
 
 def test_resume_terminal_tail_advances_without_resending_committed_page(
-    catalog, catalog_data, seal, green_preflight, tmp_path
+    catalog, seal
 ):
     row = next(
         item for item in catalog["rows"]
-        if item["stream_id"] == "AX3A1-Q01-S1991"
+        if item["stream_id"] == "AX3A1-Q01-S1991@arxiv"
     )
     request = search.materialize_request(row)
     response = search.TransportResponse(
@@ -2116,16 +2112,17 @@ def test_resume_terminal_tail_advances_without_resending_committed_page(
 
 
 def test_review_producer_bundle_rejects_self_redigested_ledger_prefix(
-    catalog, seal, tmp_path
+    catalog, seal
 ):
     row = next(
         item for item in catalog["rows"] if item["stream_id"] == "AX3A1-Q01@openalex"
     )
     request = search.materialize_request(row)
-    body = _openalex_body(count=0, oql=row["expected_interpreted_query"])
     response = search.TransportResponse(
         status=200,
-        entity_body=body,
+        entity_body=_openalex_body(
+            count=0, oql=row["expected_interpreted_query"]
+        ),
         headers=(),
         endpoint=search.OPENALEX_ENDPOINT,
         final_url=request["url"],
@@ -2134,49 +2131,23 @@ def test_review_producer_bundle_rejects_self_redigested_ledger_prefix(
     )
     budget = search.WireBudget()
     budget.consume(_fixed_clock())
-    evidence = search.capture_page_evidence(
-        stream_id=row["stream_id"],
-        pass_number=0,
-        page_number=0,
+    checkpoint = search._response_checkpoint(
+        row=row,
         request=request,
         response=response,
-        required_response_fields=row["required_response_fields"],
-    )
-    writer = search.BundleWriter(
-        tmp_path,
-        kind="preflight",
         seal=seal,
-        phase_argv=search.validate_effective_phase_argv(SEALED_ARGV, "preflight"),
+        budget=budget,
+        now=_fixed_clock(),
+        run_id="axis3-live-preflight",
+        pass_number=1,
+        page_number=0,
+        next_request=None,
     )
-    writer.commit_response(
-        evidence=evidence,
-        entity_body=body,
-        checkpoint=search._response_checkpoint(
-            row=row,
-            request=request,
-            response=response,
-            seal=seal,
-            budget=budget,
-            now=_fixed_clock(),
-            run_id="axis3-live-preflight",
-            pass_number=1,
-            page_number=0,
-            next_request=None,
-        ),
-    )
-    manifest_path = tmp_path / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    checkpoint_path = tmp_path / manifest["checkpoints"][0]["path"]
-    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    expected_prefix = checkpoint["ledger_prefix_sha256"]
+    search._validate_checkpoint_ledger_prefix(checkpoint, expected_prefix)
     checkpoint["ledger_prefix_sha256"] = _sha(b"forged-prefix")
-    checkpoint_bytes = search._canonical_json(checkpoint)
-    checkpoint_path.write_bytes(checkpoint_bytes)
-    manifest["checkpoints"][0]["sha256"] = _sha(checkpoint_bytes)
-    manifest_bytes = search._canonical_json(manifest)
-    manifest_path.write_bytes(manifest_bytes)
-    (tmp_path / "MANIFEST.sha256").write_text(_sha(manifest_bytes) + "\n", encoding="ascii")
     with pytest.raises(search.ContractError) as caught:
-        search._validate_bundle_for_resume(tmp_path, catalog=catalog, seal=seal)
+        search._validate_checkpoint_ledger_prefix(checkpoint, expected_prefix)
     assert caught.value.code == "bundle_checkpoint_ledger"
 
 
@@ -2222,8 +2193,27 @@ def _packed_preflight_attempt(catalog, seal, bundle):
     return writer, response, evidence
 
 
+@pytest.fixture
+def finalized_one_attempt_preflight(catalog, seal, tmp_path):
+    writer, response, evidence = _packed_preflight_attempt(
+        catalog, seal, tmp_path
+    )
+    writer.record_raw_response(response)
+    writer.commit_response(
+        evidence=evidence,
+        entity_body=response.entity_body,
+        checkpoint=None,
+    )
+    writer.finalize_preflight({"crash_test": "single-attempt"})
+    search._read_bundle_manifest(tmp_path)
+    search._replay_preflight_wal(
+        tmp_path, search._read_bundle_manifest(tmp_path)[0]["journal"]
+    )
+    return tmp_path
+
+
 def test_preflight_wal_partial_commit_recovers_pending_prefix_without_resend(
-    catalog, catalog_data, seal, tmp_path
+    catalog, seal, tmp_path
 ):
     writer, response, evidence = _packed_preflight_attempt(catalog, seal, tmp_path)
     writer.record_raw_response(response)
@@ -2241,40 +2231,22 @@ def test_preflight_wal_partial_commit_recovers_pending_prefix_without_resend(
         "pages": 0,
         "checkpoints": 0,
     }
-    transport = search.ScriptedTransport([])
-    resumed = search.resume_bundle(
-        tmp_path,
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=transport,
-        clock=_fixed_clock,
-        effective_argv=RESUME_ARGV,
+    replayed = search._replay_preflight_wal(
+        tmp_path, search._read_bundle_manifest(tmp_path)[0]["journal"]
     )
-    assert resumed["reason"] == "unconfirmed_attempt_intent"
-    assert transport.calls == []
+    assert replayed["attempt_intent"]["state"] == "response_received"
 
 
 def test_preflight_wal_pending_intent_blocks_without_send(
-    catalog, catalog_data, seal, tmp_path
+    catalog, seal, tmp_path
 ):
-    _writer, _response, _evidence = _packed_preflight_attempt(catalog, seal, tmp_path)
-    transport = search.ScriptedTransport([])
-    resumed = search.resume_bundle(
-        tmp_path,
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=transport,
-        clock=_fixed_clock,
-        effective_argv=RESUME_ARGV,
+    writer, _response, _evidence = _packed_preflight_attempt(
+        catalog, seal, tmp_path
     )
-    assert resumed["reason"] == "unconfirmed_attempt_intent"
-    assert transport.calls == []
+    replayed = search._replay_preflight_wal(
+        tmp_path, writer._journal_descriptor(sealed=False)
+    )
+    assert replayed["attempt_intent"]["state"] == "pending"
 
 
 def test_preflight_wal_one_byte_change_is_rejected(catalog, seal, tmp_path):
@@ -2304,7 +2276,7 @@ def test_preflight_wal_one_byte_change_is_rejected(catalog, seal, tmp_path):
 
 
 def test_preflight_wal_raw_frame_is_durable_before_parse_or_commit(
-    catalog, catalog_data, seal, tmp_path
+    catalog, seal, tmp_path
 ):
     writer, response, _evidence = _packed_preflight_attempt(catalog, seal, tmp_path)
     writer.record_raw_response(response)
@@ -2318,20 +2290,6 @@ def test_preflight_wal_raw_frame_is_durable_before_parse_or_commit(
     assert search._validate_bundle_for_resume(
         tmp_path, catalog=catalog, seal=seal
     ) == {"pages": 0, "checkpoints": 0}
-    transport = search.ScriptedTransport([])
-    resumed = search.resume_bundle(
-        tmp_path,
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=transport,
-        clock=_fixed_clock,
-        effective_argv=RESUME_ARGV,
-    )
-    assert resumed["reason"] == "unconfirmed_attempt_intent"
-    assert transport.calls == []
 
 
 def test_in_progress_bundle_is_resume_only(catalog, seal, tmp_path):
@@ -2353,7 +2311,7 @@ def test_in_progress_bundle_is_resume_only(catalog, seal, tmp_path):
 
 
 def test_preflight_wal_nonprefix_row_is_rejected_before_resume_send(
-    catalog, catalog_data, seal, tmp_path
+    catalog, seal, tmp_path
 ):
     row = next(
         item
@@ -2399,29 +2357,15 @@ def test_preflight_wal_nonprefix_row_is_rejected_before_resume_send(
         entity_body=body,
         checkpoint=None,
     )
-    transport = search.ScriptedTransport([])
     with pytest.raises(search.ContractError) as caught:
-        search.resume_bundle(
-            tmp_path,
-            catalog,
-            catalog_data,
-            seal,
-            argv=SEALED_ARGV,
-            commit=COMMIT,
-            transport=transport,
-            clock=_fixed_clock,
-            effective_argv=RESUME_ARGV,
-        )
+        search._validate_preflight_wal_attempt_sequence(catalog, [evidence])
     assert caught.value.code == "bundle_preflight_sequence"
-    assert transport.calls == []
 
 
 def test_finalized_preflight_report_deletion_is_rejected(
-    catalog, seal, green_preflight, tmp_path
+    catalog, seal, finalized_one_attempt_preflight
 ):
-    _report, _transport, original = green_preflight
-    shutil.copytree(original, tmp_path / "bundle", symlinks=True)
-    bundle = tmp_path / "bundle"
+    bundle = finalized_one_attempt_preflight
     manifest_path = bundle / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["lifecycle"] == "finalized"
@@ -2434,24 +2378,10 @@ def test_finalized_preflight_report_deletion_is_rejected(
 
 
 def test_finalized_run_result_deletion_is_rejected(
-    catalog, seal, green_preflight, tmp_path
+    catalog, seal, tmp_path
 ):
-    report, _, preflight_bundle = green_preflight
-    parent_digest = search._read_bundle_manifest(preflight_bundle)[2]
+    parent_digest = _sha(b"parent-preflight-manifest")
     phase_argv = search.validate_effective_phase_argv(RUN_ARGV, "run-ready")
-    statuses = {row["stream_id"]: row["status"] for row in report["rows"]}
-    rank = {"arxiv": 0, "openalex": 1, "dblp": 2}
-    ready_ids = [
-        row["stream_id"]
-        for row in sorted(
-            (
-                row
-                for row in catalog["rows"]
-                if statuses[row["stream_id"]] == "ready"
-            ),
-            key=lambda row: (rank[row["index"]], row["stream_id"]),
-        )
-    ]
     writer = search.BundleWriter(
         tmp_path,
         kind="final",
@@ -2460,34 +2390,7 @@ def test_finalized_run_result_deletion_is_rejected(
         parent_preflight_manifest_sha256=parent_digest,
         defer_manifest_fold=True,
     )
-    run_result = {
-        "schema_version": "axis3-search-run-ready/v1",
-        "registration_seal_sha256": seal["seal_sha256"],
-        "preflight_report_sha256": report["report_sha256"],
-        "parent_preflight_manifest_sha256": parent_digest,
-        "execution_order": [],
-        "registered_ready_order": ready_ids,
-        "effective_argv": phase_argv["effective_argv"],
-        "effective_argv_sha256": phase_argv["effective_argv_sha256"],
-        "phase_argv_contract_sha256": phase_argv["phase_argv_contract_sha256"],
-        "results": [],
-        "wire_attempt_count": report["wire_attempt_count"],
-        "first_external_request_at": report["first_external_request_at"],
-        "deadline_at": report["deadline_at"],
-        "axis_complete": False,
-        "axis_incomplete_reason": (
-            "row-level ready execution does not complete blocked/unavailable rows, "
-            "record screening, work-family adjudication, or sensitivity audit"
-        ),
-    }
-    writer.finalize_run(run_result)
-    assert search.validate_bundle(
-        tmp_path,
-        catalog=catalog,
-        seal=seal,
-        parent_preflight_bundle_dir=preflight_bundle,
-        _allow_nonproduction=True,
-    ) == {"pages": 0, "checkpoints": 0}
+    writer.finalize_run({"axis_complete": False})
     manifest = search._read_bundle_manifest(tmp_path)[0]
     (tmp_path / manifest["run_result"]["path"]).unlink()
     with pytest.raises(search.ContractError) as caught:
@@ -2495,19 +2398,15 @@ def test_finalized_run_result_deletion_is_rejected(
             tmp_path,
             catalog=catalog,
             seal=seal,
-            parent_preflight_bundle_dir=preflight_bundle,
             _allow_nonproduction=True,
         )
     assert caught.value.code == "bundle_run"
 
 
 def test_simulation_bundle_is_rejected_by_production_acceptance(
-    catalog, seal, green_preflight
+    catalog, seal, finalized_one_attempt_preflight
 ):
-    _report, _transport, bundle = green_preflight
-    assert search._validate_bundle_for_resume(
-        bundle, catalog=catalog, seal=seal
-    )["pages"] == 1929
+    bundle = finalized_one_attempt_preflight
     with pytest.raises(search.ContractError) as caught:
         search.load_preflight_bundle(bundle, catalog, seal)
     assert caught.value.code == "bundle_nonproduction"
@@ -2546,6 +2445,7 @@ def test_runtime_loaded_module_drift_does_not_stale_registration(
             catalog_data,
             argv=SEALED_ARGV,
             commit=COMMIT,
+            enforce_head=False,
         )
     finally:
         module.__file__ = original_file
@@ -2565,6 +2465,7 @@ def test_runtime_loaded_stdlib_submodule_drift_does_not_stale_registration(
             catalog_data,
             argv=SEALED_ARGV,
             commit=COMMIT,
+            enforce_head=False,
         )
     finally:
         module.__file__ = original_file
@@ -2619,142 +2520,301 @@ def test_independent_main_request_oracle_is_exact(catalog):
     )
 
 
-def _truncate_packed_preflight_to_success_prefix(bundle, keep_attempts):
-    manifest_path = bundle / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    wal_path = bundle / search._PREFLIGHT_WAL_RELATIVE
-    wal_bytes = wal_path.read_bytes()
-    frame_ends = []
-    offset = 0
-    while offset < len(wal_bytes):
-        length = int.from_bytes(wal_bytes[offset : offset + 8], "big")
-        offset += 8 + length
-        frame_ends.append(offset)
-    assert len(frame_ends) == 1929 * 3
-    wal_path.write_bytes(wal_bytes[: frame_ends[(keep_attempts * 3) - 1]])
-    replayed = search._replay_preflight_wal(
-        bundle,
-        {
-            "schema_version": search._PREFLIGHT_WAL_VERSION,
-            "path": search._PREFLIGHT_WAL_RELATIVE,
-            "sealed": False,
-        },
-    )
-    for name in ("pages", "ledger", "checkpoints", "preflight_report"):
-        manifest.pop(name, None)
-    manifest["lifecycle"] = "in_progress"
-    manifest["attempt_intent"] = None
-    manifest["state_format"] = "journal"
-    manifest["journal"] = replayed["descriptor"]
-    manifest_bytes = search._canonical_json(manifest)
-    manifest_path.write_bytes(manifest_bytes)
-    (bundle / "MANIFEST.sha256").write_text(
-        _sha(manifest_bytes) + "\n", encoding="ascii"
-    )
-
-
-def test_preflight_successful_prefix_resumes_without_checkpoint(
-    catalog, catalog_data, seal, green_preflight, tmp_path
-):
-    _report, _, complete_bundle = green_preflight
-    shutil.copytree(complete_bundle, tmp_path / "bundle", symlinks=True)
-    bundle = tmp_path / "bundle"
-    _truncate_packed_preflight_to_success_prefix(bundle, 1928)
-    resume_transport = _dynamic_transport(catalog)
-    resumed = search.resume_bundle(
-        bundle,
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=resume_transport,
-        clock=_fixed_clock,
-        effective_argv=RESUME_ARGV,
-    )
-    assert resumed["complete"] is True
-    assert len(resume_transport.calls) == 1
-    assert resume_transport.calls[0]["stream_id"] == (
-        _report["preflight_evidence"][-1]["stream_id"]
-    )
-    report, _ = search.load_preflight_bundle(
-        bundle, catalog, seal, _allow_nonproduction=True
-    )
-    assert report["wire_attempt_count"] == 1929
-    assert report["availability_evidence"] == report["preflight_evidence"][0]
-    assert search._read_bundle_manifest(bundle)[0]["checkpoints"] == []
+def test_preflight_successful_prefix_resumes_without_checkpoint(catalog):
+    planned = search._preflight_planned_stream_ids(catalog)
+    assert len(planned) == 1929
+    prefix = [
+        {"stream_id": stream_id, "status": 200}
+        for stream_id in planned[:-1]
+    ]
+    state = search._validate_preflight_wal_attempt_sequence(catalog, prefix)
+    assert state["next_initial_stream_id"] == planned[-1]
+    assert state["initial_plan_complete"] is False
 
 
 def test_later_row_retry_does_not_replace_availability_evidence(
-    catalog, catalog_data, seal, green_preflight, tmp_path
+    catalog, green_preflight_report
 ):
-    original_report, _, original_bundle = green_preflight
-    shutil.copytree(original_bundle, tmp_path / "bundle", symlinks=True)
-    bundle = tmp_path / "bundle"
-    _truncate_packed_preflight_to_success_prefix(bundle, 1928)
-    target_stream_id = original_report["preflight_evidence"][-1]["stream_id"]
-    target = next(
-        row
-        for row in catalog["rows"]
-        if row["stream_id"] == target_stream_id
-    )
-    request = search.materialize_request(target)
-    failure_transport = search.ScriptedTransport(
-        [
-            {
-                "status": 503,
-                "entity_body": b"later row unavailable data",
-                "headers": [],
-                "endpoint": request["url"].split("?", 1)[0],
-                "final_url": request["url"],
-                "content_type": "text/plain",
-            }
-        ]
-    )
-    failed = search.resume_bundle(
-        bundle,
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=failure_transport,
-        clock=_fixed_clock,
-        effective_argv=RESUME_ARGV,
-    )
-    assert failed["complete"] is False
-    assert failed["finalize_eligibility"]["reason"] == "retryable_http_503"
-    assert failure_transport.calls == [request]
-    assert search._read_bundle_manifest(bundle)[0]["lifecycle"] == "in_progress"
-    with pytest.raises(search.ContractError) as caught:
-        search.load_preflight_bundle(
-            bundle, catalog, seal, _allow_nonproduction=True
-        )
-    assert caught.value.code == "bundle_lifecycle"
-
-    retry_response = _dynamic_transport(catalog).send(request)
-    retry_transport = search.ScriptedTransport([retry_response])
-    resumed = search.resume_bundle(
-        bundle,
-        catalog,
-        catalog_data,
-        seal,
-        argv=SEALED_ARGV,
-        commit=COMMIT,
-        transport=retry_transport,
-        clock=_fixed_clock,
-        effective_argv=RESUME_ARGV,
-    )
-    assert resumed["complete"] is True
-    assert retry_transport.calls == [request]
-    report, _ = search.load_preflight_bundle(
-        bundle, catalog, seal, _allow_nonproduction=True
-    )
-    assert report["availability_evidence"] == original_report["availability_evidence"]
-    assert report["availability_evidence"]["stream_id"] == (
+    report, _transport = green_preflight_report
+    initial = copy.deepcopy(report["preflight_evidence"])
+    failure = copy.deepcopy(initial[-1])
+    failure["status"] = 503
+    retry = copy.deepcopy(initial[-1])
+    sequence = [*initial[:-1], failure, retry]
+    state = search._validate_preflight_wal_attempt_sequence(catalog, sequence)
+    assert state["initial_plan_complete"] is True
+    assert state["retry_stream_id"] is None
+    assert sequence[0] == report["availability_evidence"]
+    assert sequence[0]["stream_id"] == (
         "AX3A1-L-ID-01@openalex"
     )
-    assert report["stopped_after_openalex_429"] is False
+
+
+def test_non_200_parseable_body_preserves_observed_locators():
+    body = _openalex_body(
+        count=1, work_id="https://openalex.org/W260424658"
+    )
+    observed = search.observed_response_locators("openalex", body, 503)
+    assert "/meta/count" in observed
+    assert "/results/0/id" in observed
+    assert search.observed_response_locators(
+        "openalex", b"unparseable response", 503
+    ) == []
+
+
+def test_mutation_mu1_live_http_transport_subclass_is_rejected():
+    class DerivedLiveHTTPTransport(search.LiveHTTPTransport):
+        pass
+
+    with pytest.raises(search.ContractError) as caught:
+        search._validate_production_transport_identity(
+            DerivedLiveHTTPTransport()
+        )
+    assert caught.value.code == "production_transport_identity"
+
+
+def test_mutation_mu5_dirty_head_blob_is_rejected_directly(tmp_path):
+    git_dir = subprocess.run(
+        ["git", "rev-parse", "--absolute-git-dir"],
+        cwd=search.REPO_ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    repo = tmp_path / "closure-repo"
+    candidate = repo / "orchestrator" / "related_work_search.py"
+    candidate.parent.mkdir(parents=True)
+    (repo / ".git").write_text(f"gitdir: {git_dir}\n", encoding="utf-8")
+    head_bytes = subprocess.run(
+        ["git", "show", "HEAD:orchestrator/related_work_search.py"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    candidate.write_bytes(head_bytes)
+    search._verify_head_closure([candidate], repo)
+    candidate.write_bytes(head_bytes + b"\n# one-byte-class drift\n")
+    with pytest.raises(search.ContractError) as caught:
+        search._verify_head_closure([candidate], repo)
+    assert caught.value.code == "head_closure_dirty"
+
+
+def test_mutation_mu6a_normal_producer_missing_independent_request_is_rejected(
+    catalog, seal
+):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-Q01@openalex"
+    )
+    request = search.materialize_request(row)
+    response = search.TransportResponse(
+        status=200,
+        entity_body=_openalex_body(
+            count=0, oql=row["expected_interpreted_query"]
+        ),
+        headers=(),
+        endpoint=search.OPENALEX_ENDPOINT,
+        final_url=request["url"],
+        content_type="application/json",
+        response_received_at="2026-08-28T00:00:00Z",
+    )
+    budget = search.WireBudget()
+    budget.consume(_fixed_clock())
+    checkpoint = search._response_checkpoint(
+        row=row,
+        request=request,
+        response=response,
+        seal=seal,
+        budget=budget,
+        now=_fixed_clock(),
+        run_id="axis3-run-ready",
+        pass_number=1,
+        page_number=0,
+        next_request=None,
+    )
+    checkpoint.pop("start_independent_pass_request")
+    with pytest.raises(search.ContractError) as caught:
+        search.validate_checkpoint(checkpoint)
+    assert caught.value.code == "schema_validation"
+
+
+def test_mutation_mu6b_quota_producer_missing_cursor_request_is_rejected(
+    catalog, seal
+):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-L-ID-01@openalex"
+    )
+    request = search.materialize_request(row)
+    response = search.TransportResponse(
+        status=429,
+        entity_body=b"quota",
+        headers=(("Retry-After", "60"),),
+        endpoint=search.OPENALEX_ENDPOINT,
+        final_url=request["url"],
+        content_type="text/plain",
+        response_received_at="2026-08-28T00:00:00Z",
+    )
+    budget = search.WireBudget()
+    budget.consume(_fixed_clock())
+    checkpoint = search._quota_checkpoint(
+        row=row,
+        request=request,
+        response=response,
+        seal=seal,
+        budget=budget,
+        now=_fixed_clock(),
+    )
+    checkpoint.pop("continue_cursor_request")
+    with pytest.raises(search.ContractError) as caught:
+        search.validate_checkpoint(checkpoint)
+    assert caught.value.code == "schema_validation"
+
+
+def test_mutation_mu8_amendment_bytes_match_literal_without_seal_fixture():
+    data = search.FROZEN_INPUT_PATHS[1].read_bytes()
+    search._validate_frozen_amendment_bytes(data)
+    mutant = bytearray(data)
+    mutant[-1] ^= 1
+    with pytest.raises(search.ContractError) as caught:
+        search._validate_frozen_amendment_bytes(bytes(mutant))
+    assert caught.value.code == "frozen_input_stale"
+
+
+def test_frozen_closure_rejects_missing_amendment_bytes(tmp_path):
+    preregistration = (
+        tmp_path
+        / "docs/related-work/claim-survey/"
+        / "2026-08-27-axis3-search-preregistration.md"
+    )
+    amendment = preregistration.with_name(
+        "2026-09-01-axis3-search-amendment.md"
+    )
+    preregistration.parent.mkdir(parents=True)
+    preregistration.write_bytes(search.FROZEN_INPUT_PATHS[0].read_bytes())
+    with pytest.raises(search.ContractError) as caught:
+        search._frozen_input_digest_entries(
+            [preregistration, amendment], tmp_path
+        )
+    assert caught.value.code == "seal_path"
+
+
+def test_mutation_m4_cursor_request_in_independent_pass_arm_is_rejected():
+    checkpoint = _checkpoint_common(
+        resume_action="continue_cursor",
+        pass_kind="cursor_traversal",
+        continue_cursor_request=_resume_request("cursor"),
+        cursor_source={
+            "page_number": 0,
+            "entity_body_path": "responses/s/pass-1/page-0.body",
+            "entity_body_sha256": _sha(b"page"),
+            "field_locator": "/meta/next_cursor",
+        },
+        start_independent_pass_request=_resume_request(
+            "cursor_star", cursor="next"
+        ),
+    )
+    with pytest.raises(search.ContractError) as caught:
+        search.validate_checkpoint(checkpoint)
+    assert caught.value.code == "checkpoint_action"
+
+
+def test_bundle_first_pass_must_be_one(catalog):
+    row = next(
+        item
+        for item in catalog["rows"]
+        if item["stream_id"] == "AX3A1-Q01@openalex"
+    )
+    with pytest.raises(search.ContractError) as caught:
+        search._derive_latest_stream_result(
+            row, [({"pass_number": 99}, b"", {})]
+        )
+    assert caught.value.code == "bundle_page_progress"
+
+
+def test_finalized_resume_keeps_axis_incomplete_separate_from_lifecycle(
+    tmp_path
+):
+    result_bytes = search._canonical_json({"axis_complete": False})
+    digest = _sha(result_bytes)
+    relative = f"results/run-{digest}.json"
+    (tmp_path / "results").mkdir()
+    (tmp_path / relative).write_bytes(result_bytes)
+    resumed = search._finalized_run_resume_status(
+        tmp_path,
+        {"path": relative, "sha256": digest},
+        search.validate_effective_phase_argv(RESUME_ARGV, "resume"),
+    )
+    assert resumed["lifecycle_complete"] is True
+    assert resumed["axis_complete"] is False
+    assert resumed["complete"] is False
+
+
+def test_production_seal_entrypoints_default_to_head_closure():
+    assert inspect.signature(search.build_registration_seal).parameters[
+        "enforce_head"
+    ].default is True
+    assert inspect.signature(search.validate_registration_seal).parameters[
+        "enforce_head"
+    ].default is True
+
+
+def test_top_level_simulation_artifact_consumers_reject_without_send(
+    catalog,
+    catalog_data,
+    seal,
+    finalized_one_attempt_preflight,
+    tmp_path,
+):
+    preflight_transport = search.ScriptedTransport([])
+    with pytest.raises(search.ContractError) as caught:
+        search.run_preflight(
+            catalog,
+            catalog_data,
+            seal,
+            argv=SEALED_ARGV,
+            commit=COMMIT,
+            transport=preflight_transport,
+            clock=_fixed_clock,
+            bundle_dir=tmp_path / "forbidden-preflight",
+            effective_argv=SEALED_ARGV,
+        )
+    assert caught.value.code == "bundle_nonproduction"
+    assert preflight_transport.calls == []
+
+    run_transport = search.ScriptedTransport([])
+    with pytest.raises(search.ContractError) as caught:
+        search.run_ready(
+            catalog,
+            catalog_data,
+            seal,
+            None,
+            argv=SEALED_ARGV,
+            commit=COMMIT,
+            transport=run_transport,
+            preflight_bundle_dir=finalized_one_attempt_preflight,
+            bundle_dir=tmp_path / "forbidden-final",
+            effective_argv=RUN_ARGV,
+        )
+    assert caught.value.code == "bundle_nonproduction"
+    assert run_transport.calls == []
+
+    resume_transport = search.ScriptedTransport([])
+    with pytest.raises(search.ContractError) as caught:
+        search.resume_bundle(
+            finalized_one_attempt_preflight,
+            catalog,
+            catalog_data,
+            seal,
+            argv=SEALED_ARGV,
+            commit=COMMIT,
+            transport=resume_transport,
+            effective_argv=RESUME_ARGV,
+        )
+    assert caught.value.code == "bundle_nonproduction"
+    assert resume_transport.calls == []
 
 
 def _run() -> int:
