@@ -1,0 +1,364 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aa5d5f9271b3b98a85b9930528dc32a8/izdw-aa5d5f9271.o962975",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aa5d5f9271b3b98a85b9930528dc32a8/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]\n59 passed in 57.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "e33066fe438a80a614cfada673a0c8f1cdc014e28801bccb2589b25d8d13aacd"
+    },
+    "artifact_error": null,
+    "collection_sha256": "579a6eca65471cb264cc81997bb75601fa835c7ee3c950c47963c903f755c205",
+    "duration_s": 79.264,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "e3864b598df4b4aa522382b9175147d4af3fe12f6066e7d85fa2b932ce7e1f8b",
+    "repo_head": "4281225757023c5354b469638a324024ff605519",
+    "runner_sha256": "78b480b0bd55bfcbfbaf305a0a3f3b268e4fc4547df398cf2d3beedc08fc7276",
+    "spec_sha256": "b5847693aa482852c38b9dbb9c2db6b81139683e9a057e66d6b40af1186638c8",
+    "status": "PASSED",
+    "test_output_sha256": "e33066fe438a80a614cfada673a0c8f1cdc014e28801bccb2589b25d8d13aacd",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+  },
+  "date": "2026-08-31T15:53:25.175504+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cae082bb42f7bbdd9951e38b07c75a7f/izdw-cae082bb42.o962978",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cae082bb42f7bbdd9951e38b07c75a7f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F...........................              [100%]\n=================================== FAILURES ===================================\n_____________ test_anchor_seed_alone_load_bears_pipeline_evaluate ______________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\nstatic_runtime = (_Runtime(modules={'orchestrator.campaign.artifact_admission': <module 'orchestrator.campaign.artifact_admission' from...ame='binding_from_authority', node=<ast.FunctionDef object at 0x1517fb4987c0>, calls=(), issues=())}, issues=()), ...})\n\n    def test_anchor_seed_alone_load_bears_pipeline_evaluate(static_runtime):\n        runtime, static = static_runtime\n        baseline = _inventory_symbols(P._build_inventory(static, runtime.modules))\n        anchor = P._GENERATION_SEEDS[0]\n>       assert anchor in baseline\nE       AssertionError: assert 'orchestrator.campaign.execution_guard.require_certified_writer_authorization' in {'orchestrator.campaign.loop._authorize_measurement', 'orchestrator.campaign.loop.run_campaign', 'orchestrator.campaig....drive_iteration', 'orchestrator.campaign.p3_s4_loop.main', 'orchestrator.campaign.p3_s4_loop.project_whiteboard', ...}\n\norchestrator/tests/test_p3_b4_wiring_probe.py:292: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate\n1 failed, 58 passed in 58.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1002 retained_bytes=1002 omitted_bytes=0 rendered_excerpt_bytes=1027 sha256=25f1563637dd424a00ae86b92accf11c24aebc65c8e701d277e6b954aad523f3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> static_runtime = (_Runtime(modules={'orchestrator.campaign.artifact_admission': <module 'orchestrator.campaign.artifact_admission' from...ame='binding_from_authority', node=<ast.FunctionDef object at 0x1517fb4987c0>, calls=(), issues=())}, issues=()), ...})\n> \n>     def test_anchor_seed_alone_load_bears_pipeline_evaluate(static_runtime):\n>         runtime, static = static_runtime\n>         baseline = _inventory_symbols(P._build_inventory(static, runtime.modules))\n>         anchor = P._GENERATION_SEEDS[0]\n> >       assert anchor in baseline\n> E       AssertionError: assert 'orchestrator.campaign.execution_guard.require_certified_writer_authorization' in {'orchestrator.campaign.loop._authorize_measurement', 'orchestrator.campaign.loop.run_campaign', 'orchestrator.campaig....drive_iteration', 'orchestrator.campaign.p3_s4_loop.main', 'orchestrator.campaign.p3_s4_loop.project_whiteboard', ...}\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:292: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1002 retained_bytes=1002 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1752 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0c3af902281cf38418b243f4da0eed19a8d7c596d86110d989f941c4db73e886"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "579a6eca65471cb264cc81997bb75601fa835c7ee3c950c47963c903f755c205",
+      "duration_s": 84.358,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate"
+      ],
+      "hang_risk": false,
+      "id": "MWA",
+      "injection_diff_sha256": "369cfe9f6986418e2d82e20d7ff32f8c083a54ad57566f05a93644608d68210e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dc252cd7b252879c7a8ad9d874092599d9dd9aa3d9d03ae43d2195486af01ad0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[0]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+          "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+        }
+      ],
+      "repo_head": "4281225757023c5354b469638a324024ff605519",
+      "runner_sha256": "78b480b0bd55bfcbfbaf305a0a3f3b268e4fc4547df398cf2d3beedc08fc7276",
+      "spec_sha256": "b5847693aa482852c38b9dbb9c2db6b81139683e9a057e66d6b40af1186638c8",
+      "status": "KILLED",
+      "test_output_sha256": "0c3af902281cf38418b243f4da0eed19a8d7c596d86110d989f941c4db73e886",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/00171f98fc35de23b66e753c601061c5/izdw-00171f98fc.o962983",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/00171f98fc35de23b66e753c601061c5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F..........F..........              [100%]\n=================================== FAILURES ===================================\n___________ test_save_loop_state_seed_is_independently_load_bearing ____________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\nstatic_runtime = (_Runtime(modules={'orchestrator.campaign.artifact_admission': <module 'orchestrator.campaign.artifact_admission' from...ame='binding_from_authority', node=<ast.FunctionDef object at 0x1519c48b87c0>, calls=(), issues=())}, issues=()), ...})\n\n    def test_save_loop_state_seed_is_independently_load_bearing(static_runtime):\n        runtime, static = static_runtime\n        target = \"orchestrator.campaign.p3_s4_loop.save_loop_state\"\n        baseline = _inventory_symbols(P._build_inventory(static, runtime.modules))\n>       assert target in baseline\nE       AssertionError: assert 'orchestrator.campaign.p3_s4_loop.save_loop_state' in {'orchestrator.campaign.execution_guard.require_certified_writer_authorization', 'orchestrator.campaign.loop._authoriz...._resolve_duplicate', 'orchestrator.campaign.p3_s4_loop.drive_iteration', 'orchestrator.campaign.p3_s4_loop.main', ...}\n\norchestrator/tests/test_p3_b4_wiring_probe.py:307: AssertionError\n_ test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state] _\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\nsymbol = 'orchestrator.campaign.p3_s4_loop.save_loop_state'\n\n    @pytest.mark.parametrize(\n        \"symbol\",\n        (\n            \"orchestrator.campaign.p3_s4_loop.run_one_iteration\",\n            \"orchestrator.campaign.p3_s4_loop.drive_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_sort.run_one_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_sort.drive_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration\",\n            \"orchestrator.campaign.pipeline.evaluate\",\n            \"orchestrator.campaign.p3_s4_loop.save_loop_state\",\n            \"orchestrator.campaign.p3_s4_loop.project_whiteboard\",\n        ),\n    )\n    def test_real_producer_entry_is_interdicted_before_body(symbol):\n>       completed = _run_child(\n            f\"\"\"\n            import inspect, json\n            from orchestrator.campaign import p3_b4_wiring_probe as P\n            guard = P._ProcessGuard(P._protected_campaign_roots())\n            guard.install_audit()\n            runtime = P._load_runtime(guard)\n            static = P._load_static_modules()\n            inventory = P._build_inventory(static, runtime.modules)\n            guard.seal(inventory, runtime.modules)\n            function = P._runtime_function(runtime.modules, {symbol!r})\n            positional = []\n            keywords = {{}}\n            for parameter in inspect.signature(function).parameters.values():\n                if parameter.default is not inspect.Parameter.empty:\n                    continue\n                if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY,\n                                      inspect.Parameter.POSITIONAL_OR_KEYWORD):\n                    positional.append(None)\n                elif parameter.kind is inspect.Parameter.KEYWORD_ONLY:\n                    keywords[parameter.name] = None\n            try:\n                function(*positional, **keywords)\n            except P.OutcomeGenerationError as exc:\n                print(json.dumps({{\n                    \"module\": exc.module,\n                    \"qualname\": exc.qualname,\n                    \"path\": exc.path,\n                    \"firstlineno\": exc.firstlineno,\n                    \"attempts\": len(guard.blocked_outcome_attempts),\n                }}))\n            else:\n                raise AssertionError(\"real producer body was entered\")\n            \"\"\",\n            check=True,\n        )\n\norchestrator/tests/test_p3_b4_wiring_probe.py:372: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_wiring_probe.py:46: in _run_child\n    return subprocess.run(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ninput = None, capture_output = False, timeout = None, check = True\npopenargs = (['/bin/python3.10', '-I', '-B', '-c', 'import sys\\nsys.path.insert(0, \\'/work/1/SFC/tanab/mutation-scratch-t1909/.iza... len(guard.blocked_outcome_attempts),\\n    }))\\nelse:\\n    raise AssertionError(\"real producer body was entered\")\\n'],)\nkwargs = {'cwd': PosixPath('/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo'), 'env': {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8', 'TZ': 'UTC', ...}, 'text': True, 'stdout': -1, ...}\n\n    def run(*popenargs,\n            input=None, capture_output=False, timeout=None, check=False, **kwargs):\n        \"\"\"Run command with arguments and return a CompletedProcess instance.\n    \n        The returned instance will have attributes args, returncode, stdout and\n        stderr. By default, stdout and stderr are not captured, and those attributes\n        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,\n        or pass capture_output=True to capture both.\n    \n        If check is True and the exit code was non-zero, it raises a\n        CalledProcessError. The CalledProcessError object will have the return code\n        in the returncode attribute, and output & stderr attributes if those streams\n        were captured.\n    \n        If timeout is given, and the process takes too long, a TimeoutExpired\n        exception will be raised.\n    \n        There is an optional argument \"input\", allowing you to\n        pass bytes or a string to the subprocess's stdin.  If you use this argument\n        you may not also use the Popen constructor's \"stdin\" argument, as\n        it will be used internally.\n    \n        By default, all communication is in bytes, and therefore any \"input\" should\n        be bytes, and the stdout and stderr will be bytes. If in text mode, any\n        \"input\" should be a string, and stdout and stderr will be strings decoded\n        according to locale encoding, or by \"encoding\" if set. Text mode is\n        triggered by setting any of text, encoding, errors or universal_newlines.\n    \n        The other arguments are the same as for the Popen constructor.\n        \"\"\"\n        if input is not None:\n            if kwargs.get('stdin') is not None:\n                raise ValueError('stdin and input arguments may not both be used.')\n            kwargs['stdin'] = PIPE\n    \n        if capture_output:\n            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n                raise ValueError('stdout and stderr arguments may not be used '\n                                 'with capture_output.')\n            kwargs['stdout'] = PIPE\n            kwargs['stderr'] = PIPE\n    \n        with Popen(*popenargs, **kwargs) as process:\n            try:\n                stdout, stderr = process.communicate(input, timeout=timeout)\n            except TimeoutExpired as exc:\n                process.kill()\n                if _mswindows:\n                    # Windows accumulates the output in a single blocking\n                    # read() call run on child threads, with the timeout\n                    # being done in a join() on those threads.  communicate()\n                    # _after_ kill() is required to collect that and add it\n                    # to the exception.\n                    exc.stdout, exc.stderr = process.communicate()\n                else:\n                    # POSIX _communicate already populated the output so\n                    # far into the TimeoutExpired exception.\n                    process.wait()\n                raise\n            except:  # Including KeyboardInterrupt, communicate handled that.\n                process.kill()\n                # We don't call process.wait() as .__exit__ does that for us.\n                raise\n            retcode = process.poll()\n            if check and retcode:\n>               raise CalledProcessError(retcode, process.args,\n                                         output=stdout, stderr=stderr)\nE               subprocess.CalledProcessError: Command '['/bin/python3.10', '-I', '-B', '-c', 'import sys\\nsys.path.insert(0, \\'/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo\\')\\n\\nimport inspect, json\\nfrom orchestrator.campaign import p3_b4_wiring_probe as P\\nguard = P._ProcessGuard(P._protected_campaign_roots())\\nguard.install_audit()\\nruntime = P._load_runtime(guard)\\nstatic = P._load_static_modules()\\ninventory = P._build_inventory(static, runtime.modules)\\nguard.seal(inventory, runtime.modules)\\nfunction = P._runtime_function(runtime.modules, \\'orchestrator.campaign.p3_s4_loop.save_loop_state\\')\\npositional = []\\nkeywords = {}\\nfor parameter in inspect.signature(function).parameters.values():\\n    if parameter.default is not inspect.Parameter.empty:\\n        continue\\n    if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY,\\n                          inspect.Parameter.POSITIONAL_OR_KEYWORD):\\n        positional.append(None)\\n    elif parameter.kind is inspect.Parameter.KEYWORD_ONLY:\\n        keywords[parameter.name] = None\\ntry:\\n    function(*positional, **keywords)\\nexcept P.OutcomeGenerationError as exc:\\n    print(json.dumps({\\n        \"module\": exc.module,\\n        \"qualname\": exc.qualname,\\n        \"path\": exc.path,\\n        \"firstlineno\": exc.firstlineno,\\n        \"attempts\": len(guard.blocked_outcome_attempts),\\n    }))\\nelse:\\n    raise AssertionError(\"real producer body was entered\")\\n']' returned non-zero exit status 1.\n\n/usr/lib/python3.10/subprocess.py:526: CalledProcessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]\n2 failed, 57 passed in 57.75s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]\" nodeid_bytes=148 nodeid_omitted_bytes=0 source_bytes=8375 retained_bytes=3881 omitted_bytes=4494 rendered_excerpt_bytes=4096 sha256=874201323e2658a546589c92d57e860c64de8a849fa29e3e397d80c85e84c051\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> be used internally.\n>     \n>         By default, all communication is in bytes, and therefore any \"input\" should\n>         be bytes, and the stdout and stderr will be bytes. If in text mode, any\n>         \"input\" should be a string, and stdout and stderr will be strings decoded\n>         according to locale encoding, or by \"encoding\" if set. Text mode is\n>         triggered by setting any of text, encoding, errors or universal_newlines.\n>     \n>         The other arguments are the same as for the Popen constructor.\n>         \"\"\"\n>         if input is not None:\n>             if kwargs.get('stdin') is not None:\n>                 raise ValueError('stdin and input arguments may not both be used.')\n>             kwargs['stdin'] = PIPE\n>     \n>         if capture_output:\n>             if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n>                 raise ValueError('stdout and stderr arguments may not be used '\n>                                  'with capture_output.')\n>             kwargs['stdout'] = PIPE\n>             kwargs['stderr'] = PIPE\n>     \n>         with Popen(*popenargs, **kwargs) as process:\n>             try:\n>                 stdout, stderr = process.communicate(input, timeout=timeout)\n>             except TimeoutExpired as exc:\n>                 process.kill()\n>                 if _mswindows:\n>                     # Windows accumulates the output in a single blocking\n>                     # read() call run on child threads, with the timeout\n>                     # being done in a join() on those threads.  communicate()\n>                     # _after_ kill() is required to collect that and add it\n>                     # to the exception.\n>                     exc.stdout, exc.stderr = process.communicate()\n>                 else:\n>                     # POSIX _communicate already populated the output so\n>                     # far into the TimeoutExpired exception.\n>                     process.wait()\n>                 raise\n>             except:  # Including KeyboardInterrupt, communicate handled that.\n>                 process.kill()\n>                 # We don't call process.wait() as .__exit__ does that for us.\n>                 raise\n>             retcode = process.poll()\n>             if check and retcode:\n> >               raise CalledProcessError(retcode, process.args,\n>                                          output=stdout, stderr=stderr)\n> E               subprocess.CalledProcessError: Command '['/bin/python3.10', '-I', '-B', '-c', 'import sys\\x5cnsys.path.insert(0, \\x5c'/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo\\x5c')\\x5cn\\x5cnimport inspect, json\\x5cnfrom orchestrator.campaign import p3_b4_wiring_probe as P\\x5cnguard = P._ProcessGuard(P._protected_campaign_roots())\\x5cnguard.install_audit()\\x5cnruntime = P._load_runtime(guard)\\x5cnstatic = P._load_static_modules()\\x5cninventory = P._build_inventory(static, runtime.modules)\\x5cnguard.seal(inventory, runtime.modules)\\x5cnfunction = P._runtime_function(runtime.modules, \\x5c'orchestrator.campaign.p3_s4_loop.save_loop_state\\x5c')\\x5cnpositional = []\\x5cnkeywords = {}\\x5cnfor parameter in inspect.signature(function).parameters.values():\\x5cn    if parameter.default is not inspect.Parameter.empty:\\x5cn        continue\\x5cn    if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY,\\x5cn                          inspect.Parameter.POSITIONAL_OR_KEYWORD):\\x5cn        positional.append(None)\\x5cn    elif parameter.kind is inspect.Parameter.KEYWORD_ONLY:\\x5cn        keywords[parameter.name] = None\\x5cntry:\\x5cn    function(*positional, **keywords)\\x5cnexcept P.OutcomeGenerationError as exc:\\x5cn    print(json.dumps({\\x5cn        \"module\": exc.module,\\x5cn        \"qualname\": exc.qualname,\\x5cn        \"path\": exc.path,\\x5cn        \"firstlineno\": exc.firstlineno,\\x5cn        \"attempts\": len(guard.blocked_outcome_attempts),\\x5cn    }))\\x5cnelse:\\x5cn    raise AssertionError(\"real producer body was entered\")\\x5cn']' returned non-zero exit status 1.\n> \n> /usr/lib/python3.10/subprocess.py:526: CalledProcessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1006 retained_bytes=1006 omitted_bytes=0 rendered_excerpt_bytes=1031 sha256=627e2eb0edae43023a3f91fe97d62f83a3db68ee521ca1fccf1201116f04e147\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> static_runtime = (_Runtime(modules={'orchestrator.campaign.artifact_admission': <module 'orchestrator.campaign.artifact_admission' from...ame='binding_from_authority', node=<ast.FunctionDef object at 0x1519c48b87c0>, calls=(), issues=())}, issues=()), ...})\n> \n>     def test_save_loop_state_seed_is_independently_load_bearing(static_runtime):\n>         runtime, static = static_runtime\n>         target = \"orchestrator.campaign.p3_s4_loop.save_loop_state\"\n>         baseline = _inventory_symbols(P._build_inventory(static, runtime.modules))\n> >       assert target in baseline\n> E       AssertionError: assert 'orchestrator.campaign.p3_s4_loop.save_loop_state' in {'orchestrator.campaign.execution_guard.require_certified_writer_authorization', 'orchestrator.campaign.loop._authoriz...._resolve_duplicate', 'orchestrator.campaign.p3_s4_loop.drive_iteration', 'orchestrator.campaign.p3_s4_loop.main', ...}\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:307: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=9381 retained_bytes=4887 omitted_bytes=4494 budget_bytes=49152 rendered_bytes=6352 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0dec34fb1479e6e069f407841b2b721880c6d137f5d5b413dc60b3272b6f3eee"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "579a6eca65471cb264cc81997bb75601fa835c7ee3c950c47963c903f755c205",
+      "duration_s": 78.773,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]"
+      ],
+      "hang_risk": false,
+      "id": "MWB",
+      "injection_diff_sha256": "56b8dd33a1b752af739056820d2f1a9335780ab15e244c50a69befa3cefd7ce6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "43ac30af6c69bb6d79c0a045080977ad851711e7e5b4aea1a098d3027956761b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[1]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+          "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+        }
+      ],
+      "repo_head": "4281225757023c5354b469638a324024ff605519",
+      "runner_sha256": "78b480b0bd55bfcbfbaf305a0a3f3b268e4fc4547df398cf2d3beedc08fc7276",
+      "spec_sha256": "b5847693aa482852c38b9dbb9c2db6b81139683e9a057e66d6b40af1186638c8",
+      "status": "KILLED",
+      "test_output_sha256": "0dec34fb1479e6e069f407841b2b721880c6d137f5d5b413dc60b3272b6f3eee",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/606e47d500fa917af4ac59d0d79c97d1/izdw-606e47d500.o962985",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/606e47d500fa917af4ac59d0d79c97d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F.........F..............              [100%]\n=================================== FAILURES ===================================\n__________ test_project_whiteboard_seed_is_independently_load_bearing __________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\nstatic_runtime = (_Runtime(modules={'orchestrator.campaign.artifact_admission': <module 'orchestrator.campaign.artifact_admission' from...ame='binding_from_authority', node=<ast.FunctionDef object at 0x14a22a024340>, calls=(), issues=())}, issues=()), ...})\n\n    def test_project_whiteboard_seed_is_independently_load_bearing(static_runtime):\n        runtime, static = static_runtime\n        target = \"orchestrator.campaign.p3_s4_loop.project_whiteboard\"\n        baseline = _inventory_symbols(P._build_inventory(static, runtime.modules))\n>       assert target in baseline\nE       AssertionError: assert 'orchestrator.campaign.p3_s4_loop.project_whiteboard' in {'orchestrator.campaign.execution_guard.require_certified_writer_authorization', 'orchestrator.campaign.loop._authoriz...._resolve_duplicate', 'orchestrator.campaign.p3_s4_loop.drive_iteration', 'orchestrator.campaign.p3_s4_loop.main', ...}\n\norchestrator/tests/test_p3_b4_wiring_probe.py:319: AssertionError\n_ test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard] _\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\nsymbol = 'orchestrator.campaign.p3_s4_loop.project_whiteboard'\n\n    @pytest.mark.parametrize(\n        \"symbol\",\n        (\n            \"orchestrator.campaign.p3_s4_loop.run_one_iteration\",\n            \"orchestrator.campaign.p3_s4_loop.drive_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_sort.run_one_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_sort.drive_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration\",\n            \"orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration\",\n            \"orchestrator.campaign.pipeline.evaluate\",\n            \"orchestrator.campaign.p3_s4_loop.save_loop_state\",\n            \"orchestrator.campaign.p3_s4_loop.project_whiteboard\",\n        ),\n    )\n    def test_real_producer_entry_is_interdicted_before_body(symbol):\n>       completed = _run_child(\n            f\"\"\"\n            import inspect, json\n            from orchestrator.campaign import p3_b4_wiring_probe as P\n            guard = P._ProcessGuard(P._protected_campaign_roots())\n            guard.install_audit()\n            runtime = P._load_runtime(guard)\n            static = P._load_static_modules()\n            inventory = P._build_inventory(static, runtime.modules)\n            guard.seal(inventory, runtime.modules)\n            function = P._runtime_function(runtime.modules, {symbol!r})\n            positional = []\n            keywords = {{}}\n            for parameter in inspect.signature(function).parameters.values():\n                if parameter.default is not inspect.Parameter.empty:\n                    continue\n                if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY,\n                                      inspect.Parameter.POSITIONAL_OR_KEYWORD):\n                    positional.append(None)\n                elif parameter.kind is inspect.Parameter.KEYWORD_ONLY:\n                    keywords[parameter.name] = None\n            try:\n                function(*positional, **keywords)\n            except P.OutcomeGenerationError as exc:\n                print(json.dumps({{\n                    \"module\": exc.module,\n                    \"qualname\": exc.qualname,\n                    \"path\": exc.path,\n                    \"firstlineno\": exc.firstlineno,\n                    \"attempts\": len(guard.blocked_outcome_attempts),\n                }}))\n            else:\n                raise AssertionError(\"real producer body was entered\")\n            \"\"\",\n            check=True,\n        )\n\norchestrator/tests/test_p3_b4_wiring_probe.py:372: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_wiring_probe.py:46: in _run_child\n    return subprocess.run(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ninput = None, capture_output = False, timeout = None, check = True\npopenargs = (['/bin/python3.10', '-I', '-B', '-c', 'import sys\\nsys.path.insert(0, \\'/work/1/SFC/tanab/mutation-scratch-t1909/.iza... len(guard.blocked_outcome_attempts),\\n    }))\\nelse:\\n    raise AssertionError(\"real producer body was entered\")\\n'],)\nkwargs = {'cwd': PosixPath('/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo'), 'env': {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8', 'TZ': 'UTC', ...}, 'text': True, 'stdout': -1, ...}\n\n    def run(*popenargs,\n            input=None, capture_output=False, timeout=None, check=False, **kwargs):\n        \"\"\"Run command with arguments and return a CompletedProcess instance.\n    \n        The returned instance will have attributes args, returncode, stdout and\n        stderr. By default, stdout and stderr are not captured, and those attributes\n        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,\n        or pass capture_output=True to capture both.\n    \n        If check is True and the exit code was non-zero, it raises a\n        CalledProcessError. The CalledProcessError object will have the return code\n        in the returncode attribute, and output & stderr attributes if those streams\n        were captured.\n    \n        If timeout is given, and the process takes too long, a TimeoutExpired\n        exception will be raised.\n    \n        There is an optional argument \"input\", allowing you to\n        pass bytes or a string to the subprocess's stdin.  If you use this argument\n        you may not also use the Popen constructor's \"stdin\" argument, as\n        it will be used internally.\n    \n        By default, all communication is in bytes, and therefore any \"input\" should\n        be bytes, and the stdout and stderr will be bytes. If in text mode, any\n        \"input\" should be a string, and stdout and stderr will be strings decoded\n        according to locale encoding, or by \"encoding\" if set. Text mode is\n        triggered by setting any of text, encoding, errors or universal_newlines.\n    \n        The other arguments are the same as for the Popen constructor.\n        \"\"\"\n        if input is not None:\n            if kwargs.get('stdin') is not None:\n                raise ValueError('stdin and input arguments may not both be used.')\n            kwargs['stdin'] = PIPE\n    \n        if capture_output:\n            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n                raise ValueError('stdout and stderr arguments may not be used '\n                                 'with capture_output.')\n            kwargs['stdout'] = PIPE\n            kwargs['stderr'] = PIPE\n    \n        with Popen(*popenargs, **kwargs) as process:\n            try:\n                stdout, stderr = process.communicate(input, timeout=timeout)\n            except TimeoutExpired as exc:\n                process.kill()\n                if _mswindows:\n                    # Windows accumulates the output in a single blocking\n                    # read() call run on child threads, with the timeout\n                    # being done in a join() on those threads.  communicate()\n                    # _after_ kill() is required to collect that and add it\n                    # to the exception.\n                    exc.stdout, exc.stderr = process.communicate()\n                else:\n                    # POSIX _communicate already populated the output so\n                    # far into the TimeoutExpired exception.\n                    process.wait()\n                raise\n            except:  # Including KeyboardInterrupt, communicate handled that.\n                process.kill()\n                # We don't call process.wait() as .__exit__ does that for us.\n                raise\n            retcode = process.poll()\n            if check and retcode:\n>               raise CalledProcessError(retcode, process.args,\n                                         output=stdout, stderr=stderr)\nE               subprocess.CalledProcessError: Command '['/bin/python3.10', '-I', '-B', '-c', 'import sys\\nsys.path.insert(0, \\'/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo\\')\\n\\nimport inspect, json\\nfrom orchestrator.campaign import p3_b4_wiring_probe as P\\nguard = P._ProcessGuard(P._protected_campaign_roots())\\nguard.install_audit()\\nruntime = P._load_runtime(guard)\\nstatic = P._load_static_modules()\\ninventory = P._build_inventory(static, runtime.modules)\\nguard.seal(inventory, runtime.modules)\\nfunction = P._runtime_function(runtime.modules, \\'orchestrator.campaign.p3_s4_loop.project_whiteboard\\')\\npositional = []\\nkeywords = {}\\nfor parameter in inspect.signature(function).parameters.values():\\n    if parameter.default is not inspect.Parameter.empty:\\n        continue\\n    if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY,\\n                          inspect.Parameter.POSITIONAL_OR_KEYWORD):\\n        positional.append(None)\\n    elif parameter.kind is inspect.Parameter.KEYWORD_ONLY:\\n        keywords[parameter.name] = None\\ntry:\\n    function(*positional, **keywords)\\nexcept P.OutcomeGenerationError as exc:\\n    print(json.dumps({\\n        \"module\": exc.module,\\n        \"qualname\": exc.qualname,\\n        \"path\": exc.path,\\n        \"firstlineno\": exc.firstlineno,\\n        \"attempts\": len(guard.blocked_outcome_attempts),\\n    }))\\nelse:\\n    raise AssertionError(\"real producer body was entered\")\\n']' returned non-zero exit status 1.\n\n/usr/lib/python3.10/subprocess.py:526: CalledProcessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]\n2 failed, 57 passed in 57.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]\" nodeid_bytes=151 nodeid_omitted_bytes=0 source_bytes=8381 retained_bytes=3881 omitted_bytes=4500 rendered_excerpt_bytes=4096 sha256=4254d2a59e32aa6212c55037521b92f4106226b5b2e3569b2e15329b7b96f50f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> used internally.\n>     \n>         By default, all communication is in bytes, and therefore any \"input\" should\n>         be bytes, and the stdout and stderr will be bytes. If in text mode, any\n>         \"input\" should be a string, and stdout and stderr will be strings decoded\n>         according to locale encoding, or by \"encoding\" if set. Text mode is\n>         triggered by setting any of text, encoding, errors or universal_newlines.\n>     \n>         The other arguments are the same as for the Popen constructor.\n>         \"\"\"\n>         if input is not None:\n>             if kwargs.get('stdin') is not None:\n>                 raise ValueError('stdin and input arguments may not both be used.')\n>             kwargs['stdin'] = PIPE\n>     \n>         if capture_output:\n>             if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n>                 raise ValueError('stdout and stderr arguments may not be used '\n>                                  'with capture_output.')\n>             kwargs['stdout'] = PIPE\n>             kwargs['stderr'] = PIPE\n>     \n>         with Popen(*popenargs, **kwargs) as process:\n>             try:\n>                 stdout, stderr = process.communicate(input, timeout=timeout)\n>             except TimeoutExpired as exc:\n>                 process.kill()\n>                 if _mswindows:\n>                     # Windows accumulates the output in a single blocking\n>                     # read() call run on child threads, with the timeout\n>                     # being done in a join() on those threads.  communicate()\n>                     # _after_ kill() is required to collect that and add it\n>                     # to the exception.\n>                     exc.stdout, exc.stderr = process.communicate()\n>                 else:\n>                     # POSIX _communicate already populated the output so\n>                     # far into the TimeoutExpired exception.\n>                     process.wait()\n>                 raise\n>             except:  # Including KeyboardInterrupt, communicate handled that.\n>                 process.kill()\n>                 # We don't call process.wait() as .__exit__ does that for us.\n>                 raise\n>             retcode = process.poll()\n>             if check and retcode:\n> >               raise CalledProcessError(retcode, process.args,\n>                                          output=stdout, stderr=stderr)\n> E               subprocess.CalledProcessError: Command '['/bin/python3.10', '-I', '-B', '-c', 'import sys\\x5cnsys.path.insert(0, \\x5c'/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo\\x5c')\\x5cn\\x5cnimport inspect, json\\x5cnfrom orchestrator.campaign import p3_b4_wiring_probe as P\\x5cnguard = P._ProcessGuard(P._protected_campaign_roots())\\x5cnguard.install_audit()\\x5cnruntime = P._load_runtime(guard)\\x5cnstatic = P._load_static_modules()\\x5cninventory = P._build_inventory(static, runtime.modules)\\x5cnguard.seal(inventory, runtime.modules)\\x5cnfunction = P._runtime_function(runtime.modules, \\x5c'orchestrator.campaign.p3_s4_loop.project_whiteboard\\x5c')\\x5cnpositional = []\\x5cnkeywords = {}\\x5cnfor parameter in inspect.signature(function).parameters.values():\\x5cn    if parameter.default is not inspect.Parameter.empty:\\x5cn        continue\\x5cn    if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY,\\x5cn                          inspect.Parameter.POSITIONAL_OR_KEYWORD):\\x5cn        positional.append(None)\\x5cn    elif parameter.kind is inspect.Parameter.KEYWORD_ONLY:\\x5cn        keywords[parameter.name] = None\\x5cntry:\\x5cn    function(*positional, **keywords)\\x5cnexcept P.OutcomeGenerationError as exc:\\x5cn    print(json.dumps({\\x5cn        \"module\": exc.module,\\x5cn        \"qualname\": exc.qualname,\\x5cn        \"path\": exc.path,\\x5cn        \"firstlineno\": exc.firstlineno,\\x5cn        \"attempts\": len(guard.blocked_outcome_attempts),\\x5cn    }))\\x5cnelse:\\x5cn    raise AssertionError(\"real producer body was entered\")\\x5cn']' returned non-zero exit status 1.\n> \n> /usr/lib/python3.10/subprocess.py:526: CalledProcessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1015 retained_bytes=1015 omitted_bytes=0 rendered_excerpt_bytes=1040 sha256=a703f8352c7b9f8e5106bee17c0589ffa447885e56049ebd64d1fc1e743c260b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> static_runtime = (_Runtime(modules={'orchestrator.campaign.artifact_admission': <module 'orchestrator.campaign.artifact_admission' from...ame='binding_from_authority', node=<ast.FunctionDef object at 0x14a22a024340>, calls=(), issues=())}, issues=()), ...})\n> \n>     def test_project_whiteboard_seed_is_independently_load_bearing(static_runtime):\n>         runtime, static = static_runtime\n>         target = \"orchestrator.campaign.p3_s4_loop.project_whiteboard\"\n>         baseline = _inventory_symbols(P._build_inventory(static, runtime.modules))\n> >       assert target in baseline\n> E       AssertionError: assert 'orchestrator.campaign.p3_s4_loop.project_whiteboard' in {'orchestrator.campaign.execution_guard.require_certified_writer_authorization', 'orchestrator.campaign.loop._authoriz...._resolve_duplicate', 'orchestrator.campaign.p3_s4_loop.drive_iteration', 'orchestrator.campaign.p3_s4_loop.main', ...}\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:319: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=9396 retained_bytes=4896 omitted_bytes=4500 budget_bytes=49152 rendered_bytes=6367 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d7edbe045f059f3f556552d2804d7dfaa80720078e3dbcf016de562d572cfba9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "579a6eca65471cb264cc81997bb75601fa835c7ee3c950c47963c903f755c205",
+      "duration_s": 90.295,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]"
+      ],
+      "hang_risk": false,
+      "id": "MWC",
+      "injection_diff_sha256": "d17a2bca5f846485a7f8ee14edbe987134ed2b2c821d3c931a4eb89672bc0b60",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f28b7e0308c512ad6b217f4c403714a30548c994b804d58c5316108b10e02f4a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[2]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+          "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+        }
+      ],
+      "repo_head": "4281225757023c5354b469638a324024ff605519",
+      "runner_sha256": "78b480b0bd55bfcbfbaf305a0a3f3b268e4fc4547df398cf2d3beedc08fc7276",
+      "spec_sha256": "b5847693aa482852c38b9dbb9c2db6b81139683e9a057e66d6b40af1186638c8",
+      "status": "KILLED",
+      "test_output_sha256": "d7edbe045f059f3f556552d2804d7dfaa80720078e3dbcf016de562d572cfba9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ff06b1baed6f6b5f3768b4795782da4f/izdw-ff06b1baed.o962974",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ff06b1baed6f6b5f3768b4795782da4f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_mapping_matches_runtime_import_targets\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib\\nfrom . import p3_s4_loop as L-loader = importlib.import_module\\n    loader(name)-dynamic import]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys\\nfrom . import p3_s4_loop as L-mods = sys.modules\\n    mods[name].make_critic_digest()-sys.modules callable]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr\\n    getter(L, name)()-non-literal getattr]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()\\n    target()-unresolved local assignment]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\natexit.register(lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\ndef helper():\\n    atexit.register(lambda: None)\\nhelper()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\n@atexit.register\\ndef cleanup():\\n    pass]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal\\nsignal.signal(signal.SIGTERM, lambda *_: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref\\nweakref.finalize(object(), lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading\\nthreading.Thread().start()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import\norchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate\norchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived\norchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent\norchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site\norchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception\norchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields\norchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked\norchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes\n\n59 tests collected in 0.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "54a9a3dcd5503d949b8129895e112f2a91637bdc02995b2851d04aa4c7acc4a8"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_mapping_matches_runtime_import_targets",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib/nfrom . import p3_s4_loop as L-loader = importlib.import_module/n    loader(name)-dynamic import]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys/nfrom . import p3_s4_loop as L-mods = sys.modules/n    mods[name].make_critic_digest()-sys.modules callable]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr/n    getter(L, name)()-non-literal getattr]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()/n    target()-unresolved local assignment]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/natexit.register(lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/ndef helper():/n    atexit.register(lambda: None)/nhelper()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/n@atexit.register/ndef cleanup():/n    pass]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal/nsignal.signal(signal.SIGTERM, lambda *_: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref/nweakref.finalize(object(), lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading/nthreading.Thread().start()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+      ],
+      "duration_s": 21.902,
+      "rc": 0,
+      "repo_head": "4281225757023c5354b469638a324024ff605519",
+      "runner_sha256": "78b480b0bd55bfcbfbaf305a0a3f3b268e4fc4547df398cf2d3beedc08fc7276",
+      "spec_sha256": "b5847693aa482852c38b9dbb9c2db6b81139683e9a057e66d6b40af1186638c8",
+      "status": "PASSED",
+      "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MWA": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "369cfe9f6986418e2d82e20d7ff32f8c083a54ad57566f05a93644608d68210e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[0]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+            "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+          }
+        ]
+      },
+      "MWB": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "56b8dd33a1b752af739056820d2f1a9335780ab15e244c50a69befa3cefd7ce6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[1]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+            "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+          }
+        ]
+      },
+      "MWC": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d17a2bca5f846485a7f8ee14edbe987134ed2b2c821d3c931a4eb89672bc0b60",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[2]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+            "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "e3864b598df4b4aa522382b9175147d4af3fe12f6066e7d85fa2b932ce7e1f8b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "4281225757023c5354b469638a324024ff605519",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "279db665b7ea015d37bb01d4be21aa3f08cb05d7",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "78b480b0bd55bfcbfbaf305a0a3f3b268e4fc4547df398cf2d3beedc08fc7276",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "b5847693aa482852c38b9dbb9c2db6b81139683e9a057e66d6b40af1186638c8",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1909/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "43e3977ab2a1a0e67878c23e4e68571088f0c9d525ddf4162bec96dc9a42141c",
+  "updated_at": "2026-08-31T15:59:43.141744+00:00"
+}

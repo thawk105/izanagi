@@ -1779,7 +1779,7 @@ def test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed(
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
     build_root = repo / "output" / "exploration" / "autonomous-trials"
@@ -1810,6 +1810,25 @@ def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloa
     assert observed_ccbench_commits == {completeness._CURRENT_CCBENCH_PIN}
     assert observed_env_tags == {("linux-baremetal",)}
 
+    real_chain = completeness.assert_campaign_layer3_chain
+    real_fresh = completeness._fresh_layer3_for_comparison
+    observed_chain_trial_ids: list[str] = []
+    observed_fresh_campaign_roots: list[Path] = []
+
+    def wrapped_chain(**kwargs):
+        result = real_chain(**kwargs)
+        observed_chain_trial_ids.append(kwargs["report"]["trial_id"])
+        return result
+
+    def wrapped_fresh(**kwargs):
+        result = real_fresh(**kwargs)
+        observed_fresh_campaign_roots.append(kwargs["campaign_root"])
+        return result
+
+    monkeypatch.setattr(R, "assert_campaign_layer3_chain", wrapped_chain)
+    monkeypatch.setattr(
+        completeness, "_fresh_layer3_for_comparison", wrapped_fresh,
+    )
     summary = _accept(
         manifest_path=manifest_path,
         report_paths=reports,
@@ -1830,6 +1849,16 @@ def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloa
     assert {
         row["trial_id"] for row in receipt["trials"]
     } == {trial.trial_id for trial in manifest.trials}
+    assert len(observed_chain_trial_ids) == 6
+    assert observed_chain_trial_ids == [
+        trial.trial_id for trial in manifest.trials
+    ]
+    expected_campaign_roots = {
+        Path(json.loads(report_path.read_bytes())["cells"][0]["campaign_root"])
+        for report_path in reports
+    }
+    assert len(observed_fresh_campaign_roots) == 6
+    assert set(observed_fresh_campaign_roots) == expected_campaign_roots
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
@@ -2298,28 +2327,36 @@ def test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt(
     assert not receipt_dir.exists() or not any(receipt_dir.iterdir())
 
 
-def test_s8c_acceptance_failure_cell_pins_layer3_chain_absent_reason(
-    tmp_path: Path,
+def test_s8c_acceptance_rejects_campaignless_failure_layer3_bypass_after_chain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
     reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
     reports[0] = _campaignless_failure_report(
         repo / "reports-failure", manifest.trials[0], manifest, _head(repo),
     )
-    summary = _accept(
-        manifest_path=manifest_path,
-        report_paths=reports,
-        repository_root=repo,
-        registry_path=registry,
+    real_chain = completeness.assert_campaign_layer3_chain
+    observed_chain_trial_ids: list[str] = []
+
+    def wrapped_chain(**kwargs):
+        result = real_chain(**kwargs)
+        observed_chain_trial_ids.append(kwargs["report"]["trial_id"])
+        return result
+
+    monkeypatch.setattr(R, "assert_campaign_layer3_chain", wrapped_chain)
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[campaign-chain] campaignless failure fallback bypassed Layer-3 "
+        "validation for cells [0]"
     )
-    receipt = json.loads((repo / summary.receipt_path).read_bytes())
-    assert "layer3-chain-absent" in receipt["non_certifying_reason_codes"]
-    assert receipt["non_certifying_reason_codes"] == [
-        "c02-arm-binding-unproven",
-        "layer3-chain-absent",
-        "no-build",
-        "t468-approval-authority-absent",
-    ]
+    assert observed_chain_trial_ids == [manifest.trials[0].trial_id]
+    _assert_acceptance_receipt_absent(repo)
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")

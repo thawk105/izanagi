@@ -1328,6 +1328,20 @@ def test_historical_build_report_remains_non_certifying(
     assert report["certifying_input"] is False
 
 
+def test_historical_build_report_projects_unknown_current_verifier_conformance(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["current_verifier_conformance"] == "unknown"
+
+
 def test_historical_build_report_displays_e0_without_rejection(
     tmp_path: Path, monkeypatch,
 ) -> None:
@@ -1481,6 +1495,30 @@ def test_legacy_v2_report_schema_remains_readable(tmp_path):
     layer3_report._validate_schema(legacy)
 
 
+@pytest.mark.parametrize(
+    "schema_version",
+    ("layer3-material-report/v2", "layer3-material-report/v3"),
+    ids=("v2", "v3"),
+)
+def test_saved_report_without_current_verifier_conformance_remains_readable(
+    tmp_path: Path, schema_version: str,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    del report["current_verifier_conformance"]
+    if schema_version == "layer3-material-report/v2":
+        report["schema_version"] = schema_version
+        del report["admission_decision"]
+        del report["acceptance_receipt"]
+        del report["certifying_input"]
+
+    layer3_report._validate_schema(report)
+
+
 def test_legacy_v2_without_policy_hint_remains_readable(tmp_path):
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
@@ -1541,6 +1579,7 @@ def test_existing_certifying_v3_missing_epoch_remains_readable(
     }
     report["certifying_input"] = True
     del report["campaign_verifier_epoch"]
+    del report["current_verifier_conformance"]
 
     layer3_report._validate_schema(report)
 
@@ -1803,6 +1842,58 @@ def test_accepted_report_requires_e1_and_records_epoch(
         "path": verified.relative_path,
         "sha256": verified.sha256,
     }
+
+
+def test_certified_report_omits_current_verifier_conformance(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+
+    report = layer3_report.build_accepted_report(
+        campaign,
+        acceptance_receipt=object(),
+        generated_from_head="fixed",
+        output_root=output_root,
+    )
+
+    assert "current_verifier_conformance" not in report
+
+
+def test_certified_schema_forbids_current_verifier_conformance(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = {
+        key: value
+        for key, value in layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        ).items()
+        if key != "current_verifier_conformance"
+    }
+    report["acceptance_receipt"] = {
+        "path": "acceptance/legacy.json",
+        "sha256": "a" * 64,
+    }
+    report["certifying_input"] = True
+    del report["campaign_verifier_epoch"]
+    layer3_report._validate_schema(report)
+
+    report["current_verifier_conformance"] = "unknown"
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="layer3 schema 検証に失敗$",
+    ):
+        layer3_report._validate_schema(report)
 
 
 def test_render_accepted_persists_certifying_report(

@@ -8,6 +8,15 @@ direct Python API call, or an earlier similar experiment, did not reveal a
 result before the record was committed.  Git author and committer timestamps
 are not an absolute chronology relative to activity outside the repository.
 
+The required-path gate proves only that the resolved repository-relative
+record path equals the path selected by ``driver_kind``.  It does not prove
+that the record at the required path has correct contents.  It does not prove
+that the mapping in this module is a preregistered source of truth.  It does
+not prove that there is a single path across drivers.  It does not prevent a
+commit from changing the mapping or the record at the required path.  It does
+not block a route that learns a result outside Git before committing the
+record at the required path.
+
 The expected model can be checked only after the critic query and provider
 envelope, including modelUsage, have been saved and validated.  The verifier
 therefore cannot prevent an operator from seeing output, changing the model
@@ -50,6 +59,10 @@ _RECORD_UNAVAILABLE = "[admission-record] record is unavailable"
 _RECORD_NOT_AT_HEAD = (
     "[admission-record] record is not committed at execution HEAD"
 )
+_RECORD_REPOSITORY_PATH_NOT_REQUIRED_FOR_DRIVER_KIND = (
+    "[admission-record] record repository path is not the path required for "
+    "driver_kind"
+)
 _DOCUMENT_NOT_VERIFIABLE = (
     "[admission-preregistration] document binding is not verifiable"
 )
@@ -80,6 +93,13 @@ B4_PROJECTION_DRIVER_KINDS: Final[tuple[B4ProjectionDriverKind, ...]] = (
     "sort",
     "trigger",
 )
+_REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER: Final[
+    MappingProxyType[B4ProjectionDriverKind, str]
+] = MappingProxyType({
+    "base": "docs/phase3-b4-reflux-ablation-admission-record-base.json",
+    "sort": "docs/phase3-b4-reflux-ablation-admission-record-sort.json",
+    "trigger": "docs/phase3-b4-reflux-ablation-admission-record-trigger.json",
+})
 _EXPECTATION_ROW_RE = re.compile(
     r"expected_claude_model_snapshot="
     r"(?P<model>claude-opus-[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*); "
@@ -691,6 +711,13 @@ def verify_b4_admission_record(
         root,
         admission_record_path,
     )
+    if (
+        relative_record_path.as_posix()
+        != _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER[driver_kind]
+    ):
+        raise B4AdmissionRecordError(
+            _RECORD_REPOSITORY_PATH_NOT_REQUIRED_FOR_DRIVER_KIND
+        )
     try:
         record_bytes = record_path.read_bytes()
     except OSError as exc:

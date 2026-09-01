@@ -1575,6 +1575,58 @@ def test_certified_acceptance_distinguishes_current_closure_unavailable(
     assert excinfo.value.reason_code == "current-closure-unavailable"
 
 
+def test_historical_raw_with_dirty_current_closure_preserves_recorded_view_structure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+    live_path.write_bytes(live_path.read_bytes() + b"dirty live bytes\n")
+
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    assert type(view) is A.HistoricalCampaignView
+    assert view.read_purpose is HISTORICAL
+    assert view.campaign_verifier_epoch.state == "E1"
+    assert view.campaign_verifier_epoch.reason_code == "recorded-closure"
+    assert (
+        view.campaign_verifier_epoch.campaign_verifier_epoch
+        == _expected_fixture_epoch()
+    )
+
+
+def test_historical_view_reports_unknown_current_verifier_conformance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+    live_path.write_bytes(live_path.read_bytes() + b"dirty live bytes\n")
+
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    assert view.current_verifier_conformance == "unknown"
+
+
+def test_certified_acceptance_rejects_dirty_current_closure_with_exact_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+    live_path.write_bytes(live_path.read_bytes() + b"dirty live bytes\n")
+
+    with pytest.raises(A.CampaignVerifierEpochRejected) as excinfo:
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+
+    assert type(excinfo.value) is A.CampaignVerifierEpochRejected
+    assert excinfo.value.epoch_state == "E1-stale"
+    assert excinfo.value.reason_code == "current-closure-unavailable"
+
+
 def test_legacy_recorded_current_closure_mismatch_diagnostic_remains_readable(
 ) -> None:
     epoch = A.CampaignVerifierEpoch(

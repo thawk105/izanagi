@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 30.0,
+  "timeout_seconds": 600.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "dogfood-spool-fold-filename-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if path.name != expected:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_n01_frontmatter_filename_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
