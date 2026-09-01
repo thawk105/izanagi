@@ -47,8 +47,10 @@ _ORCH = os.path.dirname(_HERE)
 _REPOSITORY = os.path.dirname(_ORCH)
 sys.path.insert(0, _REPOSITORY)
 
+from orchestrator import holdout_observation                                  # noqa: E402
 from orchestrator.campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
-                      site_policy, source_digest, trigger_gate_binding, wal)
+                      s8b_ratified_freeze, site_policy, source_digest,
+                      trigger_gate_binding, wal)
 from orchestrator.calibrator import perf_preflight as perf_preflight_module   # noqa: E402
 from orchestrator.campaign import env_contract as ec                          # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
@@ -13516,6 +13518,187 @@ def test_run_campaign_wires_nondefault_bench_max_rounds_to_evaluate():
         campaign_loop.evaluate = saved_evaluate
         campaign_loop.source_digest = saved_source_digest
     assert captured == [1]
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_campaign_forwards_only_non_none_holdout_observation_admission():
+    from orchestrator.campaign import loop as campaign_loop
+
+    parameter = inspect.signature(campaign_loop.run_campaign).parameters[
+        "holdout_observation_admission"
+    ]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is None
+
+    captured = []
+    genome = Genome("silo", {"BACK_OFF": 1})
+    admission = object()
+
+    def fake_evaluate(candidate, *_args, **kwargs):
+        captured.append((
+            "holdout_observation_admission" in kwargs,
+            kwargs.get("holdout_observation_admission"),
+        ))
+        return EvalResult(
+            genome=candidate,
+            variant=pipeline.variant_id(candidate, kwargs["src_token"]),
+            certified=True,
+            aborted=False,
+        )
+
+    saved_evaluate = campaign_loop.evaluate
+    saved_source_digest = campaign_loop.source_digest
+    campaign_loop.evaluate = fake_evaluate
+    campaign_loop.source_digest = _sd_mock("stock")
+    try:
+        for label, options in (
+            ("default", {}),
+            ("admitted", {"holdout_observation_admission": admission}),
+        ):
+            campaign_loop.run_campaign(
+                CampaignConfig(
+                    spec_slug=f"holdout-transport-{label}",
+                    search_tag="test",
+                    spec_content=f"holdout transport {label}",
+                    ccbench_commit="deadbeef",
+                ),
+                [genome],
+                PerfConfig(records=1, threads=1),
+                _AUTH_CONTRACT.env_tag,
+                _AUTH_CONTRACT.clocks_per_us,
+                numactl=list(_AUTH_CONTRACT.numactl),
+                do_bench=False,
+                output_root=_tmpdir(f"izanagi_holdout_transport_{label}_"),
+                log=lambda *_args: None,
+                authorization_contract=_AUTHORIZATION,
+                build_context=_BUILD_CONTEXT,
+                declared_use_class="official",
+                **options,
+            )
+    finally:
+        campaign_loop.evaluate = saved_evaluate
+        campaign_loop.source_digest = saved_source_digest
+
+    assert captured == [(False, None), (True, admission)]
+
+
+def test_run_campaign_rejects_balanced_schedule_with_holdout_admission_before_output():
+    from orchestrator.campaign import loop as campaign_loop
+
+    output_root = Path(_tmpdir("izanagi_balanced_holdout_parent_")) / "must-not-exist"
+    freeze = s8b_ratified_freeze.load_legacy_freeze(Path(_REPOSITORY))
+    rr80 = freeze.document["holdouts"]["rr80"]
+    perf = PerfConfig(
+        records=rr80["records"],
+        threads=rr80["threads"],
+        workload=dict(rr80["ycsb"]),
+        reps=20,
+    )
+    receipt = holdout_observation._new_durable_attempt_consumption_receipt(
+        attempt_id="test-campaign-balanced-holdout",
+        permitted_run_once_calls=perf.reps,
+    )
+    admission = (
+        holdout_observation._issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=freeze.document,
+            freeze_holdout_key="rr80",
+        )
+    )
+    holdout_observation.assert_issued_holdout_observation(admission)
+    schedule = pipeline.BalancedScheduleConfig(
+        workload="rr80",
+        root_seed="1" * 64,
+        arm_names=("a", "b"),
+    )
+    genomes = [
+        Genome("silo", {"BACK_OFF": 1}),
+        Genome("silo", {"BACK_OFF": 2}),
+    ]
+    with pytest.raises(
+        ValueError,
+        match=r"two arms require 2 \* perf\.reps observations",
+    ):
+        campaign_loop.run_campaign(
+            CampaignConfig(
+                spec_slug="balanced-holdout-conflict",
+                search_tag="test",
+                spec_content="balanced holdout conflict",
+                ccbench_commit="deadbeef",
+                search_config={
+                    "pairing_design": "balanced-a5b5-b5a5-v1",
+                    "arm_order": list(schedule.arm_names),
+                    "workload": {"name": schedule.workload},
+                },
+            ),
+            genomes,
+            perf,
+            _AUTH_CONTRACT.env_tag,
+            _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            do_bench=True,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
+            output_root=str(output_root),
+            bench_max_rounds=1,
+            balanced_schedule=schedule,
+            holdout_observation_admission=admission,
+        )
+    assert not output_root.exists()
+
+
+def test_run_campaign_rejects_multiple_genomes_with_holdout_admission_before_output():
+    from orchestrator.campaign import loop as campaign_loop
+
+    output_root = Path(_tmpdir("izanagi_multi_holdout_parent_")) / "must-not-exist"
+    freeze = s8b_ratified_freeze.load_legacy_freeze(Path(_REPOSITORY))
+    rr80 = freeze.document["holdouts"]["rr80"]
+    perf = PerfConfig(
+        records=rr80["records"],
+        threads=rr80["threads"],
+        workload=dict(rr80["ycsb"]),
+    )
+    receipt = holdout_observation._new_durable_attempt_consumption_receipt(
+        attempt_id="test-campaign-multiple-genomes",
+        permitted_run_once_calls=perf.reps,
+    )
+    admission = (
+        holdout_observation._issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=freeze.document,
+            freeze_holdout_key="rr80",
+        )
+    )
+    holdout_observation.assert_issued_holdout_observation(admission)
+    with pytest.raises(
+        ValueError,
+        match=r"attempt-bound token has a finite run_once allowance",
+    ):
+        campaign_loop.run_campaign(
+            CampaignConfig(
+                spec_slug="multi-genome-holdout-conflict",
+                search_tag="test",
+                spec_content="multi-genome holdout conflict",
+                ccbench_commit="deadbeef",
+            ),
+            [
+                Genome("silo", {"BACK_OFF": 1}),
+                Genome("silo", {"BACK_OFF": 2}),
+            ],
+            perf,
+            _AUTH_CONTRACT.env_tag,
+            _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            do_bench=True,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
+            output_root=str(output_root),
+            bench_max_rounds=1,
+            holdout_observation_admission=admission,
+        )
+    assert not output_root.exists()
 
 
 def test_balanced_schedule_quality_gate_signatures_accept_complete_input():
