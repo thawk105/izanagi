@@ -248,6 +248,7 @@ def _real_repo_access_golden() -> dict[str, tuple[str | None, str | None]]:
 _XDIST_GROUP_NAMES_GOLDEN = frozenset({
     "campaign-repository-scan",
     "dev-waves-runtime",
+    "p3-b4-material-report",
     "real-repo",
     "s8c-predicate-snapshot",
     "s8c-preregistration-candidate",
@@ -276,8 +277,39 @@ _CAMPAIGN_REPOSITORY_SCAN_NODES_GOLDEN = frozenset({
     "test_campaign_import_invariant.py::test_known_exception_ledger_is_unique_rationalized_and_commented",
 })
 
+_P3_B4_MATERIAL_REPORT_NODES_GOLDEN = frozenset({
+    "test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+    "test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf",
+    "test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path",
+    "test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling",
+    "test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+    "test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+    "test_p3_b4_material_report.py::test_markdown_escape_orders_backslash_pipe_and_normalizes_cr_lf",
+    "test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+    "test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations",
+    "test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder",
+    "test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+    "test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values",
+    "test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing",
+    "test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+    "test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+    "test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing",
+    "test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader",
+    "test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing",
+    "test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload",
+    "test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+    "test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards",
+    "test_p3_b4_material_report.py::test_commit_marker_is_last_and_binds_both_durable_files",
+    "test_p3_b4_material_report.py::test_second_link_failure_rolls_back_pair_and_leaves_no_commit_marker",
+    "test_p3_b4_material_report.py::test_commit_marker_link_failure_rolls_back_both_staged_artifacts",
+    "test_p3_b4_material_report.py::test_rollback_failure_is_reported_instead_of_suppressed",
+    "test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+    "test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints",
+})
+
 _LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN = {
     "campaign-repository-scan": _CAMPAIGN_REPOSITORY_SCAN_NODES_GOLDEN,
+    "p3-b4-material-report": _P3_B4_MATERIAL_REPORT_NODES_GOLDEN,
     "s8c-predicate-snapshot": _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN,
     "s8c-preregistration-candidate": _S8C_PREREGISTRATION_CANDIDATE_NODES_GOLDEN,
 }
