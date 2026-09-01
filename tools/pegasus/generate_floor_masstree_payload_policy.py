@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Generate the independently reviewed masstree config policy.
+"""Generate the independently reviewed masstree payload policy.
 
 This is an administrative producer.  The floor runtime deliberately does not
 import this module: it only consumes the committed JSON and verifies the
 recorded values against the staged payload.
+
+この gate が検出するのは、承認 policy と実行時 archive の非 debug 射影の差、および
+`tool_version_body(--version)` の差である。同じ射影を出す道具の置換、debug 情報だけの差、
+同じ version body を保った compiler binary の置換、gcc と g++ の role 混成は検出しない。
+適用範囲は S8b `sort_best` の masstree prebuild と mocc trace pilot の compiler であり、
+全 CCBench consumer を覆うものではない。
 """
 from __future__ import annotations
 
@@ -16,17 +22,30 @@ import re
 import subprocess
 import sys
 import tempfile
-from typing import Any
+from typing import Any, NamedTuple
 
 
-SCHEMA_VERSION = "s8b-floor-masstree-payload/v2"
+# Direct execution starts with tools/pegasus on sys.path.  Bootstrap the repo
+# root before importing the version-controlled projection authority (R1).
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from orchestrator.campaign.masstree_archive_projection import (  # noqa: E402
+    MASSTREE_MEMBERS,
+    PROJECTION_ID,
+    masstree_archive_digests,
+)
+
+
+SCHEMA_VERSION = "s8b-floor-masstree-payload/v3"
 SOURCE_NAME = "masstree"
 PIN_RE = re.compile(r"[0-9a-f]{40}\Z")
 HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return REPO_ROOT
 
 
 def _policy_path() -> Path:
@@ -158,8 +177,14 @@ def _sha256_file(path: Path) -> str:
     return value
 
 
-def _configure_and_hash(source_dir: Path) -> str:
-    """Run only masstree bootstrap/configure in the temporary clone."""
+class _BuildDigests(NamedTuple):
+    config_sha256: str
+    archive_sha256: str
+    archive_nondebug_sha256: str
+
+
+def _build_and_hash(source_dir: Path) -> _BuildDigests:
+    """Run the exact full Masstree recipe in one temporary clone."""
     bootstrap = source_dir / "bootstrap.sh"
     if bootstrap.is_symlink() or not bootstrap.is_file():
         raise RuntimeError(f"masstree bootstrap script is unavailable: {bootstrap}")
@@ -169,17 +194,40 @@ def _configure_and_hash(source_dir: Path) -> str:
         ["./configure", "--disable-assertions"],
         cwd=str(source_dir), check=True,
     )
-    return _sha256_file(source_dir / "config.h")
+    subprocess.run(
+        ["make", "-j", "CXXFLAGS=-g -W -Wall -O3 -fPIC"],
+        cwd=str(source_dir), check=True,
+    )
+    archive = source_dir / "libkohler_masstree_json.a"
+    subprocess.run(
+        ["ar", "cr", archive.name, *MASSTREE_MEMBERS],
+        cwd=str(source_dir), check=True,
+    )
+    subprocess.run(["ranlib", archive.name], cwd=str(source_dir), check=True)
+    archive_digests = masstree_archive_digests(archive)
+    return _BuildDigests(
+        config_sha256=_sha256_file(source_dir / "config.h"),
+        archive_sha256=archive_digests.raw_sha256,
+        archive_nondebug_sha256=(
+            archive_digests.archive_nondebug_sha256
+        ),
+    )
 
 
-def _write_policy(path: Path, *, pin: str, config_sha256: str) -> None:
-    if HASH_RE.fullmatch(config_sha256) is None:
+def _write_policy(
+        path: Path, *, pin: str, config_sha256: str,
+        archive_nondebug_sha256: str,
+) -> None:
+    if (HASH_RE.fullmatch(config_sha256) is None
+            or HASH_RE.fullmatch(archive_nondebug_sha256) is None):
         raise RuntimeError("generated artifact hash is invalid")
     document = {
         "schema_version": SCHEMA_VERSION,
         "name": SOURCE_NAME,
         "pin": pin,
         "config_sha256": config_sha256,
+        "archive_projection": PROJECTION_ID,
+        "archive_nondebug_sha256": archive_nondebug_sha256,
     }
     path = path.expanduser().absolute()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -233,12 +281,38 @@ def main(argv: list[str] | None = None) -> int:
         url, pin = _load_policy(_policy_path())
         with tempfile.TemporaryDirectory(prefix="izanagi-floor-masstree-policy-") as temporary:
             work_dir = Path(temporary)
-            source_dir = _prepare_source(
-                args.source_dir, url=url, pin=pin, work_dir=work_dir,
-            )
-            config_sha256 = _configure_and_hash(source_dir)
+            builds: list[_BuildDigests] = []
+            for label in ("build-a", "build-b"):
+                clone_root = work_dir / label
+                clone_root.mkdir()
+                source_dir = _prepare_source(
+                    args.source_dir, url=url, pin=pin, work_dir=clone_root,
+                )
+                result = _build_and_hash(source_dir)
+                builds.append(result)
+                print(
+                    "generate_floor_masstree_payload_policy: "
+                    f"{label} clone_root={source_dir} "
+                    f"config_sha256={result.config_sha256} "
+                    "archive_nondebug_sha256="
+                    f"{result.archive_nondebug_sha256} "
+                    f"archive_sha256={result.archive_sha256}",
+                    file=sys.stderr,
+                )
+            if (
+                builds[0].config_sha256 != builds[1].config_sha256
+                or builds[0].archive_nondebug_sha256
+                != builds[1].archive_nondebug_sha256
+            ):
+                raise RuntimeError(
+                    "two independent masstree builds produced different "
+                    "config/projection digests"
+                )
         _write_policy(
-            output_path, pin=pin, config_sha256=config_sha256,
+            output_path,
+            pin=pin,
+            config_sha256=builds[0].config_sha256,
+            archive_nondebug_sha256=builds[0].archive_nondebug_sha256,
         )
     except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
         print(f"generate_floor_masstree_payload_policy: {exc}", file=sys.stderr)
