@@ -17,9 +17,11 @@ seq: 2
   codex の workspace-write sandbox は cwd 配下しか書けない。
   `index.lock: Read-only file system` になる。子の権限境界の構造的帰結であって、
   子の判断ミスではない。
-- 恒久対応: `DW-S05-A` へ「投入先 worktree を対象 tip へ揃えるのは親の義務であり、
-  子に git command を実行させない」を明記する。fix / 実装子の prompt には
-  「親が同期済みである」「git command を実行するな」を逐語で書く。
+- 恒久対応: `DW-S05-C` が定める「実装子の prompt に入れる項目」の一つとして、
+  **「親が対象 tip へ同期済みである」「git command を実行するな」を逐語で書く**を運用する。
+  `DW-S05-A` 本文への収容は L1.5 の byte 予算に阻まれた (D782 の手順を最後まで適用し、
+  意味等価な削減・別節・新規節のいずれも成立しないことを確認済み)。予算に空きが出た wave が
+  同節へ畳む。
 - 再発検知: 実装子・fix 子の prompt に `git checkout` / `git reset` / `git fetch` が
   含まれていないことを、投入前の親の点検項目にする。
 - 補足 (理由の見つけ方): 背景 log が空で rc=1 のときは
@@ -37,8 +39,8 @@ seq: 2
   (`qstat -Q preflight rc=1`、runner rc=16、`child_started=false`)。
   子は `DW-S05-C` に従い「実装済み・未実走」と正しく申告したが、
   **親が統合前に構文・名前解決だけでも実測する義務がどこにも書かれていない。**
-- 恒久対応: `DW-S05-C` へ「実走不能な子の成果物は、親が統合の前に少なくとも
-  対象 file の import 可能性を実測する」を足す。全走より 3 桁安い。
+- 恒久対応: 統合 script に、所有 file を import する最小の実測を組み込む。
+  全走より 3 桁安い。`DW-S05-C` 本文への収容は L1.5 の byte 予算に阻まれた。
 - 再発検知: 統合 script に、所有 file を import する最小の実測を組み込む。
 
 ### {{F:mutation-drift-mask}}. 自己 blob 束縛が変異の単一理由性を壊し、冗長 gate 386 件を生む [恒真ゲート] [測定の歪み]
@@ -70,8 +72,8 @@ seq: 2
   主 worktree の untracked 一覧が数時間の走行中に動かない前提が成り立たない。
   submodule pointer は動いていないことを実測で確認した。
 - 恒久対応: 変異の `--source-repo` を**独立 clone** にする。clone なら primary が clone 自身に
-  なり、`git status -uall` が 0 行で安定する。手順は `DW-O19` の
-  `mutation_worktree.py` 記述へ足す。submodule は
+  なり、`git status -uall` が 0 行で安定する。`DW-O19` への収容は単節 byte 予算
+  (残り 2 bytes) に阻まれたため、本項を手順の正本とする。submodule は
   `git -c protocol.file.allow=always` と URL の local 向け直しで network なしに引ける
   (main worktree 側は入れ子 submodule が未初期化なので、引き元は wave worktree にする)。
 - 再発検知: 走行前に source と primary が同一 (= 独立 clone) であることを確認する。
@@ -87,7 +89,7 @@ seq: 2
 - 恒久対応: baseline が赤で止まったら、`DW-O19` の再走規則どおり**新しい scratch と
   `--out` / `--attempt-out`** で最初から走らせる。旧 container は `rm -rf` の後
   `git worktree prune` まで行う (登録残置は次走の共有木検査を止める)。
-  `DW-M05` の harness 記述へ「resume は赤 baseline を回復しない」を足す。
+  `DW-M05` への収容は L1.5 の byte 予算に阻まれたため、本項を手順の正本とする。
 - 再発検知: resume を打つ前に `baseline=N run(s)` の N を読む。0 なら resume では直らない。
 - 補足: 元の赤自体は非決定的で、同 tip の全走は 39 分前に完全緑 (19212 passed) だった。
   計算ノードの高負荷 (並行セッション実測で load average 75) 下で子 process が
