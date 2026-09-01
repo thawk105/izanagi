@@ -379,6 +379,7 @@ def run_sweep(tag: str, names: Optional[List[str]] = None, trial: str = TRIAL_MA
 
                 prepared = screening_driver.prepare_screening_campaign(
                     cfg, WORKLOADS[tag], baseline_ref, measure_baseline,
+                    protocol=_genome(1).protocol,
                     authorization_contract=env_contract.authorize(ENV_TAG),
                     env_tag=ENV_TAG, clocks_per_us=CLK, numactl=NUMA,
                     calibration_dir=calibration_dir, build_context=build_context)

@@ -65,6 +65,11 @@ _REAL_E0_CAMPAIGN = (
     / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
 )
 
+
+def test_screening_forwards_stock_genome_protocol():
+    source = Path(W.__file__).read_text(encoding="utf-8")
+    assert source.count("protocol=_genome(0).protocol") == 1
+
 # ==== C++ 比較式 → Python モデルの機械導出 ====================================
 # 生成器 (_one/_two/_mk) が出す式形のみ受理する。受理できない式は即 fail
 # (パーサが緩いと検査対象がすり替わる — fails-closed)。

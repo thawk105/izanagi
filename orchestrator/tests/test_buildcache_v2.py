@@ -266,8 +266,13 @@ def _fake_build_environment(
             allow_external_inputs=False,
             expected_evolve_block_sources=None,
             origin_fetchcontent_masstree_root=None,
-            current_fetchcontent_masstree_root=None):
+            current_fetchcontent_masstree_root=None,
+            origin_dependency_prefix_roots=(),
+            current_dependency_prefix_roots=()):
         del expected_evolve_block_sources
+        assert tuple(origin_dependency_prefix_roots) == tuple(
+            current_dependency_prefix_roots
+        )
         if allow_external_inputs:
             assert origin_fetchcontent_masstree_root is not None
             assert current_fetchcontent_masstree_root is not None
@@ -2839,6 +2844,32 @@ def test_descriptor_compiler_input_policy_has_distinct_v2_identity():
     assert descriptor_snapshot[1] != legacy_snapshot[1]
 
 
+def test_v3_external_policy_rejects_collector_without_dependency_root_keywords(
+        monkeypatch):
+    def old_collector(
+            _build_dir, _snapshot_root, *, target, allow_external_inputs,
+            expected_evolve_block_sources,
+            origin_fetchcontent_masstree_root,
+            current_fetchcontent_masstree_root):
+        raise AssertionError("incomplete collector must not be called")
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        old_collector,
+    )
+    with pytest.raises(buildcache.BuildCacheError, match="root binding"):
+        buildcache._collect_compiler_inputs(
+            "/unused/build", "/unused/snapshot", target="ycsb_silo.exe",
+            allow_external_inputs=True,
+            expected_evolve_block_sources=None,
+            origin_fetchcontent_masstree_root="/unused/masstree",
+            current_fetchcontent_masstree_root="/unused/masstree",
+            origin_dependency_prefix_roots=("/unused/dependency",),
+            current_dependency_prefix_roots=("/unused/dependency",),
+        )
+
+
 def test_v2_without_source_snapshot_preserves_legacy_completion_and_skips_manifest(
         tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
@@ -3053,6 +3084,165 @@ def test_v2_fresh_completion_and_result_expose_compiler_input_manifest(
     )
 
 
+def test_v3_result_exposes_runtime_dependency_roots_without_new_durable_field(
+        tmp_path, monkeypatch):
+    run, dependency_input = _v3_dependency_prefix_build_fixture(
+        tmp_path, monkeypatch,
+    )
+    fresh = run()
+    hit = run()
+    expected_roots = (str(dependency_input.parents[1].resolve()),)
+    completion = json.loads(
+        (Path(fresh.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+
+    assert fresh.compiler_input_dependency_prefix_roots == expected_roots
+    assert hit.compiler_input_dependency_prefix_roots == expected_roots
+    assert "compiler_input_dependency_prefix_roots" not in completion
+    assert "dependency_prefix_roots" not in completion["compiler_input_manifest"]
+    assert completion["preimage"]["dependency_prefix"] == list(expected_roots)
+
+
+def test_v3_schema_pin_uses_distinct_entry_from_v2_completion(monkeypatch):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {
+            "requested": role,
+            "realpath": f"/tool/{role}",
+            "version_first_line": "v1",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    kwargs = dict(
+        source_snapshot_sha256="1" * 64,
+        site="test", dependency_prefix=["/job/dependency"],
+        admission={"receipt": "fixture"},
+        compiler_input_policy="snapshot-and-external-hashes/v1",
+    )
+    current = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        **kwargs,
+    )
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "MANIFEST_SCHEMA",
+        buildcache.s8b_compiler_input.PREVIOUS_MANIFEST_SCHEMA,
+    )
+    previous = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        **kwargs,
+    )
+
+    assert current[0]["dependency_prefix"] == previous[0]["dependency_prefix"]
+    assert current[0]["compiler_input_manifest_schema"] == (
+        "s8b-compiler-input/v3"
+    )
+    assert previous[0]["compiler_input_manifest_schema"] == (
+        "s8b-compiler-input/v2"
+    )
+    assert current[1] != previous[1]
+
+
+def _v3_dependency_prefix_build_fixture(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    (source_root / "compiler-input.hh").write_bytes(
+        b"snapshot compiler input\n"
+    )
+    dependency_root = tmp_path / "dependency-install"
+    dependency_input = dependency_root / "include" / "dependency.hh"
+    dependency_input.parent.mkdir(parents=True)
+    dependency_input.write_bytes(b"dependency compiler input\n")
+
+    def collect(
+            _build_dir, _snapshot_root, *, target, allow_external_inputs,
+            expected_evolve_block_sources,
+            origin_fetchcontent_masstree_root,
+            current_fetchcontent_masstree_root,
+            origin_dependency_prefix_roots,
+            current_dependency_prefix_roots):
+        assert allow_external_inputs is True
+        assert expected_evolve_block_sources is None
+        assert origin_fetchcontent_masstree_root is not None
+        assert current_fetchcontent_masstree_root is not None
+        expected_roots = (str(dependency_root.resolve()),)
+        assert tuple(origin_dependency_prefix_roots) == expected_roots
+        assert tuple(current_dependency_prefix_roots) == expected_roots
+        manifest = {
+            "schema_version": buildcache.s8b_compiler_input.MANIFEST_SCHEMA,
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": target,
+            "depfile_count": 1,
+            "input_policy": "snapshot-and-external-hashes/v1",
+            "inputs": [{
+                "root": "dependency-prefix",
+                "path": "include/dependency.hh",
+                "sha256": hashlib.sha256(
+                    dependency_input.read_bytes()
+                ).hexdigest(),
+            }],
+        }
+        return buildcache.s8b_compiler_input.CompilerInputManifest(
+            manifest,
+            buildcache.s8b_compiler_input.manifest_sha256(manifest),
+        )
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        collect,
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(source_root),
+    )
+    snapshot_sha256 = (
+        buildcache.s8b_expected_materialization.snapshot_tree_digest(source_root)
+    )
+
+    def run():
+        return buildcache._build_v2_impl(
+            genome,
+            admission=admission,
+            build_context=context,
+            source_evidence=evidence,
+            source_snapshot_sha256=snapshot_sha256,
+            allow_external_compiler_inputs=True,
+            expected_evolve_block_sources=None,
+            contract=_contract(1),
+            ccbench_commit="a" * 40,
+            trace=True,
+            src_token="stock",
+            cc="test-cc",
+            cxx="test-cxx",
+            cache_root=str(tmp_path / "cache"),
+            ccbench_dir=str(source_root),
+            dependency_prefix=str(dependency_root),
+        )
+
+    return run, dependency_input
+
+
+def test_v3_dependency_prefix_hit_revalidates_same_identity_without_rebuild(
+        tmp_path, monkeypatch):
+    run, _dependency_input = _v3_dependency_prefix_build_fixture(
+        tmp_path, monkeypatch,
+    )
+    fresh = run()
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    hit = run()
+
+    assert fresh.cached is False
+    assert hit.cached is True
+    assert hit.build_dir == fresh.build_dir
+    assert calls == []
+
+
 def _install_real_compiler_input_build_without_masstree_resolution(
         monkeypatch, tmp_path: Path, *, input_path: Path) -> list[str]:
     real_collector = (
@@ -3239,9 +3429,14 @@ def _install_fetchcontent_compiler_manifest_collector(monkeypatch):
             _build_dir, _snapshot_root, *, target, allow_external_inputs,
             expected_evolve_block_sources,
             origin_fetchcontent_masstree_root,
-            current_fetchcontent_masstree_root):
+            current_fetchcontent_masstree_root,
+            origin_dependency_prefix_roots,
+            current_dependency_prefix_roots):
         assert allow_external_inputs is True
         assert expected_evolve_block_sources is None
+        assert tuple(origin_dependency_prefix_roots) == tuple(
+            current_dependency_prefix_roots
+        )
         origin = Path(origin_fetchcontent_masstree_root)
         current = Path(current_fetchcontent_masstree_root)
         relative = Path("tracked.hh")

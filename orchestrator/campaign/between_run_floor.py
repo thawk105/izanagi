@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -54,9 +55,23 @@ CCBENCH_COMMIT = pin.CURRENT_PIN   # docstring「pin の注記」参照 (2026-07
 # Mirrored by orchestrator/campaign/screening_driver.py to avoid its heavy import chain.
 BETWEEN_RUN_FLOOR_SCHEMA_VERSION = "between-run-noise-floor/v1"
 
-# p2_2 が比較に使う stock 構成 = baseline。BACK_OFF=0 なので write-heavy では high-abort。
-BASELINE = Genome("silo", {"BACK_OFF": 0, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
-                           "NO_WAIT_OF_TICTOC": 0, "WAL": 0})
+# protocol ごとの stock baseline。silo は既存 floor を生成した値を変えない。
+BASELINES = {
+    "silo": Genome("silo", {
+        "BACK_OFF": 0,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+    }),
+    "mocc": Genome("mocc", {
+        "BACK_OFF": 1,
+        "KEY_SORT": 0,
+        "TEMPERATURE_RESET_OPT": 1,
+    }),
+}
+# Compatibility name for code that consumes the historical silo baseline.
+BASELINE = BASELINES["silo"]
+CCBENCH_ROOT = Path(__file__).resolve().parents[2] / "external" / "ccbench"
 
 WITHIN_REPS = 10        # within-run floor: 既存 calibration と同じ reps=10 (2.28% と同形)
 SESSION_REPS = 5        # between: 各セッションは実 campaign と同形 (p2_2 REPS=5)
@@ -93,9 +108,101 @@ def _wl_tag(wl: dict) -> str:
             f"_rr{wl['ycsb_rratio']}_rmw{wl['ycsb_rmw']}")
 
 
+def _protocol_source_has_trace_hook_evidence_only(
+    protocol: str, ccbench_root: Path | str | None = None,
+) -> bool:
+    """protocol binary の列挙 source に trace hook の text-level 証拠があれば真。
+
+    この述語は hook の意味論的正しさ、verifier が通ること、測定値の正しさの
+    いずれも証明しない。コメント除去後の同一 file に trace.hh include、
+    ``#if TRACE``、izanagi_trace hook 呼出しという文字列が揃うかだけを見る。
+    プリプロセッサ条件は評価せず、literal ``#if 0`` directive の block だけは
+    証拠から除く。目的は証拠不在を fail-closed に拒否することで hook の実在を
+    証明することではない。CMake SOURCES の欠落・読取不能も拒否する。
+    """
+    protocol_dir = Path(ccbench_root or CCBENCH_ROOT) / "cc" / protocol
+    if not protocol_dir.is_dir():
+        return False
+    cmake_path = protocol_dir / "CMakeLists.txt"
+    try:
+        cmake_source = cmake_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    # CMake の行コメント内にある helper 名を invocation と誤認しない。
+    cmake_source = re.sub(r"#.*$", "", cmake_source, flags=re.MULTILINE)
+    source_paths: tuple[Path, ...] | None = None
+    for match in re.finditer(
+        r"\bccbench_add_protocol\s*\((.*?)\)", cmake_source, re.DOTALL,
+    ):
+        tokens = match.group(1).split()
+        if not tokens or tokens[0] != protocol:
+            continue
+        if source_paths is not None or tokens.count("SOURCES") != 1:
+            return False
+        source_index = tokens.index("SOURCES") + 1
+        section_indexes = [
+            tokens.index(section, source_index)
+            for section in ("WORKLOADS", "OPTIONS")
+            if section in tokens[source_index:]
+        ]
+        source_end = min(section_indexes, default=len(tokens))
+        source_names = tokens[source_index:source_end]
+        if not source_names:
+            return False
+        compiled_suffixes = frozenset({".c", ".cc", ".cpp", ".cxx"})
+        paths = tuple(protocol_dir / name for name in source_names)
+        if (any(Path(name).suffix not in compiled_suffixes for name in source_names)
+                or any(not path.is_file() for path in paths)):
+            return False
+        source_paths = paths
+    if source_paths is None:
+        return False
+
+    include_pattern = re.compile(
+        r'^\s*#\s*include\s+["<][^">]*trace\.hh[">]', re.MULTILINE,
+    )
+    guard_pattern = re.compile(r"^\s*#\s*if\s+TRACE\b", re.MULTILINE)
+    hook_pattern = re.compile(r"\bizanagi_trace::[A-Za-z_]\w*\s*\(")
+    comment_pattern = re.compile(r"//[^\n]*|/\*.*?\*/", re.DOTALL)
+    conditional_open_pattern = re.compile(r"^\s*#\s*(?:if|ifdef|ifndef)\b")
+    conditional_close_pattern = re.compile(r"^\s*#\s*endif\b")
+    literal_if_zero_pattern = re.compile(r"^\s*#\s*if\s+0\s*$")
+    for path in source_paths:
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return False
+        source = comment_pattern.sub(
+            lambda found: "\n" * found.group(0).count("\n"), source,
+        )
+        conditional_depth = 0
+        dead_if_zero_depth: int | None = None
+        retained_lines = []
+        for line in source.splitlines(keepends=True):
+            directive_line = line.rstrip("\r\n")
+            if conditional_open_pattern.match(directive_line):
+                conditional_depth += 1
+                if (dead_if_zero_depth is None
+                        and literal_if_zero_pattern.match(directive_line)):
+                    dead_if_zero_depth = conditional_depth
+            if dead_if_zero_depth is None:
+                retained_lines.append(line)
+            # #else/#elif は評価せず、dead block 全体を対応する #endif まで捨てる。
+            if conditional_close_pattern.match(directive_line):
+                if conditional_depth == dead_if_zero_depth:
+                    dead_if_zero_depth = None
+                conditional_depth = max(0, conditional_depth - 1)
+        source = "".join(retained_lines)
+        if (include_pattern.search(source) and guard_pattern.search(source)
+                and hook_pattern.search(source)):
+            return True
+    return False
+
+
 def measure_point_floor(
     binary: str,
     workload: dict,
+    baseline: Genome = BASELINE,
     clocks_per_us: int = CLK,
     numactl: list[str] = NUMA,
     use_perf: bool = True,
@@ -130,7 +237,7 @@ def measure_point_floor(
         f"{'n/a' if between.median is None else f'{between.median:,.0f}'})")
     return {
         "schema_version": BETWEEN_RUN_FLOOR_SCHEMA_VERSION,
-        "workload": workload, "genome": BASELINE.canonical(),
+        "workload": workload, "genome": baseline.canonical(),
         "records": RECORDS, "threads": THREADS, "clocks_per_us": clocks_per_us,
         "abort_rate": w_pt.abort_rate, "run_cmd": w_pt.run_cmd,
         "within_run": {"reps": WITHIN_REPS, "cv": within.cv, "median": within.median,
@@ -150,16 +257,18 @@ def _write_out(
     workload: dict,
     res: dict,
     env_tag: str = DEFAULT_ENV_TAG,
+    protocol: str = "silo",
     log=print,
 ) -> str:
     out_dir = os.path.join(env_scope_dir(env_tag), "calibration")
     os.makedirs(out_dir, exist_ok=True)
-    stem = f"between_run_noise_t{THREADS}_{_wl_tag(workload)}"
+    protocol_part = "" if protocol == "silo" else f"_{protocol}"
+    stem = f"between_run_noise{protocol_part}_t{THREADS}_{_wl_tag(workload)}"
     json_path = os.path.join(out_dir, stem + ".json")
-    # 既存の確定 calibration JSON は不可侵 (byte-identical provenance)。別ファイルに書く。
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(res, f, indent=2, ensure_ascii=False)
     md_path = os.path.join(out_dir, stem + ".md")
+    existing = [path for path in (json_path, md_path) if os.path.exists(path)]
+    if existing:
+        raise FileExistsError("between-run floor 出力は create-only: " + ", ".join(existing))
     wr = res["between_run"]
     wi = res["within_run"]
     wi_cv = "n/a" if wi["cv"] is None else f"{wi['cv']*100:.2f}%"
@@ -184,39 +293,95 @@ def _write_out(
          "cold-boot/温度ドリフト未含 = **下限**。wired する floor は cross-campaign の genuine な "
          "between データと突き合わせ保守側に採る (worklog 2026-06-28)。", "",
          "**再現:**", "", "```bash", res["run_cmd"], "```", ""]
-    with open(md_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(L))
+    json_text = json.dumps(res, indent=2, ensure_ascii=False)
+    md_text = "\n".join(L)
+    created: list[str] = []
+    try:
+        # 既存の確定 calibration JSON は不可侵 (byte-identical provenance)。別ファイルに書く。
+        with open(json_path, "x", encoding="utf-8") as f:
+            created.append(json_path)
+            f.write(json_text)
+        with open(md_path, "x", encoding="utf-8") as f:
+            created.append(md_path)
+            f.write(md_text)
+    except BaseException:
+        for path in reversed(created):
+            try:
+                os.unlink(path)
+            except FileNotFoundError:
+                pass
+        raise
     log(f"  wrote {json_path}\n  wrote {md_path}")
     return json_path
 
 
+def _parse_cli_args(argv) -> tuple[str | None, str]:
+    sel = None
+    protocol = "silo"
+    protocol_seen = False
+    args = list(argv[1:])
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--protocol":
+            if protocol_seen or index + 1 >= len(args):
+                raise ValueError("--protocol は値付きで 1 回だけ指定する")
+            protocol = args[index + 1]
+            protocol_seen = True
+            index += 2
+            continue
+        if arg.startswith("--protocol="):
+            if protocol_seen:
+                raise ValueError("--protocol は 1 回だけ指定する")
+            protocol = arg.split("=", 1)[1]
+            protocol_seen = True
+            index += 1
+            continue
+        if arg.startswith("-") or sel is not None:
+            raise ValueError("引数が不正")
+        sel = arg
+        index += 1
+    if protocol not in BASELINES:
+        raise ValueError(
+            f"unknown protocol: {protocol!r} (選択肢: {sorted(BASELINES)})"
+        )
+    return sel, protocol
+
+
 def main(argv) -> int:
-    sel = argv[1] if len(argv) > 1 else None
+    try:
+        sel, protocol = _parse_cli_args(argv)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        print(f"usage: {argv[0]} [point] [--protocol PROTOCOL]", file=sys.stderr)
+        return 2
     pts = [p for p in POINTS if sel is None or p[0] == sel]
     if not pts:
         print(f"unknown point: {sel} (選択肢: {[p[0] for p in POINTS]})")
         return 2
-    if argv[2:]:
-        print(f"usage: {argv[0]} [point]", file=sys.stderr)
-        return 2
+    baseline = BASELINES[protocol]
+    if not _protocol_source_has_trace_hook_evidence_only(protocol):
+        raise ValueError(
+            f"protocol {protocol!r} の現行 CCBench source に trace hook の証拠がない"
+        )
 
     env_tag = _selected_env_tag()
     clocks_per_us, numactl = _measurement_profile(env_tag)
 
     _assert_single_tenant()             # campaign 冒頭の単一テナント確認 (規律4)
-    print("[build] baseline (B0-L-W0, perf=trace-disabled) ...")
+    print(f"[build] {protocol} baseline (perf=trace-disabled) ...")
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     build_kwargs = {}
     if env_tag == PEGASUS_ENV_TAG:
         resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
         evidence = source_digest.resolve_evidence(
-            BASELINE, CCBENCH_COMMIT, cxx=resolved_cxx,
+            baseline, CCBENCH_COMMIT, cxx=resolved_cxx,
         )
         build_kwargs.update(cc=resolved_cc, cxx=resolved_cxx)
     else:
-        evidence = source_digest.resolve_evidence(BASELINE, CCBENCH_COMMIT)
+        evidence = source_digest.resolve_evidence(baseline, CCBENCH_COMMIT)
     br = buildcache.build(
-        BASELINE, ccbench_commit=CCBENCH_COMMIT, trace=False,
+        baseline, ccbench_commit=CCBENCH_COMMIT, trace=False,
         admission=derive_build_admission(build_context, evidence),
         build_context=build_context, source_evidence=evidence,
         **build_kwargs,
@@ -228,13 +393,14 @@ def main(argv) -> int:
         print(f"\n=== between-run floor  workload={tag}  ({workload}) ===")
         if env_tag == PEGASUS_ENV_TAG:
             res = measure_point_floor(
-                br.binary, workload, clocks_per_us=clocks_per_us, numactl=numactl,
+                br.binary, workload, baseline=baseline,
+                clocks_per_us=clocks_per_us, numactl=numactl,
                 use_perf=False,
             )
-            _write_out(tag, workload, res, env_tag=env_tag)
+            _write_out(tag, workload, res, env_tag=env_tag, protocol=protocol)
         else:
-            res = measure_point_floor(br.binary, workload)
-            _write_out(tag, workload, res)
+            res = measure_point_floor(br.binary, workload, baseline=baseline)
+            _write_out(tag, workload, res, protocol=protocol)
         results.append((tag, res))
 
     print("\n=== between-run noise floor サマリ ===")
