@@ -4427,6 +4427,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `.done` の不在と process の消滅が同時に起きたら detach の有無を最初に疑う。
   完了判定は `DW-O01` どおり `.done` と exit code だけで行い、process の存在で代用しない。
 
+
+- **再発: 2026-09-02** — detach は正しく行ったが、**Write tool で作った runner `.sh` に
+  実行権が付かない**ため、`bash -c "\"$JOB/run-s2-plan.sh\"; echo $? > ...done"` の
+  直接 exec が `許可がありません` で落ち、段 2 の plan 子が 1 度も起動しなかった。
+  `.done` には wrapper が書いた `126` だけが残り、log は 0 byte、artifact dir も空。
+  子が消えたのではなく最初から生まれていない点が F103 本体と違うが、
+  **背景投入の手順が必要条件を全部書いていないために子が起動しない**という型は同じである。
+  `DW-C01` は「隔離 worktree の detach は runner/launcher の `.sh` へ外出し」を義務づけるが、
+  その `.sh` の**呼び方**を規定していない。恒久対応は launcher から
+  `bash "<path>"` で呼ぶこと (本 wave の `launch-s2-plan2.sh` /`launch-s3.sh` /
+  `launch-s3b.sh` / `launch-acceptance*.sh` はすべてこの形)。再投入では
+  `--job-id` と `.done` / `.pid` / `.log` の名前を変えて既存 `.done` を消さない。
+  `DW-C01` への 1 行追記は単節予算 1000 bytes に対し現行 996 bytes で入らず、
+  節全体が exact pin されているため見送った。検知は `.done` が `126` で
+  log が 0 byte のときに実行権を最初に疑う。
 ### F104. 生存確認の pgrep が並行 wave の子に一致し、死んだ子を「実行中」と 45 分誤読した [観測]
 
 - 事象: 上記の子が死んだ後、`pgrep -f "codex exec -m gpt-5.6-sol" | head -1` で経過時間を
@@ -16943,6 +16958,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変わらない。運用としては、走査結果を固定 artifact
   (`output/insights/2026-09-01_t1946-t2107-registry-wiring-design/overlap-scan.txt`) として残し、
   実装子 dispatch の直前に走査し直す。
+
+- **再発: 2026-09-02 (near miss)** — [T-2124] の段 1 で 32 worktree を exact path 集合 x (committed 三点 diff + staged + untracked) で走査し、重なるのは `orchestrator/campaign/artifact_admission.py` の 2 本 (T-733) だけ、本 wave は同 file を編集しないので無害、と正しく判定した。走査自体に穴は無かった。にもかかわらず衝突は起きかけた — 段 2 のプランが、その触らない file が定義する定数 `CAMPAIGN_VERIFIER_EPOCH_SCOPE` の**現在値を test へ literal で焼き込む**ことを提案しており、T-733 はまさにその文言を exact 24 path から curated exact 62 path へ変えていた。採用していれば、正しい S-1 実装のまま T-733 の着地と同時に本 node が落ちた。段 3 のレンズ B が稼働 worktree の現物を読んで検出し、段 4 で当該提案を不採用にした (既存 node が同じ変異を既に殺しており検出力も増えないため二重に不採用)。型は F606 と同じ「走査の網が実際の編集予約より狭い」だが、本件が足す軸は **危険が編集面に無い**ことである。自分が触る path の集合ではなく、**自分のテストが値として固定する対象を誰が所有しているか**が問われた。恒久対応は F606 既存の「落ちた面は『無い』と書かず、走査面を明示して限定した結論を書く」で変わらない。運用としては、test へ他 module の定数値を literal で固定する提案が出た時点で、その定数の定義 file を稼働 wave の走査対象に含めて所有者を確かめる。既存の作法で足りる — 定数を production から参照する形 (本 wave が維持した既存 assert の形) なら、この危険は原理的に生じない。
 ### F607. workspace-write の子が親の未追跡成果物を一時コピーと誤認して消した [権限逸脱] [手順漏れ]
 
 - 事象: 段 6 の fix 子が作業終了時に「insights の一時コピー」として
@@ -20852,3 +20869,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   署名経路を版非依存にするか、機体側を揃えるか) は裁定が要る。
 - 再発検知: 受入 artifact に実行機体の `openssl version` を残せば、機体依存の赤を実行差分と
   取り違えずに済む。本 wave の probe は arm ごとにこれを記録している。
+
+### F805. 同一性 pin の発火範囲を呼び出し関係から静的に結論し、実測が覆した [テスト代表性] [恒真ゲート]
+
+- 事象: 変異の分母から冗長 gate を外す判断のため、段 2 プランと段 3 の独立検査者が
+  **それぞれ独立に**「`CONTRACT_LOADER_RELATIVE_PATHS` の pin は
+  `capture_/verify_live_contract_loader_binding` を通ったときだけ発火し、選んだ分母は
+  その経路を通らないので該当 node は 0 件」と結論した。`--deselect` は不要と勧告された。
+  実測すると **53 node** が発火した。分母に入れた `test_campaign.py` と
+  `test_s1_direct_comparison.py` が、まさにその経路を通っていた。
+- 影響: 静的結論のまま記録していれば、検査器を壊す変異の検出力を 72 node と書いていた。
+  実際の挙動検出は 19 node で、差の 53 件は**受理集合を一切変えない等価変異でも同じように
+  赤になる層**だった。検出力を 3.8 倍に水増しした主張になっていた。
+- 根本原因: 発火点 (関数の呼び出し元) の追跡は正しかったが、**その関数を間接的に通る
+  test node の集合**は追跡していなかった。呼び出し元の列挙と、その呼び出し元を実行する
+  test の列挙は別の作業であり、前者から後者を導けない。
+- 恒久対応: D1422 — 冗長 gate の集合は静的に推定せず、
+  受理集合を一切変えない**等価変異を 1 件走らせて実測する**。その等価変異が赤にした node が
+  その走行における冗長 gate である。これは走行ごとに実測値を取り直す手続きであり、
+  宣言ではない。
+- 再発検知: 全件 KILLED 期待の変異 matrix に等価変異を 1 件混ぜる。等価変異が
+  `SURVIVED` にならない走行は、冗長 gate が分母に残っている。
