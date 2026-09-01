@@ -56,9 +56,11 @@ v2 では同じ 84 件が `filesystem` 根で `scr/0_964035.nqsv/gflags-install/
 新しい作業木では `--dry-run` が rc=0 でも実投入が
 `floor third-party source root is missing or unsafe` で qsub 前に止まる。
 `tools/pegasus/fetch_third_party.py hydrate` で repo 外の永続 cache から供給して解消した。
-この罠は `tools/pegasus/README.md` に本日既に追記されている (commit `6398dcd2d`、2 session が
-独立に実測) が、**床値の投入手順そのもの** (`docs/phase3-8b-restart-runbook.md` W-2 の手順 1〜4)
-には書かれていない。手順を正本として辿ると必ず踏む。本走行は 3 例目である。
+この罠は `tools/pegasus/README.md` に本日既に追記されていた (commit `6398dcd2d`、2 session が
+独立に実測) が、**床値の投入手順そのもの** (`docs/phase3-8b-restart-runbook.md` W-2 の順序付き
+投入手順) には書かれておらず、手順を正本として辿ると必ず踏む状態だった。本走行が 3 例目である。
+段 8 の自己改善で同手順へ供給の段を 1 つ足し、実施手順は `tools/pegasus/README.md` §6 を指す
+ポインタにした (内容を複製しない)。
 
 **(5) 投入元の作業木は記録用の作業木と分けなければならない。**
 `tools/pegasus/floor_campaign.sh` は job 開始時に、投入元の `HEAD` が受領書の `source_commit` と
