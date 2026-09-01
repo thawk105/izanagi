@@ -719,6 +719,35 @@ def test_mutation_harness_rejects_an_isolated_expected_failure_node(
         )
 
 
+def test_mutation_harness_flaky_hold_policy_matches_group_suffix_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    held = (
+        "orchestrator/tests/test_mutation_harness.py::"
+        "test_sigterm_handler_stops_child_and_restores_active_mutation"
+    )
+    suffixed = (
+        "orchestrator/tests/test_mutation_harness.py::"
+        "test_sigterm_handler_stops_child_and_restores_active_mutation@mutation-group"
+    )
+    unrelated = (
+        "orchestrator/tests/test_mutation_harness.py::"
+        "test_cumulative_replacement_uses_the_result_of_the_previous_anchor"
+    )
+    monkeypatch.setattr(
+        MH,
+        "_flaky_hold_node_ids_for_policy",
+        lambda _repo: frozenset({held}),
+    )
+
+    for expected in (held, suffixed):
+        with pytest.raises(MH.HarnessError, match="policy mismatch"):
+            MH._reject_flaky_hold_expected_nodes((expected,), tmp_path)
+
+    MH._reject_flaky_hold_expected_nodes((unrelated,), tmp_path)
+
+
 def test_mutation_harness_does_not_import_holds_from_another_checkout(
     tmp_path: Path,
 ) -> None:
