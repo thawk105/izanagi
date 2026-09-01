@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Literal, Mapping, final, overload
+from typing import Any, Literal, Mapping, Sequence, final, overload
 
 from . import (
     campaign_lock,
@@ -329,7 +329,13 @@ class AdmittedCampaign:
 @final
 @dataclass(frozen=True, slots=True, init=False)
 class CertifiedCampaignView(AdmittedCampaign):
-    """記録 commit に束縛した E1 と current closure 可用性を持つ専用 view。"""
+    """記録 commit に束縛した E1 と current closure 可用性を持つ専用 view。
+
+    この view 自体は commit の存在を保証しない。存在保証を与えるのは
+    ``require_certified_commit_evidence`` だけである。
+    """
+
+    persisted_certified_commit_count: int = field(compare=True)
 
     _replay_admission_capability: object = field(
         repr=False,
@@ -341,6 +347,7 @@ class CertifiedCampaignView(AdmittedCampaign):
             records: tuple[ImmutableWalRecord, ...],
             decision: CampaignAdmissionDecision,
             campaign_verifier_epoch: CampaignVerifierEpoch,
+            persisted_certified_commit_count: int,
             _certification_token: object,
             _replay_admission_capability: object = None,
     ) -> None:
@@ -356,6 +363,11 @@ class CertifiedCampaignView(AdmittedCampaign):
         )
         object.__setattr__(
             self,
+            "persisted_certified_commit_count",
+            persisted_certified_commit_count,
+        )
+        object.__setattr__(
+            self,
             "_replay_admission_capability",
             _replay_admission_capability,
         )
@@ -365,6 +377,22 @@ class CertifiedCampaignView(AdmittedCampaign):
         AdmittedCampaign.__post_init__(self)
         if self.campaign_verifier_epoch.state != "E1":
             raise TypeError("CertifiedCampaignView requires exact E1")
+        count = self.persisted_certified_commit_count
+        if type(count) is not int:
+            raise TypeError(
+                "persisted certified commit count requires exact int"
+            )
+        if count < 0:
+            raise ValueError(
+                "persisted certified commit count must be non-negative"
+            )
+        snapshot_commit_count = sum(
+            record.stage == STAGE_COMMIT for record in self.records
+        )
+        if count != snapshot_commit_count:
+            raise ValueError(
+                "persisted certified commit count does not match WAL snapshot"
+            )
 
     @property
     def read_purpose(self) -> CampaignReadPurpose:
@@ -739,6 +767,22 @@ def require_persisted_certified_commit(
             "persisted COMMIT receipt evidence does not match WAL verifies"
         )
     return commit_record
+
+
+def admit_persisted_certified_commits(
+        records: Sequence[object], *, campaign_lock_sha256: str,
+) -> int:
+    """Validate every persisted COMMIT against the full WAL evidence set."""
+    admitted_count = 0
+    for record in records:
+        if record.stage == STAGE_COMMIT:
+            require_persisted_certified_commit(
+                records,
+                record,
+                campaign_lock_sha256=campaign_lock_sha256,
+            )
+            admitted_count += 1
+    return admitted_count
 
 
 def _parse_canonical_genome(value: object) -> Genome:
@@ -1266,13 +1310,10 @@ def _require_admitted_campaign(
         raise AssertionError("admitted campaign requires a recorded epoch")
     epoch = _require_verifier_epoch_for_purpose(recorded_epoch, purpose)
     if purpose is CampaignReadPurpose.CERTIFIED_ACCEPTANCE:
-        for record in records:
-            if record.stage == STAGE_COMMIT:
-                require_persisted_certified_commit(
-                    records,
-                    record,
-                    campaign_lock_sha256=decision.campaign_lock_sha256,
-                )
+        persisted_certified_commit_count = admit_persisted_certified_commits(
+            records,
+            campaign_lock_sha256=decision.campaign_lock_sha256,
+        )
     view_fields = {
         "layout": _layout(campaign),
         "records": _immutable_records(records),
@@ -1286,6 +1327,9 @@ def _require_admitted_campaign(
         )
         return CertifiedCampaignView(
             **view_fields, _certification_token=_CERTIFIED_VIEW_TOKEN,
+            persisted_certified_commit_count=(
+                persisted_certified_commit_count
+            ),
             _replay_admission_capability=replay_capability,
         )
     return HistoricalCampaignView(**view_fields)
@@ -1319,3 +1363,15 @@ def require_certified_campaign_view(
     if type(view) is not CertifiedCampaignView:
         raise TypeError("certified consumer requires exact CertifiedCampaignView")
     return view
+
+
+def require_certified_commit_evidence(
+        view: object,
+) -> CertifiedCampaignView:
+    """Require an exact certified view containing at least one admitted COMMIT."""
+    certified_view = require_certified_campaign_view(view)
+    if certified_view.persisted_certified_commit_count == 0:
+        raise ArtifactAdmissionError(
+            "certified commit evidence requires at least one persisted COMMIT"
+        )
+    return certified_view
