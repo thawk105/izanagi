@@ -696,6 +696,13 @@
   「待ち手を自分で書き起こさない」という既存規律の根拠を 1 例増やす。
   今回の正しい形は、pattern 照合ではなく **script が最後に書く `.done` 相当 (受入 receipt の
   final path、land の rc marker) の出現だけで判定する**ことだった。
+
+- **再発: 2026-09-02** — 段 6 レビュー B の待ち手 (`tools/dev_wave_wait.py producer`) が
+  producer 生存中に **exit 0 かつ出力ゼロ**で戻った。`.done` も成果物も不在で、
+  `pgrep` で codex 子 (launcher と exec の 2 process) の生存と artifact の増加を確認して
+  張り直したところ、子は正常に完走した。恒久対応 (`.done` の exit code と producer 生死で
+  判定し、待ち手の rc も通知も信じない) がそのまま効き実害はゼロ。**追加事実は無く、
+  2026-08-23 の「段 6 レビュー B の待ち手」と同一の形である。**
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -19224,6 +19231,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 3 の敵対相談レンズに「親 brief の**不在の主張**を 1 件ずつ、その主張が成り立つ
   母集合と除外を言えるか確かめる」を含める (本 wave のレンズ A 観点 6 が実際にこれを捕らえた)。
 
+
+- **再発: 2026-09-02** — 親が段 1 brief へ「tictoc の `PARTITION_TABLE` は `.cc`/`.hh` に出現 0 の
+  死にフラグ」と書いたが、検索範囲が `cc/tictoc/*.cc` と `cc/tictoc/*.hh` だったため
+  `cc/tictoc/include/` 部分木 (header 8 本) と 4 つの workload source を落としていた。
+  段 6 レンズ A が「build 対象は `transaction.cc` だけではない」と指摘し、親が全件で測り直した
+  (結論は維持、live site 0 件)。**F717 の恒久対応「不在を主張する 1 文にその主張が成り立つ範囲を
+  同じ文の中に書く」を親が守らなかった**のが直接原因である。さらに段 6 焦点再レビュー 1 巡目も、
+  親が射影に build 対象の全 file を入れなかったため独立検証できず partial を返した。
+  2 巡目で全 file を射影して closed にした。**不在の主張は、検証する子への射影が build 対象の
+  閉包を覆っていなければ独立検証が成立しない** — この射影側の義務が今回の追加分である。
 ### F718. 格子の定数が define のモード符号化と衝突し、別条件を測って成果物へ記録した [計測汚染] [恒真ゲート]
 
 - 事象: B-10 拡張格子 (0〜1000 µs の 29 点) の**最上点 1000 µs が、0 µs とほぼ同一の値**を返した。

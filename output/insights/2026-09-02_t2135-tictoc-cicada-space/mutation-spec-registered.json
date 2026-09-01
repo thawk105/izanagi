@@ -1,0 +1,131 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M1-tictoc-constraint-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/genome.py",
+     "old": "    constraints=[_tictoc_no_wait_not_both],",
+     "new": "    constraints=[],"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-tictoc-constraint-replaced-by-silo-xor",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/genome.py",
+     "old": "    return not (\n        flags.get(\"NO_WAIT_LOCKING_IN_VALIDATION\", 0)\n        and flags.get(\"NO_WAIT_OF_TICTOC\", 0)\n    )",
+     "new": "    return (flags.get(\"NO_WAIT_LOCKING_IN_VALIDATION\", 0)\n            != flags.get(\"NO_WAIT_OF_TICTOC\", 0))"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-cicada-constraint-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/genome.py",
+     "old": "    constraints=[_cicada_promotion_requires_inline_opt],",
+     "new": "    constraints=[],"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+    "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-cicada-constraint-reversed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/genome.py",
+     "old": "    return (\n        not flags.get(\"INLINE_VERSION_PROMOTION\", 0)\n        or bool(flags.get(\"INLINE_VERSION_OPT\", 0))\n    )",
+     "new": "    return (\n        not flags.get(\"INLINE_VERSION_OPT\", 0)\n        or bool(flags.get(\"INLINE_VERSION_PROMOTION\", 0))\n    )"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-cicada-single-exec-axis-added",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/genome.py",
+     "old": "        \"WRITE_LATEST_ONLY\": [0, 1],",
+     "new": "        \"WRITE_LATEST_ONLY\": [0, 1],\n        \"SINGLE_EXEC\": [0, 1],"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+    "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-tictoc-partition-table-axis-added",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/genome.py",
+     "old": "        \"TIMESTAMP_HISTORY\": [0, 1],",
+     "new": "        \"TIMESTAMP_HISTORY\": [0, 1],\n        \"PARTITION_TABLE\": [0, 1],"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-registration-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/genome.py",
+     "old": "    \"tictoc\": TICTOC_SPACE,\n    \"cicada\": CICADA_SPACE,\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered",
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+    "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope",
+    "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+    "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+    "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

@@ -247,10 +247,111 @@ def test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope():
     assert "YCSB workload" in gs.notes and "include/ycsb.hh" in gs.notes
 
 
-def test_tictoc_and_cicada_remain_unregistered():
-    for protocol in ("tictoc", "cicada"):
-        with pytest.raises(KeyError, match="未登録"):
-            genome.space_for(protocol)
+def test_tictoc_and_cicada_are_registered():
+    assert genome.space_for("tictoc") is genome.TICTOC_SPACE
+    assert genome.space_for("cicada") is genome.CICADA_SPACE
+
+
+def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():
+    gs = genome.space_for("tictoc")
+    assert gs.raw_size() == 32
+    assert set(gs.axes) == {
+        "BACK_OFF",
+        "NO_WAIT_LOCKING_IN_VALIDATION",
+        "NO_WAIT_OF_TICTOC",
+        "PREEMPTIVE_ABORTS",
+        "TIMESTAMP_HISTORY",
+    }
+    assert all(values == [0, 1] for values in gs.axes.values())
+    enumerated = gs.enumerate()
+    assert len(enumerated) == 24
+    assert len({item.canonical() for item in enumerated}) == 24
+    assert all(item.protocol == "tictoc" for item in enumerated)
+
+
+def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():
+    enumerated = genome.space_for("tictoc").enumerate()
+    pairs = {
+        (
+            item.flags["NO_WAIT_LOCKING_IN_VALIDATION"],
+            item.flags["NO_WAIT_OF_TICTOC"],
+        )
+        for item in enumerated
+    }
+    assert pairs == {(0, 0), (0, 1), (1, 0)}
+
+
+def test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope():
+    """notes の語句だけを検査し、C++ 側の事実そのものは検証しない。"""
+    gs = genome.space_for("tictoc")
+    assert not {"PARTITION_TABLE", "SLEEP_READ_PHASE", "TRACE"} & set(gs.axes)
+    assert "PARTITION_TABLE" in gs.notes and "死にフラグ" in gs.notes
+    assert "workload source" in gs.notes and "共通 header" in gs.notes
+    assert "SLEEP_READ_PHASE" in gs.notes and "計測撹乱ノブ" in gs.notes
+    assert "(1,1)" in gs.notes and "(1,0)" in gs.notes and "冗長" in gs.notes
+    assert "silo" in gs.notes and "XOR" in gs.notes and "transaction.cc:626" in gs.notes
+    assert "競合下の完走性・公平性・starvation" in gs.notes and "未実測" in gs.notes
+    assert "24" in gs.notes and "YCSB workload" in gs.notes
+    assert "静的導出" in gs.notes and "実測ではない" in gs.notes
+    assert "bare define" in gs.notes and "導出不能として残す候補もない" in gs.notes
+    assert "CLI から個別指定" in gs.notes and "全組合せが異なる挙動" in gs.notes
+
+
+def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():
+    gs = genome.space_for("cicada")
+    assert gs.raw_size() == 32
+    assert set(gs.axes) == {
+        "BACK_OFF",
+        "INLINE_VERSION_OPT",
+        "INLINE_VERSION_PROMOTION",
+        "REUSE_VERSION",
+        "WRITE_LATEST_ONLY",
+    }
+    assert all(values == [0, 1] for values in gs.axes.values())
+    enumerated = gs.enumerate()
+    assert len(enumerated) == 24
+    assert len({item.canonical() for item in enumerated}) == 24
+    assert all(item.protocol == "cicada" for item in enumerated)
+
+
+def test_cicada_space_requires_inline_opt_for_promotion():
+    enumerated = genome.space_for("cicada").enumerate()
+    pairs = {
+        (
+            item.flags["INLINE_VERSION_OPT"],
+            item.flags["INLINE_VERSION_PROMOTION"],
+        )
+        for item in enumerated
+    }
+    assert pairs == {(0, 0), (1, 0), (1, 1)}
+
+
+def test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope():
+    """notes の語句だけを検査し、C++ 側の事実そのものは検証しない。"""
+    gs = genome.space_for("cicada")
+    assert not {
+        "SINGLE_EXEC",
+        "PARTITION_TABLE",
+        "WORKER1_INSERT_DELAY_RPHASE",
+        "INSERT_READ_DELAY_MS",
+        "INSERT_BATCH_DELAY_MS",
+        "TRACE",
+    } & set(gs.axes)
+    assert "SINGLE_EXEC" in gs.notes and "多版から単版" in gs.notes
+    assert "測るものそのもの" in gs.notes and "fresh configure" in gs.notes
+    assert "PARTITION_TABLE" in gs.notes and "print 専用" in gs.notes
+    assert "README の説明と現行コードが食い違う" in gs.notes
+    assert "WORKER1_INSERT_DELAY_RPHASE" in gs.notes
+    assert "INSERT_READ_DELAY_MS" in gs.notes and "INSERT_BATCH_DELAY_MS" in gs.notes
+    assert "計測撹乱ノブ" in gs.notes
+    assert "WRITE_LATEST_ONLY" in gs.notes and "読み側の可視性が不変" in gs.notes
+    assert "余分に abort" in gs.notes
+    assert "(OPT,PROMOTION)=(0,1)" in gs.notes and "(0,0)" in gs.notes
+    assert "CC / data path の挙動が同一" in gs.notes and "起動時の option 表示だけは異なる" in gs.notes
+    assert "24" in gs.notes and "YCSB workload" in gs.notes
+    assert "静的導出" in gs.notes and "実測ではない" in gs.notes
+    assert "bare define" in gs.notes and "導出不能として残す候補もない" in gs.notes
+    assert "CLI から個別指定" in gs.notes and "全組合せが異なる挙動" in gs.notes
 
 
 def test_buildcache_detects_trace_symbol_leak():
