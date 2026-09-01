@@ -43,10 +43,13 @@ title: [T-441] backoff 受理文法の版を identity/WAL/cache へ束縛し、h
   B-4 系の 3 file が漏れており、`DW-O26` が警告する取り逃しの型そのものだった。
   内訳は、版付き lock を書いた直後に版を渡さず reject を記録していた配線 probe (8 件) と、
   `search_config` の key 集合を exact に固定していたテスト (1 件) である。
-- **版検査は wave 中に 4 回発火し、4 回とも緩めずに呼び手側を直した。** B-4 の履歴 fixture、
-  closed critic の fixture、配線 probe の 3 経路はいずれも「版付き lock を書くのに版を渡さない」
-  同じ形で、production は lock 確定後に版を明示して呼ぶ。検査の省略・skip・lock の legacy 化は
-  1 件も採らなかった。
+- **版検査は wave 中に 5 回発火し、5 回とも緩めずに呼び手側を直した。** いずれも
+  「版付き lock を書くのに版を渡さない」同じ形で、production は lock 確定後に版を明示して呼ぶ。
+  検査の省略・skip・lock の legacy 化は 1 件も採らなかった。
+- **同じ型を 1 件ずつ潰す形になっていたので、最後に全件確認へ切り替えた。** 版付き lock より
+  先に `BUILD_START` を書く fixture は `orchestrator/tests` 全体で 3 件 (`_seed_b4_admitted_history`、
+  `_write_admitted_attempt`、`_make_clean_admitted_fixture`) で、すべて lock-first へ揃え、
+  残存 0 件を確認した。**最初から全件を数えていれば fix を 3 回に分けずに済んだ。**
 - 実測値: 変異 12/12 KILLED・期待 node と完全一致・SURVIVED 0・MISMATCH 0、baseline は rc=0 失敗 0。
   焦点走は `test_p3_s4_loop.py` 単独 340 passed、main 取り込み後の 6 file で 1209 passed / 3 skipped。
 - wave 中に local main が 66 commit 進み、起動時の編集面重複検査で名指しした [T-1999] が着地した。

@@ -82,7 +82,22 @@ DW-O26 が「変更した production file を参照する consumer test も含�
   `search_config` の key 集合を exact に固定していた。条項 2 が identity へ版を束縛することの
   直接の帰結なので、定数参照で 1 key だけ足した。
 
-## 版検査は 4 回発火し、4 回とも呼び手を直した
+## 同じ型を 1 件ずつ潰していた — 全件確認へ切り替えるのが遅かった
+
+「版付き lock を書くのに版を渡さない」fixture は 3 経路にあり、本 wave は
+それを **3 回に分けて 1 件ずつ**直した (fix2 → fix3 → fix5)。最後の fix で
+`orchestrator/tests` 全体を AST 走査して全件数えたところ、対象は次の 3 件だけで
+残存 0 件と確定した。
+
+- `test_p3_s4_loop.py::_seed_b4_admitted_history`
+- `test_p3_b4_closed_critic.py::_write_admitted_attempt`
+- `test_p3_b4_raw_record_producer.py::_make_clean_admitted_fixture`
+
+**最初の 1 件が出た時点で全件を数えていれば、fix を 3 回に分けずに済んだ。**
+新設した fail-closed 検査が既存 fixture を落とす型では、1 件目の時点で
+「同じ形の呼び手を全部数える」ことが所要を決める。
+
+## 版検査は 5 回発火し、5 回とも呼び手を直した
 
 「版付き lock を書くのに版を渡さない」形は wave 中に 3 経路で現れた
 (B-4 履歴 fixture、closed critic fixture、配線 probe)。production は lock を確定してから
