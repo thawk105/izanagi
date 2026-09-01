@@ -97,6 +97,29 @@ title: [T-1999] 測定条件の関門を族として設計し driver 全体へ�
   (新規登録に事前承認を課さないのは D662 の裁定)。全史監査は 7393 件・新規違反なし。
 - 実装 commit `785d4f533`、main 取り込み merge `9bb9024aa`。push はしていない。
 
+- **受入全走で 8 件の赤が出た (19442 緑)。全件この branch 由来だった。** 焦点再走で 8 件とも
+  決定的に再現し、main の tip (`f137427d4`) を別 worktree に置いて同じ node を走らせたところ
+  8 件とも緑だった。非帰属ではない。4 系統に分かれ、いずれも**実体が正当に変わったのに、
+  それを写している一覧・literal が追随していない**型だった。
+  - 公式 perf 面の一覧 (1 件): `pipeline.evaluate` の呼び出し位置が helper 内から
+    `run_role` / `run_block` へ移り、`_REVIEWED_PREDICATES` に `evaluate` が無かった。
+  - provenance の件数 literal (4 件): known-violation を 1 件足したので post-baseline が 1 から 2 へ。
+  - 承認済み reviewed spec の fixture (2 件): 下記 {{F:pin-keyed-by-role-name-missed-by-path-search}}。
+  - 受入所要時間台帳の被覆 (1 件): 本 wave が test を増やして 89.908914% となり 90% を割った。
+    今回の受入の実測 JUnit XML から `--add-only` で未登録 nodeid だけを足した。
+- **DW-O09 の着手前検索で pin を 1 件取りこぼしていた。** 承認済み reviewed spec が
+  `materializer` という key で `s1_direct_comparison.py` の bytes を pin していた。
+  親は `output/` 配下を path で検索して「両 driver とも bytes 束縛なし」と結論していたが、
+  この束縛は key 側にあり path 検索では出ない。DW-O09 が名指しで警告している型そのものである。
+  詳細は {{F:pin-keyed-by-role-name-missed-by-path-search}}。
+- 是正後の焦点走 (`test_acceptance_schedule_order.py` / `test_check_ai_provenance.py` /
+  `test_official_perf_closure.py` / `test_s8b_oracle_manifest.py` /
+  `test_update_acceptance_duration_ledger.py` / `test_ccbench_spawn_sites.py`) は **596 passed**。
+  拒否側の負例を含めて緑で、閾値・assert を 1 つも緩めていない。
+- 変異 spec が触る 3 file は本走時点 (`785d4f533`) と最終 tip で blob 同一のため、
+  DW-M07 の anchor 再検証は blob 一致で足り、変異の再走はしていない。
+- 実装 commit `785d4f533`、受入赤の是正 commit `2e62753a7`。
+
 ## 次の一手差分
 
 ### 完了

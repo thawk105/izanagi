@@ -60,3 +60,26 @@ seq: 5
   `SURVIVED` を返したことで見つかり、DW-M01 / DW-M02 に従い注入枝へ再照準した。
   再照準後の静的予測は 18 セル赤で、修正前に観測した 18 と一致する。
   **初回の SURVIVED は消さず erratum として残す。**
+
+### {{F:pin-keyed-by-role-name-missed-by-path-search}}. bytes 束縛を path で検索し、役割名を key にした pin を取りこぼした [検索漏れ]
+
+- 事象: 着手前の DW-O09 (凍結 bytes の pin 閉包) で、編集予定の 2 driver が bytes 束縛されて
+  いないかを調べた。`output/` 配下を driver の path と `driver_sha256` / `driver_path` /
+  `source_sha256` で検索し、`s8b_oracle_n_pilot.py` を束縛する事前登録 1 件だけを見つけて
+  「編集する 2 driver は束縛なし」と結論した。**実際には
+  `orchestrator/campaign/s1_direct_comparison.py` の bytes が束縛されていた。**
+  承認済み reviewed spec の `generator_versions` が `materializer` という key でこの file を
+  canonical path として持ち、その sha256 を pin している。受入全走で 2 件の赤として出た。
+- 根本原因: 検索を **path 側だけ**で行った。この束縛の入口は `materializer` という**役割名の
+  key** であり、canonical path は `orchestrator/campaign/s8b_oracle_manifest.py` の定数表
+  (`{"materializer": "orchestrator/campaign/s1_direct_comparison.py"}`) の中にある。
+  親が探した `output/` 配下には path 文字列が現れない。DW-O09 は
+  「role 名や xdist group 名など path 以外を key に張る pin も key 側で検索し、path の hit 0 件を
+  pin なしと結論しない」と**名指しで警告していた**が、親は path 検索の 0 件で打ち切った。
+- 恒久対応: bytes 束縛の閉包を引くとき、**path 側の検索が 0 件でも打ち切らない。**
+  編集対象 file を canonical path として持つ**定数表・key→path 束縛**を repo 全体から探す
+  (`git grep` で file 名を repo 全体に掛け、`output/` に限定しない)。見つかった key 名で
+  もう一度検索して、その key を消費する側 (spec・manifest・fixture) を列挙する。
+  DW-O09 の警告文にある「key 側でも検索する」を、path 検索が 0 件のときこそ実行する。
+- 再発検知: 受入全走。本件は受入で `generator_versions.materializer.sha256 が実 byte hash と不一致`
+  として出た。焦点走では出ない位置にあったため、**受入全走を省いていたら land まで見えなかった。**
