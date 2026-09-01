@@ -83,3 +83,21 @@ seq: 5
   DW-O09 の警告文にある「key 側でも検索する」を、path 検索が 0 件のときこそ実行する。
 - 再発検知: 受入全走。本件は受入で `generator_versions.materializer.sha256 が実 byte hash と不一致`
   として出た。焦点走では出ない位置にあったため、**受入全走を省いていたら land まで見えなかった。**
+
+### {{F:ruling-verbatim-lived-only-in-a-job-directory}}. 裁定の逐語を job dir だけに置き、次 context が読めなかった [引き継ぎ]
+
+- 事象: 段 4 裁定の後、別 context が段 4 から再開する型の wave で、裁定 file の path
+  (`$CLAUDE_JOB_DIR/tmp/<wave>/ruling-stage4.md`) が引数で渡された。**その file は存在しなかった。**
+  前 job が削除され、tmp ごと消えていた。裁定の逐語はどこにも残っていない状態だった。
+- 根本原因: job dir は job の寿命に縛られる。段 4 裁定は次 context への唯一の引き継ぎ物なのに、
+  **寿命が context より短い場所にしか置いていなかった。** DW-O02 は prompt・log・patch を wave 専用
+  subdirectory へ置くことを求めるが、job を跨いで生き残ることは求めていなかった。
+- 恒久対応: **段 4 裁定の逐語を job dir だけに置かない。** wave branch の commit message へ
+  二重化する。branch は job より長生きし、次 context が必ず読める。
+  **この一文を `docs/dev-wave/operations.md` の DW-O02 へ統合しようとしたが、L1.5 層の
+  unique footprint 予算 (9696 bytes) が満杯で入らなかった** (追加後 9831 bytes)。
+  予算のために既存の安全義務を削る・言い換えて場所を空けることはしなかった。
+  reference への統合は上限の独立審査が要る。本項が当面の正本である。
+- 再発検知: 再開時に裁定 file の実在を検査し、不在なら branch 上の一次資料 (commit message、
+  spool fragment) から復元してから進む。本件はこの経路で復元できたが、**復元できたのは前 session が
+  たまたま裁定内容を commit message へ書いていたからで、設計ではなく偶然だった。**
