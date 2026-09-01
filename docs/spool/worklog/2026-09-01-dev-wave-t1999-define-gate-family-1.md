@@ -53,6 +53,50 @@ title: [T-1999] 測定条件の関門を族として設計し driver 全体へ�
 - 実装 commit `0218acc61` / `ee635c953`、main 取り込み merge `649290c06`。
   main は 130 commit 前進していたが**編集面の重なりはゼロ**で自動 merge が通った。push はしていない。
 
+- **継続セッション (段 4 再開: 閉包検査の是正と land)。** 以下はこのセッションで測った事実である。
+
+- **裁定 file が消えていた。** 引数が指す `ruling-stage4.md` は前 job の tmp ごと消失していた。
+  commit `ecba5a059` の message 逐語と branch 上の spool fragment から裁定内容を復元し、
+  ユーザー引数と一致することを確認して進めた。
+- **裁定が名指した s8b 以外に 2 件、裁定時に見えていなかった破れがあった。** 着手前の実測で判明した。
+  - `s1_direct_comparison.py` にも同じ helper が同時に入っており、同じ理由で 18 セルが赤だった。
+    詳細は {{F:same-defect-injected-into-two-files-but-only-one-measured}}。
+  - local main を 63 commit 取り込んだところ、繰延べ台帳が pin する行番号 3 件が
+    無関係な main の前進でずれ、赤が 62 セルから 106 セルへ増えた。
+    `_deferred_member()` は (path, kind, scope, lineno) の 4 つ全一致を要求する。
+- **緑になった理由を分解したら、22 セルが誤った理由で緑だった。** 段 6 のレンズ A が
+  「0 は本当に被覆か」を軸に据えて 40 / 22 / 44 の内訳を出し、親が反実仮想で裏を取った。
+  実装子が第 1 位置引数を `prepared_for_eval.genome` から `prepared.genome` へ書き換えたことが、
+  s8b 既定枝の 22 セルを `proven-unreachable` へ倒していた。**値は完全に同一である**
+  (`PreparedCell(genome=prepared.genome, ...)`)。正しい式へ戻すと 22 セルが赤へ戻ることを実測した。
+  裁定は {{D:do-not-choose-the-analyzed-expression-to-pass-the-gate}}。
+  経緯は {{F:green-accepted-without-asking-why-it-turned-green}}。
+- **除外を沈黙から名前へ移した。** 誤った `proven-unreachable` の陰に隠すのをやめ、
+  s8b 既定枝の campaign sink を繰延べ台帳へ所有者・理由付きで 1 件登録した。
+  裁定は {{D:record-gate-exclusions-by-name-not-by-silence}}。
+- **レンズ B が受入を赤にする欠陥を 1 件見つけた。** 展開の初版は `authorization_contract` を
+  他の keyword と一緒に dict へ入れていたが、`test_campaign.py:5262` が resolved な
+  certified-writer 呼び出しの `call.keywords` に、同 `:5340` が `evaluate_fn(...)` に、
+  それぞれ明記を要求している。`screening_driver.evaluate_candidate` と同じ形へ揃えた。
+  レンズ B は 24 項目の引数照合表を全項目出し、不一致 1 件 (上記の genome) を独立に検出した。
+- **閉包検査は本 wave の新設であり、main には存在しない。** main の
+  `test_ccbench_spawn_sites.py` に `_production_build_sources` は無い。したがって
+  本 wave が main より受理集合を広げることはありえない。誤った `proven-unreachable` は
+  回帰ではなく、新設した検査の射程の限界である。
+- **変異は 4 件。M2 の初版が SURVIVED した。** s1 で閉包検査が捕まえていたのは既定枝ではなく
+  注入枝だったため、実効 gate へ再照準した (DW-M01 / DW-M02)。初回結果は消さず erratum に残す。
+  詳細は {{F:mutation-aimed-at-the-arm-the-gate-does-not-watch}}。
+  変異 runner の射程は `orchestrator/tests/test_ccbench_spawn_sites.py` に絞った
+  (関門を宿す file。実測 baseline 18 件緑・42.9 秒)。M1 は `test_campaign.py` の
+  認可引数明記検査も同時に赤にするが、これは射程外の冗長 gate として単独変異の証拠から外す。
+- **閉包検査の最終内訳 (親の実測):** 失敗セル 106 → 0。真に被覆 40 / 誤って到達不能 44
+  (s1 既定枝 22 + s8b 以外の既存 sink) / 明示繰延べ 66 (t1905・t1819・t2027・protocol-r33 の 44 +
+  本 wave の 22)。注入枝は s8b・s1 とも 22/22 で真に被覆されている。
+- 親作成の main 取り込み merge `9bb9024aa` は実装面 3 path を含むため
+  `missing-codex-author` を 1 件出す。先例 `311d463f` に倣い `tools/known_violations/` へ登録した
+  (新規登録に事前承認を課さないのは D662 の裁定)。全史監査は 7393 件・新規違反なし。
+- 実装 commit `785d4f533`、main 取り込み merge `9bb9024aa`。push はしていない。
+
 ## 次の一手差分
 
 ### 完了
@@ -68,7 +112,25 @@ title: [T-1999] 測定条件の関門を族として設計し driver 全体へ�
   残り 21 macro は昇格時に `unestablished` として成果物へ持ち越される。この一覧が縮むことが後続の仕事。
   macro ごとに実行側の意味を観測する witness を実装する。
 - {{T:deferred-gate-members}} **P2・新規**: 稼働 wave 所有と事前登録束縛のため本 wave で配線しなかった
-  4 member を配線する。`b10_backoff_shape_sweep.py` (t1905)、`paper_story_a1_paired.py` (t1819)、
+  4 member を配線する (台帳には本 wave が別種の繰延べを 1 件足したので全 5 entry。本項の対象は他 wave 所有・事前登録束縛の 4 件だけである)。`b10_backoff_shape_sweep.py` (t1905)、`paper_story_a1_paired.py` (t1819)、
   `s8b_floor_campaign.py` の `build_fn` seam と campaign sink (t2027)、
   `s8b_oracle_n_pilot.py` (事前登録 `protocol-r33.json` の `driver_sha256` 束縛)。
   最後の 1 件は事前登録の後継発行か凍結解除のユーザー裁定が要る。
+- {{T:closure-check-cannot-see-through-with-bindings}} **P1・新規・ユーザー裁定要**: 閉包検査が
+  **本当に守りたい 2 経路を静的に証明できていない。** `s8b_oracle_driver.run_block` と
+  `s1_direct_comparison.run_role` の既定枝 (production 経路) は、実行時には
+  `require_returned_condition_evidence(prepared, ...)` が無条件に支配しているが、検査は
+  (a) `with ... as (..., prepared)` の束縛を追えず (`_expression_depends_on_scope_parameter` が
+  `Assign` / `AnnAssign` / `For` しか見ない)、(b) `campaign` kind の sink に対して支配的な
+  返却物検査を被覆として数える仕組みを持たない (注入枝には既にある)。結果、s8b は本 wave の
+  繰延べ entry で、s1 は誤った `proven-unreachable` で、それぞれ除外されている。
+  **この 2 つを直せば両方が真に被覆された状態になる。** ただし検査の受理集合を変える設計判断
+  であり、本 wave の裁定 (helper の展開) の射程外のためユーザー裁定へ返す。
+  実測: (a) を直すと s1 既定枝の 22 セルが `proven-unreachable` から `unresolved` へ移り、
+  (b) が無ければ赤になる。
+- {{T:deferred-ledger-key-is-fail-open}} **P2・新規**: 繰延べ台帳の pin が
+  (path, kind, scope, lineno) の 4 field だけで、安定した繰延べ ID を持たない。元 sink が
+  移動・削除され別 sink が同じ 4 つ組へ来ると、その別 sink を黙って繰延べる fail-open がありうる。
+  本 wave が実際に踏んだのは fail-closed 側 (main の前進で pin がずれて赤が増えた) だが、
+  逆向きは塞がっていない。sink 直近へ安定 ID を置き、台帳をその ID と AST call へ一対一で束縛する。
+  元 sink を消して同じ 4 つ組へ別 call を置く変異が拒否される負例も足す。
