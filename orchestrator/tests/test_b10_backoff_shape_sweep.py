@@ -1021,6 +1021,33 @@ def test_run_phase_closed_set_is_build_verify_perf_probe():
     assert set(B.RUN_PHASES) == {"build", "verify", "perf", "probe"}
 
 
+def test_formal_build_requires_exact_path_policy_and_job_exports_it(monkeypatch):
+    job = ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
+    job_source = job.read_text(encoding="utf-8")
+    expected_export = (
+        f'export {B.buildcache.B10_BINARY_PATH_POLICY_ENV}='
+        f'"{B.buildcache.B10_BINARY_PATH_POLICY}"'
+    )
+    assert job_source.splitlines().count(expected_export) == 1
+    assert job_source.count("-DBUILD_SHARED_LIBS=OFF") == 2
+
+    monkeypatch.delenv(B.buildcache.B10_BINARY_PATH_POLICY_ENV, raising=False)
+    _expect_code(
+        "binary-path-policy",
+        lambda: B.run_formal(
+            phase="build", workload=None, prereg_commit="a" * 40,
+            submission_receipt="/not/read/without/policy.json",
+        ),
+    )
+    monkeypatch.setenv(
+        B.buildcache.B10_BINARY_PATH_POLICY_ENV,
+        B.buildcache.B10_BINARY_PATH_POLICY,
+    )
+    B._require_binary_path_policy()
+    monkeypatch.setenv(B.buildcache.B10_BINARY_PATH_POLICY_ENV, "unknown/v1")
+    _expect_code("binary-path-policy", B._require_binary_path_policy)
+
+
 def test_probe_phase_fails_closed_at_login_site_before_any_work(monkeypatch):
     called = []
 

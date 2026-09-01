@@ -9,6 +9,7 @@ set -Eeuo pipefail
 umask 077
 unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
 unset IZANAGI_OFFICIAL_OUTPUT_ROOT
+export IZANAGI_B10_BINARY_PATH_POLICY="b10-macro-prefix-map-no-rpath/v1"
 
 bootstrap_fail() {
   echo "B10 job bootstrap failed: $*" >&2

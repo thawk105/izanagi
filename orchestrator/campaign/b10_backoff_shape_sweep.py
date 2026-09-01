@@ -109,6 +109,16 @@ MIXER = 0x9E3779B97F4A7C15
 _MASK64 = (1 << 64) - 1
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
 
+
+def _require_binary_path_policy() -> None:
+    if os.environ.get(buildcache.B10_BINARY_PATH_POLICY_ENV) != (
+            buildcache.B10_BINARY_PATH_POLICY):
+        raise PreflightError(
+            "binary-path-policy",
+            "B-10 formal build は path-independent policy token が必須",
+        )
+
+
 WORKLOADS = {
     "write-heavy": {
         "ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0",
@@ -2834,6 +2844,7 @@ def run_formal(
             prereg_commit=prereg_commit,
             submission_receipt=submission_receipt,
         ), None, True
+    _require_binary_path_policy()
     root = _repo_root()
     prereg = load_preregistration(root, prereg_commit)
     submission = load_submission_identity(
