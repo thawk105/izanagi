@@ -1,0 +1,278 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "def _match_key(node: str, repo: Path) -> str:\n    normalized = _normalize_node(node, repo)\n    path_part, separator, test_part = normalized.partition(\"::\")\n    suffix_start = test_part.rfind(\"@\")\n    if suffix_start > test_part.rfind(\"]\"):\n        test_part = test_part[:suffix_start]\n    return f\"{path_part}{separator}{test_part}\"\n",
+     "new": "def _match_key(node: str, repo: Path) -> str:\n    return _normalize_node(node, repo)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_match_key_removes_only_group_after_nested_real_parametrize_id",
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_mutation_harness_flaky_hold_policy_matches_group_suffix_only",
+    "orchestrator/tests/test_mutation_harness.py::test_registration_rejects_group_suffix_alias_as_duplicate",
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_resume_reuses_valid_ledger",
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_is_collected_and_killed",
+    "orchestrator/tests/test_mutation_harness.py::test_group_unsuffixed_expected_node_matches_suffixed_failure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    collected_set = {_match_key(node, repo) for node in collected}\n    missing = sorted(\n        {\n            _match_key(node, repo)\n            for mutation in spec.mutations\n            for node in mutation.expected_nodes\n        }\n        - collected_set\n    )\n",
+     "new": "    collected_set = set(collected)\n    missing = sorted(\n        {\n            _normalize_node(node, repo)\n            for mutation in spec.mutations\n            for node in mutation.expected_nodes\n        }\n        - collected_set\n    )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_is_collected_and_killed",
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_resume_reuses_valid_ledger"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    suffix_start = test_part.rfind(\"@\")\n    if suffix_start > test_part.rfind(\"]\"):\n        test_part = test_part[:suffix_start]\n",
+     "new": "    suffix_start = test_part.rfind(\"@\")\n    if suffix_start >= 0:\n        test_part = test_part[:suffix_start]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_match_key_preserves_real_parametrize_ids_containing_at[orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[/u8a66/u9a13::/u5834/u5408@/u76f4/u5217]]",
+    "orchestrator/tests/test_mutation_harness.py::test_match_key_preserves_real_parametrize_ids_containing_at[orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[@]]",
+    "orchestrator/tests/test_mutation_harness.py::test_match_key_preserves_real_parametrize_ids_containing_at[orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[/u8a66/u9a13::/u5834/u5408[/u5024@/u4f8b]]]",
+    "orchestrator/tests/test_mutation_harness.py::test_match_key_preserves_real_parametrize_ids_containing_at[orchestrator/tests/test_axis1_search_runner.py::test_real_catalog_leaf_resolves_every_runner_field[arxiv-AX1-20260829-E1-Q1@arxiv]]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    suffix_start = test_part.rfind(\"@\")\n    if suffix_start > test_part.rfind(\"]\"):\n",
+     "new": "    suffix_start = test_part.find(\"@\")\n    if suffix_start > test_part.rfind(\"]\"):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_match_key_removes_only_group_after_nested_real_parametrize_id"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    expected_keys = {_match_key(node, repo) for node in expected}\n    failed_keys = {_match_key(node, repo) for node in failed}\n    return \"KILLED\" if failed_keys == expected_keys else \"MISMATCH\"\n",
+     "new": "    expected_keys = {_match_key(node, repo) for node in expected}\n    failed_keys = {_match_key(node, repo) for node in failed}\n    return \"KILLED\" if expected_keys <= failed_keys else \"MISMATCH\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_failed_nodes_strict_superset_never_counts_as_killed",
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffix_normalization_keeps_strict_superset_as_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    if rc != 0 and not failed:\n        return \"PARSE_ERROR\"\n",
+     "new": "    if rc != 0 and not failed:\n        return \"SURVIVED\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_with_nonzero_rc_and_no_failures_is_parse_error",
+    "orchestrator/tests/test_mutation_harness.py::test_mutation_nonzero_normal_rc_without_failed_nodes_is_parse_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M07",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    path_part = _safe_relpath(path_part, \"pytest node path\")\n    return f\"{path_part}::{test_part.strip()}\"\n",
+     "new": "    path_part = _safe_relpath(path_part, \"pytest node path\")\n    test_part = test_part.strip()\n    _suffix_start = test_part.rfind(\"@\")\n    if _suffix_start > test_part.rfind(\"]\"):\n        test_part = test_part[:_suffix_start]\n    return f\"{path_part}::{test_part}\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_is_collected_and_killed",
+    "orchestrator/tests/test_mutation_harness.py::test_group_unsuffixed_expected_node_matches_suffixed_failure",
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_resume_reuses_valid_ledger"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M08",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "        raise HarnessError(\"collection record の collected_nodes が artifact と不一致\")\n    missing = sorted(\n        {\n            _match_key(node, repo)\n            for mutation in spec.mutations\n            for node in mutation.expected_nodes\n        }\n        - {_match_key(node, repo) for node in collected}\n    )\n",
+     "new": "        raise HarnessError(\"collection record の collected_nodes が artifact と不一致\")\n    missing = sorted(\n        {\n            _normalize_node(node, repo)\n            for mutation in spec.mutations\n            for node in mutation.expected_nodes\n        }\n        - set(collected)\n    )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_is_collected_and_killed",
+    "orchestrator/tests/test_mutation_harness.py::test_group_suffixed_expected_node_resume_reuses_valid_ledger"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M09",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    normalized = _normalize_node(node, repo)\n    path_part, separator, test_part = normalized.partition(\"::\")\n    suffix_start = test_part.rfind(\"@\")\n    if suffix_start > test_part.rfind(\"]\"):\n        test_part = test_part[:suffix_start]\n    return f\"{path_part}{separator}{test_part}\"\n",
+     "new": "    normalized = _normalize_node(node, repo)\n    suffix_start = normalized.rfind(\"@\")\n    if suffix_start > normalized.rfind(\"]\"):\n        normalized = normalized[:suffix_start]\n    return normalized\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_harness.py::test_match_key_does_not_collapse_at_in_realistic_paths"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_fanout_contract.py",
+     "old": "    expected_keys = {\n        _match_key(node, repo, f\"{label} expected node\") for node in expected_nodes\n    }\n    failed_keys = {\n        _match_key(node, repo, f\"{label} failed node\") for node in failed\n    }\n    return (\"KILLED\" if failed_keys == expected_keys else \"MISMATCH\"), failed\n",
+     "new": "    expected = {\n        _normalize_node(node, repo, f\"{label} expected node\") for node in expected_nodes\n    }\n    return (\"KILLED\" if set(failed) == expected else \"MISMATCH\"), failed\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_matches_group_suffixed_failure_and_preserves_raw_nodes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_fanout_contract.py",
+     "old": "        match_keys = {_strip_group_suffix(node) for node in nodes}\n        if len(match_keys) != len(nodes):\n            raise FanoutContractError(\n                f\"{mutation_label}.expected_nodes が正規化後に重複\"\n            )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_fanout_contract.py::test_split_rejects_group_suffix_alias_as_expected_node_duplicate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_fanout_contract.py",
+     "old": "    return (\"KILLED\" if failed_keys == expected_keys else \"MISMATCH\"), failed\n",
+     "new": "    return (\"KILLED\" if expected_keys <= failed_keys else \"MISMATCH\"), failed\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_keeps_group_normalized_strict_superset_as_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_fanout_contract.py",
+     "old": "    expected_nodes = {\n        _match_key(node, checkout, f\"{shard_id} expected node\")\n        for mutation in shard_spec[\"mutations\"]\n        for node in mutation[\"expected_nodes\"]\n    }\n    collected_node_keys = {\n        _match_key(node, checkout, f\"{shard_id} collected node\")\n        for node in collection[\"collected_nodes\"]\n    }\n    if not expected_nodes <= collected_node_keys:\n",
+     "new": "    expected_nodes = {\n        node for mutation in shard_spec[\"mutations\"] for node in mutation[\"expected_nodes\"]\n    }\n    if not expected_nodes <= set(collection[\"collected_nodes\"]):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_accepts_group_suffixed_expected_against_base_collection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_fanout_contract.py",
+     "old": "    suffix_start = test_text.rfind(\"@\")\n    if suffix_start > test_text.rfind(\"]\"):\n        test_text = test_text[:suffix_start]\n",
+     "new": "    suffix_start = test_text.rfind(\"@\")\n    if suffix_start >= 0:\n        test_text = test_text[:suffix_start]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_fanout_contract.py::test_fanout_match_key_preserves_real_parametrize_id_containing_at"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_fanout_contract.py",
+     "old": "    suffix_start = test_text.rfind(\"@\")\n    if suffix_start > test_text.rfind(\"]\"):\n",
+     "new": "    suffix_start = test_text.find(\"@\")\n    if suffix_start > test_text.rfind(\"]\"):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_fanout_contract.py::test_fanout_match_key_removes_only_group_after_nested_real_parametrize_id"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M16",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_fanout_contract.py",
+     "old": "def _strip_group_suffix(node: str) -> str:\n    path_text, separator, test_text = node.partition(\"::\")\n    suffix_start = test_text.rfind(\"@\")\n    if suffix_start > test_text.rfind(\"]\"):\n        test_text = test_text[:suffix_start]\n    return f\"{path_text}{separator}{test_text}\"\n",
+     "new": "def _strip_group_suffix(node: str) -> str:\n    suffix_start = node.rfind(\"@\")\n    if suffix_start > node.rfind(\"]\"):\n        node = node[:suffix_start]\n    return node\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mutation_fanout_contract.py::test_fanout_match_key_does_not_collapse_at_in_realistic_paths"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

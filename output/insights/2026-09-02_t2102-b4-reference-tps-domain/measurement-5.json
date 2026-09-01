@@ -1,0 +1,40 @@
+{
+  "populations": {
+    "bench.median_tps": {
+      "distinct_tokens": 0,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": [],
+      "observations": 0,
+      "sample_tokens": [],
+      "unparsable_tokens": []
+    },
+    "bench.tps_series": {
+      "distinct_tokens": 0,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": [],
+      "observations": 0,
+      "sample_tokens": [],
+      "unparsable_tokens": []
+    },
+    "commit.fitness_tps": {
+      "distinct_tokens": 0,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": [],
+      "observations": 0,
+      "sample_tokens": [],
+      "unparsable_tokens": []
+    }
+  },
+  "roots": [
+    "/home/SFC/tanab",
+    "/dev/shm"
+  ],
+  "stage_counts": {},
+  "wal_files": 2,
+  "wal_files_scanned": 2,
+  "wal_files_unreadable": [],
+  "wal_json_parse_errors": 1
+}

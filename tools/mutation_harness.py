@@ -1235,7 +1235,12 @@ def _normalize_node(node: str, repo: Path) -> str:
 
 
 def _match_key(node: str, repo: Path) -> str:
-    return _normalize_node(node, repo)
+    normalized = _normalize_node(node, repo)
+    path_part, separator, test_part = normalized.partition("::")
+    suffix_start = test_part.rfind("@")
+    if suffix_start > test_part.rfind("]"):
+        test_part = test_part[:suffix_start]
+    return f"{path_part}{separator}{test_part}"
 
 
 def _failed_nodes(output: str, repo: Path) -> list[str]:
@@ -1307,7 +1312,10 @@ def _reject_flaky_hold_expected_nodes(
     repo: Path,
 ) -> None:
     expected_keys = {_match_key(node, repo) for node in expected}
-    held = expected_keys.intersection(_flaky_hold_node_ids_for_policy(repo))
+    held_keys = {
+        _match_key(node, repo) for node in _flaky_hold_node_ids_for_policy(repo)
+    }
+    held = expected_keys.intersection(held_keys)
     if held:
         raise HarnessError(
             "policy mismatch: mutation expected failure node is isolated: "
@@ -1466,10 +1474,10 @@ def _collect_expected_nodes(
             f"rc={result['rc']}, collected={len(collected)}, "
             f"artifact_error={result.get('artifact_error')!r}"
         )
-    collected_set = set(collected)
+    collected_set = {_match_key(node, repo) for node in collected}
     missing = sorted(
         {
-            _normalize_node(node, repo)
+            _match_key(node, repo)
             for mutation in spec.mutations
             for node in mutation.expected_nodes
         }
@@ -2378,11 +2386,11 @@ def _validate_collection_record(
         raise HarnessError("collection record の collected_nodes が artifact と不一致")
     missing = sorted(
         {
-            _normalize_node(node, repo)
+            _match_key(node, repo)
             for mutation in spec.mutations
             for node in mutation.expected_nodes
         }
-        - set(collected)
+        - {_match_key(node, repo) for node in collected}
     )
     if missing:
         raise HarnessError(f"collection record に期待 node がない: {missing}")
