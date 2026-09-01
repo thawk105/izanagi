@@ -2220,22 +2220,36 @@ def _evaluate_c09(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
-_C10_FIELDS = frozenset(
-    {
-        "input_payload_sha256",
-        "raw_response_path",
-        "raw_response_sha256",
-        "provider_payload_sha256",
-        "provider_envelope_sha256",
-        "proposal_path",
-        "proposal_sha256",
-        "build_records",
-        "bench_records",
-        "artifact_refs",
-        "source_refs",
-        "admission_decision",
-    }
+_C10_CROSS_BINDING_FIELD_BINDINGS = (
+    ("input_payload_sha256", "role_event.input_payload_sha256"),
+    ("raw_response_path", "role_event.raw_response_path"),
+    ("raw_response_sha256", "role_event.raw_response_sha256"),
+    ("provider_payload_sha256", "provider.payload_sha256"),
+    ("provider_envelope_sha256", "provider.envelope_sha256"),
+    ("proposal_path", "proposal.path"),
+    ("proposal_sha256", "proposal.sha256"),
+    ("proposal_build_source_bindings", "proposal.build_source_bindings"),
+    ("build_records", "campaign_wal.build_records"),
+    ("bench_records", "campaign_wal.bench_records"),
+    ("artifact_refs", "layer3.artifact_refs"),
+    ("source_refs", "layer3.source_refs"),
+    ("admission_decision", "layer3.admission_decision"),
 )
+_C10_FIELDS = frozenset(
+    literal for literal, _ in _C10_CROSS_BINDING_FIELD_BINDINGS
+)
+_C10_EXPECTED_FIELD_PATHS = frozenset(
+    path for _, path in _C10_CROSS_BINDING_FIELD_BINDINGS
+)
+
+
+def _c10_field_paths_verdict(probe: _ConditionProbe) -> bool:
+    return (
+        frozenset(
+            probe.requirement("cross_binding_verifier").field_paths
+        )
+        == _C10_EXPECTED_FIELD_PATHS
+    )
 
 
 def _c10_single_function(
@@ -2426,29 +2440,30 @@ def _evaluate_c10(probe: _ConditionProbe) -> core.PredicateResult:
         )
     verifier_path = probe.requirement("cross_binding_verifier").path
     verify = _c10_single_function(verifier, "verify_s8c_cross_binding")
-    reader = _c10_single_function(verifier, "read_and_verify_bytes")
-    live_strings = (
-        {
-            node.value
-            for node in _live_nodes(verify)
-            if isinstance(node, ast.Constant) and type(node.value) is str
-        }
-        if verify is not None
-        else set()
-    )
-    reader_calls = (
-        () if verify is None else _calls_named(verify, "read_and_verify_bytes")
-    )
-    verifier_graph = (
-        None
-        if verify is None
-        else _ReachabilityExplorer(probe).walk(
-            (verifier_path, "verify_s8c_cross_binding")
+    if verify is None:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.CROSS_BINDING_VERIFIER_INCOMPLETE,
         )
+    if not _c10_field_paths_verdict(probe):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.CROSS_BINDING_VERIFIER_INCOMPLETE,
+        )
+    reader = _c10_single_function(verifier, "read_and_verify_bytes")
+    live_strings = {
+        node.value
+        for node in _live_nodes(verify)
+        if isinstance(node, ast.Constant) and type(node.value) is str
+    }
+    reader_calls = _calls_named(verify, "read_and_verify_bytes")
+    verifier_graph = _ReachabilityExplorer(probe).walk(
+        (verifier_path, "verify_s8c_cross_binding")
     )
     if (
-        verify is None
-        or reader is None
+        reader is None
         or not _c10_reader_is_not_noop(reader)
         or not _C10_FIELDS <= live_strings
         or not reader_calls
