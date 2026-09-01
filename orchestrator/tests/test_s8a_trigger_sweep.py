@@ -70,6 +70,11 @@ _REAL_E0_CAMPAIGN = (
     / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
 )
 
+
+def test_screening_forwards_ident_baseline_genome_protocol():
+    source = Path(W.__file__).read_text(encoding="utf-8")
+    assert source.count("protocol=_genome(1).protocol") == 1
+
 # 頻度実測の予想結果 (シート導出: YCSB では node/absent 構造ゼロ)。テストは実測に
 # 依存しない — 代表として 3 ビットの実効集合で列挙の機械性質を検査する。
 EFF3 = ["lock-conflict", "readvali-tid", "readvali-locked"]

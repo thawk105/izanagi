@@ -869,6 +869,91 @@ def test_launch_validate_rejects_floor_selection_rule_mismatch(
     assert calls == [earlier_rel]
 
 
+def test_g1_selection_helper_rejects_rule_mismatch(tmp_path, monkeypatch):
+    root, freeze, _topology = _build_launch_repo(tmp_path)
+    freeze, earlier_rel = _with_earlier_floor_result_at_head(root, freeze)
+    calls = []
+
+    def derived_eligible(**kwargs):
+        calls.append(kwargs["result_rel"])
+        return True
+
+    monkeypatch.setattr(HF, "_derive_floor_selection_eligibility", derived_eligible)
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.assert_g1_floor_selection_identity(freeze, root)
+    assert caught.value.reason == "floor-selection-rule-mismatch"
+    assert caught.value.cause == "earliest-eligible-official-run-id/v1"
+    assert calls == [earlier_rel]
+
+
+def test_g1_selection_helper_rejects_foreign_env_namespace(
+        tmp_path, monkeypatch):
+    original_paths = {}
+
+    def move_selected_result_to_foreign_env(state):
+        selected_rel = state["paths"]["result"]
+        foreign_rel = selected_rel.replace(
+            "/linux-baremetal/", "/foreign-env/", 1,
+        )
+        assert foreign_rel != selected_rel
+        state["paths"]["result"] = foreign_rel
+        original_paths["selected"] = selected_rel
+        original_paths["foreign"] = foreign_rel
+
+    root, _freeze, _topology = _build_launch_repo(
+        tmp_path, mutate=move_selected_result_to_foreign_env,
+    )
+    loaded = M.load_ratified_freeze(root)
+    selected_rel = original_paths["selected"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    earlier_rel = selected_rel.replace(
+        selected_run_id, f"20260718T115959Z-{proto8}",
+    )
+    B._write(root, earlier_rel, b"{}")
+    B._fixed_commit_all(root, "earlier true-namespace result", "fixture")
+    calls = []
+
+    def derived_eligible(**kwargs):
+        calls.append(kwargs["result_rel"])
+        return True
+
+    monkeypatch.setattr(HF, "_derive_floor_selection_eligibility", derived_eligible)
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.assert_g1_floor_selection_identity(loaded, root)
+    assert caught.value.reason == "floor-selection-unverifiable"
+    assert caught.value.cause == "selection-env-chain"
+    assert loaded.document["env_tag"] == "linux-baremetal"
+    assert loaded.document["floor_source"]["path"] == original_paths["foreign"]
+    assert earlier_rel < selected_rel
+    assert calls == []
+
+
+def test_g1_selection_helper_rejects_protocol_hash_prefix_mismatch(tmp_path):
+    def move_selected_result_to_wrong_proto8(state):
+        selected_rel = state["paths"]["result"]
+        run_id = selected_rel.rsplit("/", 2)[-2]
+        timestamp, proto8 = run_id.rsplit("-", 1)
+        wrong_proto8 = "0" * 8 if proto8 != "0" * 8 else "f" * 8
+        state["paths"]["result"] = selected_rel.replace(
+            run_id, f"{timestamp}-{wrong_proto8}",
+        )
+
+    root, _freeze, _topology = _build_launch_repo(
+        tmp_path, mutate=move_selected_result_to_wrong_proto8,
+    )
+    loaded = M.load_ratified_freeze(root)
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.assert_g1_floor_selection_identity(loaded, root)
+    assert caught.value.reason == "floor-selection-unverifiable"
+    assert caught.value.cause == "selection-path-proto8"
+
+
+def test_g1_selection_helper_accepts_valid_selection(tmp_path):
+    root, freeze, _topology = _build_launch_repo(tmp_path)
+    assert M.assert_g1_floor_selection_identity(freeze, root) is None
+
+
 def test_launch_validate_preserves_floor_selection_path_failure_reason(
         tmp_path, monkeypatch):
     root, freeze, _topology = _build_launch_repo(tmp_path)
@@ -1434,6 +1519,57 @@ def test_generation_two_rejected_before_artifact_io(tmp_path, monkeypatch):
 
     monkeypatch.setattr(M, "resolve_active_generation", resolve_with_forced_scope)
     assert isinstance(M.launch_validate(forced, root), M.LaunchValidatedFreeze)
+
+
+def test_g1_only_selection_helper_is_noop_for_g2(tmp_path, monkeypatch):
+    _need_v1()
+    root, g1_sha, _g1_rel, g1, topology = B.build_production_emitter_g1(
+        tmp_path,
+    )
+    emitted_g2, _g2_topology = B.append_production_emitter_g2(
+        root, g1, g1_sha, topology,
+    )
+    loaded_g2 = M.load_ratified_freeze(root)
+    assert type(loaded_g2) is M.RatifiedFreeze
+    assert loaded_g2.generation_number == 2
+    assert loaded_g2.sha256 == emitted_g2.sha256
+
+    def reject_any_source_inspection(*_args, **_kwargs):
+        raise AssertionError("g2 selection helper inspected a source record")
+
+    monkeypatch.setattr(M, "_source_record_path_sha", reject_any_source_inspection)
+    assert M.assert_g1_floor_selection_identity(loaded_g2, root) is None
+
+
+def test_g1_only_selection_helper_skips_earlier_eligible_run_for_g2(
+        tmp_path, monkeypatch):
+    _need_v1()
+    root, g1_sha, _g1_rel, g1, topology = B.build_production_emitter_g1(
+        tmp_path,
+    )
+    B.append_production_emitter_g2(root, g1, g1_sha, topology)
+    loaded_g2 = M.load_ratified_freeze(root)
+    loaded_g2, earlier_rel = _with_earlier_floor_result_at_head(root, loaded_g2)
+    calls = []
+
+    def derived_eligible(**kwargs):
+        calls.append(kwargs["result_rel"])
+        return True
+
+    monkeypatch.setattr(HF, "_derive_floor_selection_eligibility", derived_eligible)
+    assert M.assert_g1_floor_selection_identity(loaded_g2, root) is None
+    assert calls == []
+
+    forced_g1 = M.RatifiedFreeze(
+        document=loaded_g2.document, sha256=loaded_g2.sha256,
+        generation_number=1, activation_head=loaded_g2.activation_head,
+        generation_commit=loaded_g2.generation_commit,
+    )
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.assert_g1_floor_selection_identity(forced_g1, root)
+    assert caught.value.reason == "floor-selection-rule-mismatch"
+    assert caught.value.cause == "earliest-eligible-official-run-id/v1"
+    assert calls == [earlier_rel]
 
 
 def test_manifest_cells_independent_derivation_rejects_ghost_cell(tmp_path):

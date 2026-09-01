@@ -1,0 +1,92 @@
+{
+  "estimated_run_seconds": 420,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "m01-v3-root-membership-dropped",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "_V3_ROOTS = _V2_ROOTS\n",
+          "old": "_V3_ROOTS = _V2_ROOTS | frozenset({\"dependency-prefix\"})\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "m02-current-root-uniqueness-collapsed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "                if not matches:\n                    raise CompilerInputError(\n                        \"dependency prefix compiler input does not have one current root\"\n                    )\n",
+          "old": "                if len(matches) != 1:\n                    raise CompilerInputError(\n                        \"dependency prefix compiler input does not have one current root\"\n                    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "m03-filesystem-tag-canonicality-narrowed",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "                special_roots.extend(())\n",
+          "old": "                special_roots.extend(current_dependency_roots)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "m04-issuer-drops-current-roots",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "new": "            current_dependency_prefix_roots=(\n                None\n            ),\n",
+          "old": "            current_dependency_prefix_roots=(\n                current_compiler_input_dependency_prefix_roots\n            ),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "m05-floor-bridge-drops-current-roots",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "                    current_compiler_input_dependency_prefix_roots=(\n                        None\n                    ),\n",
+          "old": "                    current_compiler_input_dependency_prefix_roots=(\n                        compiler_input_dependency_prefix_roots\n                    ),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "m06b-none-context-accepted-both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_compiler_input.py",
+          "new": "        current_dependency_roots = (\n            _canonical_dependency_prefix_roots(\n                current_dependency_prefix_roots\n                if current_dependency_prefix_roots is not None else (),\n                label=\"current dependency prefix roots\",\n            )\n            if is_v3 else ()\n        )\n",
+          "old": "        if is_v3 and current_dependency_prefix_roots is None:\n            raise CompilerInputError(\n                \"current dependency prefix root context is required\"\n            )\n        current_dependency_roots = (\n            _canonical_dependency_prefix_roots(\n                current_dependency_prefix_roots,\n                label=\"current dependency prefix roots\",\n            )\n            if is_v3 else ()\n        )\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 3000
+}

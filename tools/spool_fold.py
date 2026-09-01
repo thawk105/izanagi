@@ -1974,6 +1974,21 @@ def _deferred_items(phase: str) -> dict[str, list[tuple[int, int, int]]]:
     return items
 
 
+def _assert_deferred_ids_unique(rendered_phase: str) -> None:
+    issues = [
+        Issue(
+            "docs/phase3.md",
+            _line(rendered_phase, offset),
+            "deferred-duplicate",
+            f"見送り台帳の ID {task_id} が重複",
+        )
+        for task_id, items in _deferred_items(rendered_phase).items()
+        for offset, _line_end, _block_end in items[1:]
+    ]
+    if issues:
+        raise SpoolValidationError(issues)
+
+
 def _insert_deferred_appends(phase: str, appends: Sequence[_DeferredAppend]) -> str:
     if not appends:
         return phase
@@ -2486,6 +2501,8 @@ def plan_fold(
         rendered_phase = _insert_deferred_appends(rendered_phase, rendered_appends)
         prior_ordinal = ordinal
         ordinal += 1
+
+    _assert_deferred_ids_unique(rendered_phase)
 
     rendered_decisions = decisions_raw
     for fragment in (item for item in fragments if item.ledger == "decisions"):

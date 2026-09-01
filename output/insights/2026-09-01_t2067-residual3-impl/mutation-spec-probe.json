@@ -1,0 +1,78 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 40.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_result_judge.py",
+     "old": "        ratified = _load_selection_checked_ratified_floor()\n",
+     "new": "        ratified = load_ratified_freeze()\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_result_judge.py",
+     "old": "        current = _ratified_floor_binding(_load_selection_checked_ratified_floor())\n",
+     "new": "        current = _ratified_floor_binding(load_ratified_freeze())\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "    if ratified.generation_number != 1:\n        return\n",
+     "new": "    if ratified.generation_number != 1:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "        if (ratified.document.get(\"env_tag\") != selected_path_info[\"env_tag\"]\n                or selected_path_info[\"env_tag\"] != protocol[\"env_tag\"]):\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "        if selected_path_info[\"proto8\"] != protocol_sha[:8]:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
