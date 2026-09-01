@@ -278,6 +278,16 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             "two arms require 2 * perf.reps observations but the token allowance "
             "is bound to protocol reps"
         )
+    if (
+        balanced_schedule is None
+        and holdout_observation_admission is not None
+        and len(genomes) > 1
+    ):
+        raise ValueError(
+            "one holdout_observation_admission cannot cover multiple genomes: "
+            "the attempt-bound token has a finite run_once allowance and reuse "
+            "would exhaust it"
+        )
     if balanced_schedule is not None:
         if type(balanced_schedule) is not BalancedScheduleConfig:
             raise TypeError("balanced_schedule must be an exact BalancedScheduleConfig")

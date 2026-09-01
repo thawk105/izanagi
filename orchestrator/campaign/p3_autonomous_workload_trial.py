@@ -925,6 +925,7 @@ def _preflight_workload_profile(
     trial_manifest: Path | None,
     trial_id: str,
     workloads: Sequence[str],
+    allow_formal_noncertifying: bool = False,
     effective_preregistration: (
         s8c_preregistration.EffectivePreregistration | None
     ) = None,
@@ -939,6 +940,11 @@ def _preflight_workload_profile(
         producer_entries=FORMAL_WORKLOADS,
         repository_root=ROOT,
     )
+    if allow_formal_noncertifying is True:
+        raise AutonomousTrialError(
+            "formal workload profile is incompatible with "
+            "non-certifying launch admission"
+        )
     if trial_manifest is None:
         raise AutonomousTrialError(
             "formal launch is not admissible: effective preregistration unavailable"
@@ -4423,6 +4429,7 @@ def run_trial(
         trial_manifest=trial_manifest,
         trial_id=trial_id,
         workloads=workloads,
+        allow_formal_noncertifying=allow_formal_noncertifying,
         effective_preregistration=effective_preregistration,
     )
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
@@ -5162,6 +5169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         trial_manifest=args.trial_manifest,
         trial_id=args.trial_id,
         workloads=args.workloads,
+        allow_formal_noncertifying=args.allow_formal_noncertifying,
         effective_preregistration=effective_preregistration,
     )
     launch_admission = _trial_launch_admission(
