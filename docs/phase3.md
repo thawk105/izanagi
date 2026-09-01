@@ -2233,7 +2233,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-2015] /rulings が起動する consult 子の依頼文に、check_codex_output.py が要求する出力形式 (## 総括 節)… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
-- [T-2019] 択 (A) 採用 — 全 live Git 経路へ抑止を入れて閉包を広げる。reader 分類の前提を壊す書き込みが残ると D1008 の a… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
+- [T-2019] 択 (A) 採用 — 全 live Git 経路へ抑止を入れて閉包を広げる。reader 分類の前提を壊す書き込みが残ると D1008 の a… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。 2026-09-01 に登録外 reader の file:line 証拠が増えた (`test_b10_backoff_shape_sweep.py:1096`、`test_s8b_approved.py:34`、`orchestrator/tests/conftest.py:576` 経由の oracle environment 25 node、`test_mocc_trace_pair.py:121`/`:154`)。追加裁定はせず記録のみ。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-2020] 共有 filesystem 上の lock を採る。成立しなければ親 tree と共有ベンチマークの双方を隔離する (D1210)。 **親の… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。

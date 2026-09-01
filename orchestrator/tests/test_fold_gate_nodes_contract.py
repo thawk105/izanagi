@@ -38,9 +38,9 @@ from orchestrator.tests.growth_test_holds import GROWTH_TEST_HOLDS
 
 SPOOL_TEST_PATH = ROOT / "orchestrator/tests/test_spool_fold.py"
 _COPY_HELPER = "_copy_real_canonical_family"
-_EXPECTED_NODE_COUNT = 5
+_EXPECTED_NODE_COUNT = 6
 _EXPECTED_REGISTRY_SHA256 = (
-    "cf69d81c65cb79d415c590ce116f06742e18c9bf8a5996e21d21f8c97c434752"
+    "10ed51b5d6c8a6e31644202877f825e7cc59654e13784ec0db8a02f3335d3cb9"
 )
 
 
@@ -295,7 +295,6 @@ def test_registry_count_digest_and_family_minimums_are_frozen() -> None:
     }
     assert dict(FOLD_GATE_UNCOVERED_FAMILY_ALLOWLIST).keys() == {
         "decisions",
-        "phase3",
         "rotation",
     }
     changed_allowlist = dict(FOLD_GATE_UNCOVERED_FAMILY_ALLOWLIST)
@@ -477,7 +476,7 @@ def test_family_population_and_shortfalls_are_fail_closed() -> None:
         "archive": 2,
         "decisions": 0,
         "failures": 3,
-        "phase3": 0,
+        "phase3": 1,
         "folded": 1,
         "rotation": 0,
     }
@@ -486,7 +485,6 @@ def test_family_population_and_shortfalls_are_fail_closed() -> None:
         fold_gate_family_shortfalls(("decisions", "phase3", "rotation"))
     ) == {
         "decisions": (1, 0),
-        "phase3": (1, 0),
         "rotation": (1, 0),
     }
     for invalid in (("unknown",), ("worklog", "worklog")):
