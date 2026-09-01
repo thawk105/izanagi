@@ -5742,7 +5742,6 @@ def assert_trial_registry_acceptance(
         manifest_by_id = {trial.trial_id: trial for trial in manifest.trials}
         accepted: list[AcceptedTrial] = []
         no_build_seen = False
-        layer3_chain_absent_seen = False
         cross_binding_receipts: dict[str, dict[str, Any]] = {}
         history_checked: set[str] = set()
         common_measurement_head: str | None = None
@@ -6019,11 +6018,12 @@ def assert_trial_registry_acceptance(
                         "do_build=True requires a non-empty report.cells list",
                     )
                 campaign_roots: list[Path] = []
+                bypassed_cell_indices: list[int] = []
                 for index, cell in enumerate(cells):
                     if not isinstance(cell, Mapping):
                         _fail("campaign-chain", f"cells[{index}] is not an object")
                     if is_exact_campaignless_failure_fallback_cell(cell):
-                        layer3_chain_absent_seen = True
+                        bypassed_cell_indices.append(index)
                         continue
                     campaign_root_value = cell.get("campaign_root")
                     if type(campaign_root_value) is not str or not campaign_root_value:
@@ -6077,11 +6077,21 @@ def assert_trial_registry_acceptance(
                     )
                 except AutonomousTrialCompletenessError as exc:
                     raise TrialRegistryError(f"[campaign-chain] {exc}") from exc
+                if bypassed_cell_indices:
+                    _fail(
+                        "campaign-chain",
+                        "campaignless failure fallback bypassed Layer-3 "
+                        f"validation for cells {bypassed_cell_indices}",
+                    )
                 if any(
                     not (campaign_root / "reports" / "layer3_report.json").is_file()
                     for campaign_root in campaign_roots
                 ):
-                    layer3_chain_absent_seen = True
+                    _fail(
+                        "campaign-chain",
+                        "build cell has no persisted "
+                        "reports/layer3_report.json after Layer-3 chain",
+                    )
             try:
                 cross_binding_receipts[trial_id] = verify_s8c_cross_binding(
                     report=report,
@@ -6207,9 +6217,6 @@ def assert_trial_registry_acceptance(
             reason_codes.sort()
         if no_build_seen:
             reason_codes.append("no-build")
-            reason_codes.sort()
-        if layer3_chain_absent_seen:
-            reason_codes.append("layer3-chain-absent")
             reason_codes.sort()
         cross_binding_leaf_rows = [
             {

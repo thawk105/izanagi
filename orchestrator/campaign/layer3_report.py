@@ -611,6 +611,9 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
                 admitted_campaign.verifier_assessment_basis
             ),
         ),
+        "current_verifier_conformance": (
+            admitted_campaign.current_verifier_conformance
+        ),
         "acceptance_receipt": None,
         "certifying_input": False,
         "mechanism_hypotheses": [],
@@ -701,6 +704,7 @@ def build_accepted_report(
         raise Layer3ReportError(
             "新規 certifying Layer3 report には E1 epoch が必須"
         )
+    report.pop("current_verifier_conformance")
     report.update({
         "acceptance_receipt": {
             "path": verified.relative_path,

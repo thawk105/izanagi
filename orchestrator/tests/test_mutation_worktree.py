@@ -26,6 +26,10 @@ import pytest
 _REPO = Path(__file__).resolve().parents[2]
 _TOOL = _REPO / "tools" / "mutation_worktree.py"
 _HARNESS = _REPO / "tools" / "mutation_harness.py"
+_MARKER = _REPO / "orchestrator" / "campaign" / "mutation_attempt_marker.py"
+_SITE_POLICY = _REPO / "orchestrator" / "campaign" / "site_policy.py"
+_DISPATCHER = _REPO / "tools" / "pegasus" / "dispatch_compute.py"
+_SCHEDULER_NQSV = _REPO / "orchestrator" / "scheduler_nqsv.py"
 _SPEC = importlib.util.spec_from_file_location("mutation_worktree_under_test", _TOOL)
 assert _SPEC is not None and _SPEC.loader is not None
 MW = importlib.util.module_from_spec(_SPEC)
@@ -218,7 +222,11 @@ raise SystemExit(rc)
 
 
 def _make_repository(
-    tmp_path: Path, *, harness_source: str, fake_dispatch: bool = False
+    tmp_path: Path,
+    *,
+    harness_source: str,
+    fake_dispatch: bool = False,
+    real_site_policy: bool = False,
 ) -> SimpleNamespace:
     submodule = tmp_path / "ccbench-origin"
     submodule.mkdir()
@@ -251,22 +259,38 @@ def _make_repository(
     campaign.mkdir(parents=True)
     (campaign.parent / "__init__.py").write_text("", encoding="utf-8")
     (campaign / "__init__.py").write_text("", encoding="utf-8")
-    (campaign / "site_policy.py").write_text(
-        "OTHER = 'OTHER'\n"
-        "PEGASUS_LOGIN = 'PEGASUS_LOGIN'\n"
-        "PEGASUS_COMPUTE = 'PEGASUS_COMPUTE'\n"
-        "PEGASUS_SUSPECT = 'PEGASUS_SUSPECT'\n\n"
-        "def current_site(*, require_evidence=False):\n"
-        "    del require_evidence\n"
-        "    return OTHER\n",
-        encoding="utf-8",
+    site_policy_source = (
+        _SITE_POLICY.read_text(encoding="utf-8")
+        if real_site_policy
+        else (
+            "OTHER = 'OTHER'\n"
+            "PEGASUS_LOGIN = 'PEGASUS_LOGIN'\n"
+            "PEGASUS_COMPUTE = 'PEGASUS_COMPUTE'\n"
+            "PEGASUS_SUSPECT = 'PEGASUS_SUSPECT'\n\n"
+            "def current_site(*, require_evidence=False):\n"
+            "    del require_evidence\n"
+            "    return OTHER\n"
+        )
     )
+    (campaign / "site_policy.py").write_text(site_policy_source, encoding="utf-8")
+    (campaign / "mutation_attempt_marker.py").write_text(
+        _MARKER.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    if real_site_policy:
+        (campaign.parent / "scheduler_nqsv.py").write_text(
+            _SCHEDULER_NQSV.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        pegasus = main / "tools" / "pegasus"
+        pegasus.mkdir()
+        (pegasus / "dispatch_compute.py").write_text(
+            _DISPATCHER.read_text(encoding="utf-8"), encoding="utf-8"
+        )
     if fake_dispatch:
         runner = main / "tools" / "run_tests.py"
         runner.write_text(_fake_dispatch_source(), encoding="utf-8")
         runner.chmod(0o755)
         pegasus = main / "tools" / "pegasus"
-        pegasus.mkdir()
+        pegasus.mkdir(exist_ok=True)
         dispatcher = pegasus / "dispatch_compute.py"
         dispatcher.write_text(_fake_dispatch_source(), encoding="utf-8")
         dispatcher.chmod(0o755)
@@ -381,6 +405,47 @@ def _wrapper_argv(
     return [*args, "--", *runner]
 
 
+def _install_local_attempt_marker(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    hostname: str = "bnode114",
+) -> dict[str, str]:
+    from tools.pegasus import dispatch_compute
+
+    dispatch_root = root / "dispatch-root"
+    submission = dispatch_root / "submission"
+    submission.mkdir(parents=True)
+    request = submission / "request.json"
+    request.write_bytes(b'{"task":"mutation"}\n')
+    (submission / MW.mutation_attempt_marker.COMPUTE_MARKER_NAME).write_text(
+        json.dumps(
+            {
+                "schema_version": "pegasus-compute-visible/v1",
+                "pbs_jobid": "0:424242.nqsv",
+                "hostname": hostname,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    binding = MW.mutation_attempt_marker.build_binding(
+        dispatch_root=dispatch_root,
+        submission_dir=submission,
+        pbs_jobid="0:424242.nqsv",
+        hostname=hostname,
+        request_sha256=hashlib.sha256(request.read_bytes()).hexdigest(),
+        is_regular_pbs_jobid=dispatch_compute._is_regular_pbs_jobid,
+    )
+    monkeypatch.setenv(
+        MW.mutation_attempt_marker.MARKER_ENV,
+        MW.mutation_attempt_marker.encode_binding(binding),
+    )
+    monkeypatch.setattr(MW.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MW.site_policy.socket, "gethostname", lambda: hostname)
+    return binding
+
+
 @_limited
 @pytest.mark.parametrize(
     "site", [MW.site_policy.PEGASUS_LOGIN, MW.site_policy.PEGASUS_SUSPECT]
@@ -481,6 +546,156 @@ def test_dispatch_mode_does_not_consult_local_site_gate_between_observation_poin
         == 0
     )
     assert not (fixture.scratch / MW.CONTAINER_NAME).exists()
+
+
+@_limited
+def test_i2_dispatch_attempt_does_not_call_marker_validator_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    attempts = fixture.artifacts / "attempts.json"
+    monkeypatch.setattr(
+        MW.mutation_attempt_marker,
+        "require_local_attempt_marker",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("dispatch mode で marker validator を呼んだ")
+        ),
+    )
+
+    assert MW.main(
+        _wrapper_argv(
+            fixture,
+            runner_mode="dispatch",
+            plan_only=True,
+            attempt_out=attempts,
+        )
+    ) == 0
+
+
+@_limited
+def test_i3_local_without_attempt_does_not_call_marker_validator_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    monkeypatch.setattr(
+        MW.mutation_attempt_marker,
+        "require_local_attempt_marker",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("attempt 無し local で marker validator を呼んだ")
+        ),
+    )
+
+    assert MW.main(_wrapper_argv(fixture, plan_only=True)) == 0
+
+
+@_limited
+def test_m2_wrapper_local_attempt_without_marker_is_rejected_before_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    attempts = fixture.artifacts / "attempts.json"
+    monkeypatch.setattr(MW.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MW.site_policy.socket, "gethostname", lambda: "bnode114")
+    monkeypatch.delenv(MW.mutation_attempt_marker.MARKER_ENV, raising=False)
+    monkeypatch.setattr(
+        MW,
+        "_preflight",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("marker 拒否後の preflight へ到達した")
+        ),
+    )
+
+    assert MW.main(
+        _wrapper_argv(fixture, plan_only=True, attempt_out=attempts)
+    ) == MW.WRAPPER_FAILURE_RC
+    assert capfd.readouterr().err == (
+        "mutation worktree aborted: local attempt authorization が不正です: "
+        "mutation local attempt marker がありません\n"
+    )
+
+
+@_limited
+def test_wrapper_local_attempt_accepts_real_validator_before_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    attempts = fixture.artifacts / "attempts.json"
+    binding = _install_local_attempt_marker(tmp_path / "marker", monkeypatch)
+
+    assert MW.main(
+        _wrapper_argv(fixture, plan_only=True, attempt_out=attempts)
+    ) == 0
+    assert json.loads(
+        os.environ[MW.mutation_attempt_marker.MARKER_ENV]
+    ) == binding
+
+
+@_limited
+def test_m11_m12_wrapper_real_harness_local_attempt_persists_authorization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(
+        tmp_path,
+        harness_source=_HARNESS.read_text(encoding="utf-8"),
+        real_site_policy=True,
+    )
+    attempts = fixture.artifacts / "attempts.json"
+    observed_hostname = os.uname().nodename
+    already_compute = (
+        MW.site_policy.classify_site(observed_hostname, {}, False)
+        == MW.site_policy.PEGASUS_COMPUTE
+    )
+    marker_hostname = observed_hostname if already_compute else "bnode114"
+    binding = _install_local_attempt_marker(
+        tmp_path / "marker", monkeypatch, hostname=marker_hostname
+    )
+    environment = os.environ.copy()
+    wrapper_command = [
+        sys.executable,
+        str(_TOOL),
+        *_wrapper_argv(fixture, attempt_out=attempts),
+    ]
+    command = (
+        wrapper_command
+        if already_compute
+        else [
+            "unshare",
+            "-Ur",
+            "--uts",
+            "sh",
+            "-c",
+            'hostname bnode114 && exec "$@"',
+            "sh",
+            *wrapper_command,
+        ]
+    )
+
+    result = subprocess.run(
+        command,
+        cwd=_REPO,
+        env=environment,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert result.returncode == 0, result.stderr
+    sidecar = json.loads(attempts.read_text(encoding="utf-8"))
+    assert sidecar["schema"] == "izanagi-dev-wave-mutation-attempts-local/v1"
+    assert sidecar["local_authorization"] == binding
+    assert [entry["phase"] for entry in sidecar["attempts"]] == [
+        "collection",
+        "baseline",
+        "mutation",
+    ]
+    assert all(entry["request"] is None for entry in sidecar["attempts"])
 
 
 def _fake_preflight(tmp_path: Path) -> tuple[SimpleNamespace, MW.AdminBinding, Path]:
