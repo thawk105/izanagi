@@ -139,6 +139,8 @@ _REVIEWED_PREDICATES = (
                "run_role", "use_perf_from_receipt"),
     _Predicate("P", "orchestrator/campaign/s1_direct_comparison.py",
                "run_role", "evaluate_fn"),
+    _Predicate("P", "orchestrator/campaign/s1_direct_comparison.py",
+               "run_role", "evaluate"),
 
     _Predicate("I", "orchestrator/campaign/s8b_oracle_driver.py",
                "run_block", "probe_perf_availability"),
@@ -150,6 +152,8 @@ _REVIEWED_PREDICATES = (
                "run_block", "write_measurement_manifest"),
     _Predicate("I", "orchestrator/campaign/s8b_oracle_driver.py",
                "run_block", "evaluate_fn"),
+    _Predicate("I", "orchestrator/campaign/s8b_oracle_driver.py",
+               "run_block", "evaluate"),
     _Predicate("T967", "orchestrator/campaign/s8b_oracle_artifacts.py",
                "_validate_measurement_manifest", "validate_perf_observation"),
     _Predicate("T967", "orchestrator/campaign/s8b_oracle_report.py",
