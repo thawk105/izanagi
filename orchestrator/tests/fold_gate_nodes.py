@@ -85,6 +85,13 @@ _NODE_ROWS = (
             "計画が worklog と FOLDED を更新対象にすることを検査する。",
         ),
     ),
+    (
+        "test_spool_fold.py::test_phase3_real_canonical_plan_accepts_unique_and_rejects_generated_duplicate_id",
+        FoldGateNode(
+            ("phase3",),
+            "実 phase3 canonical の見送り ID 一意性を計画時に検査し、合成した重複を拒否する。",
+        ),
+    ),
 )
 
 
@@ -170,10 +177,6 @@ FOLD_GATE_UNCOVERED_FAMILY_ALLOWLIST = _validate_uncovered_family_allowlist({
         "実 decisions canonical を読む既存 pytest に、fold 後の採番と本文を"
         "意味検査する node がまだ無い。"
     ),
-    "phase3": (
-        "実 phase3 canonical を読む既存 pytest に、fold 後の見送り更新を"
-        "意味検査する node がまだ無い。"
-    ),
     "rotation": (
         "実 rotation archive と索引を同時に読む既存 pytest に、fold 後 bytes を"
         "意味検査する node がまだ無い。"
@@ -210,7 +213,7 @@ def fold_gate_node_registry_sha256(
     return hashlib.sha256(encoded).hexdigest()
 
 
-FOLD_GATE_NODE_REGISTRY_SHA256 = "cf69d81c65cb79d415c590ce116f06742e18c9bf8a5996e21d21f8c97c434752"
+FOLD_GATE_NODE_REGISTRY_SHA256 = "10ed51b5d6c8a6e31644202877f825e7cc59654e13784ec0db8a02f3335d3cb9"
 if fold_gate_node_registry_sha256() != FOLD_GATE_NODE_REGISTRY_SHA256:
     raise ValueError(
         "fold-gate node registry digest drift: "

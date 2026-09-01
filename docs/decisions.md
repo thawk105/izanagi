@@ -43541,3 +43541,182 @@ production の既存判定へ届かせて赤にする。skip 経路自体の正�
   実走を維持する** (本 wave が書いて破棄した案) — 合成入力へ移しても実 rollout 由来の内容保証と
   production spec との統合保証は失われるため優位が限定的で、precondition が分類する分だけ
   上記の穴を作りやすい。並行 wave の着地版より大きく、二つの設計を 1 file に混ぜる不利もある。
+
+## D1368. 生成後 canonical の見送り重複は計画時に拒否し、land 前 dry-run を義務にする (2026-09-01)
+
+**決定:** `spool_fold.plan_fold()` が、全 worklog fragment を反映し終えた `docs/phase3.md` に対して
+見送り台帳 ID の一意性を検査し、重複があれば `deferred-duplicate` で `FoldPlan` を返さず拒否する。
+検査は既存の `_deferred_items()` を使い、新しい parser を作らない。あわせて `DW-O23` へ
+「land 前に `spool_fold.py --dry-run` を通す」義務を書く。
+
+**理由:**
+
+- 重複の検出器は `check_docs.py` に元から在ったが、fold を**適用した後**の canonical にしか当たらない。
+  land は協調 lock を取ってから `plan_fold()` を呼ぶため、初回検出が lock の中になっていた。
+  実測では `--dry-run` が `status: planned` を返し、適用後に初めて
+  `見送り台帳の ID が重複` が出た。
+- `plan_fold()` は `--dry-run` と apply の両方が必ず通る唯一の場所である。ここに置くことで、
+  親が land 前に走らせる `--dry-run` が lock の外での初回検出になる。fold gate 側にだけ置くと
+  `--dry-run` は緑のままになり、依頼が名指しした 2 つの欠陥の片方が閉じない。
+- 検査の置き場だけでは lock 外検出は保証されない。`DW-O23` にも `DW-S09` にも land 前 dry-run の
+  義務が無く、親が走らせるかどうかに依存していた。義務化して初めて閉じる。
+- 検出の意味を書き起こさず既存 `_deferred_items()` を使うのは、二重定義が drift するためである。
+  同関数は fence・HTML コメントを除外し、完了記録の手前で範囲を切る。実測では継続行に ID が
+  31 行、完了記録側に 10 件あり、素朴な行走査は偽の重複を作る。
+
+**あわせて決めたこと:** fold gate の `phase3` family を被覆済みにする。実 canonical を読む node を
+1 本登録し、`FOLD_GATE_UNCOVERED_FAMILY_ALLOWLIST` から `phase3` を外す。node の正例は
+実 canonical に対して述語を直接行使し、実在項目を走査して複製した負例と対にする。
+**実在 ID・件数・特定の ID を期待値へ pin しない** (D316)。
+
+**却下した選択肢:**
+
+- land の plan 作成を協調 lock の外へ移す — lock 内検出を機械的に断てるが land 状態機械の変更であり、
+  本題を超える。`--dry-run` の義務化で同じ実害を塞げる。裁定パッケージへ送る。
+- `check_docs.py` の見送り台帳検査を `spool_fold` から呼ぶ — 当該検出は独立した述語ではなく、
+  worklog 読取と保存則検査を併せ持つ `_check_backlog_guard()` の中に埋まっており、
+  返り値も重複 findings ではない。純粋な述語として再利用できない。
+- 新しい重複判定を `spool_fold` 側へ書き起こす — 範囲抽出と ID 規則が二重定義になり drift する。
+- 所要時間台帳へ新 node の値を足す — 台帳の exact 固定対象 suite に本 wave の file は含まれず、
+  被覆条件も完全一致でないため不要。足せば性能台帳への scope 逸脱になる。
+
+## D1369. 受入 wall の床は最長単体 node と report 外費用であり、排他閉包の細分化では下がらない (2026-09-01)
+
+**決定:** 受入全走の wall を語るときは、最遅 shard の pytest wall を
+`report 外費用 + 最大 worker occupancy` の 2 層で分解し、後者の下界を
+`max(最長単体 node, 総仕事量 / worker 数)` とする。**排他閉包の細分化を wall 短縮の手段として
+提案しない。** D1035 が指示した軸は実測で尽きている。
+
+同時に、次の 1 手を**採らない**。`tools/acceptance_shards.py` の `_components()` が作る
+file component から、`xdist_group` を持たない node を外して shard 間へ散らす案である。
+
+**実測 (2026-09-01 08:15 の受入全走 3 shard と、同 artifact root の 14 走):**
+
+- 最遅 shard の pytest wall 213.91 秒に対し、最大 worker occupancy は 135.68 秒、
+  最長単体 node は 126.13 秒。**理論最適まで詰めても取れるのは 9.54 秒**である。
+- node 粒度で 3 shard へ完璧に割り直した反実仮想でも、各 shard の LPT(48 worker) は
+  126.1 / 122.4 / 118.5 秒で、最悪値は現行 shard-0 の理論最適 126.1 秒と一致する。
+  **閉包を file から node へ細分化しても最悪 shard の occupancy は動かない。**
+- 生きている xdist group の作業単位は同一走で最大 67.9 秒 (`s8c-predicate-snapshot`) しかなく、
+  最長単体 126.13 秒を下回る。D1008 の資源別 lock により ccbench writer は 4 node・0.19 秒、
+  reader は共有ロックで相互に待たない。
+- shard 割付の閉包は file である。group を含む file はその file 全体が 1 component になるため、
+  実走の最大成分は 23 file・3405 node・4187.6 秒 (最遅 shard の仕事量の 72.0%) に達するが、
+  そのうち `REAL_REPO_ACCESS_BY_NODE` に載るのは 95 node・162.5 秒 (3.9%) だけである。
+  拘束は大きいが、外しても最長単体が動かないため wall は下がらない。
+- report 外費用は 14 走で再現し、中央値は最遅 shard 77.2 秒、他 2 shard 56.4 / 56.6 秒。
+  **排他 group が 1 つも載らない shard でも 56 秒台ある。**
+
+**理由:**
+
+- D1035 は「床は排他鎖である」という前提の上で細分化を選んだ。D1008 と D1103 がその鎖を解いた後、
+  前提は成立していない。前提が消えた裁定を、名指しされた操作だけを頼りに実行しても床は動かない。
+- 採らない 1 手は**正しさを弱める**。対象 file の無印 node は実 source・実 calibration・実 policy・
+  実 freeze を読むが `REAL_REPO_ACCESS_BY_NODE` の外にあり、protocol lock を無取得で通過する。
+  D1008 は lock の保証範囲を同一 host・同一 filesystem までと明記しており、shard は別 job・
+  別計算ノードで走る。速度のために排他の射程を縮める変更であり、絶対規律 2 に反する。
+- D1103 の却下理由「閉包が確定していない排他を差し替えない」がそのまま当たる。
+  本 wave の敵対レビューは登録外の writer は新たに見つけなかったが、登録外の reader と、
+  shard 間に collection 完了 barrier が無いことを file:line で確認した。
+- 仮に安全でも、効果量 9.54 秒は D1019 が記録した走間差 32.27 秒より小さく、
+  現行の A/B 設計では判定できない。
+
+**残す限界を決定の一部として明記する。**
+
+- **最遅 shard 固有の report 外費用 約 21.9 秒 (14 走の中央値 20.3 秒、範囲 18.9〜27.9 秒) の正体は
+  未計測である。** 資源 lock の取得は `pytest_runtest_protocol` の wrapper で setup report より前、
+  controller prewarm も test protocol より前に走るため、どちらの待ちも JUnit にも
+  `report.json` にも現れない。**「この 21.9 秒は排他待ちではない」とは実測で言えない。**
+- 最長単体 126.13 秒は固定値ではない。14 走で 118.6〜219.3 秒に動く。
+- 各 node の所要が割付から独立であるとは示していない。走ごとに総仕事量と最長単体が一緒に動くが、
+  機械側の共通原因でも説明できる。
+- 本決定は pytest wall の層についてだけ述べる。D1320 の job 層・session 層へ一般化しない。
+
+**却下した選択肢:**
+
+- **段 2 が出した 462 node の file component 分離を実装する** — 上記のとおり正しさを弱め、
+  効果量も判定できない。
+- **shard 割付の重みを node 数から所要へ変える** — D1019 が実測で否定済みで、
+  本 wave の反実仮想でも最悪 shard の occupancy は動かない。
+- **「床は排他鎖ではないので打つ手なし」と書いて終える** — 床の 2 成分 (最長単体 126.13 秒、
+  共通 report 外費用 約 56 秒) はどちらも実在の短縮対象であり、いずれもユーザー裁定が要る。
+  手が無いのではなく、**裁定済みの手が無い**。
+
+## D1370. load-only consumer への床値選択強制は g1 限定・選択規則限定の狭い API で行う (2026-09-01)
+
+**決定:** 批准床値を静的 loader だけで読む consumer へ選択規則を強制するときは、
+`launch_validate` を再利用せず、選択規則だけを課す狭い公開 API を使う。同 API は
+`generation_number != 1` では何も観測せずに返り、g1 でだけ launch 側の強制点と同じ引数・
+同じ拒否理由で選択 identity を課す。activation HEAD、current build admission、closure、
+binding graph、live scan は持ち込まない。
+
+同 API は選択 identity を呼ぶ前に、探索先 namespace を批准文書と記録 protocol へ束縛する。
+official path の proto8 が記録 protocol の canonical hash 先頭 8 hex と一致すること、および
+generation / path / protocol の env_tag が一致することを要求し、失敗は既存の
+`floor-selection-unverifiable` へ畳む。新しい拒否理由は作らない。
+
+selected certificate と path 起動秒の検証は行わない。launch 側の強制点が既定でそれを行わない
+ためであり、consumer をそれより厳しくしない。
+
+D1241 / D1313 の advisory / non-certifying 上限は解除しない。本規則の適用点が増えても
+追加で主張してよいのは D1313 の (a)(b)(c) の 3 点のままである。
+
+**理由:**
+- 静的 loader は otherwise-valid な g2 を受理するが `launch_validate` は artifact I/O より前に
+  g2 を拒否する。`launch_validate` を consumer へ足すと、各 consumer に g2 の新しい拒否挙動が
+  生じる。これは g2 が実在してから設計すると定めた D1325 に反する。
+- `launch_validate` は選択以外に current contract / build admission / closure / live scan を通す。
+  D1312 は loader と historical へ current policy を持ち込まない境界を定めたものであり、
+  load-only consumer 全体を full current admission へ昇格させる許可ではない。
+- 選択 identity の helper は `selected_path_info['env_tag']` から探索 namespace を自分で
+  組み立てる。`_launch_validate` では proto8 と env_tag 連鎖の束縛が選択呼出しの後段にあり
+  合成として守られるが、選択規則だけを切り出すと後段が無い。束縛が無ければ、別 env の
+  namespace を指す `floor_source.path` を持つ g1 は、真の namespace により早い導出適格 run が
+  あっても探索から外せる。実測でも修正前は適格性導出の呼出しが 0 回で通った。
+
+**却下した選択肢:**
+- consumer から `launch_validate` を呼ぶ — 上記のとおり g2 拒否と full current admission を
+  密輸する。
+- 静的 loader へ選択検査を入れる — D1312 が却下済み。historical reverify が recorded semantics を
+  選ぶ前に落ちる。
+- 束縛の失敗に新しい拒否理由を割り当てる — 理由集合が増えると主張の水準が動いたと読まれる。
+- selected certificate と起動秒も検証する — launch 側の強制点より厳しくなり、選択強制の範囲を
+  超える。起動証明書の実時間性は別の未解決項目である。
+
+## D1371. 床値残余のうち 3 件は現時点で実装しない (2026-09-01)
+
+**決定:** D1313 が列挙した残余のうち、次の 3 件は現時点で実装しない。
+
+1. **s8c C06 予算経路への選択強制。** gate は置けるが、実装前後とも budget ledger を生成できる
+   入力集合は空である。変わるのは選択 error と C05 authority error のどちらが先に出るかだけで、
+   成果物の値・受理集合・参照は変わらない。単一理由の変異も登録できない。C05 の実装が着地した
+   時点で再評価する。
+2. **起動証明書の実時間性。** 不能の理由は凍結時に再計算できないことではなく、launch 時点の
+   独立した commitment が保存されていないことである。clean scan digest の preimage は
+   certificate、journal、manifest、Git tree のいずれにも残らない。certificate 自身の値を
+   expected にする形は D80 が恒真として禁じており、現在 scan を expected にすれば正当な drift を
+   過剰拒否する。閉じるには署名、外部発行 nonce、一回性台帳のいずれかが要り、D1241 がそれらを
+   禁じている。
+3. **s8c production final claim 配線。** aggregate 点は特定できるが、judge が要求する
+   exact 6 cell・反復 2 以上・6×n 観測の schedule、throughput と correctness/trace に独立束縛した
+   attestation authority、判定パラメータの正本がいずれも production に存在しない。加えて
+   3 表は repository 外の絶対 path へ書かれる一方、acceptance receipt schema は 3 表の path/hash を
+   持たず、失敗原子的に束ねられない。設計メモに留める。
+
+oracle manifest への同種の強制は設計上正しく実装可能だが、対応 test file を別 wave が保有して
+未着地のため本 wave では着手しない。production へ test 専用の抜け道を入れて緑にすることはしない。
+
+**理由:**
+- 1 は成果物影響を 1 行で示せず、無効化しても受理集合も fail-closed 挙動も期待方向へ変わらない。
+  死んだ gate と無効な変異証拠だけが増える。
+- 2 は既存材料だけでは実時間順を証明できず、証明できる形にするには禁止された機構が要る。
+  現行の full validation もその docstring で実時間順を保証しないと明記している。
+- 3 は入力の正本が連言で欠けており、発火条件を満たす既存成果物 path を書けない。
+- oracle manifest は、gate を入れると既存の 2 正例が必ず赤になる。fixture 追随には他 wave 所有の
+  test file の編集が要る。
+
+**却下した選択肢:**
+- 到達不能でも先に配線しておく — 呼ばれない検査と殺せない変異が残り、証拠の水準を偽る。
+- 起動証明書に厳格版検証をそのまま流用する — expected が無いため恒真か過剰拒否になる。
+- production へ test 時だけ検査を飛ばす分岐を入れて oracle manifest を通す — 偽緑であり
+  正しさゲートの弱体化にあたる。
