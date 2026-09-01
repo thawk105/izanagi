@@ -36,7 +36,7 @@ from .artifact_admission import (                        # noqa: E402
     CertifiedCampaignView,
     HistoricalCampaignView,
     require_admitted_campaign,
-    require_certified_campaign_view,
+    require_certified_commit_evidence,
 )
 from .genome import SILO_SPACE                            # noqa: E402
 from .layout import CampaignLayout, repo_output_root      # noqa: E402
@@ -181,7 +181,7 @@ def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:
 
     digest.load_workload と同じく **committed (= 全段通過) genome のみ**採る
     (half-evaluated を混ぜない、A: atomicity)。"""
-    view = require_certified_campaign_view(discover_p2_2_dir(
+    view = require_certified_commit_evidence(discover_p2_2_dir(
         tag, output_root,
         purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
     ))
