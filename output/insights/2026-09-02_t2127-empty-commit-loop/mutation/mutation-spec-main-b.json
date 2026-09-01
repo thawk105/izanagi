@@ -1,0 +1,29 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    require_certified_commit_evidence,\n",
+          "new": "    require_certified_campaign_view,\n    require_certified_commit_evidence,\n"
+        },
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        certified_campaign = require_certified_commit_evidence(\n",
+          "new": "        certified_campaign = require_certified_campaign_view(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_no_commit_campaign"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
