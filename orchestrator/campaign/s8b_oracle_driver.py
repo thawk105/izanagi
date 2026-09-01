@@ -1290,22 +1290,6 @@ def _ensure_campaign(layout, *, manifest_sha256: str, block_id: str,
         ) from exc
 
 
-def _evaluate_with_optional_injection(
-        evaluate_fn, *args, authorization_contract, **kwargs):
-    """Keep the production writer statically named while retaining the seam."""
-    if evaluate_fn is None:
-        return pipeline.evaluate(
-            *args,
-            authorization_contract=authorization_contract,
-            **kwargs,
-        )
-    return evaluate_fn(
-        *args,
-        authorization_contract=authorization_contract,
-        **kwargs,
-    )
-
-
 def run_block(
         *, manifest_path, block_id, freeze_path, root, output_root, budget_path,
         marker_root=None, evaluate_fn=None, prepare_fn=None,
@@ -1765,13 +1749,7 @@ def run_block(
                                 ccbench_pin=run_contract["ccbench_pin"],
                                 cxx=cxx,
                                 prepared=prepared_for_eval):
-                            result = _evaluate_with_optional_injection(
-                                evaluate_fn,
-                                prepared_for_eval.genome, layout, env_tag,
-                                run_contract["ccbench_pin"], perf,
-                                # C3-9: clocks/numactl は env 契約 lookup 結果を使う
-                                # (NUMACTL ハードコード撤去)。
-                                plan.contract.clocks_per_us,
+                            evaluate_kwargs = dict(
                                 numactl=list(plan.contract.numactl),
                                 correctness=None,
                                 extra_correctness=[(
@@ -1796,7 +1774,6 @@ def run_block(
                                 ),
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
-                                authorization_contract=plan.authorization_contract,
                                 # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
                                 # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
                                 expected_perf_sha256=plan.perf_sha_by_cell[
@@ -1806,8 +1783,33 @@ def run_block(
                                 holdout_observation_admission=(
                                     observation_admission
                                 ),
-                                **perf_evaluate_kwargs,
                             )
+                            if evaluate_fn is None:
+                                result = pipeline.evaluate(
+                                    prepared_for_eval.genome, layout, env_tag,
+                                    run_contract["ccbench_pin"], perf,
+                                    # C3-9: clocks/numactl は env 契約 lookup 結果を使う
+                                    # (NUMACTL ハードコード撤去)。
+                                    plan.contract.clocks_per_us,
+                                    authorization_contract=(
+                                        plan.authorization_contract
+                                    ),
+                                    **evaluate_kwargs,
+                                    **perf_evaluate_kwargs,
+                                )
+                            else:
+                                result = evaluate_fn(
+                                    prepared_for_eval.genome, layout, env_tag,
+                                    run_contract["ccbench_pin"], perf,
+                                    # C3-9: clocks/numactl は env 契約 lookup 結果を使う
+                                    # (NUMACTL ハードコード撤去)。
+                                    plan.contract.clocks_per_us,
+                                    authorization_contract=(
+                                        plan.authorization_contract
+                                    ),
+                                    **evaluate_kwargs,
+                                    **perf_evaluate_kwargs,
+                                )
                             if evaluate_fn is not None:
                                 require_returned_condition_evidence(
                                     result,

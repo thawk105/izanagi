@@ -837,7 +837,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_measurement",
-        3659,
+        5067,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -845,7 +845,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
-        4489,
+        4495,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -853,7 +853,20 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8403,
+        8409,
+    ),
+    _DeferredGateMember(
+        "orchestrator/campaign/s8b_oracle_driver.py",
+        "wave t1999",
+        (
+            "実行時は require_returned_condition_evidence(prepared, ...) が支配するが、"
+            "閉包検査は with ... as (..., prepared) の束縛を追えず、"
+            "campaign kind の sink に対する支配的な返却物検査を"
+            "被覆として数えられない。検査側の射程を広げる後続タスクで解消する"
+        ),
+        "campaign",
+        "<module>.run_block",
+        1788,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -1963,16 +1976,20 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
-            "wave t1819", "campaign", "<module>.run_measurement", 3659,
+            "wave t1819", "campaign", "<module>.run_measurement", 5067,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build", 4489,
+            "<module>.build_cells.invoke_build", 4495,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8403,
+            "wave t2027", "campaign", "<module>.main", 8409,
+        ),
+        (
+            "orchestrator/campaign/s8b_oracle_driver.py",
+            "wave t1999", "campaign", "<module>.run_block", 1788,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
