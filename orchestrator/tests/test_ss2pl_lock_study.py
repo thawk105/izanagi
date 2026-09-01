@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import math
 from pathlib import Path
@@ -28,6 +29,50 @@ def _load(name: str, path: Path):
 
 driver = _load("ss2pl_lock_study_driver_test", DRIVER_PATH)
 plot = _load("ss2pl_lock_study_plot_test", PLOT_PATH)
+
+
+def test_condition_family_dominates_first_study_configure_and_covers_all_axes():
+    build_source = inspect.getsource(driver.build_target)
+    gate_source = (
+        inspect.getsource(driver._require_condition_gates)
+        + inspect.getsource(driver._condition_request_inputs)
+    )
+    assert build_source.index("_require_condition_gates") < build_source.index("_configure")
+    assert build_source.count("expected_cache=requested_cache") == 2
+    assert "stock_source=stock_source" in build_source
+    for macro in (
+        "SS2PL_LOCK_IMPL", "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
+    ):
+        assert macro in gate_source
+
+
+def test_condition_requests_are_derived_from_each_actual_arm_cache():
+    macro_by_axis = {
+        "impl": "SS2PL_LOCK_IMPL",
+        "kind": "SS2PL_LOCK_KIND",
+        "dlr": "SS2PL_DLR",
+        "wfg": "SS2PL_WFG_DIAG",
+    }
+    for arm, axes in driver.ARM_CONFIG.items():
+        expected_cache = driver._expected_cache(arm, backoff=1)
+        rows = driver._condition_request_inputs(expected_cache)
+        assert {macro: requested for _axis, macro, requested, _default in rows} == {
+            macro_by_axis[axis]: value for axis, value in axes.items()
+        }
+
+
+def test_condition_request_derivation_rejects_the_old_fixed_four_value_shape():
+    expected_cache = driver._expected_cache("S", backoff=1)
+    rows = driver._condition_request_inputs(expected_cache)
+    assert tuple(requested for _axis, _macro, requested, _default in rows) == (
+        0, 1, 1, 0,
+    )
+    mutated = dict(expected_cache)
+    mutated[driver.AXIS_CACHE_KEYS["dlr"]] = "2"
+    mutated_rows = driver._condition_request_inputs(mutated)
+    assert tuple(requested for _axis, _macro, requested, _default in mutated_rows) == (
+        0, 1, 2, 0,
+    )
 
 
 def _preprocess_cost(text: str = "int fixture;") -> dict:
@@ -869,7 +914,6 @@ def _collect_inert_fixture(
     state = {"applied": True}
     monkeypatch.setattr(driver, "_tracked_at_head", lambda *_args: True)
     monkeypatch.setattr(driver, "_apply_patch", lambda *_args, **_kwargs: None)
-
     def preprocess(entry):
         source = Path(entry["file"]).resolve().relative_to(clone.resolve()).as_posix()
         baseline = Path(entry["file"]).read_bytes() + b" void init(); int load; int max;"

@@ -2,8 +2,13 @@
 """s5 permutation coverage の独立 oracle 突合せテスト。"""
 from __future__ import annotations
 
+import inspect
+from types import SimpleNamespace
+
 import pytest
 
+from orchestrator.campaign import s2_verify_calibration as s2
+from orchestrator.campaign import s3_lock_coverage as s3
 from orchestrator.campaign import s5_permutation_coverage as coverage
 
 
@@ -75,6 +80,37 @@ def test_oracle_cross_check_rejects_negative_non_int_and_bool_values():
 
         bad_p_reasons = {"size-changed": invalid}
         assert not coverage._oracle_cross_check(bad_p_reasons, valid_details)
+
+
+@pytest.mark.parametrize("module", [s2, s3, coverage])
+def test_condition_preflight_dominates_first_benchmark_build(module):
+    source = inspect.getsource(module.main)
+    assert source.index("_preflight_condition_gates") < source.index("buildcache.build")
+
+
+def test_condition_gate_rejection_stops_s5_before_build(monkeypatch):
+    gate = coverage.condition_meaning_gate
+    red = SimpleNamespace(
+        terminal_status="red", reason_code="preprocess-bytes-identical",
+    )
+    unknown = SimpleNamespace(
+        terminal_status="unestablished", reason_code="meaning-witness-undeclared",
+    )
+    monkeypatch.setattr(gate, "capture_define_inputs", lambda *_a, **_k: object())
+    monkeypatch.setattr(gate, "make_define_request", lambda **_k: object())
+    monkeypatch.setattr(
+        gate, "evaluate_define_supply_effectuation", lambda *_a, **_k: red,
+    )
+    monkeypatch.setattr(
+        gate, "evaluate_define_runtime_meaning", lambda *_a, **_k: unknown,
+    )
+    monkeypatch.setattr(
+        gate, "require_condition_gate_family",
+        lambda *_a, **_k: SimpleNamespace(admitted=False),
+    )
+
+    with pytest.raises(RuntimeError, match="preprocess-bytes-identical"):
+        coverage._require_condition_gate("/fixture", coverage.ERASE_DEFINE)
 
 
 if __name__ == "__main__":

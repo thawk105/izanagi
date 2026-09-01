@@ -57,6 +57,12 @@ from orchestrator.campaign.materializer_admission import (
 from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, STOCK, SourceEvidence
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import Genome
+from condition_gate_test_support import (
+    SORT_VARIANT_SOURCE,
+    TRIGGER_GATING_SOURCE,
+    condition_gate_compilers,
+    install_condition_gate_build_fixture,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -985,7 +991,13 @@ def test_unregistered_site_is_rejected_before_token_build_or_wal():
 def _public_s6_machine_admission():
     root = tempfile.mkdtemp(prefix="izanagi_p3_s6_public_")
     ccbench = os.path.join(root, "external", "ccbench")
-    os.makedirs(ccbench)
+    install_condition_gate_build_fixture(ccbench)
+    Path(ccbench, "cc", "silo", "transaction.cc").write_text(
+        SORT_VARIANT_SOURCE, encoding="utf-8",
+    )
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate fixture requires real compilers and CMake")
     layout = CampaignLayout(root=os.path.join(root, "campaign")).ensure()
     machine_name = S6.CANDIDATES[0][0]
     seen = []
@@ -1042,6 +1054,7 @@ def _public_s6_machine_admission():
                     (patchharness, "applied",
                      lambda *_args, **_kwargs: contextlib.nullcontext()),
                     (L, "quarantine", lambda *_args, **_kwargs: (passed, "", "", "")),
+                    (S6.buildcache, "DEFAULT_CXX", compilers[1]),
                     (S6.source_digest, "resolve", resolve),
                     (pipeline.source_digest, "resolve_evidence", resolve_evidence),
                     (pipeline.buildcache, "build", stop_at_build),
@@ -1083,7 +1096,13 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
     root = tempfile.mkdtemp(prefix="izanagi_p3_trigger_negative_")
     layout = CampaignLayout(root=os.path.join(root, "campaign")).ensure()
     sub = os.path.join(root, "ccbench")
-    os.makedirs(sub)
+    install_condition_gate_build_fixture(sub)
+    Path(sub, TRIGGER.SOURCE_REL).write_text(
+        TRIGGER_GATING_SOURCE, encoding="utf-8",
+    )
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate fixture requires real compilers and CMake")
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     contract = env_contract.lookup(TRIGGER.ENV_TAG)
     seen = []
@@ -1138,6 +1157,8 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
                     (TRIGGER, "exploration_campaign_layout", lambda _cid: layout),
                     (TRIGGER, "_assert_resume_allowed", lambda *_args: None),
                     (TRIGGER, "_quarantine_and_audit", lambda *_args, **_kwargs: None),
+                    (TRIGGER.buildcache, "compilers_for_current_site",
+                     lambda: compilers),
                     (patchharness, "applied",
                      lambda *_args, **_kwargs: contextlib.nullcontext()),
                     (pipeline.source_digest, "resolve_evidence", dirty_evidence),

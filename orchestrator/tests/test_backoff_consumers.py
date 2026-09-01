@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import math
 import os
@@ -17,7 +18,8 @@ _ORCH = os.path.dirname(_HERE)
 _REPO = os.path.dirname(_ORCH)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import backoff_sweep_report, wal                # noqa: E402
+from orchestrator.campaign import (backoff_repro, backoff_sweep_report,    # noqa: E402
+                                   wal)
 from orchestrator.campaign.artifact_admission import (                    # noqa: E402
     ArtifactAdmissionError,
     CampaignReadPurpose,
@@ -357,6 +359,19 @@ def test_backoff_repro_bench_tps_requires_commit(tmp_path):
     wal.log(layout, "v-certified", STAGE_ABORT, "test",
             {"reason": "screen-slower-than-floor"})
     assert _bench_tps(layout, "v-certified") == 123456.0
+
+
+def test_backoff_repro_condition_gate_dominates_campaign_build_and_measurement():
+    source = inspect.getsource(backoff_repro.run_workload)
+    conditioned = source.index("with _conditioned_backoff_patch")
+    campaign = source.index("run_campaign(")
+    assert conditioned < campaign
+
+    scope = inspect.getsource(backoff_repro._conditioned_backoff_patch)
+    checkout = scope.index("with patchharness.checkout")
+    patch = scope.index("with patchharness.applied")
+    gate = scope.index("_require_backoff_condition_gate")
+    assert checkout < patch < gate < scope.index("yield")
 
 
 @pytest.mark.parametrize("consumer", ["backoff-repro"], ids=["backoff-repro"])
