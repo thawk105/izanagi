@@ -1,0 +1,91 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 40.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_result_judge.py",
+     "old": "        ratified = _load_selection_checked_ratified_floor()\n",
+     "new": "        ratified = load_ratified_freeze()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_result_judge.py::test_floor_verification_rejects_selection_mismatch",
+    "orchestrator/tests/test_s8c_result_judge.py::test_valid_g1_selection_still_verifies_and_publishes_three_tables"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_result_judge.py",
+     "old": "        current = _ratified_floor_binding(_load_selection_checked_ratified_floor())\n",
+     "new": "        current = _ratified_floor_binding(load_ratified_freeze())\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_result_judge.py::test_publish_rejects_when_selection_mismatch",
+    "orchestrator/tests/test_s8c_result_judge.py::test_valid_g1_selection_still_verifies_and_publishes_three_tables"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "    if ratified.generation_number != 1:\n        return\n",
+     "new": "    if ratified.generation_number != 1:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_only_selection_helper_is_noop_for_g2",
+    "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_only_selection_helper_skips_earlier_eligible_run_for_g2"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "        if (ratified.document.get(\"env_tag\") != selected_path_info[\"env_tag\"]\n                or selected_path_info[\"env_tag\"] != protocol[\"env_tag\"]):\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_rejects_foreign_env_namespace"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "        if selected_path_info[\"proto8\"] != protocol_sha[:8]:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_rejects_protocol_hash_prefix_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

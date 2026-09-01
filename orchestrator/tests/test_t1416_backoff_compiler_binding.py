@@ -205,6 +205,7 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     assert observed == [("site-cc", "site-cxx")]
     assert captured_calibrations == [expected_contract]
     assert len(prepare_calls) == 1
+    assert prepare_calls[0]["protocol"] == "silo"
     assert prepare_calls[0]["env_tag"] == expected_contract.env_tag
     assert prepare_calls[0]["clocks_per_us"] == expected_contract.clocks_per_us
     assert prepare_calls[0]["numactl"] == list(expected_contract.numactl)

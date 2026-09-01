@@ -676,6 +676,8 @@ class BuildResult:
     # v2 compiler-input proof。legacy build() は additive default None。
     compiler_input_manifest: Optional[Dict[str, Any]] = None
     compiler_input_manifest_sha256: Optional[str] = None
+    # live validation だけに使う。completion / receipt へ絶対 root を保存しない。
+    compiler_input_dependency_prefix_roots: tuple[str, ...] = ()
     # Declaration gate output.  Descriptor-less callers retain None exactly.
     source_snapshot_sha256: Optional[str] = None
     expected_materialization_sha256: Optional[str] = None
@@ -1396,6 +1398,8 @@ def _collect_compiler_inputs(
         expected_evolve_block_sources: Optional[Mapping[str, str]],
         origin_fetchcontent_masstree_root: Optional[str],
         current_fetchcontent_masstree_root: Optional[str],
+        origin_dependency_prefix_roots: tuple[str, ...],
+        current_dependency_prefix_roots: tuple[str, ...],
 ) -> s8b_compiler_input.CompilerInputManifest:
     """Call the production collector with the descriptor-bound policy.
 
@@ -1415,6 +1419,8 @@ def _collect_compiler_inputs(
             and "expected_evolve_block_sources" in parameters
             and "origin_fetchcontent_masstree_root" in parameters
             and "current_fetchcontent_masstree_root" in parameters
+            and "origin_dependency_prefix_roots" in parameters
+            and "current_dependency_prefix_roots" in parameters
         )
         or any(
             parameter.kind is inspect.Parameter.VAR_KEYWORD
@@ -1431,10 +1437,16 @@ def _collect_compiler_inputs(
             "current_fetchcontent_masstree_root": (
                 current_fetchcontent_masstree_root
             ),
+            "origin_dependency_prefix_roots": (
+                origin_dependency_prefix_roots
+            ),
+            "current_dependency_prefix_roots": (
+                current_dependency_prefix_roots
+            ),
         })
     elif expected_evolve_block_sources or allow_external_inputs:
         raise BuildCacheError(
-            "compiler input collector does not expose v2 root binding"
+            "compiler input collector does not expose current root binding"
         )
     result = collector(build_dir, snapshot_root, **kwargs)
     return result
@@ -1594,6 +1606,9 @@ def _validate_v2_entry(
         compiler_target: Optional[str] = None,
         expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
         current_compiler_input_masstree_root: Optional[str] = None,
+        current_compiler_input_dependency_prefix_roots: Optional[
+            tuple[str, ...]
+        ] = None,
         complete_toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         complete_toolchain_manifest_sha256: Optional[str] = None,
         parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
@@ -1701,6 +1716,9 @@ def _validate_v2_entry(
                         ),
                         current_fetchcontent_masstree_root=(
                             current_compiler_input_masstree_root
+                        ),
+                        current_dependency_prefix_roots=(
+                            current_compiler_input_dependency_prefix_roots
                         ),
                     )
                 )
@@ -2020,6 +2038,7 @@ def _v2_result(
         toolchain_manifest_sha256: Optional[str] = None,
         compiler_input_manifest: Optional[Dict[str, Any]] = None,
         compiler_input_manifest_sha256: Optional[str] = None,
+        compiler_input_dependency_prefix_roots: tuple[str, ...] = (),
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
@@ -2043,6 +2062,9 @@ def _v2_result(
         toolchain_manifest_sha256=toolchain_manifest_sha256,
         compiler_input_manifest=compiler_input_manifest,
         compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        compiler_input_dependency_prefix_roots=(
+            compiler_input_dependency_prefix_roots
+        ),
         fetchcontent_base_dir=fetchcontent_base_dir,
         masstree_source_root_sha256=masstree_source_root_sha256,
     )
@@ -2385,6 +2407,11 @@ def _build_v2_impl(
             os.environ.get("CMAKE_PREFIX_PATH")
         )
         configure_dependency_prefix = ""
+    compiler_input_dependency_prefix_roots = (
+        tuple(effective_dependency_prefix)
+        if source_snapshot_sha256 is not None and allow_external_compiler_inputs
+        else ()
+    )
 
     fetchcontent_transport_mode = "source-dir" if source_dirs else None
 
@@ -2486,6 +2513,9 @@ def _build_v2_impl(
                 current_compiler_input_masstree_root=(
                     canonical_compiler_input_masstree_root
                 ),
+                current_compiler_input_dependency_prefix_roots=(
+                    compiler_input_dependency_prefix_roots
+                ),
                 complete_toolchain_manifest=complete_toolchain_manifest,
                 complete_toolchain_manifest_sha256=complete_toolchain_manifest_sha256,
                 parent_fd=parent_fd, bdir_name=bdir_name,
@@ -2532,6 +2562,7 @@ def _build_v2_impl(
                 masstree_source_root_sha256,
                 complete_toolchain_manifest, complete_toolchain_manifest_sha256,
                 compiler_input_manifest, compiler_input_manifest_sha256,
+                compiler_input_dependency_prefix_roots,
                 post_oracle_binding,
             )
 
@@ -2627,6 +2658,12 @@ def _build_v2_impl(
                         ),
                         origin_fetchcontent_masstree_root=effective_root,
                         current_fetchcontent_masstree_root=validation_root,
+                        origin_dependency_prefix_roots=(
+                            compiler_input_dependency_prefix_roots
+                        ),
+                        current_dependency_prefix_roots=(
+                            compiler_input_dependency_prefix_roots
+                        ),
                     )
                     if type(compiler_inputs) is not (
                             s8b_compiler_input.CompilerInputManifest):
@@ -2643,6 +2680,9 @@ def _build_v2_impl(
                                 expected_evolve_block_sources
                             ),
                             current_fetchcontent_masstree_root=validation_root,
+                            current_dependency_prefix_roots=(
+                                compiler_input_dependency_prefix_roots
+                            ),
                         )
                     )
                     if compiler_input_manifest.get(
@@ -2807,6 +2847,7 @@ def _build_v2_impl(
             masstree_source_root_sha256,
             complete_toolchain_manifest, complete_toolchain_manifest_sha256,
             compiler_input_manifest, compiler_input_manifest_sha256,
+            compiler_input_dependency_prefix_roots,
             post_oracle_binding,
         )
     finally:
