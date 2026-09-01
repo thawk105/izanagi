@@ -113,14 +113,25 @@ supersede しない。arXiv は `/atom:feed/atom:title`、DBLP は `/result/quer
 代替来歴と `Retry-After` を保存し、他 request を送らず checkpoint する。HTTP 200 は
 `transport_available` を意味するだけで、anchor の `lookup_resolved` とは別に判定する。
 
+**代替来歴の「応答に実在した field の exact locator」は、HTTP status で切り落とさない。** body が
+解析可能なら non-200 でも実在 locator を記録する。解析できない body だけを空として記録する。
+status による完走判定 (§7.1 条件 6) と、来歴としての locator 記録は別の事柄である。
+
 20 万 request 上限は resolver、availability、preflight retry、本走 retry の全 wire attempt に適用する。
 30 暦日は最初の外部 request から数える。利用可能性や件数を理由に検索式・除外を変えない。
 
-**registration seal が束縛するのは、封印対象として列挙した closure の bytes である** — amendment、
-catalog、source、schema、OQL fixture、argv/phase contract、入力 commit における各 input path の
-blob。**repository 全体の HEAD 一致を受理条件にしない。** 記録を commit すれば HEAD は必ず動くため、
-HEAD 全体を条件にすると seal が発行と同時に再利用不能になる。Python interpreter の版と依存
-package の版は**来歴として記録するが受理 gate に入れない** — 無関係な環境更新で seal が腐るためである。
+**registration seal が束縛するのは、封印対象として列挙した closure の bytes だけである。** その
+closure は exact に次の 8 file と、catalog・OQL fixture・argv/phase contract である — 実行器 source
+2 本 (`orchestrator/related_work_search.py`、`tools/run_axis3_search.py`)、schema 4 本
+(`axis3_search_{catalog,checkpoint,page_evidence,registration_seal}.schema.json`)、frozen input 2 本
+(旧登録と本 amendment)。**header が列挙する他の input path (索引実測、軸 1 実行記録、7.7 の規則、
+decisions) は本文書の来歴であって seal の受理 closure ではない。** seal がそれらの blob を
+束縛するかのように読んではならない。
+
+**repository 全体の HEAD 一致を受理条件にしない。** 記録を commit すれば HEAD は必ず動くため、
+HEAD 全体を条件にすると seal が発行と同時に再利用不能になる。**受理条件は上記 closure の各 file に
+ついて、作業ツリーの bytes と `HEAD:<path>` の blob が一致することである。** Python interpreter の版と
+依存 package の版は**来歴として記録するが受理 gate に入れない** — 無関係な環境更新で seal が腐るためである。
 
 **外部 request 前の全test・docs・provenance緑はmanagerのrelease gateであり、実行器自身が
 acceptance receiptを検証する機械関門ではない。** managerはこの順序を守り、未受入codeからlive CLIを
