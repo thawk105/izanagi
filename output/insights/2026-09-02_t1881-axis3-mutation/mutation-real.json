@@ -1,0 +1,179 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 2400,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "MU-1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "        or type(transport) is not _CANONICAL_LIVE_TRANSPORT_CLASS",
+          "new": "        or not isinstance(transport, _CANONICAL_LIVE_TRANSPORT_CLASS)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_mutation_mu1_live_http_transport_subclass_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/schemas/axis3_search_catalog.schema.json",
+          "old": "        \"outside_registered_main_population\": {\n          \"type\": \"array\",\n          \"minItems\": 7,",
+          "new": "        \"outside_registered_main_population\": {\n          \"type\": \"array\",\n          \"minItems\": 6,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_population_contract_rejects_missing_outside_item_and_venue_move"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "    if match is None or _normalize_arxiv_interpreted_query(\n        match.group(1)\n    ) != _normalize_arxiv_interpreted_query(expected):",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_registered_request_with_wrong_interpreted_echo_never_completes[AX3A1-Q01-S1991@arxiv]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-4a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "        if row[\"completion_kind\"] == \"count_only\":\n            return {\n                \"stream_id\": row[\"stream_id\"],\n                \"complete\": False,\n                \"reason\": \"control_evaluator_unimplemented\",",
+          "new": "        if row[\"completion_kind\"] == \"count_only\":\n            return {\n                \"stream_id\": row[\"stream_id\"],\n                \"complete\": True,\n                \"reason\": \"control_evaluator_unimplemented\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_unimplemented_count_only_control_never_claims_completion"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-4b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "            if material_offset != len(materials) - 1:\n                raise ContractError(\"bundle_page_progress\", \"count-onlyの後続pageを許さない\")\n            return {\n                \"stream_id\": row[\"stream_id\"],\n                \"complete\": False,",
+          "new": "            if material_offset != len(materials) - 1:\n                raise ContractError(\"bundle_page_progress\", \"count-onlyの後続pageを許さない\")\n            return {\n                \"stream_id\": row[\"stream_id\"],\n                \"complete\": True,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_bundle_rederived_count_only_control_never_claims_completion"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "        if worktree_bytes != _head_blob_bytes(repo_root, label):",
+          "new": "        if False and worktree_bytes != _head_blob_bytes(repo_root, label):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_mutation_mu5_dirty_head_blob_is_rejected_directly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-6a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "        \"continue_cursor_request\": _request_without_stream(\n            next_request if next_request is not None else request\n        ),\n        \"start_independent_pass_request\": _branch_start_checkpoint_request(row),",
+          "new": "        \"continue_cursor_request\": _request_without_stream(\n            next_request if next_request is not None else request\n        ),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_mutation_m7_one_byte_entity_change_breaks_bundle_validation",
+        "orchestrator/tests/test_related_work_search.py::test_mutation_mu6a_normal_producer_missing_independent_request_is_rejected",
+        "orchestrator/tests/test_related_work_search.py::test_nonzero_failure_checkpoint_restarts_at_zero_not_failed_offset",
+        "orchestrator/tests/test_related_work_search.py::test_resume_terminal_tail_advances_without_resending_committed_page",
+        "orchestrator/tests/test_related_work_search.py::test_review_normal_page_checkpoint_resumes_and_rejoins_ready_loop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-6b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "        \"continue_cursor_request\": _request_without_stream(request),\n        \"start_independent_pass_request\": _branch_start_checkpoint_request(row),\n        \"restart_branch_request\": _branch_start_checkpoint_request(row),",
+          "new": "        \"start_independent_pass_request\": _branch_start_checkpoint_request(row),\n        \"restart_branch_request\": _branch_start_checkpoint_request(row),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_mutation_m6_openalex_429_sends_exactly_one_request_and_checkpoints",
+        "orchestrator/tests/test_related_work_search.py::test_mutation_mu6b_quota_producer_missing_cursor_request_is_rejected",
+        "orchestrator/tests/test_related_work_search.py::test_review_429_non_success_mime_is_raw_bundled_before_stop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "    receipt: _SendReceipt | None = None\n    if type(transport) is LiveSearchSession:",
+          "new": "    receipt: _SendReceipt | None = None\n    _mutation_intent_at = clock()\n    if type(transport) is LiveSearchSession:"
+        },
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "        response_received_at=_format_time(received_at),",
+          "new": "        response_received_at=_format_time(_mutation_intent_at),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_response_received_time_is_recorded_after_request_intent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MU-8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/related_work_search.py",
+          "old": "FROZEN_AMENDMENT_SHA256 = \"1fb7517081f5cc73a37021768aabf08443970b71365ba41816c623be90302b39\"",
+          "new": "FROZEN_AMENDMENT_SHA256 = \"1fb7517081f5cc73a37021768aabf08443970b71365ba41816c623be90302b38\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_related_work_search.py::test_mutation_mu8_amendment_bytes_match_literal_without_seal_fixture"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
