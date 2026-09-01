@@ -1,0 +1,418 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-version-not-in-default-cfg",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "                     \"records\": 100_000, \"threads\": 4,\n                     backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY:\n                         backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION}",
+          "new": "                     \"records\": 100_000, \"threads\": 4}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_closed_critic_cli_has_fixed_marked_configs_for_all_drivers[base-expected_ids0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_version_has_one_config_producer_and_exact_gate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_duplicate_snapshot_rejects_pre_version_record_under_versioned_lock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_requires_exact_versioned_lock_before_identity",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_rejects_missing_or_skewed_grammar_binding_before_wal",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_rechecks_mutated_nonintegral_value_before_genome_construction",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-version-not-passed-to-run-campaign",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "                              backoff_grammar_version=backoff_grammar_version)",
+          "new": "                              backoff_grammar_version=None)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-drop-cfg-module-version-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if type(declared) is not int or declared != expected:\n        raise ValueError(\n            f\"cfg.search_config.{key} must exactly equal {expected}\"\n        )\n    return declared",
+          "new": "    if type(declared) is not int:\n        return expected\n    return declared"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_version_has_one_config_producer_and_exact_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-wal-writer-omits-version",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "    if record.stage == STAGE_BUILD_START:\n        grammar_version = _declared_backoff_grammar_version(decoded_lock)",
+          "new": "    if False and record.stage == STAGE_BUILD_START:\n        grammar_version = _declared_backoff_grammar_version(decoded_lock)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a13_fake_envelope_positive_control_and_combined_tool_surface_negative",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a3_shared_tracker_accepts_unique_sessions_and_rejects_cross_arm_reuse",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a4_snapshot_binding_accepts_stable_state_and_rejects_iteration_mismatch",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a7_receipt_names_exact_literal_guarantee_and_indirect_non_guarantees",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a8_parser_returns_reverse_boolean_as_data_without_state_or_proposal_fold",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a9_invocation_id_single_use_and_timeout_have_positive_terminal_controls",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_final_certification_rechecks_nonselected_projection_closures",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m12_normalized_view_accepts_real_digest_and_rejects_parent_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m13_success_receipt_separates_claims_and_binds_raw_envelope_payload_argv",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m14_success_and_failure_both_create_start_and_exclusive_terminal_receipts",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m16_sent_on_off_payload_bytes_match_independent_admitted_view_digests",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m17_pair_id_accepts_one_factory_and_rejects_mixed_factories_only",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m1_campaign_id_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m2_repository_root_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m3_campaign_path_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p1_policy_admitted_synthetic_wal_digests_pass_payload_identity_gate",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p2_successful_test_only_invocation_records_snapshot_and_returns_data_only",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p4_test_only_pair_reports_precursor_differences_without_rejecting_them",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_accepts_live_certified_bound_receipt",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_exact_nonauthoritative_layout",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_nonexact_layout_type_m15",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[arm-m4]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[campaign-id-m3]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[different-driver-receipt]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[digest-m6]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[iteration-m5]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[loop-state-m8]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[schema-version]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[status]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[wal-m7]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_real_test_only_evidence",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_requires_exact_protocol_marker",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r11_terminal_slot_precedes_query_and_start_failure_gets_terminal_record",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_raw_envelope_byte_tamper",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_status_and_payload_byte_tamper",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_num_turns_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_permission_denials_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_server_tool_use_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_json_decode_accepts_literal_escape_explanation_and_rejects_json_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_quoted_space_path_accepts_policy_digest_and_rejects_normalized_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_receipt_v3_binds_decision_without_copying_natural_language",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_repository_checked_record_with_nonempty_cells_and_three_matching_expectations_yields_certified_pair_using_fake_runner",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_provider_identity",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_session_after_byte_recheck",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_duplicate_snapshot_rejects_pre_version_record_under_versioned_lock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-wal-reader-allows-missing-version",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "        actual = record.payload.get(key)\n        if type(actual) is not int or actual != expected:",
+          "new": "        actual = record.payload.get(key)\n        if actual is not None and (type(actual) is not int or actual != expected):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a13_fake_envelope_positive_control_and_combined_tool_surface_negative",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a3_shared_tracker_accepts_unique_sessions_and_rejects_cross_arm_reuse",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a4_snapshot_binding_accepts_stable_state_and_rejects_iteration_mismatch",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a7_receipt_names_exact_literal_guarantee_and_indirect_non_guarantees",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a8_parser_returns_reverse_boolean_as_data_without_state_or_proposal_fold",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a9_invocation_id_single_use_and_timeout_have_positive_terminal_controls",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_final_certification_rechecks_nonselected_projection_closures",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m12_normalized_view_accepts_real_digest_and_rejects_parent_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m13_success_receipt_separates_claims_and_binds_raw_envelope_payload_argv",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m14_success_and_failure_both_create_start_and_exclusive_terminal_receipts",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m16_sent_on_off_payload_bytes_match_independent_admitted_view_digests",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m17_pair_id_accepts_one_factory_and_rejects_mixed_factories_only",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m1_campaign_id_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m2_repository_root_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m3_campaign_path_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p1_policy_admitted_synthetic_wal_digests_pass_payload_identity_gate",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p2_successful_test_only_invocation_records_snapshot_and_returns_data_only",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p4_test_only_pair_reports_precursor_differences_without_rejecting_them",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_accepts_live_certified_bound_receipt",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_exact_nonauthoritative_layout",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_nonexact_layout_type_m15",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[arm-m4]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[campaign-id-m3]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[different-driver-receipt]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[digest-m6]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[iteration-m5]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[loop-state-m8]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[schema-version]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[status]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_one_live_binding_mismatch[wal-m7]",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_rejects_real_test_only_evidence",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_public_b4_receipt_gate_requires_exact_protocol_marker",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r11_terminal_slot_precedes_query_and_start_failure_gets_terminal_record",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_raw_envelope_byte_tamper",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_status_and_payload_byte_tamper",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_num_turns_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_permission_denials_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_server_tool_use_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_json_decode_accepts_literal_escape_explanation_and_rejects_json_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_quoted_space_path_accepts_policy_digest_and_rejects_normalized_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_receipt_v3_binds_decision_without_copying_natural_language",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_repository_checked_record_with_nonempty_cells_and_three_matching_expectations_yields_certified_pair_using_fake_runner",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_provider_identity",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_session_after_byte_recheck",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_duplicate_snapshot_rejects_pre_version_record_under_versioned_lock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-canonicalizer-not-wired-into-quarantine",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            edited_text = render_hole(base_text, marker, canonical)\n            working_diff = make_working_diff(\n                base_text, edited_text, source_rel\n            )",
+          "new": "            del canonical"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_quarantine_materializes_only_accepted_holes_canonically",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-drop-raw-digest-from-bound-token",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        + b\"\\0source=\"\n        + raw_digest.encode(\"ascii\")\n    )",
+          "new": "    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_source_tokens_and_both_cache_identities_are_version_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-canonicalize-before-grammar-decision",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if res.passed and marker_id == MARKER_ID:\n        decision = backoff_hole_grammar.validate_backoff_implementation(\n            implementation\n        )",
+          "new": "    if res.passed and marker_id == MARKER_ID:\n        try:\n            implementation = backoff_hole_grammar.canonicalize_backoff_implementation(\n                implementation\n            )\n        except Exception:\n            pass\n        decision = backoff_hole_grammar.validate_backoff_implementation(\n            implementation\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_statement_count_rejection_never_calls_canonicalizer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-version-bound-into-stock",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "    if current == baseline_digest:\n        return STOCK\n    return _bind_backoff_grammar_version(current, backoff_grammar_version)",
+          "new": "    if current == baseline_digest:\n        return _bind_backoff_grammar_version(STOCK, backoff_grammar_version)\n    return _bind_backoff_grammar_version(current, backoff_grammar_version)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_source_tokens_and_both_cache_identities_are_version_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-rule-id-follows-grammar-version",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_hole_grammar.py",
+          "old": "        \"backoff-grammar.statement-count.v1\",",
+          "new": "        f\"backoff-grammar.statement-count.v{BACKOFF_GRAMMAR_VERSION + 1}\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_adversarial_32_shape_corpus_pins_each_outcome",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_new_rule_order_preserves_existing_rule_ids[double now_backoff = 20; helper();-backoff-grammar.statement-count.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_single_statement_rejects_trailing_and_empty_statements[; double now_backoff = 20;]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_single_statement_rejects_trailing_and_empty_statements[double now_backoff = 20; (void)0;]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_single_statement_rejects_trailing_and_empty_statements[double now_backoff = 20; helper();]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_single_statement_rejects_trailing_and_empty_statements[double now_backoff = 20;;]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_statement_count_rejection_never_calls_canonicalizer",
+        "orchestrator/tests/test_p3_s4_loop.py::test_d819_bypass_vectors_do_not_reach_composed_acceptance[20-double now_backoff = 20.0; (void)0;-backoff-grammar.statement-count.v1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-reject-identity-version-mismatch-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        if (type(backoff_grammar_version) is not int\n                or backoff_grammar_version != lock_grammar_version):\n            raise wal.AttemptTopologyError(",
+          "new": "        if False and (type(backoff_grammar_version) is not int\n                or backoff_grammar_version != lock_grammar_version):\n            raise wal.AttemptTopologyError("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_diff_reject_requires_exact_versioned_lock_before_identity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-reject-helper-default-back-to-v1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    backoff_grammar_version: Optional[int] = None,\n) -> str:",
+          "new": "    backoff_grammar_version: Optional[int] = (\n        backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION\n    ),\n) -> str:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_diffq_variant_id_none_preserves_pre_version_preimage_exactly"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

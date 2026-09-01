@@ -364,6 +364,16 @@ def quarantine(sub: str, implementation: str,
             res = _backoff_grammar_rejection(
                 decision, source_rel=source_rel, marker_id=marker_id,
             )
+        else:
+            canonical = (
+                backoff_hole_grammar.canonicalize_backoff_implementation(
+                    implementation
+                )
+            )
+            edited_text = render_hole(base_text, marker, canonical)
+            working_diff = make_working_diff(
+                base_text, edited_text, source_rel
+            )
     if write:
         if res.passed:
             with open(path, "w", encoding="utf-8") as f:
@@ -403,23 +413,54 @@ def _backoff_grammar_rejection(
 
 # ==== diff-quarantine reject の WAL 記録 (片肺の書き手側) ======================
 
-def diffq_variant_id(genome: Genome, implementation: str) -> str:
+def diffq_variant_id(
+    genome: Genome,
+    implementation: str,
+    *,
+    backoff_grammar_version: Optional[int] = None,
+) -> str:
     """diff 検疫で reject された variant の WAL キー。build しない (src_token 無し) ため
     pipeline.variant_id は使えない — genome + 提案コードのハッシュで一意化する。"""
+    if (backoff_grammar_version is not None
+            and (type(backoff_grammar_version) is not int
+                 or backoff_grammar_version < 1)):
+        raise ValueError(
+            "backoff_grammar_version must be an exact positive integer"
+        )
     import hashlib
-    h = hashlib.sha256((genome.canonical() + "|impl=" + implementation).encode()).hexdigest()[:12]
+    preimage = genome.canonical()
+    if backoff_grammar_version is not None:
+        preimage += f"|backoff_grammar_version={backoff_grammar_version}"
+    h = hashlib.sha256(
+        (preimage + "|impl=" + implementation).encode()
+    ).hexdigest()[:12]
     return f"diffq-{h}"
 
 
 def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: str,
                        res: DiffQuarantineResult, env_tag: str = ENV_TAG, *,
-                       trigger_gate_binding=None) -> str:
+                       trigger_gate_binding=None,
+                       backoff_grammar_version: Optional[int] = None) -> str:
     """diff 検疫 reject を WAL に BUILD_START→ABORT(reason=diff-quarantine) で焼く。
 
     load_diff_rejections がこの形を読み返し critic に渡す (規律3: 検疫が reject を出した
     だけで消費されない片肺を作らない)。build/verify には到達しないので verify payload も
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
-    v = diffq_variant_id(genome, implementation)
+    lock_grammar_version = wal._declared_backoff_grammar_version(
+        wal._campaign_lock_value(layout)
+    )
+    if (lock_grammar_version is not None
+            or backoff_grammar_version is not None):
+        if (type(backoff_grammar_version) is not int
+                or backoff_grammar_version != lock_grammar_version):
+            raise wal.AttemptTopologyError(
+                "diff reject backoff grammar version が campaign.lock と不一致"
+            )
+    v = diffq_variant_id(
+        genome,
+        implementation,
+        backoff_grammar_version=backoff_grammar_version,
+    )
     attempt_id = secrets.token_hex(16)
     start_payload = {"genome": genome.canonical(), "src_token": "",
                      "build_attempt_id": attempt_id}
@@ -943,7 +984,9 @@ def default_cfg(
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
     search_config = {"scale": "silo", "axis": MARKER_ID,
                      "reflux": "on" if reflux else "off",
-                     "records": 100_000, "threads": 4}
+                     "records": 100_000, "threads": 4,
+                     backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY:
+                         backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION}
     if b4_reflux_ablation:
         from .p3_b4_launcher import require_b4_any_context
         require_b4_any_context(
@@ -1067,6 +1110,19 @@ def _check_attribution_before_quarantine(
     return decision
 
 
+def _require_backoff_grammar_version(cfg: CampaignConfig) -> int:
+    """Return the single campaign-declared grammar version or fail closed."""
+
+    key = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY
+    declared = cfg.search_config.get(key)
+    expected = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION
+    if type(declared) is not int or declared != expected:
+        raise ValueError(
+            f"cfg.search_config.{key} must exactly equal {expected}"
+        )
+    return declared
+
+
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
 
 def _duplicate_snapshot(layout: CampaignLayout, variant: str):
@@ -1095,6 +1151,9 @@ def _duplicate_snapshot(layout: CampaignLayout, variant: str):
             "duplicate campaign lock changed while reading WAL"
         )
 
+    wal.validate_backoff_grammar_bindings(
+        records, campaign_lock=decoded_lock,
+    )
     wal.validate_commit_contract_bindings(records, campaign_lock=decoded_lock)
     wal.validate_trigger_bindings(records, campaign_lock=decoded_lock)
     records_by_stage: Dict[str, Dict] = {}
@@ -1227,6 +1286,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    backoff_grammar_version = _require_backoff_grammar_version(cfg)
     preflight_decision = backoff_hole_grammar.validate_backoff_preflight(
         coder.implementation
     )
@@ -1264,6 +1324,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     if preflight_rejection is not None:
         variant = record_diff_reject(
             layout, genome, coder.implementation, preflight_rejection,
+            backoff_grammar_version=backoff_grammar_version,
         )
         project_whiteboard(state, planner, "rejected")
         if do_build:
@@ -1282,7 +1343,10 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
             res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)
         if not res.passed:
-            v = record_diff_reject(layout, genome, coder.implementation, res)
+            v = record_diff_reject(
+                layout, genome, coder.implementation, res,
+                backoff_grammar_version=backoff_grammar_version,
+            )
             project_whiteboard(state, planner, "rejected")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
         return {"outcome": "dry-pass", "variant": None}
@@ -1290,7 +1354,10 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
         res, _b, _e, _d = quarantine(sub, coder.implementation, write=True)
         if not res.passed:
-            v = record_diff_reject(layout, genome, coder.implementation, res)
+            v = record_diff_reject(
+                layout, genome, coder.implementation, res,
+                backoff_grammar_version=backoff_grammar_version,
+            )
             project_whiteboard(state, planner, "rejected")
             log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
@@ -1302,7 +1369,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                               ccbench_dir=sub, cache_root=cache_root,
                               authorization_contract=env_contract.authorize(ENV_TAG),
                               build_context=build_context,
-                              declared_use_class=DECLARED_USE_CLASS)
+                              declared_use_class=DECLARED_USE_CLASS,
+                              backoff_grammar_version=backoff_grammar_version)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
