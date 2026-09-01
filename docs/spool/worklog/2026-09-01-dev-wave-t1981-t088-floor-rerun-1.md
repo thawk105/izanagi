@@ -114,8 +114,30 @@ title: [T-1981][T-088] 消費済み 12 cell の再測定を第 2 の独立観測
   `scalar_alt` か pairs かは、945229 の evidence bundle の result.json で `scalar_alt` = 45509.145
   かつ 5 pair 同値と確定した。材料は先発の側にあり、本 wave の手元には無かった。
 
+- **明示 carry が並行 wave の land を止める経路を実測した。** 本 fragment は当初
+  `[T-1981]` `[T-088]` `[T-2043]` の 3 件を `### carry` へ明示していたが、先発 wave が
+  前 2 件を完了させて active 集合から外したため、そのままでは fold が
+  `transition-target: active でない操作対象` で止まる状態になっていた。
+  `tools/spool_fold.py:1815-1830` を両 wave が独立に読んで裏を取った — `carry` は `新規` 以外の
+  操作として `action_by_id` に入り、直後の `set(action_by_id) - set(active_by_id)` が
+  空でなければ例外になる。**停止は land lock の内側で起きるので、受入全走を通した後に初めて分かる。**
+  `docs/spool/worklog/README.md` の「明示 carry と暗黙 carry は同じ出力を生む」は、
+  当該項が active であり続ける間だけ真であり、**その一文が正当化している並行 wave の状況で
+  ちょうど偽になる。** 触れない active 項は fold が自動 carry するので、
+  自分が動かさない項を明示 carry する理由は無い。本 wave は carry を `[T-2043]` 1 件へ落とした。
+  文書の是正は本 wave の scope 外 (依頼が実機証明だけに絞られている) なので次の一手へ立てる。
+
 ## 次の一手差分
 
 ### carry
 
 - [T-2043]
+
+### 新規
+
+- {{T:spool-carry-explicit-active-drift}} **P2・新規**: `docs/spool/worklog/README.md` の
+  「明示 carry と暗黙 carry は同じ出力を生む」を、並行 wave で偽になる条件付きの記述へ直す。
+  別 wave が先に完了・見送りした項を明示 carry している fragment は fold が
+  `transition-target` で止まり、しかも停止は land lock の内側なので受入全走を通した後に初めて
+  分かる。**是正は文言だけとし、`spool_fold.py` の挙動は変えない** — 現行の拒否は正しく、
+  変えるべきは「安全側だと読める書き方」のほうである。
