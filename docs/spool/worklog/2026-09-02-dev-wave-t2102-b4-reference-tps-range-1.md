@@ -41,7 +41,9 @@ title: [T-2102] B-4 reference_tps の実値域を測り、凍結側改訂を証�
 - **セッション異常:** Write tool で作った runner `.sh` に実行権が付かず、
   直接 exec した段 2 の初回投入が rc=126 で即死した。子は 1 度も起動していない。
   launcher から `bash <path>` で呼び、`--job-id` と `.done`/`.pid`/`.log` の名前を
-  変えて再投入した。
+  変えて再投入した。段 8 で F103 の再発として台帳へ送った。
+  `DW-C01` への 1 行追記は単節予算 1000 bytes に対し現行 996 bytes で入らず、
+  節全体が exact pin されているため見送っている。
 - **エージェント工数** (receipt.json より): 段 2 plan 25 model call / 379 秒、
   段 3 sol 31 / 561 秒、段 3 luna 32 / 551 秒、段 3b 再検証 19 / 357 秒。
   合計 107 model call。段 3 の 2 本は並列。
