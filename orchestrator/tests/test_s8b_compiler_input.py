@@ -380,6 +380,7 @@ def test_v2_manifest_with_normal_relative_path_validates(tmp_path):
     assert compiler_input.validate_compiler_input_manifest(
         collected.manifest, collected.manifest_sha256,
         snapshot_root=snapshot, target=TARGET,
+        current_dependency_prefix_roots=(),
     ) == collected.manifest
 
 
@@ -404,6 +405,7 @@ def test_v2_manifest_rejects_dot_path_as_compiler_input_error(tmp_path):
         compiler_input.validate_compiler_input_manifest(
             manifest, compiler_input.manifest_sha256(manifest),
             snapshot_root=snapshot, target=TARGET,
+            current_dependency_prefix_roots=(),
         )
     assert type(caught.value) is compiler_input.CompilerInputError
 
@@ -422,6 +424,7 @@ def test_v2_validator_rebinds_fetchcontent_inputs_to_current_root(tmp_path):
         collected.manifest, collected.manifest_sha256,
         snapshot_root=snapshot, target=TARGET,
         current_fetchcontent_masstree_root=base_b / "masstree-src",
+        current_dependency_prefix_roots=(),
     ) == collected.manifest
 
 
@@ -438,6 +441,7 @@ def test_v2_current_fetchcontent_bytes_drift_is_rejected(tmp_path):
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot,
             current_fetchcontent_masstree_root=base_b / "masstree-src",
+            current_dependency_prefix_roots=(),
         )
 
 
@@ -454,6 +458,7 @@ def test_v2_missing_current_fetchcontent_input_is_rejected(tmp_path):
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot,
             current_fetchcontent_masstree_root=base_b / "masstree-src",
+            current_dependency_prefix_roots=(),
         )
 
 
@@ -485,6 +490,7 @@ def test_v2_current_fetchcontent_symlink_component_is_rejected(
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot,
             current_fetchcontent_masstree_root=current,
+            current_dependency_prefix_roots=(),
         )
 
 
@@ -504,6 +510,7 @@ def test_symlink_spelled_root_collects_and_validates_identically(tmp_path):
     assert compiler_input.validate_compiler_input_manifest(
         through_alias.manifest, through_alias.manifest_sha256,
         snapshot_root=alias, target=TARGET,
+        current_dependency_prefix_roots=(),
     ) == canonical.manifest
 
 
@@ -543,6 +550,7 @@ def test_v2_current_fetchcontent_nonregular_leaf_is_rejected(tmp_path):
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot,
             current_fetchcontent_masstree_root=base_b / "masstree-src",
+            current_dependency_prefix_roots=(),
         )
 
 
@@ -563,6 +571,7 @@ def test_v2_rejects_noncanonical_root_tag(tmp_path):
         compiler_input.validate_compiler_input_manifest(
             forged, digest, snapshot_root=snapshot,
             current_fetchcontent_masstree_root=base_b / "masstree-src",
+            current_dependency_prefix_roots=(),
         )
 
 
@@ -613,6 +622,547 @@ def test_double_slash_unknown_fetchcontent_root_is_compiler_input_error(tmp_path
     assert type(caught.value) is compiler_input.CompilerInputError
 
 
+def _dependency_prefix_fixture(tmp_path: Path, name: str = "dependency"):
+    snapshot = tmp_path / name / "snapshot"
+    snapshot.mkdir(parents=True)
+    relative = Path("include") / "portable.hh"
+    origin_match = tmp_path / name / "origin" / "gflags-install"
+    origin_other = tmp_path / name / "origin" / "glog-install"
+    current_match = tmp_path / name / "current" / "renamed-a"
+    current_other = tmp_path / name / "current" / "renamed-b"
+    for root in (origin_match, origin_other, current_match, current_other):
+        root.mkdir(parents=True)
+    payload = b"portable dependency header\n"
+    for root in (origin_match, current_match):
+        (root / relative).parent.mkdir()
+        (root / relative).write_bytes(payload)
+    build = tmp_path / name / "build"
+    _write_build_shape(build, snapshot, input_path=origin_match / relative)
+    return (
+        snapshot, build, origin_match, origin_other,
+        current_match, current_other, relative, payload,
+    )
+
+
+def _snapshot_only_v3_fixture(tmp_path: Path, name: str):
+    snapshot, build = _fixture(tmp_path, name)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET,
+    )
+    good_root = tmp_path / name / "dependency-good"
+    good_root.mkdir()
+    missing_root = tmp_path / name / "dependency-missing"
+    return snapshot, collected, good_root, missing_root
+
+
+def _collected_dependency_v3_fixture(tmp_path: Path, name: str):
+    fixture = _dependency_prefix_fixture(tmp_path, name)
+    collected = compiler_input.collect_compiler_input_manifest(
+        fixture[1], fixture[0], target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(fixture[2], fixture[3]),
+        current_dependency_prefix_roots=(fixture[4], fixture[5]),
+    )
+    missing_root = tmp_path / name / "current" / "dependency-missing"
+    return fixture, collected, missing_root
+
+
+def test_v3_probe_snapshot_only_accepts_one_existing_dependency_root(tmp_path):
+    snapshot, collected, good_root, _missing_root = (
+        _snapshot_only_v3_fixture(tmp_path, "snapshot-good")
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot,
+        current_dependency_prefix_roots=(good_root,),
+    ) == collected.manifest
+
+
+def test_v3_probe_snapshot_only_accepts_existing_and_missing_roots(tmp_path):
+    snapshot, collected, good_root, missing_root = (
+        _snapshot_only_v3_fixture(tmp_path, "snapshot-good-missing")
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot,
+        current_dependency_prefix_roots=(good_root, missing_root),
+    ) == collected.manifest
+
+
+def test_v3_probe_snapshot_only_accepts_only_missing_root(tmp_path):
+    snapshot, collected, _good_root, missing_root = (
+        _snapshot_only_v3_fixture(tmp_path, "snapshot-missing")
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot,
+        current_dependency_prefix_roots=(missing_root,),
+    ) == collected.manifest
+
+
+def test_v3_probe_dependency_entry_accepts_one_matching_root(tmp_path):
+    fixture, collected, _missing_root = _collected_dependency_v3_fixture(
+        tmp_path, "dependency-good",
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=fixture[0],
+        current_dependency_prefix_roots=(fixture[4],),
+    ) == collected.manifest
+
+
+def test_v3_probe_dependency_entry_accepts_matching_and_missing_roots(tmp_path):
+    fixture, collected, missing_root = _collected_dependency_v3_fixture(
+        tmp_path, "dependency-good-missing",
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=fixture[0],
+        current_dependency_prefix_roots=(fixture[4], missing_root),
+    ) == collected.manifest
+
+
+def test_v3_dependency_entry_rejects_only_missing_root_as_zero_matches(tmp_path):
+    fixture, collected, missing_root = _collected_dependency_v3_fixture(
+        tmp_path, "dependency-missing",
+    )
+
+    with pytest.raises(compiler_input.CompilerInputError, match="one current root"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=fixture[0],
+            current_dependency_prefix_roots=(missing_root,),
+        )
+
+
+def test_v3_probe_snapshot_only_accepts_explicit_empty_roots(tmp_path):
+    snapshot, collected, _good_root, _missing_root = (
+        _snapshot_only_v3_fixture(tmp_path, "snapshot-empty")
+    )
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot,
+        current_dependency_prefix_roots=(),
+    ) == collected.manifest
+
+
+def test_v3_probe_snapshot_only_rejects_none_root_context(tmp_path):
+    snapshot, collected, _good_root, _missing_root = (
+        _snapshot_only_v3_fixture(tmp_path, "snapshot-none")
+    )
+
+    with pytest.raises(compiler_input.CompilerInputError, match="context"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_dependency_prefix_roots=None,
+        )
+
+
+def test_v3_collector_ignores_missing_origin_and_current_root_elements(tmp_path):
+    fixture = _dependency_prefix_fixture(tmp_path, "collector-missing")
+    missing_origin = tmp_path / "collector-missing" / "origin" / "missing"
+    missing_current = tmp_path / "collector-missing" / "current" / "missing"
+
+    collected = compiler_input.collect_compiler_input_manifest(
+        fixture[1], fixture[0], target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(missing_origin, fixture[2]),
+        current_dependency_prefix_roots=(fixture[4], missing_current),
+    )
+
+    assert collected.manifest["inputs"] == [{
+        "root": "dependency-prefix",
+        "path": fixture[6].as_posix(),
+        "sha256": hashlib.sha256(fixture[7]).hexdigest(),
+    }]
+
+
+@pytest.mark.parametrize(
+    "invalid_root",
+    [123, "", "relative/dependency", "/dependency\0root"],
+    ids=["non-string", "empty", "relative", "nul"],
+)
+def test_v3_invalid_dependency_root_spelling_is_rejected_by_validator_and_collector(
+        tmp_path, invalid_root):
+    snapshot, collected, _good_root, _missing_root = (
+        _snapshot_only_v3_fixture(tmp_path, "invalid-root")
+    )
+
+    with pytest.raises(compiler_input.CompilerInputError):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_dependency_prefix_roots=(invalid_root,),
+        )
+    with pytest.raises(compiler_input.CompilerInputError):
+        compiler_input.collect_compiler_input_manifest(
+            tmp_path / "invalid-root" / "build", snapshot, target=TARGET,
+            origin_dependency_prefix_roots=(invalid_root,),
+            current_dependency_prefix_roots=(),
+        )
+
+
+def test_v3_manifest_classifies_dependency_prefix_root_relative_and_rebinds_setwise(
+        tmp_path):
+    (
+        snapshot, build, origin_match, origin_other,
+        current_match, current_other, relative, payload,
+    ) = _dependency_prefix_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(origin_other, origin_match),
+        current_dependency_prefix_roots=(current_match, current_other),
+    )
+
+    assert collected.manifest["inputs"] == [{
+        "root": "dependency-prefix",
+        "path": relative.as_posix(),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }]
+    assert all(
+        str(root) not in repr(collected.manifest)
+        for root in (origin_match, origin_other, current_match, current_other)
+    )
+
+    import shutil
+    shutil.rmtree(origin_match.parent)
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot, target=TARGET,
+        current_dependency_prefix_roots=(current_other, current_match),
+    ) == collected.manifest
+
+
+def test_v3_dependency_prefix_unit_binding_ignores_root_order_and_basename(
+        tmp_path):
+    first = _dependency_prefix_fixture(tmp_path, "first")
+    second = _dependency_prefix_fixture(tmp_path, "second")
+    renamed_second_current = second[4].with_name("different-prefix-name")
+    second[4].rename(renamed_second_current)
+    first_collected = compiler_input.collect_compiler_input_manifest(
+        first[1], first[0], target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(first[3], first[2]),
+        current_dependency_prefix_roots=(first[4], first[5]),
+    )
+    second_collected = compiler_input.collect_compiler_input_manifest(
+        second[1], second[0], target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(second[2], second[3]),
+        current_dependency_prefix_roots=(second[5], renamed_second_current),
+    )
+
+    assert first_collected == second_collected
+
+
+@pytest.mark.parametrize("mutation", ["missing", "drift", "symlink", "directory"])
+def test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular(
+        tmp_path, mutation):
+    (
+        snapshot, build, origin_match, origin_other,
+        current_match, current_other, relative, _payload,
+    ) = _dependency_prefix_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(origin_match, origin_other),
+        current_dependency_prefix_roots=(current_match, current_other),
+    )
+    leaf = current_match / relative
+    if mutation == "missing":
+        leaf.unlink()
+    elif mutation == "drift":
+        leaf.write_bytes(b"different dependency bytes\n")
+    elif mutation == "symlink":
+        replacement = current_match / "replacement.hh"
+        replacement.write_bytes(leaf.read_bytes())
+        leaf.unlink()
+        leaf.symlink_to(replacement)
+    else:
+        leaf.unlink()
+        leaf.mkdir()
+
+    with pytest.raises(compiler_input.CompilerInputError):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_dependency_prefix_roots=(current_match, current_other),
+        )
+
+
+def test_v3_dependency_prefix_rejects_ambiguous_current_root(tmp_path):
+    (
+        snapshot, build, origin_match, origin_other,
+        current_match, current_other, relative, payload,
+    ) = _dependency_prefix_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(origin_match, origin_other),
+        current_dependency_prefix_roots=(current_match, current_other),
+    )
+    (current_other / relative).parent.mkdir()
+    (current_other / relative).write_bytes(payload)
+
+    with pytest.raises(compiler_input.CompilerInputError, match="one current root"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_dependency_prefix_roots=(current_match, current_other),
+        )
+
+
+def test_v3_dependency_prefix_rejects_ambiguous_origin_without_filesystem_fallback(
+        tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    outer = tmp_path / "prefix"
+    inner = outer / "nested"
+    header = inner / "include" / "portable.hh"
+    header.parent.mkdir(parents=True)
+    header.write_bytes(b"ambiguous origin\n")
+    build = tmp_path / "build"
+    _write_build_shape(build, snapshot, input_path=header)
+
+    with pytest.raises(compiler_input.CompilerInputError, match="overlap|ambiguous"):
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET, allow_external_inputs=True,
+            origin_dependency_prefix_roots=(outer, inner),
+            current_dependency_prefix_roots=(outer, inner),
+        )
+
+
+def test_v3_filesystem_tag_cannot_alias_current_dependency_prefix_root(tmp_path):
+    (
+        snapshot, build, origin_match, origin_other,
+        current_match, current_other, relative, _payload,
+    ) = _dependency_prefix_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(origin_match, origin_other),
+        current_dependency_prefix_roots=(current_match, current_other),
+    )
+    forged = copy.deepcopy(collected.manifest)
+    forged["inputs"][0].update({
+        "root": "filesystem",
+        "path": str(current_match / relative).lstrip("/"),
+    })
+
+    with pytest.raises(compiler_input.CompilerInputError, match="root tag"):
+        compiler_input.validate_compiler_input_manifest(
+            forged, compiler_input.manifest_sha256(forged),
+            snapshot_root=snapshot,
+            current_dependency_prefix_roots=(current_match, current_other),
+        )
+
+
+def test_v2_does_not_accept_v3_dependency_prefix_tag(tmp_path):
+    fixture = _dependency_prefix_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        fixture[1], fixture[0], target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(fixture[2], fixture[3]),
+        current_dependency_prefix_roots=(fixture[4], fixture[5]),
+    )
+    old_schema = copy.deepcopy(collected.manifest)
+    old_schema["schema_version"] = compiler_input.PREVIOUS_MANIFEST_SCHEMA
+
+    with pytest.raises(compiler_input.CompilerInputError, match="root"):
+        compiler_input.validate_compiler_input_manifest(
+            old_schema, compiler_input.manifest_sha256(old_schema),
+            snapshot_root=fixture[0],
+        )
+
+
+def test_v2_existing_snapshot_masstree_and_filesystem_roots_remain_accepted(
+        tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot_input = snapshot / "include" / "snapshot.hh"
+    snapshot_input.parent.mkdir(parents=True)
+    snapshot_input.write_bytes(b"v2 snapshot\n")
+    masstree = tmp_path / "fetchcontent" / "masstree-src"
+    masstree_input = masstree / "include" / "masstree.hh"
+    masstree_input.parent.mkdir(parents=True)
+    masstree_input.write_bytes(b"v2 masstree\n")
+    filesystem_input = tmp_path / "system" / "external.hh"
+    filesystem_input.parent.mkdir()
+    filesystem_input.write_bytes(b"v2 filesystem\n")
+    manifest = {
+        "schema_version": compiler_input.PREVIOUS_MANIFEST_SCHEMA,
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": TARGET,
+        "depfile_count": 1,
+        "input_policy": "snapshot-and-external-hashes/v1",
+        "inputs": [
+            {
+                "root": "fetchcontent-masstree",
+                "path": "include/masstree.hh",
+                "sha256": hashlib.sha256(
+                    masstree_input.read_bytes()
+                ).hexdigest(),
+            },
+            {
+                "root": "filesystem",
+                "path": str(filesystem_input.resolve()).lstrip("/"),
+                "sha256": hashlib.sha256(
+                    filesystem_input.read_bytes()
+                ).hexdigest(),
+            },
+            {
+                "root": "snapshot",
+                "path": "include/snapshot.hh",
+                "sha256": hashlib.sha256(
+                    snapshot_input.read_bytes()
+                ).hexdigest(),
+            },
+        ],
+    }
+
+    assert compiler_input.validate_compiler_input_manifest(
+        manifest, compiler_input.manifest_sha256(manifest),
+        snapshot_root=snapshot,
+        current_fetchcontent_masstree_root=masstree,
+    ) == manifest
+
+
+def test_v3_none_dependency_context_is_rejected_but_explicit_empty_is_accepted(
+        tmp_path):
+    snapshot, build = _fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET,
+    )
+
+    with pytest.raises(compiler_input.CompilerInputError, match="context"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+        )
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot,
+        current_dependency_prefix_roots=(),
+    ) == collected.manifest
+
+
+@pytest.mark.parametrize("path", [".", "//include/portable.hh"])
+def test_v3_dependency_prefix_rejects_noncanonical_relative_paths(
+        tmp_path, path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    manifest = {
+        "schema_version": compiler_input.MANIFEST_SCHEMA,
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": TARGET,
+        "depfile_count": 1,
+        "input_policy": "snapshot-and-external-hashes/v1",
+        "inputs": [{
+            "root": "dependency-prefix",
+            "path": path,
+            "sha256": "0" * 64,
+        }],
+    }
+
+    with pytest.raises(compiler_input.CompilerInputError, match="relative POSIX"):
+        compiler_input.validate_compiler_input_manifest(
+            manifest, compiler_input.manifest_sha256(manifest),
+            snapshot_root=snapshot,
+            current_dependency_prefix_roots=(),
+        )
+
+
+def test_v3_symlink_spelled_dependency_root_rebinds_identically(tmp_path):
+    fixture = _dependency_prefix_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        fixture[1], fixture[0], target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(fixture[2], fixture[3]),
+        current_dependency_prefix_roots=(fixture[4], fixture[5]),
+    )
+    alias = tmp_path / "current-root-alias"
+    alias.symlink_to(fixture[4], target_is_directory=True)
+
+    canonical = compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=fixture[0],
+        current_dependency_prefix_roots=(fixture[4], fixture[5]),
+    )
+    through_alias = compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=fixture[0],
+        current_dependency_prefix_roots=(alias, fixture[5]),
+    )
+    assert through_alias == canonical
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "origin-snapshot", "current-snapshot",
+        "origin-masstree", "current-masstree",
+    ],
+)
+def test_v3_collector_rejects_all_dependency_root_class_overlaps(
+        tmp_path, case):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    origin_masstree = tmp_path / "origin-masstree"
+    current_masstree = tmp_path / "current-masstree"
+    origin_masstree.mkdir()
+    current_masstree.mkdir()
+    safe_origin = tmp_path / "safe-origin"
+    safe_current = tmp_path / "safe-current"
+    safe_origin.mkdir()
+    safe_current.mkdir()
+    origin_dependency = safe_origin
+    current_dependency = safe_current
+    if case == "origin-snapshot":
+        origin_dependency = snapshot
+    elif case == "current-snapshot":
+        current_dependency = snapshot
+    elif case == "origin-masstree":
+        origin_dependency = origin_masstree
+    else:
+        current_dependency = current_masstree
+    build = tmp_path / "build"
+    (snapshot / "include").mkdir()
+    (snapshot / "include" / "unrelated.hh").write_bytes(b"overlap fixture\n")
+    _write_build_shape(build, snapshot)
+
+    with pytest.raises(compiler_input.CompilerInputError, match="overlap"):
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET, allow_external_inputs=True,
+            origin_fetchcontent_masstree_root=origin_masstree,
+            current_fetchcontent_masstree_root=current_masstree,
+            origin_dependency_prefix_roots=(origin_dependency,),
+            current_dependency_prefix_roots=(current_dependency,),
+        )
+
+
+@pytest.mark.parametrize("case", ["snapshot", "masstree"])
+def test_v3_validator_rejects_dependency_root_overlap_with_other_live_roots(
+        tmp_path, case):
+    fixture = _dependency_prefix_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        fixture[1], fixture[0], target=TARGET, allow_external_inputs=True,
+        origin_dependency_prefix_roots=(fixture[2], fixture[3]),
+        current_dependency_prefix_roots=(fixture[4], fixture[5]),
+    )
+    if case == "snapshot":
+        roots = (fixture[0],)
+        masstree = None
+    else:
+        masstree = tmp_path / "current-masstree"
+        masstree.mkdir()
+        roots = (masstree,)
+
+    with pytest.raises(compiler_input.CompilerInputError, match="overlap"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=fixture[0],
+            current_fetchcontent_masstree_root=masstree,
+            current_dependency_prefix_roots=roots,
+        )
+
+
 def test_external_input_bytes_drift_is_rejected_by_validator(tmp_path):
     snapshot = tmp_path / "snapshot"
     snapshot.mkdir()
@@ -629,6 +1179,7 @@ def test_external_input_bytes_drift_is_rejected_by_validator(tmp_path):
         compiler_input.validate_compiler_input_manifest(
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot, target=TARGET,
+            current_dependency_prefix_roots=(),
         )
 
 
@@ -705,6 +1256,7 @@ def test_validator_rejects_snapshot_bytes_changed_after_collection(tmp_path):
         compiler_input.validate_compiler_input_manifest(
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot, target=TARGET,
+            current_dependency_prefix_roots=(),
         )
 
 
@@ -743,6 +1295,7 @@ def test_manifest_digest_and_exact_shape_are_enforced(tmp_path):
         compiler_input.validate_compiler_input_manifest(
             tampered, collected.manifest_sha256,
             snapshot_root=snapshot, target=TARGET,
+            current_dependency_prefix_roots=(),
         )
 
 
