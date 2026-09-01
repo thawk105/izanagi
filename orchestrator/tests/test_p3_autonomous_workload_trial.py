@@ -8052,6 +8052,104 @@ def _t325_run(fixture, run_root: Path, **overrides):
     return A.run_trial(**arguments)
 
 
+def _install_t325_legacy_freeze(fixture) -> None:
+    relative = Path(A.s8b_ratified_freeze.V1_FREEZE_PATH)
+    destination = fixture.repo / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes((_ROOT / relative).read_bytes())
+
+
+def test_formal_profile_accepts_registered_effective_binding_via_formal_resolver(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    _install_t325_legacy_freeze(t325_registered_trial)
+    monkeypatch.delitem(A.WORKLOADS, "rr80")
+    calls = []
+    load_launch_binding = A.trial_registry.load_launch_binding
+
+    def observe_binding(**kwargs):
+        calls.append(kwargs["trial_id"])
+        return load_launch_binding(**kwargs)
+
+    monkeypatch.setattr(
+        A.trial_registry,
+        "load_launch_binding",
+        observe_binding,
+    )
+    report = _t325_run(
+        t325_registered_trial,
+        tmp_path / "formal-registered-effective",
+        workload_profile=A.FORMAL_LEGACY_WORKLOAD_PROFILE,
+    )
+
+    assert report["status"] == "complete"
+    assert report["launch_admission"]["mode"] == "registered-effective"
+    assert A.resolve_workload_entry("rr80") is A.FORMAL_WORKLOADS["rr80"]
+    assert calls
+    assert set(calls) == {t325_registered_trial.trial_id}
+
+
+def test_formal_profile_rejects_noncertifying_before_launch_admission_and_run_root(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    _install_t325_legacy_freeze(t325_registered_trial)
+
+    def unexpected_launch_admission(**_kwargs):
+        pytest.fail("formal non-certifying profile reached launch admission")
+
+    monkeypatch.setattr(A, "_trial_launch_admission", unexpected_launch_admission)
+    run_root = tmp_path / "formal-noncertifying-profile"
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=(
+            r"^formal workload profile is incompatible with "
+            r"non-certifying launch admission$"
+        ),
+    ):
+        _t325_run(
+            t325_registered_trial,
+            run_root,
+            workload_profile=A.FORMAL_LEGACY_WORKLOAD_PROFILE,
+            effective_preregistration=None,
+            allow_formal_noncertifying=True,
+        )
+    assert not run_root.exists()
+
+
+def test_formal_profile_effective_none_rejects_before_binding_and_run_root(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    _install_t325_legacy_freeze(t325_registered_trial)
+    monkeypatch.setattr(
+        A.s8c_preregistration,
+        "effective_at",
+        lambda *_args, **_kwargs: None,
+    )
+
+    def unexpected_binding(**_kwargs):
+        pytest.fail("formal profile reached the P/C/H binding loader")
+
+    monkeypatch.setattr(
+        A.trial_registry,
+        "load_launch_binding",
+        unexpected_binding,
+    )
+    run_root = tmp_path / "formal-not-effective"
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=(
+            r"^formal launch is not admissible: effective "
+            r"preregistration unavailable$"
+        ),
+    ):
+        _t325_run(
+            t325_registered_trial,
+            run_root,
+            workload_profile=A.FORMAL_LEGACY_WORKLOAD_PROFILE,
+        )
+    assert not run_root.exists()
+
+
 def _t325_binding_fields(binding) -> dict[str, str]:
     return {
         "prereg_commit": binding.prereg_commit,
