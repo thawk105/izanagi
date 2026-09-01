@@ -67,6 +67,28 @@ lock より先に WAL を書いていた順序であった。
 作業ツリーが clean で変異が復元済みであることを確認してから再投入した。
 **変異の内容は 1 件も変えていない。**
 
+## 受入全走の 1 回目で出た 9 赤
+
+`4a44b2096` を tested tip として投入した受入全走は **9 failed / 19476 passed / 92 skipped**
+だった。9 件とも自分の差分に帰属する。焦点走の対象から `test_p3_b4_launcher.py`、
+`test_p3_b4_raw_record_producer.py`、`test_p3_b4_wiring_probe.py` の 3 file が漏れていた。
+DW-O26 が「変更した production file を参照する consumer test も含める」と定める型の取り逃しである。
+
+- 8 件 — `orchestrator/campaign/p3_b4_wiring_probe.py:1475` が `L.default_cfg` 由来の版付き
+  campaign lock を書き、直後の `:1476` が版を渡さずに reject を記録していた。
+  段 6 の fix が入れた fail-closed 検査が正しく発火していた。probe を production と同じ
+  呼び出し形へ揃えて閉じた。
+- 1 件 — `orchestrator/tests/test_p3_b4_launcher.py:899` が `default_cfg()` の
+  `search_config` の key 集合を exact に固定していた。条項 2 が identity へ版を束縛することの
+  直接の帰結なので、定数参照で 1 key だけ足した。
+
+## 版検査は 4 回発火し、4 回とも呼び手を直した
+
+「版付き lock を書くのに版を渡さない」形は wave 中に 3 経路で現れた
+(B-4 履歴 fixture、closed critic fixture、配線 probe)。production は lock を確定してから
+版を明示して呼ぶ。いずれも検査の省略・条件分岐の追加・lock の legacy 化・テストの skip を採らず、
+呼び手を production と同じ形へ揃えて閉じた。**受理集合を緩める方向の変更は 1 件も入れていない。**
+
 ## 実測値
 
 - 変異: 12/12 KILLED、期待 node と完全一致、SURVIVED 0、MISMATCH 0。baseline は rc=0・失敗 0。

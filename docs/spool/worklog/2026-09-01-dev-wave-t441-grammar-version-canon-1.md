@@ -39,6 +39,14 @@ title: [T-441] backoff 受理文法の版を identity/WAL/cache へ束縛し、h
   待ち行列の時間切れ、前回の残骸、収集段の受領証欠落であり、変異の内容は 1 件も変えていない。
 - **実装子は pytest を 1 件も実走できなかった** (Pegasus dispatch の rc=16)。緑とは申告せず
   「実装済み・未実走」と報告した。テストの実測はすべて親が login node で行った。
+- **受入全走の 1 回目で 9 赤が出た。9 件とも自分の差分に帰属する。** 焦点走の対象から
+  B-4 系の 3 file が漏れており、`DW-O26` が警告する取り逃しの型そのものだった。
+  内訳は、版付き lock を書いた直後に版を渡さず reject を記録していた配線 probe (8 件) と、
+  `search_config` の key 集合を exact に固定していたテスト (1 件) である。
+- **版検査は wave 中に 4 回発火し、4 回とも緩めずに呼び手側を直した。** B-4 の履歴 fixture、
+  closed critic の fixture、配線 probe の 3 経路はいずれも「版付き lock を書くのに版を渡さない」
+  同じ形で、production は lock 確定後に版を明示して呼ぶ。検査の省略・skip・lock の legacy 化は
+  1 件も採らなかった。
 - 実測値: 変異 12/12 KILLED・期待 node と完全一致・SURVIVED 0・MISMATCH 0、baseline は rc=0 失敗 0。
   焦点走は `test_p3_s4_loop.py` 単独 340 passed、main 取り込み後の 6 file で 1209 passed / 3 skipped。
 - wave 中に local main が 66 commit 進み、起動時の編集面重複検査で名指しした [T-1999] が着地した。
