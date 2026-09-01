@@ -151,3 +151,15 @@ baseline PASSED・**KILLED 7 / SURVIVED 0 / MISMATCH 0**・期待 node 完全一
   between-run floor の対象別再実測が残る。本 wave はこの項目を編集していない。
 - notes の語句を検査する test は、notes にその語句が書かれているかだけを見る。
   C++ 側の事実そのものは検査しない。この限界は test の docstring に書いてある。
+
+## 11. 段 8 自己改善の裁定 — dev-wave 文書の変更は 0 件
+
+`docs/skill-self-improvement.md` の発火 gate・routing を一度だけ適用した。候補 3 件、採用 0 件。
+
+| 候補 | 裁定 | 理由 |
+|---|---|---|
+| wave 引数が「t441 が p3_b4_wiring_probe.py 経由で SPACES を参照している」と述べたが、実測では probe は `campaign.model` を import するだけで SPACES を参照しない (`_VIEW_WORKSPACES` への substring 一致による偽陽性) | **不採用** | 起票側の事実誤りであって dev-wave 手順の欠落・曖昧ではない。親は起動時の編集面重複検査で実測し、重複 0 を確認して進めた。手順は意図どおり働いた |
+| 変異 runner の argv へ `-k` の式を渡したとき語に分かれた (harness は shell expansion を行わない) | **不採用** | harness が fail-closed で明示的な error を返し、1 手で node 明示指定へ切り替えられた。実害なし。3 層とも byte 予算が満杯であり、自明な argv の事実を手順書へ足す価値より予算圧迫の害が大きい |
+| 不在の主張を子に独立検証させるとき、射影が build 対象の閉包を覆っていないと検証が成立しない (焦点再レビュー 1 巡目が partial を返した) | **failures へ routing 済み・dev-wave 文書は変更しない** | F717 の同型再発として台帳へ追記した (routing 規則 1)。F717 の恒久対応は既に主張側の義務を書いており、再発検知も段 3 レンズでの確認を要求している。射影側の義務はその自然な延長なので、同じ内容を dev-wave 入口・reference へ複製しない (routing 規則 5) |
+
+**入口 (`.claude/commands/dev-wave.md`) と `docs/dev-wave/` の reference は 1 byte も変更していない。**
