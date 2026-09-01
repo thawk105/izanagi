@@ -1,0 +1,212 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-T1705-M01-GATE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_comparability_presence_and_mismatch_do_not_change_acceptance",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_cross_arm_comparability_is_self_describing_and_model_normalized",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_f4_aggregate_uses_loaded_descriptor_state_without_manifest_reread",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_f7_malformed_cost_input_remains_materially_invalid",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m01_unavailable_zero_tokens_never_enter_cost_denominator",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m10_cost_snapshot_loader_reads_and_validates_one_byte_observation",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m17_m21_p05_unavailable_cost_is_noncertifying_and_denominators_are_explicit",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m18_prelaunch_marker_never_hides_nonzero_accounting[cached_input_tokens]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m18_prelaunch_marker_never_hides_nonzero_accounting[input_tokens]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m18_prelaunch_marker_never_hides_nonzero_accounting[model_calls]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m18_prelaunch_marker_never_hides_nonzero_accounting[output_tokens]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m18_prelaunch_marker_never_hides_nonzero_accounting[reasoning_output_tokens]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_p01_bound_cost_is_mapping_driven_decimal_partial_and_uncertified",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_replay_failure_tokens_are_unavailable_and_not_counted"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    for key, axis in axes.items():\n        axis[\"comparability\"] = _normalized_cost_comparability(\n",
+          "new": "    for key, axis in axes.items():\n        reasons.append(\"normalized cost comparability mismatch\")\n        axis[\"comparability\"] = _normalized_cost_comparability(\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M02-UNIVERSE-DROP",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_cross_arm_comparability_is_self_describing_and_model_normalized",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_distinct_non_null_manifest_digests_propagate_to_every_cost_row",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_null_comparison_universe_is_limited_to_same_aggregate_result"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "            \"comparison_universe\": {\n                \"material_manifest_sha256\": material_manifest_sha256,\n            },\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M03-PAIRUNIT-DROP",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_attempt_number_distinguishes_equal_count_pair_unit_identities",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_comparability_presence_and_mismatch_do_not_change_acceptance",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_cross_arm_comparability_is_self_describing_and_model_normalized",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_equal_counts_with_swapped_pair_units_are_not_comparable"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "            \"pair_units_by_status\": {\n                status: [\n                    {\"block_id\": block_id, \"attempt\": attempt}\n                    for block_id, attempt in sorted(\n                        set(pair_units_by_status.get(status, ()))\n                    )\n                ]\n                for status in _COST_PAIR_UNIT_STATUSES\n            },\n",
+          "new": "            \"pair_units_by_status\": {\n                status: []\n                for status in _COST_PAIR_UNIT_STATUSES\n            },\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M04-AXIS-FIRST-VECTOR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_attempt_number_distinguishes_equal_count_pair_unit_identities",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_comparability_presence_and_mismatch_do_not_change_acceptance",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_cross_arm_comparability_is_self_describing_and_model_normalized",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_equal_counts_with_swapped_pair_units_are_not_comparable"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "            attempt_count=int(axis[\"attempt_count\"]),\n            unavailable_count=int(axis[\"unavailable_count\"]),\n            not_incurred_count=int(axis[\"not_incurred_count\"]),\n            scheduled_attempt_count=int(axis[\"scheduled_attempt_count\"]),\n",
+          "new": "            attempt_count=1,\n            unavailable_count=0,\n            not_incurred_count=0,\n            scheduled_attempt_count=1,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M05-SCOPE-HARDCODE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_cross_arm_comparability_is_self_describing_and_model_normalized"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "                \"benchmark_task_id\": dimensions.get(\"benchmark_task_id\"),\n",
+          "new": "                \"benchmark_task_id\": \"alpha\",\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M06-ROUNDING-FLOAT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_final_cost_artifact_comparability_contains_no_float_and_keeps_rounding",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m03_cost_json_tree_contains_no_float",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_p01_bound_cost_is_mapping_driven_decimal_partial_and_uncertified"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        \"decimal_places\": 8,\n        \"mode\": \"ROUND_HALF_EVEN\",\n",
+          "new": "        \"decimal_places\": 8.0,\n        \"mode\": \"ROUND_HALF_EVEN\",\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M07-MODEL-IN-BASIS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_cross_arm_comparability_is_self_describing_and_model_normalized",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_equal_counts_with_swapped_pair_units_are_not_comparable"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "                \"cache_condition\": dimensions.get(\"cache_condition\"),\n            },\n",
+          "new": "                \"cache_condition\": dimensions.get(\"cache_condition\"),\n                \"requested_model\": dimensions.get(\"requested_model\"),\n            },\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M08-UNAVAILABLE-DROP",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_comparability_presence_and_mismatch_do_not_change_acceptance",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_equal_counts_with_swapped_pair_units_are_not_comparable"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        cost[\"comparability\"] = _normalized_cost_comparability(\n            dimensions=dimensions,\n            metadata=cost,\n            material_manifest_sha256=material_manifest_sha256,\n            **per_attempt_counts,\n            pair_units_by_status=per_attempt_pair_units,\n        )\n        per_attempt.append(cost)\n",
+          "new": "        if availability != \"unavailable\":\n            cost[\"comparability\"] = _normalized_cost_comparability(\n                dimensions=dimensions,\n                metadata=cost,\n                material_manifest_sha256=material_manifest_sha256,\n                **per_attempt_counts,\n                pair_units_by_status=per_attempt_pair_units,\n            )\n        per_attempt.append(cost)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M09-ATTEMPT-LITERAL",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_attempt_number_distinguishes_equal_count_pair_unit_identities"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        pair_unit = (\n            (block_id, attempt_number)\n",
+          "new": "        pair_unit = (\n            (block_id, 1)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M10-MANIFEST-LITERAL",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_distinct_non_null_manifest_digests_propagate_to_every_cost_row",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_null_comparison_universe_is_limited_to_same_aggregate_result"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "                \"material_manifest_sha256\": material_manifest_sha256,\n",
+          "new": "                \"material_manifest_sha256\": \"d\" * 64,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1705-M11-RULE-POLARITY",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_comparability_rule_preserves_polarity_and_null_locality_branch",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_null_comparison_universe_is_limited_to_same_aggregate_result"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    if material_manifest_sha256 is None:\n        rule += (\n",
+          "new": "    if material_manifest_sha256 is not None:\n        rule += (\n"
+        }
+      ]
+    }
+  ]
+}

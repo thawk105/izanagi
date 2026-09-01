@@ -328,6 +328,8 @@ schema v1 record は版を持たない legacy として改変せずに残す。�
 - **(a) 充足証明**: 当該 §6 条件と証拠契約の `required_evidence` / `consumer_requirement` を評価器が
   commit blob 上で検査し、実 repository と実体を持つ正例 fixture の双方で `SATISFIED` を返す。
   併せて、その証明が確立しない事項を当該条件本文へ列挙する。
+  この充足証明に用いる証拠は静的解析に限らず、実行可能な証拠を含めてよい (D1386)。これは証拠の種類を
+  増やす許可であって、(a)〜(c) のどの要求も置き換えない。
 - **(b) 負例**: 登録済み `negative_control_id` の変異を含む負例を、同じ test の中で正例の
   `SATISFIED` と対にし、変異後は条件別 reason で非充足を返す。
 - **(c) 世代更新記録**: `DECIDER_VERSION` の bump と次世代 record を同じ commit に入れる。

@@ -1392,7 +1392,13 @@ def _validate_fixture_payload(payload: Mapping[str, object]) -> dict[str, object
     return dict(payload)
 
 
-def _record_probe_diff_reject(workspace: object, layout: object, payload: Mapping[str, object]) -> str:
+def _record_probe_diff_reject(
+    workspace: object,
+    layout: object,
+    payload: Mapping[str, object],
+    *,
+    backoff_grammar_version: int | None = None,
+) -> str:
     runtime = _require_active_runtime()
     expected = _layout_for_workspace(workspace)
     if type(layout) is not type(expected) or _resolved(layout.root) != _resolved(expected.root):
@@ -1418,6 +1424,7 @@ def _record_probe_diff_reject(workspace: object, layout: object, payload: Mappin
     )
     return runtime.L.record_diff_reject(
         layout, genome, checked["implementation"], rejection,
+        backoff_grammar_version=backoff_grammar_version,
     )
 
 
@@ -1455,6 +1462,7 @@ def _make_probe_view():
             generator_id=runtime.build_admission.GeneratorId.BACKOFF_SWEEP,
         )
         cfg = runtime.L.default_cfg(reflux=False)
+        backoff_grammar_version = runtime.L._require_backoff_grammar_version(cfg)
         if cfg.search_config.get("build_admission") != context.policy.as_preimage():
             raise ProbeIsolationError("fixture config is not bound to current admission policy")
         binding = runtime.loader_binding
@@ -1473,7 +1481,12 @@ def _make_probe_view():
             ),
         )
         runtime.L.wal.write_lock(layout, lock_text)
-        _record_probe_diff_reject(workspace, layout, _fixture_payload_from_types())
+        _record_probe_diff_reject(
+            workspace,
+            layout,
+            _fixture_payload_from_types(),
+            backoff_grammar_version=backoff_grammar_version,
+        )
         view = runtime.artifact_admission.require_admitted_campaign(
             layout,
             purpose=runtime.artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
