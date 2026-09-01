@@ -1,0 +1,72 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-drop-official-root-export",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+          "old": "export IZANAGI_OFFICIAL_OUTPUT_ROOT=\"$OUTPUT_ROOT\"",
+          "new": ": mutated-drop-official-root-export"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m1_job_exports_official_root_and_missing_env_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-point-official-root-inside-repo",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+          "old": "OUTPUT_ROOT=\"$(dirname \"$(dirname \"$GIT_COMMON_DIR\")\")/izanagi-job-evidence/b10-backoff-shape/official-output\"",
+          "new": "OUTPUT_ROOT=\"$REPO_ROOT/output/b10-official-output\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m2_job_root_passes_real_external_and_claim_capability_gates"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-make-official-root-job-unique",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+          "old": "OUTPUT_ROOT=\"$(dirname \"$(dirname \"$GIT_COMMON_DIR\")\")/izanagi-job-evidence/b10-backoff-shape/official-output\"",
+          "new": "OUTPUT_ROOT=\"$(dirname \"$(dirname \"$GIT_COMMON_DIR\")\")/izanagi-job-evidence/b10-backoff-shape/official-output-$IZANAGI_B10_NONCE\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m3_job_root_is_identical_across_phase_job_nonces"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-allow-volatile-forbidden-roots",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        forbidden_roots=(Path(\"/tmp\"), Path(\"/scr\")),",
+          "new": "        forbidden_roots=(),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
