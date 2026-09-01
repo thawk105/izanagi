@@ -9647,6 +9647,55 @@ def test_fold_gate_expected_targets_cover_all_ledgers_rotation_and_receipts(
         ):
             LAND._select_fold_gate_nodes(ROOT, plan)
 
+    phase3_repo = tmp_path / "phase3-selection-repo"
+    registry_path = phase3_repo / "orchestrator/tests/fold_gate_nodes.py"
+    registry_path.parent.mkdir(parents=True)
+    shutil.copyfile(ROOT / "orchestrator/tests/fold_gate_nodes.py", registry_path)
+    fragment_raw = "## 本文\n\n### 見送り\n".encode("utf-8")
+    fragment_path = (
+        phase3_repo
+        / "docs/spool/worklog/2000-01-01-test-wave-1.md"
+    )
+    fragment_path.parent.mkdir(parents=True)
+    fragment_path.write_bytes(fragment_raw)
+    phase3_plan = _gate_plan(
+        fragment_ledger="worklog",
+        targets=(
+            _FakeFoldTarget("docs/phase3.md"),
+            _FakeFoldTarget("docs/spool/FOLDED.md"),
+            _FakeFoldTarget("docs/worklog.md"),
+        ),
+    )
+    phase3_plan.fragments[0].content_sha256 = hashlib.sha256(
+        fragment_raw
+    ).hexdigest()
+    expected_targets = LAND._expected_fold_target_paths(
+        phase3_plan,
+        repo=phase3_repo,
+    )
+    assert expected_targets == (
+        "docs/phase3.md",
+        "docs/spool/FOLDED.md",
+        "docs/worklog.md",
+    )
+    assert LAND._fold_gate_target_families(
+        expected_targets,
+        rotation_path=None,
+    ) == ("folded", "phase3", "worklog")
+    phase3_selection = LAND._select_fold_gate_nodes(
+        phase3_repo,
+        phase3_plan,
+    )
+    assert phase3_selection.nodeids == (
+        "test_spool_fold.py::"
+        "test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed",
+        "test_spool_fold.py::"
+        "test_n37_real_repo_canonical_family_requires_archive_active_history",
+        "test_spool_fold.py::"
+        "test_phase3_real_canonical_plan_accepts_unique_and_rejects_generated_duplicate_id",
+    )
+    assert phase3_selection.uncovered_families == ()
+
     rotation = "docs/archive/worklog-phase3-0101-1.md"
     rotation_plan = _gate_plan(
         fragment_ledger="worklog",

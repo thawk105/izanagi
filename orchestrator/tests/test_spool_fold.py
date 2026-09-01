@@ -4057,6 +4057,106 @@ def _copy_real_canonical_family(
     return repo
 
 
+def test_phase3_real_canonical_plan_accepts_unique_and_rejects_generated_duplicate_id(
+    tmp_path: Path,
+) -> None:
+    real_repo = _copy_real_canonical_family(tmp_path / "real")
+    real_phase = (real_repo / "docs/phase3.md").read_text(encoding="utf-8")
+    spool_fold._assert_deferred_ids_unique(real_phase)
+    deferred_items = spool_fold._deferred_items(real_phase)
+    assert deferred_items
+    item_start, _line_end, block_end = next(iter(deferred_items.values()))[0]
+    item_block = real_phase[item_start:block_end]
+    duplicated_phase = real_phase[:block_end] + item_block + real_phase[block_end:]
+    duplicate_error = _raises(
+        "deferred-duplicate",
+        spool_fold._assert_deferred_ids_unique,
+        duplicated_phase,
+    )
+    assert [
+        (issue.code, issue.path)
+        for issue in duplicate_error.issues
+    ] == [("deferred-duplicate", "docs/phase3.md")]
+
+    _fragment(
+        real_repo,
+        "decisions",
+        "## {{D:t1922-phase3-positive}}. phase3 一意性の実 canonical 正例\n",
+        wave="t1922-phase3-fold-gate-positive",
+    )
+    with _fixture_tools_imports(real_repo):
+        real_plan = spool_fold.plan_fold(real_repo, fold_date="2026-08-02")
+    assert real_plan.status == "planned"
+
+    negative_parent = tmp_path / "negative"
+    negative_parent.mkdir()
+    negative_repo = _repo(negative_parent, active=("[T-050]",))
+    _fragment(
+        negative_repo,
+        "worklog",
+        _worklog_body(
+            negative_repo,
+            carry=(),
+            deferred=((
+                "プロセス文書系",
+                "[T-050]",
+                "重複見送り — 理由: 合成負例",
+                _digest(_active_block("[T-050]")),
+            ),),
+        ),
+    )
+    raised = _raises(
+        "deferred-duplicate",
+        spool_fold.plan_fold,
+        negative_repo,
+        fold_date="2026-08-02",
+    )
+    assert [
+        (issue.path, issue.line, issue.code, issue.message)
+        for issue in raised.issues
+    ] == [(
+        "docs/phase3.md",
+        9,
+        "deferred-duplicate",
+        "見送り台帳の ID [T-050] が重複",
+    )]
+
+    unique_parent = tmp_path / "unique-deferred"
+    unique_parent.mkdir()
+    unique_repo = _repo(unique_parent, active=("[T-060]",))
+    _fragment(
+        unique_repo,
+        "worklog",
+        _worklog_body(
+            unique_repo,
+            carry=(),
+            deferred=((
+                "プロセス文書系",
+                "[T-060]",
+                "新規見送り — 理由: 過剰拒否防止",
+                _digest(_active_block("[T-060]")),
+            ),),
+        ),
+    )
+    unique_plan = spool_fold.plan_fold(unique_repo, fold_date="2026-08-02")
+    assert unique_plan.status == "planned"
+
+    append_parent = tmp_path / "existing-append"
+    append_parent.mkdir()
+    append_repo = _repo(append_parent)
+    _fragment(
+        append_repo,
+        "worklog",
+        _worklog_body(
+            append_repo,
+            carry=(),
+            deferred_appends=(("[T-050]", " 発火記録: 過剰拒否防止"),),
+        ),
+    )
+    append_plan = spool_fold.plan_fold(append_repo, fold_date="2026-08-02")
+    assert append_plan.status == "planned"
+
+
 def _loaded_dev_waves_modules() -> dict[str, object]:
     return {
         name: module
