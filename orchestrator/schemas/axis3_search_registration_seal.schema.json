@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "axis3_search_registration_seal.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_sha256",
+    "source_digests",
+    "schema_digests",
+    "fixture_sha256",
+    "frozen_semantics_sha256",
+    "frozen_input_digests",
+    "environment_identity",
+    "argv",
+    "argv_sha256",
+    "phase_argv_contracts",
+    "phase_argv_contracts_sha256",
+    "commit",
+    "resolved_head_commit",
+    "head_verified",
+    "closure_sha256",
+    "seal_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "axis3-search-registration-seal/v1"},
+    "catalog_sha256": {"$ref": "#/definitions/digest"},
+    "source_digests": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/definitions/pathDigest"}
+    },
+    "schema_digests": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"$ref": "#/definitions/pathDigest"}
+    },
+    "fixture_sha256": {"$ref": "#/definitions/digest"},
+    "frozen_semantics_sha256": {"const": "b1e3a611c2a61409df07e399e09fc96c5d251d58d830754cc9e8a0494a80bcf4"},
+    "frozen_input_digests": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/definitions/pathDigest"}
+    },
+    "environment_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jsonschema_distribution_version",
+        "python_implementation",
+        "python_version"
+      ],
+      "properties": {
+        "jsonschema_distribution_version": {"type": "string", "minLength": 1},
+        "python_implementation": {"type": "string", "minLength": 1},
+        "python_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "argv": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "argv_sha256": {"$ref": "#/definitions/digest"},
+    "phase_argv_contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["register", "preflight", "run-ready", "resume", "validate-bundle"],
+      "properties": {
+        "register": {"$ref": "#/definitions/phaseArgvContract"},
+        "preflight": {"$ref": "#/definitions/phaseArgvContract"},
+        "run-ready": {"$ref": "#/definitions/phaseArgvContract"},
+        "resume": {"$ref": "#/definitions/phaseArgvContract"},
+        "validate-bundle": {"$ref": "#/definitions/phaseArgvContract"}
+      }
+    },
+    "phase_argv_contracts_sha256": {"$ref": "#/definitions/digest"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+    "resolved_head_commit": {"type": "string", "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"},
+    "head_verified": {"type": "boolean"},
+    "closure_sha256": {"$ref": "#/definitions/digest"},
+    "seal_sha256": {"$ref": "#/definitions/digest"}
+  },
+  "definitions": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "pathDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/definitions/digest"}
+      }
+    },
+    "phaseArgvContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "entrypoint", "command_relation"],
+      "properties": {
+        "phase": {"enum": ["register", "preflight", "run-ready", "resume", "validate-bundle"]},
+        "entrypoint": {"const": "tools/run_axis3_search.py"},
+        "command_relation": {"const": "immediately_after_entrypoint"}
+      }
+    }
+  }
+}
