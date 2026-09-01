@@ -9,8 +9,8 @@ file:line 粒度の plan を起草させる。
 
 ## DW-S03 — 段 3 敵対相談
 
-codex `reasoning=xhigh`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず攻撃させる。
-正しさ境界と整合・実効性を分け、親 brief 自身も攻撃対象だと明記する。brief の file:line、前提、
+codex `reasoning=xhigh`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず検査させる。
+正しさ境界と整合・実効性を分け、親 brief 自身も検査対象だと明記する。brief の file:line、前提、
 所有範囲、変異の帰属不成立、**親自身の実測値とその一般化**を探させる。
 gate・検査を新設する wave では成果物が実際に効く全層が scope に入るかを必ずレンズに入れ、
 scope 外の層を実装したふりにせず裁定パッケージ候補として返させる。

@@ -82,6 +82,76 @@ def test_trigger_condition_gate_precedes_run_campaign():
     assert 'macro="BACKOFF_TRIGGER_GATING"' in helper
     assert 'use_class="certified-selection"' in helper
     assert '"condition_gate": condition_gate' in source
+
+
+def test_drive_iteration_carries_only_non_none_holdout_admission_to_campaign():
+    drive_parameter = inspect.signature(T.drive_iteration).parameters[
+        "holdout_observation_admission"
+    ]
+    resolved_parameter = inspect.signature(
+        T._run_one_iteration_resolved
+    ).parameters["holdout_observation_admission"]
+    for parameter in (drive_parameter, resolved_parameter):
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameter.default is None
+
+    drive_source = inspect.getsource(T.drive_iteration)
+    resolved_source = inspect.getsource(T._run_one_iteration_resolved)
+    assert (
+        'resolved_options["holdout_observation_admission"] = ('
+        in drive_source
+    )
+    assert "**resolved_options" in drive_source
+    assert (
+        'campaign_options["holdout_observation_admission"] = ('
+        in resolved_source
+    )
+    assert "**campaign_options" in resolved_source
+
+
+def test_resolved_iteration_forwards_holdout_admission_object_identity(
+    tmp_path, monkeypatch,
+) -> None:
+    import contextlib
+    from orchestrator.campaign import patchharness
+
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    contract = env_contract.GENERATIONS["linux-baremetal"][0].contract
+    admission = object()
+    captured = []
+    monkeypatch.setattr(
+        patchharness,
+        "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(T, "_quarantine_and_audit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        T.ident,
+        "ensure_resumable_attempts",
+        lambda *_args, **_kwargs: None,
+    )
+
+    def capture_campaign(*_args, **kwargs):
+        captured.append(kwargs["holdout_observation_admission"])
+        return SimpleNamespace(execution_receipt=None, results=[], skipped=0)
+
+    monkeypatch.setattr(T, "run_campaign", capture_campaign)
+    T._run_one_iteration_resolved(
+        T.default_cfg(),
+        T.default_perf(),
+        _planner(),
+        T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire="00000"),
+        AuditorVerdict(verdict="pass", diff_digest="a" * 64),
+        L.LoopState(start_wall=time.time()),
+        str(tmp_path),
+        True,
+        layout,
+        contract,
+        site_policy.OTHER,
+        build_context=_CODER_CONTEXT,
+        holdout_observation_admission=admission,
+    )
+    assert captured == [admission]
 from campaign_lock_test_support import build_v2_lock                # noqa: E402
 from test_p3_b4_closed_critic import (                              # noqa: E402
     _production_launch_context as _verified_b4_context,
