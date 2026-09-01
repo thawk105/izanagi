@@ -1,0 +1,387 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/5ad070cf328d598939ac9b9416562d24/izdw-5ad070cf32.o966392",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/5ad070cf328d598939ac9b9416562d24/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................                                              [100%]\n27 passed in 7.69s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "39e5e1d1ff9d126d75584aca674f7a85c8cd32e5e9c2889ab94d8a3b0ac35e38"
+    },
+    "artifact_error": null,
+    "collection_sha256": "3da3828ac0c41c0ed9d27e70b25739050532f9da14db899a811b897d3a8e51b8",
+    "duration_s": 32.179,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "dc6114e2a42f1f2fcbd20525cfc1e590077acb9a21149b784ce90a60f23582f3",
+    "repo_head": "f238bc6217cb32847758c1e47054ee9cbe919559",
+    "runner_sha256": "b0a428b32374b7b8e7e669f01db7d365c208b29fa1ba66d0c155f472a33c985c",
+    "spec_sha256": "371f84f16f5bde86623b6d24e025f77cc95e8ac4e5bc1e78368fefc2beeccadc",
+    "status": "PASSED",
+    "test_output_sha256": "39e5e1d1ff9d126d75584aca674f7a85c8cd32e5e9c2889ab94d8a3b0ac35e38",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c879f9f522ada1db1698061b88a1052fb98a69943371933ba60047523f0b96f4"
+  },
+  "date": "2026-09-01T19:54:56.976662+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/d38edd1a7c6e46413431342041399277/izdw-d38edd1a7c.o966393",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/d38edd1a7c6e46413431342041399277/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................F                                              [100%]\n=================================== FAILURES ===================================\n____________ test_non_e1_campaign_is_structured_and_wal_is_not_read ____________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_non_e1_campaign_is_struct0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df0d9cef50>\n\n    def test_non_e1_campaign_is_structured_and_wal_is_not_read(\n            tmp_path, monkeypatch):\n        document, freeze_path, budget_path = _fixture(tmp_path)\n        rejected_layout = driver.layout_for(\n            document, \"block1\", output_root=str(tmp_path / \"output\"),\n        )\n        e0 = report.CampaignVerifierEpoch(\n            campaign_verifier_epoch=\"E0\",\n            state=\"E0\",\n            reason_code=\"v1-authority-absent\",\n        )\n        original_read = report.wal.read_records_collected\n        read_roots = []\n    \n        rejected_lock = Path(rejected_layout.lock_file).read_bytes()\n    \n        def epoch_gate(lock_bytes):\n            if lock_bytes == rejected_lock:\n                return _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES(lock_bytes)\n            return E1_EPOCH\n    \n        def observed_read(layout):\n            assert layout.root != rejected_layout.root\n            read_roots.append(layout.root)\n            return original_read(layout)\n    \n        monkeypatch.setattr(report, \"_campaign_verifier_epoch_from_lock_bytes\", epoch_gate)\n        monkeypatch.setattr(report.wal, \"read_records_collected\", observed_read)\n    \n        result = _generate(tmp_path, document, freeze_path, budget_path)\n    \n        gate = result[\"hard_gates\"][\"schedule\"][\"block1\"]\n        reason = gate[\"reasons\"][0]\n>       assert reason[\"code\"] == \"campaign_verifier_epoch_rejected\"\nE       AssertionError: assert 'schedule_ledger_invalid' == 'campaign_ver...poch_rejected'\nE         \nE         - campaign_verifier_epoch_rejected\nE         + schedule_ledger_invalid\n\norchestrator/tests/test_s1_report.py:536: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read\n1 failed, 26 passed in 7.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1864 retained_bytes=1864 omitted_bytes=0 rendered_excerpt_bytes=1955 sha256=c3c74dd77e03b7f5a0d911e3d802059d2c2d0daf5383d0d67b843457da6eae2e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_non_e1_campaign_is_struct0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df0d9cef50>\n> \n>     def test_non_e1_campaign_is_structured_and_wal_is_not_read(\n>             tmp_path, monkeypatch):\n>         document, freeze_path, budget_path = _fixture(tmp_path)\n>         rejected_layout = driver.layout_for(\n>             document, \"block1\", output_root=str(tmp_path / \"output\"),\n>         )\n>         e0 = report.CampaignVerifierEpoch(\n>             campaign_verifier_epoch=\"E0\",\n>             state=\"E0\",\n>             reason_code=\"v1-authority-absent\",\n>         )\n>         original_read = report.wal.read_records_collected\n>         read_roots = []\n>     \n>         rejected_lock = Path(rejected_layout.lock_file).read_bytes()\n>     \n>         def epoch_gate(lock_bytes):\n>             if lock_bytes == rejected_lock:\n>                 return _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES(lock_bytes)\n>             return E1_EPOCH\n>     \n>         def observed_read(layout):\n>             assert layout.root != rejected_layout.root\n>             read_roots.append(layout.root)\n>             return original_read(layout)\n>     \n>         monkeypatch.setattr(report, \"_campaign_verifier_epoch_from_lock_bytes\", epoch_gate)\n>         monkeypatch.setattr(report.wal, \"read_records_collected\", observed_read)\n>     \n>         result = _generate(tmp_path, document, freeze_path, budget_path)\n>     \n>         gate = result[\"hard_gates\"][\"schedule\"][\"block1\"]\n>         reason = gate[\"reasons\"][0]\n> >       assert reason[\"code\"] == \"campaign_verifier_epoch_rejected\"\n> E       AssertionError: assert 'schedule_ledger_invalid' == 'campaign_ver...poch_rejected'\n> E         \n> E         - campaign_verifier_epoch_rejected\n> E         + schedule_ledger_invalid\n> \n> orchestrator/tests/test_s1_report.py:536: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1864 retained_bytes=1864 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2674 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cbd267ea575f128e0303fa8d58de08bf0944c1c6b1b3a688b92634c1f144ca13"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3da3828ac0c41c0ed9d27e70b25739050532f9da14db899a811b897d3a8e51b8",
+      "duration_s": 32.206,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read"
+      ],
+      "hang_risk": false,
+      "id": "M1-LOCAL-E0-RAISE-REMOVED",
+      "injection_diff_sha256": "1386ff10d85b1d11beec9903899441409203a86086a595aea71c9124af6344f0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "15ad86791ff6e551b1a963161c93e2742619eb57d503911c100befc77e291d3c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "new": "",
+          "old": "    if recorded.diagnostic.state == \"E0\":\n        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n"
+        }
+      ],
+      "repo_head": "f238bc6217cb32847758c1e47054ee9cbe919559",
+      "runner_sha256": "b0a428b32374b7b8e7e669f01db7d365c208b29fa1ba66d0c155f472a33c985c",
+      "spec_sha256": "371f84f16f5bde86623b6d24e025f77cc95e8ac4e5bc1e78368fefc2beeccadc",
+      "status": "KILLED",
+      "test_output_sha256": "cbd267ea575f128e0303fa8d58de08bf0944c1c6b1b3a688b92634c1f144ca13",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c879f9f522ada1db1698061b88a1052fb98a69943371933ba60047523f0b96f4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/38fc1bb1c4d234b68a9cb10094dfbdbf/izdw-38fc1bb1c4.o966397",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/38fc1bb1c4d234b68a9cb10094dfbdbf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........F...............                                              [100%]\n=================================== FAILURES ===================================\n_____ test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable _____\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def unavailable_current_closure():\n        nonlocal capture_call_count\n        capture_call_count += 1\n>       raise contract_loader_binding.ContractLoaderBindingError(\n            \"fixture unavailable\"\n        )\nE       orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: fixture unavailable\n\norchestrator/tests/test_s1_report.py:567: ContractLoaderBindingError\n\nThe above exception was the direct cause of the following exception:\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152136185330>\n\n    def test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable(\n            monkeypatch):\n        lock_bytes = build_v2_campaign_lock(\n            driver.ident.canonical_preimage(\n                driver.config_for(_freeze(), \"develop\")\n            )\n        ).encode(\"utf-8\")\n        real_purpose_gate = artifact_admission._require_verifier_epoch_for_purpose\n        observed_purposes = []\n        capture_call_count = 0\n    \n        def unavailable_current_closure():\n            nonlocal capture_call_count\n            capture_call_count += 1\n            raise contract_loader_binding.ContractLoaderBindingError(\n                \"fixture unavailable\"\n            )\n    \n        def observed_purpose_gate(recorded, purpose):\n            observed_purposes.append(purpose)\n            return real_purpose_gate(recorded, purpose)\n    \n        monkeypatch.setattr(\n            report,\n            \"_campaign_verifier_epoch_from_lock_bytes\",\n            _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES,\n        )\n        monkeypatch.setattr(\n            contract_loader_binding,\n            \"capture_contract_loader_binding\",\n            unavailable_current_closure,\n        )\n        with pytest.raises(contract_loader_binding.ContractLoaderBindingError):\n            contract_loader_binding.capture_contract_loader_binding()\n        monkeypatch.setattr(\n            artifact_admission,\n            \"_require_verifier_epoch_for_purpose\",\n            observed_purpose_gate,\n        )\n    \n>       epoch = report._campaign_verifier_epoch_from_lock_bytes(lock_bytes)\n\norchestrator/tests/test_s1_report.py:593: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_report.py:310: in _campaign_verifier_epoch_from_lock_bytes\n    return artifact_admission._require_verifier_epoch_for_purpose(\norchestrator/tests/test_s1_report.py:573: in observed_purpose_gate\n    return real_purpose_gate(recorded, purpose)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrecorded = _RecordedCampaignVerifierEpoch(diagnostic=CampaignVerifierEpoch(campaign_verifier_epoch='E1:b12e6dd23a6ae64e454203bcba...2550', 'orchestrator/verifier/commit_receipt.py': '60250c19eb3a0c62ec55211f2e66180997fbc31f7b70d3dc035cb17de5b59ffd'}))\npurpose = <CampaignReadPurpose.CERTIFIED_ACCEPTANCE: 'CERTIFIED_ACCEPTANCE'>\n\n    def _require_verifier_epoch_for_purpose(\n            recorded: _RecordedCampaignVerifierEpoch,\n            purpose: CampaignReadPurpose,\n    ) -> CampaignVerifierEpoch:\n        \"\"\"中央の目的別 gate。history は current closure を一切参照しない。\"\"\"\n        _validate_read_purpose(purpose)\n        if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n            return recorded.diagnostic\n        if recorded.diagnostic.state == \"E0\":\n            raise CampaignVerifierEpochRejected(recorded.diagnostic)\n        try:\n            # D1163 keeps only the availability prerequisite here.  A clean\n            # committed current closure may differ from the recorded closure.\n            contract_loader_binding.capture_contract_loader_binding()\n        except contract_loader_binding.ContractLoaderBindingError as exc:\n>           raise CampaignVerifierEpochRejected(_stale_epoch(\n                recorded, reason_code=\"current-closure-unavailable\",\n            )) from exc\nE           orchestrator.campaign.artifact_admission.CampaignVerifierEpochRejected: campaign verifier epoch rejected certified acceptance: state=E1-stale reason=current-closure-unavailable epoch=E1:b12e6dd23a6ae64e454203bcba26444a8ca85a74a8626eeda126129d9104d9da; scope=enforcement source closure (exact 24 path; witness gate、S8C 判定器、receipt 発行・検証面を含む); excludes=verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない\n\norchestrator/campaign/artifact_admission.py:972: CampaignVerifierEpochRejected\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable\n1 failed, 26 passed in 7.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=4603 retained_bytes=3811 omitted_bytes=792 rendered_excerpt_bytes=4096 sha256=845222b113e97d74e453e5c23f0662ad921386099e1b82766cea277118cf44d1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> driver.config_for(_freeze(), \"develop\")\n>             )\n>         ).encode(\"utf-8\")\n>         real_purpose_gate = artifact_admission._require_verifier_epoch_for_purpose\n>         observed_purposes = []\n>         capture_call_count = 0\n>     \n>         def unavailable_current_closure():\n>             nonlocal capture_call_count\n>             capture_call_count += 1\n>             raise contract_loader_binding.ContractLoaderBindingError(\n>                 \"fixture unavailable\"\n>             )\n>     \n>         def observed_purpose_gate(recorded, purpose):\n>             observed_purposes.append(purpose)\n>             return real_purpose_gate(recorded, purpose)\n>     \n>         monkeypatch.setattr(\n>             report,\n>             \"_campaign_verifier_epoch_from_lock_bytes\",\n>             _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES,\n>         )\n>         monkeypatch.setattr(\n>             contract_loader_binding,\n>             \"capture_contract_loader_binding\",\n>             unavailable_current_closure,\n>         )\n>         with pytest.raises(contract_loader_binding.ContractLoaderBindingError):\n>             contract_loader_binding.capture_contract_loader_binding()\n>         monkeypatch.setattr(\n>             artifact_admission,\n>             \"_require_verifier_epoch_for_purpose\",\n>             observed_purpose_gate,\n>         )\n>     \n> >       epoch = report._campaign_verifier_epoch_from_lock_bytes(lock_bytes)\n> \n> orchestrator/tests/test_s1_report.py:593: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_report.py:310: in _campaign_verifier_epoch_from_lock_bytes\n>     return artifact_admission._require_verifier_epoch_for_purpose(\n> orchestrator/tests/test_s1_report.py:573: in observed_purpose_gate\n>     return real_purpose_gate(recorded, purpose)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> recorded = _RecordedCampaignVerifierEpoch(diagnostic=CampaignVerifierEpoch(campaign_verifier_epoch='E1:b12e6dd23a6ae64e454203bcba...2550', 'orchestrator/verifier/commit_receipt.py': '60250c19eb3a0c62ec55211f2e66180997fbc31f7b70d3dc035cb17de5b59ffd'}))\n> purpose = <CampaignReadPurpose.CERTIFIED_ACCEPTANCE: 'CERTIFIED_ACCEPTANCE'>\n> \n>     def _require_verifier_epoch_for_purpose(\n>             recorded: _RecordedCampaignVerifierEpoch,\n>             purpose: CampaignReadPurpose,\n>     ) -> CampaignVerifierEpoch:\n>         \"\"\"\\u4e2d\\u592e\\u306e\\u76ee\\u7684\\u5225 gate\\u3002history \\u306f current closure \\u3092\\u4e00\\u5207\\u53c2\\u7167\\u3057\\u306a\\u3044\\u3002\"\"\"\n>         _validate_read_purpose(purpose)\n>         if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n>             return recorded.diagnostic\n>         if recorded.diagnostic.state == \"E0\":\n>             raise CampaignVerifierEpochRejected(recorded.diagnostic)\n>         try:\n>             # D1163 keeps only the availability prerequisite here.  A clean\n>             # committed current closure may differ from the recorded closure.\n>             contract_loader_binding.capture_contract_loader_binding()\n>         except contract_loader_binding.ContractLoaderBindingError as exc:\n> >           raise CampaignVerifierEpochRejected(_stale_epoch(\n>                 recorded, reason_code=\"current-closure-unavailable\",\n>             )) from exc\n> E           orchestrator.campaign.artifact_admission.CampaignVerifierEpochRejected: campaign verifier epoch rejected certified acceptance: state=E1-stale reason=current-closure-unavailable epoch=E1:b12e6dd23a6ae64e454203bcba26444a8ca85a74a8626eeda126129d9104d9da; scope=enforcement source closure (exact 24 path; witness gate\\u3001S8C \\u5224\\u5b9a\\u5668\\u3001receipt \\u767a\\u884c\\u30fb\\u691c\\u8a3c\\u9762\\u3092\\u542b\\u3080); excludes=verifier package \\u306e\\u3046\\u3061 orchestrator/verifier/__main__.py \\u3068 orchestrator/verifier/cli.py\\u3001\\u304a\\u3088\\u3073 package \\u5916\\u306e orchestrator/verify.py \\u306e implementation bytes \\u306f\\u675f\\u7e1b\\u3057\\u306a\\u3044\n> \n> orchestrator/campaign/artifact_admission.py:972: CampaignVerifierEpochRejected\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4603 retained_bytes=3811 omitted_bytes=792 budget_bytes=49152 rendered_bytes=4834 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "883c512ab5bd5f3a276adc8e338e1ca88da25fb466309ef6187cd133c03380ef"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3da3828ac0c41c0ed9d27e70b25739050532f9da14db899a811b897d3a8e51b8",
+      "duration_s": 32.186,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable"
+      ],
+      "hang_risk": false,
+      "id": "M2-PURPOSE-BACK-TO-CERTIFIED",
+      "injection_diff_sha256": "5ed27733732e23b105cd85e348d3e4e6e2153214dd6f5168679054031282b472",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "56489cf68d387f2722f34a68e64859442d463f26587c9300cf21035766e55d47",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "new": "        recorded, CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n",
+          "old": "        recorded, CampaignReadPurpose.HISTORICAL_RAW,\n"
+        }
+      ],
+      "repo_head": "f238bc6217cb32847758c1e47054ee9cbe919559",
+      "runner_sha256": "b0a428b32374b7b8e7e669f01db7d365c208b29fa1ba66d0c155f472a33c985c",
+      "spec_sha256": "371f84f16f5bde86623b6d24e025f77cc95e8ac4e5bc1e78368fefc2beeccadc",
+      "status": "KILLED",
+      "test_output_sha256": "883c512ab5bd5f3a276adc8e338e1ca88da25fb466309ef6187cd133c03380ef",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c879f9f522ada1db1698061b88a1052fb98a69943371933ba60047523f0b96f4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/38423df02f5dc1dac4b2756a7c23063b/izdw-38423df02f.o966398",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/38423df02f5dc1dac4b2756a7c23063b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........F...............                                              [100%]\n=================================== FAILURES ===================================\n_____ test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable _____\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148ef559db10>\n\n    def test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable(\n            monkeypatch):\n        lock_bytes = build_v2_campaign_lock(\n            driver.ident.canonical_preimage(\n                driver.config_for(_freeze(), \"develop\")\n            )\n        ).encode(\"utf-8\")\n        real_purpose_gate = artifact_admission._require_verifier_epoch_for_purpose\n        observed_purposes = []\n        capture_call_count = 0\n    \n        def unavailable_current_closure():\n            nonlocal capture_call_count\n            capture_call_count += 1\n            raise contract_loader_binding.ContractLoaderBindingError(\n                \"fixture unavailable\"\n            )\n    \n        def observed_purpose_gate(recorded, purpose):\n            observed_purposes.append(purpose)\n            return real_purpose_gate(recorded, purpose)\n    \n        monkeypatch.setattr(\n            report,\n            \"_campaign_verifier_epoch_from_lock_bytes\",\n            _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES,\n        )\n        monkeypatch.setattr(\n            contract_loader_binding,\n            \"capture_contract_loader_binding\",\n            unavailable_current_closure,\n        )\n        with pytest.raises(contract_loader_binding.ContractLoaderBindingError):\n            contract_loader_binding.capture_contract_loader_binding()\n        monkeypatch.setattr(\n            artifact_admission,\n            \"_require_verifier_epoch_for_purpose\",\n            observed_purpose_gate,\n        )\n    \n        epoch = report._campaign_verifier_epoch_from_lock_bytes(lock_bytes)\n    \n>       assert observed_purposes == [report.CampaignReadPurpose.HISTORICAL_RAW]\nE       AssertionError: assert [] == [<CampaignRea...TORICAL_RAW'>]\nE         \nE         Right contains one more item: <CampaignReadPurpose.HISTORICAL_RAW: 'HISTORICAL_RAW'>\nE         Use -v to get more diff\n\norchestrator/tests/test_s1_report.py:595: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable\n1 failed, 26 passed in 7.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=2045 retained_bytes=2045 omitted_bytes=0 rendered_excerpt_bytes=2152 sha256=ab762cbe652318720852b147e08c0dd313f3b8e5895b067c6ec55f1cf441befa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148ef559db10>\n> \n>     def test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable(\n>             monkeypatch):\n>         lock_bytes = build_v2_campaign_lock(\n>             driver.ident.canonical_preimage(\n>                 driver.config_for(_freeze(), \"develop\")\n>             )\n>         ).encode(\"utf-8\")\n>         real_purpose_gate = artifact_admission._require_verifier_epoch_for_purpose\n>         observed_purposes = []\n>         capture_call_count = 0\n>     \n>         def unavailable_current_closure():\n>             nonlocal capture_call_count\n>             capture_call_count += 1\n>             raise contract_loader_binding.ContractLoaderBindingError(\n>                 \"fixture unavailable\"\n>             )\n>     \n>         def observed_purpose_gate(recorded, purpose):\n>             observed_purposes.append(purpose)\n>             return real_purpose_gate(recorded, purpose)\n>     \n>         monkeypatch.setattr(\n>             report,\n>             \"_campaign_verifier_epoch_from_lock_bytes\",\n>             _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES,\n>         )\n>         monkeypatch.setattr(\n>             contract_loader_binding,\n>             \"capture_contract_loader_binding\",\n>             unavailable_current_closure,\n>         )\n>         with pytest.raises(contract_loader_binding.ContractLoaderBindingError):\n>             contract_loader_binding.capture_contract_loader_binding()\n>         monkeypatch.setattr(\n>             artifact_admission,\n>             \"_require_verifier_epoch_for_purpose\",\n>             observed_purpose_gate,\n>         )\n>     \n>         epoch = report._campaign_verifier_epoch_from_lock_bytes(lock_bytes)\n>     \n> >       assert observed_purposes == [report.CampaignReadPurpose.HISTORICAL_RAW]\n> E       AssertionError: assert [] == [<CampaignRea...TORICAL_RAW'>]\n> E         \n> E         Right contains one more item: <CampaignReadPurpose.HISTORICAL_RAW: 'HISTORICAL_RAW'>\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s1_report.py:595: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2045 retained_bytes=2045 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2886 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a373f7649cd69a715d9b2ebd8568a871b220388e5799da483700659c72fcf043"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3da3828ac0c41c0ed9d27e70b25739050532f9da14db899a811b897d3a8e51b8",
+      "duration_s": 32.27,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable"
+      ],
+      "hang_risk": false,
+      "id": "M3-CENTRAL-GATE-CALL-REMOVED",
+      "injection_diff_sha256": "4ab999f00078a1c60b0abcef81cfa4525c84dd658933d583fd35c0d291ea3062",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "180ff135dbe23b61b9a27005a3385fa0def6e037f3b8f6be5838f0ffef5f2ea0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "new": "    return recorded.diagnostic\n",
+          "old": "    return artifact_admission._require_verifier_epoch_for_purpose(\n        recorded, CampaignReadPurpose.HISTORICAL_RAW,\n    )\n"
+        }
+      ],
+      "repo_head": "f238bc6217cb32847758c1e47054ee9cbe919559",
+      "runner_sha256": "b0a428b32374b7b8e7e669f01db7d365c208b29fa1ba66d0c155f472a33c985c",
+      "spec_sha256": "371f84f16f5bde86623b6d24e025f77cc95e8ac4e5bc1e78368fefc2beeccadc",
+      "status": "KILLED",
+      "test_output_sha256": "a373f7649cd69a715d9b2ebd8568a871b220388e5799da483700659c72fcf043",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c879f9f522ada1db1698061b88a1052fb98a69943371933ba60047523f0b96f4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/da1bae99fc0f53c0906b29e52effd682/izdw-da1bae99fc.o966400",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/da1bae99fc0f53c0906b29e52effd682/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F.                                              [100%]\n=================================== FAILURES ===================================\n____________ test_non_e1_campaign_is_structured_and_wal_is_not_read ____________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_non_e1_campaign_is_struct0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cc8a2a22c0>\n\n    def test_non_e1_campaign_is_structured_and_wal_is_not_read(\n            tmp_path, monkeypatch):\n        document, freeze_path, budget_path = _fixture(tmp_path)\n        rejected_layout = driver.layout_for(\n            document, \"block1\", output_root=str(tmp_path / \"output\"),\n        )\n        e0 = report.CampaignVerifierEpoch(\n            campaign_verifier_epoch=\"E0\",\n            state=\"E0\",\n            reason_code=\"v1-authority-absent\",\n        )\n        original_read = report.wal.read_records_collected\n        read_roots = []\n    \n        rejected_lock = Path(rejected_layout.lock_file).read_bytes()\n    \n        def epoch_gate(lock_bytes):\n            if lock_bytes == rejected_lock:\n                return _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES(lock_bytes)\n            return E1_EPOCH\n    \n        def observed_read(layout):\n            assert layout.root != rejected_layout.root\n            read_roots.append(layout.root)\n            return original_read(layout)\n    \n        monkeypatch.setattr(report, \"_campaign_verifier_epoch_from_lock_bytes\", epoch_gate)\n        monkeypatch.setattr(report.wal, \"read_records_collected\", observed_read)\n    \n        result = _generate(tmp_path, document, freeze_path, budget_path)\n    \n        gate = result[\"hard_gates\"][\"schedule\"][\"block1\"]\n        reason = gate[\"reasons\"][0]\n>       assert reason[\"code\"] == \"campaign_verifier_epoch_rejected\"\nE       AssertionError: assert 'campaign_ver...dation_failed' == 'campaign_ver...poch_rejected'\nE         \nE         - campaign_verifier_epoch_rejected\nE         + campaign_verifier_epoch_validation_failed\n\norchestrator/tests/test_s1_report.py:536: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read\n1 failed, 26 passed in 7.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1887 retained_bytes=1887 omitted_bytes=0 rendered_excerpt_bytes=1978 sha256=f4fe06f90414e44a67059d5d76f8285e9cc3dd2ab3f9b647410b1c72f5700c6d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_non_e1_campaign_is_struct0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cc8a2a22c0>\n> \n>     def test_non_e1_campaign_is_structured_and_wal_is_not_read(\n>             tmp_path, monkeypatch):\n>         document, freeze_path, budget_path = _fixture(tmp_path)\n>         rejected_layout = driver.layout_for(\n>             document, \"block1\", output_root=str(tmp_path / \"output\"),\n>         )\n>         e0 = report.CampaignVerifierEpoch(\n>             campaign_verifier_epoch=\"E0\",\n>             state=\"E0\",\n>             reason_code=\"v1-authority-absent\",\n>         )\n>         original_read = report.wal.read_records_collected\n>         read_roots = []\n>     \n>         rejected_lock = Path(rejected_layout.lock_file).read_bytes()\n>     \n>         def epoch_gate(lock_bytes):\n>             if lock_bytes == rejected_lock:\n>                 return _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES(lock_bytes)\n>             return E1_EPOCH\n>     \n>         def observed_read(layout):\n>             assert layout.root != rejected_layout.root\n>             read_roots.append(layout.root)\n>             return original_read(layout)\n>     \n>         monkeypatch.setattr(report, \"_campaign_verifier_epoch_from_lock_bytes\", epoch_gate)\n>         monkeypatch.setattr(report.wal, \"read_records_collected\", observed_read)\n>     \n>         result = _generate(tmp_path, document, freeze_path, budget_path)\n>     \n>         gate = result[\"hard_gates\"][\"schedule\"][\"block1\"]\n>         reason = gate[\"reasons\"][0]\n> >       assert reason[\"code\"] == \"campaign_verifier_epoch_rejected\"\n> E       AssertionError: assert 'campaign_ver...dation_failed' == 'campaign_ver...poch_rejected'\n> E         \n> E         - campaign_verifier_epoch_rejected\n> E         + campaign_verifier_epoch_validation_failed\n> \n> orchestrator/tests/test_s1_report.py:536: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1887 retained_bytes=1887 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2697 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "dad971d32289313db9614bb0f3ee43cf0443c7348ecde14997ac79714e0bd08e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "3da3828ac0c41c0ed9d27e70b25739050532f9da14db899a811b897d3a8e51b8",
+      "duration_s": 246.976,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read"
+      ],
+      "hang_risk": false,
+      "id": "M4-E0-WRONG-EXCEPTION-TYPE",
+      "injection_diff_sha256": "8ee5d43151fe4fd053aa7254b57d5b419f5d067599223162f987b7fcf56c2a1c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5df6520bb6dcc8603f8a67a6b61e1c00db5e2343500c2667732f11cac6757876",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "new": "        raise ArtifactAdmissionError(\"E0 rejected\")\n",
+          "old": "        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n"
+        }
+      ],
+      "repo_head": "f238bc6217cb32847758c1e47054ee9cbe919559",
+      "runner_sha256": "b0a428b32374b7b8e7e669f01db7d365c208b29fa1ba66d0c155f472a33c985c",
+      "spec_sha256": "371f84f16f5bde86623b6d24e025f77cc95e8ac4e5bc1e78368fefc2beeccadc",
+      "status": "KILLED",
+      "test_output_sha256": "dad971d32289313db9614bb0f3ee43cf0443c7348ecde14997ac79714e0bd08e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c879f9f522ada1db1698061b88a1052fb98a69943371933ba60047523f0b96f4"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/3620d9dfeee6c2ee471e72ec3e532661/izdw-3620d9dfee.o966391",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/output/pegasus-dispatch/3620d9dfeee6c2ee471e72ec3e532661/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s1_report.py::test_floor_cmp_is_preregistered_pure_function\norchestrator/tests/test_s1_report.py::test_session_event_uses_shared_model_authority\norchestrator/tests/test_s1_report.py::test_report_uses_driver_status_authorities_and_accepts_oracle_terminal\norchestrator/tests/test_s1_report.py::test_oracle_reject_terminal_never_becomes_success_sample\norchestrator/tests/test_s1_report.py::test_persisted_certification_invalidates_sample[s1]\norchestrator/tests/test_s1_report.py::test_lock_replacement_during_wal_read_invalidates_persisted_samples\norchestrator/tests/test_s1_report.py::test_report_rejects_unknown_session_status_explicitly[future-status]\norchestrator/tests/test_s1_report.py::test_report_rejects_unknown_session_status_explicitly[unknown_status1]\norchestrator/tests/test_s1_report.py::test_report_schedule_reason_does_not_repeat_unknown_status\norchestrator/tests/test_s1_report.py::test_left_system_greater_is_bound_to_target_left\norchestrator/tests/test_s1_report.py::test_missing_develop_s2_certification_is_structured_indeterminate\norchestrator/tests/test_s1_report.py::test_bench_value_without_commit_is_rejected_as_sample\norchestrator/tests/test_s1_report.py::test_schedule_order_mutation_invalidates_campaign_comparisons\norchestrator/tests/test_s1_report.py::test_unframed_wal_tail_fails_but_keeps_completed_prefix_evidence\norchestrator/tests/test_s1_report.py::test_line_issue_and_unframed_tail_are_both_reported_with_prefix_kept\norchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read\norchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable\norchestrator/tests/test_s1_report.py::test_floor_cell_with_seven_sessions_makes_comparison_indeterminate\norchestrator/tests/test_s1_report.py::test_complete_separation_passes_gates_with_one_over_4900\norchestrator/tests/test_s1_report.py::test_gate1_failure_sets_p_star_one_and_not_established\norchestrator/tests/test_s1_report.py::test_over_budget_refusal_is_symmetric_for_unfinished_comparisons\norchestrator/tests/test_s1_report.py::test_complete_samples_over_budget_invalidates_all_comparisons\norchestrator/tests/test_s1_report.py::test_budget_public_validation_failure_invalidates_all_comparisons\norchestrator/tests/test_s1_report.py::test_preflight_refusal_always_has_global_schedule_failure\norchestrator/tests/test_s1_report.py::test_missing_freeze_still_generates_structured_report\norchestrator/tests/test_s1_report.py::test_receipt_exists_but_report_freeze_gate_stays_legacy_strict\norchestrator/tests/test_s1_report.py::test_report_production_module_does_not_import_t080_adapter\n\n27 tests collected in 0.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "1567445fad3da16cedf5a16a6900b9c0c02db18bee1b6fdb4a8b664af37b0f8f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s1_report.py::test_floor_cmp_is_preregistered_pure_function",
+        "orchestrator/tests/test_s1_report.py::test_session_event_uses_shared_model_authority",
+        "orchestrator/tests/test_s1_report.py::test_report_uses_driver_status_authorities_and_accepts_oracle_terminal",
+        "orchestrator/tests/test_s1_report.py::test_oracle_reject_terminal_never_becomes_success_sample",
+        "orchestrator/tests/test_s1_report.py::test_persisted_certification_invalidates_sample[s1]",
+        "orchestrator/tests/test_s1_report.py::test_lock_replacement_during_wal_read_invalidates_persisted_samples",
+        "orchestrator/tests/test_s1_report.py::test_report_rejects_unknown_session_status_explicitly[future-status]",
+        "orchestrator/tests/test_s1_report.py::test_report_rejects_unknown_session_status_explicitly[unknown_status1]",
+        "orchestrator/tests/test_s1_report.py::test_report_schedule_reason_does_not_repeat_unknown_status",
+        "orchestrator/tests/test_s1_report.py::test_left_system_greater_is_bound_to_target_left",
+        "orchestrator/tests/test_s1_report.py::test_missing_develop_s2_certification_is_structured_indeterminate",
+        "orchestrator/tests/test_s1_report.py::test_bench_value_without_commit_is_rejected_as_sample",
+        "orchestrator/tests/test_s1_report.py::test_schedule_order_mutation_invalidates_campaign_comparisons",
+        "orchestrator/tests/test_s1_report.py::test_unframed_wal_tail_fails_but_keeps_completed_prefix_evidence",
+        "orchestrator/tests/test_s1_report.py::test_line_issue_and_unframed_tail_are_both_reported_with_prefix_kept",
+        "orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read",
+        "orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable",
+        "orchestrator/tests/test_s1_report.py::test_floor_cell_with_seven_sessions_makes_comparison_indeterminate",
+        "orchestrator/tests/test_s1_report.py::test_complete_separation_passes_gates_with_one_over_4900",
+        "orchestrator/tests/test_s1_report.py::test_gate1_failure_sets_p_star_one_and_not_established",
+        "orchestrator/tests/test_s1_report.py::test_over_budget_refusal_is_symmetric_for_unfinished_comparisons",
+        "orchestrator/tests/test_s1_report.py::test_complete_samples_over_budget_invalidates_all_comparisons",
+        "orchestrator/tests/test_s1_report.py::test_budget_public_validation_failure_invalidates_all_comparisons",
+        "orchestrator/tests/test_s1_report.py::test_preflight_refusal_always_has_global_schedule_failure",
+        "orchestrator/tests/test_s1_report.py::test_missing_freeze_still_generates_structured_report",
+        "orchestrator/tests/test_s1_report.py::test_receipt_exists_but_report_freeze_gate_stays_legacy_strict",
+        "orchestrator/tests/test_s1_report.py::test_report_production_module_does_not_import_t080_adapter"
+      ],
+      "duration_s": 21.927,
+      "rc": 0,
+      "repo_head": "f238bc6217cb32847758c1e47054ee9cbe919559",
+      "runner_sha256": "b0a428b32374b7b8e7e669f01db7d365c208b29fa1ba66d0c155f472a33c985c",
+      "spec_sha256": "371f84f16f5bde86623b6d24e025f77cc95e8ac4e5bc1e78368fefc2beeccadc",
+      "status": "PASSED",
+      "tool_sha256": "c879f9f522ada1db1698061b88a1052fb98a69943371933ba60047523f0b96f4"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-LOCAL-E0-RAISE-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1386ff10d85b1d11beec9903899441409203a86086a595aea71c9124af6344f0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_report.py",
+            "new": "",
+            "old": "    if recorded.diagnostic.state == \"E0\":\n        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n"
+          }
+        ]
+      },
+      "M2-PURPOSE-BACK-TO-CERTIFIED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5ed27733732e23b105cd85e348d3e4e6e2153214dd6f5168679054031282b472",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_report.py",
+            "new": "        recorded, CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n",
+            "old": "        recorded, CampaignReadPurpose.HISTORICAL_RAW,\n"
+          }
+        ]
+      },
+      "M3-CENTRAL-GATE-CALL-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_report.py::test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4ab999f00078a1c60b0abcef81cfa4525c84dd658933d583fd35c0d291ea3062",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_report.py",
+            "new": "    return recorded.diagnostic\n",
+            "old": "    return artifact_admission._require_verifier_epoch_for_purpose(\n        recorded, CampaignReadPurpose.HISTORICAL_RAW,\n    )\n"
+          }
+        ]
+      },
+      "M4-E0-WRONG-EXCEPTION-TYPE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_report.py::test_non_e1_campaign_is_structured_and_wal_is_not_read"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8ee5d43151fe4fd053aa7254b57d5b419f5d067599223162f987b7fcf56c2a1c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s1_report.py",
+            "new": "        raise ArtifactAdmissionError(\"E0 rejected\")\n",
+            "old": "        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "dc6114e2a42f1f2fcbd20525cfc1e590077acb9a21149b784ce90a60f23582f3",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s1_report.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "f238bc6217cb32847758c1e47054ee9cbe919559",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s1_report.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "8b11cdb49ed0687fa5406faf50a592e871c4715a",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b0a428b32374b7b8e7e669f01db7d365c208b29fa1ba66d0c155f472a33c985c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "371f84f16f5bde86623b6d24e025f77cc95e8ac4e5bc1e78368fefc2beeccadc",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "3a31bd7d5f10a0bf0d15f6f1b4b3cf846d03bc1dafd9882b7d17cdce9604a471",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2124-s1-epoch-historical/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "3a31bd7d5f10a0bf0d15f6f1b4b3cf846d03bc1dafd9882b7d17cdce9604a471"
+  },
+  "tool_sha256": "c879f9f522ada1db1698061b88a1052fb98a69943371933ba60047523f0b96f4",
+  "updated_at": "2026-09-01T20:01:34.313206+00:00"
+}
