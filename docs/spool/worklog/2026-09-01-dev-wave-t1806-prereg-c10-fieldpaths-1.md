@@ -47,6 +47,47 @@ tracked `campaign.lock` 32 件のうち閉包 hash を持つもの 0 件を実�
 literal を残したまま照合だけを恒真化した source を対で作り、両者が同じ終端になることを
 通常の緑のテストとして記録した。
 
+### C10 の SATISFIED は値束縛を意味しない (合成後の状態。先に書く)
+
+**合成後、C10 は `SATISFIED` を返す。この `SATISFIED` は値束縛を意味しない。**
+`proposal_build_source_bindings` の値照合を恒真化した source も `SATISFIED` に到達することを
+実測した。**限定しているのは `reason_code` (`cross-binding-readiness-satisfied`、readiness で
+あって正しさの充足ではない) の側だけで、`status` は `SATISFIED` としか言わない。**
+**status だけを見る読み手には限界が見えない。** 以下はその実測と射程である。
+
+### 合成の結果、限界表明の含意が反転した (実測)
+
+同じ条件 10 を別方向から変えた先行 wave と合成した。先行側は C10 を充足可能集合へ開き、
+判定器の文字列照合を live code 限定へ絞っている。**この合成で C10 の終端が移った。**
+
+| | 合成前 | 合成後 |
+|---|---|---|
+| 終端 | `EVIDENCE_UNDEFINED / completion-proof-not-machine-checkable` | `SATISFIED / cross-binding-readiness-satisfied` |
+| 対照が記録する事実 | gate は判定していないので当然すり抜ける | **gate が満たしていると言うのにすり抜ける** |
+
+**含意が反転している。** 以前の終端は「判定していない」という表明だったが、
+新しい終端は「満たしている」という積極的な主張である。**同じ非対称を記録していても重さが違う。**
+
+実測で確定させた。値照合が効いている source と、`proposal_build_source_bindings` の値照合だけを
+恒真化した source が、**どちらも `SATISFIED / cross-binding-readiness-satisfied` へ到達する。**
+焦点走は `-k c10` で 22 passed。
+
+**限界の射程は 3 段に分かれる。**
+
+- **閉じた:** `if False:` のような literal に常偽と判定できる枝。先行側の live code 検査が落とす。
+- **閉じていない:** 定数でない述語による意味的に常偽の guard。live 判定は literal truthiness しか見ない。
+- **閉じていない:** **field の値束縛そのもの。** これが本 wave の中核の限界であり不変である。
+
+**この生存を欠陥として隠さない。** テスト名を射程へ合わせて改名し
+(`test_c10_gate_survives_semantically_false_guard_and_unbound_proposal_value`)、
+docstring に「live literal 検査は literal な常偽枝を落とすが、値照合の恒真化は拒否できない」と
+明記した。`xfail` でも `skip` でもなく**通常の緑のテストとして生存を assert している。**
+
+**裁定は要らないと判断した。** 先行側が規範本文へ「確立しない事項」6 項を明記済みで、
+値束縛が確立しないことは設計として宣言されている。reason code も
+`cross-binding-readiness-satisfied` で、readiness であって正しさの充足ではないと語彙が限定して
+いる。**ただしこの読みは本 wave のものである。** 設計意図と違えば裁定へ返す。
+
 ### 変異が pin の射程を機械で露出させた
 
 **同一の変異が、見る層によって結果が変わることを実測で示した。**
@@ -134,6 +175,32 @@ F30 / F39 / F78 由来の義務)、**独立 3 例には達していない** (本
 `output/insights/2026-09-01_t1806-prereg-c10-fieldpaths/parallel-wave-static-check-axes.md`
 へ残した。新規の失敗型としては立てない — 6 軸のうち複数は既存の型の再発であり、
 新規で立てると台帳が重複する。
+
+### 番号衝突の寄せ直しが、凍結鎖を壊しかけた (land 直前に発見)
+
+先行 wave と同じ世代番号を取ったため、裁定に従って取り込み側へ譲った。**譲り方を merge による
+置き換えで実行したところ、履歴上に世代記録の blob が 2 種類残り、凍結検証が
+`generation-mutated` で落ちた。** 世代 path ごとに blob は 1 種類、という不変条件の検査である。
+
+**そのまま land すると取り込み先でも同じ検証が落ちる。** ff-only land は wave の commit を
+そのまま取り込み先の履歴にするためである。実測で両側を比べて確定させた。
+
+```
+check --commit <本 wave の merge 後>  -> freeze=generation-mutated
+check --commit <当時の取り込み先>      -> freeze=valid
+```
+
+**裁定は正しかったが、実行方法に穴があった。** 「先行を先にし、後続が寄せ直す」まで決めて、
+**寄せ直しをどう実行するかを誰も詰めていなかった。** merge による置き換えは痕跡を残す。
+
+現行の取り込み先の上へ載せ直して解決した。**実装面の bytes は作り直し前と完全一致で、
+差分 0 行を実測した。**「同じはず」ではなく測っている。作り直し前の履歴は tag で保全した。
+検査を消して緑を買ったのではなく、検査が正しく落ちている状態を、正しく通る状態へ直した。
+
+**併せて、凍結発行 CLI の順序制約を踏んだ。** 契約変更を先に commit してから発行すると
+`record-protected-mismatch` で落ちる。**この CLI は「契約を変えた作業ツリーを読み、
+未変更の HEAD で世代鎖を検証する」順序を要求する。** 本 wave は段 4 で
+「実装子が編集 → 発行 → commit」と決めていたのに、作り直しの最中に自分でその順序を破った。
 
 ### 子の工数
 

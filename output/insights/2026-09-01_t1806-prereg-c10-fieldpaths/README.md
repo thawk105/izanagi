@@ -7,6 +7,20 @@ base local main: cb4a11b6e
 
 ---
 
+## 0. 先に読むこと — C10 の SATISFIED は値束縛を意味しない
+
+同じ条件 10 を別方向から変えた先行 wave との合成後、**C10 は `SATISFIED` を返す。**
+**この `SATISFIED` は値束縛を意味しない。**
+
+`proposal_build_source_bindings` の値照合を恒真化した source も、値照合が効いている source と
+**同じ `SATISFIED / cross-binding-readiness-satisfied` に到達する**ことを実測した (§3)。
+
+**限定しているのは `reason_code` の側だけである。** `cross-binding-readiness-satisfied` は
+readiness (準備が整っている) であって正しさの充足ではない。**しかし `status` は `SATISFIED` と
+しか言わない。status だけを見る読み手には、この限界は見えない。**
+
+値束縛は producer 側の functional test の責務である。本 gate は証明しない。
+
 ## 1. 親が実測した原典事実
 
 ### 1.1 契約と実装の差は 1 件だけだった
@@ -39,21 +53,30 @@ D967 は既存 campaign が `E1-stale` になることを想定するが、**そ
 親は段 1 brief でこれを見落とし、段 3 の敵対レンズが独立に反証した。実装前に是正したため実害なし。
 D967 の 3 行動はすべて実行し、記録だけを事実へ合わせた。
 
-### 1.4 凍結 g12 は規範文書を変えずに閉じた
+### 1.4 凍結は規範文書を変えずに閉じた (最終形は g13 / v8)
 
-`prepare_revision` CLI で発行した。g11 との差は 7 field だけで、
-`section6_condition_hashes` は 12 件とも不変だった。
+**番号は 2 度動いている。** 本 wave は当初 g12 / v7 を取ったが、同じ条件 10 を扱う先行 wave が
+同じ番号を先に取ったため、裁定に従って譲り、最終形は **g13 / v8** である。経緯は worklog に書いた。
+
+`prepare_revision` CLI で発行した。g12 との差は 7 field だけで、
+**`section6_condition_hashes` は 12 件とも不変**だった。**本 wave が規範文書を触っていないことの
+実測である** (先行側による規範文書の変更は g12 に織り込み済み)。
 
 | 変わった | 変わらなかった |
 |---|---|
-| `decider_version` (v6 → v7) | `normative_body_sha256` |
+| `decider_version` (v7 → v8) | `normative_body_sha256` |
 | `evidence_contract_sha256` | `section5_field_names_sha256` |
-| `generation_number` (11 → 12) | `section6_conditions_sha256` |
+| `generation_number` (12 → 13) | `section6_conditions_sha256` |
 | `protected_sha256` | `section6_condition_hashes` (12 件すべて) |
 | `supersedes_sha256` | `schema_version` / `normalization_version` / `source_path` |
 | `revision_reason` / `ruling_reference` | |
 
 `spurious-revision` guard を通過したこと自体が、契約が実際に変わったことの機械的証拠である。
+
+**発行 CLI には順序制約がある。** 契約を変えた作業ツリーを読み、**未変更の HEAD** で世代鎖を
+検証するため、**契約変更を commit してから発行すると `record-protected-mismatch` で落ちる。**
+本 wave は段 4 で「編集 → 発行 → commit」と決めていたが、履歴の作り直しの最中に自分でその順序を
+破って踏んだ。
 
 ---
 
@@ -61,20 +84,28 @@ D967 の 3 行動はすべて実行し、記録だけを事実へ合わせた。
 
 | 辺 | 種別 | 内容 |
 |---|---|---|
+合成後の状態で書く。先行 wave が文字列照合を live code 限定へ絞ったため、射程が一段動いた。
+
+| 辺 | 種別 | 内容 |
+|---|---|---|
 | 契約 field path ↔ 判定器の期待集合 | 完全一致 | 単一対応表から両側を導出し `frozenset(...) == 期待集合` で照合する |
-| 判定器の期待集合 → verifier の文字列 | 部分集合 | `_C10_FIELDS <= _strings(verify)`。**関数 AST に literal が在るかだけ**を見る |
-| field の値束縛 | **証明しない** | 到達しない枝に literal を残して照合だけ恒真化する弱体化は本 gate を通る |
+| 判定器の期待集合 → verifier の文字列 | 部分集合 | `_C10_FIELDS <= live_strings`。**live code の AST に literal が在るかだけ**を見る |
+| field の値束縛 | **証明しない** | literal を live code に残して照合だけ恒真化する弱体化は本 gate を通る |
 
 **閉じていないこと:**
 
 1. **値束縛。** C10 は値の生成・再読・照合を証明しない。producer 側の functional test の責務である。
-   §3 の変異でこの境界を機械化した。
-2. **g12 と v7 の実 repository 検証。** これを行う 5 node
+   §3 の変異でこの境界を機械化した。**合成後は終端が `SATISFIED` なので、
+   この限界は「判定していない」ではなく「満たしていると言うのに証明していない」になる** (§0)。
+2. **意味的に常偽の guard。** `if False:` のような literal に常偽と判定できる枝は先行側の
+   live code 検査が落とすが、`def _never(): return False` のような定数でない述語による
+   guard は依然として通る。live 判定は literal truthiness しか見ない。
+3. **g13 と v8 の実 repository 検証。** これを行う 5 node
    (`test_s8c_preregistration_invariant.py` の candidate-fixture 群) は 2026-08-29 の T-1434
    ユーザー裁定で growth hold にかかっており、解除条件は明示のユーザー指示のみ。
    **既存の hold であって本 wave が作った状態ではなく、迂回もしていない。**
-   g12/v7 の正しさは §1.4 の実測と、親および段 3 レンズ B の独立再計算に支えられている。
-3. **`_cross_binding_source_bindings` の path 正準性検査に負の対照が無い。** §3 の erratum を参照。
+   g13/v8 の正しさは §1.4 の実測と、発行 CLI 自身の guard、および独立再計算に支えられている。
+4. **`_cross_binding_source_bindings` の path 正準性検査に負の対照が無い。** §3 の erratum を参照。
 
 ---
 
