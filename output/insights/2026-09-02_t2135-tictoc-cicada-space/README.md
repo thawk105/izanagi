@@ -193,3 +193,37 @@ land 前に Codex `role=author` による合成監査を別に行う。
 
 `--owned-path` を外すのは、tool 自身が「未指定のため所有実装面 overlap 判定を省略します」と
 明示して受理する運用であり、検査の迂回ではない。省略した判定の中身は上に逐語で記録した。
+
+## 13. 受入 3 回目の赤 1 件は本 wave の差分に帰属しない — F273 の手順で実測した
+
+受入 3 回目は merge を作ったうえで全走し、**19518 passed / 92 skipped / 1 failed** で返した。
+tested tip は merge commit `728853f9b`、claimed main は `dbd263c15`。
+
+赤は 1 件のみ:
+`orchestrator/tests/test_codex_worker_launch.py::test_failure_class_enum_and_receipt_recomputation_are_closed`。
+
+**本 wave の差分から到達できない。** 本 wave が触れたのは `orchestrator/campaign/genome.py` と
+`orchestrator/tests/test_campaign.py` の 2 file であり、当該 test は
+`tools/codex_worker_launch.py` を実 subprocess として起動し wall-clock 上限つきで挙動を測る
+(`max_wall="10"`、`evidence_grace="3"`、`subprocess.run(..., timeout=10)`)。
+
+`docs/failures.md` の **F273** が同型を既に記録している
+(「`test_codex_worker_launch.py` が並行 codex launcher の負荷で受入全走のときだけ落ちる」、
+2026-08-23 に再発追記あり)。同 F の再発検知手順に従って親が実測した。
+
+| 手順 | 実測値 |
+|---|---|
+| 単独再走 (当該 node のみ、`--force-dispatch`) | **1 passed / 5.85 秒 / rc=0** |
+| 単独走 (file 全体、`--force-dispatch`) | **211 passed / 8.55 秒 / rc=0** |
+| `pgrep -c -f "codex_worker_launch.py run"` (事後) | 1 |
+| login node の load average (事後、02:26) | 21.16 / 14.37 / 14.18 |
+
+**判定: 実装差分へ帰属させない。** F273 の恒久対応が定める基準
+(「差分が到達しえない file で出た赤は、単独再走で再現性を実測してから扱う。
+再現しなければ実装差分へ帰属せず、フレークとして扱う」) を満たす。
+
+`orchestrator/tests/flaky_test_holds.py` への登録は**行わない**。`DW-O18` が登録を求めるのは
+再赤または決定的赤の場合であり、今回は 1 回の赤が単独走で再現しなかった。
+再走で同じ node が再び赤になった場合に限り、F273 を証拠として Codex `role=author` が登録する。
+
+`DW-O18` に従い、同一 tip で単独再走 1 回・受入再走 1 回だけを行う。
