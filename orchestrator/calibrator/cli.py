@@ -39,6 +39,8 @@ from .schema_v2 import (SCHEMA_VERSION, normalize_request_id,
 from .sweep import MAX_RECORDS_DEFAULT, calibrate
 from .tsc import TscMeasurement, measure_tsc
 from orchestrator.campaign import env_attestation as _env_attestation
+from orchestrator.campaign.genome import SPACES, space_for
+from orchestrator.campaign.model import Genome
 from orchestrator.campaign.execution_guard import (
     effective_clock_comparison_diagnostics,
     effective_clock_comparison_passes,
@@ -368,6 +370,100 @@ def _binary_sha256(binary: str, subprocess_runner: Callable[..., object]) -> str
     return token
 
 
+def _canonical_genome_from_receipt(receipt: dict, binary: str) -> str:
+    """Derive the build's canonical genome from a certified receipt argv."""
+    try:
+        build_argv = receipt["ccbench"]["build_argv"]
+    except (KeyError, TypeError) as exc:
+        raise CertificationError("receipt-genome-invalid", str(exc)) from exc
+    if type(build_argv) is not list or not all(type(item) is str for item in build_argv):
+        raise CertificationError(
+            "receipt-genome-invalid", "ccbench.build_argv must be a string list",
+        )
+    separators = [index for index, token in enumerate(build_argv) if token == "&&"]
+    if len(separators) != 1:
+        raise CertificationError(
+            "receipt-genome-invalid", "build_argv must contain exactly one &&",
+        )
+    separator = separators[0]
+    configure_argv = build_argv[:separator]
+    build_command = build_argv[separator + 1:]
+    if not configure_argv or not build_command:
+        raise CertificationError(
+            "receipt-genome-invalid", "configure and build argv must both be non-empty",
+        )
+
+    target_indices = [
+        index for index, token in enumerate(build_command) if token == "--target"
+    ]
+    if len(target_indices) != 1:
+        raise CertificationError(
+            "receipt-genome-invalid", "build argv must contain exactly one --target",
+        )
+    target_index = target_indices[0]
+    if target_index + 1 >= len(build_command):
+        raise CertificationError(
+            "receipt-genome-invalid", "--target has no value",
+        )
+    target = build_command[target_index + 1]
+    target_match = re.fullmatch(r"ycsb_([a-z0-9][a-z0-9_-]*)\.exe", target)
+    if target_match is None:
+        raise CertificationError(
+            "receipt-genome-invalid", "build target is not ycsb_<protocol>.exe",
+        )
+    protocol = target_match.group(1)
+    if os.path.basename(binary) != target:
+        raise CertificationError(
+            "receipt-genome-invalid",
+            f"binary basename {os.path.basename(binary)!r} does not match target {target!r}",
+        )
+    if protocol not in SPACES:
+        raise CertificationError(
+            "receipt-genome-invalid", f"protocol is not registered: {protocol!r}",
+        )
+
+    if any(token.startswith("-DCCBENCH_") for token in build_command):
+        raise CertificationError(
+            "receipt-genome-invalid", "CCBENCH define appears in build argv",
+        )
+    define_re = re.compile(r"-DCCBENCH_([A-Z][A-Z0-9_]*)=([+-]?[0-9]+)")
+    flags: Dict[str, int] = {}
+    for token in configure_argv:
+        if not token.startswith("-DCCBENCH_"):
+            continue
+        match = define_re.fullmatch(token)
+        if match is None:
+            raise CertificationError(
+                "receipt-genome-invalid", f"malformed CCBENCH define: {token!r}",
+            )
+        flag, encoded = match.groups()
+        if flag in flags:
+            raise CertificationError(
+                "receipt-genome-invalid", f"duplicate CCBENCH define: {flag}",
+            )
+        flags[flag] = int(encoded)
+
+    if flags.get("TRACE") != 0:
+        raise CertificationError(
+            "receipt-genome-invalid", "CCBENCH_TRACE must appear exactly once with value 0",
+        )
+    flags.pop("TRACE")
+    if not flags:
+        raise CertificationError(
+            "receipt-genome-invalid", "at least one non-TRACE CCBENCH define is required",
+        )
+    missing_axes = sorted(set(space_for(protocol).axes) - set(flags))
+    if missing_axes:
+        raise CertificationError(
+            "receipt-genome-invalid",
+            "configure argv is missing protocol axes: " + ",".join(missing_axes),
+        )
+    try:
+        return Genome(protocol=protocol, flags=flags).canonical()
+    except (TypeError, ValueError) as exc:
+        raise CertificationError("receipt-genome-invalid", str(exc)) from exc
+
+
 def _profile_dict(value: object) -> dict:
     try:
         return _env_attestation.observed_profile_to_dict(value)  # type: ignore[arg-type]
@@ -642,7 +738,7 @@ def _acquisition_reasons(receipt: dict, *, budget: dict,
 
 
 def _assemble_v2(result: CalibrationResult, *, profile: dict, receipt: dict,
-                 status: str, reasons: List[str]) -> tuple[dict, bytes]:
+                 genome: str, status: str, reasons: List[str]) -> tuple[dict, bytes]:
     doc = result_to_dict(result)
     doc["schema_version"] = SCHEMA_VERSION
     if doc["noise_floor"] is None:
@@ -656,6 +752,7 @@ def _assemble_v2(result: CalibrationResult, *, profile: dict, receipt: dict,
     doc["scale_sensitivity"] = "not-measured"
     doc["attestation_profile"] = profile
     doc["acquisition_receipt"] = copy.deepcopy(receipt)
+    doc["genome"] = genome
     doc["quality"] = {"status": status, "reasons": reasons}
     validate_calibration_v2(doc)
     raw = (json.dumps(doc, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
@@ -732,6 +829,7 @@ def _certify_main(
     profile: Optional[dict] = None
     measured_tsc: Optional[TscMeasurement] = None
     result: Optional[CalibrationResult] = None
+    genome: Optional[str] = None
     attempt_tolerance_pct: object = None
     measurements = []
     window_receipts: List[dict] = []
@@ -748,6 +846,7 @@ def _certify_main(
         if actual_hash != expected_hash:
             raise CertificationError(
                 "binary-hash-mismatch", f"expected={expected_hash} actual={actual_hash}")
+        genome = _canonical_genome_from_receipt(receipt, binary)
 
         # C3-3(ii): fatal cooldown; no best-effort settle in this path.
         cooldown_gate(load1_fn=load1_fn, monotonic_fn=monotonic_fn, sleep_fn=sleep_fn)
@@ -776,7 +875,7 @@ def _certify_main(
                 env_tag=args.env_tag, threads=args.threads,
                 clocks_per_us=measured_tsc.clocks_per_us_int,
             ),
-            profile=profile, receipt=receipt, status="rejected",
+            profile=profile, receipt=receipt, genome=genome, status="rejected",
             reasons=["receipt-schema-preflight"],
         )
         acquisition_reasons = _acquisition_reasons(
@@ -905,7 +1004,8 @@ def _certify_main(
             reasons.append("effective-clock-self-comparison-failed")
         status = "accepted" if not reasons else "rejected"
         _, artifact = _assemble_v2(
-            result, profile=profile, receipt=receipt, status=status, reasons=reasons)
+            result, profile=profile, receipt=receipt, genome=genome,
+            status=status, reasons=reasons)
         staging_artifact = os.path.join(
             staging, "calibration.json" if status == "rejected" else "candidate.json")
         _write_exclusive(staging_artifact, artifact)
@@ -1010,9 +1110,9 @@ def _certify_main(
                     diagnostics=rejection_diagnostics,
                     not_evaluated=rejection_not_evaluated,
                 )
-            elif result is not None and profile is not None:
+            elif result is not None and profile is not None and genome is not None:
                 _, artifact = _assemble_v2(
-                    result, profile=profile, receipt=receipt,
+                    result, profile=profile, receipt=receipt, genome=genome,
                     status="rejected", reasons=reasons)
                 _write_exclusive(calibration_path, artifact)
             else:
