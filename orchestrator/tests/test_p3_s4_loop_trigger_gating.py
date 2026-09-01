@@ -80,7 +80,8 @@ def test_trigger_condition_gate_precedes_run_campaign():
     )
     helper = inspect.getsource(_REAL_CONDITION_GATE)
     assert 'macro="BACKOFF_TRIGGER_GATING"' in helper
-    assert 'use_class="raw"' in helper
+    assert 'use_class="certified-selection"' in helper
+    assert '"condition_gate": condition_gate' in source
 from campaign_lock_test_support import build_v2_lock                # noqa: E402
 from test_p3_b4_closed_critic import (                              # noqa: E402
     _production_launch_context as _verified_b4_context,

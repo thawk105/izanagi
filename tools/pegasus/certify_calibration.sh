@@ -372,6 +372,7 @@ run_condition_gate() {
     --source-root "$BUILD_SOURCE" --stock-root "$CCBENCH_BASE"
     --driver-id tools.pegasus.certify_calibration
     --macro BACKOFF_FIXED --requested-value=-1 --stock-comparison
+    --meaning-case=-1:branch:stock-adaptive-backoff
     --cxx "$(realpath "$CXX_PATH")" --cmake "$CMAKE_PATH"
     --use-class certified-selection)
   local argument

@@ -2,10 +2,13 @@
 """T316 probe の observer → judge → receipt 結線を固定する独立 oracle。"""
 from __future__ import annotations
 
+import dataclasses
 import errno
+import functools
 import importlib.util
 import inspect
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -27,6 +30,10 @@ def test_condition_gate_dominates_ccbench_configure():
     assert source.index("_require_condition_gate") < source.index(
         "profile.run(argv"
     )
+    assert source.index("_require_condition_gate") < source.index(
+        'commands.extend((\n            ("ccbench-configure"'
+    )
+    assert "and not inside" not in source
     assert '"-DCCBENCH_BACKOFF_FIXED=-1"' in source
     assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
 
@@ -127,8 +134,15 @@ def _good_s5() -> dict[str, dict[str, dict[str, Any]]]:
     }
 
 
-def _condition_gate_receipts() -> list[dict[str, Any]]:
+@functools.lru_cache(maxsize=None)
+def _condition_gate_family(
+    comparison: str,
+) -> tuple[Any, Any, Any]:
     gate = probe.condition_meaning_gate
+    source = (
+        _REPO
+        / "orchestrator/tests/fixtures/condition_meaning_gate/supplied"
+    )
     request = gate.make_define_request(
         driver_id="tools.pegasus.probes.t316_sandbox_backend_probe",
         macro="BACKOFF_FIXED",
@@ -136,33 +150,61 @@ def _condition_gate_receipts() -> list[dict[str, Any]]:
         default_value=None,
         stock_comparison=True,
     )
-    request_digest = gate._request_digest(request, ())
-    supply = gate._arm_record(
-        arm="supply-effectuation",
-        terminal_status="green",
-        reason_code="stock-inert-preprocess-identical",
-        request=request,
-        request_digest=request_digest,
-        evidence={
-            "comparison": "stock-identity",
-            "fixture": "independent-valid-record",
-        },
+    captured = gate.capture_define_inputs(
+        source, stock_root=source / "stock", configure_args=(),
     )
-    meaning = gate._arm_record(
-        arm="runtime-meaning",
-        terminal_status="unestablished",
-        reason_code="meaning-witness-undeclared",
-        request=request,
-        request_digest=request_digest,
-        evidence={"witness_declared": False},
+    cxx = shutil.which("c++")
+    cmake = shutil.which("cmake")
+    assert cxx is not None and cmake is not None
+    supply = gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    )
+    assert supply.terminal_status == "green"
+    assert supply.reason_code == "stock-inert-preprocess-identical"
+    assert supply.evidence["comparison"] == "stock-inert-identity"
+    if comparison != supply.evidence["comparison"]:
+        evidence = dict(supply.evidence)
+        evidence["comparison"] = comparison
+        supply = gate._arm_record(
+            arm="supply-effectuation",
+            terminal_status=supply.terminal_status,
+            reason_code=supply.reason_code,
+            request=request,
+            request_digest=supply.request_digest,
+            evidence=evidence,
+        )
+    meaning = gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
     )
     admission = gate.require_condition_gate_family(
         [supply], [meaning], use_class="raw-measurement",
     )
+    return supply, meaning, admission
+
+
+def _condition_gate_receipts(
+    comparison: str = "stock-inert-identity",
+) -> list[dict[str, Any]]:
+    supply, meaning, admission = _condition_gate_family(comparison)
     return [
-        json.loads(supply.canonical_json()),
-        json.loads(meaning.canonical_json()),
-        json.loads(admission.canonical_json()),
+        {
+            "arm": supply.arm,
+            "record_digest": supply.record_digest,
+            "terminal_status": supply.terminal_status,
+            "reason_code": supply.reason_code,
+        },
+        {
+            "arm": meaning.arm,
+            "record_digest": meaning.record_digest,
+            "terminal_status": meaning.terminal_status,
+            "reason_code": meaning.reason_code,
+        },
+        {
+            "kind": "family-admission",
+            "admission_digest": admission.admission_digest,
+            "use_class": admission.use_class,
+            "admitted": admission.admitted,
+        },
     ]
 
 
@@ -173,6 +215,9 @@ def _good_s6() -> dict[str, Any]:
         "trace_disabled": True, "failure_stage": None,
         "toolchain": {"host_valid": True, "sandbox_valid": True},
         "condition_gates": _condition_gate_receipts(),
+        "_condition_gate_family": _condition_gate_family(
+            "stock-inert-identity"
+        ),
     }
 
 
@@ -792,11 +837,52 @@ def test_stage_judges_reject_injected_bad_observations(judge: Any, bad: dict[str
 
 
 def test_s6_injected_success_without_condition_records_is_not_go() -> None:
+    for missing in ("condition_gates", "_condition_gate_family"):
+        observation = _good_s6()
+        observation.pop(missing)
+        verdict = probe.verdict_s6(observation)
+        assert verdict.verdict == "inconclusive"
+        assert verdict.reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)
+
+
+def test_s6_unissued_condition_records_cannot_replace_live_family() -> None:
     observation = _good_s6()
-    observation.pop("condition_gates")
+    supply, meaning, admission = _condition_gate_family(
+        "stock-inert-identity"
+    )
+    unissued_supply = dataclasses.replace(supply)
+    unissued_meaning = dataclasses.replace(meaning)
+    assert unissued_supply.canonical_json() == supply.canonical_json()
+    assert unissued_meaning.canonical_json() == meaning.canonical_json()
+    assert unissued_supply._issuer_capability is None
+    assert unissued_meaning._issuer_capability is None
+    observation["_condition_gate_family"] = (
+        unissued_supply,
+        unissued_meaning,
+        admission,
+    )
     verdict = probe.verdict_s6(observation)
     assert verdict.verdict == "inconclusive"
     assert verdict.reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)
+
+
+def test_s6_receipt_summary_must_match_live_condition_conclusions() -> None:
+    observation = _good_s6()
+    observation["condition_gates"][0]["terminal_status"] = "red"
+    verdict = probe.verdict_s6(observation)
+    assert verdict.verdict == "inconclusive"
+    assert verdict.reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)
+
+
+def test_s6_rejects_legacy_stock_identity_vocabulary() -> None:
+    with pytest.raises(
+        probe.condition_meaning_gate.ConditionMeaningGateError,
+    ) as raised:
+        _condition_gate_family("stock-identity")
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert raised.value.detail == (
+        "green supply reason and comparison vocabulary disagree"
+    )
 
 
 def _run_injected(
@@ -1053,6 +1139,19 @@ def test_r3_1_coverage_does_not_overclaim(monkeypatch: pytest.MonkeyPatch, tmp_p
             {"equals": [{"json_pointer": "/state"}, "complete"]},
         ]
     }
+    assert "_condition_gate_family" not in receipt["observations"]["S6"]
+    assert receipt["observations"]["S6"]["condition_gates"] == (
+        _condition_gate_receipts()
+    )
+    assert all(
+        "evidence" not in item
+        for item in receipt["observations"]["S6"]["condition_gates"]
+    )
+    assert (
+        "condition gate receipt entries preserve live-validated digests and "
+        "conclusions, not a reusable production-issuer capability"
+        in receipt["limitations"]
+    )
     assert [item["verdict"] for item in receipt["stage_verdicts"]] == ["go"] * 7
     coverage = receipt["r3_1_coverage"]
     assert coverage["overall_go_does_not_mean_r3_1_complete"] is True

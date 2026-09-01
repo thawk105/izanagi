@@ -63,7 +63,8 @@ def test_sort_condition_gate_precedes_run_campaign():
     )
     helper = inspect.getsource(_REAL_CONDITION_GATE)
     assert 'macro="SORT_VARIANT"' in helper
-    assert 'use_class="raw"' in helper
+    assert 'use_class="certified-selection"' in helper
+    assert '"condition_gate": condition_gate' in source
 
 
 _B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(

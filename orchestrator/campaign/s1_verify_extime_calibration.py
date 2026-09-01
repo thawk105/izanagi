@@ -85,7 +85,7 @@ class CalibrationError(RuntimeError):
     """校正入力・実走結果を安全に採用できないときの fail-closed 例外。"""
 
 
-def _require_condition_gate(source_root: str, genome) -> None:
+def _require_condition_gate(source_root: str, genome) -> dict:
     value = genome.flags["BACKOFF_TRIGGER_GATING"]
     _cc, cxx = buildcache.compilers_for_current_site()
     captured = condition_meaning_gate.capture_define_inputs(source_root)
@@ -100,13 +100,18 @@ def _require_condition_gate(source_root: str, genome) -> None:
         captured, request=request, declaration=None, cxx=cxx,
     )
     admission = condition_meaning_gate.require_condition_gate_family(
-        [supply], [meaning], use_class="raw",
+        [supply], [meaning], use_class="certified-selection",
     )
     if not admission.admitted:
         raise CalibrationError(
             "condition gate rejected extime calibration: "
             f"supply={supply.reason_code} meaning={meaning.reason_code}"
         )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 
 def _repo_root() -> Path:
@@ -371,7 +376,7 @@ def _build_target(target: Mapping) -> Dict:
         if not quarantine.passed:
             raise CalibrationError(
                 f"g_rl の diff quarantine が reject: {quarantine.reason}")
-        _require_condition_gate(str(sub), genome)
+        condition_gate = _require_condition_gate(str(sub), genome)
         build_context = build_run_context(generator_id=GeneratorId.S1_EXTIME_CALIBRATION)
         evidence = source_digest.resolve_evidence(genome, PIN, ccbench_dir=str(sub))
         src_token = evidence.src_token
@@ -396,6 +401,7 @@ def _build_target(target: Mapping) -> Dict:
         "configure_cmd": built.configure_cmd,
         "build_cmd": built.build_cmd,
         "template_patch": axis_trigger_gating.TEMPLATE_PATCH,
+        "condition_gate": condition_gate,
     }
 
 
@@ -458,6 +464,7 @@ def main() -> int:
             "build_cached": built["cached"],
             "configure_cmd": built["configure_cmd"],
             "build_cmd": built["build_cmd"],
+            "condition_gate": built["condition_gate"],
             "free_disk_gb_at_start": round(free_gb, 1),
         },
         "candidates": candidates,

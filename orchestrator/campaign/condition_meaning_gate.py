@@ -7,11 +7,12 @@ command.  The meaning arm evaluates a declared witness, or records that no
 witness is established.  The older BACKOFF_FIXED assertions remain as strict
 compatibility wrappers for the F707/F718 contracts.
 
-Claim boundary: preprocessing proves a define changes the selected owner TU's
-compile-command input, not dynamic branch reachability or runtime semantics.
-The independent meaning arm supplies the latter only for declared pointwise
-or selected-branch witnesses. ``driver_integration`` remains ``"none"`` until
-driver wiring lands.
+Claim boundary: the supply domain contains the 22 patch-derived defines, while
+runtime-meaning support currently contains only ``BACKOFF_FIXED``. Preprocessing
+proves a define changes the selected owner TU's compile-command input, not
+dynamic branch reachability or runtime semantics. The independent meaning arm
+supplies the latter only for declared pointwise or selected-branch witnesses.
+``driver_integration`` remains ``"none"`` until driver wiring lands.
 Compiler path snapshots narrow identity drift around invocations, but do not
 attest a same-UID adversarial process, delegated compiler processes, the
 network, or a sandbox.
@@ -31,7 +32,7 @@ import stat
 import struct
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping, Sequence
@@ -153,7 +154,8 @@ _DEFINE_SPECS = {
     ),
 }
 DEFINE_SPECS: Mapping[str, DefineSpec] = MappingProxyType(_DEFINE_SPECS)
-SUPPORTED_MACROS = frozenset(DEFINE_SPECS)
+SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
+MEANING_SUPPORTED_MACROS = frozenset({"BACKOFF_FIXED"})
 RELATED_DEFINE_DECODE_MACROS = frozenset({
     "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
     "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
@@ -180,6 +182,7 @@ BRANCH_MEANING_PROOF_KIND = (
 STOCK_ADAPTIVE_BRANCH = "stock-adaptive-backoff"
 SYNTHESIZED_BACKOFF_BRANCH = "synthesized-backoff"
 _BITS_RE = re.compile(r"[0-9a-f]{16}\Z")
+_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _ROW_RE = re.compile(rb"([0-9]+) ([0-9]+) ([0-9a-f]{16})\Z")
 
 
@@ -374,15 +377,15 @@ class DefineRequest:
 
 @dataclass(frozen=True, slots=True)
 class MeaningWitnessDeclaration:
-    """Finite runtime-meaning declaration for one supported macro."""
+    """Finite runtime-meaning declaration for one meaning-supported macro."""
 
     macro: str
     cases: tuple[MeaningCase, ...]
     witness_id: str = "backoff-fixed-finite-pointwise"
 
     def __post_init__(self) -> None:
-        if self.macro not in SUPPORTED_MACROS:
-            raise ValueError("meaning declaration macro is outside the supported domain")
+        if type(self.macro) is not str or self.macro not in MEANING_SUPPORTED_MACROS:
+            raise ValueError("meaning declaration macro has no runtime witness support")
         if type(self.cases) is not tuple \
                 or any(type(case) is not MeaningCase for case in self.cases):
             raise ValueError("meaning declaration cases must be an exact tuple of MeaningCase")
@@ -405,6 +408,13 @@ class ConditionArmRecord:
     macro: str
     request_digest: str
     evidence: Mapping[str, Any]
+    _issuer_capability: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata={"canonical": False},
+    )
 
     def canonical_json(self) -> str:
         return _canonical_json(self)
@@ -419,6 +429,21 @@ class ConditionFamilyAdmission:
     use_class: str
     admitted: bool
     record_ids: tuple[str, ...]
+    # None means that runtime meaning was not examined.  An empty tuple means
+    # that it was examined and every macro's meaning is established.
+    unestablished_meaning_macros: tuple[str, ...] | None
+
+    def __post_init__(self) -> None:
+        names = self.unestablished_meaning_macros
+        if names is not None and (
+            type(names) is not tuple
+            or any(type(name) is not str or name not in SUPPLY_DOMAIN_MACROS
+                   for name in names)
+            or tuple(sorted(set(names))) != names
+        ):
+            raise ValueError(
+                "unestablished meaning macros must be an exact sorted unique tuple",
+            )
 
     def canonical_json(self) -> str:
         return _canonical_json(self)
@@ -476,6 +501,7 @@ def _canonical_value(value: Any) -> Any:
         return {
             field.name: _canonical_value(getattr(value, field.name))
             for field in dataclasses.fields(value)
+            if field.metadata.get("canonical", True)
         }
     if isinstance(value, Mapping):
         return {
@@ -566,7 +592,7 @@ def make_define_request(
     default_value: int | str | None,
     stock_comparison: bool = False,
 ) -> DefineRequest:
-    """Construct a request from the independently declared 22-macro domain."""
+    """Construct a request from the independently declared 22-macro supply domain."""
     try:
         spec = DEFINE_SPECS[macro]
     except (KeyError, TypeError) as exc:
@@ -691,6 +717,9 @@ def _request_digest(
     })
 
 
+_RECORD_ISSUER_CAPABILITY = object()
+
+
 def _arm_record(
     *,
     arm: str,
@@ -700,6 +729,7 @@ def _arm_record(
     request_digest: str,
     evidence: Mapping[str, Any],
 ) -> ConditionArmRecord:
+    """Build canonical public fields without granting evaluator issuance."""
     if arm not in {"supply-effectuation", "runtime-meaning"}:
         raise ValueError("unknown condition gate arm")
     if terminal_status not in {"green", "red", "unestablished"}:
@@ -727,6 +757,34 @@ def _arm_record(
         request_digest=request_digest,
         evidence=MappingProxyType(dict(sorted(evidence.items()))),
     )
+
+
+def _issue_arm_record(
+    *,
+    arm: str,
+    terminal_status: str,
+    reason_code: str,
+    request: DefineRequest,
+    request_digest: str,
+    evidence: Mapping[str, Any],
+) -> ConditionArmRecord:
+    """Issue a record after its complete arm-specific structure is valid.
+
+    The capability is intentionally absent from canonical JSON.  A receipt can
+    preserve what an evaluator observed, but deserializing public fields does
+    not turn that receipt back into an admissible in-process evaluation result.
+    """
+    record = _arm_record(
+        arm=arm,
+        terminal_status=terminal_status,
+        reason_code=reason_code,
+        request=request,
+        request_digest=request_digest,
+        evidence=evidence,
+    )
+    _validate_arm_record_integrity(record, require_issuer=False)
+    object.__setattr__(record, "_issuer_capability", _RECORD_ISSUER_CAPABILITY)
+    return record
 
 
 def _nofollow_flags() -> int:
@@ -1649,6 +1707,12 @@ def _preprocess_evidence(
     *,
     comparison: str,
 ) -> dict[str, Any]:
+    requested_owner_digest = dict(requested.dependency_closure)[
+        f"source/{requested.owner_tu}"
+    ]
+    control_owner_digest = dict(control.dependency_closure)[
+        f"source/{control.owner_tu}"
+    ]
     return {
         "comparison": comparison,
         "requested_digest": requested.digest,
@@ -1658,6 +1722,8 @@ def _preprocess_evidence(
         "control_byte_length": control.byte_length,
         "control_replay_argv": control.replay_argv,
         "owner_tu": requested.owner_tu,
+        "requested_owner_tu_sha256": requested_owner_digest,
+        "control_owner_tu_sha256": control_owner_digest,
         "compiler_path": requested.compiler_path,
         "compiler_version": requested.compiler_version,
         "requested_compiler_identities": requested.compiler_identities,
@@ -1688,7 +1754,7 @@ def evaluate_define_supply_effectuation(
     )
     if stock_identity:
         if captured.stock_root is None:
-            return _arm_record(
+            return _issue_arm_record(
                 arm="supply-effectuation", terminal_status="red",
                 reason_code="stock-tree-unavailable", request=request,
                 request_digest=request_digest,
@@ -1739,7 +1805,7 @@ def evaluate_define_supply_effectuation(
                 compiler=compiler,
             )
     except ConditionMeaningGateError as exc:
-        return _arm_record(
+        return _issue_arm_record(
             arm="supply-effectuation", terminal_status="red",
             reason_code=exc.reason_code, request=request, request_digest=request_digest,
             evidence={
@@ -1755,13 +1821,13 @@ def evaluate_define_supply_effectuation(
     )
     if requested_result.compiler_path != control_result.compiler_path \
             or requested_result.compiler_version != control_result.compiler_version:
-        return _arm_record(
+        return _issue_arm_record(
             arm="supply-effectuation", terminal_status="red",
             reason_code="compiler-identity-drift", request=request,
             request_digest=request_digest, evidence=evidence,
         )
     if requested_result.comparable_argv != control_result.comparable_argv:
-        return _arm_record(
+        return _issue_arm_record(
             arm="supply-effectuation", terminal_status="red",
             reason_code="compile-command-drift", request=request,
             request_digest=request_digest, evidence=evidence,
@@ -1783,36 +1849,36 @@ def evaluate_define_supply_effectuation(
         needle in output for needle, output in root_needles
     )
     if unsafe_root_builtin:
-        return _arm_record(
+        return _issue_arm_record(
             arm="supply-effectuation", terminal_status="red",
             reason_code="preprocess-root-dependent-builtin", request=request,
             request_digest=request_digest, evidence=evidence,
         )
     if not stock_identity:
         if requested_result.dependency_closure != control_result.dependency_closure:
-            return _arm_record(
+            return _issue_arm_record(
                 arm="supply-effectuation", terminal_status="red",
                 reason_code="dependency-closure-drift", request=request,
                 request_digest=request_digest, evidence=evidence,
             )
         if requested_result.preprocessed_bytes == control_result.preprocessed_bytes:
-            return _arm_record(
+            return _issue_arm_record(
                 arm="supply-effectuation", terminal_status="red",
                 reason_code="preprocess-bytes-identical", request=request,
                 request_digest=request_digest, evidence=evidence,
             )
-        return _arm_record(
+        return _issue_arm_record(
             arm="supply-effectuation", terminal_status="green",
             reason_code="requested-default-preprocess-different", request=request,
             request_digest=request_digest, evidence=evidence,
         )
     if requested_result.preprocessed_bytes != control_result.preprocessed_bytes:
-        return _arm_record(
+        return _issue_arm_record(
             arm="supply-effectuation", terminal_status="red",
             reason_code="stock-inert-mismatch", request=request,
             request_digest=request_digest, evidence=evidence,
         )
-    return _arm_record(
+    return _issue_arm_record(
         arm="supply-effectuation", terminal_status="green",
         reason_code="stock-inert-preprocess-identical", request=request,
         request_digest=request_digest, evidence=evidence,
@@ -1987,7 +2053,7 @@ def evaluate_define_runtime_meaning(
     _spec, requested_value, _default_value, companions = _validate_define_request(request)
     request_digest = _request_digest(request, companions)
     if declaration is None:
-        return _arm_record(
+        return _issue_arm_record(
             arm="runtime-meaning", terminal_status="unestablished",
             reason_code="meaning-witness-undeclared", request=request,
             request_digest=request_digest,
@@ -1995,8 +2061,8 @@ def evaluate_define_runtime_meaning(
         )
     if type(declaration) is not MeaningWitnessDeclaration \
             or declaration.macro != request.macro \
-            or request.macro != "BACKOFF_FIXED":
-        return _arm_record(
+            or request.macro not in MEANING_SUPPORTED_MACROS:
+        return _issue_arm_record(
             arm="runtime-meaning", terminal_status="unestablished",
             reason_code="meaning-witness-undeclared", request=request,
             request_digest=request_digest,
@@ -2007,7 +2073,7 @@ def evaluate_define_runtime_meaning(
         if type(case) is MeaningCase and str(case.define_value) == requested_value
     )
     if len(matching) != 1:
-        return _arm_record(
+        return _issue_arm_record(
             arm="runtime-meaning", terminal_status="unestablished",
             reason_code="meaning-value-undeclared", request=request,
             request_digest=request_digest,
@@ -2025,7 +2091,7 @@ def evaluate_define_runtime_meaning(
                 legacy_captured, matching, cxx=cxx,
             )
     except ConditionMeaningGateError as exc:
-        return _arm_record(
+        return _issue_arm_record(
             arm="runtime-meaning", terminal_status="red",
             reason_code=exc.reason_code, request=request, request_digest=request_digest,
             evidence={
@@ -2040,8 +2106,10 @@ def evaluate_define_runtime_meaning(
     evidence: dict[str, Any] = {
         "witness_id": declaration.witness_id,
         "proof_kind": observed.proof_kind,
+        "source_sha256": observed.source_sha256,
         "compiler_path": observed.compiler_path,
         "compiler_version": observed.compiler_version,
+        "compiler_identities": observed.compiler_identities,
     }
     if isinstance(observed, BranchMeaningEvidence):
         evidence.update({
@@ -2051,11 +2119,16 @@ def evaluate_define_runtime_meaning(
             "expected_branch": observed.expected_branch,
             "observed_branch": observed.observed_branch,
             "preprocess_argv": observed.preprocess_argv,
-            "compiler_identities": observed.compiler_identities,
         })
     else:
-        evidence["observations"] = observed.observations
-    return _arm_record(
+        evidence.update({
+            "hole_sha256": observed.hole_sha256,
+            "compiler_argv": observed.compiler_argv,
+            "run_argv": observed.run_argv,
+            "input_files": observed.input_files,
+            "observations": observed.observations,
+        })
+    return _issue_arm_record(
         arm="runtime-meaning", terminal_status="green",
         reason_code="declared-meaning-observed", request=request,
         request_digest=request_digest,
@@ -2069,7 +2142,311 @@ _PROMOTION_USE_CLASSES = frozenset({
 })
 
 
-def _validate_arm_record_integrity(record: ConditionArmRecord) -> None:
+def _invalid_record(detail: str) -> None:
+    raise ConditionMeaningGateError("admission-contract-invalid", detail)
+
+
+def _require_record_sha256(value: object, field_name: str) -> None:
+    if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+        _invalid_record(f"{field_name} must be a lowercase SHA-256 digest")
+
+
+def _require_record_argv(value: object, field_name: str) -> tuple[str, ...]:
+    if type(value) is not tuple or not value \
+            or any(type(argument) is not str or not argument for argument in value):
+        _invalid_record(f"{field_name} must be a non-empty exact argv tuple")
+    return value
+
+
+def _validate_record_file_identity(value: object, field_name: str) -> None:
+    if type(value) is not RegularFileIdentity:
+        _invalid_record(f"{field_name} has the wrong file-identity type")
+    integers = (
+        value.device, value.inode, value.size,
+        value.mtime_ns, value.ctime_ns,
+    )
+    if any(type(item) is not int or item < 0 for item in integers) or value.size == 0:
+        _invalid_record(f"{field_name} has an empty or invalid file identity")
+
+
+def _validate_record_compiler_identities(
+    value: object,
+    field_name: str,
+) -> tuple[CompilerFileEvidence, ...]:
+    if type(value) is not tuple or len(value) < 2 \
+            or any(type(row) is not CompilerFileEvidence for row in value):
+        _invalid_record(f"{field_name} must contain compiler identity observations")
+    phases: set[str] = set()
+    for index, row in enumerate(value):
+        if type(row.phase) is not str or not row.phase or row.phase in phases:
+            _invalid_record(f"{field_name} has an empty or duplicate phase")
+        phases.add(row.phase)
+        _validate_record_file_identity(row.identity, f"{field_name}[{index}].identity")
+        _require_record_sha256(row.sha256, f"{field_name}[{index}].sha256")
+    baseline = (value[0].identity, value[0].sha256)
+    if any((row.identity, row.sha256) != baseline for row in value[1:]):
+        _invalid_record(f"{field_name} records compiler identity drift")
+    return value
+
+
+def _validate_record_dependency_closure(
+    value: object,
+    digest: object,
+    field_name: str,
+) -> dict[str, str]:
+    if type(value) is not tuple or not value:
+        _invalid_record(f"{field_name} must be a non-empty exact tuple")
+    rows: dict[str, str] = {}
+    for row in value:
+        if type(row) is not tuple or len(row) != 2 \
+                or type(row[0]) is not str or not row[0]:
+            _invalid_record(f"{field_name} contains an invalid file row")
+        _require_record_sha256(row[1], f"{field_name} file digest")
+        if row[0] in rows:
+            _invalid_record(f"{field_name} contains a duplicate file identity")
+        rows[row[0]] = row[1]
+    if value != tuple(sorted(value)):
+        _invalid_record(f"{field_name} is not canonically ordered")
+    _require_record_sha256(digest, f"{field_name}_digest")
+    if digest != _canonical_digest(value):
+        _invalid_record(f"{field_name} digest does not bind its file rows")
+    return rows
+
+
+def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
+    evidence = record.evidence
+    required = {
+        "comparison", "requested_digest", "requested_byte_length",
+        "requested_replay_argv", "control_digest", "control_byte_length",
+        "control_replay_argv", "owner_tu", "requested_owner_tu_sha256",
+        "control_owner_tu_sha256", "compiler_path", "compiler_version",
+        "requested_compiler_identities", "control_compiler_identities",
+        "requested_dependency_closure", "requested_dependency_closure_digest",
+        "control_dependency_closure", "control_dependency_closure_digest",
+        "requested_root_dependent_builtin_paths",
+        "control_root_dependent_builtin_paths",
+    }
+    missing = required - set(evidence)
+    unexpected = set(evidence) - required
+    if missing or unexpected:
+        _invalid_record(
+            "green supply evidence schema differs: "
+            f"missing={sorted(missing)!r} unexpected={sorted(unexpected)!r}",
+        )
+    spec = DEFINE_SPECS[record.macro]
+    owner_tu = evidence["owner_tu"]
+    if type(owner_tu) is not str or not owner_tu or owner_tu not in spec.owner_tus:
+        _invalid_record("green supply evidence does not name a declared owner TU")
+    compiler_path = evidence["compiler_path"]
+    compiler_version = evidence["compiler_version"]
+    if type(compiler_path) is not str or not compiler_path \
+            or type(compiler_version) is not str or not compiler_version:
+        _invalid_record("green supply evidence has an empty compiler identity")
+    requested_argv = _require_record_argv(
+        evidence["requested_replay_argv"], "requested_replay_argv",
+    )
+    control_argv = _require_record_argv(
+        evidence["control_replay_argv"], "control_replay_argv",
+    )
+    if requested_argv[0] != compiler_path or control_argv[0] != compiler_path:
+        _invalid_record("green supply replay argv is not bound to the compiler path")
+    requested_compilers = _validate_record_compiler_identities(
+        evidence["requested_compiler_identities"], "requested_compiler_identities",
+    )
+    control_compilers = _validate_record_compiler_identities(
+        evidence["control_compiler_identities"], "control_compiler_identities",
+    )
+    compiler_identity = (requested_compilers[0].identity, requested_compilers[0].sha256)
+    if (control_compilers[0].identity, control_compilers[0].sha256) != compiler_identity:
+        _invalid_record("green supply arms used different compiler identities")
+    requested_files = _validate_record_dependency_closure(
+        evidence["requested_dependency_closure"],
+        evidence["requested_dependency_closure_digest"],
+        "requested_dependency_closure",
+    )
+    control_files = _validate_record_dependency_closure(
+        evidence["control_dependency_closure"],
+        evidence["control_dependency_closure_digest"],
+        "control_dependency_closure",
+    )
+    owner_identity = f"source/{owner_tu}"
+    for prefix, files in (("requested", requested_files), ("control", control_files)):
+        digest_field = f"{prefix}_owner_tu_sha256"
+        _require_record_sha256(evidence[digest_field], digest_field)
+        if files.get(owner_identity) != evidence[digest_field]:
+            _invalid_record(f"{digest_field} does not bind the owner TU file")
+    for prefix in ("requested", "control"):
+        _require_record_sha256(evidence[f"{prefix}_digest"], f"{prefix}_digest")
+        length = evidence[f"{prefix}_byte_length"]
+        if type(length) is not int or length <= 0:
+            _invalid_record(f"{prefix}_byte_length must be a positive exact integer")
+        builtin_paths = evidence[f"{prefix}_root_dependent_builtin_paths"]
+        if type(builtin_paths) is not tuple \
+                or any(type(path) is not str or not path for path in builtin_paths):
+            _invalid_record(
+                f"{prefix}_root_dependent_builtin_paths has the wrong exact type",
+            )
+    status_contract = {
+        "requested-default-preprocess-different": (
+            "requested-default-difference", False,
+        ),
+        "stock-inert-preprocess-identical": (
+            "stock-inert-identity", True,
+        ),
+    }
+    expected = status_contract.get(record.reason_code)
+    if expected is None or evidence["comparison"] != expected[0]:
+        _invalid_record("green supply reason and comparison vocabulary disagree")
+    digests_equal = evidence["requested_digest"] == evidence["control_digest"]
+    if digests_equal is not expected[1]:
+        _invalid_record("green supply digest relation disagrees with its comparison")
+
+
+def _validate_record_input_files(value: object, source_sha256: str) -> None:
+    if type(value) is not tuple or not value \
+            or any(type(row) is not CapturedFileEvidence for row in value):
+        _invalid_record("meaning input_files must contain captured file evidence")
+    paths: set[str] = set()
+    for index, row in enumerate(value):
+        if type(row.relative_path) is not str or not row.relative_path \
+                or row.relative_path in paths:
+            _invalid_record("meaning input_files has an empty or duplicate path")
+        paths.add(row.relative_path)
+        _validate_record_file_identity(row.before, f"input_files[{index}].before")
+        _validate_record_file_identity(row.after, f"input_files[{index}].after")
+        _validate_record_file_identity(row.path_after, f"input_files[{index}].path_after")
+        if row.before != row.after or row.after != row.path_after:
+            _invalid_record("meaning input file identity changed during capture")
+        _require_record_sha256(row.sha256, f"input_files[{index}].sha256")
+    source_rows = [row for row in value if row.relative_path == SOURCE_REL]
+    if len(source_rows) != 1 or source_rows[0].sha256 != source_sha256:
+        _invalid_record("meaning source digest does not bind its captured source file")
+
+
+def _validate_meaning_observations(value: object) -> None:
+    if type(value) is not tuple or len(value) != len(CONTEXT_STARTS) \
+            or any(type(row) is not MeaningObservation for row in value):
+        _invalid_record("green meaning evidence lacks exact pointwise observations")
+    define_values: set[int] = set()
+    contexts: set[int] = set()
+    for row in value:
+        if type(row.define_value) is not int or row.define_value < 0 \
+                or type(row.context_index) is not int \
+                or row.context_index not in range(len(CONTEXT_STARTS)) \
+                or type(row.start) is not int \
+                or row.start != CONTEXT_STARTS[row.context_index]:
+            _invalid_record("green meaning observation coordinates are invalid")
+        if type(row.expected_bits) is not str \
+                or type(row.observed_bits) is not str \
+                or _BITS_RE.fullmatch(row.expected_bits) is None \
+                or _BITS_RE.fullmatch(row.observed_bits) is None \
+                or row.expected_bits != row.observed_bits:
+            _invalid_record("green meaning observation does not match its declaration")
+        define_values.add(row.define_value)
+        contexts.add(row.context_index)
+    if len(define_values) != 1 or contexts != set(range(len(CONTEXT_STARTS))):
+        _invalid_record("green meaning observations do not cover one declared value")
+
+
+def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
+    evidence = record.evidence
+    common = {
+        "witness_id", "proof_kind", "source_sha256", "compiler_path",
+        "compiler_version", "compiler_identities",
+    }
+    missing = common - set(evidence)
+    if missing:
+        _invalid_record(f"green meaning evidence is missing fields: {sorted(missing)!r}")
+    if record.macro not in MEANING_SUPPORTED_MACROS:
+        _invalid_record("green meaning record names a macro without meaning support")
+    if record.reason_code != "declared-meaning-observed" \
+            or type(evidence["witness_id"]) is not str \
+            or not evidence["witness_id"]:
+        _invalid_record("green meaning record lacks a declared witness identity")
+    _require_record_sha256(evidence["source_sha256"], "meaning source_sha256")
+    compiler_path = evidence["compiler_path"]
+    compiler_version = evidence["compiler_version"]
+    if type(compiler_path) is not str or not compiler_path \
+            or type(compiler_version) is not str or not compiler_version:
+        _invalid_record("green meaning evidence has an empty compiler identity")
+    _validate_record_compiler_identities(
+        evidence["compiler_identities"], "meaning compiler_identities",
+    )
+    if evidence["proof_kind"] == MEANING_PROOF_KIND:
+        required = {"hole_sha256", "compiler_argv", "run_argv", "input_files", "observations"}
+        missing = required - set(evidence)
+        unexpected = set(evidence) - common - required
+        if missing or unexpected:
+            _invalid_record(
+                "green pointwise meaning evidence schema differs: "
+                f"missing={sorted(missing)!r} unexpected={sorted(unexpected)!r}",
+            )
+        _require_record_sha256(evidence["hole_sha256"], "meaning hole_sha256")
+        compiler_argv = _require_record_argv(evidence["compiler_argv"], "compiler_argv")
+        _require_record_argv(evidence["run_argv"], "run_argv")
+        if compiler_argv[0] != compiler_path:
+            _invalid_record("green meaning compiler argv is not bound to compiler_path")
+        _validate_record_input_files(evidence["input_files"], evidence["source_sha256"])
+        _validate_meaning_observations(evidence["observations"])
+        return
+    if evidence["proof_kind"] == BRANCH_MEANING_PROOF_KIND:
+        required = {
+            "conditional_sha256", "stock_branch_sha256", "define_value",
+            "expected_branch", "observed_branch", "preprocess_argv",
+        }
+        missing = required - set(evidence)
+        unexpected = set(evidence) - common - required
+        if missing or unexpected:
+            _invalid_record(
+                "green branch meaning evidence schema differs: "
+                f"missing={sorted(missing)!r} unexpected={sorted(unexpected)!r}",
+            )
+        _require_record_sha256(evidence["conditional_sha256"], "conditional_sha256")
+        _require_record_sha256(evidence["stock_branch_sha256"], "stock_branch_sha256")
+        preprocess_argv = _require_record_argv(
+            evidence["preprocess_argv"], "preprocess_argv",
+        )
+        if preprocess_argv[0] != compiler_path \
+                or type(evidence["define_value"]) is not int \
+                or evidence["define_value"] != -1 \
+                or evidence["expected_branch"] != STOCK_ADAPTIVE_BRANCH \
+                or evidence["observed_branch"] != STOCK_ADAPTIVE_BRANCH:
+            _invalid_record("green branch meaning observation is invalid")
+        return
+    _invalid_record("green meaning proof_kind is not supported")
+
+
+def _validate_arm_record_integrity(
+    record: ConditionArmRecord,
+    *,
+    require_issuer: bool = True,
+) -> None:
+    if type(record) is not ConditionArmRecord:
+        _invalid_record("arm record has the wrong exact type")
+    if type(record.arm) is not str \
+            or record.arm not in {"supply-effectuation", "runtime-meaning"}:
+        _invalid_record("arm record has an unknown arm")
+    terminal_statuses = {"green", "red", "unestablished"}
+    if type(record.terminal_status) is not str \
+            or record.terminal_status not in terminal_statuses:
+        _invalid_record("arm record has an unknown terminal status")
+    if record.arm == "supply-effectuation" \
+            and record.terminal_status == "unestablished":
+        _invalid_record("supply/effectuation cannot be unestablished")
+    if type(record.reason_code) is not str or not record.reason_code \
+            or type(record.driver_id) is not str or not record.driver_id \
+            or type(record.macro) is not str or record.macro not in SUPPLY_DOMAIN_MACROS:
+        _invalid_record("arm record has empty or invalid identity fields")
+    _require_record_sha256(record.request_digest, "request_digest")
+    _require_record_sha256(record.record_digest, "record_digest")
+    if not isinstance(record.evidence, Mapping) or not record.evidence \
+            or any(type(key) is not str or not key for key in record.evidence):
+        _invalid_record("arm record evidence must be a non-empty string-keyed mapping")
+    if record.terminal_status == "green":
+        if record.arm == "supply-effectuation":
+            _validate_supply_green_evidence(record)
+        else:
+            _validate_meaning_green_evidence(record)
     payload = {
         "arm": record.arm,
         "terminal_status": record.terminal_status,
@@ -2082,9 +2459,9 @@ def _validate_arm_record_integrity(record: ConditionArmRecord) -> None:
     expected = _canonical_digest(payload)
     if record.record_digest != expected \
             or record.record_id != f"condition-gate/{record.arm}/{expected}":
-        raise ConditionMeaningGateError(
-            "admission-contract-invalid", "arm record canonical digest/id is invalid",
-        )
+        _invalid_record("arm record canonical digest/id is invalid")
+    if require_issuer and record._issuer_capability is not _RECORD_ISSUER_CAPABILITY:
+        _invalid_record("arm record was not issued by a production evaluator")
 
 
 def require_condition_gate_family(
@@ -2093,7 +2470,7 @@ def require_condition_gate_family(
     *,
     use_class: str,
 ) -> ConditionFamilyAdmission:
-    """Apply P-strict promotion while serializing references to arm records only."""
+    """Require green supply and non-red meaning, preserving unestablished names."""
     if use_class not in _RAW_USE_CLASSES | _PROMOTION_USE_CLASSES:
         raise ConditionMeaningGateError(
             "admission-contract-invalid", f"unknown use class: {use_class!r}",
@@ -2124,13 +2501,23 @@ def require_condition_gate_family(
             "admission-contract-invalid", "each request needs exactly one record from each arm",
         )
     supply_green = all(record.terminal_status == "green" for record in supply_records)
-    meaning_not_red = all(record.terminal_status != "red" for record in meaning_records)
-    meaning_green = all(record.terminal_status == "green" for record in meaning_records)
-    admitted = supply_green and (
-        meaning_not_red if use_class in _RAW_USE_CLASSES else meaning_green
+    meaning_not_red = all(
+        record.terminal_status in {"green", "unestablished"}
+        for record in meaning_records
     )
+    admitted = supply_green and meaning_not_red
+    unestablished_meaning_macros = tuple(sorted({
+        record.macro
+        for record in meaning_records
+        if record.terminal_status == "unestablished"
+    }))
     record_ids = tuple(record.record_id for record in records)
-    payload = {"use_class": use_class, "admitted": admitted, "record_ids": record_ids}
+    payload = {
+        "use_class": use_class,
+        "admitted": admitted,
+        "record_ids": record_ids,
+        "unestablished_meaning_macros": unestablished_meaning_macros,
+    }
     digest = _canonical_digest(payload)
     return ConditionFamilyAdmission(
         admission_id=f"condition-gate/admission/{digest}",
@@ -2138,6 +2525,7 @@ def require_condition_gate_family(
         use_class=use_class,
         admitted=admitted,
         record_ids=record_ids,
+        unestablished_meaning_macros=unestablished_meaning_macros,
     )
 
 
@@ -2177,7 +2565,7 @@ def condition_gate_cli(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--stock-root")
     parser.add_argument("--driver-id", required=True)
-    parser.add_argument("--macro", required=True, choices=sorted(SUPPORTED_MACROS))
+    parser.add_argument("--macro", required=True, choices=sorted(SUPPLY_DOMAIN_MACROS))
     parser.add_argument("--requested-value", required=True)
     parser.add_argument("--default-value")
     parser.add_argument("--stock-comparison", action="store_true")
@@ -2203,6 +2591,11 @@ def condition_gate_cli(argv: Sequence[str] | None = None) -> int:
             stock_comparison=namespace.stock_comparison,
         )
         cases = _cli_meaning_cases(namespace.meaning_case)
+        if cases and request.macro not in MEANING_SUPPORTED_MACROS:
+            raise ConditionMeaningGateError(
+                "cli-contract-invalid",
+                f"runtime meaning is unsupported for macro: {request.macro}",
+            )
         declaration = MeaningWitnessDeclaration(request.macro, cases) if cases else None
         supply = evaluate_define_supply_effectuation(
             captured, request=request, cxx=namespace.cxx, cmake=namespace.cmake,
@@ -2371,9 +2764,9 @@ def assert_backoff_fixed_meaning(
 
 __all__ = [
     "BRANCH_MEANING_PROOF_KIND", "CONTEXT_STARTS", "DEFINE_SPECS",
-    "DRIVER_INTEGRATION", "MEANING_PROOF_KIND",
+    "DRIVER_INTEGRATION", "MEANING_PROOF_KIND", "MEANING_SUPPORTED_MACROS",
     "PROCESS_TIMEOUT_SECONDS", "RELATED_DEFINE_DECODE_MACROS", "ROUTE_CMAKE_CACHE",
-    "ROUTE_CMAKE_CXX_FLAGS", "STOCK_ADAPTIVE_BRANCH", "SUPPORTED_MACROS",
+    "ROUTE_CMAKE_CXX_FLAGS", "STOCK_ADAPTIVE_BRANCH", "SUPPLY_DOMAIN_MACROS",
     "SUPPLY_PROOF_KIND", "SYNTHESIZED_BACKOFF_BRANCH",
     "BranchMeaningEvidence", "CapturedBackoffFixedInputs", "CapturedDefineInputs",
     "CapturedFileEvidence",

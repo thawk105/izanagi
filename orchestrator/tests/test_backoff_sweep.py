@@ -162,6 +162,26 @@ def test_real_family_helper_treats_minus_one_as_stock_identity():
     )
     assert supply.evidence["requested_digest"] == supply.evidence["control_digest"]
     assert _independent_replay_digest(supply) == supply.evidence["requested_digest"]
+    meaning = run.meaning_records[0]
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-meaning-observed",
+    )
+    assert meaning.evidence["observed_branch"] == (
+        backoff_sweep.condition_meaning_gate.STOCK_ADAPTIVE_BRANCH
+    )
+
+
+def test_real_family_helper_rejects_minus_one_without_stock_tree():
+    """An inert request cannot reach a driver without its stock control tree."""
+    with pytest.raises(RuntimeError, match="stock-tree-unavailable"):
+        backoff_sweep._require_backoff_condition_gate(
+            str(_condition_fixture("supplied")),
+            stock_root=None,
+            driver_id="orchestrator/campaign/backoff_sweep.py",
+            macro_values={"BACKOFF_FIXED": (-1,)},
+            cxx=_available_executable("g++-13", "g++-12", "g++"),
+            cmake=_available_executable("cmake"),
+        )
 
 
 def test_real_family_helper_rejects_ignored_define_before_any_driver_build():

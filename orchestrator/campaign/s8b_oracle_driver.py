@@ -61,7 +61,9 @@ from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
 from .s1_direct_comparison import (  # noqa: E402
     DriverError as S1DriverError,
     PreparedCell,
-    _condition_macros,
+    _condition_driver_id,
+    _condition_request_digests_for_flags,
+    condition_gate_receipt,
     prepare_cell,
     require_returned_condition_evidence,
 )
@@ -1667,6 +1669,7 @@ def run_block(
                 "attempt": attempt,
             })
             evaluate_started = False
+            row_condition_gate = None
             try:
                 with _prepared_binding(
                         freeze=freeze, holdout_id=holdout_id,
@@ -1676,16 +1679,21 @@ def run_block(
                     expected_entry = binding_entry(
                         freeze, holdout_id, configuration_id,
                     )
-                    expected_condition_macros = _condition_macros(
+                    expected_request_digests = _condition_request_digests_for_flags(
                         expected_entry["flags"],
+                        driver_id=_condition_driver_id(configuration_id),
                     )
-                    require_returned_condition_evidence(
-                        prepared, expected_macros=expected_condition_macros,
+                    condition_admission = require_returned_condition_evidence(
+                        prepared, expected_request_digests=expected_request_digests,
                         use_class="oracle", label="oracle prepare_fn return",
                     )
                     prepared_records = (
                         prepared.condition_supply_records,
                         prepared.condition_meaning_records,
+                    )
+                    row_condition_gate = condition_gate_receipt(
+                        prepared_records[0], prepared_records[1],
+                        condition_admission,
                     )
                     expected_binding = _expected_binding(
                         manifest, holdout_id, configuration_id,
@@ -1786,7 +1794,7 @@ def run_block(
                             if evaluate_fn is not pipeline.evaluate:
                                 require_returned_condition_evidence(
                                     result,
-                                    expected_macros=expected_condition_macros,
+                                    expected_request_digests=expected_request_digests,
                                     use_class="oracle",
                                     label="oracle evaluate_fn return",
                                     expected_records=prepared_records,
@@ -1857,6 +1865,8 @@ def run_block(
                 "outcome": outcome,
                 "excluded_reason": None,
                 "screen_outcome": "not_enabled",
+                **({"condition_gate": row_condition_gate}
+                   if row_condition_gate is not None else {}),
             })
             completed += 1
             budget_entry = {

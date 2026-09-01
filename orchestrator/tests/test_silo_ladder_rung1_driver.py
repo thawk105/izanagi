@@ -29,8 +29,17 @@ def _fixture(name: str) -> dict:
 
 def test_condition_family_dominates_stock_build_and_includes_companion_macro():
     job = inspect.getsource(driver._gap_job_command)
+    correctness = inspect.getsource(driver._correctness_command)
     gate = inspect.getsource(driver._require_condition_gates)
-    assert job.index("_require_condition_gates") < job.index("variant=\"stock\"")
+    first_build = job.index("variant=\"stock\"")
+    assert job.count("_require_condition_gates(") == 2
+    assert job.index("configure_argv=perf_gate_configure") < first_build
+    assert job.index("configure_argv=liveness_gate_configure") < first_build
+    assert "for gate_variant, gate_macros in" not in job
+    assert correctness.index("_require_condition_gates") < correctness.index(
+        "configured = _run("
+    )
+    assert "configure_argv=configure" in correctness
     assert '("BACKOFF_FIXED", -1, None, True)' in gate
     assert "(REPORT_MACRO, 1, 0, False)" in gate
     configure = inspect.getsource(driver._configure_argv)

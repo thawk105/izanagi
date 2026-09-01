@@ -890,10 +890,18 @@ def test_measure_uses_real_isolated_checkout_for_fixed_then_diagnostic(
             ).strip()
         ),
     )
+
+    def require_fixed_gate(source_root, *, stock_root, **_kwargs):
+        assert source_root == captured["isolated"]
+        assert Path(stock_root) != base
+        assert (Path(stock_root) / "layer.txt").read_text(
+            encoding="utf-8",
+        ) == "base\n"
+        events.append("condition-gate-fixed")
+        return object()
+
     monkeypatch.setattr(
-        M,
-        "_require_fixed_condition_gate_before_measurement",
-        lambda *_args, **_kwargs: events.append("condition-gate-fixed") or object(),
+        M, "_require_fixed_condition_gate_before_measurement", require_fixed_gate,
     )
     monkeypatch.setattr(
         M,

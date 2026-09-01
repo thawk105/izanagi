@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
+import shutil
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -13,7 +16,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import env_contract, ident, screening_driver, wal  # noqa: E402
+from orchestrator.campaign import (condition_meaning_gate, env_contract, ident,  # noqa: E402
+                                   screening_driver, wal)
 from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -37,6 +41,23 @@ from campaign_lock_test_support import build_v2_lock              # noqa: E402
 WORKLOAD = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 _BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
 _CONTRACT = env_contract.GENERATIONS["linux-baremetal"][0].contract
+_CONDITION_FIXTURES = (
+    Path(__file__).parent / "fixtures" / "condition_meaning_gate"
+)
+
+
+def _any_cxx() -> str:
+    for candidate in ("g++-13", "g++-12", "g++"):
+        if shutil.which(candidate):
+            return candidate
+    pytest.skip("no supported C++ compiler is installed")
+
+
+def _any_cmake() -> str:
+    candidate = shutil.which("cmake")
+    if candidate is None:
+        pytest.skip("cmake is not installed")
+    return candidate
 
 
 def _canonical_perf_receipt(status: str) -> dict:
@@ -138,6 +159,120 @@ def _write_floor(root, *, floor=0.03, workload=WORKLOAD,
     with open(path, "w", encoding="utf-8") as f:
         json.dump(document, f)
     return path
+
+
+def test_screening_condition_gate_accepts_real_runtime_genome_value():
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    run = screening_driver._run_condition_gate_for_genome(
+        str(_CONDITION_FIXTURES / "supplied"), genome,
+        stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    assert run is not None and run.admission.admitted
+    assert run.admission.use_class == "raw"
+    assert [(record.macro, record.terminal_status)
+            for record in run.supply_records] == [("BACKOFF_FIXED", "green")]
+    assert [(record.macro, record.terminal_status)
+            for record in run.meaning_records] == [
+                ("BACKOFF_FIXED", "unestablished")]
+    requests = screening_driver._condition_requests_for_genome(genome)
+    assert [(request.macro, request.requested_value)
+            for request in requests] == [("BACKOFF_FIXED", 5)]
+
+
+def test_screening_condition_gate_rejects_real_ignored_runtime_define():
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+
+    with pytest.raises(
+            condition_meaning_gate.ConditionMeaningGateError,
+            match="preprocess-bytes-identical",
+    ):
+        screening_driver._run_condition_gate_for_genome(
+            str(_CONDITION_FIXTURES / "effectuation-ignored"), genome,
+            stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+
+
+def test_screening_condition_gate_rejects_route_absent_from_real_build_args():
+    genome = Genome("silo", {"IZANAGI_BREAK_PERMUTATION": 1})
+
+    with pytest.raises(
+            condition_meaning_gate.ConditionMeaningGateError,
+            match="screening-build-route-mismatch.*IZANAGI_BREAK_PERMUTATION=1",
+    ):
+        screening_driver._run_condition_gate_for_genome(
+            str(_CONDITION_FIXTURES / "supplied"), genome,
+            stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+
+
+def test_screening_condition_gate_rejects_missing_real_companion_define():
+    genome = Genome("ss2pl", {"SS2PL_LOCK_KIND": 0})
+
+    with pytest.raises(
+            condition_meaning_gate.ConditionMeaningGateError,
+            match="screening-build-route-mismatch.*SS2PL_LOCK_IMPL=1",
+    ):
+        screening_driver._run_condition_gate_for_genome(
+            str(_CONDITION_FIXTURES / "supplied"), genome,
+            stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+
+
+def test_screening_condition_gate_is_before_real_evaluate_build_sink():
+    source = inspect.getsource(screening_driver.evaluate_candidate)
+
+    source_evidence = source.index("evidence = source_digest.resolve_evidence(")
+    gate = source.index("_require_condition_gate_before_evaluation(")
+    build_sink = source.index("return evaluate(")
+    assert source_evidence < gate < build_sink
+    assert "evidence.source_root" in source[source_evidence:gate + 160]
+
+
+def test_screening_condition_requests_reject_non_exact_domain_value():
+    genome = Genome("silo", {"SORT_VARIANT": True})
+
+    with pytest.raises(TypeError, match="exact int"):
+        screening_driver._condition_requests_for_genome(genome)
+
+
+def test_screening_condition_requests_cover_exact_define_specs():
+    flags = {
+        macro: screening_driver._CONDITION_DEFAULTS[macro] + 1
+        for macro in condition_meaning_gate.DEFINE_SPECS
+    }
+    requests = screening_driver._condition_requests_for_genome(
+        Genome("silo", flags),
+    )
+
+    assert set(screening_driver._CONDITION_DEFAULTS) == set(
+        condition_meaning_gate.DEFINE_SPECS
+    )
+    assert [request.macro for request in requests] == sorted(
+        condition_meaning_gate.DEFINE_SPECS
+    )
+    assert [request.requested_value for request in requests] == [
+        flags[macro] for macro in sorted(condition_meaning_gate.DEFINE_SPECS)
+    ]
+
+
+def test_screening_condition_requests_accept_no_non_domain_substitute():
+    genome = Genome("silo", {"BACK_OFF": 1, "WAL": 0})
+
+    assert screening_driver._condition_requests_for_genome(genome) == ()
+
+
+def test_screening_condition_gate_preserves_real_non_domain_build_inputs():
+    genome = Genome("silo", {
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": 5,
+        "NO_WAIT_OF_TICTOC": 0,
+    })
+
+    assert screening_driver._condition_gate_base_configure_args(genome) == (
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+    )
 
 
 def test_load_between_run_floor_accepts_legacy_schema_without_version(tmp_path):

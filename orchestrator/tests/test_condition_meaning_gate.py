@@ -71,6 +71,38 @@ def _declaration(*cases: G.MeaningCase) -> G.MeaningWitnessDeclaration:
     return G.MeaningWitnessDeclaration("BACKOFF_FIXED", tuple(cases))
 
 
+def _public_arm_record(
+    *,
+    arm: str,
+    terminal_status: str,
+    reason_code: str,
+    request: G.DefineRequest,
+    request_digest: str,
+    evidence: dict[str, object],
+) -> G.ConditionArmRecord:
+    payload = {
+        "arm": arm,
+        "terminal_status": terminal_status,
+        "reason_code": reason_code,
+        "driver_id": request.driver_id,
+        "macro": request.macro,
+        "request_digest": request_digest,
+        "evidence": evidence,
+    }
+    digest = G._canonical_digest(payload)
+    return G.ConditionArmRecord(
+        record_id=f"condition-gate/{arm}/{digest}",
+        record_digest=digest,
+        arm=arm,
+        terminal_status=terminal_status,
+        reason_code=reason_code,
+        driver_id=request.driver_id,
+        macro=request.macro,
+        request_digest=request_digest,
+        evidence=evidence,
+    )
+
+
 def _copied_fixture(tmp_path: Path) -> Path:
     destination = tmp_path / "ccbench"
     shutil.copytree(_SUPPLIED, destination)
@@ -506,17 +538,14 @@ def test_backoff_fixed_minus_one_requires_stock_preprocess_identity(tmp_path: Pa
 
 
 def test_arm_records_have_distinct_ids_digests_statuses_and_reasons():
+    captured = G.capture_define_inputs(_SUPPLIED)
     request = _request(5)
-    request_digest = G._request_digest(request, ())
-    supply = G._arm_record(
-        arm="supply-effectuation", terminal_status="green",
-        reason_code="requested-default-preprocess-different", request=request,
-        request_digest=request_digest, evidence={"requested_digest": "a" * 64},
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
     )
-    meaning = G._arm_record(
-        arm="runtime-meaning", terminal_status="red",
-        reason_code="decoded-meaning-mismatch", request=request,
-        request_digest=request_digest, evidence={"observed": "b" * 16},
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request,
+        declaration=_declaration(_case(5, expected=6)), cxx=_any_cxx(),
     )
 
     assert supply.record_id != meaning.record_id
@@ -532,27 +561,235 @@ def test_arm_records_have_distinct_ids_digests_statuses_and_reasons():
     assert "evidence" not in serialized
 
 
-def test_undeclared_meaning_is_not_green_and_p_strict_blocks_promotion():
+def test_unestablished_meaning_is_carried_into_promoted_admission():
     captured = G.capture_define_inputs(_SUPPLIED)
-    request = _request(5)
+    request = G.make_define_request(
+        driver_id="test-condition-meaning-gate",
+        macro="IZANAGI_BREAK_PERMUTATION",
+        requested_value=1,
+        default_value=None,
+    )
     meaning = G.evaluate_define_runtime_meaning(
         captured, request=request, declaration=None, cxx=_any_cxx(),
     )
-    supply = G._arm_record(
-        arm="supply-effectuation", terminal_status="green",
-        reason_code="requested-default-preprocess-different", request=request,
-        request_digest=meaning.request_digest, evidence={},
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
     )
 
     assert (meaning.terminal_status, meaning.reason_code) == (
         "unestablished", "meaning-witness-undeclared",
     )
-    assert G.require_condition_gate_family(
+    raw_admission = G.require_condition_gate_family(
         [supply], [meaning], use_class="raw-measurement",
-    ).admitted is True
-    assert G.require_condition_gate_family(
+    )
+    paper_admission = G.require_condition_gate_family(
         [supply], [meaning], use_class="paper",
-    ).admitted is False
+    )
+    assert raw_admission.admitted is True
+    assert paper_admission.admitted is True
+    assert paper_admission.unestablished_meaning_macros == (
+        "IZANAGI_BREAK_PERMUTATION",
+    )
+    assert '"unestablished_meaning_macros":["IZANAGI_BREAK_PERMUTATION"]' in (
+        paper_admission.canonical_json()
+    )
+
+
+def test_promotion_rejects_red_runtime_meaning():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request,
+        declaration=_declaration(_case(5, expected=6)), cxx=_any_cxx(),
+    )
+
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+    assert supply.terminal_status == "green"
+    assert meaning.terminal_status == "red"
+    assert admission.admitted is False
+    assert admission.unestablished_meaning_macros == ()
+
+
+def test_promotion_rejects_non_green_supply_effectuation():
+    captured = G.capture_define_inputs(_F707)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=_declaration(_case(5)), cxx=_any_cxx(),
+    )
+
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="paper",
+    )
+    assert supply.terminal_status == "red"
+    assert meaning.terminal_status == "green"
+    assert admission.admitted is False
+    assert admission.unestablished_meaning_macros == ()
+
+
+def test_established_meaning_uses_examined_empty_carryover_not_unset():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=_declaration(_case(5)), cxx=_any_cxx(),
+    )
+
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="oracle",
+    )
+    assert admission.admitted is True
+    assert admission.unestablished_meaning_macros == ()
+    assert admission.unestablished_meaning_macros is not None
+
+
+def test_empty_green_record_built_from_public_fields_is_rejected():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    request_digest = G._request_digest(request, ())
+    forged_supply = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code="requested-default-preprocess-different",
+        request=request,
+        request_digest=request_digest,
+        evidence={},
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=_any_cxx(),
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G.require_condition_gate_family(
+            [forged_supply], [meaning], use_class="raw-measurement",
+        )
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "evidence" in raised.value.detail
+
+
+def test_empty_green_meaning_record_is_rejected():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    forged_meaning = _public_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code="declared-meaning-observed",
+        request=request,
+        request_digest=supply.request_digest,
+        evidence={},
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G.require_condition_gate_family(
+            [supply], [forged_meaning], use_class="raw-measurement",
+        )
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "evidence" in raised.value.detail
+
+
+def test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=_any_cxx(),
+    )
+    mutations: list[dict[str, object]] = []
+    missing = dict(supply.evidence)
+    del missing["compiler_path"]
+    mutations.append(missing)
+    wrong_type = dict(supply.evidence)
+    wrong_type["requested_replay_argv"] = list(
+        wrong_type["requested_replay_argv"],
+    )
+    mutations.append(wrong_type)
+    empty = dict(supply.evidence)
+    empty["compiler_version"] = ""
+    mutations.append(empty)
+
+    for evidence in mutations:
+        forged_supply = _public_arm_record(
+            arm="supply-effectuation",
+            terminal_status="green",
+            reason_code="requested-default-preprocess-different",
+            request=request,
+            request_digest=supply.request_digest,
+            evidence=evidence,
+        )
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G.require_condition_gate_family(
+                [forged_supply], [meaning], use_class="raw-measurement",
+            )
+        assert raised.value.reason_code == "admission-contract-invalid"
+        assert "production evaluator" not in raised.value.detail
+
+
+def test_unknown_terminal_status_is_rejected_before_raw_admission():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    forged_meaning = _public_arm_record(
+        arm="runtime-meaning",
+        terminal_status="unknown",
+        reason_code="meaning-witness-undeclared",
+        request=request,
+        request_digest=supply.request_digest,
+        evidence={"witness_declared": False},
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G.require_condition_gate_family(
+            [supply], [forged_meaning], use_class="raw-measurement",
+        )
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "terminal status" in raised.value.detail
+
+
+def test_complete_public_clone_lacks_production_evaluator_issuance():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=_any_cxx(),
+    )
+    cloned_supply = G.ConditionArmRecord(
+        record_id=supply.record_id,
+        record_digest=supply.record_digest,
+        arm=supply.arm,
+        terminal_status=supply.terminal_status,
+        reason_code=supply.reason_code,
+        driver_id=supply.driver_id,
+        macro=supply.macro,
+        request_digest=supply.request_digest,
+        evidence=supply.evidence,
+    )
+    assert cloned_supply.record_digest == supply.record_digest
+    assert "_issuer_capability" not in supply.canonical_json()
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G.require_condition_gate_family(
+            [cloned_supply], [meaning], use_class="raw-measurement",
+        )
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "production evaluator" in raised.value.detail
 
 
 def test_duplicate_correct_marker_blocks_are_rejected(tmp_path: Path):
@@ -823,7 +1060,7 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 
 def test_v1_domain_and_claim_boundaries_are_exact():
-    assert G.SUPPORTED_MACROS == {
+    supply_domain = {
         "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
         "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
@@ -835,12 +1072,19 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     }
+    assert G.SUPPLY_DOMAIN_MACROS == supply_domain
+    assert G.MEANING_SUPPORTED_MACROS == {"BACKOFF_FIXED"}
+    assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
+    assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
         "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
         "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
     }
-    assert G.RELATED_DEFINE_DECODE_MACROS <= G.SUPPORTED_MACROS
+    assert G.RELATED_DEFINE_DECODE_MACROS <= G.SUPPLY_DOMAIN_MACROS
+    for macro in G.SUPPLY_DOMAIN_MACROS - G.MEANING_SUPPORTED_MACROS:
+        with pytest.raises(ValueError, match="no runtime witness support"):
+            G.MeaningWitnessDeclaration(macro, ())
     assert G.DEFINE_SPECS["SS2PL_LOCK_KIND"].companion_defines == (
         ("SS2PL_LOCK_IMPL", "1"),
     )

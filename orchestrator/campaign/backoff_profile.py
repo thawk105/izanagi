@@ -100,9 +100,6 @@ _CCBENCH_DIR = _REPO_ROOT / "external/ccbench"
 _BACKOFF_PATCH_ACTIVE = contextvars.ContextVar(
     "backoff_profile_patch_active", default=False,
 )
-_BACKOFF_CONDITION_GATE_ACTIVE = contextvars.ContextVar(
-    "backoff_profile_condition_gate_active", default=False,
-)
 _PREBUILT_PROFILE_POINTS = contextvars.ContextVar(
     "backoff_profile_prebuilt_points", default=None,
 )
@@ -382,10 +379,7 @@ def _applied_backoff_patch():
 
 @contextlib.contextmanager
 def _condition_gate_scope(runtime: _ProfileRuntime, amounts: list[int | None]):
-    """Run the family once before the enclosing scope can build or measure."""
-    if _BACKOFF_CONDITION_GATE_ACTIVE.get():
-        yield
-        return
+    """Run the family before every enclosing scope can build or measure."""
     with patchharness.checkout(
             CCBENCH_COMMIT, base_dir=str(_CCBENCH_DIR),
     ) as stock_root:
@@ -395,11 +389,7 @@ def _condition_gate_scope(runtime: _ProfileRuntime, amounts: list[int | None]):
             amounts=amounts,
             cxx=runtime.cxx,
         )
-        token = _BACKOFF_CONDITION_GATE_ACTIVE.set(True)
-        try:
-            yield
-        finally:
-            _BACKOFF_CONDITION_GATE_ACTIVE.reset(token)
+        yield
 
 
 def _point_label(backoff_us) -> str:

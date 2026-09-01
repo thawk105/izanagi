@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import stat
 import subprocess
 import sys
@@ -1041,7 +1042,16 @@ def measure(
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_PROFILE)
     with patchharness.checkout(
             pin.CURRENT_PIN, base_dir=base_ccbench_dir,
-    ) as isolated_ccbench:
+    ) as isolated_ccbench, tempfile.TemporaryDirectory(
+            prefix="izanagi_backoff_requested_us_stock_",
+    ) as stock_parent:
+        stock_root = Path(stock_parent) / "ccbench-stock"
+        shutil.copytree(
+            isolated_ccbench,
+            stock_root,
+            symlinks=True,
+            ignore=shutil.ignore_patterns(".git"),
+        )
         fixed_files = patchharness.patch_files(
             str(fixed_patch), isolated_ccbench,
         )
@@ -1054,7 +1064,7 @@ def measure(
             _assert_backoff_fixed_materialized(isolated_ccbench)
             _require_fixed_condition_gate_before_measurement(
                 isolated_ccbench,
-                stock_root=base_ccbench_dir,
+                stock_root=os.fspath(stock_root),
                 genome=fixed_genome,
                 cxx=resolved_cxx,
             )

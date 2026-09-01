@@ -8,6 +8,7 @@ import contextlib
 import copy
 import dataclasses
 import errno
+import functools
 import hashlib
 import importlib
 import inspect
@@ -61,6 +62,7 @@ import real_repo_ratified_memo as ratified_memo  # noqa: E402
 from orchestrator.tests import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
+import test_s1_direct_comparison as s1_condition_fixtures  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
@@ -73,8 +75,8 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import artifact_admission  # noqa: E402
 from orchestrator.campaign import execution_guard  # noqa: E402
-from orchestrator.campaign import (condition_meaning_gate, model, pipeline,  # noqa: E402
-                                   s8b_budget, s8b_oracle_driver as driver, wal)
+from orchestrator.campaign import (model, pipeline, s8b_budget,  # noqa: E402
+                                   s8b_oracle_driver as driver, wal)
 from orchestrator.campaign import s8b_oracle_artifacts as oracle_artifacts  # noqa: E402
 from orchestrator.campaign import s8b_freeze_io  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
@@ -2171,33 +2173,27 @@ def _floor_only_freeze(tmp_path: Path) -> Path:
     return path
 
 
-def _condition_records(genome: Genome):
-    defaults = {
-        "BACKOFF_FIXED": -1,
-        "BACKOFF_NOINLINE": 0,
-        "BACKOFF_TRIGGER_GATING": 0,
-        "SORT_VARIANT": 0,
-    }
-    supply = []
-    meaning = []
-    for macro in sorted(set(genome.flags) & set(defaults)):
-        request = condition_meaning_gate.make_define_request(
-            driver_id="test.s8b_oracle_driver.injected",
-            macro=macro, requested_value=genome.flags[macro],
-            default_value=defaults[macro],
-        )
-        request_digest = condition_meaning_gate._request_digest(request, ())
-        supply.append(condition_meaning_gate._arm_record(
-            arm="supply-effectuation", terminal_status="green",
-            reason_code="requested-default-preprocess-different",
-            request=request, request_digest=request_digest, evidence={},
-        ))
-        meaning.append(condition_meaning_gate._arm_record(
-            arm="runtime-meaning", terminal_status="green",
-            reason_code="declared-meaning-observed",
-            request=request, request_digest=request_digest, evidence={},
-        ))
-    return tuple(supply), tuple(meaning)
+@functools.lru_cache(maxsize=None)
+def _issued_condition_records(
+        flags: tuple[tuple[str, object], ...], driver_id: str,
+):
+    records = s1_condition_fixtures._issued_condition_records(flags, driver_id)
+    if not records[0] and not records[1]:
+        return records
+    admission = s1_condition_fixtures._assert_promotion_admission_contract(
+        *records, use_class="oracle",
+    )
+    assert admission.admitted is True
+    return records
+
+
+def _condition_records(
+        genome: Genome,
+        driver_id: str = "orchestrator.campaign.s1_direct_comparison.prepare_cell",
+):
+    return _issued_condition_records(
+        tuple(sorted(genome.flags.items())), driver_id,
+    )
 
 
 def _with_condition_records(result):

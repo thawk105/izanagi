@@ -7,6 +7,7 @@ import argparse
 import copy
 import contextlib
 import errno
+import functools
 import importlib.util
 import inspect
 import json
@@ -14,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import types
 from pathlib import Path
 
@@ -320,7 +322,149 @@ def _run(tmp_path: Path, role: str, evaluate_fn, **kwargs) -> int:
         **kwargs)
 
 
-def _condition_records(genome: Genome):
+@functools.lru_cache(maxsize=None)
+def _issued_condition_records(
+        flags: tuple[tuple[str, object], ...], driver_id: str,
+):
+    genome = Genome("silo", dict(flags))
+    requests = S._condition_requests_for_flags(genome.flags, driver_id=driver_id)
+    if not requests:
+        return (), ()
+    fixture = TESTS / "fixtures" / "condition_meaning_gate" / "supplied"
+    with tempfile.TemporaryDirectory(prefix="s1-condition-promotion-") as temporary:
+        source_root = Path(temporary) / "supplied"
+        shutil.copytree(fixture, source_root)
+        _materialize_requested_condition_macros(source_root, requests)
+        records = _REAL_CONDITION_RECORDS_FOR_GENOME(
+            str(source_root), genome, driver_id=driver_id,
+            use_class="certified-selection", cxx=_any_cxx(),
+            stock_root=str(source_root / "stock"),
+        )
+    admission = _assert_promotion_admission_contract(*records)
+    assert admission.admitted is True
+    return records
+
+
+def _materialize_requested_condition_macros(source_root: Path, requests) -> None:
+    """Give the real evaluator a minimal owner-TU witness for S1 fixture macros."""
+    options_path = source_root / condition_meaning_gate.OPTIONS_REL
+    options = options_path.read_text(encoding="utf-8")
+    source_suffixes: dict[Path, list[str]] = {}
+    for request in requests:
+        if request.macro == "BACKOFF_FIXED":
+            continue
+        if request.route == condition_meaning_gate.ROUTE_CMAKE_CACHE:
+            option = f"CCBENCH_{request.macro}"
+            mapping = f"    {request.macro}=${{{option}}}\n"
+            if mapping not in options:
+                options = (
+                    f'set({option} {request.default_value} CACHE STRING '
+                    '"promotion fixture")\n' + options
+                )
+                options = options.replace(
+                    "    PARENT_SCOPE)\n", mapping + "    PARENT_SCOPE)\n",
+                )
+        for prefix in (Path(), Path("stock")):
+            owner = source_root / prefix / request.owner_tu
+            assert owner.is_file(), f"promotion fixture owner TU missing: {owner}"
+            variable = f"condition_fixture_{request.macro.lower()}"
+            source_suffixes.setdefault(owner, []).append(
+                f"\n#if {request.macro}\n"
+                f"static int {variable} = 1;\n"
+                "#else\n"
+                f"static int {variable} = 0;\n"
+                "#endif\n"
+            )
+    options_path.write_text(options, encoding="utf-8")
+    for owner, suffixes in source_suffixes.items():
+        owner.write_text(
+            owner.read_text(encoding="utf-8") + "".join(suffixes),
+            encoding="utf-8",
+        )
+
+
+def _assert_promotion_admission_contract(
+        supply_records, meaning_records, *, use_class="certified-selection",
+):
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class=use_class,
+    )
+    supply_green = all(
+        record.terminal_status == "green" for record in supply_records
+    )
+    meaning_not_red = all(
+        record.terminal_status != "red" for record in meaning_records
+    )
+    assert admission.admitted is (supply_green and meaning_not_red)
+    assert admission.unestablished_meaning_macros == tuple(sorted({
+        record.macro
+        for record in meaning_records
+        if record.terminal_status == "unestablished"
+    }))
+    return admission
+
+
+def _real_backoff_fixed_records(source_root: Path, value: int):
+    driver_id = "test.s1_direct_comparison.promotion-contract"
+    genome = Genome("silo", {"BACKOFF_FIXED": value})
+    request = S._condition_requests_for_flags(
+        genome.flags, driver_id=driver_id,
+    )[0]
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request,
+        declaration=S._condition_meaning_declaration(request.macro, value),
+        cxx=_any_cxx(),
+    )
+    return supply, meaning
+
+
+def test_promotion_contract_rejects_non_green_supply_effectuation():
+    fixture = TESTS / "fixtures" / "condition_meaning_gate" / "f707-missing-supply"
+    supply, meaning = _real_backoff_fixed_records(fixture, 5)
+    admission = _assert_promotion_admission_contract([supply], [meaning])
+
+    assert supply.terminal_status == "red"
+    assert meaning.terminal_status == "green"
+    assert admission.admitted is False
+
+
+def test_promotion_contract_rejects_red_runtime_meaning():
+    fixture = TESTS / "fixtures" / "condition_meaning_gate" / "supplied"
+    supply, meaning = _real_backoff_fixed_records(fixture, 1000)
+    admission = _assert_promotion_admission_contract([supply], [meaning])
+
+    assert supply.terminal_status == "green"
+    assert meaning.terminal_status == "red"
+    assert admission.admitted is False
+
+
+def test_promotion_contract_carries_unestablished_meaning_macro():
+    records = _issued_condition_records(
+        (("BACKOFF_TRIGGER_GATING", 1),),
+        "test.s1_direct_comparison.unestablished-carryover",
+    )
+    admission = _assert_promotion_admission_contract(*records)
+
+    assert [record.terminal_status for record in records[0]] == ["green"]
+    assert [record.terminal_status for record in records[1]] == ["unestablished"]
+    assert admission.admitted is True
+    assert admission.unestablished_meaning_macros == ("BACKOFF_TRIGGER_GATING",)
+
+
+def _condition_records(
+        genome: Genome,
+        driver_id: str = "orchestrator.campaign.s1_direct_comparison.prepare_cell",
+):
+    return _issued_condition_records(
+        tuple(sorted(genome.flags.items())), driver_id,
+    )
+
+
+def _forged_empty_condition_records(genome: Genome, *, driver_id: str):
     supply = []
     meaning = []
     defaults = {
@@ -331,7 +475,7 @@ def _condition_records(genome: Genome):
     }
     for macro in sorted(set(genome.flags) & set(defaults)):
         request = condition_meaning_gate.make_define_request(
-            driver_id="test.s1_direct_comparison.injected",
+            driver_id=driver_id,
             macro=macro, requested_value=genome.flags[macro],
             default_value=defaults[macro],
         )
@@ -398,10 +542,11 @@ def test_injected_evaluate_fn_certified_result_without_condition_records_is_refu
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_injected_callables_with_explicit_condition_records_are_accepted():
     genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    driver_id = "test.s1_direct_comparison.real-positive"
     records = _REAL_CONDITION_RECORDS_FOR_GENOME(
         str(TESTS / "fixtures" / "condition_meaning_gate" / "supplied"),
         genome,
-        driver_id="test.s1_direct_comparison.real-positive",
+        driver_id=driver_id,
         use_class="raw",
         cxx=_any_cxx(),
     )
@@ -411,7 +556,10 @@ def test_injected_callables_with_explicit_condition_records_are_accepted():
         condition_meaning_records=records[1],
     )
     S.require_returned_condition_evidence(
-        prepared, expected_macros=frozenset({"BACKOFF_FIXED"}),
+        prepared,
+        expected_request_digests=S._condition_request_digests_for_flags(
+            genome.flags, driver_id=driver_id,
+        ),
         use_class="raw", label="prepare_cell_fn return",
     )
     result = EvalResult(
@@ -421,9 +569,56 @@ def test_injected_callables_with_explicit_condition_records_are_accepted():
     result.condition_supply_records = records[0]
     result.condition_meaning_records = records[1]
     S.require_returned_condition_evidence(
-        result, expected_macros=frozenset({"BACKOFF_FIXED"}),
+        result,
+        expected_request_digests=S._condition_request_digests_for_flags(
+            genome.flags, driver_id=driver_id,
+        ),
         use_class="raw", label="evaluate_fn return", expected_records=records,
     )
+
+
+def test_injected_prepare_cannot_transplant_green_records_from_another_value():
+    driver_id = "test.s1_direct_comparison.request-binding"
+    measured = Genome("silo", {"BACKOFF_FIXED": 5})
+    requested = Genome("silo", {"BACKOFF_FIXED": 10})
+    records = _REAL_CONDITION_RECORDS_FOR_GENOME(
+        str(TESTS / "fixtures" / "condition_meaning_gate" / "supplied"),
+        measured, driver_id=driver_id, use_class="raw", cxx=_any_cxx(),
+    )
+    prepared = S.PreparedCell(
+        measured, "stock", "/ccbench", "/cache",
+        condition_supply_records=records[0],
+        condition_meaning_records=records[1],
+    )
+    with pytest.raises(S.DriverError, match="request digest"):
+        S.require_returned_condition_evidence(
+            prepared,
+            expected_request_digests=S._condition_request_digests_for_flags(
+                requested.flags, driver_id=driver_id,
+            ),
+            use_class="raw", label="prepare_cell_fn return",
+        )
+
+
+def test_injected_prepare_cannot_self_sign_empty_green_evidence():
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    driver_id = "orchestrator.campaign.s1_direct_comparison.prepare_cell"
+    supply, meaning = _forged_empty_condition_records(
+        genome, driver_id=driver_id,
+    )
+    prepared = S.PreparedCell(
+        genome, "stock", "/ccbench", "/cache",
+        condition_supply_records=supply,
+        condition_meaning_records=meaning,
+    )
+    with pytest.raises(S.DriverError, match="record が不正"):
+        S.require_returned_condition_evidence(
+            prepared,
+            expected_request_digests=S._condition_request_digests_for_flags(
+                genome.flags, driver_id=driver_id,
+            ),
+            use_class="raw", label="prepare_cell_fn return",
+        )
 
 
 def test_modified_freeze_is_refused_before_campaign_start(tmp_path):

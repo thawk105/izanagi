@@ -185,37 +185,102 @@ def _condition_macros(flags: Mapping[str, object]) -> frozenset[str]:
     return frozenset(set(flags) & set(condition_meaning_gate.DEFINE_SPECS))
 
 
-def _condition_records_for_genome(
-        source_root: str, genome: Genome, *, driver_id: str, use_class: str,
-        cxx: str) -> tuple[
-            tuple[condition_meaning_gate.ConditionArmRecord, ...],
-            tuple[condition_meaning_gate.ConditionArmRecord, ...],
-        ]:
-    macros = _condition_macros(genome.flags)
-    if not macros:
-        return (), ()
+def _condition_driver_id(configuration: str) -> str:
+    if type(configuration) is not str or not configuration:
+        raise DriverError("condition gate configuration が不正")
+    return "orchestrator.campaign.s1_direct_comparison.prepare_cell"
+
+
+def _condition_requests_for_flags(
+        flags: Mapping[str, object], *, driver_id: str,
+) -> tuple[condition_meaning_gate.DefineRequest, ...]:
+    macros = _condition_macros(flags)
     unknown_defaults = macros - set(_CONDITION_DEFAULTS)
     if unknown_defaults:
         raise DriverError(
             f"condition gate default が未宣言: {sorted(unknown_defaults)!r}"
         )
-    captured = condition_meaning_gate.capture_define_inputs(source_root)
-    supply_records = []
-    meaning_records = []
+    requests = []
     for macro in sorted(macros):
-        value = genome.flags[macro]
-        request = condition_meaning_gate.make_define_request(
+        value = flags[macro]
+        requests.append(condition_meaning_gate.make_define_request(
             driver_id=driver_id, macro=macro, requested_value=value,
             default_value=_CONDITION_DEFAULTS[macro],
             stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
+        ))
+    return tuple(requests)
+
+
+def _condition_request_digests_for_flags(
+        flags: Mapping[str, object], *, driver_id: str,
+) -> dict[str, str]:
+    """Independently derive the exact request identity expected from a cell."""
+    expected = {}
+    for request in _condition_requests_for_flags(flags, driver_id=driver_id):
+        _spec, _requested, _default, companions = (
+            condition_meaning_gate._validate_define_request(request)
         )
-        declaration = None
-        if macro == "BACKOFF_FIXED" and value >= 0:
-            bits = struct.pack(">d", float(value)).hex()
-            declaration = condition_meaning_gate.MeaningWitnessDeclaration(
-                macro,
-                (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
-            )
+        expected[request.macro] = condition_meaning_gate._request_digest(
+            request, companions,
+        )
+    return expected
+
+
+def _condition_meaning_declaration(
+        macro: str, value: object,
+) -> Optional[condition_meaning_gate.MeaningWitnessDeclaration]:
+    if macro != "BACKOFF_FIXED" or type(value) is not int:
+        return None
+    if value == -1:
+        meaning_case = condition_meaning_gate.MeaningCase(
+            -1, None,
+            expected_selected_branch=condition_meaning_gate.STOCK_ADAPTIVE_BRANCH,
+        )
+    elif value >= 0:
+        bits = struct.pack(">d", float(value)).hex()
+        meaning_case = condition_meaning_gate.MeaningCase(value, (bits, bits))
+    else:
+        return None
+    return condition_meaning_gate.MeaningWitnessDeclaration(
+        macro, (meaning_case,),
+    )
+
+
+def condition_gate_receipt(
+        supply: tuple[condition_meaning_gate.ConditionArmRecord, ...],
+        meaning: tuple[condition_meaning_gate.ConditionArmRecord, ...],
+        admission: Optional[condition_meaning_gate.ConditionFamilyAdmission],
+) -> Optional[dict[str, object]]:
+    """Serialize the issued records with the admission that references them."""
+    if admission is None:
+        if supply or meaning:
+            raise DriverError("condition gate record に対応する admission がない")
+        return None
+    return {
+        "supply_records": [json.loads(record.canonical_json()) for record in supply],
+        "meaning_records": [json.loads(record.canonical_json()) for record in meaning],
+        "admission": json.loads(admission.canonical_json()),
+    }
+
+
+def _condition_records_for_genome(
+        source_root: str, genome: Genome, *, driver_id: str, use_class: str,
+        cxx: str, stock_root: Optional[str] = None) -> tuple[
+            tuple[condition_meaning_gate.ConditionArmRecord, ...],
+            tuple[condition_meaning_gate.ConditionArmRecord, ...],
+        ]:
+    requests = _condition_requests_for_flags(genome.flags, driver_id=driver_id)
+    if not requests:
+        return (), ()
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, stock_root=stock_root,
+    )
+    supply_records = []
+    meaning_records = []
+    for request in requests:
+        declaration = _condition_meaning_declaration(
+            request.macro, request.requested_value,
+        )
         supply_records.append(
             condition_meaning_gate.evaluate_define_supply_effectuation(
                 captured, request=request, cxx=cxx, cmake="cmake",
@@ -240,22 +305,34 @@ def _condition_records_for_genome(
 
 
 def require_returned_condition_evidence(
-        value: object, *, expected_macros: frozenset[str], use_class: str,
+        value: object, *, expected_request_digests: Mapping[str, str], use_class: str,
         label: str,
         expected_records: Optional[tuple[
             tuple[condition_meaning_gate.ConditionArmRecord, ...],
             tuple[condition_meaning_gate.ConditionArmRecord, ...],
-        ]] = None) -> None:
+        ]] = None) -> Optional[condition_meaning_gate.ConditionFamilyAdmission]:
     """Validate both records on an injected callable's returned object."""
     supply = getattr(value, "condition_supply_records", None)
     meaning = getattr(value, "condition_meaning_records", None)
     if type(supply) is not tuple or type(meaning) is not tuple:
         raise DriverError(f"{label} が condition gate の両 record を返さなかった")
-    if ({record.macro for record in supply} != set(expected_macros)
-            or {record.macro for record in meaning} != set(expected_macros)):
-        raise DriverError(f"{label} の condition gate macro 集合が入力と不一致")
-    if not expected_macros:
-        return
+    if type(expected_request_digests) is not dict:
+        raise DriverError(f"{label} の期待 request digest が不正")
+
+    def observed_requests(records, arm):
+        if any(type(record) is not condition_meaning_gate.ConditionArmRecord
+               for record in records):
+            raise DriverError(f"{label} の {arm} record 型が不正")
+        rows = [(record.macro, record.request_digest) for record in records]
+        if len({macro for macro, _digest in rows}) != len(rows):
+            raise DriverError(f"{label} の {arm} request が重複")
+        return dict(rows)
+
+    if (observed_requests(supply, "supply") != expected_request_digests
+            or observed_requests(meaning, "meaning") != expected_request_digests):
+        raise DriverError(f"{label} の condition gate request digest が入力と不一致")
+    if not expected_request_digests:
+        return None
     try:
         admission = condition_meaning_gate.require_condition_gate_family(
             supply, meaning, use_class=use_class,
@@ -273,6 +350,7 @@ def require_returned_condition_evidence(
                 or [record.record_id for record in meaning]
                 != [record.record_id for record in expected_meaning]):
             raise DriverError(f"{label} の condition gate record が準備済み evidence と不一致")
+    return admission
 
 
 def _iso_now() -> str:
@@ -735,6 +813,15 @@ def prepare_cell(
 
     with contextlib.ExitStack() as stack:
         sub = stack.enter_context(patchharness.checkout(ccbench_pin, base_dir=fixed_sub))
+        stock_root = None
+        if any(
+                macro == "BACKOFF_FIXED" and value == -1
+                or value == _CONDITION_DEFAULTS.get(macro)
+                for macro, value in clean_flags.items()
+                if macro in _CONDITION_DEFAULTS):
+            stock_root = stack.enter_context(
+                patchharness.checkout(ccbench_pin, base_dir=fixed_sub)
+            )
         quarantine_implementation: Optional[str] = None
         marker_id = source_rel = quarantine_patch_path = None
         patch_only_path = None
@@ -825,11 +912,8 @@ def prepare_cell(
         condition_supply_records, condition_meaning_records = (
             _condition_records_for_genome(
                 sub, genome,
-                driver_id=(
-                    "orchestrator.campaign.s1_direct_comparison.prepare_cell:"
-                    f"{configuration}"
-                ),
-                use_class=condition_use_class, cxx=cxx,
+                driver_id=_condition_driver_id(configuration),
+                use_class=condition_use_class, cxx=cxx, stock_root=stock_root,
             )
         )
         # The materializer boundary re-resolves and validates full SourceEvidence.
@@ -1062,12 +1146,15 @@ def run_role(
                 with prepare_cell_fn(
                         item.cell, cfg.ccbench_commit, **prepare_kwargs) as prepared:
                     variant_flags = item.cell.get("variant", {}).get("flags", {})
-                    expected_condition_macros = (
-                        _condition_macros(variant_flags)
-                        if isinstance(variant_flags, Mapping) else frozenset()
+                    configuration = item.cell.get("configuration")
+                    if not isinstance(variant_flags, Mapping):
+                        raise DriverError("condition gate の variant flags が不正")
+                    expected_request_digests = _condition_request_digests_for_flags(
+                        variant_flags,
+                        driver_id=_condition_driver_id(configuration),
                     )
-                    require_returned_condition_evidence(
-                        prepared, expected_macros=expected_condition_macros,
+                    condition_admission = require_returned_condition_evidence(
+                        prepared, expected_request_digests=expected_request_digests,
                         use_class=condition_use_class,
                         label="prepare_cell_fn return",
                     )
@@ -1099,6 +1186,12 @@ def run_role(
                     # variant_id は evaluate 直前に確定し、session-start を必ず先行耐久化する。
                     variant = pipeline.variant_id(prepared.genome, prepared.src_token)
                     start_event = _base_event(item, variant, attempt)
+                    gate_receipt = condition_gate_receipt(
+                        prepared_records[0], prepared_records[1],
+                        condition_admission,
+                    )
+                    if gate_receipt is not None:
+                        start_event["condition_gate"] = gate_receipt
                     if prepared.oracle_attempt is not None:
                         start_event["sort_swo_oracle"] = prepared.oracle_attempt
                         start_event["freeze_cell_id"] = item.freeze_cell_id
@@ -1127,7 +1220,7 @@ def run_role(
                         if evaluate_fn is not pipeline.evaluate:
                             require_returned_condition_evidence(
                                 result,
-                                expected_macros=expected_condition_macros,
+                                expected_request_digests=expected_request_digests,
                                 use_class=condition_use_class,
                                 label="evaluate_fn return",
                                 expected_records=prepared_records,

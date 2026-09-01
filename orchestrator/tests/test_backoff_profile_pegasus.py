@@ -612,15 +612,8 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
 
     @contextlib.contextmanager
     def fake_condition_gate(_runtime, amounts):
-        if subject._BACKOFF_CONDITION_GATE_ACTIVE.get():
-            yield
-            return
         events.append(("condition-gate", tuple(amounts)))
-        token = subject._BACKOFF_CONDITION_GATE_ACTIVE.set(True)
-        try:
-            yield
-        finally:
-            subject._BACKOFF_CONDITION_GATE_ACTIVE.reset(token)
+        yield
 
     monkeypatch.setattr(subject, "_condition_gate_scope", fake_condition_gate)
     monkeypatch.setattr(
@@ -697,7 +690,11 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
         for phase in ("resolve", "build")
     ]
     post_build_gates = ["hash-check", *("symbol-check" for _ in range(7))]
-    measure_phases = ["measure" for _ in range(7 * 3)]
+    measure_phases = [
+        phase
+        for _amount in (None, 2, 5, 10, 25, 50, 100)
+        for phase in ("condition-gate", "measure", "measure", "measure")
+    ]
     assert [event[0] for event in events[1:-1]] == [
         "condition-gate", *build_phases, *post_build_gates, *measure_phases,
     ]
@@ -705,6 +702,67 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
         "hash-check", (None, 2, 5, 10, 25, 50, 100),
     )
     assert checked_binaries == [f"/tmp/fake-ccbench-{index}" for index in range(1, 8)]
+
+
+def test_nested_profile_scope_rechecks_real_gate_before_entering_body(
+    tmp_path, monkeypatch,
+):
+    """A nested caller cannot reuse an earlier admission after source drift."""
+    _available_executable("cmake")
+    cxx = _available_executable("g++-13", "g++-12", "g++")
+    fixture = (
+        Path(__file__).parent / "fixtures" / "condition_meaning_gate" / "supplied"
+    )
+    source_root = tmp_path / "profile-gate-fixture"
+    shutil.copytree(fixture, source_root)
+    header = source_root / "include" / "backoff.hh"
+    noinline_branch = (
+        "\n#if BACKOFF_NOINLINE\nint noinline_probe = 1;\n"
+        "#else\nint noinline_probe = 0;\n#endif\n"
+    )
+    header.write_text(
+        header.read_text(encoding="utf-8") + noinline_branch,
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init", "--quiet", str(source_root)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_root), "config", "user.email",
+         "fixture@example.invalid"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source_root), "config", "user.name", "Fixture"],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(source_root), "add", "."], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_root), "commit", "--quiet", "-m", "fixture"],
+        check=True,
+    )
+    fixture_pin = subprocess.check_output(
+        ["git", "-C", str(source_root), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    monkeypatch.setattr(subject, "_CCBENCH_DIR", source_root)
+    monkeypatch.setattr(subject, "CCBENCH_COMMIT", fixture_pin)
+
+    entered = []
+    with subject._condition_gate_scope(_runtime(cxx=cxx), [5]):
+        header.write_text(
+            "// EVOLVE-BLOCK-BEGIN silo-backoff-magnitude\n"
+            "#if 0\n"
+            "    double now_backoff = static_cast<double>(BACKOFF_FIXED);\n"
+            "#else\n"
+            "    double now_backoff = Backoff_.load(std::memory_order_acquire);\n"
+            "#endif\n"
+            "// EVOLVE-BLOCK-END silo-backoff-magnitude\n"
+            + noinline_branch,
+            encoding="utf-8",
+        )
+        with pytest.raises(RuntimeError, match="preprocess-bytes-identical"):
+            with subject._condition_gate_scope(_runtime(cxx=cxx), [5]):
+                entered.append("measurement-body")
+
+    assert entered == []
 
 
 def _built_points(digests) -> list[subject._BuiltProfilePoint]:

@@ -130,7 +130,24 @@ def _require_backoff_condition_gate(
     )
     meaning_records = tuple(
         condition_meaning_gate.evaluate_define_runtime_meaning(
-            captured, request=request, declaration=None, cxx=cxx,
+            captured,
+            request=request,
+            declaration=(
+                condition_meaning_gate.MeaningWitnessDeclaration(
+                    "BACKOFF_FIXED",
+                    (
+                        condition_meaning_gate.MeaningCase(
+                            -1,
+                            None,
+                            condition_meaning_gate.STOCK_ADAPTIVE_BRANCH,
+                        ),
+                    ),
+                )
+                if request.macro == "BACKOFF_FIXED"
+                and request.requested_value == -1
+                else None
+            ),
+            cxx=cxx,
         )
         for request in requests
     )

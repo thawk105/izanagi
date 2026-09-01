@@ -803,8 +803,9 @@ class _DeferredGateMember:
     relative_path: str
     owner: str
     reason: str
-    sink_kind: str | None = None
-    sink_scope: str | None = None
+    sink_kind: str
+    sink_scope: str
+    sink_lineno: int
 
 
 _DEFERRED_GATE_MEMBERS = (
@@ -812,11 +813,25 @@ _DEFERRED_GATE_MEMBERS = (
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
         "wave t1905",
         "active wave owns this driver",
+        "buildcache",
+        "<module>._build_binary",
+        2501,
+    ),
+    _DeferredGateMember(
+        "orchestrator/campaign/b10_backoff_shape_sweep.py",
+        "wave t1905",
+        "active wave owns this driver",
+        "campaign",
+        "<module>.run_formal",
+        2873,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
         "wave t1819",
         "active wave owns this driver",
+        "campaign",
+        "<module>.run_measurement",
+        3659,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -824,6 +839,15 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
+        4489,
+    ),
+    _DeferredGateMember(
+        "orchestrator/campaign/s8b_floor_campaign.py",
+        "wave t2027",
+        "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
+        "campaign",
+        "<module>.main",
+        8403,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -832,6 +856,9 @@ _DEFERRED_GATE_MEMBERS = (
             "output/insights/2026-08-16_t1142-n-pilot-prereg/"
             "protocol-r33.json binds driver_sha256"
         ),
+        "injected-build_fn",
+        "<module>.build_binaries",
+        944,
     ),
 )
 
@@ -840,8 +867,9 @@ def _deferred_member(sink: _BuildSink) -> _DeferredGateMember | None:
     matches = [
         item for item in _DEFERRED_GATE_MEMBERS
         if item.relative_path == sink.relative_path
-        and (item.sink_kind is None or item.sink_kind == sink.kind)
-        and (item.sink_scope is None or item.sink_scope == sink.scope)
+        and item.sink_kind == sink.kind
+        and item.sink_scope == sink.scope
+        and item.sink_lineno == sink.lineno
     ]
     assert len(matches) <= 1
     return matches[0] if matches else None
@@ -1008,64 +1036,498 @@ def _complete_gate_function_names(
     }
 
 
-def _source_has_complete_gate(
-    relative_path: str,
-    source: str,
-    *,
-    sink: _BuildSink,
-    complete_function_names: dict[str, frozenset[str]],
-) -> bool:
-    if relative_path.endswith(".sh"):
-        has_cli = "orchestrator.campaign.condition_meaning_gate" in source
-        has_execution = bool(re.search(
-            r"(?m)^\s*(?:run_condition_gate\s*$|.*condition_gate_argv\[@\].*)",
-            source,
-        ))
-        return has_cli and has_execution
+_FULL_GATE_COMPONENTS = frozenset({"supply", "meaning", "admission"})
 
-    tree = ast.parse(source, filename=relative_path)
-    for body in _function_bodies(tree).values():
-        if body.name != sink.scope.rsplit(".", 1)[-1]:
-            continue
-        component_lines: dict[str, int] = {}
-        for item in _walk_without_nested_functions(body):
-            if not isinstance(item, ast.Call):
-                continue
-            name = _call_name(item.func) or ""
+
+@dataclass(frozen=True)
+class _GateFlowState:
+    covered_macros: frozenset[str] = frozenset()
+    components: frozenset[str] = frozenset()
+
+
+def _intersect_gate_states(states: list[_GateFlowState]) -> _GateFlowState:
+    assert states
+    covered = set(states[0].covered_macros)
+    components = set(states[0].components)
+    for state in states[1:]:
+        covered.intersection_update(state.covered_macros)
+        components.intersection_update(state.components)
+    return _GateFlowState(frozenset(covered), frozenset(components))
+
+
+class _QualifiedFunctionVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.scope = ["<module>"]
+        self.bodies: dict[str, ast.AST] = {}
+        self.node_scopes: dict[int, str] = {}
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.scope.append(node.name)
+        self.generic_visit(node)
+        self.scope.pop()
+
+    def _visit_function(self, node) -> None:
+        self.scope.append(node.name)
+        qualified = ".".join(self.scope)
+        self.bodies[qualified] = node
+        self.node_scopes[id(node)] = qualified
+        self.generic_visit(node)
+        self.scope.pop()
+
+    visit_FunctionDef = _visit_function
+    visit_AsyncFunctionDef = _visit_function
+
+
+class _PythonGateFlow:
+    """Conservative structured-flow proof that a gate covers one build sink."""
+
+    def __init__(
+        self,
+        relative_path: str,
+        source: str,
+        *,
+        complete_names: frozenset[str],
+        patch_macros: frozenset[str],
+        source_macros: frozenset[str],
+    ):
+        self.relative_path = relative_path
+        self.source = source
+        self.tree = ast.parse(source, filename=relative_path)
+        functions = _QualifiedFunctionVisitor()
+        functions.visit(self.tree)
+        self.bodies = {"<module>": self.tree, **functions.bodies}
+        self.node_scopes = functions.node_scopes
+        self.module_assignments: dict[str, ast.AST] = {}
+        for statement in self.tree.body:
+            if isinstance(statement, ast.Assign):
+                for target in statement.targets:
+                    if isinstance(target, ast.Name):
+                        self.module_assignments[target.id] = statement.value
+            elif (
+                isinstance(statement, ast.AnnAssign)
+                and isinstance(statement.target, ast.Name)
+                and statement.value is not None
+            ):
+                self.module_assignments[statement.target.id] = statement.value
+        self.complete_names = complete_names
+        self.patch_macros = patch_macros
+        self.source_macros = source_macros
+        self.call_states: dict[tuple[str, int], list[_GateFlowState]] = {}
+        self.local_incoming: dict[
+            str, list[tuple[str, frozenset[str]]]
+        ] = {scope: [] for scope in self.bodies}
+        self.definition_incoming: dict[
+            str, tuple[str, frozenset[str]]
+        ] = {}
+        self.returned_evidence_checks: dict[
+            str, list[tuple[int, str | None]]
+        ] = {}
+        for scope, body in self.bodies.items():
+            statements = body.body
+            self._flow_block(statements, _GateFlowState(), scope)
+        self.entry_coverage = self._derive_entry_coverage()
+
+    def _resolve_local_scope(self, scope: str, name: str) -> str | None:
+        parts = scope.split(".")
+        for length in range(len(parts), 0, -1):
+            candidate = ".".join((*parts[:length], name))
+            if candidate in self.bodies:
+                return candidate
+        candidate = f"<module>.{name}"
+        return candidate if candidate in self.bodies else None
+
+    def _explicit_call_macros(
+        self, scope: str, call: ast.Call,
+    ) -> frozenset[str]:
+        def tokens(node: ast.AST, visiting: frozenset[str] = frozenset()) -> set[str]:
+            found: set[str] = set()
+            for item in ast.walk(node):
+                if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                    found.update(_DEFINE_TOKEN_RE.findall(item.value))
+                elif (
+                    isinstance(item, ast.Name)
+                    and item.id not in visiting
+                    and item.id in self.module_assignments
+                ):
+                    found.update(tokens(
+                        self.module_assignments[item.id], visiting | {item.id},
+                    ))
+            return found & set(self.patch_macros)
+
+        name = _call_name(call.func)
+        target_body = None
+        if name is not None and "." not in name:
+            target = self._resolve_local_scope(scope, name)
+            if target is not None:
+                target_body = self.bodies[target]
+        if isinstance(target_body, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            positional = [
+                *target_body.args.posonlyargs, *target_body.args.args,
+            ]
+            macro_parameters = {
+                argument.arg for argument in (
+                    *positional, *target_body.args.kwonlyargs,
+                )
+                if "macro" in argument.arg
+            }
+            if macro_parameters:
+                bound: dict[str, ast.AST] = {
+                    argument.arg: value
+                    for argument, value in zip(positional, call.args)
+                }
+                bound.update({
+                    keyword.arg: keyword.value
+                    for keyword in call.keywords if keyword.arg is not None
+                })
+                supplied = [
+                    bound[parameter]
+                    for parameter in macro_parameters if parameter in bound
+                ]
+                explicit = set().union(*(tokens(item) for item in supplied))
+                if explicit:
+                    return frozenset(explicit)
+                if supplied:
+                    return self.source_macros
+        explicit = tokens(call)
+        if target_body is not None:
+            explicit.update(tokens(target_body))
+            if any(
+                isinstance(item, ast.Name)
+                and item.id.endswith(("_MACRO", "_DEFINE"))
+                for item in ast.walk(target_body)
+            ):
+                explicit.update(self.source_macros)
+        return frozenset(explicit)
+
+    def _record_expression(
+        self, expression: ast.AST | None, state: _GateFlowState, scope: str,
+    ) -> _GateFlowState:
+        if expression is None:
+            return state
+        calls = sorted(
+            (item for item in ast.walk(expression) if isinstance(item, ast.Call)),
+            key=lambda item: (item.lineno, item.col_offset),
+        )
+        current = state
+        for call in calls:
+            self.call_states.setdefault((scope, call.lineno), []).append(current)
+            name = _call_name(call.func) or ""
+            if "." not in name:
+                target = self._resolve_local_scope(scope, name)
+                if target is not None:
+                    self.local_incoming[target].append(
+                        (scope, current.covered_macros)
+                    )
+            if name.endswith("require_returned_condition_evidence"):
+                result_name = None
+                if call.args and isinstance(call.args[0], ast.Name):
+                    result_name = call.args[0].id
+                self.returned_evidence_checks.setdefault(scope, []).append(
+                    (call.lineno, result_name)
+                )
+            component = None
             if name.endswith("evaluate_define_supply_effectuation"):
-                component_lines.setdefault("supply", item.lineno)
+                component = "supply"
             elif name.endswith("evaluate_define_runtime_meaning"):
-                component_lines.setdefault("meaning", item.lineno)
+                component = "meaning"
             elif name.endswith("require_condition_gate_family"):
-                component_lines.setdefault("admission", item.lineno)
-        if (
-            set(component_lines) == {"supply", "meaning", "admission"}
-            and (
-                sink.kind.startswith("injected-")
-                or max(component_lines.values()) < sink.lineno
+                component = "admission"
+            components = set(current.components)
+            if component is not None:
+                components.add(component)
+            covered = set(current.covered_macros)
+            if name in self.complete_names:
+                explicit = self._explicit_call_macros(scope, call)
+                covered.update(explicit or self.source_macros)
+            if _FULL_GATE_COMPONENTS.issubset(components):
+                covered.update(self.source_macros)
+            current = _GateFlowState(
+                frozenset(covered), frozenset(components),
             )
-        ):
-            return True
+        return current
 
-    invocation_lines = []
-    for item in ast.walk(tree):
-        if not isinstance(item, ast.Call):
-            continue
-        name = _call_name(item.func)
+    def _flow_block(
+        self, statements: list[ast.stmt], state: _GateFlowState, scope: str,
+    ) -> tuple[_GateFlowState, bool]:
+        current = state
+        for statement in statements:
+            current, continues = self._flow_statement(statement, current, scope)
+            if not continues:
+                return current, False
+        return current, True
+
+    def _flow_statement(
+        self, statement: ast.stmt, state: _GateFlowState, scope: str,
+    ) -> tuple[_GateFlowState, bool]:
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            child = self.node_scopes[id(statement)]
+            self.definition_incoming[child] = (
+                scope, state.covered_macros,
+            )
+            return state, True
+        if isinstance(statement, ast.ClassDef):
+            return state, True
+        if isinstance(statement, ast.If):
+            tested = self._record_expression(statement.test, state, scope)
+            exits: list[_GateFlowState] = []
+            body_state, body_continues = self._flow_block(
+                statement.body, tested, scope,
+            )
+            if body_continues:
+                exits.append(body_state)
+            if statement.orelse:
+                else_state, else_continues = self._flow_block(
+                    statement.orelse, tested, scope,
+                )
+                if else_continues:
+                    exits.append(else_state)
+            else:
+                exits.append(tested)
+            if not exits:
+                return tested, False
+            return _intersect_gate_states(exits), True
+        if isinstance(statement, (ast.For, ast.AsyncFor)):
+            entered = self._record_expression(statement.iter, state, scope)
+            self._flow_block(statement.body, entered, scope)
+            exits = [entered]
+            if statement.orelse:
+                else_state, else_continues = self._flow_block(
+                    statement.orelse, entered, scope,
+                )
+                if else_continues:
+                    exits.append(else_state)
+            return _intersect_gate_states(exits), True
+        if isinstance(statement, ast.While):
+            tested = self._record_expression(statement.test, state, scope)
+            self._flow_block(statement.body, tested, scope)
+            exits = [tested]
+            if statement.orelse:
+                else_state, else_continues = self._flow_block(
+                    statement.orelse, tested, scope,
+                )
+                if else_continues:
+                    exits.append(else_state)
+            return _intersect_gate_states(exits), True
+        if isinstance(statement, (ast.With, ast.AsyncWith)):
+            entered = state
+            for item in statement.items:
+                entered = self._record_expression(
+                    item.context_expr, entered, scope,
+                )
+            return self._flow_block(statement.body, entered, scope)
+        if isinstance(statement, ast.Try) or type(statement).__name__ == "TryStar":
+            body_state, body_continues = self._flow_block(
+                statement.body, state, scope,
+            )
+            exits: list[_GateFlowState] = []
+            if body_continues:
+                if statement.orelse:
+                    else_state, else_continues = self._flow_block(
+                        statement.orelse, body_state, scope,
+                    )
+                    if else_continues:
+                        exits.append(else_state)
+                else:
+                    exits.append(body_state)
+            for handler in statement.handlers:
+                handler_state, handler_continues = self._flow_block(
+                    handler.body, state, scope,
+                )
+                if handler_continues:
+                    exits.append(handler_state)
+            if not statement.handlers:
+                exits.append(state)
+            merged = _intersect_gate_states(exits) if exits else state
+            if statement.finalbody:
+                return self._flow_block(statement.finalbody, merged, scope)
+            return merged, bool(exits)
+        if isinstance(statement, ast.Match):
+            matched = self._record_expression(statement.subject, state, scope)
+            exits = [matched]
+            for case in statement.cases:
+                case_state, case_continues = self._flow_block(
+                    case.body, matched, scope,
+                )
+                if case_continues:
+                    exits.append(case_state)
+            return _intersect_gate_states(exits), True
+
+        expressions: list[ast.AST] = []
+        if isinstance(statement, ast.Expr):
+            expressions = [statement.value]
+        elif isinstance(statement, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            value = getattr(statement, "value", None)
+            if value is not None:
+                expressions = [value]
+        elif isinstance(statement, ast.Return):
+            expressions = [statement.value] if statement.value is not None else []
+        elif isinstance(statement, ast.Raise):
+            expressions = [
+                item for item in (statement.exc, statement.cause)
+                if item is not None
+            ]
+        elif isinstance(statement, ast.Assert):
+            expressions = [statement.test]
+            if statement.msg is not None:
+                expressions.append(statement.msg)
+        current = state
+        for expression in expressions:
+            current = self._record_expression(expression, current, scope)
+        terminates = isinstance(statement, (ast.Return, ast.Raise, ast.Break, ast.Continue))
+        return current, not terminates
+
+    def _derive_entry_coverage(self) -> dict[str, frozenset[str]]:
+        entry = {scope: frozenset() for scope in self.bodies}
+        while True:
+            updated = dict(entry)
+            for scope in self.bodies:
+                if scope == "<module>":
+                    continue
+                definition = self.definition_incoming.get(scope)
+                definition_coverage = frozenset()
+                if definition is not None:
+                    parent, local = definition
+                    definition_coverage = local | entry[parent]
+                arrivals = [
+                    local | entry[caller] | definition_coverage
+                    for caller, local in self.local_incoming[scope]
+                ]
+                if arrivals:
+                    common = set(arrivals[0])
+                    for arrival in arrivals[1:]:
+                        common.intersection_update(arrival)
+                    updated[scope] = frozenset(common)
+                else:
+                    updated[scope] = definition_coverage
+            if updated == entry:
+                return entry
+            entry = updated
+
+    def _injected_result_name(self, sink: _BuildSink) -> str | None:
+        for node in ast.walk(self.tree):
+            if isinstance(node, (ast.With, ast.AsyncWith)):
+                for item in node.items:
+                    if (
+                        isinstance(item.context_expr, ast.Call)
+                        and item.context_expr.lineno == sink.lineno
+                        and isinstance(item.optional_vars, ast.Name)
+                    ):
+                        return item.optional_vars.id
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                value = node.value
+                if not isinstance(value, ast.Call) or value.lineno != sink.lineno:
+                    continue
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                if len(targets) == 1 and isinstance(targets[0], ast.Name):
+                    return targets[0].id
+        return None
+
+    def _effective_sink_line(self, sink: _BuildSink) -> int:
+        if sink.kind != "direct-cmake-target":
+            return sink.lineno
+        body = self.bodies.get(sink.scope)
+        if body is None:
+            return sink.lineno
+        at_anchor = [
+            item for item in ast.walk(body)
+            if isinstance(item, ast.Call) and item.lineno == sink.lineno
+        ]
+        if any("run" in (_call_name(call.func) or "").lower() for call in at_anchor):
+            return sink.lineno
+        executions = [
+            item.lineno for item in ast.walk(body)
+            if isinstance(item, ast.Call)
+            and item.lineno > sink.lineno
+            and "run" in (_call_name(item.func) or "").lower()
+            and any(
+                isinstance(argument, ast.Name)
+                and argument.id in {"argv", "build_argv", "cmd", "command"}
+                for argument in item.args
+            )
+        ]
+        return min(executions, default=sink.lineno)
+
+    def coverage_for_sink(
+        self, sink: _BuildSink, sibling_sinks: set[_BuildSink],
+    ) -> frozenset[str]:
+        effective_line = self._effective_sink_line(sink)
+        states = self.call_states.get((sink.scope, effective_line), [])
+        local = _intersect_gate_states(states).covered_macros if states else frozenset()
+        coverage = local | self.entry_coverage.get(sink.scope, frozenset())
+        if not sink.kind.startswith("injected-"):
+            return coverage
+
+        result_name = self._injected_result_name(sink)
+        next_lines = [
+            other.lineno for other in sibling_sinks
+            if other.scope == sink.scope
+            and other.kind.startswith("injected-")
+            and other.lineno > sink.lineno
+        ]
+        boundary = min(next_lines, default=10 ** 9)
+        matching_checks = [
+            line for line, checked_name in self.returned_evidence_checks.get(
+                sink.scope, []
+            )
+            if sink.lineno < line < boundary
+            and result_name is not None
+            and checked_name == result_name
+        ]
+        if matching_checks:
+            # The validator compares the returned record macro set with the
+            # concrete injected request.  Its dynamic coverage is therefore
+            # exact even when the macro token is not lexical in this file.
+            return coverage | self.patch_macros
+        return coverage
+
+
+def _shell_gate_coverage(
+    source: str, sink: _BuildSink, source_macros: frozenset[str],
+) -> frozenset[str]:
+    if "orchestrator.campaign.condition_meaning_gate" not in source:
+        return frozenset()
+    module_gate_lines: list[int] = []
+    function_gate_lines: list[int] = []
+    function_calls: list[int] = []
+    function_name = sink.scope.rsplit(".", 1)[-1]
+    current_scope = "<module>"
+    depth = 0
+    for lineno, line in enumerate(source.splitlines(), 1):
+        function = _SHELL_FUNCTION_RE.match(line)
+        if function is not None:
+            current_scope = f"<module>.{function.group(1)}"
+            depth = 1
+        elif current_scope != "<module>":
+            depth += line.count("{") - line.count("}")
+            if depth <= 0:
+                current_scope = "<module>"
+                depth = 0
+        executes_gate = bool(
+            re.match(r"^\s*run_condition_gate(?:\s|$)", line)
+            or (
+                "condition_gate_argv[@]" in line
+                and "condition_gate_argv+=" not in line
+            )
+        )
+        if executes_gate:
+            if current_scope == "<module>":
+                module_gate_lines.append(lineno)
+            elif current_scope == sink.scope:
+                function_gate_lines.append(lineno)
         if (
-            name is not None
-            and name in complete_function_names.get(relative_path, frozenset())
+            current_scope == "<module>"
+            and re.match(rf"^\s*{re.escape(function_name)}(?:\s|$)", line)
         ):
-            invocation_lines.append(item.lineno)
-    if sink.kind.startswith("injected-"):
-        # Returned evidence necessarily becomes inspectable after invocation.
-        return bool(invocation_lines)
-    if any(line < sink.lineno for line in invocation_lines):
-        return True
-    # A direct sink often lives in a builder defined before its entry point.
-    # In that shape the entry point's gate invocation dominates the later call
-    # to the builder even though its source line is numerically greater.
-    return bool(invocation_lines)
+            function_calls.append(lineno)
+    if sink.scope == "<module>":
+        gated = any(line < sink.lineno for line in module_gate_lines)
+    else:
+        gated = (
+            any(line < sink.lineno for line in function_gate_lines)
+            or bool(function_calls)
+            and all(any(gate < call for gate in module_gate_lines) for call in function_calls)
+        )
+    return source_macros if gated else frozenset()
 
 
 def _source_macro_inventory(
@@ -1176,6 +1638,208 @@ def _source_macro_tokens(
     )[relative_path]
 
 
+def _sink_configuration_expression(
+    source: str, sink: _BuildSink,
+) -> tuple[ast.AST, ast.AST] | None:
+    tree = ast.parse(source, filename=sink.relative_path)
+    functions = _QualifiedFunctionVisitor()
+    functions.visit(tree)
+    body = {"<module>": tree, **functions.bodies}.get(sink.scope)
+    if body is None:
+        return None
+    calls = [
+        item for item in ast.walk(body)
+        if isinstance(item, ast.Call) and item.lineno == sink.lineno
+    ]
+    if len(calls) != 1:
+        return None
+    call = calls[0]
+    name = _call_name(call.func) or ""
+    argument_index = 0
+    if sink.kind == "campaign" and not name.endswith("pipeline.evaluate"):
+        argument_index = 1
+    if len(call.args) <= argument_index:
+        return None
+    return body, call.args[argument_index]
+
+
+def _expression_depends_on_scope_parameter(
+    body: ast.AST, expression: ast.AST, *, before_line: int,
+) -> bool:
+    parameters: set[str] = set()
+    if isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        parameters = {
+            argument.arg
+            for argument in (
+                *body.args.posonlyargs, *body.args.args, *body.args.kwonlyargs,
+            )
+        }
+        if body.args.vararg is not None:
+            parameters.add(body.args.vararg.arg)
+        if body.args.kwarg is not None:
+            parameters.add(body.args.kwarg.arg)
+    assignments: dict[str, ast.AST] = {}
+    for node in ast.walk(body):
+        if getattr(node, "lineno", before_line) >= before_line:
+            continue
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    assignments[target.id] = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if node.value is not None:
+                assignments[node.target.id] = node.value
+        elif isinstance(node, (ast.For, ast.AsyncFor)) and isinstance(node.target, ast.Name):
+            assignments[node.target.id] = node.iter
+
+    opaque_calls = {
+        "input", "getenv", "load", "loads", "load_protocol", "parse_args",
+        "read_text", "read_bytes",
+    }
+
+    def depends(node: ast.AST, visiting: frozenset[str] = frozenset()) -> bool:
+        if isinstance(node, ast.Name):
+            if node.id in parameters:
+                return True
+            if node.id in visiting or node.id not in assignments:
+                return False
+            return depends(assignments[node.id], visiting | {node.id})
+        if isinstance(node, ast.Call):
+            name = (_call_name(node.func) or "").rsplit(".", 1)[-1]
+            if name in opaque_calls or name.startswith(("load_", "parse_", "read_")):
+                return True
+            return any(depends(item, visiting) for item in (
+                *node.args,
+                *(keyword.value for keyword in node.keywords),
+            ))
+        return any(depends(child, visiting) for child in ast.iter_child_nodes(node))
+
+    return depends(expression)
+
+
+def _expression_macro_inventory(
+    source: str,
+    body: ast.AST,
+    expression: ast.AST,
+    patch_macros: frozenset[str],
+    *,
+    before_line: int,
+) -> frozenset[str]:
+    tree = ast.parse(source)
+    module_assignments: dict[str, ast.AST] = {}
+    functions: dict[str, ast.AST] = {}
+    for statement in tree.body:
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            functions[statement.name] = statement
+        elif isinstance(statement, ast.Assign):
+            for target in statement.targets:
+                if isinstance(target, ast.Name):
+                    module_assignments[target.id] = statement.value
+        elif isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+            if statement.value is not None:
+                module_assignments[statement.target.id] = statement.value
+    local_assignments: dict[str, ast.AST] = {}
+    for node in ast.walk(body):
+        if getattr(node, "lineno", before_line) >= before_line:
+            continue
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    local_assignments[target.id] = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if node.value is not None:
+                local_assignments[node.target.id] = node.value
+
+    def collect(node: ast.AST, visiting: frozenset[str] = frozenset()) -> set[str]:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return set(_DEFINE_TOKEN_RE.findall(node.value)) & set(patch_macros)
+        if isinstance(node, ast.Name):
+            if node.id in visiting:
+                return set()
+            value = local_assignments.get(node.id, module_assignments.get(node.id))
+            if value is None:
+                return set()
+            return collect(value, visiting | {node.id})
+        if isinstance(node, ast.Call):
+            tokens: set[str] = set()
+            for item in (*node.args, *(keyword.value for keyword in node.keywords)):
+                tokens.update(collect(item, visiting))
+            name = _call_name(node.func) or ""
+            if "." not in name and name in functions and name not in visiting:
+                for item in _walk_without_nested_functions(functions[name]):
+                    if isinstance(item, ast.Return) and item.value is not None:
+                        tokens.update(collect(item.value, visiting | {name}))
+            return tokens
+        tokens: set[str] = set()
+        for child in ast.iter_child_nodes(node):
+            tokens.update(collect(child, visiting))
+        return tokens
+
+    return frozenset(collect(expression))
+
+
+def _sink_macro_inventory(
+    source: str,
+    sink: _BuildSink,
+    patch_macros: frozenset[str],
+    source_macros: frozenset[str],
+) -> frozenset[str]:
+    if sink.kind not in {"buildcache", "campaign"}:
+        return source_macros
+    configuration = _sink_configuration_expression(source, sink)
+    if configuration is None:
+        return source_macros
+    body, expression = configuration
+    explicit = _expression_macro_inventory(
+        source,
+        body,
+        expression,
+        patch_macros,
+        before_line=sink.lineno,
+    )
+    if explicit:
+        return explicit
+    if _expression_depends_on_scope_parameter(
+        body, expression, before_line=sink.lineno,
+    ):
+        return source_macros
+    return frozenset()
+
+
+def _sink_macro_reachability(
+    source: str,
+    sink: _BuildSink,
+    macro: str,
+    source_macros: frozenset[str],
+) -> str:
+    if macro in source_macros:
+        return "reachable"
+    if sink.kind.startswith("injected-"):
+        return "unresolved"
+    if source_macros:
+        # The inventory is not just a token search in this file: it closes over
+        # imported assigned values and uniquely referenced JSON.  Once that
+        # independently derived input surface contains at least one domain
+        # interface, absence of this different interface is a negative proof,
+        # rather than an empty-candidate shortcut.
+        return "proven-unreachable"
+    if sink.kind in {"direct-cmake-target", "shell-cmake-target"}:
+        # These scanners inspect the configure/build source itself, including
+        # imported constants and referenced JSON.  With no injected callable,
+        # absence from that closed input inventory proves this particular
+        # define cannot be introduced at the enumerated build boundary.
+        return "proven-unreachable"
+    configuration = _sink_configuration_expression(source, sink)
+    if configuration is None:
+        return "unresolved"
+    body, expression = configuration
+    if _expression_depends_on_scope_parameter(
+        body, expression, before_line=sink.lineno,
+    ):
+        return "unresolved"
+    return "proven-unreachable"
+
+
 def _define_sink_cross_product_failures(
     sources: dict[str, str],
     patch_macros: frozenset[str],
@@ -1189,14 +1853,37 @@ def _define_sink_cross_product_failures(
         patch_macros,
         root_paths={sink.relative_path for sink in sinks},
     )
+    sinks_by_path: dict[str, set[_BuildSink]] = {}
+    for sink in sinks:
+        sinks_by_path.setdefault(sink.relative_path, set()).add(sink)
+    python_flows = {
+        path: _PythonGateFlow(
+            path,
+            sources[path],
+            complete_names=complete_functions.get(path, frozenset()),
+            patch_macros=patch_macros,
+            source_macros=macro_inventory[path],
+        )
+        for path in sinks_by_path
+        if path.endswith(".py")
+    }
     sink_analysis = {
         sink: (
-            macro_inventory[sink.relative_path],
-            _source_has_complete_gate(
-                sink.relative_path,
+            _sink_macro_inventory(
                 sources[sink.relative_path],
-                sink=sink,
-                complete_function_names=complete_functions,
+                sink,
+                patch_macros,
+                macro_inventory[sink.relative_path],
+            ),
+            (
+                python_flows[sink.relative_path].coverage_for_sink(
+                    sink, sinks_by_path[sink.relative_path],
+                )
+                if sink.relative_path.endswith(".py")
+                else _shell_gate_coverage(
+                    sources[sink.relative_path], sink,
+                    macro_inventory[sink.relative_path],
+                )
             ),
         )
         for sink in sinks
@@ -1204,14 +1891,13 @@ def _define_sink_cross_product_failures(
     failures: list[tuple[str, _BuildSink, str]] = []
     for macro in sorted(patch_macros):
         for sink in sorted(sinks):
-            lexical, has_complete_gate = sink_analysis[sink]
-            if macro in lexical:
-                reachability = "reachable"
-            elif sink.kind.startswith("injected-"):
-                reachability = "unresolved"
-            else:
+            source_macros, gate_coverage = sink_analysis[sink]
+            reachability = _sink_macro_reachability(
+                sources[sink.relative_path], sink, macro, source_macros,
+            )
+            if reachability == "proven-unreachable":
                 continue
-            if has_complete_gate:
+            if macro in gate_coverage:
                 continue
             if _deferred_member(sink) is not None:
                 continue
@@ -1255,37 +1941,69 @@ def test_define_sink_cross_product_has_no_unreviewed_ungated_member():
 
 def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     assert {
-        (item.relative_path, item.owner, item.sink_kind, item.sink_scope)
+        (
+            item.relative_path, item.owner, item.sink_kind,
+            item.sink_scope, item.sink_lineno,
+        )
         for item in _DEFERRED_GATE_MEMBERS
     } == {
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", None, None,
+            "wave t1905", "buildcache", "<module>._build_binary", 2501,
+        ),
+        (
+            "orchestrator/campaign/b10_backoff_shape_sweep.py",
+            "wave t1905", "campaign", "<module>.run_formal", 2873,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
-            "wave t1819", None, None,
+            "wave t1819", "campaign", "<module>.run_measurement", 3659,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build",
+            "<module>.build_cells.invoke_build", 4489,
+        ),
+        (
+            "orchestrator/campaign/s8b_floor_campaign.py",
+            "wave t2027", "campaign", "<module>.main", 8403,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
-            "protocol-r33 preregistration", None, None,
+            "protocol-r33 preregistration", "injected-build_fn",
+            "<module>.build_binaries", 944,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
+    assert all(
+        item.sink_kind and item.sink_scope
+        for item in _DEFERRED_GATE_MEMBERS
+    )
     sources = _production_build_sources()
     sinks = _benchmark_build_sinks(sources)
+    matched_sinks: set[_BuildSink] = set()
     for item in _DEFERRED_GATE_MEMBERS:
-        assert any(
-            sink.relative_path == item.relative_path
-            and (item.sink_kind is None or sink.kind == item.sink_kind)
-            and (item.sink_scope is None or sink.scope == item.sink_scope)
-            for sink in sinks
-        )
+        matches = [
+            sink for sink in sinks
+            if sink.relative_path == item.relative_path
+            and sink.kind == item.sink_kind
+            and sink.scope == item.sink_scope
+            and sink.lineno == item.sink_lineno
+        ]
+        assert len(matches) == 1
+        assert _deferred_member(matches[0]) == item
+        matched_sinks.add(matches[0])
+    assert len(matched_sinks) == len(_DEFERRED_GATE_MEMBERS)
+
+
+def test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file():
+    new_sink = _BuildSink(
+        "orchestrator/campaign/b10_backoff_shape_sweep.py",
+        "<module>.future_build",
+        99999,
+        "buildcache",
+    )
+    assert _deferred_member(new_sink) is None
 
 
 def test_define_sink_cross_product_rejects_synthetic_member_without_gate():
@@ -1366,6 +2084,74 @@ def test_define_sink_cross_product_does_not_defer_unlisted_member():
         "reachable",
     ) in failures
     assert all(_deferred_member(sink) is None for _macro, sink, _state in failures)
+
+
+def test_define_sink_cross_product_requires_gate_to_dominate_each_sink():
+    relative = "orchestrator/campaign/synthetic_two_builds.py"
+    sources = {relative: (
+        "from orchestrator.campaign import buildcache\n"
+        "def _gate(captured, request):\n"
+        "    marker = 'BACKOFF_FIXED'\n"
+        "    supply = gate.evaluate_define_supply_effectuation(captured, request)\n"
+        "    meaning = gate.evaluate_define_runtime_meaning(captured, request)\n"
+        "    gate.require_condition_gate_family([supply], [meaning])\n"
+        "def gated_build(genome, captured, request):\n"
+        "    _gate(captured, request)\n"
+        "    return buildcache.build(genome)\n"
+        "def ungated_build(genome):\n"
+        "    return buildcache.build(genome)\n"
+    )}
+    failures = _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert failures == [(
+        "BACKOFF_FIXED",
+        _BuildSink(
+            relative, "<module>.ungated_build", 11, "buildcache",
+        ),
+        "reachable",
+    )]
+
+
+def test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved():
+    relative = "orchestrator/campaign/synthetic_dynamic_genome.py"
+    sources = {relative: (
+        "from orchestrator.campaign import buildcache\n"
+        "def build(genome):\n"
+        "    return buildcache.build(genome)\n"
+    )}
+    failures = _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert failures == [(
+        "BACKOFF_FIXED",
+        _BuildSink(relative, "<module>.build", 3, "buildcache"),
+        "unresolved",
+    )]
+
+
+def test_define_sink_cross_product_does_not_reuse_gate_for_another_macro():
+    relative = "orchestrator/campaign/synthetic_wrong_macro_gate.py"
+    sources = {relative: (
+        "from orchestrator.campaign import buildcache\n"
+        "def _gate(captured, request):\n"
+        "    marker = 'BACKOFF_FIXED'\n"
+        "    supply = gate.evaluate_define_supply_effectuation(captured, request)\n"
+        "    meaning = gate.evaluate_define_runtime_meaning(captured, request)\n"
+        "    gate.require_condition_gate_family([supply], [meaning])\n"
+        "def build(genome, captured, request):\n"
+        "    _gate(captured, request)\n"
+        "    requested = 'BACKOFF_NOINLINE'\n"
+        "    return buildcache.build(genome)\n"
+    )}
+    failures = _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED", "BACKOFF_NOINLINE"}),
+    )
+    assert failures == [(
+        "BACKOFF_NOINLINE",
+        _BuildSink(relative, "<module>.build", 10, "buildcache"),
+        "reachable",
+    )]
 
 
 def test_calibration_capability_issuer_has_one_certify_call_site():

@@ -116,7 +116,7 @@ _BASE = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
          "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
 
 
-def _require_condition_gate(source_root: str, genome: Genome) -> None:
+def _require_condition_gate(source_root: str, genome: Genome) -> dict:
     value = genome.flags["SORT_VARIANT"]
     _cc, cxx = buildcache.compilers_for_current_site()
     captured = condition_meaning_gate.capture_define_inputs(source_root)
@@ -131,13 +131,18 @@ def _require_condition_gate(source_root: str, genome: Genome) -> None:
         captured, request=request, declaration=None, cxx=cxx,
     )
     admission = condition_meaning_gate.require_condition_gate_family(
-        [supply], [meaning], use_class="raw",
+        [supply], [meaning], use_class="certified-selection",
     )
     if not admission.admitted:
         raise RuntimeError(
             "condition gate rejected P3 sort loop: "
             f"supply={supply.reason_code} meaning={meaning.reason_code}"
         )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 # 停止条件 (収束/逆方向枯渇/予算) は `L.check_stop` に完全委譲 — backoff driver と同じ
 # 規約 (`L.MAX_ITER`/`L.MAX_WALLTIME_S`、design v1 §4、D39 で凍結) をそのまま使う。
@@ -385,7 +390,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             return gate
         if not do_build:
             return {"outcome": "dry-pass", "variant": None}
-        _require_condition_gate(sub, genome)
+        condition_gate = _require_condition_gate(sub, genome)
         summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                               ccbench_dir=sub, cache_root=cache_root,
                               authorization_contract=env_contract.authorize(ENV_TAG),
@@ -393,16 +398,20 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                               declared_use_class=DECLARED_USE_CLASS)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
-        return _resolve_duplicate(layout, planner, state, summary, log=log)
+        duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
+        duplicate["condition_gate"] = condition_gate
+        return duplicate
     recs = wal.records_by_stage(layout, v) if v else {}
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
         L.project_whiteboard(state, planner, "success", delta_pct=None)
         return {"outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
-                "verdict": r.verdict, "records": recs}
+                "verdict": r.verdict, "records": recs,
+                "condition_gate": condition_gate}
     L.project_whiteboard(state, planner, "fail")
     return {"outcome": "aborted", "variant": v,
-            "verdict": (r.verdict if r else ""), "records": recs}
+            "verdict": (r.verdict if r else ""), "records": recs,
+            "condition_gate": condition_gate}
 
 
 # ==== 段 5 駆動口 (実 planner/coder/auditor proposal を受けて 1 iteration を継続) ===

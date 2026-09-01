@@ -126,11 +126,11 @@ REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改
 B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
 
 
-def _require_condition_gate(source_root: str, genome: Genome) -> None:
+def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
     """Run the independent supply and meaning arms before any benchmark build."""
     value = genome.flags.get("BACKOFF_FIXED")
     if value is None:
-        return
+        return None
     _cc, cxx = buildcache.compilers_for_current_site()
     captured = condition_meaning_gate.capture_define_inputs(source_root)
     request = condition_meaning_gate.make_define_request(
@@ -148,13 +148,18 @@ def _require_condition_gate(source_root: str, genome: Genome) -> None:
         captured, request=request, declaration=declaration, cxx=cxx,
     )
     admission = condition_meaning_gate.require_condition_gate_family(
-        [supply], [meaning], use_class="raw",
+        [supply], [meaning], use_class="certified-selection",
     )
     if not admission.admitted:
         raise RuntimeError(
             "condition gate rejected P3 S4 loop: "
             f"supply={supply.reason_code} meaning={meaning.reason_code}"
         )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 
 class B4ProtocolError(RuntimeError):
@@ -1289,7 +1294,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
             project_whiteboard(state, planner, "rejected")
             log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
-        _require_condition_gate(sub, genome)
+        condition_gate = _require_condition_gate(sub, genome)
         # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
@@ -1300,16 +1305,20 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                               declared_use_class=DECLARED_USE_CLASS)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
-        return _resolve_duplicate(layout, planner, state, summary, log=log)
+        duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
+        duplicate["condition_gate"] = condition_gate
+        return duplicate
     recs = wal.records_by_stage(layout, v) if v else {}
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
         project_whiteboard(state, planner, "success", delta_pct=None)  # 段 6 予約 (率算出は統計的 delta とセット、D39 残存リスク c)
         return {"outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
-                "verdict": r.verdict, "records": recs}
+                "verdict": r.verdict, "records": recs,
+                "condition_gate": condition_gate}
     project_whiteboard(state, planner, "fail")
     return {"outcome": "aborted", "variant": v,
-            "verdict": (r.verdict if r else ""), "records": recs}
+            "verdict": (r.verdict if r else ""), "records": recs,
+            "condition_gate": condition_gate}
 
 
 # ==== 段 4b 駆動口 (実 planner/coder proposal を受けて 1 iteration を継続) =========

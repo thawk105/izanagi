@@ -62,6 +62,9 @@ def test_paper_condition_gate_is_p_strict_and_precedes_campaign():
     assert 'use_class="paper"' in helper_source
     assert '"BACKOFF_FIXED"' in helper_source
     assert '"BACKOFF_NOINLINE"' in helper_source
+    assert "stock_root=stock_root" in helper_source
+    assert "STOCK_ADAPTIVE_BRANCH" in helper_source
+    assert "condition_gate_receipts" in run_source
 from orchestrator.tests import commit_receipt_support as receipt_support
 
 

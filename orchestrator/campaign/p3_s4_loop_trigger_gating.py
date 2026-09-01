@@ -113,7 +113,7 @@ DIGEST_BASENAME = "s8a_trigger_loop_digest.txt"
 CRITIC_TAG = "p3-s8a-trigger"
 
 
-def _require_condition_gate(source_root: str, genome: Genome) -> None:
+def _require_condition_gate(source_root: str, genome: Genome) -> dict:
     value = genome.flags.get("BACKOFF_TRIGGER_GATING", 1)
     _cc, cxx = buildcache.compilers_for_current_site()
     captured = condition_meaning_gate.capture_define_inputs(source_root)
@@ -128,13 +128,18 @@ def _require_condition_gate(source_root: str, genome: Genome) -> None:
         captured, request=request, declaration=None, cxx=cxx,
     )
     admission = condition_meaning_gate.require_condition_gate_family(
-        [supply], [meaning], use_class="raw",
+        [supply], [meaning], use_class="certified-selection",
     )
     if not admission.admitted:
         raise RuntimeError(
             "condition gate rejected P3 trigger loop: "
             f"supply={supply.reason_code} meaning={meaning.reason_code}"
         )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 # E 段入力 (coder/planner) に渡しうる偵察由来情報の全量 (D48 条件 7 / D50 決定 1)。
 # 生死の根拠数値・workload 別の勝ち gate はここに書かない (リークレンズ N2 裁定 —
@@ -782,7 +787,7 @@ def _run_one_iteration_resolved(
                     "trigger_gate_binding_commitment": commitment(binding),
                 }, campaign_cfg, layout,
             )
-        _require_condition_gate(sub, Genome(
+        condition_gate = _require_condition_gate(sub, Genome(
             "silo", {**genome.flags, "BACKOFF_TRIGGER_GATING": 1},
         ))
         if require_source_preimage_artifact:
@@ -820,6 +825,7 @@ def _run_one_iteration_resolved(
         duplicate["trigger_gate_binding_commitment"] = _wal_binding_commitment(
             duplicate["records"], variant=duplicate["variant"],
         )
+        duplicate["condition_gate"] = condition_gate
         return _with_campaign_location(duplicate, campaign_cfg, layout)
     recs = wal.records_by_stage(layout, v) if v else {}
     recs.pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
@@ -834,12 +840,14 @@ def _run_one_iteration_resolved(
             "outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
             "verdict": r.verdict, "records": recs,
             "trigger_gate_binding_commitment": binding_commitment,
+            "condition_gate": condition_gate,
         }, campaign_cfg, layout)
     L.project_whiteboard(state, planner, "fail")
     return _with_campaign_location({
         "outcome": "aborted", "variant": v,
         "verdict": (r.verdict if r else ""), "records": recs,
         "trigger_gate_binding_commitment": binding_commitment,
+        "condition_gate": condition_gate,
     }, campaign_cfg, layout)
 
 

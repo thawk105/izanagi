@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,16 @@ SUBMIT = ROOT / "tools/pegasus/submit_certify.sh"
 JOB = ROOT / "tools/pegasus/certify_calibration.sh"
 COST_PROBE = ROOT / "tools/pegasus/probes/t1683_rr5_cost_probe.py"
 README = ROOT / "tools/pegasus/README.md"
+
+
+def _load_cost_probe():
+    spec = importlib.util.spec_from_file_location(
+        "t1683_rr5_cost_probe_test", COST_PROBE,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_submitter_exposes_only_the_calibration_whitelist() -> None:
@@ -38,6 +49,7 @@ def test_job_rechecks_the_submission_workload_and_records_it() -> None:
     assert source.index("condition_gate_argv=") < source.index("build_argv=")
     assert "--macro BACKOFF_FIXED" in source
     assert "--stock-comparison" in source
+    assert "--meaning-case=-1:branch:stock-adaptive-backoff" in source
     assert "--use-class certified-selection" in source
     assert "-DCCBENCH_BACKOFF_FIXED=-1" in source
     assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
@@ -60,6 +72,33 @@ def test_cost_probe_condition_gate_dominates_first_buildcache_call() -> None:
     main = source[source.index("def main()") :]
     assert main.index("_require_condition_gates") < main.index("buildcache.build(")
     assert 'int(adopted["BACKOFF_NOINLINE"])' in source
+
+
+def test_cost_probe_requests_every_genome_value_and_inert_witness() -> None:
+    probe = _load_cost_probe()
+    for workload_id in ("rr5", "rr50"):
+        workload = probe._load_workload(workload_id)
+        cells = probe._condition_requests_by_genome(workload)
+        assert [name for name, _defines, _requests in cells] == [
+            name for name, _defines in workload["genomes"]
+        ]
+        assert {
+            (name, request.macro, request.requested_value)
+            for name, _defines, requests in cells
+            for request, _declaration in requests
+        } == {
+            (name, macro, int(defines[macro]))
+            for name, defines in workload["genomes"]
+            for macro in ("BACKOFF_FIXED", "BACKOFF_NOINLINE")
+        }
+        stock_requests = {
+            request.macro: (request, declaration)
+            for name, _defines, requests in cells if name.endswith("-stock")
+            for request, declaration in requests
+        }
+        assert stock_requests["BACKOFF_FIXED"][0].stock_comparison is True
+        assert stock_requests["BACKOFF_FIXED"][1] is not None
+        assert stock_requests["BACKOFF_NOINLINE"][0].stock_comparison is True
 
 
 def test_submitter_rejects_an_unregistered_ratio_before_side_effects(tmp_path: Path) -> None:

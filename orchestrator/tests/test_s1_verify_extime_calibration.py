@@ -29,7 +29,8 @@ def test_condition_gate_precedes_extime_build():
     )
     helper = inspect.getsource(M._require_condition_gate)
     assert 'macro="BACKOFF_TRIGGER_GATING"' in helper
-    assert 'use_class="raw"' in helper
+    assert 'use_class="certified-selection"' in helper
+    assert '"condition_gate": condition_gate' in source
 
 
 def _candidate(extime: int, wall: float, *, verdict: str = "serializable",

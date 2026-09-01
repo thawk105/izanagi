@@ -87,7 +87,9 @@ def test_condition_gate_precedes_run_campaign_in_build_path():
     helper = inspect.getsource(_REAL_CONDITION_GATE)
     assert "evaluate_define_supply_effectuation" in helper
     assert "evaluate_define_runtime_meaning" in helper
-    assert 'use_class="raw"' in helper
+    assert 'use_class="certified-selection"' in helper
+    assert '"admission": json.loads(admission.canonical_json())' in helper
+    assert '"condition_gate": condition_gate' in source
     kickoff = inspect.getsource(P3_KICKOFF.main)
     assert kickoff.index("_require_condition_gate(sub, STATIC_G)") < kickoff.index(
         "s1 = run_campaign("
@@ -96,6 +98,8 @@ def test_condition_gate_precedes_run_campaign_in_build_path():
     assert red.index("_require_condition_gate(sub, RED_G)") < red.index(
         "s1 = run_campaign("
     )
+    assert "p3_kickoff_condition_gate.json" in kickoff
+    assert "s4_condition_gate.json" in red
 from orchestrator.campaign.projection_guard import (                            # noqa: E402
     AbilityProbeMaterialError,
     ProjectionPolicyError,
