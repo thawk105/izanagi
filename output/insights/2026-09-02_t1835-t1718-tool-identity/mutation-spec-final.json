@@ -1,0 +1,169 @@
+{
+  "estimated_run_seconds": 90,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_masstree_runtime_rejects_expected_archive_nondebug_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1835-MU1-POSTFLIGHT-ARCHIVE-EXPECTED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    if (binding.archive_nondebug_sha256\n            != binding.archive_nondebug_sha256):\n",
+          "old": "    if (binding.archive_nondebug_sha256\n            != expected_payload.archive_nondebug_sha256):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_masstree_archive_projection.py::test_debug_named_relocation_targeting_retained_text_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1835-MU2-RELOC-TARGET-RETAINED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/masstree_archive_projection.py",
+          "new": "        pass\n    return True\n",
+          "old": "        raise MasstreeArchiveProjectionError(\n            \"debug-named ELF relocation targets a retained section\"\n        )\n    return True\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_masstree_archive_projection.py::test_loadable_or_disallowed_debug_named_section_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1835-MU3-DEBUG-SECTION-LOADABLE",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/masstree_archive_projection.py",
+          "new": "    if False and section.flags & (_SHF_ALLOC | _SHF_EXECINSTR):\n        raise MasstreeArchiveProjectionError(\n            \"debug-named ELF section is loadable or executable\"\n",
+          "old": "    if section.flags & (_SHF_ALLOC | _SHF_EXECINSTR):\n        raise MasstreeArchiveProjectionError(\n            \"debug-named ELF section is loadable or executable\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_masstree_archive_projection.py::test_capture_keeps_raw_and_projection_on_the_same_single_read"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1835-MU4-SINGLE-OPEN-CAPTURE",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/masstree_archive_projection.py",
+          "new": "    raw = candidate.read_bytes()\n",
+          "old": "    raw = b\"\".join(chunks)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_masstree_payload_policy_loader_rejects_unknown_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1835-MU5-POLICY-EXACT-KEYS",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    if not expected_keys <= set(document):\n",
+          "old": "    if set(document) != expected_keys:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_masstree_generator_main_preserves_output_when_two_builds_differ"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1835-MU6-GENERATOR-DOUBLE-BUILD",
+      "replacements": [
+        {
+          "file": "tools/pegasus/generate_floor_masstree_payload_policy.py",
+          "new": "                builds[0].config_sha256 != builds[0].config_sha256\n                or builds[0].archive_nondebug_sha256\n                != builds[0].archive_nondebug_sha256\n",
+          "old": "                builds[0].config_sha256 != builds[1].config_sha256\n                or builds[0].archive_nondebug_sha256\n                != builds[1].archive_nondebug_sha256\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_rejects_expected_compiler_version_body_mismatch[g++]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_rejects_expected_compiler_version_body_mismatch[gcc]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1718-MU7-COMPILER-BODY-COMPARE",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "        if observed != observed:\n",
+          "old": "        if observed != expected[role]:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_parser_emits_17_values_and_rejects_duplicates"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1718-MU8-POLICY-DUPLICATE-KEYS",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    policy = json.load(handle)\n",
+          "old": "    policy = json.load(handle, object_pairs_hook=reject_duplicate_keys)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_gflags_and_glog_toolchain_guards_block_environment_adoption"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1718-MU9-GFLAGS-TOOLCHAIN-FILE",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "  -DRULE_LAUNCH_COMPILE=\n)\ngflags_build_argv=(cmake --build \"$GFLAGS_BUILD_DIR\" -j 48)\n",
+          "old": "  -DRULE_LAUNCH_COMPILE=\n  -DCMAKE_TOOLCHAIN_FILE=\n)\ngflags_build_argv=(cmake --build \"$GFLAGS_BUILD_DIR\" -j 48)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_parser_emits_17_values_and_rejects_duplicates"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1718-MU10-POLICY-VALUE-COUNT",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "if [[ ${#policy_values[@]} -ne 16 ]]; then\n",
+          "old": "if [[ ${#policy_values[@]} -ne 17 ]]; then\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}
