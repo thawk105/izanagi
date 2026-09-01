@@ -1021,6 +1021,64 @@ def test_run_phase_closed_set_is_build_verify_perf_probe():
     assert set(B.RUN_PHASES) == {"build", "verify", "perf", "probe"}
 
 
+def test_verify_perf_phase_is_additive_to_the_legacy_phase_set():
+    assert B.FORMAL_PHASES == (*B.RUN_PHASES, "verify-perf")
+
+
+def test_verify_perf_reuses_one_checkout_and_stops_before_perf_on_abort():
+    source = Path(B.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    run_formal = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_formal"
+    )
+
+    calls = [node for node in ast.walk(run_formal) if isinstance(node, ast.Call)]
+    named_calls = [
+        node for node in calls
+        if isinstance(node.func, ast.Name)
+    ]
+    assert sum(node.func.id == "run_campaign" for node in named_calls) == 1
+    assert sum(node.func.id == "checkout" for node in named_calls) == 1
+    assert sum(node.func.id == "_certification_attempts" for node in named_calls) == 1
+    assert sum(node.func.id == "_perf_binary" for node in named_calls) == 1
+
+    run_call = next(node for node in named_calls if node.func.id == "run_campaign")
+    run_keywords = {keyword.arg: keyword.value for keyword in run_call.keywords}
+    assert isinstance(run_keywords["do_bench"], ast.Constant)
+    assert run_keywords["do_bench"].value is False
+
+    verify_branch = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.If)
+        and ast.unparse(node.test) == "phase in {'verify', 'verify-perf'}"
+    )
+    abort_guard = verify_branch.body[-1]
+    assert isinstance(abort_guard, ast.If)
+    assert ast.unparse(abort_guard.test) == (
+        "phase == 'verify' or summary.aborted != 0"
+    )
+    assert len(abort_guard.body) == 1
+    assert isinstance(abort_guard.body[0], ast.Return)
+
+    checkout_scope = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.With)
+        and any(
+            isinstance(item.context_expr, ast.Call)
+            and isinstance(item.context_expr.func, ast.Name)
+            and item.context_expr.func.id == "checkout"
+            for item in node.items
+        )
+    )
+    checkout_calls = {
+        node.func.id for node in ast.walk(checkout_scope)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert {"run_campaign", "_certification_attempts", "_perf_binary"} \
+        <= checkout_calls
+
+
 def test_formal_build_requires_exact_path_policy_and_job_exports_it(monkeypatch):
     job = ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
     job_source = job.read_text(encoding="utf-8")
@@ -1698,6 +1756,25 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
     assert '"$PY" -I -B -m orchestrator.campaign.b10_backoff_shape_sweep' not in job_text
     assert "build|verify|perf|probe" in submit_text + job_text
     assert '[[ "$IZANAGI_B10_PHASE" != probe ]]' in job_text
+
+
+def test_verify_perf_launcher_contract_and_walltime_are_consistent():
+    submit_text = (
+        ROOT / "tools/pegasus/submit_b10_backoff_shape.sh"
+    ).read_text(encoding="utf-8")
+    job_text = (
+        ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
+    ).read_text(encoding="utf-8")
+    driver_text = Path(B.__file__).read_text(encoding="utf-8")
+
+    for text in (submit_text, job_text):
+        assert "build|verify|perf|probe|verify-perf" in text
+    assert "#PBS -l elapstim_req=12:00:00" in job_text
+    assert job_text.count("43200") == 2
+    assert submit_text.count("43200") == 1
+    assert driver_text.count("43200") == 1
+    assert "21600" not in submit_text + job_text + driver_text
+    assert "06:00:00" not in job_text
 
 
 def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(

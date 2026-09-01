@@ -2,7 +2,7 @@
 #PBS -A SFC
 #PBS -q gen_S
 #PBS -b 1
-#PBS -l elapstim_req=06:00:00
+#PBS -l elapstim_req=12:00:00
 #PBS -N izanagi-b10-shape
 #PBS --accept-sigterm=yes
 set -Eeuo pipefail
@@ -21,12 +21,12 @@ bootstrap_fail() {
 [[ "${IZANAGI_B10_NONCE:-}" =~ ^[0-9a-f]{32}$ ]] || bootstrap_fail "submission nonce missing"
 [[ "${IZANAGI_B10_SOURCE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "source commit missing"
 [[ "${IZANAGI_B10_PREREG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "prereg commit missing"
-[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe)$ ]] || bootstrap_fail "phase missing"
+[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe|verify-perf)$ ]] || bootstrap_fail "phase missing"
 if [[ "$IZANAGI_B10_PHASE" == build || "$IZANAGI_B10_PHASE" == probe ]]; then
   [[ -z "${IZANAGI_B10_WORKLOAD:-}" ]] || bootstrap_fail "build/probe phase has workload"
 else
   [[ "${IZANAGI_B10_WORKLOAD:-}" =~ ^(write-heavy|balanced|read-heavy)$ ]] \
-    || bootstrap_fail "verify/perf workload missing"
+    || bootstrap_fail "verify/perf/verify-perf workload missing"
 fi
 
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || bootstrap_fail "cannot resolve repository"
@@ -166,7 +166,7 @@ if type(doc["submitted_epoch"]) is not int or doc["submitted_epoch"] <= 0:
     raise SystemExit("receipt timestamp invalid")
 request = doc["request"]
 if request != {"project": "SFC", "queue": "gen_S", "nodes": 1,
-               "elapstim_req_s": 21600}:
+               "elapstim_req_s": 43200}:
     raise SystemExit("receipt PBS request mismatch")
 def normalize(value):
     return value.removeprefix("0:").rstrip(".")
@@ -257,7 +257,7 @@ readarray -t QSTAT_VALUES <<<"$qstat_values"
 SCHEDULER_STARTED_EPOCH=${QSTAT_VALUES[1]}
 SCHEDULER_ELAPSE_LIMIT_S=${QSTAT_VALUES[2]}
 SCHEDULER_REMAINING_ELAPSE_S=${QSTAT_VALUES[3]}
-[[ "$SCHEDULER_ELAPSE_LIMIT_S" -eq 21600 ]] \
+[[ "$SCHEDULER_ELAPSE_LIMIT_S" -eq 43200 ]] \
   || { write_failure 2 allocation "actual scheduler Elapse limit differs from receipt"; exit 2; }
 
 CURRENT_STAGE=reservation

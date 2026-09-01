@@ -103,6 +103,7 @@ THREADS = 48
 EXTIME = 3
 REPS = 5
 RUN_PHASES = ("build", "verify", "perf", "probe")
+FORMAL_PHASES = (*RUN_PHASES, "verify-perf")
 PROBE_CALLS_PER_CELL = 100_000
 PROBE_SCHEMA = "izanagi-b10-backoff-shape-probe/v2"
 MIXER = 0x9E3779B97F4A7C15
@@ -489,7 +490,7 @@ def load_submission_identity(
         "submission receipt request",
     )
     if request != {
-        "project": "SFC", "queue": "gen_S", "nodes": 1, "elapstim_req_s": 21600,
+        "project": "SFC", "queue": "gen_S", "nodes": 1, "elapstim_req_s": 43200,
     }:
         raise PreflightError("submission-receipt", "receipt request が B10 PBS contract と不一致")
     return SubmissionIdentity(
@@ -2832,13 +2833,17 @@ def run_formal(
     """Run one closed B10 phase in one compute allocation."""
     from .patchharness import applied, assert_pinned_clean, checkout
 
-    if phase not in RUN_PHASES:
-        raise PreflightError("phase", "phase は build/verify/perf/probe の閉集合が必要")
+    if phase not in FORMAL_PHASES:
+        raise PreflightError(
+            "phase", "phase は build/verify/perf/probe/verify-perf の閉集合が必要",
+        )
     if phase in {"build", "probe"}:
         if workload is not None:
             raise PreflightError("phase", "build/probe phase に workload を指定してはならない")
     elif workload not in WORKLOADS:
-        raise PreflightError("phase", "verify/perf phase は workload 指定が必要")
+        raise PreflightError(
+            "phase", "verify/perf/verify-perf phase は workload 指定が必要",
+        )
     if phase == "probe":
         return run_probe(
             prereg_commit=prereg_commit,
@@ -2904,7 +2909,7 @@ def run_formal(
             )
             assert_resumable_binding(layout, prereg.binding)
             perf = perf_for(workload, calibration, prereg.spec)
-            if phase == "verify":
+            if phase in {"verify", "verify-perf"}:
                 with bind_build_start_wal(prereg.binding):
                     summary = run_campaign(
                         cfg, genomes(), perf, contract.env_tag, contract.clocks_per_us,
@@ -2926,7 +2931,8 @@ def run_formal(
                         f"correctness campaign incomplete: workload={workload} "
                         f"committed={summary.committed} skipped={summary.skipped} aborted={summary.aborted}"
                     )
-                return None, None, summary.aborted == 0
+                if phase == "verify" or summary.aborted != 0:
+                    return None, None, summary.aborted == 0
 
             if not os.path.lexists(layout.lock_file) or not os.path.lexists(layout.wal_file):
                 raise PreflightError("resume-binding", "perf phase 前に verify WAL/lock が無い")
@@ -3089,7 +3095,7 @@ def p2_2_loop_perf_preflight() -> tuple[dict, bool]:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", required=True, choices=RUN_PHASES)
+    parser.add_argument("--phase", required=True, choices=FORMAL_PHASES)
     parser.add_argument("--workload", choices=tuple(WORKLOADS))
     parser.add_argument("--prereg-commit", required=True)
     parser.add_argument("--submission-receipt", required=True)
