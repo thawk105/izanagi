@@ -67,11 +67,23 @@ qsub、build、性能測定、campaign 実走への入口は持たない。
 
 `DW-M07` の契約 (probe -> 中間 -> 本登録) に従って回した。spec と report は同 directory に置く。
 
-**下表は fix3 より前の commit `ee13b00c7` に対する結果である。**
+### 最終結果 — 最終 commit `7a14171f5` に対して KILLED 20 / SURVIVED 7 / MISMATCH 0
+
 fix3 (`5e28090e0`) がテスト側の順序依存を断ち node が 1 件増えたため、
-**fix3 後の最終 commit に対する取り直しの spec と report は、本記録の直後に置く
-後続 commit へ収める** (`DW-O19` の「本走後の raw 台帳は後続の記録 commit へ置く」)。
-変異 harness は untracked file があると走らないため、記録 commit を先に置く順序になる。
+fix3 と記録を含む最終形に対して probe と本登録をもう一巡した。
+変異 harness は untracked file があると走らないので、記録 commit を先に置き、
+本走後の raw 台帳を後続 commit へ収める順序にした
+(`DW-O19` の「本走後の raw 台帳は後続の記録 commit へ置く」)。
+
+| 走 | spec | 対象 commit | 結果 |
+|---|---|---|---|
+| probe3 | `mutation-probe3-spec.json` | `7a14171f5` | baseline rc=0 / 114.301s、検出 20 / SURVIVED 7 |
+| **本登録 (最終)** | `mutation-registered2-spec.json` | `7a14171f5` | **baseline rc=0 / 118.981s、KILLED 20 / SURVIVED 7 / MISMATCH 0 / matching 27** |
+
+**生存 7 件は fix3 の前後で同一である** (M05 / M06 / M07 / M10 / M13 / M21 / M22)。
+冗長 gate という裁定は fix3 後も維持できる。
+
+### fix3 より前の commit `ee13b00c7` に対する結果 (経過の記録)
 
 | 巡 | spec | 結果 |
 |---|---|---|
