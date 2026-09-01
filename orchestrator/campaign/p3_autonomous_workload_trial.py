@@ -919,20 +919,71 @@ def _formal_profile_source_record(*, repository_root: Path = ROOT) -> dict[str, 
     }
 
 
-def _preflight_workload_profile(selector: str) -> None:
+def _preflight_workload_profile(
+    selector: str,
+    *,
+    trial_manifest: Path | None,
+    trial_id: str,
+    workloads: Sequence[str],
+    effective_preregistration: (
+        s8c_preregistration.EffectivePreregistration | None
+    ) = None,
+) -> s8c_preregistration.EffectivePreregistration | None:
     if type(selector) is not str or selector not in WORKLOAD_PROFILES:
         raise AutonomousTrialError(f"unknown workload profile: {selector!r}")
     if selector == EXPLORATORY_WORKLOAD_PROFILE:
-        return
+        return effective_preregistration
     source_record = _formal_profile_source_record(repository_root=ROOT)
     assert_legacy_workload_profile_source(
         source_record=source_record,
         producer_entries=FORMAL_WORKLOADS,
         repository_root=ROOT,
     )
-    raise AutonomousTrialError(
-        "formal launch is not admissible: effective preregistration unavailable"
+    if trial_manifest is None:
+        raise AutonomousTrialError(
+            "formal launch is not admissible: effective preregistration unavailable"
+        )
+    manifest = trial_registry.load_trial_manifest(Path(trial_manifest))
+    try:
+        derived = s8c_preregistration.effective_at(
+            ROOT,
+            manifest.prereg_commit,
+        )
+        if derived is None:
+            raise AutonomousTrialError(
+                "formal launch is not admissible: effective preregistration unavailable"
+            )
+        s8c_preregistration.require_effective_preregistration(
+            derived,
+            repo_root=ROOT,
+            commit=manifest.prereg_commit,
+        )
+        if effective_preregistration is not None:
+            s8c_preregistration.require_effective_preregistration(
+                effective_preregistration,
+                repo_root=ROOT,
+                commit=manifest.prereg_commit,
+            )
+    except s8c_preregistration.PreregistrationError as exc:
+        raise AutonomousTrialError(
+            f"formal launch is not admissible: {exc}"
+        ) from exc
+    binding = trial_registry.load_launch_binding(
+        manifest_path=Path(trial_manifest),
+        trial_id=trial_id,
+        workloads=workloads,
+        repository_root=ROOT,
+        registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
     )
+    if (
+        binding.prereg_commit != manifest.prereg_commit
+        or binding.prereg_commit != derived.commit
+    ):
+        raise trial_registry.TrialRegistryError(
+            "[registration-binding] launch binding prereg_commit differs from "
+            "the effective manifest commit"
+        )
+    return derived
 
 
 def _descriptor_from_resolved_arm_input(
@@ -4367,7 +4418,13 @@ def run_trial(
     origin_producer_inputs: OriginProducerInputs | None = None,
     workload_profile: str = EXPLORATORY_WORKLOAD_PROFILE,
 ) -> dict[str, Any]:
-    _preflight_workload_profile(workload_profile)
+    effective_preregistration = _preflight_workload_profile(
+        workload_profile,
+        trial_manifest=trial_manifest,
+        trial_id=trial_id,
+        workloads=workloads,
+        effective_preregistration=effective_preregistration,
+    )
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
     if type(provider_kind) is not str:
@@ -4493,7 +4550,13 @@ def run_trial(
             repository_root=ROOT,
         )
     admitted_workloads = set(WORKLOADS)
-    if trial_admission.mode == "registered-formal-non-certifying":
+    if (
+        trial_admission.mode == "registered-formal-non-certifying"
+        or (
+            trial_admission.mode == "registered-effective"
+            and workload_profile == FORMAL_LEGACY_WORKLOAD_PROFILE
+        )
+    ):
         admitted_workloads |= set(FORMAL_WORKLOADS)
     unknown = sorted(set(selected) - admitted_workloads)
     if unknown:
@@ -5060,7 +5123,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
-    _preflight_workload_profile(args.workload_profile)
     _validate_generation_budget(args.max_generations)
     if args.provider == "fixture" and not args.no_build:
         raise AutonomousTrialError(
@@ -5085,12 +5147,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
     effective_preregistration = None
-    if args.trial_manifest is not None and not args.allow_formal_noncertifying:
+    if (
+        args.workload_profile == EXPLORATORY_WORKLOAD_PROFILE
+        and args.trial_manifest is not None
+        and not args.allow_formal_noncertifying
+    ):
         manifest = trial_registry.load_trial_manifest(args.trial_manifest)
         effective_preregistration = s8c_preregistration.effective_at(
             ROOT,
             manifest.prereg_commit,
         )
+    effective_preregistration = _preflight_workload_profile(
+        args.workload_profile,
+        trial_manifest=args.trial_manifest,
+        trial_id=args.trial_id,
+        workloads=args.workloads,
+        effective_preregistration=effective_preregistration,
+    )
     launch_admission = _trial_launch_admission(
         trial_manifest=args.trial_manifest,
         trial_id=args.trial_id,

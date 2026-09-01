@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Callable, List, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
+from ..holdout_observation import HoldoutObservationAdmission
 from . import (buildcache, campaign_claim, env_attestation, execution_guard, ident,
                reservation, source_digest, wal)
 from .build_admission import BuildRunContext
@@ -251,6 +252,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  durable_root_policy=None,
                  bench_max_rounds: int = 3,
                  balanced_schedule: Optional[BalancedScheduleConfig] = None,
+                 holdout_observation_admission: Optional[
+                     HoldoutObservationAdmission
+                 ] = None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -265,6 +269,15 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
         raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
+    if (
+        balanced_schedule is not None
+        and holdout_observation_admission is not None
+    ):
+        raise ValueError(
+            "balanced_schedule cannot share one holdout observation admission: "
+            "two arms require 2 * perf.reps observations but the token allowance "
+            "is bound to protocol reps"
+        )
     if balanced_schedule is not None:
         if type(balanced_schedule) is not BalancedScheduleConfig:
             raise TypeError("balanced_schedule must be an exact BalancedScheduleConfig")
@@ -509,6 +522,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     evaluate_options["use_perf"] = False
                 if bench_max_rounds != 3:
                     evaluate_options["bench_max_rounds"] = bench_max_rounds
+                if holdout_observation_admission is not None:
+                    evaluate_options["holdout_observation_admission"] = (
+                        holdout_observation_admission
+                    )
                 if balanced_schedule is not None:
                     r = _prepare_evaluation(
                         g, layout, env_tag, cfg.ccbench_commit, perf,

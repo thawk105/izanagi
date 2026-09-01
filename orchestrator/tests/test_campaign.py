@@ -13518,6 +13518,102 @@ def test_run_campaign_wires_nondefault_bench_max_rounds_to_evaluate():
     assert captured == [1]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_campaign_forwards_only_non_none_holdout_observation_admission():
+    from orchestrator.campaign import loop as campaign_loop
+
+    parameter = inspect.signature(campaign_loop.run_campaign).parameters[
+        "holdout_observation_admission"
+    ]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is None
+
+    captured = []
+    genome = Genome("silo", {"BACK_OFF": 1})
+    admission = object()
+
+    def fake_evaluate(candidate, *_args, **kwargs):
+        captured.append((
+            "holdout_observation_admission" in kwargs,
+            kwargs.get("holdout_observation_admission"),
+        ))
+        return EvalResult(
+            genome=candidate,
+            variant=pipeline.variant_id(candidate, kwargs["src_token"]),
+            certified=True,
+            aborted=False,
+        )
+
+    saved_evaluate = campaign_loop.evaluate
+    saved_source_digest = campaign_loop.source_digest
+    campaign_loop.evaluate = fake_evaluate
+    campaign_loop.source_digest = _sd_mock("stock")
+    try:
+        for label, options in (
+            ("default", {}),
+            ("admitted", {"holdout_observation_admission": admission}),
+        ):
+            campaign_loop.run_campaign(
+                CampaignConfig(
+                    spec_slug=f"holdout-transport-{label}",
+                    search_tag="test",
+                    spec_content=f"holdout transport {label}",
+                    ccbench_commit="deadbeef",
+                ),
+                [genome],
+                PerfConfig(records=1, threads=1),
+                _AUTH_CONTRACT.env_tag,
+                _AUTH_CONTRACT.clocks_per_us,
+                numactl=list(_AUTH_CONTRACT.numactl),
+                do_bench=False,
+                output_root=_tmpdir(f"izanagi_holdout_transport_{label}_"),
+                log=lambda *_args: None,
+                authorization_contract=_AUTHORIZATION,
+                build_context=_BUILD_CONTEXT,
+                declared_use_class="official",
+                **options,
+            )
+    finally:
+        campaign_loop.evaluate = saved_evaluate
+        campaign_loop.source_digest = saved_source_digest
+
+    assert captured == [(False, None), (True, admission)]
+
+
+def test_run_campaign_rejects_balanced_schedule_with_holdout_admission_before_output():
+    from orchestrator.campaign import loop as campaign_loop
+
+    output_root = Path(_tmpdir("izanagi_balanced_holdout_parent_")) / "must-not-exist"
+    schedule = pipeline.BalancedScheduleConfig(
+        workload="rr80",
+        root_seed="1" * 64,
+        arm_names=("a", "b"),
+    )
+    with pytest.raises(
+        ValueError,
+        match=r"two arms require 2 \* perf\.reps observations",
+    ):
+        campaign_loop.run_campaign(
+            CampaignConfig(
+                spec_slug="balanced-holdout-conflict",
+                search_tag="test",
+                spec_content="balanced holdout conflict",
+                ccbench_commit="deadbeef",
+            ),
+            [],
+            PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag,
+            _AUTH_CONTRACT.clocks_per_us,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
+            output_root=str(output_root),
+            balanced_schedule=schedule,
+            holdout_observation_admission=object(),
+        )
+    assert not output_root.exists()
+
+
 def test_balanced_schedule_quality_gate_signatures_accept_complete_input():
     """Acceptance implication: complete settled input implies two committed results."""
     run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)

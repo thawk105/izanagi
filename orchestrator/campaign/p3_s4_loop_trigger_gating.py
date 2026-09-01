@@ -53,6 +53,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
+from ..holdout_observation import HoldoutObservationAdmission  # noqa: E402
 from . import (buildcache, condition_meaning_gate, env_contract, execution_guard,  # noqa: E402
                ident, site_policy, source_digest, wal)
 from . import p3_s4_loop as L                              # noqa: E402
@@ -741,6 +742,10 @@ def _run_one_iteration_resolved(
         build_context: Optional[BuildRunContext] = None,
         require_source_preimage_artifact: bool = False,
         _b4_launch_context=None,
+        *,
+        holdout_observation_admission: Optional[
+            HoldoutObservationAdmission
+        ] = None,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
     if campaign_cfg.search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE:
@@ -799,6 +804,10 @@ def _run_one_iteration_resolved(
             campaign_options["env_contract"] = contract
             if dependency_prefix:
                 campaign_options["dependency_prefix"] = dependency_prefix
+        if holdout_observation_admission is not None:
+            campaign_options["holdout_observation_admission"] = (
+                holdout_observation_admission
+            )
         summary = run_campaign(
             campaign_cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log, ccbench_dir=sub,
@@ -987,7 +996,10 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     _contract: Optional[
                         env_contract.ExecutionEnvironmentContract
                     ] = None,
-                    _b4_launch_context=None) -> Dict:
+                    _b4_launch_context=None,
+                    holdout_observation_admission: Optional[
+                        HoldoutObservationAdmission
+                    ] = None) -> Dict:
     """段 8a trigger-gating の 1 iteration をメインセッション駆動で回す (sort 版と
     同型の骨格 + provenance 配線)。
 
@@ -1098,6 +1110,11 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         }, campaign_cfg, layout)
 
     state.iteration += 1
+    resolved_options = {}
+    if holdout_observation_admission is not None:
+        resolved_options["holdout_observation_admission"] = (
+            holdout_observation_admission
+        )
     out = _run_one_iteration_resolved(
         campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
         layout, contract, resolved_site, log=log, cache_root=cache_root,
@@ -1106,6 +1123,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         build_context=build_context,
         require_source_preimage_artifact=_require_source_preimage_artifact,
         _b4_launch_context=(_b4_launch_context if b4_mode else None),
+        **resolved_options,
     )
     provenance_entry = {
         "proposal_path": proposal_path,
