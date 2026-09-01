@@ -162,11 +162,9 @@ class CampaignReadPurpose(str, Enum):
 class CampaignVerifierEpoch:
     """記録された enforcement source closure の epoch 診断。
 
-    ``campaign_verifier_epoch`` が束縛するのは exact 62 path の enforcement
-    source closure の同一性であり、witness gate、S8C 判定器、receipt
-    発行・検証面を含む。
-    verifier package の ``__main__.py`` と ``cli.py``、package 外の
-    ``orchestrator/verify.py`` の implementation bytes は束縛しない。
+    保証する範囲とその除外範囲の正本は、それぞれ
+    ``CAMPAIGN_VERIFIER_EPOCH_SCOPE`` と
+    ``CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE`` である。
     """
 
     campaign_verifier_epoch: str
@@ -902,10 +900,9 @@ def _recorded_campaign_verifier_epoch(
 ) -> _RecordedCampaignVerifierEpoch:
     """記録値だけから enforcement closure epoch を導出する。
 
-    束縛対象は exact 62 path（witness gate、S8C 判定器、receipt
-    発行・検証面を含む）である。
-    verifier package の ``__main__.py`` と ``cli.py``、package 外の
-    ``orchestrator/verify.py`` の implementation bytes は束縛しない。
+    保証する範囲とその除外範囲の正本は、それぞれ
+    ``CAMPAIGN_VERIFIER_EPOCH_SCOPE`` と
+    ``CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE`` である。
     v2 の記録 map は記録 commit に対して真正と検証してから表示 ID を作る。
     """
     authority = decoded.authority
@@ -983,10 +980,9 @@ def require_campaign_verifier_epoch(
 ) -> CampaignVerifierEpoch:
     """WAL を読まず campaign.lock だけで中央 epoch gate を適用する。
 
-    診断する同一性は enforcement source closure exact 62 path（witness gate、
-    S8C 判定器、receipt 発行・検証面を含む）に限る。verifier package の
-    ``__main__.py`` と ``cli.py``、package 外の ``orchestrator/verify.py`` の
-    implementation bytes は束縛しない。
+    保証する範囲とその除外範囲の正本は、それぞれ
+    ``CAMPAIGN_VERIFIER_EPOCH_SCOPE`` と
+    ``CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE`` である。
     """
     _validate_read_purpose(purpose)
     layout = _layout(campaign)
