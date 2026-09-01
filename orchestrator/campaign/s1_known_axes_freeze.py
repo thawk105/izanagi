@@ -715,7 +715,15 @@ def assert_s1b_pairing(doc: Mapping) -> None:
         identical = gate.get("flags") == ident.get("flags")
         if not identical:
             raise FreezeError(f"s1b_pairing flags 不一致: {workload}")
-        if gate.get("gate_predicate") == ident.get("gate_predicate"):
+        try:
+            gate_mask = trigger_gate_binding.mask_for_canonical_predicate(
+                gate.get("gate_predicate"))
+            ident_mask = trigger_gate_binding.mask_for_canonical_predicate(
+                ident.get("gate_predicate"))
+        except trigger_gate_binding.TriggerGateBindingError as e:
+            raise FreezeError(
+                f"s1b_pairing predicate が正準集合外: {workload}") from e
+        if gate_mask == ident_mask:
             raise FreezeError(f"s1b_pairing predicate 差分がない: {workload}")
         expected = {"workload": workload, "gate_on": gate.get("name"),
                     "gate_off": ident.get("name"), "flags_identical": True}
