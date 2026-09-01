@@ -135,6 +135,11 @@ v2 では同じ 84 件が `filesystem` 根で `scr/0_964035.nqsv/gflags-install/
 | `submission/` | 投入受領書と preflight 捕獲 |
 | `binaries/` | content-addressed binary store (completion が `store_path` で参照) |
 | `job-evidence/` | 計算ノードが書いた `checkpoint.jsonl` |
-| `bundle-manifest.json` | 構成 manifest。913 file・61703452 bytes、file ごとの sha256 |
+| `claims/` | campaign run の cell claim marker (権威は共有台帳の側にある) |
+| `bundle-manifest.json` | 構成 manifest。file ごとの sha256 と総量を持つ**権威**である |
+
+**件数と総量は `bundle-manifest.json` を読む。** ここへ数値を書き写すと bundle の更新で
+食い違うため書かない (初版は 913 file と書いていたが、`claims/` を後から足したので
+現物と食い違った。数値の直書きをやめて manifest を権威にした)。
 
 `run directory` だけを残すと参照が dangling になるため、6 構成物を 1 つの bundle にまとめている。

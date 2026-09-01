@@ -1,0 +1,425 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "axis3_search_catalog.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "frozen_registration",
+    "population_contract",
+    "term_blocks",
+    "branches",
+    "supersession",
+    "rows",
+    "derived_controls",
+    "accounting",
+    "selection_is_frozen"
+  ],
+  "properties": {
+    "schema_version": {"const": "axis3-search-catalog/v1"},
+    "namespace": {"const": "AX3A1-"},
+    "selection_is_frozen": {"const": true},
+    "frozen_registration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term_count",
+        "branch_count",
+        "legacy_main_id_count",
+        "new_main_row_count",
+        "arxiv_years",
+        "dblp_product_count"
+      ],
+      "properties": {
+        "term_count": {"const": 74},
+        "branch_count": {"const": 10},
+        "legacy_main_id_count": {"const": 1543},
+        "new_main_row_count": {"const": 1893},
+        "arxiv_years": {
+          "type": "array",
+          "minItems": 36,
+          "maxItems": 36,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 1991, "maximum": 2026}
+        },
+        "dblp_product_count": {"const": 1523}
+      }
+    },
+    "population_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "set_operation",
+        "main_indexes",
+        "index_search_fields",
+        "cutoff",
+        "index_cutoff_application",
+        "version_provenance_kind",
+        "retrieval_time_locator",
+        "bibliographic_database_selection",
+        "venue_preprint_distinction",
+        "non_english_treatment",
+        "outside_registered_main_population"
+      ],
+      "properties": {
+        "set_operation": {"const": "union"},
+        "main_indexes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "additionalItems": false,
+          "items": [
+            {"const": "arxiv"},
+            {"const": "openalex"},
+            {"const": "dblp"}
+          ]
+        },
+        "index_search_fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["arxiv", "openalex", "dblp"],
+          "properties": {
+            "arxiv": {"const": "abstract"},
+            "openalex": {"const": "title_and_abstract"},
+            "dblp": {"const": "bibliography_and_title"}
+          }
+        },
+        "cutoff": {"const": "2026-12-31"},
+        "index_cutoff_application": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["arxiv", "openalex", "dblp"],
+          "properties": {
+            "arxiv": {"const": "submittedDate closed year shards through 2026-12-31"},
+            "openalex": {"const": "to_publication_date:2026-12-31"},
+            "dblp": {"const": "client-side record year <= 2026"}
+          }
+        },
+        "version_provenance_kind": {
+          "const": "version_unavailable_alternative_provenance"
+        },
+        "retrieval_time_locator": {
+          "const": "page_evidence.response_received_at"
+        },
+        "bibliographic_database_selection": {
+          "const": "main union is exactly arXiv, OpenAlex, and DBLP; ACM Digital Library, books, reports, theses, and unindexed artifacts are outside it"
+        },
+        "venue_preprint_distinction": {
+          "const": "arXiv main records and DBLP venue auxiliary records remain separate occurrences and are never merged by title alone"
+        },
+        "non_english_treatment": {
+          "const": "non-English literature is outside guaranteed enumeration, but records returned by a registered index are not excluded for language alone"
+        },
+        "outside_registered_main_population": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "additionalItems": false,
+          "items": [
+            {"const": "venue 本体の年次一覧"},
+            {"const": "ACM Digital Library"},
+            {"const": "書籍"},
+            {"const": "技術報告"},
+            {"const": "学位論文"},
+            {"const": "非英語文献"},
+            {"const": "索引化されていない実装・アーティファクト"}
+          ]
+        }
+      }
+    },
+    "term_blocks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["T", "F", "H", "O", "V", "W"],
+      "properties": {
+        "T": {"$ref": "#/definitions/terms"},
+        "F": {"$ref": "#/definitions/terms"},
+        "H": {"$ref": "#/definitions/terms"},
+        "O": {"$ref": "#/definitions/terms"},
+        "V": {"$ref": "#/definitions/terms"},
+        "W": {"$ref": "#/definitions/terms"}
+      }
+    },
+    "branches": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"],
+      "patternProperties": {
+        "^Q(?:[1-9]|10)$": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {"enum": ["T", "F", "H", "O", "V", "W"]}
+        }
+      }
+    },
+    "supersession": {
+      "type": "array",
+      "minItems": 1543,
+      "maxItems": 1543,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["legacy_id", "replacement_ids"],
+        "properties": {
+          "legacy_id": {"type": "string", "pattern": "^AX3-Q"},
+          "replacement_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^AX3A1-"}
+          }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 2122,
+      "maxItems": 2122,
+      "items": {"$ref": "#/definitions/row"}
+    },
+    "derived_controls": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/definitions/derivedControl"}
+    },
+    "accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_row_count",
+        "nonlogical_derived_control_count",
+        "by_role",
+        "by_request_factory_state",
+        "wire_attempt_count",
+        "reason"
+      ],
+      "properties": {
+        "logical_row_count": {"const": 2122},
+        "nonlogical_derived_control_count": {"const": 3},
+        "by_role": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["main", "control", "lookup", "auxiliary"],
+          "properties": {
+            "main": {"const": 1893},
+            "control": {"const": 21},
+            "lookup": {"const": 20},
+            "auxiliary": {"const": 188}
+          }
+        },
+        "by_request_factory_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["complete", "blocked", "derived"],
+          "properties": {
+            "complete": {"const": 1929},
+            "blocked": {"const": 193},
+            "derived": {"const": 0}
+          }
+        },
+        "wire_attempt_count": {"const": 0},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "definitions": {
+    "terms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "term"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[TFHOVW][0-9]{2}$"},
+          "term": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "requestFactory": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "method",
+            "canonical_template",
+            "headers",
+            "body_sha256",
+            "position_kind",
+            "page_size"
+          ],
+          "properties": {
+            "state": {"const": "complete"},
+            "method": {"const": "GET"},
+            "canonical_template": {"type": "string", "pattern": "^https://"},
+            "headers": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {"type": "string"}
+              }
+            },
+            "body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "position_kind": {"enum": ["offset", "cursor", "fixed"]},
+            "page_size": {"type": "integer", "minimum": 1, "maximum": 200}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["state", "blocked_reason"],
+          "properties": {
+            "state": {"enum": ["blocked", "derived"]},
+            "blocked_reason": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "derivedControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "index",
+        "control_kind",
+        "dependencies",
+        "status",
+        "blocked_reason",
+        "wire_attempt_count"
+      ],
+      "properties": {
+        "control_id": {"type": "string", "pattern": "^AX3A1-C-ANCHOR@"},
+        "index": {"enum": ["arxiv", "openalex", "dblp"]},
+        "control_kind": {"const": "anchor_inclusion"},
+        "dependencies": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "status": {"const": "blocked"},
+        "blocked_reason": {"type": "string", "minLength": 1},
+        "wire_attempt_count": {"const": 0}
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stream_id",
+        "role",
+        "index",
+        "logical_branch_id",
+        "completion_kind",
+        "registration_status",
+        "request_factory",
+        "dependencies",
+        "supersedes",
+        "date_shard",
+        "required_response_fields",
+        "expected_interpreted_query",
+        "resolver_contract",
+        "record_year_locator",
+        "cutoff_year",
+        "preflight_response_reusable_for_run"
+      ],
+      "properties": {
+        "stream_id": {"type": "string", "pattern": "^AX3A1-"},
+        "role": {"enum": ["main", "control", "lookup", "auxiliary"]},
+        "index": {"enum": ["arxiv", "openalex", "dblp"]},
+        "logical_branch_id": {"type": "string", "minLength": 1},
+        "completion_kind": {
+          "enum": ["http", "count_only", "lookup", "auxiliary"]
+        },
+        "registration_status": {"enum": ["ready", "blocked"]},
+        "request_factory": {"$ref": "#/definitions/requestFactory"},
+        "dependencies": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "supersedes": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^AX3-Q"}
+          ]
+        },
+        "date_shard": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["year", "start", "end", "closed"],
+              "properties": {
+                "year": {"type": "integer", "minimum": 1991, "maximum": 2026},
+                "start": {"type": "string", "pattern": "^[0-9]{12}$"},
+                "end": {"type": "string", "pattern": "^[0-9]{12}$"},
+                "closed": {"const": true}
+              }
+            }
+          ]
+        },
+        "required_response_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^/"}
+        },
+        "expected_interpreted_query": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "minLength": 1}
+          ]
+        },
+        "resolver_contract": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/definitions/resolverContract"}
+          ]
+        },
+        "record_year_locator": {
+          "oneOf": [
+            {"type": "null"},
+            {"const": "/result/hits/hit/{index}/info/year"}
+          ]
+        },
+        "cutoff_year": {
+          "oneOf": [{"type": "null"}, {"const": 2026}]
+        },
+        "preflight_response_reusable_for_run": {"const": false}
+      }
+    },
+    "resolverContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_total_locator",
+        "elements_locator",
+        "work_id_locator_template",
+        "resolution_cardinality",
+        "zero_reason",
+        "multiple_reason",
+        "cardinality_mismatch_reason",
+        "missing_reason"
+      ],
+      "properties": {
+        "declared_total_locator": {"type": "string", "pattern": "^/"},
+        "elements_locator": {"type": "string", "pattern": "^/"},
+        "work_id_locator_template": {"type": "string", "pattern": "^/.*\\{index\\}"},
+        "resolution_cardinality": {"const": 1},
+        "zero_reason": {"const": "lookup_zero_results"},
+        "multiple_reason": {"const": "lookup_multiple_results"},
+        "cardinality_mismatch_reason": {"const": "lookup_result_missing"},
+        "missing_reason": {"const": "lookup_work_id_missing"}
+      }
+    }
+  }
+}
