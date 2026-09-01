@@ -206,6 +206,123 @@ _BOUND_RUNNER_BOOTSTRAP = (
     "exec(compile(source, namespace['__file__'], 'exec'), namespace)\n"
     "raise SystemExit(namespace['main'](sys.argv[3:]))\n"
 )
+_RESULT_GUARD_STAGE = "result-guard"
+_ISOLATION_UNSHARE_COMMAND = "/usr/bin/unshare"
+_ISOLATION_MOUNT_COMMAND = "/usr/bin/mount"
+_ISOLATED_CHILD_STATUS_LIMIT = 64 * 1024
+_ISOLATED_CHILD_EXEC_ERROR_LIMIT = 4 * 1024
+_ISOLATED_CHILD_BOOTSTRAP = r'''
+import ctypes
+import json
+import os
+import subprocess
+import sys
+
+status_fd = int(sys.argv[1])
+exec_error_fd = int(sys.argv[2])
+mount_command = sys.argv[3]
+submission_dir = sys.argv[4]
+real_uid = int(sys.argv[5])
+real_gid = int(sys.argv[6])
+child_argv = sys.argv[7:]
+os.set_inheritable(status_fd, False)
+os.set_inheritable(exec_error_fd, False)
+
+
+def emit(event, **fields):
+    payload = {"event": event, **fields}
+    pending = memoryview(
+        (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
+        .encode("ascii")
+    )
+    while pending:
+        written = os.write(status_fd, pending)
+        if written <= 0:
+            raise OSError("short isolation status write")
+        pending = pending[written:]
+
+
+def mount(*args):
+    subprocess.run(
+        [mount_command, *args],
+        check=True,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def write_mapping(path, text):
+    with open(path, "w", encoding="ascii") as handle:
+        handle.write(text)
+
+
+try:
+    mount("--make-rprivate", "/")
+    ancestor = os.path.dirname(submission_dir)
+    ancestors = []
+    while ancestor != "/":
+        ancestors.append(ancestor)
+        ancestor = os.path.dirname(ancestor)
+    for ancestor in reversed(ancestors):
+        mount("--bind", ancestor, ancestor)
+    mount("--bind", submission_dir, submission_dir)
+    mount("-o", "remount,bind,ro", submission_dir)
+    child_pid = os.fork()
+except BaseException:
+    try:
+        emit("setup-failure", phase="outer-mount")
+    finally:
+        raise SystemExit(16)
+
+if child_pid == 0:
+    phase = "inner-userns"
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.unshare(0x10000000) != 0:
+            error_number = ctypes.get_errno()
+            raise OSError(error_number, os.strerror(error_number))
+        write_mapping("/proc/self/setgroups", "deny\n")
+        write_mapping("/proc/self/uid_map", f"{real_uid} 0 1\n")
+        write_mapping("/proc/self/gid_map", f"{real_gid} 0 1\n")
+        os.setresgid(real_gid, real_gid, real_gid)
+        os.setresuid(real_uid, real_uid, real_uid)
+        phase = "exec"
+        emit("setup-complete")
+        try:
+            os.execvpe(child_argv[0], child_argv, os.environ)
+        except BaseException as exc:
+            pending = memoryview(
+                (f"{type(exc).__name__}: {exc}\n").encode(
+                    "ascii", errors="backslashreplace"
+                )
+            )
+            while pending:
+                written = os.write(exec_error_fd, pending)
+                if written <= 0:
+                    raise OSError("short exec error write")
+                pending = pending[written:]
+            raise
+    except BaseException:
+        try:
+            emit("setup-failure", phase=phase)
+        except BaseException:
+            pass
+        os._exit(16)
+
+os.close(exec_error_fd)
+while True:
+    try:
+        waited_pid, wait_status = os.waitpid(child_pid, 0)
+        break
+    except InterruptedError:
+        continue
+if waited_pid != child_pid:
+    emit("status-failure", phase="waitpid")
+    raise SystemExit(16)
+emit("wait-status", status=wait_status)
+raise SystemExit(0)
+'''
 # v1 を生成していた a34266d2 の正規 request overlay 集合。現行 tests の
 # allowlist と混ぜると、queue 待ち中の正規 v1 request を過剰拒否する。
 _LEGACY_V1_ENV_ALLOWLIST = frozenset({
@@ -287,6 +404,10 @@ Sleeper = Callable[[float], None]
 
 class DispatchError(RuntimeError):
     """scheduler / receipt infrastructure が成立しない。"""
+
+
+class _ChildIsolationError(DispatchError):
+    """被検査 argv の起動前または親所有 status 経路が成立しない。"""
 
 
 class _OrphanHoldError(DispatchError):
@@ -534,6 +655,36 @@ def _write_json_atomic_replace(
             temporary.unlink()
         except FileNotFoundError:
             pass
+
+
+def _write_result_replace(path: Path, payload: Mapping[str, Any]) -> None:
+    """guard を同一 directory の fsync 済み JSON から一度だけ置換する。"""
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        dir=path.parent,
+    )
+    temporary = Path(temporary_name)
+    published = False
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = -1
+            json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        published = True
+        _fsync_dir(path.parent)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if not published:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
 
 
 def _intent_path(registry_root: Path, shard_index: int, suffix: str) -> Path:
@@ -854,12 +1005,167 @@ def _validated_runner_binding(
     return dict(value)
 
 
+def _isolated_child_rc(
+    raw_status: bytes,
+    raw_exec_error: bytes,
+    supervisor_rc: int,
+) -> int:
+    """親所有 pipe の exec 証明と complete/wait record から child rc を得る。"""
+
+    if len(raw_status) > _ISOLATED_CHILD_STATUS_LIMIT:
+        raise _ChildIsolationError("isolation status exceeds limit")
+    if raw_exec_error:
+        raise _ChildIsolationError("isolated child exec failed")
+    try:
+        records = [
+            json.loads(line.decode("ascii"))
+            for line in raw_status.splitlines()
+            if line
+        ]
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise _ChildIsolationError("isolation status is malformed") from exc
+    if any(
+        type(record) is dict
+        and record.get("event") in {"setup-failure", "status-failure"}
+        for record in records
+    ):
+        raise _ChildIsolationError("isolated child setup failed")
+    if supervisor_rc != 0:
+        raise _ChildIsolationError("isolation supervisor failed")
+    if (
+        len(records) != 2
+        or records[0] != {"event": "setup-complete"}
+        or type(records[1]) is not dict
+        or set(records[1]) != {"event", "status"}
+        or records[1].get("event") != "wait-status"
+        or type(records[1].get("status")) is not int
+    ):
+        raise _ChildIsolationError("isolation status sequence is invalid")
+    wait_status = records[1]["status"]
+    if not (os.WIFEXITED(wait_status) or os.WIFSIGNALED(wait_status)):
+        raise _ChildIsolationError("isolated child wait status is not terminal")
+    return os.waitstatus_to_exitcode(wait_status)
+
+
+def _run_isolated_child(
+    argv: Sequence[str],
+    *,
+    cwd: Path,
+    env: Mapping[str, str],
+    submission_dir: Path,
+    stdin_bytes: Optional[bytes] = None,
+) -> int:
+    """read-only submission mount と入れ子 userns 内で argv を実行する。
+
+    境界の相手はこの argv とその子孫だけであり、namespace 外の同一 uid process
+    までは保護しない。outer userns が mount を所有し、argv は descendant userns
+    に置くため、自分にだけ見える mount を追加できても親が読む実体は変更できない。
+    """
+
+    status_read_fd = -1
+    status_write_fd = -1
+    exec_read_fd = -1
+    exec_write_fd = -1
+    process: Optional[subprocess.Popen[bytes]] = None
+    real_uid = os.getuid()
+    real_gid = os.getgid()
+    try:
+        try:
+            status_read_fd, status_write_fd = os.pipe2(os.O_CLOEXEC)
+            exec_read_fd, exec_write_fd = os.pipe2(os.O_CLOEXEC)
+        except OSError as exc:
+            raise _ChildIsolationError(
+                "cannot create isolation status pipes"
+            ) from exc
+        command = [
+            _ISOLATION_UNSHARE_COMMAND,
+            "--user",
+            "--map-root-user",
+            "--mount",
+            "--",
+            sys.executable,
+            "-I",
+            "-c",
+            _ISOLATED_CHILD_BOOTSTRAP,
+            str(status_write_fd),
+            str(exec_write_fd),
+            _ISOLATION_MOUNT_COMMAND,
+            str(Path(submission_dir).resolve()),
+            str(real_uid),
+            str(real_gid),
+            *argv,
+        ]
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=str(cwd),
+                env=dict(env),
+                stdin=(
+                    subprocess.PIPE
+                    if stdin_bytes is not None else subprocess.DEVNULL
+                ),
+                shell=False,
+                pass_fds=(status_write_fd, exec_write_fd),
+            )
+        except OSError as exc:
+            raise _ChildIsolationError(
+                "cannot launch isolation supervisor"
+            ) from exc
+        os.close(status_write_fd)
+        status_write_fd = -1
+        os.close(exec_write_fd)
+        exec_write_fd = -1
+        process.communicate(input=stdin_bytes)
+        with os.fdopen(status_read_fd, "rb") as status_handle:
+            status_read_fd = -1
+            raw_status = status_handle.read(_ISOLATED_CHILD_STATUS_LIMIT + 1)
+        with os.fdopen(exec_read_fd, "rb") as exec_handle:
+            exec_read_fd = -1
+            raw_exec_error = exec_handle.read(
+                _ISOLATED_CHILD_EXEC_ERROR_LIMIT + 1
+            )
+        assert process.returncode is not None
+        return _isolated_child_rc(
+            raw_status,
+            raw_exec_error,
+            int(process.returncode),
+        )
+    except _ChildIsolationError:
+        raise
+    except Exception as exc:
+        raise _ChildIsolationError("isolation status path failed") from exc
+    finally:
+        if status_write_fd >= 0:
+            try:
+                os.close(status_write_fd)
+            except OSError:
+                pass
+        if status_read_fd >= 0:
+            try:
+                os.close(status_read_fd)
+            except OSError:
+                pass
+        if exec_write_fd >= 0:
+            try:
+                os.close(exec_write_fd)
+            except OSError:
+                pass
+        if exec_read_fd >= 0:
+            try:
+                os.close(exec_read_fd)
+            except OSError:
+                pass
+        if process is not None and process.returncode is None:
+            process.wait()
+
+
 def _run_bound_tests_child(
     repo_root: Path,
     argv: Sequence[str],
     child_env: Mapping[str, str],
     runner_binding: Mapping[str, Any],
     xdist_distribution_root: Path,
+    submission_dir: Path,
 ) -> tuple[int, str]:
     canonical_runner_path = repo_root / "tools" / "run_tests.py"
     child_argv = [
@@ -889,15 +1195,14 @@ def _run_bound_tests_child(
         raise DispatchError("cannot read tested-main runner blob")
     source = blob.stdout
     actual_digest = hashlib.sha256(source).hexdigest()
-    completed = subprocess.run(
+    child_rc = _run_isolated_child(
         child_argv,
-        check=False,
-        cwd=str(repo_root),
+        cwd=repo_root,
         env=child_env,
-        input=source,
-        shell=False,
+        submission_dir=submission_dir,
+        stdin_bytes=source,
     )
-    return int(completed.returncode), actual_digest
+    return child_rc, actual_digest
 
 
 def _resolve_xdist_distribution_root() -> Path:
@@ -1201,6 +1506,22 @@ def _job_run(
     request_sha256: Optional[str] = None
     runner_report: Optional[dict[str, Any]] = None
     bound_xdist_root: Optional[Path] = None
+    guard_payload = {
+        "schema_version": "pegasus-dispatch-result/v1",
+        "stage": _RESULT_GUARD_STAGE,
+        "child_rc": INFRA_RC,
+        "pbs_jobid": pbs_jobid,
+        "hostname": hostname,
+        "interpreter": interpreter,
+        "error": "result guard active",
+        "request_sha256": request_sha256,
+    }
+    try:
+        _write_json_x(result_path, guard_payload)
+        _fsync_dir(result_path.parent)
+    except Exception:
+        return INFRA_RC
+    isolation_failed = False
     try:
         if sys.version_info < (3, 10):
             raise DispatchError("interpreter version < 3.10")
@@ -1295,6 +1616,7 @@ def _job_run(
                 child_env,
                 runner_binding,
                 bound_xdist_root,
+                request_path.parent,
             )
             runner_report = _runner_binding_report(runner_binding, actual_digest)
         else:
@@ -1307,19 +1629,24 @@ def _job_run(
                     *argv,
                 ]
             )
-            child_rc = subprocess.call(
+            child_rc = _run_isolated_child(
                 child_argv,
-                cwd=str(repo_root),
+                cwd=repo_root,
                 env=child_env,
-                stdin=subprocess.DEVNULL,
-                shell=False,
+                submission_dir=request_path.parent,
             )
+    except _ChildIsolationError:
+        isolation_failed = True
+        child_rc = INFRA_RC
     except Exception as exc:
         stage = stage if stage != "child" else "child-launch"
         error = f"{type(exc).__name__}: {exc}"
         child_rc = INFRA_RC
     else:
         error = None
+
+    if isolation_failed:
+        return INFRA_RC
 
     payload = {
         "schema_version": "pegasus-dispatch-result/v1",
@@ -1336,8 +1663,8 @@ def _job_run(
         assert bound_xdist_root is not None
         payload[_BOUND_XDIST_ROOT_RESULT_FIELD] = str(bound_xdist_root)
     try:
-        _write_json_x(result_path, payload)
-    except OSError:
+        _write_result_replace(result_path, payload)
+    except Exception:
         return INFRA_RC
     return int(child_rc)
 
