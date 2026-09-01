@@ -781,6 +781,9 @@ def _build_report_value(
         },
         "campaign_disjointness": {
             "status": inputs.campaign_root_discovery.status,
+            "expanded_partial_rejection_applied": (
+                inputs.campaign_root_discovery.status == "partial"
+            ),
             "campaign_roots": [
                 str(root) for root in inputs.campaign_root_discovery.roots
             ],
@@ -1108,13 +1111,22 @@ def _assert_output_disjoint_from_campaigns(
             _fail("output_campaign_intersection", "output root is above an arm campaign root")
     if discovery.status == "partial":
         parts = resolved_output.parts
-        if any(
-            component == "output" and "campaigns" in parts[index + 1:]
-            for index, component in enumerate(parts)
-        ):
+        has_campaigns_component = "campaigns" in parts
+        intersects_campaign_parent = False
+        for campaign_root in discovery.roots:
+            campaign_parent = campaign_root.resolve(strict=False).parent
+            if (
+                resolved_output == campaign_parent
+                or _is_relative_to(resolved_output, campaign_parent)
+                or _is_relative_to(campaign_parent, resolved_output)
+            ):
+                intersects_campaign_parent = True
+                break
+        if has_campaigns_component or intersects_campaign_parent:
             _fail(
                 "output_campaign_disjointness_unproven",
-                "partial campaign-root discovery rejects output/.../campaigns placement",
+                "partial campaign-root discovery rejects campaigns-component "
+                "or recovered-campaign-parent intersection",
             )
 
 

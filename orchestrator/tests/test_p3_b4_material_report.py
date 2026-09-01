@@ -225,6 +225,9 @@ def test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf(
         in report["provenance"]["report_non_guarantees"]
     )
     assert report["campaign_disjointness"]["status"] == "partial"
+    assert report["campaign_disjointness"][
+        "expanded_partial_rejection_applied"
+    ] is True
     assert report["campaign_disjointness"]["unresolved"]
     markdown = Path(written.report_md_path).read_text(encoding="utf-8")
     assert "assembly rejection reason" in markdown
@@ -256,17 +259,58 @@ def test_partial_campaign_discovery_fails_closed_for_output_campaigns_path(
         immutable_publication.publication_evidence.evidence[-1].on_layout.root
     )
     output = campaign / "material-report-output"
-    with pytest.raises(
-        R.B4MaterialReportError,
-        match="output_campaign_disjointness_unproven",
-    ):
-        R.write_material_report(
-            publication.publication_root,
-            output_root=output,
-        )
-    assert not (output / R.REPORT_JSON_NAME).exists()
-    assert not (output / R.REPORT_MARKDOWN_NAME).exists()
-    assert not (output / R.REPORT_COMMIT_NAME).exists()
+    _assert_report_targets_absent(output)
+    residual: tuple[Path, ...] = ()
+    try:
+        with pytest.raises(
+            R.B4MaterialReportError,
+            match="output_campaign_disjointness_unproven",
+        ):
+            R.write_material_report(
+                publication.publication_root,
+                output_root=output,
+            )
+    finally:
+        residual = _remove_report_targets(output)
+    assert residual == ()
+
+
+def test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling(
+    tmp_path: Path,
+    immutable_publication: _ImmutablePublication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    publication = _fresh_publication_from_shared_evidence(
+        tmp_path,
+        immutable_publication,
+    )
+    damaged = publication.planned_result_artifacts[-1]
+    Path(damaged.artifact_path).unlink()
+    inputs = R._load_and_evaluate(Path(publication.publication_root))
+    assert inputs.campaign_root_discovery.status == "partial"
+    assert inputs.campaign_root_discovery.roots
+    recovered = inputs.campaign_root_discovery.roots[0]
+    output = recovered.parent / "material-report-output-sibling"
+    for campaign_root in inputs.campaign_root_discovery.roots:
+        assert output != campaign_root
+        assert not R._is_relative_to(output, campaign_root)
+        assert not R._is_relative_to(campaign_root, output)
+    monkeypatch.setattr(R, "_load_and_evaluate", lambda _root: inputs)
+
+    _assert_report_targets_absent(output)
+    residual: tuple[Path, ...] = ()
+    try:
+        with pytest.raises(
+            R.B4MaterialReportError,
+            match="output_campaign_disjointness_unproven",
+        ):
+            R.write_material_report(
+                publication.publication_root,
+                output_root=output,
+            )
+    finally:
+        residual = _remove_report_targets(output)
+    assert residual == ()
 
 
 def test_complete_projection_preserves_402_sources_fields_and_transcribed_binding(
@@ -319,6 +363,9 @@ def test_complete_projection_preserves_402_sources_fields_and_transcribed_bindin
         assert "転記に留まる" in initial["non_guarantee"]
     assert len(set(source_hashes)) == 2 * EXPECTED_BLOCK_COUNT
     assert report["campaign_disjointness"]["status"] == "complete"
+    assert report["campaign_disjointness"][
+        "expanded_partial_rejection_applied"
+    ] is False
     assert report["campaign_disjointness"]["unresolved"] == []
     assert document.json_bytes == R._canonical_json_bytes(report)
 
@@ -549,6 +596,29 @@ def _first_campaign_root(immutable: _ImmutablePublication) -> Path:
     ).resolve().parent
 
 
+def _report_targets(output: Path) -> tuple[Path, Path, Path]:
+    return (
+        output / R.REPORT_JSON_NAME,
+        output / R.REPORT_MARKDOWN_NAME,
+        output / R.REPORT_COMMIT_NAME,
+    )
+
+
+def _assert_report_targets_absent(output: Path) -> None:
+    assert all(not os.path.lexists(path) for path in _report_targets(output))
+
+
+def _remove_report_targets(output: Path) -> tuple[Path, ...]:
+    residual = tuple(
+        path for path in _report_targets(output) if os.path.lexists(path)
+    )
+    for path in residual:
+        if os.path.lexists(path):
+            path.unlink()
+    _assert_report_targets_absent(output)
+    return residual
+
+
 @pytest.mark.parametrize("direction", ["equal", "below", "above"])
 def test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing(
     immutable_publication: _ImmutablePublication,
@@ -559,7 +629,7 @@ def test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing
     inputs = _inputs(immutable_publication)
     output = {
         "equal": campaign,
-        "below": campaign / "material-report-output",
+        "below": campaign / "material-report-output-below",
         "above": campaign.parent,
     }[direction]
     monkeypatch.setattr(
@@ -567,14 +637,17 @@ def test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing
         "_load_and_evaluate",
         lambda _root: inputs,
     )
-    with pytest.raises(R.B4MaterialReportError, match="output_campaign_intersection"):
-        R.write_material_report(
-            immutable_publication.publication.publication_root,
-            output_root=output,
-        )
-    assert not (output / R.REPORT_JSON_NAME).exists()
-    assert not (output / R.REPORT_MARKDOWN_NAME).exists()
-    assert not (output / R.REPORT_COMMIT_NAME).exists()
+    _assert_report_targets_absent(output)
+    residual: tuple[Path, ...] = ()
+    try:
+        with pytest.raises(R.B4MaterialReportError, match="output_campaign_intersection"):
+            R.write_material_report(
+                immutable_publication.publication.publication_root,
+                output_root=output,
+            )
+    finally:
+        residual = _remove_report_targets(output)
+    assert residual == ()
 
 
 def test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison(
@@ -582,14 +655,17 @@ def test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison(
 ) -> None:
     campaign = _first_campaign_root(immutable_publication)
     output = campaign / "runs" / ".."
-    with pytest.raises(R.B4MaterialReportError, match="output_campaign_intersection"):
-        R.write_material_report(
-            immutable_publication.publication.publication_root,
-            output_root=output,
-        )
-    assert not (campaign / R.REPORT_JSON_NAME).exists()
-    assert not (campaign / R.REPORT_MARKDOWN_NAME).exists()
-    assert not (campaign / R.REPORT_COMMIT_NAME).exists()
+    _assert_report_targets_absent(campaign)
+    residual: tuple[Path, ...] = ()
+    try:
+        with pytest.raises(R.B4MaterialReportError, match="output_campaign_intersection"):
+            R.write_material_report(
+                immutable_publication.publication.publication_root,
+                output_root=output,
+            )
+    finally:
+        residual = _remove_report_targets(campaign)
+    assert residual == ()
 
 
 def test_output_symlink_component_is_rejected_before_any_report_write(
@@ -599,15 +675,19 @@ def test_output_symlink_component_is_rejected_before_any_report_write(
     campaign = _first_campaign_root(immutable_publication)
     link = tmp_path / "campaign-link"
     link.symlink_to(campaign, target_is_directory=True)
-    output = link / "material-report-output"
-    with pytest.raises(R.B4MaterialReportError, match="output_symlink_component"):
-        R.write_material_report(
-            immutable_publication.publication.publication_root,
-            output_root=output,
-        )
-    assert not (campaign / "material-report-output" / R.REPORT_JSON_NAME).exists()
-    assert not (campaign / "material-report-output" / R.REPORT_MARKDOWN_NAME).exists()
-    assert not (campaign / "material-report-output" / R.REPORT_COMMIT_NAME).exists()
+    real_output = campaign / "material-report-output-symlink"
+    output = link / real_output.name
+    _assert_report_targets_absent(real_output)
+    residual: tuple[Path, ...] = ()
+    try:
+        with pytest.raises(R.B4MaterialReportError, match="output_symlink_component"):
+            R.write_material_report(
+                immutable_publication.publication.publication_root,
+                output_root=output,
+            )
+    finally:
+        residual = _remove_report_targets(real_output)
+    assert residual == ()
 
 
 def test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing(
