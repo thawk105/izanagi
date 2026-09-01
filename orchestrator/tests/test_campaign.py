@@ -24,6 +24,7 @@ import json
 import os
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -7660,61 +7661,92 @@ def test_pipeline_screening_boundary_and_fails_safe_matrix():
 
 
 def test_evaluate_commit_writes_are_syntactically_verify_gated():
-    """設計 §5-5(i): evaluate 内に verify なし COMMIT の構文位置を作れないことを固定。"""
+    """Prepare capability, sole writer, and both callers form one closed gate."""
     with open(pipeline.__file__, encoding="utf-8") as f:
         tree = ast.parse(f.read(), filename=pipeline.__file__)
-    evaluate_node = next(
-        n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "evaluate")
+    functions = {
+        node.name: node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    core = functions["_prepare_evaluation_core"]
+    writer = functions["_commit_prepared"]
 
-    parents = {}
-    for parent in ast.walk(evaluate_node):
-        for child in ast.iter_child_nodes(parent):
-            parents[child] = parent
+    prepared_calls = [
+        (owner.name, call)
+        for owner in functions.values()
+        for call in ast.walk(owner)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_PreparedEvaluation"
+    ]
+    assert len(prepared_calls) == 1
+    assert prepared_calls[0][0] == "_prepare_evaluation_core"
 
-    verify_loop = next(
-        n for n in ast.walk(evaluate_node)
-        if isinstance(n, ast.For)
-        and isinstance(n.iter, ast.Name) and n.iter.id == "passes")
-    certified_assignment = next(
-        n for n in ast.walk(evaluate_node)
-        if isinstance(n, ast.Assign)
-        and any(isinstance(t, ast.Attribute)
-                and isinstance(t.value, ast.Name) and t.value.id == "res"
-                and t.attr == "certified" for t in n.targets)
-        and isinstance(n.value, ast.Constant) and n.value.value is True)
-    assert verify_loop.end_lineno < certified_assignment.lineno
+    verify_loops = [
+        node for node in ast.walk(core)
+        if isinstance(node, ast.For)
+        and isinstance(node.iter, ast.Name)
+        and node.iter.id == "passes"
+    ]
+    certified_assignments = [
+        node for node in ast.walk(core)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "res"
+            and target.attr == "certified"
+            for target in node.targets
+        )
+        and isinstance(node.value, ast.Constant)
+        and node.value.value is True
+    ]
+    assert len(verify_loops) == len(certified_assignments) == 1
+    prepared_call = prepared_calls[0][1]
+    assert verify_loops[0].end_lineno < certified_assignments[0].lineno \
+        < prepared_call.lineno
 
-    commit_calls = []
-    for node in ast.walk(evaluate_node):
-        if not isinstance(node, ast.Call) or len(node.args) < 3:
-            continue
-        if not (isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "wal" and node.func.attr == "log"):
-            continue
-        stage = node.args[2]
-        if isinstance(stage, ast.Name) and stage.id == "STAGE_COMMIT":
-            commit_calls.append(node)
+    stage_commit_calls = []
+    for owner in functions.values():
+        for call in ast.walk(owner):
+            if not isinstance(call, ast.Call) or len(call.args) < 3:
+                continue
+            stage = call.args[2]
+            if isinstance(stage, ast.Name) and stage.id == "STAGE_COMMIT":
+                stage_commit_calls.append((owner.name, call))
+    assert [owner for owner, _call in stage_commit_calls] == [
+        "_commit_prepared", "_commit_prepared",
+    ]
+    assert {
+        ast.unparse(call.func) for _owner, call in stage_commit_calls
+    } == {
+        "wal.log", "prepared.qualification_policy.event_sink.emit",
+    }
 
-    assert len(commit_calls) == 2
-    for call in commit_calls:
-        assert call.lineno > certified_assignment.lineno
-        cur = parents.get(call)
-        inside_certified_if = False
-        while cur is not None and cur is not evaluate_node:
-            if (isinstance(cur, ast.If)
-                    and isinstance(cur.test, ast.Attribute)
-                    and isinstance(cur.test.value, ast.Name)
-                    and cur.test.value.id == "res"
-                    and cur.test.attr == "certified"):
-                inside_certified_if = True
-                break
-            cur = parents.get(cur)
-        assert inside_certified_if
+    guard = [
+        node for node in writer.body
+        if isinstance(node, ast.If)
+        and ast.unparse(node.test) == "not res.certified or res.aborted"
+    ]
+    assert len(guard) == 1
+    assert len(guard[0].body) == 1 and isinstance(guard[0].body[0], ast.Raise)
+    assert all(
+        guard[0].end_lineno < call.lineno
+        for _owner, call in stage_commit_calls
+    )
 
-    # mutation resistance: verify loop より前へ
-    # `if False: wal.log(..., STAGE_COMMIT, ...)` を挿すと call 数・行順・認証 if の
-    # いずれも満たせず、このテストが落ちることを意図した形状検査である。
+    writer_callers = collections.Counter(
+        owner.name
+        for owner in functions.values()
+        for call in ast.walk(owner)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_commit_prepared"
+    )
+    assert writer_callers == {
+        "evaluate": 1,
+        "_run_balanced_schedule": 1,
+    }
 
 
 def test_pipeline_screening_with_no_bench_is_immediate_value_error():
@@ -8034,20 +8066,19 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
 
 
 def test_pipeline_fullscale_verify_and_bench_share_numactl_expression():
-    """fullscale verify と 2 本の bench 呼出しを同じ numactl 式へ固定する。"""
+    """Split prepare/carrier/bench topology shares one immutable numactl value."""
     with open(pipeline.__file__, encoding="utf-8") as stream:
         tree = ast.parse(stream.read(), filename=pipeline.__file__)
-    evaluate_nodes = [
-        node for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "evaluate"
-    ]
-    assert len(evaluate_nodes) == 1, (
-        "pipeline.py の top-level evaluate FunctionDef を exact 1 件探したが "
-        f"{len(evaluate_nodes)} 件だった"
-    )
-    evaluate_node = evaluate_nodes[0]
+    functions = {
+        node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)
+    }
+    assert {
+        "_prepare_evaluation_core", "_bench_prepared",
+    } <= set(functions)
+    prepare = functions["_prepare_evaluation_core"]
+    bench = functions["_bench_prepared"]
     fullscale_ifs = [
-        node for node in ast.walk(evaluate_node)
+        node for node in ast.walk(prepare)
         if isinstance(node, ast.If)
         and isinstance(node.test, ast.Name)
         and node.test.id == "fullscale_isolated"
@@ -8066,27 +8097,31 @@ def test_pipeline_fullscale_verify_and_bench_share_numactl_expression():
         and call.func.id == "_run_one_pass"
     ]
     bench_calls = [
-        node for node in ast.walk(evaluate_node)
+        node for node in ast.walk(bench)
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
         and node.func.id == "_run_bench"
     ]
+    carriers = [
+        node for node in ast.walk(prepare)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_PreparedEvaluation"
+    ]
     assert len(verify_calls) == 1, (
         "fullscale_isolated If 内の _run_one_pass 呼出を exact 1 件要求する"
     )
-    assert len(bench_calls) == 2, (
-        "evaluate 内の _run_bench 呼出を exact 2 件要求する"
+    assert len(carriers) == 1, "prepared carrier must be constructed exactly once"
+    assert len(bench_calls) == 1, "split bench must call _run_bench exactly once"
+    carrier_keywords = {item.arg: item.value for item in carriers[0].keywords}
+    prefixes = (
+        verify_calls[0].args[2],
+        carrier_keywords["numactl"],
+        bench_calls[0].args[3],
     )
-    prefixes = [verify_calls[0].args[2], *(call.args[3] for call in bench_calls)]
-    assert all(
-        isinstance(prefix, ast.Name) and prefix.id == "numactl"
-        for prefix in prefixes
-    )
-    expected = ast.dump(prefixes[0], include_attributes=False)
-    assert all(
-        ast.dump(prefix, include_attributes=False) == expected
-        for prefix in prefixes[1:]
-    )
+    assert ast.unparse(prefixes[0]) == "numactl"
+    assert ast.unparse(prefixes[1]) == "numactl"
+    assert ast.unparse(prefixes[2]) == "prepared.numactl"
 
 
 def test_pipeline_fullscale_verify_and_bench_share_immutable_numactl():
@@ -12926,6 +12961,597 @@ def test_loop_does_not_append_abort_after_wal_io_error():
         layout = campaign_layout(str(ident.campaign_id(bound_cfg)), out_root)
         assert caught is failure
         assert wal.read_records(layout) == []
+
+
+def _balanced_prepared_fixture(
+        layout, arm, *, reps=20, use_perf=True, perf_preflight_receipt=None):
+    events = []
+    result = EvalResult(
+        genome=Genome("silo", {"BACK_OFF": int(arm == "A")}),
+        variant=f"variant-{arm}", certified=True, aborted=False,
+    )
+
+    def abort(reason, note, extra=None):
+        result.aborted = True
+        result.notes.append(note)
+        events.append(("abort", reason, extra))
+        return result
+
+    def emit(*args):
+        events.append(("emit", args[2], args[4]))
+
+    prepared = pipeline._PreparedEvaluation(
+        result=result,
+        layout=layout,
+        env_tag="linux-baremetal",
+        perf_binary=arm,
+        perf=PerfConfig(records=1000, threads=2, reps=reps),
+        clocks_per_us=1800,
+        numactl=None,
+        do_bench=True,
+        do_settle=False,
+        log=lambda *_args: None,
+        abort=abort,
+        emit=emit,
+        build_attempt_id=f"attempt-{arm}",
+        build_admission_receipt_sha256=arm.lower() * 64,
+        contract_sha256="c" * 64,
+        verify_tags=[pipeline.LEGACY_TAG],
+        receipt_for=lambda payload: payload,
+        bench_max_rounds=1,
+        record_rep_returncodes=False,
+        qualification_policy=None,
+        holdout_observation_admission=None,
+        use_perf=use_perf,
+        perf_preflight_receipt=perf_preflight_receipt,
+        active_screening=None,
+        screening_disabled_payload=None,
+    )
+    return prepared, events
+
+
+def _exercise_balanced_schedule(
+        values_for_block, *, settle_result=None, competing_fn=None, reps=20,
+        arm_names=("variant-arm", "baseline-arm"), use_perf=True,
+        perf_preflight_receipt=None, workload="balanced", root_seed="0" * 64):
+    root = _tmpdir("izanagi_balanced_schedule_")
+    layout = CampaignLayout(root)
+    arm_a, events_a = _balanced_prepared_fixture(
+        layout, "A", reps=reps, use_perf=use_perf,
+        perf_preflight_receipt=perf_preflight_receipt,
+    )
+    arm_b, events_b = _balanced_prepared_fixture(
+        layout, "B", reps=reps, use_perf=use_perf,
+        perf_preflight_receipt=perf_preflight_receipt,
+    )
+    probes = []
+    locks = []
+    block_calls = []
+    block_kwargs = []
+    writes_during_blocks = []
+    clock = iter(range(1_000_000, 2_000_000))
+
+    @contextlib.contextmanager
+    def one_lock():
+        locks.append("acquire")
+        yield
+
+    def measure(binary, records, threads, clocks_per_us, **kwargs):
+        writes_during_blocks.append(
+            os.path.exists(os.path.join(root, "balanced-schedule-receipt.json"))
+            or bool(events_a or events_b)
+        )
+        block_index = len(block_calls)
+        block_calls.append(binary)
+        block_kwargs.append(dict(kwargs))
+        values = list(values_for_block(binary, block_index))
+        observations = kwargs["rep_observations"]
+        timestamps = kwargs["rep_timestamps"]
+        observations[:] = [
+            {"rep_index": index, "throughput": value}
+            for index, value in enumerate(values)
+        ]
+        timestamps[:] = [
+            {"rep_index": index, "started_at_ns": next(clock),
+             "finished_at_ns": next(clock)}
+            for index in range(5)
+        ]
+        from orchestrator.calibrator.model import ScalePoint
+        measured = ScalePoint(records=records, threads=threads, run_cmd=binary)
+        measured.throughputs = values
+        return measured
+
+    config = pipeline.BalancedScheduleConfig(
+        workload=workload, root_seed=root_seed, arm_names=arm_names,
+    )
+    if settle_result is None:
+        settle_result = {"settled": True, "load1": 0.0}
+
+    def probe():
+        probes.append("probe")
+        return [] if competing_fn is None else competing_fn()
+
+    with unittest_mock.patch.object(pipeline, "bench_lock", one_lock), \
+            unittest_mock.patch.object(
+                pipeline, "settle", lambda: settle_result), \
+            unittest_mock.patch.object(
+                pipeline, "competing_bench_pids", probe), \
+            unittest_mock.patch.object(pipeline, "measure_point", measure), \
+            unittest_mock.patch.object(
+                pipeline, "_commit_prepared",
+                lambda prepared, _bench: prepared.result):
+        results, receipt = pipeline._run_balanced_schedule(
+            [arm_a, arm_b], config,
+        )
+    return {
+        "results": results,
+        "receipt": receipt,
+        "probes": probes,
+        "locks": locks,
+        "blocks": block_calls,
+        "block_kwargs": block_kwargs,
+        "events": events_a + events_b,
+        "writes_during_blocks": writes_during_blocks,
+        "root": root,
+    }
+
+
+def test_balanced_schedule_probes_each_five_rep_block_independently():
+    """M1: two groups have eight independently observable block probes."""
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert len(run["probes"]) == 8
+
+
+def test_balanced_schedule_holds_one_lock_for_all_blocks():
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert run["locks"] == ["acquire"]
+
+
+def test_balanced_schedule_writes_nothing_until_every_block_finishes():
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert run["writes_during_blocks"] == [False] * 8
+    assert os.path.isfile(
+        os.path.join(run["root"], "balanced-schedule-receipt.json")
+    )
+
+
+def test_balanced_schedule_records_aggregate_unstable_not_constant_false():
+    """M2: a genuinely noisy complete arm must carry unstable=true."""
+    run = _exercise_balanced_schedule(
+        lambda _arm, block: [10.0, 20.0, 30.0, 40.0, 50.0]
+        if block % 2 == 0 else [100.0, 200.0, 300.0, 400.0, 500.0]
+    )
+    assert run["receipt"]["arms"]["variant-arm"]["unstable"] is True
+
+
+def test_balanced_schedule_cv_is_all_rep_cv_not_mean_block_cv():
+    """M3: constant blocks at different levels have zero block CV but nonzero arm CV."""
+    seen = {"A": 0, "B": 0}
+
+    def values(arm, _block):
+        seen[arm] += 1
+        return [float(seen[arm] * 100)] * 5
+
+    run = _exercise_balanced_schedule(values)
+    arm = run["receipt"]["arms"]["variant-arm"]
+    expected = statistics.stdev(arm["tps"]) / statistics.mean(arm["tps"])
+    assert arm["cv"] == expected and arm["cv"] != statistics.mean(arm["block_cvs"])
+
+
+def test_balanced_schedule_receipt_rows_match_sizing_schema_exactly():
+    """One 60-pair workload emits 12 five-pair blocks in sizing row form."""
+    run = _exercise_balanced_schedule(
+        lambda arm, block: [float(1000 + block * 10 + index)
+                            for index in range(5)],
+        reps=60,
+        arm_names=("fixed5", "no-backoff"),
+    )
+    rows = run["receipt"]["reps"]
+    assert len(rows) == 120
+    assert {row["arm"] for row in rows} == {"fixed5", "no-backoff"}
+    assert {row["pair_index"] for row in rows} == set(range(60))
+    assert {row["block"] for row in rows} == set(range(12))
+    assert all(set(row) == {
+        "arm", "block", "block_position", "ended_at_ns", "group",
+        "pair_index", "started_at_ns", "tps",
+    } for row in rows)
+    assert all(row["group"] == row["pair_index"] // 10 for row in rows)
+    assert all(row["block"] == row["pair_index"] // 5 for row in rows)
+    assert all(
+        row["block_position"] == row["pair_index"] % 5 for row in rows
+    )
+    intervals = [(row["started_at_ns"], row["ended_at_ns"]) for row in rows]
+    assert intervals == sorted(intervals)
+    assert all(start < end for start, end in intervals)
+
+
+def test_balanced_receipt_real_producer_round_trips_consumer_and_sizing():
+    """The producer's exact receipt is accepted unchanged by both consumers."""
+    from orchestrator.campaign import paper_story_a1_paired as paired
+
+    policy = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+    workloads = []
+    receipts = []
+    for workload_name in paired.WORKLOAD_ORDER:
+        arm_names = paired._workload_arm_order(policy, workload_name)
+        root_seed = paired._workload_plan(
+            policy, workload_name,
+        )["schedule_root_seed"]
+        run = _exercise_balanced_schedule(
+            lambda arm, block: [
+                float(
+                    10_000
+                    + (1_000 if arm == "A" else 0)
+                    + block * 10
+                    + index
+                )
+                for index in range(5)
+            ],
+            reps=60,
+            arm_names=arm_names,
+            workload=workload_name,
+            root_seed=root_seed,
+        )
+        receipt = run["receipt"]
+        arm_results = {
+            name: {
+                "raw_tps": receipt["arms"][name]["tps"],
+                "variant": receipt["arms"][name]["variant"],
+            }
+            for name in arm_names
+        }
+        assert paired._balanced_schedule_receipt_errors(
+            policy, workload_name, receipt, arm_results,
+        ) == []
+        receipts.append(receipt)
+        workloads.append({
+            "arms": arm_results,
+            "campaign_id": f"campaign-{workload_name}",
+            "errors": [],
+            "schedule_receipt": {"document": receipt},
+            "valid": True,
+            "workload": workload_name,
+        })
+
+    sizing = paired._balanced_sizing_pilot_document(
+        policy, {"complete": True, "workloads": workloads},
+    )
+    assert all(
+        workload["observations"] is receipt["reps"]
+        for workload, receipt in zip(sizing["workloads"], receipts)
+    )
+
+
+def test_balanced_schedule_requires_every_rep_at_the_runner_boundary():
+    """A complete block is accepted only through runner's strict rep contract."""
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert run["block_kwargs"]
+    assert all(
+        kwargs.get("require_all_reps") is True
+        for kwargs in run["block_kwargs"]
+    )
+
+
+def test_balanced_schedule_records_canonical_perf_observation():
+    """A no-perf preflight is projected into each real balanced BENCH_DONE."""
+    receipt = perf_preflight_module.probe_perf_availability(
+        perf_candidates=(),
+        subprocess_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            FileNotFoundError("perf")
+        ),
+    )
+    run = _exercise_balanced_schedule(
+        lambda _arm, _block: [100.0] * 5,
+        use_perf=False,
+        perf_preflight_receipt=receipt,
+    )
+    bench_payloads = [
+        event[2] for event in run["events"]
+        if event[:2] == ("emit", STAGE_BENCH_DONE)
+    ]
+    assert len(bench_payloads) == 2
+    assert all(
+        payload["perf_observation"]["use_perf"] is False
+        and payload["perf_observation"]["counter_status"] == "not_required"
+        and payload["perf_observation"]["preflight"] == receipt
+        for payload in bench_payloads
+    )
+
+
+def test_balanced_schedule_seed_bit_mapping_is_independently_rederived():
+    """M8: the consumer derives bit 0=ABBA and bit 1=BAAB without producer reuse."""
+    root_seed = "0" * 64
+    bits = tuple(
+        hashlib.sha256(
+            (root_seed
+             + f"a1-balanced5/v1|workload=balanced|group={group}").encode()
+        ).digest()[-1] & 1
+        for group in range(2)
+    )
+    expected = tuple(
+        (("A",) * 5 + ("B",) * 10 + ("A",) * 5)
+        if bit == 0 else
+        (("B",) * 5 + ("A",) * 10 + ("B",) * 5)
+        for bit in bits
+    )
+    actual = pipeline.derive_balanced_schedule(
+        root_seed, "balanced", 2,
+    )
+    assert actual.blocks == expected
+
+
+def test_balanced_schedule_redraw_uses_registered_preimage():
+    """M5: a homogeneous first draw uses the policy's exact counter preimage."""
+    root_seed = "0" * 63 + "5"
+    actual = pipeline.derive_balanced_schedule(root_seed, "balanced", 2)
+    assert actual.seed_counter == 1
+    assert actual.effective_root_seed == (
+        "e22dd77a1336ceffd09ed2b904703beee9924e68fae34dfa67159bdb13ba7897"
+    )
+    assert actual.group_bits == (1, 0)
+
+
+def test_canonical_build_source_state_accepts_exact_clean_checkout():
+    """Acceptance implication: exact policy HEAD plus tracked-clean passes."""
+    sub, head, _git = _fake_ccbench_repo()
+    Path(sub, "untracked-build-output").write_text("ignored", encoding="utf-8")
+    pipeline._require_canonical_build_source_state(
+        sub, head, build_kind="trace",
+    )
+
+
+def test_canonical_build_source_state_rejects_pin_or_tracked_drift():
+    """Rejection implication: either wrong HEAD or tracked dirt rejects locally."""
+    sub, head, _git = _fake_ccbench_repo()
+    for build_kind, mutation in (("trace", "pin"), ("perf", "tracked")):
+        if mutation == "tracked":
+            Path(sub, "include/backoff.hh").write_text(
+                "tracked drift\n", encoding="utf-8",
+            )
+        try:
+            pipeline._require_canonical_build_source_state(
+                sub,
+                ("0" * 40 if mutation == "pin" else head),
+                build_kind=build_kind,
+            )
+        except pipeline._CanonicalBuildSourceStateError as exc:
+            assert exc.build_kind == build_kind
+        else:
+            raise AssertionError(f"{mutation} build source drift was accepted")
+
+
+def test_balanced_build_boundary_is_one_guarded_trace_perf_wrapper():
+    """M10 build layer: one guard dominates exact trace and perf build calls."""
+    tree = ast.parse(Path(pipeline.__file__).read_text(encoding="utf-8"))
+    core = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_prepare_evaluation_core"
+    )
+    wrapper = next(
+        node for node in ast.walk(core)
+        if isinstance(node, ast.FunctionDef) and node.name == "_build_one"
+    )
+    wrapper_calls = [
+        node for node in ast.walk(wrapper) if isinstance(node, ast.Call)
+    ]
+    assert sum(
+        isinstance(call.func, ast.Name)
+        and call.func.id == "_require_canonical_build_source_state"
+        for call in wrapper_calls
+    ) == 1
+    build_calls = collections.Counter(
+        ast.unparse(call.func) for call in wrapper_calls
+        if ast.unparse(call.func) in {"buildcache.build", "buildcache.build_v2"}
+    )
+    assert build_calls == {
+        "buildcache.build": 1,
+        "buildcache.build_v2": 2,
+    }
+    invocations = [
+        call for call in ast.walk(core)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_build_one"
+    ]
+    assert len(invocations) == 2
+    assert [ast.unparse(call.keywords[0].value) for call in invocations] == [
+        "True", "False",
+    ]
+    handlers = [
+        handler for handler in ast.walk(core)
+        if isinstance(handler, ast.ExceptHandler)
+        and isinstance(handler.type, ast.Name)
+        and handler.type.id == "_CanonicalBuildSourceStateError"
+    ]
+    assert len(handlers) == 1
+    assert "'build-source-state-error'" in ast.unparse(handlers[0])
+
+
+def test_balanced_loop_binds_build_guard_to_campaign_policy_pin():
+    """The balanced split passes the campaign's policy-derived pin verbatim."""
+    from orchestrator.campaign import loop as campaign_loop
+
+    tree = ast.parse(Path(campaign_loop.__file__).read_text(encoding="utf-8"))
+    production = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_campaign"
+    )
+    calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_prepare_evaluation"
+    ]
+    assert len(calls) == 1
+    keywords = {item.arg: item.value for item in calls[0].keywords}
+    assert ast.unparse(keywords["canonical_build_pin"]) == "cfg.ccbench_commit"
+    assert (
+        "cfg.search_config.get('arm_order') != list(balanced_schedule.arm_names)"
+        in ast.unparse(production)
+    )
+
+
+def test_production_passes_real_balanced_schedule_config_to_run_campaign():
+    """Production has one validated policy-options route into run_campaign."""
+    source_path = Path(_REPOSITORY) / "orchestrator/campaign/paper_story_a1_paired.py"
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    functions = {
+        node.name: node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    production = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_measurement"
+    )
+    execution_option_calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_campaign_execution_options"
+    ]
+    validator_calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_require_registered_execution_options"
+    ]
+    run_calls = [
+        call for call in ast.walk(production)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "run_campaign"
+    ]
+    assert len(execution_option_calls) == len(validator_calls) == len(run_calls) == 1
+    assert execution_option_calls[0].lineno < validator_calls[0].lineno \
+        < run_calls[0].lineno
+    assert [
+        keyword.value.id for keyword in run_calls[0].keywords
+        if keyword.arg is None and isinstance(keyword.value, ast.Name)
+    ] == ["execution_options"]
+
+    options_helper = functions["_campaign_execution_options"]
+    configs = [
+        call for call in ast.walk(options_helper)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "BalancedScheduleConfig"
+    ]
+    assert len(configs) == 1
+    config_keywords = {item.arg: item.value for item in configs[0].keywords}
+    assert set(config_keywords) == {
+        "workload", "root_seed", "arm_names", "receipt_name",
+    }
+    assert ast.unparse(config_keywords["arm_names"]) == (
+        "_workload_arm_order(policy, workload_name)"
+    )
+
+    from orchestrator.campaign import paper_story_a1_paired as paired
+    v3 = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+    for workload_name in paired.WORKLOAD_ORDER:
+        options = paired._campaign_execution_options(v3, workload_name)
+        registered = paired._require_registered_execution_options(
+            v3, workload_name, options,
+        )
+        schedule = registered["balanced_schedule"]
+        assert registered["bench_max_rounds"] == 1
+        assert schedule.arm_names == paired._workload_arm_order(
+            v3, workload_name,
+        )
+        assert schedule.root_seed == paired._workload_plan(
+            v3, workload_name,
+        )["schedule_root_seed"]
+        assert schedule.receipt_name == paired.BALANCED_SCHEDULE_RECEIPT_NAME
+        assert paired.campaign_config(
+            v3, workload_name,
+        ).ccbench_commit == paired.CANONICAL_CCBENCH_OID
+    legacy = paired.load_policy()[0]
+    assert paired._campaign_execution_options(legacy, "balanced") == {}
+    assert paired._require_registered_execution_options(
+        legacy, "balanced", {},
+    ) == {}
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_campaign_wires_nondefault_bench_max_rounds_to_evaluate():
+    from orchestrator.campaign import loop as campaign_loop
+    captured = []
+    genome = Genome("silo", {"BACK_OFF": 1})
+
+    def fake_evaluate(candidate, *_args, **kwargs):
+        captured.append(kwargs.get("bench_max_rounds"))
+        return EvalResult(
+            genome=candidate,
+            variant=pipeline.variant_id(candidate, kwargs["src_token"]),
+            certified=True,
+            aborted=False,
+        )
+
+    saved_evaluate = campaign_loop.evaluate
+    saved_source_digest = campaign_loop.source_digest
+    campaign_loop.evaluate = fake_evaluate
+    campaign_loop.source_digest = _sd_mock("stock")
+    try:
+        campaign_loop.run_campaign(
+            CampaignConfig(
+                spec_slug="balanced-round-wiring",
+                search_tag="test",
+                spec_content="bench max rounds wiring",
+                ccbench_commit="deadbeef",
+            ),
+            [genome],
+            PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag,
+            _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            do_bench=False,
+            output_root=_tmpdir("izanagi_round_wiring_"),
+            log=lambda *_args: None,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
+            bench_max_rounds=1,
+        )
+    finally:
+        campaign_loop.evaluate = saved_evaluate
+        campaign_loop.source_digest = saved_source_digest
+    assert captured == [1]
+
+
+def test_balanced_schedule_quality_gate_signatures_accept_complete_input():
+    """Acceptance implication: complete settled input implies two committed results."""
+    run = _exercise_balanced_schedule(lambda _arm, _block: [100.0] * 5)
+    assert len(run["results"]) == 2 and all(
+        result.certified and not result.aborted for result in run["results"]
+    )
+
+
+def test_balanced_schedule_quality_gate_signatures_reject_each_named_condition():
+    """Rejection implication: each named bad input implies whole-workload abort."""
+    probe_error = pipeline.CompetingBenchProbeError(
+        "exec-failure", ["pgrep"], errno=5,
+    )
+    cases = (
+        ("bench-unsettled", {"settled": False}, None, [100.0] * 5),
+        ("bench-probe-error", None,
+         lambda: (_ for _ in ()).throw(probe_error), [100.0] * 5),
+        ("bench-competing-tenant", None, lambda: ["999 ycsb_silo.exe"],
+         [100.0] * 5),
+        ("bench-no-throughput", None, None, []),
+        ("bench-no-throughput", None, None, [100.0] * 4 + [None]),
+        ("bench-cv-undefined", None, None, [0.0] * 5),
+    )
+    for reason, settled, probe, values in cases:
+        run = _exercise_balanced_schedule(
+            lambda _arm, _block, values=values: values,
+            settle_result=settled,
+            competing_fn=probe,
+        )
+        abort_reasons = [
+            event[1] for event in run["events"] if event[0] == "abort"
+        ]
+        assert abort_reasons == [reason, reason]
+        assert run["receipt"] == {}
 
 
 def _run():

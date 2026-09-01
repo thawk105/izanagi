@@ -112,6 +112,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/patchharness.py", "<module>._git_repository_identity"): 1,
     # Read-only Git HEAD/status/blob probes bind the A-1 measurement source.
     ("campaign/paper_story_a1_paired.py", "<module>._run_git"): 1,
+    # Fixed `git -C <checkout> rev-parse/status` argv, no shell expansion,
+    # exact 10-second timeout; this metadata gate never executes CCBench.
+    (
+        "campaign/pipeline.py",
+        "<module>._require_canonical_build_source_state._git",
+    ): 1,
     # Exact scheduler submission argv; CCBench remains compute-job-owned.
     ("campaign/paper_story_a1_paired.py", "<module>._run_qsub"): 1,
     # Login-side qstat observations never name a CCBench binary.

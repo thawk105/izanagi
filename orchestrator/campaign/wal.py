@@ -94,6 +94,27 @@ _ATTEMPT_SCHEMA_KEYS = frozenset({
 })
 INCOMPLETE_ATTEMPT_RECOVERY_LIMIT = 3
 _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
+_A1_BALANCED5_PAIRING_DESIGN = "balanced-a5b5-b5a5-v1"
+_A1_NON_CERTIFYING_IDENTITIES = frozenset({
+    (
+        "paper-story-a1-paired-campaign/v1",
+        "paper-story-a1-20260826-sized-v1",
+        "arm-grouped-positional-v1",
+    ),
+    (
+        "paper-story-a1-paired-campaign/v2",
+        "paper-story-a1-20260901-balanced5-pilot-v1",
+        _A1_BALANCED5_PAIRING_DESIGN,
+    ),
+    (
+        "paper-story-a1-paired-campaign/v2",
+        "paper-story-a1-20260901-balanced5-sized-v1",
+        _A1_BALANCED5_PAIRING_DESIGN,
+    ),
+})
+_A1_BALANCED5_INTERRUPTED_ATTEMPT_INVALID_REASON = (
+    "a1-balanced5-interrupted-attempt-invalid"
+)
 _A1_IO_LAYOUT: ContextVar[str | None] = ContextVar(
     "izanagi_a1_non_certifying_wal_layout", default=None,
 )
@@ -104,17 +125,29 @@ def _has_exact_a1_non_certifying_marker(decoded: object) -> bool:
         return False
     identity = decoded.identity
     search = identity.get("search_config") if type(identity) is dict else None
+    study_id = search.get("study_id") if type(search) is dict else None
     return (
         type(search) is dict
-        and search.get("schema") == "paper-story-a1-paired-campaign/v1"
-        and search.get("study_id") == "paper-story-a1-20260826-sized-v1"
+        and (
+            search.get("schema"),
+            study_id,
+            search.get("pairing_design"),
+        ) in _A1_NON_CERTIFYING_IDENTITIES
         and search.get("formal") is False
         and search.get("promotion_prohibited") is True
-        and search.get("pairing_design") == "arm-grouped-positional-v1"
         and search.get("non_certifying_mode")
         == "registered-formal-non-certifying"
-        and identity.get("trial") == "paper-story-a1-20260826-sized-v1"
+        and identity.get("trial") == study_id
     )
+
+
+def _has_exact_a1_balanced5_marker(decoded: object) -> bool:
+    if type(decoded) is not campaign_lock_codec.DecodedNonCertifyingCampaignLock:
+        return False
+    if not _has_exact_a1_non_certifying_marker(decoded):
+        return False
+    search = decoded.identity["search_config"]
+    return search.get("pairing_design") == _A1_BALANCED5_PAIRING_DESIGN
 
 
 @contextmanager
@@ -1573,7 +1606,10 @@ def _validate_attempt_topology(
                     raise AttemptTopologyError("abort: receiptless attempt に receipt SHA がある")
             elif _receipt_sha(payload, stage=record.stage) != attempt.receipt_sha256:
                 raise AttemptTopologyError("abort: attempt receipt SHA が不一致")
-            if payload.get("reason") == INCOMPLETE_ATTEMPT_RECOVERY_REASON:
+            if payload.get("reason") in {
+                INCOMPLETE_ATTEMPT_RECOVERY_REASON,
+                _A1_BALANCED5_INTERRUPTED_ATTEMPT_INVALID_REASON,
+            }:
                 expected_keys = {"reason", "build_attempt_id"}
                 if attempt.receipt_sha256 is not None:
                     expected_keys.add("build_admission_receipt_sha256")
@@ -1672,6 +1708,7 @@ def _project_active_attempts(
 def _validate_recovery_suffix(
         recoveries: List[WalRecord],
         active_attempts: Dict[str, tuple[int, WalRecord, BuildAttemptState]],
+        *, recovery_reason: str = INCOMPLETE_ATTEMPT_RECOVERY_REASON,
 ) -> None:
     """Validate only the new recovery suffix against the projected active starts."""
     if len(recoveries) != len(active_attempts):
@@ -1683,7 +1720,7 @@ def _validate_recovery_suffix(
             raise AttemptTopologyError("recovery suffix の variant が active attempt と不一致")
         _start_index, start, attempt = projected
         expected_payload = {
-            "reason": INCOMPLETE_ATTEMPT_RECOVERY_REASON,
+            "reason": recovery_reason,
             "build_attempt_id": attempt.attempt_id,
         }
         if attempt.receipt_sha256 is not None:
@@ -1697,9 +1734,11 @@ def _validate_recovery_suffix(
         seen.add(record.variant)
 
 
-def _recovery_abort_record(start: WalRecord, attempt: BuildAttemptState) -> WalRecord:
+def _recovery_abort_record(
+        start: WalRecord, attempt: BuildAttemptState, *, reason: str,
+) -> WalRecord:
     payload = {
-        "reason": INCOMPLETE_ATTEMPT_RECOVERY_REASON,
+        "reason": reason,
         "build_attempt_id": attempt.attempt_id,
     }
     if attempt.receipt_sha256 is not None:
@@ -1760,6 +1799,7 @@ def _append_records_locked(
 def _recover_interrupted_attempts(
         layout: CampaignLayout, *, admission_policy: BuildAdmissionPolicy,
         allow_a1_non_certifying: bool = False,
+        terminal_invalid: bool = False,
 ) -> List[WalRecord]:
     """Atomically terminate only the exact fail-open crash window.
 
@@ -1770,6 +1810,8 @@ def _recover_interrupted_attempts(
     """
     if type(admission_policy) is not BuildAdmissionPolicy:
         raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
+    if type(terminal_invalid) is not bool:
+        raise TypeError("terminal_invalid は exact bool が必要")
     getattr(layout, "_admit_materialization", lambda: None)()
     flags = os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW | os.O_CLOEXEC
     try:
@@ -1786,6 +1828,14 @@ def _recover_interrupted_attempts(
             layout,
             allow_a1_non_certifying=allow_a1_non_certifying,
         )
+        if terminal_invalid:
+            if (
+                not allow_a1_non_certifying
+                or not _has_exact_a1_balanced5_marker(campaign_lock)
+            ):
+                raise AttemptTopologyError(
+                    "terminal invalid recovery は A-1 balanced5 marker 専用"
+                )
         identity = _campaign_lock_identity(campaign_lock)
         search_config = (
             identity.get("search_config") if type(identity) is dict else None
@@ -1880,6 +1930,10 @@ def _recover_interrupted_attempts(
             ) from exc
 
         recoveries: List[WalRecord] = []
+        recovery_reason = (
+            _A1_BALANCED5_INTERRUPTED_ATTEMPT_INVALID_REASON
+            if terminal_invalid else INCOMPLETE_ATTEMPT_RECOVERY_REASON
+        )
         trigger_machine = is_trigger_machine_campaign_lock(campaign_lock)
         for variant, (_start_index, start, attempt) in active_attempts.items():
             if (trigger_machine
@@ -1894,7 +1948,7 @@ def _recover_interrupted_attempts(
                 record.variant == variant
                 and record.stage == STAGE_ABORT
                 and record.payload.get("reason")
-                == INCOMPLETE_ATTEMPT_RECOVERY_REASON
+                == recovery_reason
                 for record in records
             )
             if recovery_count >= INCOMPLETE_ATTEMPT_RECOVERY_LIMIT:
@@ -1905,14 +1959,18 @@ def _recover_interrupted_attempts(
                     detail=("recovery count reached limit "
                             f"{INCOMPLETE_ATTEMPT_RECOVERY_LIMIT}"),
                 )
-            recoveries.append(_recovery_abort_record(start, attempt))
+            recoveries.append(
+                _recovery_abort_record(start, attempt, reason=recovery_reason)
+            )
 
         if not recoveries:
             return []
         prospective = records + recoveries
         try:
             validate_trigger_bindings(prospective, campaign_lock=campaign_lock)
-            _validate_recovery_suffix(recoveries, active_attempts)
+            _validate_recovery_suffix(
+                recoveries, active_attempts, recovery_reason=recovery_reason,
+            )
         except AttemptTopologyError as exc:
             last = recoveries[-1]
             raise InterruptedAttemptRecoveryError(
@@ -1939,11 +1997,30 @@ def recover_interrupted_attempts(
 def recover_interrupted_attempts_a1_non_certifying(
         layout: CampaignLayout, *, admission_policy: BuildAdmissionPolicy,
 ) -> List[WalRecord]:
-    """A-1 non-certifying lock 専用 interrupted attempt recovery。"""
+    """旧 A-1 配置専用の retryable interrupted attempt recovery。"""
+    decoded = _campaign_lock_value(layout, allow_a1_non_certifying=True)
+    if not _has_exact_a1_non_certifying_marker(decoded):
+        raise AttemptTopologyError("A-1 non-certifying recovery marker が不正")
+    if _has_exact_a1_balanced5_marker(decoded):
+        raise AttemptTopologyError(
+            "A-1 balanced5 marker は terminal invalid recovery が必要"
+        )
     return _recover_interrupted_attempts(
         layout,
         admission_policy=admission_policy,
         allow_a1_non_certifying=True,
+    )
+
+
+def recover_interrupted_attempts_a1_balanced5_terminal_invalid(
+        layout: CampaignLayout, *, admission_policy: BuildAdmissionPolicy,
+) -> List[WalRecord]:
+    """新 A-1 配置の interrupted attempt を terminal invalid に閉じる。"""
+    return _recover_interrupted_attempts(
+        layout,
+        admission_policy=admission_policy,
+        allow_a1_non_certifying=True,
+        terminal_invalid=True,
     )
 
 

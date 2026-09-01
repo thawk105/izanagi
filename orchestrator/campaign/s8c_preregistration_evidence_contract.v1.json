@@ -404,6 +404,7 @@
             "provider.envelope_sha256",
             "proposal.path",
             "proposal.sha256",
+            "proposal.build_source_bindings",
             "campaign_wal.build_records",
             "campaign_wal.bench_records",
             "layer3.artifact_refs",

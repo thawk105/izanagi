@@ -221,6 +221,8 @@ _REVIEWED_PREDICATES = (
     _Predicate("C", "orchestrator/campaign/pipeline.py",
                "_run_bench", "build_perf_observation"),
     _Predicate("C", "orchestrator/campaign/pipeline.py",
+               "_run_balanced_schedule", "build_perf_observation"),
+    _Predicate("C", "orchestrator/campaign/pipeline.py",
                "evaluate", "validate_perf_preflight_receipt"),
     _Predicate("C", "orchestrator/campaign/pipeline.py",
                "evaluate", "use_perf_from_receipt"),
@@ -769,6 +771,31 @@ def test_bench_callers_are_exact_and_own_canonical_preflight() -> None:
                 f"evaluate authority pair missing {sorted(missing)}"
             )
     assert not failures, "\n".join(failures)
+
+
+def test_balanced_schedule_uses_lock_free_blocks_under_one_outer_lock() -> None:
+    """The balanced executor must not re-enter legacy `_run_bench`'s flock."""
+    functions = _function_nodes(
+        (_REPO_ROOT / "orchestrator/campaign/pipeline.py").read_text(
+            encoding="utf-8"
+        )
+    )
+    balanced = functions["_run_balanced_schedule"]
+    calls = _call_names(balanced)
+    assert calls["bench_lock"] == 1
+    assert calls["measure_point"] == 1
+    assert calls["_run_bench"] == 0
+    assert calls["build_perf_observation"] == 1
+
+
+def test_campaign_loop_has_distinct_legacy_and_balanced_split_calls() -> None:
+    functions = _function_nodes(
+        (_REPO_ROOT / "orchestrator/campaign/loop.py").read_text(encoding="utf-8")
+    )
+    calls = _call_names(functions["run_campaign"])
+    assert calls["evaluate"] == 1
+    assert calls["_prepare_evaluation"] == 1
+    assert calls["_run_balanced_schedule"] == 1
 
 
 def test_official_perf_surface_inventory_is_exact() -> None:
