@@ -33,6 +33,11 @@ _SCHEMA_VERSION = "p3-b4-prerun-admission/v1"
 _PREREGISTRATION_REPOSITORY_PATH = (
     "docs/phase3-b4-reflux-ablation-preregistration.md"
 )
+_REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER = {
+    "base": "docs/phase3-b4-reflux-ablation-admission-record-base.json",
+    "sort": "docs/phase3-b4-reflux-ablation-admission-record-sort.json",
+    "trigger": "docs/phase3-b4-reflux-ablation-admission-record-trigger.json",
+}
 _SECTION5_LABELS = (
     "対象 driver と軸",
     "赤 precursor の母集合 (workload・赤形状・初期 proposal)",
@@ -192,8 +197,9 @@ def _committed_fixture(
     *,
     model: str = _MODEL,
     prompt: str = _PROMPT,
-    projection: str = _PROJECTION,
+    projection: str | None = None,
     projections: dict[str, str] | None = None,
+    driver_kind: A.B4ProjectionDriverKind = "base",
 ) -> _CommittedFixture:
     repository = _init_repository()
     document_path = repository / _PREREGISTRATION_REPOSITORY_PATH
@@ -213,11 +219,17 @@ def _committed_fixture(
         content_sha256=hashlib.sha256(document_bytes).hexdigest(),
         model=model,
         prompt=prompt,
-        projection=projection,
+        projection=(
+            _PROJECTIONS[driver_kind] if projection is None else projection
+        ),
     )
-    record_path = repository / "admission.json"
+    record_repository_path = (
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER[driver_kind]
+    )
+    record_path = repository / record_repository_path
+    record_path.parent.mkdir(parents=True, exist_ok=True)
     record_path.write_bytes(_canonical(value))
-    _git(repository, "add", "admission.json")
+    _git(repository, "add", record_repository_path)
     _git(repository, "commit", "-m", "record")
     return _CommittedFixture(
         repository=repository,
@@ -696,7 +708,9 @@ def test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist(
             "GIT_CONFIG_SYSTEM": "/dev/null",
             "GIT_NO_REPLACE_OBJECTS": "1",
         }
-    assert verified.admission_record_repository_path == "admission.json"
+    assert verified.admission_record_repository_path == (
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER["base"]
+    )
     assert verified.admission_record_commit == _git(
         fixture.repository, "rev-parse", "HEAD"
     ).decode().strip()
@@ -724,19 +738,69 @@ def test_verifier_requires_driver_and_binds_record_projection_to_document_tag():
         repository_root=fixture.repository,
         driver_kind="base",
     )
-    for driver_kind in ("sort", "outside-closed-driver-set"):
+    sort_fixture = _committed_fixture(
+        driver_kind="sort",
+        projection=_PROJECTION,
+    )
+    for driver_kind, record_fixture in (
+        ("sort", sort_fixture),
+        ("outside-closed-driver-set", fixture),
+    ):
         _raises(
             A.B4AdmissionRecordError,
-            lambda driver_kind=driver_kind: A.verify_b4_admission_record(
-                fixture.record_path,
-                repository_root=fixture.repository,
-                driver_kind=driver_kind,
+            lambda driver_kind=driver_kind, record_fixture=record_fixture: (
+                A.verify_b4_admission_record(
+                    record_fixture.record_path,
+                    repository_root=record_fixture.repository,
+                    driver_kind=driver_kind,
+                )
             ),
             exact=(
                 "[admission-mismatch] "
                 "expected_closed_critic_projection_closure_sha256"
             ),
         )
+
+
+def test_verifier_enforces_driver_required_path():
+    for driver_kind in ("base", "sort", "trigger"):
+        fixture = _committed_fixture(driver_kind=driver_kind)
+        A.verify_b4_admission_record(
+            fixture.record_path,
+            repository_root=fixture.repository,
+            driver_kind=driver_kind,
+        )
+
+        other_path = fixture.repository / "admission.json"
+        other_path.write_bytes(fixture.record_path.read_bytes())
+        _git(fixture.repository, "add", "admission.json")
+        _git(fixture.repository, "commit", "-m", "same record at other path")
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda: A.verify_b4_admission_record(
+                other_path,
+                repository_root=fixture.repository,
+                driver_kind=driver_kind,
+            ),
+            exact=(
+                "[admission-record] record repository path is not the path "
+                "required for driver_kind"
+            ),
+        )
+        A.verify_b4_admission_record(
+            fixture.record_path,
+            repository_root=fixture.repository,
+            driver_kind=driver_kind,
+        )
+
+
+def test_required_path_mapping_matches_independent_literals():
+    assert type(
+        A._REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER
+    ) is MappingProxyType
+    assert dict(
+        A._REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER
+    ) == _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER
 
 
 def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head():
@@ -751,13 +815,19 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
         exact="[admission-record] record is unavailable",
     )
 
-    untracked = fixture.repository / "untracked.json"
-    untracked.write_bytes(fixture.record_path.read_bytes())
+    untracked_fixture = _committed_fixture()
+    untracked_bytes = untracked_fixture.record_path.read_bytes()
+    untracked_repository_path = (
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER["base"]
+    )
+    _git(untracked_fixture.repository, "rm", untracked_repository_path)
+    _git(untracked_fixture.repository, "commit", "-m", "remove record")
+    untracked_fixture.record_path.write_bytes(untracked_bytes)
     _raises(
         A.B4AdmissionRecordError,
         lambda: A.verify_b4_admission_record(
-            untracked,
-            repository_root=fixture.repository,
+            untracked_fixture.record_path,
+            repository_root=untracked_fixture.repository,
             driver_kind="base",
         ),
         exact="[admission-record] record is not committed at execution HEAD",
@@ -778,7 +848,11 @@ def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head
     staged_value = dict(fixture.record_value)
     staged_value["schema_version"] = "p3-b4-prerun-admission/changed"
     fixture.record_path.write_bytes(_canonical(staged_value))
-    _git(fixture.repository, "add", "admission.json")
+    _git(
+        fixture.repository,
+        "add",
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER["base"],
+    )
     _raises(
         A.B4AdmissionRecordError,
         lambda: A.verify_b4_admission_record(
@@ -808,7 +882,11 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
         content_sha256=hashlib.sha256(nonancestor.document_bytes).hexdigest(),
     )
     nonancestor.record_path.write_bytes(_canonical(value))
-    _git(nonancestor.repository, "add", "admission.json")
+    _git(
+        nonancestor.repository,
+        "add",
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER["base"],
+    )
     _git(nonancestor.repository, "commit", "-m", "nonancestor record")
     _raises(
         A.B4AdmissionRecordError,
@@ -827,7 +905,11 @@ def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():
     value["preregistration_binding"] = dict(value["preregistration_binding"])
     value["preregistration_binding"]["content_sha256"] = "f" * 64
     bad_hash.record_path.write_bytes(_canonical(value))
-    _git(bad_hash.repository, "add", "admission.json")
+    _git(
+        bad_hash.repository,
+        "add",
+        _REQUIRED_ADMISSION_RECORD_REPOSITORY_PATH_BY_DRIVER["base"],
+    )
     _git(bad_hash.repository, "commit", "-m", "bad hash")
     _raises(
         A.B4AdmissionRecordError,

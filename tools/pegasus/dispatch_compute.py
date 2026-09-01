@@ -37,6 +37,7 @@ from orchestrator.scheduler_nqsv import (  # noqa: E402
     gate_state_value as _gate_state_value,
     target_bound_qstat_state as _target_bound_qstat_state,
 )
+from orchestrator.campaign import mutation_attempt_marker  # noqa: E402
 
 
 INFRA_RC = 16
@@ -78,7 +79,7 @@ _TASK_RUN_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUN_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
-_COMPUTE_MARKER_NAME = "compute-visible.json"
+_COMPUTE_MARKER_NAME = mutation_attempt_marker.COMPUTE_MARKER_NAME
 _ORPHAN_HOLD_NAME = "orphan-hold.json"
 _ORPHAN_HOLD_DIR_NAME = "orphan-holds"
 _ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
@@ -1272,6 +1273,19 @@ def _job_run(
         executable_dir = str(Path(sys.executable).resolve().parent)
         child_env["PATH"] = executable_dir + os.pathsep + child_env.get("PATH", "")
         child_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+        if task == "mutation":
+            assert request_sha256 is not None
+            binding = mutation_attempt_marker.build_binding(
+                dispatch_root=repo_root / "output" / "pegasus-dispatch",
+                submission_dir=request_path.parent,
+                pbs_jobid=pbs_jobid,
+                hostname=hostname,
+                request_sha256=request_sha256,
+                is_regular_pbs_jobid=_is_regular_pbs_jobid,
+            )
+            child_env[mutation_attempt_marker.MARKER_ENV] = (
+                mutation_attempt_marker.encode_binding(binding)
+            )
         stage = "child"
         if runner_binding is not None:
             assert bound_xdist_root is not None

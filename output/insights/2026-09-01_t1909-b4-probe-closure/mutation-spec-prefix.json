@@ -1,0 +1,22 @@
+{
+ "estimated_run_seconds": 1200,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "MWA",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+     "new": "    for symbol in sorted(reasons):\n        if symbol == _GENERATION_SEEDS[0]:\n            continue\n        module_name, qualname = symbol.rsplit(\".\", 1)\n",
+     "old": "    for symbol in sorted(reasons):\n        module_name, qualname = symbol.rsplit(\".\", 1)\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}

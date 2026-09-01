@@ -30,7 +30,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if os.fspath(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, os.fspath(_REPO_ROOT))
 
-from orchestrator.campaign import site_policy  # noqa: E402
+from orchestrator.campaign import mutation_attempt_marker, site_policy  # noqa: E402
 
 
 WRAPPER_RECEIPT_SCHEMA = "izanagi-mutation-worktree-wrapper/v1"
@@ -1155,10 +1155,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         if args.wrapper_attempt is not None and args.wrapper_attempt < 1:
             raise MutationWorktreeError("--wrapper-attempt は 1 以上でなければならない")
-        if args.attempt_out is not None and args.runner_mode != "dispatch":
-            raise MutationWorktreeError(
-                "attempt sidecar は --runner-mode dispatch でのみ使用できる"
-            )
+        if args.attempt_out is not None and args.runner_mode == "local":
+            try:
+                from tools.pegasus import dispatch_compute
+
+                mutation_attempt_marker.require_local_attempt_marker(
+                    normalize_request_id=dispatch_compute._normalize_request_id,
+                    is_regular_pbs_jobid=dispatch_compute._is_regular_pbs_jobid,
+                )
+            except mutation_attempt_marker.MutationAttemptMarkerError as exc:
+                raise MutationWorktreeError(
+                    f"local attempt authorization が不正です: {exc}"
+                ) from exc
         command = list(args.command)
         if command and command[0] == "--":
             command.pop(0)
