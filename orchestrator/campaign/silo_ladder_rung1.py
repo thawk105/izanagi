@@ -39,6 +39,7 @@ _IMPORT_ROOT = Path(__file__).resolve().parents[2]
 _ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
 
 from . import (
+    condition_meaning_gate,
     env_attestation,
     env_contract,
     execution_guard,
@@ -2063,6 +2064,124 @@ def _configure_argv(
     ]
 
 
+def _require_condition_gates(
+    *,
+    patched_source: Path,
+    stock_source: Path,
+    tools: Mapping[str, str],
+    configure_argv: Sequence[str],
+) -> list[dict[str, Any]]:
+    if len(configure_argv) < 5 or tuple(configure_argv[:4]) != (
+        tools["cmake"], "-S", str(patched_source), "-B",
+    ):
+        raise DriverError("condition gate configure argv has an unexpected prefix")
+    tail = tuple(configure_argv[5:])
+    fixed_values = [
+        argument.split("=", 1)[1]
+        for argument in tail
+        if argument.startswith("-DCCBENCH_BACKOFF_FIXED=")
+    ]
+    if fixed_values != ["-1"]:
+        raise DriverError(
+            "condition gate requires the actual BACKOFF_FIXED=-1 configure value"
+        )
+    cxx_flags = [
+        argument.split("=", 1)[1]
+        for argument in tail if argument.startswith("-DCMAKE_CXX_FLAGS=")
+    ]
+    if len(cxx_flags) != 1:
+        raise DriverError("condition gate requires one CMAKE_CXX_FLAGS value")
+    actual_cxx_defines: dict[str, int] = {}
+    for token in shlex.split(cxx_flags[0]):
+        if not token.startswith("-D"):
+            continue
+        name, separator, value = token[2:].partition("=")
+        if name in {RUNG_MACRO, REPORT_MACRO}:
+            try:
+                actual_cxx_defines[name] = int(value if separator else "1")
+            except ValueError as exc:
+                raise DriverError(
+                    f"condition gate macro value is not an integer: {token}"
+                ) from exc
+    declared_requests = {
+        RUNG_MACRO: (RUNG_MACRO, 1, 0, False),
+        REPORT_MACRO: (REPORT_MACRO, 1, 0, False),
+    }
+    requests = [("BACKOFF_FIXED", -1, None, True)]
+    for macro, requested in actual_cxx_defines.items():
+        declared = declared_requests[macro]
+        if requested != declared[1]:
+            raise DriverError(
+                f"condition gate request differs from actual {macro}={requested}"
+            )
+        requests.append(declared)
+    supply_records = []
+    meaning_records = []
+    for macro, requested, default, stock_comparison in requests:
+        companion_names = {
+            name for name, _value
+            in condition_meaning_gate.DEFINE_SPECS[macro].companion_defines
+        }
+        configure_args = []
+        for argument in tail:
+            if macro == "BACKOFF_FIXED" \
+                    and argument.startswith("-DCCBENCH_BACKOFF_FIXED="):
+                continue
+            if argument.startswith("-DCMAKE_CXX_FLAGS="):
+                kept = []
+                for token in shlex.split(argument.split("=", 1)[1]):
+                    name = token[2:].partition("=")[0] \
+                        if token.startswith("-D") else None
+                    if name == macro or name in companion_names:
+                        continue
+                    kept.append(token)
+                configure_args.append("-DCMAKE_CXX_FLAGS=" + " ".join(kept))
+            else:
+                configure_args.append(argument)
+        captured = condition_meaning_gate.capture_define_inputs(
+            patched_source,
+            stock_root=stock_source,
+            configure_args=tuple(configure_args),
+        )
+        request = condition_meaning_gate.make_define_request(
+            driver_id="orchestrator.campaign.silo_ladder_rung1",
+            macro=macro,
+            requested_value=requested,
+            default_value=default,
+            stock_comparison=stock_comparison,
+        )
+        supply_records.append(
+            condition_meaning_gate.evaluate_define_supply_effectuation(
+                captured,
+                request=request,
+                cxx=tools["g++"],
+                cmake=tools["cmake"],
+            )
+        )
+        meaning_records.append(
+            condition_meaning_gate.evaluate_define_runtime_meaning(
+                captured,
+                request=request,
+                declaration=None,
+                cxx=tools["g++"],
+            )
+        )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        states = ", ".join(
+            f"{record.macro}={record.terminal_status}/{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+        )
+        raise DriverError(f"condition gate rejected rung1 driver: {states}")
+    return [
+        *(json.loads(record.canonical_json()) for record in supply_records),
+        *(json.loads(record.canonical_json()) for record in meaning_records),
+        json.loads(admission.canonical_json()),
+    ]
+
+
 def _dependency_contract() -> list[dict[str, Any]]:
     policy = _load_json(_repo_root() / "tools/pegasus/policy.json")
     pins = _dependency_pins()
@@ -3831,6 +3950,13 @@ def _correctness_command(attempt_dir: Path) -> dict[str, Any]:
                 prefix=prefix, macros=[RUNG_MACRO], trace=1,
                 third_party_sources=third_party_sources,
             )
+            with patchharness.checkout(PIN, str(base)) as gate_stock_source:
+                condition_gates = _require_condition_gates(
+                    patched_source=source_path,
+                    stock_source=Path(gate_stock_source),
+                    tools={"cmake": cmake, "gcc": gcc, "g++": cxx},
+                    configure_argv=configure,
+                )
             correctness_deadline = Deadline.after(
                 _load_json(repo / "tools/pegasus/policy.json")[
                     "silo_ladder_rung1"
@@ -3940,6 +4066,7 @@ def _correctness_command(attempt_dir: Path) -> dict[str, Any]:
                 "identity_defined_count": 1,
                 "transaction_object_sha256": transaction["object_sha256"],
                 "activation_ok": True,
+                "condition_gates": condition_gates,
                 "configure_argv": configure,
                 "build_argv": build_argv,
                 "binary_sha256": sha256_file(binary),
@@ -4115,6 +4242,7 @@ def _gap_job_command(
     build_records: list[dict[str, Any]] = []
     binaries: dict[str, Path] = {}
     patched_surface: dict[str, str] = {}
+    condition_gates: list[dict[str, Any]] = []
     try:
         tools = capture_tool_identities()
         tool_paths = {item["name"]: item["realpath"] for item in tools}
@@ -4124,6 +4252,39 @@ def _gap_job_command(
                 policy["attestation_cap_s"], "attestation group",
             ),
         )
+        with patchharness.checkout(PIN, str(base)) as gate_stock_source:
+            with patchharness.checkout(PIN, str(base)) as gate_rung_source:
+                with patchharness.applied(str(patch), PIN, gate_rung_source):
+                    perf_gate_configure = _configure_argv(
+                        source=Path(gate_rung_source),
+                        build=scratch / "condition-gate-rung-perf",
+                        tools=tool_paths,
+                        prefix=prefix,
+                        macros=[RUNG_MACRO],
+                        trace=0,
+                        third_party_sources=third_party_sources,
+                    )
+                    condition_gates.extend(_require_condition_gates(
+                        patched_source=Path(gate_rung_source),
+                        stock_source=Path(gate_stock_source),
+                        tools=tool_paths,
+                        configure_argv=perf_gate_configure,
+                    ))
+                    liveness_gate_configure = _configure_argv(
+                        source=Path(gate_rung_source),
+                        build=scratch / "condition-gate-rung-liveness",
+                        tools=tool_paths,
+                        prefix=prefix,
+                        macros=[RUNG_MACRO, REPORT_MACRO],
+                        trace=0,
+                        third_party_sources=third_party_sources,
+                    )
+                    condition_gates.extend(_require_condition_gates(
+                        patched_source=Path(gate_rung_source),
+                        stock_source=Path(gate_stock_source),
+                        tools=tool_paths,
+                        configure_argv=liveness_gate_configure,
+                    ))
         build_deadline = overall_deadline.capped(
             policy["build_cap_s"], "three configure/build/replay group",
         )
@@ -4397,6 +4558,7 @@ def _gap_job_command(
             {"id": name, **value} for name, value in WORKLOADS.items()
         ],
         "schedule_receipt": schedule,
+        "condition_gates": condition_gates,
         "builds": build_records,
         "performance_runs": performance_runs,
         "liveness_runs": liveness_runs,

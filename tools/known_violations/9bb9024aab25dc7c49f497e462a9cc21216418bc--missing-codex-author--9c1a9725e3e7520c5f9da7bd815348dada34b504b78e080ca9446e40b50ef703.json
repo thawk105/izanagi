@@ -1,0 +1,7 @@
+{
+  "sha": "9bb9024aab25dc7c49f497e462a9cc21216418bc",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-09-01 dev-wave-t1999-define-gate-family の受入全走前の local main 取り込み。新規 known-violation 登録に事前承認を課さない D662 の裁定に従う。",
+  "note": "親が作成した local main 取り込み merge `9bb9024aab25dc7c49f497e462a9cc21216418bc`。実装面 3 path を個別に `git diff-tree --cc 9bb9024aab25dc7c49f497e462a9cc21216418bc -- <path>` で確認した。`orchestrator/tests/test_s6_sort_sweep.py` は condition gate を隔離する fixture と candidate evaluation より先行する gate の検査、および stock genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_s8a_trigger_sweep.py` は同 fixture と candidate evaluation / characterization build より先行する gate の検査、および ident baseline genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_t1416_backoff_compiler_binding.py` は compiler tuple の期待値変更と `prepare_calls[0][\"protocol\"] == \"silo\"` の検査追加を自動 merge している。前 2 者は競合を両側温存で解決し、3 者目は自動 merge。親が作成した merge のため Codex 著者とは記さない。"
+}

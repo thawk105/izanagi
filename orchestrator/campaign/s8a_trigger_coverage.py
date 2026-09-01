@@ -52,7 +52,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import buildcache, site_policy, source_digest            # noqa: E402
+from . import (buildcache, condition_meaning_gate, site_policy, # noqa: E402
+               source_digest)
 from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission,
                                       require_build_admission)
@@ -95,6 +96,76 @@ def _repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def _require_condition_gate(
+    source_root: str,
+    *,
+    driver_id: str,
+    macro: str,
+    configure_args: list[str],
+) -> dict:
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, configure_args=tuple(configure_args),
+    )
+    request = condition_meaning_gate.make_define_request(
+        driver_id=driver_id,
+        macro=macro,
+        requested_value=1,
+        default_value=0,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=buildcache.DEFAULT_CXX, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=buildcache.DEFAULT_CXX,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            f"condition gate rejected {macro}: "
+            f"supply={supply.terminal_status}/{supply.reason_code}, "
+            f"meaning={meaning.terminal_status}/{meaning.reason_code}"
+        )
+    return {
+        "supply": json.loads(supply.canonical_json()),
+        "meaning": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
+
+
+def _preflight_condition_gates(
+    root: str,
+    sub: str,
+    *,
+    driver_id: str,
+    include_misattr: bool,
+    genome: Genome | None = None,
+) -> list[dict]:
+    patches = os.path.join(root, "patches")
+    configure_args = (genome or GENOME).cmake_defines() + ["-DCCBENCH_TRACE=1"]
+    records = []
+    with applied(os.path.join(patches, SKELETON_PATCH), PIN, sub):
+        apply_patch(os.path.join(patches, INSTR_PATCH), sub)
+        records.append(_require_condition_gate(
+            sub,
+            driver_id=driver_id,
+            macro="BACKOFF_TRIGGER_GATING",
+            configure_args=configure_args,
+        ))
+    if include_misattr:
+        with applied(os.path.join(patches, SKELETON_PATCH), PIN, sub):
+            apply_patch(os.path.join(patches, INSTR_PATCH), sub)
+            apply_patch(os.path.join(patches, MISATTR_PATCH), sub)
+            records.append(_require_condition_gate(
+                sub,
+                driver_id=driver_id,
+                macro=MISATTR_DEFINE,
+                configure_args=configure_args,
+            ))
+    return records
+
+
 def _run_cmake_build(cmd: list[str], *, site=None) -> None:
     resolved_site = site_policy.current_site() if site is None else site
     if site_policy.refuses_heavy_work(resolved_site):
@@ -110,6 +181,7 @@ def _run_cmake_build(cmd: list[str], *, site=None) -> None:
 def _build(
         bdir: str, extra_cxx_define: str = "", genome: Genome = None, *,
         site=None, admission_receipts: list[dict] | None = None,
+        condition_driver_id: str = "orchestrator.campaign.s8a_trigger_coverage",
 ) -> str:
     """working-tree (patch 適用済み) を TRACE=1 で fresh build し binary パスを返す。
 
@@ -131,6 +203,22 @@ def _build(
             site_policy.heavy_work_refusal(
                 resolved_site, "cmake configure/build"
             )
+        )
+    _require_condition_gate(
+        sub,
+        driver_id=condition_driver_id,
+        macro="BACKOFF_TRIGGER_GATING",
+        configure_args=defines,
+    )
+    if extra_cxx_define:
+        _require_condition_gate(
+            sub,
+            driver_id=condition_driver_id,
+            macro=extra_cxx_define,
+            configure_args=[
+                argument for argument in defines
+                if not argument.startswith("-DCMAKE_CXX_FLAGS=")
+            ],
         )
     evidence = source_digest.resolve_evidence(
         genome or GENOME, PIN, ccbench_dir=sub,
@@ -243,9 +331,16 @@ def main() -> int:
     sub = os.path.join(root, "external", "ccbench")
     assert_pinned_clean(sub, PIN)
     patches = os.path.join(root, "patches")
+    condition_gates = _preflight_condition_gates(
+        root,
+        sub,
+        driver_id="orchestrator.campaign.s8a_trigger_coverage",
+        include_misattr=True,
+    )
 
     result = {"env_tag": ENV_TAG, "ccbench_commit": PIN,
               "genome": GENOME.canonical(), "clocks_per_us": CLK,
+              "condition_gates": condition_gates,
               "build_admissions": [],
               "runs": {}}
 

@@ -2,10 +2,13 @@
 """3 reconnaissance driver の screening CLI は既定off・明示opt-in。"""
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import types
 from pathlib import Path
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -16,6 +19,10 @@ from orchestrator.campaign import s6_sort_sweep as S6                        # n
 from orchestrator.campaign import s8a_trigger_sweep as S8                    # noqa: E402
 from orchestrator.campaign.build_admission import (GeneratorId,               # noqa: E402
                                       build_run_context)
+from condition_gate_test_support import (                                    # noqa: E402
+    condition_gate_compilers,
+    install_backoff_condition_gate_roots,
+)
 
 
 _BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -75,11 +82,28 @@ def test_backoff_minimal_screening_selection_and_identity():
     assert str(B.ident.campaign_id(full)) != str(B.ident.campaign_id(minimal))
 
 
-def test_backoff_minimal_screening_runs_only_baseline_and_selected(monkeypatch):
+def test_backoff_minimal_screening_runs_only_baseline_and_selected(
+        monkeypatch, tmp_path):
     seen = {}
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate fixture requires real compilers and CMake")
+    patched_root, stock_root = install_backoff_condition_gate_roots(
+        tmp_path / "condition-gate",
+    )
+
+    @contextlib.contextmanager
+    def checkout(*_args, **_kwargs):
+        yield str(stock_root)
 
     monkeypatch.setattr(
-        B, "_compilers_for_current_site", lambda: ("test-cc", "test-cxx"),
+        B, "_compilers_for_current_site", lambda: compilers,
+    )
+    monkeypatch.setattr(B.buildcache, "_ccbench_dir", lambda: str(patched_root))
+    monkeypatch.setattr(B.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        B.patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
     )
     monkeypatch.setattr(
         B.buildcache, "observed_toolchain_manifest",

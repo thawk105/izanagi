@@ -37,8 +37,10 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import backoff_hole_grammar as BHG                    # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
     ident,
+    p3_kickoff as P3_KICKOFF,
     p3_b4_closed_critic as B4_CLOSED,
     p3_b4_launcher as B4_LAUNCHER,
+    p3_s4_red as P3_RED,
     p3_s4_loop as L,
 )
 from orchestrator.campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
@@ -67,6 +69,37 @@ from orchestrator.campaign.source_digest import (                               
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
+
+_REAL_CONDITION_GATE = L._require_condition_gate
+
+
+@pytest.fixture(autouse=True)
+def _avoid_condition_compiler_work_in_mechanical_tests(monkeypatch):
+    for module in (L, SORT_LOOP, TRIGGER_LOOP):
+        monkeypatch.setattr(module, "_require_condition_gate", lambda *_a, **_k: None)
+
+
+def test_condition_gate_precedes_run_campaign_in_build_path():
+    source = inspect.getsource(L.run_one_iteration)
+    assert source.index("_require_condition_gate(sub, genome)") < source.index(
+        "summary = run_campaign("
+    )
+    helper = inspect.getsource(_REAL_CONDITION_GATE)
+    assert "evaluate_define_supply_effectuation" in helper
+    assert "evaluate_define_runtime_meaning" in helper
+    assert 'use_class="certified-selection"' in helper
+    assert '"admission": json.loads(admission.canonical_json())' in helper
+    assert '"condition_gate": condition_gate' in source
+    kickoff = inspect.getsource(P3_KICKOFF.main)
+    assert kickoff.index("_require_condition_gate(sub, STATIC_G)") < kickoff.index(
+        "s1 = run_campaign("
+    )
+    red = inspect.getsource(P3_RED.main)
+    assert red.index("_require_condition_gate(sub, RED_G)") < red.index(
+        "s1 = run_campaign("
+    )
+    assert "p3_kickoff_condition_gate.json" in kickoff
+    assert "s4_condition_gate.json" in red
 from orchestrator.campaign.projection_guard import (                            # noqa: E402
     AbilityProbeMaterialError,
     ProjectionPolicyError,

@@ -16,6 +16,7 @@ build(cache hit)→verify(正しさゲート)→bench。
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import sys
@@ -26,12 +27,13 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import env_contract, ident, source_digest, wal     # noqa: E402
+from . import (buildcache, env_contract, ident, patchharness,  # noqa: E402
+               source_digest, wal)
 from .artifact_admission import (ArtifactAdmissionError,  # noqa: E402
                                  require_persisted_certified_commit)
 from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context)
-from .backoff_sweep import _BASE                         # noqa: E402
+from .backoff_sweep import _BASE, _require_backoff_condition_gate  # noqa: E402
 from .layout import campaign_layout                      # noqa: E402
 from .loop import run_campaign                           # noqa: E402
 from .model import (STAGE_BENCH_DONE, STAGE_COMMIT,      # noqa: E402
@@ -56,6 +58,30 @@ ORIG = {
 # なお rel_drift = rel(再測) - rel(元) は **2 つの between-run 比の差** なので、単一 floor を当てる
 # のはむしろ厳しめ (保守的)。+38%/+11% の勝者再現はこの floor に鈍感 (worklog 2026-06-28)。
 NOISE_CV = BETWEEN_RUN_CV
+
+
+@contextlib.contextmanager
+def _conditioned_backoff_patch(points: list[Genome], *, cxx: str):
+    """Apply and gate the historical patch before any campaign work starts."""
+    ccbench_dir = buildcache._ccbench_dir()
+    patch_path = os.fspath(
+        Path(__file__).resolve().parents[2] / "patches/silo-backoff-fixed.patch"
+    )
+    with patchharness.checkout(CCBENCH_COMMIT, base_dir=ccbench_dir) as stock_root:
+        with patchharness.applied(patch_path, CCBENCH_COMMIT, ccbench_dir):
+            _require_backoff_condition_gate(
+                ccbench_dir,
+                stock_root=stock_root,
+                driver_id="orchestrator/campaign/backoff_repro.py",
+                macro_values={
+                    "BACKOFF_FIXED": tuple(
+                        point.flags["BACKOFF_FIXED"] for point in points
+                    ),
+                },
+                cxx=cxx,
+                use_class="raw-measurement",
+            )
+            yield
 
 
 def _genomes_reversed(best_us: int):
@@ -136,47 +162,64 @@ def run_workload(tag: str, log=print) -> dict:
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=o["workload"],
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff repro  workload={tag}  逆順 {[g.flags['BACKOFF_FIXED'] for g in gs]} ===")
-    s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                     authorization_contract=env_contract.authorize(ENV_TAG),
-                     build_context=build_context,
-                     declared_use_class="official",
-                     capability_resolver=capability_resolver)
+    _resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
+    with _conditioned_backoff_patch(gs, cxx=resolved_cxx):
+        s = run_campaign(
+            cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
+            authorization_contract=env_contract.authorize(ENV_TAG),
+            build_context=build_context,
+            declared_use_class="official",
+            capability_resolver=capability_resolver,
+        )
 
-    layout = campaign_layout(str(ident.campaign_id(cfg)))
-    # WAL キーは run_campaign が src_token まで確定した variant id (D24)。identity を再計算せず
-    # summary の EvalResult から引く (consumer が確定点を二重化しない — 旧実装は variant_id(genome)=
-    # stock id で引き、BACKOFF_FIXED の非 stock src_token id を取りこぼし「判定不能」に倒れていた)。
-    # ただし recovery skip された variant は s.results に載らない (中断→再開・完走後の再実行)。
-    # その場合のみ loop と同一の確定窓口 (source_digest.resolve) で id を計算して WAL から引く
-    # (resume 耐性 — WAL に bench_done が揃っているのに判定不能へ倒れない、洗練検査 MED)。
-    vid = {r.genome.canonical(): r.variant for r in s.results}
+        layout = campaign_layout(str(ident.campaign_id(cfg)))
+        # WAL キーは run_campaign が src_token まで確定した variant id (D24)。identity を再計算せず
+        # summary の EvalResult から引く (consumer が確定点を二重化しない — 旧実装は variant_id(genome)=
+        # stock id で引き、BACKOFF_FIXED の非 stock src_token id を取りこぼし「判定不能」に倒れていた)。
+        # ただし recovery skip された variant は s.results に載らない (中断→再開・完走後の再実行)。
+        # その場合のみ loop と同一の確定窓口 (source_digest.resolve) で id を計算して WAL から引く
+        # (resume 耐性 — WAL に bench_done が揃っているのに判定不能へ倒れない、洗練検査 MED)。
+        vid = {r.genome.canonical(): r.variant for r in s.results}
 
-    def _vid_of(g: Genome):
-        v = vid.get(g.canonical())
-        if v is not None:
-            return v
-        try:
-            return variant_id(g, source_digest.resolve(g, CCBENCH_COMMIT))
-        except RuntimeError:
-            return None          # 確定不能 → 従来どおり判定不能に倒す (fails-closed)
+        def _vid_of(g: Genome):
+            v = vid.get(g.canonical())
+            if v is not None:
+                return v
+            try:
+                return variant_id(g, source_digest.resolve(g, CCBENCH_COMMIT))
+            except RuntimeError:
+                return None      # 確定不能 → 従来どおり判定不能に倒す (fails-closed)
 
-    none_g = Genome("silo", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1})
-    best_g = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": o["best_us"]})
-    none_v, best_v = _vid_of(none_g), _vid_of(best_g)
-    none_tps = _bench_tps(layout, none_v) if none_v else None
-    best_tps = _bench_tps(layout, best_v) if best_v else None
-    if none_tps is None or best_tps is None:
-        log(f"  [{tag}] 再測値が取れない → 判定不能")
-        return {"tag": tag, "ok": False}
-    rel = best_tps / none_tps - 1
-    # 再現判定: 再測の rel が元 rel と noise floor 内で一致するか。
-    rel_drift = rel - o["rel"]
-    reproduced = abs(rel_drift) <= NOISE_CV
-    log(f"  [{tag}] 再測: none={none_tps:,.0f} best({o['best_us']}us)={best_tps:,.0f} "
-        f"rel={rel*100:+.1f}% (元 {o['rel']*100:+.1f}%, drift {rel_drift*100:+.1f}%) "
-        f"→ {'✅再現' if reproduced else '⚠乖離'}")
-    return {"tag": tag, "ok": reproduced, "rel": rel, "orig_rel": o["rel"],
-            "none": none_tps, "best": best_tps, "aborted": s.aborted}
+        none_g = Genome("silo", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1})
+        best_g = Genome(
+            "silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": o["best_us"]},
+        )
+        none_v, best_v = _vid_of(none_g), _vid_of(best_g)
+        none_tps = _bench_tps(layout, none_v) if none_v else None
+        best_tps = _bench_tps(layout, best_v) if best_v else None
+        if none_tps is None or best_tps is None:
+            log(f"  [{tag}] 再測値が取れない → 判定不能")
+            return {"tag": tag, "ok": False}
+        rel = best_tps / none_tps - 1
+        # 再現判定: 再測の rel が元 rel と noise floor 内で一致するか。
+        rel_drift = rel - o["rel"]
+        reproduced = abs(rel_drift) <= NOISE_CV
+        log(
+            f"  [{tag}] 再測: none={none_tps:,.0f} "
+            f"best({o['best_us']}us)={best_tps:,.0f} "
+            f"rel={rel*100:+.1f}% (元 {o['rel']*100:+.1f}%, "
+            f"drift {rel_drift*100:+.1f}%) "
+            f"→ {'✅再現' if reproduced else '⚠乖離'}"
+        )
+        return {
+            "tag": tag,
+            "ok": reproduced,
+            "rel": rel,
+            "orig_rel": o["rel"],
+            "none": none_tps,
+            "best": best_tps,
+            "aborted": s.aborted,
+        }
 
 
 def main() -> int:

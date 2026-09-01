@@ -18,6 +18,11 @@ from orchestrator.campaign import evolve_block as EB
 from orchestrator.campaign import sort_swo_oracle as O
 from orchestrator.tests import sort_swo_masstree_fixture as masstree_fixture
 from orchestrator.tests import sort_swo_oracle_receipt_memo as oracle_environment_memo
+from orchestrator.tests.condition_gate_test_support import (
+    SORT_VARIANT_SOURCE,
+    condition_gate_compilers,
+    install_condition_gate_build_fixture,
+)
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -2349,6 +2354,13 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
 
     order = []
     materialized = _materialized(_CLEAN_IMPL)
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate fixture requires real compilers and CMake")
+    install_condition_gate_build_fixture(tmp_path)
+    (tmp_path / "cc" / "silo" / "transaction.cc").write_text(
+        SORT_VARIANT_SOURCE, encoding="utf-8",
+    )
 
     @contextlib.contextmanager
     def checkout(*args, **kwargs):
@@ -2409,7 +2421,7 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
     with direct.prepare_cell(
             cell,
             "fixture-pin",
-            cxx="fixture-cxx",
+            cxx=compilers[1],
             oracle_dependency_root=dependency,
             oracle_compiler=verified_compiler,
             oracle_phase_marker=lambda: order.append("marker"),

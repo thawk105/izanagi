@@ -31,8 +31,10 @@ digest (rejections 節込み) を campaign dir に書き出し、critic (fresh) 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
+import struct
 import sys
 from pathlib import Path
 
@@ -40,7 +42,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import env_contract, ident, pipeline, wal            # noqa: E402
+from . import buildcache, condition_meaning_gate, env_contract, ident, pipeline, wal  # noqa: E402
 from .artifact_admission import (                         # noqa: E402
     CampaignReadPurpose,
     require_admitted_campaign,
@@ -77,6 +79,41 @@ RED_G = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": RED_BACKOFF_US}
 
 RED_PATCH = "patches/variant-backoff-red-1e9.patch"
 FIXTURE_TRACE_DIR = "orchestrator/tests/fixtures/r1_write_skew"
+
+
+def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
+    value = genome.flags.get("BACKOFF_FIXED")
+    if value is None:
+        return None
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.p3_s4_red",
+        macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
+    )
+    bits = struct.pack(">d", float(value)).hex()
+    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+        "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=declaration, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected P3 red driver: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 
 def _repo_root() -> str:
@@ -166,6 +203,7 @@ def main(argv=None) -> int:
     print("=== 赤 1: coder 発 liveness-red (過大 backoff → trace-timeout、完全 E2E) ===")
     print(f"  期待: build → trace run が {pipeline.TRACE_TIMEOUT_S:.0f}s timeout → abort")
     with applied(os.path.join(root, RED_PATCH), PIN, sub):
+        condition_gate = _require_condition_gate(sub, RED_G)
         s1 = run_campaign(cfg, [RED_G], perf, ENV_TAG, CLK, numactl=NUMA,
                           authorization_contract=env_contract.authorize(ENV_TAG),
                           build_context=build_context,
@@ -228,6 +266,11 @@ def main(argv=None) -> int:
     out_path = os.path.join(layout.root, "s4_rejections_digest.txt")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(digest_txt)
+    condition_path = Path(layout.root) / "s4_condition_gate.json"
+    with condition_path.open("x", encoding="utf-8") as stream:
+        json.dump(condition_gate, stream, ensure_ascii=True, sort_keys=True,
+                  separators=(",", ":"))
+        stream.write("\n")
     print(f"\ndigest (rejections 節) 書き出し: {out_path}")
     print(f"campaign dir: {layout.root}")
     print(f"\n後続段 2 実走判定: {'PASS' if ok else 'FAIL'}")

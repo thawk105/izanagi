@@ -414,6 +414,7 @@ ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN = frozenset({
 _RECEIPT_MEMO_CONSUMERS_GOLDEN = frozenset({
     "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
     "test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
+    "test_s8b_oracle_driver.py::test_oracle_evaluate_fn_without_condition_records_cannot_complete",
     "test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement",
     "test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate",
     "test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing",
@@ -2416,8 +2417,8 @@ def _assert_receipt_inventory(configured, consumers, optouts, node_count) -> Non
     assert set(configured) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
     assert set(consumers) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
     assert set(optouts) == set(_RECEIPT_MEMO_OPTOUT_GOLDEN)
-    assert len(consumers) == 33
-    assert node_count == 36
+    assert len(consumers) == 34
+    assert node_count == 37
     assert not set(consumers) & set(optouts)
 
 
