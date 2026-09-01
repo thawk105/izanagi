@@ -89,6 +89,8 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
   **この lookup は起動した作業木の台帳を読む。** wave の作業木は wave 開始時点で止まっており、
   その間に別 wave が同じ item を書き換えていることがあるので、**digest は land 先の
   local main の現物に対して取る**。作業木の値で書くと fold が停止する。
+  **wave 用 worktree を作る前に main の作業木で取っておけば、以下の借用は要らない。**
+  背景 job のように worktree 隔離から始める wave では、隔離の前に lookup を済ませるのが最も安い。
   main を取り込まずに取るなら `docs/worklog.md` だけでは足りない。carry 鎖が
   過去エントリを指すため `docs/archive/` も同時に借りないと `carry-reference` で
   invalid になる。`git checkout <main> -- docs/` で一式を借り、lookup 後に
