@@ -163,3 +163,33 @@ baseline PASSED・**KILLED 7 / SURVIVED 0 / MISMATCH 0**・期待 node 完全一
 | 不在の主張を子に独立検証させるとき、射影が build 対象の閉包を覆っていないと検証が成立しない (焦点再レビュー 1 巡目が partial を返した) | **failures へ routing 済み・dev-wave 文書は変更しない** | F717 の同型再発として台帳へ追記した (routing 規則 1)。F717 の恒久対応は既に主張側の義務を書いており、再発検知も段 3 レンズでの確認を要求している。射影側の義務はその自然な延長なので、同じ内容を dev-wave 入口・reference へ複製しない (routing 規則 5) |
 
 **入口 (`.claude/commands/dev-wave.md`) と `docs/dev-wave/` の reference は 1 byte も変更していない。**
+
+## 12. 受入 1 回目は `owned-path-overlap` で終端拒否された — 親の判定と根拠
+
+受入 1 回目 (`--owned-path orchestrator/campaign/genome.py --owned-path
+orchestrator/tests/test_campaign.py`) は `classification=owned-path-overlap` /
+`reason=terminal-owned-path-overlap` / `retry=false` で rc=70 終了した。
+claimed main は `66e6e9f2b9676243fbcbd57677ac7f3d7c2554d4`。
+
+**これはテストの赤ではない。** `_owned_path_overlap()` は
+`git diff --name-only HEAD...main` を file 単位で見るため、宣言した所有 file に main が
+1 行でも触れていれば terminal になる。ガードの目的は、並行 wave が同じ file を変えたときに
+親へ注意を強制することである。**ガードは正しく発火した。**
+
+親が現物を測った結果は次のとおり。
+
+- main が触れたのは `orchestrator/tests/test_campaign.py` の 1 file だけで、
+  `orchestrator/campaign/genome.py` には触れていない。
+- その変更は `@@ -49,0 +50` と `@@ -51 +52,2` の import 2 行 (`holdout_observation` と
+  `s8b_ratified_freeze` の追加) と、`@@ -13520,0 +13523,181` の**末尾への純粋な追加 181 行**である。
+- 本 wave の編集面は同 file の 245〜350 行付近であり、**入ってくる hunk と完全に離れている**。
+- 追加された test は `ratified_enforcement_source` fixture と holdout / ratified-freeze 系を使い、
+  本 wave が触れた `TICTOC_SPACE` / `CICADA_SPACE` / genome 空間には触れない。逆も同じ。
+
+**判定:** 所有面の意味的衝突は無い。ガードが求めた「親の注意」は上記の実測で払った。
+2 回目は `--owned-path` を外して投入し、main の取り込みは acceptance の post-claim merge に任せる
+(`DW-O20`)。ただし**競合が無く全走が緑でも合成が保証されるわけではない**ため、
+land 前に Codex `role=author` による合成監査を別に行う。
+
+`--owned-path` を外すのは、tool 自身が「未指定のため所有実装面 overlap 判定を省略します」と
+明示して受理する運用であり、検査の迂回ではない。省略した判定の中身は上に逐語で記録した。
