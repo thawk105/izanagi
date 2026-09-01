@@ -434,6 +434,21 @@ def _output_paths(root: Path) -> dict[str, Path]:
     return {name: root / f"{name}.json" for name in M._TABLE_NAMES}
 
 
+def _patch_ratified_floor(
+    monkeypatch: pytest.MonkeyPatch,
+    document: dict,
+    *,
+    selection_assert=None,
+) -> SimpleNamespace:
+    ratified = SimpleNamespace(document=document, generation_number=1)
+    if selection_assert is None:
+        def selection_assert(candidate) -> None:
+            assert candidate is ratified
+    monkeypatch.setattr(M, "load_ratified_freeze", lambda: ratified)
+    monkeypatch.setattr(M, "assert_g1_floor_selection_identity", selection_assert)
+    return ratified
+
+
 def _verified_floor(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -441,6 +456,7 @@ def _verified_floor(
     protocol_payload: bytes = b"protocol-bytes",
     source_payload: bytes = b"source-bytes",
     frozen_at_head: str = "a" * 40,
+    selection_assert=None,
 ) -> M._VerifiedFloorEvidence:
     protocol = tmp_path / "floor-protocol.bin"
     source = tmp_path / "floor-source.bin"
@@ -458,10 +474,8 @@ def _verified_floor(
         "env_tag": "test-env",
         "frozen_at_head": frozen_at_head,
     }
-    monkeypatch.setattr(
-        M,
-        "load_ratified_freeze",
-        lambda: SimpleNamespace(document=document),
+    _patch_ratified_floor(
+        monkeypatch, document, selection_assert=selection_assert,
     )
     return M.verify_floor_bytes([
         document["floor_protocol"],
@@ -1547,11 +1561,7 @@ def test_floor_verification_derives_expectations_from_ratified_freeze(tmp_path: 
         "env_tag": "test-env",
         "frozen_at_head": frozen_at_head,
     }
-    monkeypatch.setattr(
-        M,
-        "load_ratified_freeze",
-        lambda: SimpleNamespace(document=document),
-    )
+    _patch_ratified_floor(monkeypatch, document)
     evidence = M.verify_floor_bytes([{
         "path": str(protocol),
         "sha256": document["floor_protocol"]["sha256"],
@@ -1569,6 +1579,71 @@ def test_floor_verification_derives_expectations_from_ratified_freeze(tmp_path: 
         "floor_protocol_path", "floor_protocol_sha256",
         "floor_source_path", "floor_source_sha256", "env_tag", "frozen_at_head",
     }
+
+
+def test_floor_verification_rejects_selection_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    protocol = tmp_path / "floor-protocol.bin"
+    source = tmp_path / "floor-source.bin"
+    protocol_raw = b"protocol"
+    source_raw = b"source"
+    protocol.write_bytes(protocol_raw)
+    source.write_bytes(source_raw)
+    document = {
+        "floor_protocol": {
+            "path": str(protocol),
+            "sha256": hashlib.sha256(protocol_raw).hexdigest(),
+        },
+        "floor_source": {
+            "path": str(source),
+            "sha256": hashlib.sha256(source_raw).hexdigest(),
+        },
+        "env_tag": "test-env",
+        "frozen_at_head": "a" * 40,
+    }
+
+    def selection_mismatch(candidate) -> None:
+        assert candidate.generation_number == 1
+        raise M.RatifiedFreezeError("floor-selection-rule-mismatch")
+
+    _patch_ratified_floor(
+        monkeypatch, document, selection_assert=selection_mismatch,
+    )
+    reads: list[Path] = []
+    real_read_bytes = Path.read_bytes
+
+    def tracked_read_bytes(path: Path) -> bytes:
+        reads.append(path)
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", tracked_read_bytes)
+    with pytest.raises(
+        M._FloorVerificationError, match="floor-selection-rule-mismatch",
+    ):
+        M.verify_floor_bytes([
+            document["floor_protocol"], document["floor_source"],
+        ])
+    assert reads == []
+
+
+def test_floor_verification_preserves_loader_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def loader_failure():
+        raise M.RatifiedFreezeError("no-active")
+
+    def unexpected_selection(_candidate) -> None:
+        raise AssertionError("selection assertion ran after loader failure")
+
+    monkeypatch.setattr(M, "load_ratified_freeze", loader_failure)
+    monkeypatch.setattr(
+        M, "assert_g1_floor_selection_identity", unexpected_selection,
+    )
+    with pytest.raises(
+        M._FloorVerificationError, match=r"^floor artifact verification failed$",
+    ):
+        M.verify_floor_bytes([])
 
 
 def test_floor_verification_requires_both_ratified_artifacts(
@@ -1596,7 +1671,7 @@ def test_floor_bytes_mismatch_raises_dedicated_exception(tmp_path: Path, monkeyp
         "env_tag": "test-env",
         "frozen_at_head": "b" * 40,
     }
-    monkeypatch.setattr(M, "load_ratified_freeze", lambda: SimpleNamespace(document=document))
+    _patch_ratified_floor(monkeypatch, document)
     with pytest.raises(M._FloorVerificationError):
         M.verify_floor_bytes([document["floor_protocol"], document["floor_source"]])
 
@@ -1651,23 +1726,22 @@ def test_publish_requires_current_ratified_floor_receipt(
         monkeypatch,
         frozen_at_head="b" * 40,
     )
-    monkeypatch.setattr(
-        M,
-        "load_ratified_freeze",
-        lambda: SimpleNamespace(document={
-            "floor_protocol": {
-                "path": evidence.floor_protocol_path,
-                "sha256": evidence.floor_protocol_sha256,
-            },
-            "floor_source": {
-                "path": evidence.floor_source_path,
-                "sha256": evidence.floor_source_sha256,
-            },
-            "env_tag": evidence.env_tag,
-            "frozen_at_head": evidence.frozen_at_head,
-        }),
-    )
-    with pytest.raises(M._ResultTableError):
+    _patch_ratified_floor(monkeypatch, {
+        "floor_protocol": {
+            "path": evidence.floor_protocol_path,
+            "sha256": evidence.floor_protocol_sha256,
+        },
+        "floor_source": {
+            "path": evidence.floor_source_path,
+            "sha256": evidence.floor_source_sha256,
+        },
+        "env_tag": evidence.env_tag,
+        "frozen_at_head": evidence.frozen_at_head,
+    })
+    with pytest.raises(
+        M._ResultTableError,
+        match="floor receipt is not from the current ratified freeze",
+    ):
         M.publish_result_table(result, expected, paths, foreign)
     assert all(not path.exists() for path in paths.values())
 
@@ -1697,6 +1771,79 @@ def test_publish_creates_three_separate_tables_from_independent_six_cell_set(
     assert h1_on["replicate_values"] == [[12.0], [14.0]]
     selection = json.loads(paths["selection_evaluation"].read_text())["result_table"]["cells"]
     assert {"predicted_configuration_id", "predicted_rank"} <= set(selection[0])
+
+
+def test_publish_rejects_when_selection_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
+    ratified = M.load_ratified_freeze()
+
+    def selection_mismatch(candidate) -> None:
+        assert candidate is ratified
+        assert candidate.generation_number == 1
+        raise M.RatifiedFreezeError("floor-selection-rule-mismatch")
+
+    monkeypatch.setattr(
+        M, "assert_g1_floor_selection_identity", selection_mismatch,
+    )
+    paths = _output_paths(tmp_path)
+    with pytest.raises(M._ResultTableError, match="floor-selection-rule-mismatch"):
+        M.publish_result_table(
+            result, [cell["cell_id"] for cell in _cells()], paths, evidence,
+        )
+    assert not paths["descriptive_only"].exists()
+    assert not paths["official_status"].exists()
+    assert not paths["selection_evaluation"].exists()
+
+
+def test_publish_preserves_current_floor_loader_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evidence = _verified_floor(tmp_path, monkeypatch)
+
+    def loader_failure():
+        raise M.RatifiedFreezeError("no-active")
+
+    def unexpected_selection(_candidate) -> None:
+        raise AssertionError("selection assertion ran after loader failure")
+
+    monkeypatch.setattr(M, "load_ratified_freeze", loader_failure)
+    monkeypatch.setattr(
+        M, "assert_g1_floor_selection_identity", unexpected_selection,
+    )
+    paths = _output_paths(tmp_path)
+    with pytest.raises(
+        M._ResultTableError,
+        match=r"^current ratified floor binding is unavailable$",
+    ):
+        M.publish_result_table(
+            _judge(), [cell["cell_id"] for cell in _cells()], paths, evidence,
+        )
+    assert all(not path.exists() for path in paths.values())
+
+
+def test_valid_g1_selection_still_verifies_and_publishes_three_tables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selection_calls = []
+
+    def valid_selection(candidate) -> None:
+        assert candidate.generation_number == 1
+        selection_calls.append(candidate)
+
+    evidence = _verified_floor(
+        tmp_path, monkeypatch, selection_assert=valid_selection,
+    )
+    paths = _output_paths(tmp_path)
+    published = M.publish_result_table(
+        _judge(), [cell["cell_id"] for cell in _cells()], paths, evidence,
+    )
+    assert len(selection_calls) == 2
+    assert selection_calls[0] is selection_calls[1]
+    assert set(published) == set(M._TABLE_NAMES)
+    assert all(paths[name].is_file() for name in M._TABLE_NAMES)
 
 
 def test_publish_embeds_verified_floor_provenance_in_each_table(
