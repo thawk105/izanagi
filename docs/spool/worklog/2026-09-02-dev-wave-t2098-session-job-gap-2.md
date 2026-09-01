@@ -61,6 +61,15 @@ title: [T-2098] session 合計と job 合計の差 約 75 秒は、ほぼ全量�
   解析 script は Codex `role=author` が書き、親が実行し、**repo へ commit せず** insight の
   `verbatim/` へ逐語で収めた (fix 後 sha256 `d81870c6af38f3eb...`、fix 前 `953c085731fd63d5...`)。
 
+- **段 8 の自己改善候補 2 件のうち 1 件は機械 gate に反証された。** 親は
+  `docs/dev-wave/workers.md` の DW-S05-A / DW-S06-A / DW-S06-C が書く `reasoning=xhigh` を
+  「caller が渡すと `tools/dev_wave_codex.py` が rc=2 で拒否するので誤解を招く」と見て削ろうとしたが、
+  `tools/check_docs.py` が 3 件の違反として拒否した — その文字列は段 5 / 6 の**採用裁定に束縛された
+  adoption pin** であり、変更には採用裁定と pin の同時更新が要る。DW-O01 の
+  「effort は段 5 / 6 が docs 権威から導出。caller 指定は不可」と読み合わせれば、この literal が
+  その docs 権威そのものである。**候補を取り下げ編集を戻した。** もう 1 件は F37 の 4 例目として
+  台帳へ送り、dev-wave docs は編集しなかった。
+
 - 実装面の repo 差分は 0 byte。`DW-S04` により変異 matrix は免除。受入全走は免除せず、
   記録 commit 後に land 対象 tip へ投入した (`DW-O12`)。結果は land の受領証が正本。
 
