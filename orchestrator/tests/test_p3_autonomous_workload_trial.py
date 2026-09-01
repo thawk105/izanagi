@@ -11,6 +11,7 @@ import gc
 import hashlib
 import inspect
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -6354,6 +6355,27 @@ _T1354_TRANSPORT_EXCLUSIONS = frozenset({
     "kwargs.cwd",
 })
 _T1354_EXCLUDED_VALUE = "<t1354-transport-metadata>"
+_T1712_MCP_PATH_SENTINEL = b"<t1712-excluded-mcp-config-path>"
+_T1712_CWD_SENTINEL = b"<t1712-excluded-neutral-cwd>"
+_T1712_CONTROL_PARENT_CANARY = (
+    "t1712-control-parent-canary-7c195e2f88c04f64"
+)
+_T1712_CONTROL_ROOT_CANARY = (
+    "t1712-control-root-canary-2631fd7fa9db4b31"
+)
+_T1712_CONTROL_CWD_CANARY = (
+    "t1712-control-cwd-canary-1d78e0c5b4a24f9e"
+)
+_T1712_TREATMENT_PARENT_CANARY = (
+    "t1712-treatment-parent-canary-94a0b38dcebf42a1"
+)
+_T1712_TREATMENT_ROOT_CANARY = (
+    "t1712-treatment-root-canary-b84e159236704cfd"
+)
+_T1712_TREATMENT_CWD_CANARY = (
+    "t1712-treatment-cwd-canary-60fd3ecbcf0347a29e71"
+)
+_T1712_SHARED_INVOCATION_ID = "t1712.shared-launch-contract"
 
 
 def _t1354_role_envelope(role: str, *, session_id: str) -> dict:
@@ -6453,6 +6475,122 @@ def _t1354_normalize_transport_snapshot(
             raise AssertionError(f"unknown transport exclusion: {field}")
     normalized["argv"] = tuple(argv)
     return normalized
+
+
+def _t1712_launch_contract_observation(
+    snapshot: dict[str, Any],
+    *,
+    validate_cli_layout: bool = True,
+) -> dict[str, Any]:
+    assert set(snapshot) == _T1354_TRANSPORT_SNAPSHOT_KEYS
+    argv = snapshot["argv"]
+    assert type(argv) is tuple
+    assert len(argv) == 19
+    assert all(type(value) is str for value in argv)
+    if validate_cli_layout:
+        assert argv.count("--mcp-config") == 1
+        assert argv.index("--mcp-config") + 1 == 17
+        assert argv.count("--agents") == 1
+        assert argv.index("--agents") + 1 == 5
+    assert type(snapshot["input"]) is bytes
+    assert type(snapshot["cwd"]) is str
+    assert type(snapshot["env"]) is tuple
+    assert all(
+        type(item) is tuple
+        and len(item) == 2
+        and type(item[0]) is str
+        and type(item[1]) is str
+        for item in snapshot["env"]
+    )
+
+    inline_agents = json.loads(argv[5])
+    assert type(inline_agents) is dict
+    assert len(inline_agents) == 1
+    inline_agent_name = next(iter(inline_agents))
+    if validate_cli_layout:
+        assert inline_agent_name == argv[3]
+    inline_agent = inline_agents[inline_agent_name]
+    assert type(inline_agent) is dict
+    effective_prompt = inline_agent.get("prompt")
+    assert type(effective_prompt) is str
+
+    argv_bytes = tuple(os.fsencode(value) for value in argv)
+    env_bytes = tuple(
+        (os.fsencode(key), os.fsencode(value))
+        for key, value in snapshot["env"]
+    )
+    raw_call_arguments = {
+        "argv": argv_bytes,
+        "input": snapshot["input"],
+        "cwd": os.fsencode(snapshot["cwd"]),
+        "env": env_bytes,
+        "timeout": snapshot["timeout"],
+        "check": snapshot["check"],
+        "stdout": snapshot["stdout"],
+        "stderr": snapshot["stderr"],
+    }
+    projected_argv = list(argv_bytes)
+    projected_argv[17] = _T1712_MCP_PATH_SENTINEL
+    projected_call_arguments = {
+        **raw_call_arguments,
+        "argv": tuple(projected_argv),
+        "cwd": _T1712_CWD_SENTINEL,
+    }
+    role_explicit_inputs = (
+        ("agents-inline-json", argv_bytes[5]),
+        ("effective-prompt", effective_prompt.encode("utf-8")),
+        ("stdin-payload", snapshot["input"]),
+    )
+    launch_remainder_bytes = tuple(
+        (f"argv[{index}]", value)
+        for index, value in enumerate(argv_bytes)
+        if index not in {5, 17}
+    ) + tuple(
+        item
+        for index, (key, value) in enumerate(env_bytes)
+        for item in (
+            (f"env[{index}].key", key),
+            (f"env[{index}].value", value),
+        )
+    )
+    return {
+        "raw_call_arguments": raw_call_arguments,
+        "projected_call_arguments": projected_call_arguments,
+        "role_explicit_inputs": role_explicit_inputs,
+        "launch_remainder_bytes": launch_remainder_bytes,
+    }
+
+
+def _t1712_assert_no_path_token_hits(
+    snapshot: dict[str, Any],
+    *,
+    tokens: tuple[tuple[str, bytes], ...],
+    assert_no_hits: bool = True,
+) -> dict[str, list[tuple[str, str]]]:
+    observation = _t1712_launch_contract_observation(snapshot)
+    role_hits = [
+        (token_label, surface_label)
+        for token_label, token in tokens
+        for surface_label, value in observation["role_explicit_inputs"]
+        if token in value
+    ]
+    if assert_no_hits:
+        assert not role_hits, f"role explicit-input hit group: {role_hits}"
+    launch_remainder_hits = [
+        (token_label, surface_label)
+        for token_label, token in tokens
+        for surface_label, value in observation["launch_remainder_bytes"]
+        if token in value
+    ]
+    if assert_no_hits:
+        assert not launch_remainder_hits, (
+            "env/non-excluded-argv hit group: "
+            f"{launch_remainder_hits}"
+        )
+    return {
+        "role-explicit-inputs": role_hits,
+        "env/non-excluded-argv": launch_remainder_hits,
+    }
 
 
 def _t1354_assert_actual_transport_metadata(
@@ -7443,6 +7581,457 @@ def test_generation1_supervisor_to_claude_cli_launch_contract_oracle_rejects_une
         assert tuple(provider.env) != deliberately_unordered_allowlist
     finally:
         provider.close()
+
+
+def test_projected_provider_excluded_paths_preserve_supervisor_to_claude_cli_explicit_launch_call_arguments(
+    tmp_path, monkeypatch,
+) -> None:
+    """除外 path だけを操作して launch contract の明示 call arguments を比較する。
+
+    実 CLI の request bytes、role からの不可視性、provider 応答からの不可視性は含意しない。
+    """
+    assert P.tempfile is S.tempfile
+    canaries = (
+        _T1712_CONTROL_PARENT_CANARY,
+        _T1712_CONTROL_ROOT_CANARY,
+        _T1712_CONTROL_CWD_CANARY,
+        _T1712_TREATMENT_PARENT_CANARY,
+        _T1712_TREATMENT_ROOT_CANARY,
+        _T1712_TREATMENT_CWD_CANARY,
+    )
+    assert len(set(canaries)) == len(canaries)
+    assert all(value.isascii() and len(value) >= 32 for value in canaries)
+
+    control_root = (
+        tmp_path
+        / _T1712_CONTROL_PARENT_CANARY
+        / _T1712_CONTROL_ROOT_CANARY
+    )
+    treatment_root = (
+        tmp_path
+        / _T1712_TREATMENT_PARENT_CANARY
+        / "t1712-treatment-extra-depth-a"
+        / "t1712-treatment-extra-depth-b"
+        / _T1712_TREATMENT_ROOT_CANARY
+    )
+    control_cwd = control_root / _T1712_CONTROL_CWD_CANARY
+    treatment_cwd = treatment_root / _T1712_TREATMENT_CWD_CANARY
+    assert control_root.parent != treatment_root.parent
+    assert control_root.name != treatment_root.name
+    assert len(treatment_root.parts) > len(control_root.parts)
+    assert len(os.fsencode(treatment_root)) != len(os.fsencode(control_root))
+    assert control_cwd.name != treatment_cwd.name
+    assert len(os.fsencode(control_cwd.name)) != len(os.fsencode(treatment_cwd.name))
+
+    role_file = _role_file(tmp_path / "t1712-role.md")
+    executable = _executable(tmp_path)
+    artifact_roots = {
+        "control-one": tmp_path / "t1712-artifacts-control-one",
+        "control-two": tmp_path / "t1712-artifacts-control-two",
+        "treatment": tmp_path / "t1712-artifacts-treatment",
+    }
+    assert len(set(artifact_roots.values())) == 3
+    capture_invocation_ids: list[str] = []
+
+    def capture(
+        *, label: str, neutral_root: Path, neutral_cwd: Path,
+    ) -> dict[str, Any]:
+        mkdtemp_calls: list[tuple[str | None, str | None, str | None]] = []
+
+        def deterministic_mkdtemp(
+            suffix=None, prefix=None, dir=None,
+        ) -> str:
+            directory = os.fspath(dir) if dir is not None else None
+            mkdtemp_calls.append((suffix, prefix, directory))
+            assert suffix is None
+            if prefix == "izanagi-projected-" and dir is None:
+                target = neutral_root
+                target.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                assert prefix == "cwd-"
+                assert dir is not None
+                assert Path(dir).resolve(strict=True) == neutral_root.resolve(strict=True)
+                target = neutral_cwd
+            target.mkdir(exist_ok=False)
+            return str(target)
+
+        assert not neutral_root.exists()
+        runner = _Runner(_envelope())
+        provider = None
+        with monkeypatch.context() as path_patch:
+            path_patch.setattr(P.tempfile, "mkdtemp", deterministic_mkdtemp)
+            try:
+                provider = ClaudeProjectedRoleProvider(
+                    artifact_root=artifact_roots[label],
+                    role_file=role_file,
+                    role_name="fixture-auditor",
+                    mediated_contract="Return one JSON object only.",
+                    repository_root=_ROOT,
+                    executable=executable,
+                    runner=runner,
+                    environ={
+                        "HOME": "/t1712/fixture/home",
+                        "PATH": "/t1712/fixture/bin",
+                    },
+                )
+                capture_invocation_ids.append(_T1712_SHARED_INVOCATION_ID)
+                provider.invoke(
+                    invocation_id=_T1712_SHARED_INVOCATION_ID,
+                    payload={"fixture": "t1712-fixed-payload"},
+                )
+                snapshot = _t1354_runner_snapshot(runner)
+                observation = _t1712_launch_contract_observation(snapshot)
+                role_inputs = dict(observation["role_explicit_inputs"])
+                assert snapshot["argv"][5] == provider.inline_agents_json
+                assert role_inputs["effective-prompt"] == (
+                    provider.effective_prompt.encode("utf-8")
+                )
+                assert Path(snapshot["argv"][17]) == (
+                    neutral_root / "empty-mcp-config.json"
+                )
+                assert Path(snapshot["argv"][17]).read_bytes() == (
+                    b'{"mcpServers":{}}'
+                )
+                assert Path(snapshot["cwd"]) == neutral_cwd
+                assert neutral_cwd.is_dir() and not any(neutral_cwd.iterdir())
+                assert mkdtemp_calls == [
+                    (None, "izanagi-projected-", None),
+                    (None, "cwd-", str(neutral_root.resolve(strict=True))),
+                ]
+            finally:
+                if provider is not None:
+                    provider.close()
+        assert not neutral_root.exists()
+        return snapshot
+
+    control_one = capture(
+        label="control-one",
+        neutral_root=control_root,
+        neutral_cwd=control_cwd,
+    )
+    control_two = capture(
+        label="control-two",
+        neutral_root=control_root,
+        neutral_cwd=control_cwd,
+    )
+    treatment = capture(
+        label="treatment",
+        neutral_root=treatment_root,
+        neutral_cwd=treatment_cwd,
+    )
+    assert capture_invocation_ids == [
+        _T1712_SHARED_INVOCATION_ID,
+        _T1712_SHARED_INVOCATION_ID,
+        _T1712_SHARED_INVOCATION_ID,
+    ]
+    observations = {
+        "control-one": _t1712_launch_contract_observation(control_one),
+        "control-two": _t1712_launch_contract_observation(control_two),
+        "treatment": _t1712_launch_contract_observation(treatment),
+    }
+
+    assert control_one["argv"][17] == control_two["argv"][17]
+    assert control_one["cwd"] == control_two["cwd"]
+    assert control_one["argv"][17] != treatment["argv"][17]
+    assert control_one["cwd"] != treatment["cwd"]
+    assert _T1712_CONTROL_PARENT_CANARY in control_one["argv"][17]
+    assert _T1712_CONTROL_ROOT_CANARY in control_one["argv"][17]
+    assert _T1712_CONTROL_CWD_CANARY in control_one["cwd"]
+    assert _T1712_TREATMENT_PARENT_CANARY in treatment["argv"][17]
+    assert _T1712_TREATMENT_ROOT_CANARY in treatment["argv"][17]
+    assert _T1712_TREATMENT_CWD_CANARY in treatment["cwd"]
+
+    raw_differences = {
+        *(
+            f"argv[{index}]"
+            for index, (control_value, treatment_value) in enumerate(zip(
+                observations["control-one"]["raw_call_arguments"]["argv"],
+                observations["treatment"]["raw_call_arguments"]["argv"],
+                strict=True,
+            ))
+            if control_value != treatment_value
+        ),
+        *(
+            f"kwargs.{key}"
+            for key in (
+                "input", "cwd", "env", "timeout", "check", "stdout", "stderr",
+            )
+            if observations["control-one"]["raw_call_arguments"][key]
+            != observations["treatment"]["raw_call_arguments"][key]
+        ),
+    }
+    # Env canonical ordering has its dedicated oracle in
+    # test_generation1_supervisor_to_claude_cli_launch_contract_oracle_rejects_unexcluded_mutations.
+    all_probe_tokens = (
+        ("control-mcp-path", os.fsencode(control_one["argv"][17])),
+        ("control-cwd-path", os.fsencode(control_one["cwd"])),
+        ("treatment-mcp-path", os.fsencode(treatment["argv"][17])),
+        ("treatment-cwd-path", os.fsencode(treatment["cwd"])),
+        *((value, value.encode("ascii")) for value in canaries),
+    )
+    token_hits = {}
+    for label, snapshot in (
+        ("control-one", control_one),
+        ("control-two", control_two),
+        ("treatment", treatment),
+    ):
+        hits = _t1712_assert_no_path_token_hits(
+            snapshot,
+            tokens=all_probe_tokens,
+            assert_no_hits=False,
+        )
+        if any(hits.values()):
+            token_hits[label] = hits
+
+    comparison_results = {
+        "control-between-capture agreement": {
+            "matches": (
+                observations["control-one"]["raw_call_arguments"]
+                == observations["control-two"]["raw_call_arguments"]
+            ),
+            "expected": "equal raw_call_arguments",
+            "actual": {
+                "control-one": observations["control-one"][
+                    "raw_call_arguments"
+                ],
+                "control-two": observations["control-two"][
+                    "raw_call_arguments"
+                ],
+            },
+        },
+        "raw difference labels": {
+            "matches": raw_differences == {"argv[17]", "kwargs.cwd"},
+            "expected": {"argv[17]", "kwargs.cwd"},
+            "actual": raw_differences,
+        },
+        "role-oriented candidate surfaces": {
+            "matches": (
+                observations["control-one"]["role_explicit_inputs"]
+                == observations["treatment"]["role_explicit_inputs"]
+            ),
+            "expected": "equal role_explicit_inputs",
+            "actual": {
+                "control-one": observations["control-one"][
+                    "role_explicit_inputs"
+                ],
+                "treatment": observations["treatment"][
+                    "role_explicit_inputs"
+                ],
+            },
+        },
+        "projected call arguments": {
+            "matches": (
+                observations["control-one"]["projected_call_arguments"]
+                == observations["treatment"]["projected_call_arguments"]
+            ),
+            "expected": "equal projected_call_arguments",
+            "actual": {
+                "control-one": observations["control-one"][
+                    "projected_call_arguments"
+                ],
+                "treatment": observations["treatment"][
+                    "projected_call_arguments"
+                ],
+            },
+        },
+        "path token hits": {
+            "matches": not token_hits,
+            "expected": {},
+            "actual": token_hits,
+        },
+    }
+    unexpected_comparisons = {
+        label: {
+            "expected": result["expected"],
+            "actual": result["actual"],
+        }
+        for label, result in comparison_results.items()
+        if not result["matches"]
+    }
+    assert not unexpected_comparisons, (
+        "launch-contract comparison results: "
+        f"{comparison_results!r}"
+    )
+
+    captured_before_synthetic_oracle = copy.deepcopy(control_one)
+    baseline_observation = observations["control-one"]
+    raw_call_arguments = baseline_observation["raw_call_arguments"]
+    assert set(raw_call_arguments) == _T1354_TRANSPORT_SNAPSHOT_KEYS
+    assert len(raw_call_arguments["argv"]) == 19
+    projected_call_arguments = baseline_observation[
+        "projected_call_arguments"
+    ]
+    assert set(projected_call_arguments) == _T1354_TRANSPORT_SNAPSHOT_KEYS
+    assert len(projected_call_arguments["argv"]) == 19
+    role_labels = tuple(
+        label for label, _value in baseline_observation["role_explicit_inputs"]
+    )
+    assert len(role_labels) == 3
+    assert set(role_labels) == {
+        "agents-inline-json",
+        "effective-prompt",
+        "stdin-payload",
+    }
+    role_explicit_input_values = dict(
+        baseline_observation["role_explicit_inputs"]
+    )
+    inline_agents = json.loads(control_one["argv"][5])
+    inline_agent = inline_agents[next(iter(inline_agents))]
+    assert role_explicit_input_values["agents-inline-json"] == os.fsencode(
+        control_one["argv"][5]
+    )
+    assert role_explicit_input_values["stdin-payload"] == control_one["input"]
+    assert role_explicit_input_values["effective-prompt"] == inline_agent[
+        "prompt"
+    ].encode("utf-8")
+    assert all(
+        type(value) is bytes and value
+        for value in role_explicit_input_values.values()
+    )
+    remainder_labels = tuple(
+        label
+        for label, _value in baseline_observation["launch_remainder_bytes"]
+    )
+    expected_remainder_labels = {
+        *(f"argv[{index}]" for index in range(19) if index not in {5, 17}),
+        *(
+            f"env[{index}].{component}"
+            for index in range(len(control_one["env"]))
+            for component in ("key", "value")
+        ),
+    }
+    assert len(remainder_labels) == len(expected_remainder_labels)
+    assert set(remainder_labels) == expected_remainder_labels
+
+    synthetic_snapshots: list[tuple[str, dict[str, Any]]] = []
+    for index in range(len(control_one["argv"])):
+        synthetic = copy.deepcopy(control_one)
+        argv_values = list(synthetic["argv"])
+        marker = f":t1712-argv-surface-{index}"
+        if index == 5:
+            inline_agents = json.loads(argv_values[index])
+            assert type(inline_agents) is dict and len(inline_agents) == 1
+            inline_agent = inline_agents[next(iter(inline_agents))]
+            inline_agent["prompt"] += marker
+            argv_values[index] = json.dumps(
+                inline_agents,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        else:
+            argv_values[index] += marker
+        synthetic["argv"] = tuple(argv_values)
+        assert {
+            changed_index
+            for changed_index, (baseline_value, synthetic_value) in enumerate(
+                zip(control_one["argv"], synthetic["argv"], strict=True)
+            )
+            if baseline_value != synthetic_value
+        } == {index}
+        synthetic_snapshots.append((f"argv[{index}]", synthetic))
+
+    non_argv_mutations = {
+        "input": control_one["input"] + b":t1712-input-surface",
+        "cwd": control_one["cwd"] + ":t1712-cwd-surface",
+        "env": (
+            (
+                control_one["env"][0][0],
+                control_one["env"][0][1] + ":t1712-env-surface",
+            ),
+            *control_one["env"][1:],
+        ),
+        "timeout": control_one["timeout"] + 1,
+        "check": not control_one["check"],
+        "stdout": control_one["stdout"] - 1,
+        "stderr": control_one["stderr"] - 2,
+    }
+    assert set(non_argv_mutations) == (
+        _T1354_TRANSPORT_SNAPSHOT_KEYS - {"argv"}
+    )
+    for key, replacement in non_argv_mutations.items():
+        assert type(replacement) is type(control_one[key])
+        synthetic = copy.deepcopy(control_one)
+        synthetic[key] = replacement
+        assert {
+            snapshot_key
+            for snapshot_key in _T1354_TRANSPORT_SNAPSHOT_KEYS
+            if control_one[snapshot_key] != synthetic[snapshot_key]
+        } == {key}
+        synthetic_snapshots.append((f"kwargs.{key}", synthetic))
+
+    assert {label for label, _snapshot in synthetic_snapshots} == {
+        *(f"argv[{index}]" for index in range(19)),
+        *(
+            f"kwargs.{key}"
+            for key in _T1354_TRANSPORT_SNAPSHOT_KEYS
+            if key != "argv"
+        ),
+    }
+    for expected_difference, synthetic in synthetic_snapshots:
+        synthetic_observation = _t1712_launch_contract_observation(
+            synthetic,
+            validate_cli_layout=False,
+        )
+        synthetic_raw = synthetic_observation["raw_call_arguments"]
+        assert set(synthetic_raw) == _T1354_TRANSPORT_SNAPSHOT_KEYS
+        assert len(synthetic_raw["argv"]) == 19
+        detected_differences = {
+            *(
+                f"argv[{index}]"
+                for index, (baseline_value, synthetic_value) in enumerate(zip(
+                    raw_call_arguments["argv"],
+                    synthetic_raw["argv"],
+                    strict=True,
+                ))
+                if baseline_value != synthetic_value
+            ),
+            *(
+                f"kwargs.{key}"
+                for key in (
+                    "input", "cwd", "env", "timeout", "check", "stdout", "stderr",
+                )
+                if raw_call_arguments[key] != synthetic_raw[key]
+            ),
+        }
+        assert detected_differences == {expected_difference}, (
+            expected_difference,
+            detected_differences,
+        )
+    assert control_one == captured_before_synthetic_oracle
+
+    treatment_canary = _T1712_TREATMENT_ROOT_CANARY.encode("ascii")
+    stdin_leak = copy.deepcopy(treatment)
+    stdin_leak["input"] += b":" + treatment_canary
+    with pytest.raises(AssertionError, match="role explicit-input hit group"):
+        _t1712_assert_no_path_token_hits(
+            stdin_leak,
+            tokens=(("treatment-root-canary", treatment_canary),),
+        )
+
+    argv_leak = copy.deepcopy(treatment)
+    argv_values = list(argv_leak["argv"])
+    argv_values[0] += ":" + _T1712_TREATMENT_ROOT_CANARY
+    argv_leak["argv"] = tuple(argv_values)
+    with pytest.raises(AssertionError, match="env/non-excluded-argv hit group"):
+        _t1712_assert_no_path_token_hits(
+            argv_leak,
+            tokens=(("treatment-root-canary", treatment_canary),),
+        )
+
+    env_leak = copy.deepcopy(treatment)
+    env_values = list(env_leak["env"])
+    env_key, env_value = env_values[0]
+    env_values[0] = (
+        env_key,
+        env_value + ":" + _T1712_TREATMENT_ROOT_CANARY,
+    )
+    env_leak["env"] = tuple(env_values)
+    with pytest.raises(AssertionError, match="env/non-excluded-argv hit group"):
+        _t1712_assert_no_path_token_hits(
+            env_leak,
+            tokens=(("treatment-root-canary", treatment_canary),),
+        )
 
 
 def _t325_run(fixture, run_root: Path, **overrides):
