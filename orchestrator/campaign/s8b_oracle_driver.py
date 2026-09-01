@@ -58,7 +58,15 @@ from .layout import (  # noqa: E402
 )
 from .layout import write_capability_for_directory  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
-from .s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
+from .s1_direct_comparison import (  # noqa: E402
+    DriverError as S1DriverError,
+    PreparedCell,
+    _condition_driver_id,
+    _condition_request_digests_for_flags,
+    condition_gate_receipt,
+    prepare_cell,
+    require_returned_condition_evidence,
+)
 from .s8b_materialization import (  # noqa: E402
     MaterializationError,
     binding_entry,
@@ -1290,11 +1298,10 @@ def run_block(
 
     gate 拒否時は一切書き込まず ``status="refused"`` を返す。
 
-    ``evaluate_fn`` は既存 oracle テスト用 seam であり、その callable が
-    ``pipeline.buildcache.build_v2`` を呼ばない場合、descriptor 関門は通らない。
-    既存 fixture は build 0 回の callable を完了扱いにする契約を持つため、この driver
-    は cell ごとの descriptor 付き build 回数を保証しない。production の既定
-    ``pipeline.evaluate`` が呼ぶ実 build だけを
+    ``evaluate_fn`` は既存 oracle テスト用 seam だが、注入 callable の返却物にも
+    materializer が採取した supply/meaning の二 record と完全一致する evidence を要求する。
+    build 0 回で evidence の無い callable は terminal outcome へ進めない。production の既定
+    ``pipeline.evaluate`` が呼ぶ実 build は引き続き
     ``_assert_v2_build_contract_for_snapshot`` が descriptor 付きにする。
 
     戻り値 JSON 契約 (CLI が ``_exit_code`` で終了コードへ射影する):
@@ -1435,8 +1442,8 @@ def run_block(
     campaign_id = block["campaign_id"]
     run_contract = block["run_contract"]
     env_tag = run_contract["env_tag"]
-    evaluate_fn = evaluate_fn or pipeline.evaluate
-    prepare_fn = prepare_fn or prepare_cell
+    if prepare_fn is None:
+        prepare_fn = prepare_cell
     _, cxx = buildcache.compilers_for_current_site()
     # Human-reviewed admission の persistent receipt に generator id は入らない。run context
     # の閉じた registry member には S8b の直前 producer である S8a を用いる。
@@ -1662,12 +1669,32 @@ def run_block(
                 "attempt": attempt,
             })
             evaluate_started = False
+            row_condition_gate = None
             try:
                 with _prepared_binding(
                         freeze=freeze, holdout_id=holdout_id,
                         configuration_id=configuration_id,
                         ccbench_pin=run_contract["ccbench_pin"],
                         cxx=cxx, prepare_fn=prepare_fn) as (actual_binding, prepared):
+                    expected_entry = binding_entry(
+                        freeze, holdout_id, configuration_id,
+                    )
+                    expected_request_digests = _condition_request_digests_for_flags(
+                        expected_entry["flags"],
+                        driver_id=_condition_driver_id(configuration_id),
+                    )
+                    condition_admission = require_returned_condition_evidence(
+                        prepared, expected_request_digests=expected_request_digests,
+                        use_class="oracle", label="oracle prepare_fn return",
+                    )
+                    prepared_records = (
+                        prepared.condition_supply_records,
+                        prepared.condition_meaning_records,
+                    )
+                    row_condition_gate = condition_gate_receipt(
+                        prepared_records[0], prepared_records[1],
+                        condition_admission,
+                    )
                     expected_binding = _expected_binding(
                         manifest, holdout_id, configuration_id,
                     )
@@ -1706,6 +1733,8 @@ def run_block(
                         src_token=prepared.src_token,
                         ccbench_dir=prepared.ccbench_dir,
                         cache_root=str(output_root / "s8b-build-cache"),
+                        condition_supply_records=prepared.condition_supply_records,
+                        condition_meaning_records=prepared.condition_meaning_records,
                     )
                     perf = _perf_for_holdout(freeze, holdout_id, run_contract)
                     before = len(wal.read_records(layout))
@@ -1720,12 +1749,7 @@ def run_block(
                                 ccbench_pin=run_contract["ccbench_pin"],
                                 cxx=cxx,
                                 prepared=prepared_for_eval):
-                            result = evaluate_fn(
-                                prepared_for_eval.genome, layout, env_tag,
-                                run_contract["ccbench_pin"], perf,
-                                # C3-9: clocks/numactl は env 契約 lookup 結果を使う
-                                # (NUMACTL ハードコード撤去)。
-                                plan.contract.clocks_per_us,
+                            evaluate_kwargs = dict(
                                 numactl=list(plan.contract.numactl),
                                 correctness=None,
                                 extra_correctness=[(
@@ -1750,7 +1774,6 @@ def run_block(
                                 ),
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
-                                authorization_contract=plan.authorization_contract,
                                 # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
                                 # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
                                 expected_perf_sha256=plan.perf_sha_by_cell[
@@ -1760,11 +1783,48 @@ def run_block(
                                 holdout_observation_admission=(
                                     observation_admission
                                 ),
-                                **perf_evaluate_kwargs,
                             )
+                            if evaluate_fn is None:
+                                result = pipeline.evaluate(
+                                    prepared_for_eval.genome, layout, env_tag,
+                                    run_contract["ccbench_pin"], perf,
+                                    # C3-9: clocks/numactl は env 契約 lookup 結果を使う
+                                    # (NUMACTL ハードコード撤去)。
+                                    plan.contract.clocks_per_us,
+                                    authorization_contract=(
+                                        plan.authorization_contract
+                                    ),
+                                    **evaluate_kwargs,
+                                    **perf_evaluate_kwargs,
+                                )
+                            else:
+                                result = evaluate_fn(
+                                    prepared_for_eval.genome, layout, env_tag,
+                                    run_contract["ccbench_pin"], perf,
+                                    # C3-9: clocks/numactl は env 契約 lookup 結果を使う
+                                    # (NUMACTL ハードコード撤去)。
+                                    plan.contract.clocks_per_us,
+                                    authorization_contract=(
+                                        plan.authorization_contract
+                                    ),
+                                    **evaluate_kwargs,
+                                    **perf_evaluate_kwargs,
+                                )
+                            if evaluate_fn is not None:
+                                require_returned_condition_evidence(
+                                    result,
+                                    expected_request_digests=expected_request_digests,
+                                    use_class="oracle",
+                                    label="oracle evaluate_fn return",
+                                    expected_records=prepared_records,
+                                )
                     except (wal.WalAppendError, wal.WalFramingError):
                         # 不確かな同一 WAL へ trial-result/deviation を重ねない。
                         raise
+                    except S1DriverError as exc:
+                        raise OracleDriverError(
+                            f"oracle condition evidence rejected: {exc}"
+                        ) from exc
                     except Exception as exc:
                         result = pipeline.EvalResult(
                             genome=prepared_for_eval.genome,
@@ -1824,6 +1884,8 @@ def run_block(
                 "outcome": outcome,
                 "excluded_reason": None,
                 "screen_outcome": "not_enabled",
+                **({"condition_gate": row_condition_gate}
+                   if row_condition_gate is not None else {}),
             })
             completed += 1
             budget_entry = {

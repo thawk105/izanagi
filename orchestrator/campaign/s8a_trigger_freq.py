@@ -60,7 +60,9 @@ from .model import Genome                                      # noqa: E402
 from .p2_2 import (CLK, RECORDS, THREADS, WORKLOADS,           # noqa: E402
                            _assert_single_tenant)
 from .patchharness import applied, apply_patch, assert_pinned_clean  # noqa: E402
-from .s8a_trigger_coverage import _build, _parse_abort_counts  # noqa: E402
+from .s8a_trigger_coverage import (                           # noqa: E402
+    _build, _parse_abort_counts, _preflight_condition_gates,
+)
 
 
 ENV_TAG = "linux-baremetal"
@@ -129,6 +131,13 @@ def main(argv) -> int:
     sub = os.path.join(root, "external", "ccbench")
     assert_pinned_clean(sub, PIN)
     patches = os.path.join(root, "patches")
+    condition_gates = _preflight_condition_gates(
+        root,
+        sub,
+        driver_id="orchestrator.campaign.s8a_trigger_freq",
+        include_misattr=False,
+        genome=GENOME,
+    )
 
     result = {"purpose": ("段 8a D 偵察の必須前提 (a): 要因別 abort 頻度の事前実測。"
                           "characterization であり性能計測ではない — 性能数値なし。"
@@ -136,6 +145,7 @@ def main(argv) -> int:
                           "設計入力 (構造的性質で trace I/O に不変)。"),
               "env_tag": ENV_TAG, "ccbench_commit": PIN,
               "genome": GENOME.canonical(), "clocks_per_us": CLK,
+              "condition_gates": condition_gates,
               "build_admissions": [],
               "records": RECORDS, "threads": THREADS, "extime": EXTIME,
               "reason_names": list(REASON_NAMES),
@@ -150,6 +160,7 @@ def main(argv) -> int:
             binary = _build(
                 bdir, genome=GENOME,
                 admission_receipts=result["build_admissions"],
+                condition_driver_id="orchestrator.campaign.s8a_trigger_freq",
             )   # 自前 GENOME を明示 (レビュー F1)
             for tag, workload in wls:
                 print(f"== freq run  workload={tag}  ({workload}) ==")

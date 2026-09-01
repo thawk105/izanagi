@@ -53,8 +53,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (buildcache, env_contract, execution_guard, ident, site_policy,  # noqa: E402
-               source_digest, wal)
+from . import (buildcache, condition_meaning_gate, env_contract, execution_guard,  # noqa: E402
+               ident, site_policy, source_digest, wal)
 from . import p3_s4_loop as L                              # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -111,6 +111,35 @@ _lookup = env_contract.lookup
 
 DIGEST_BASENAME = "s8a_trigger_loop_digest.txt"
 CRITIC_TAG = "p3-s8a-trigger"
+
+
+def _require_condition_gate(source_root: str, genome: Genome) -> dict:
+    value = genome.flags.get("BACKOFF_TRIGGER_GATING", 1)
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.p3_s4_loop_trigger_gating",
+        macro="BACKOFF_TRIGGER_GATING", requested_value=value, default_value=0,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected P3 trigger loop: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 # E 段入力 (coder/planner) に渡しうる偵察由来情報の全量 (D48 条件 7 / D50 決定 1)。
 # 生死の根拠数値・workload 別の勝ち gate はここに書かない (リークレンズ N2 裁定 —
@@ -758,6 +787,9 @@ def _run_one_iteration_resolved(
                     "trigger_gate_binding_commitment": commitment(binding),
                 }, campaign_cfg, layout,
             )
+        condition_gate = _require_condition_gate(sub, Genome(
+            "silo", {**genome.flags, "BACKOFF_TRIGGER_GATING": 1},
+        ))
         if require_source_preimage_artifact:
             _write_source_preimage_artifact(
                 layout=layout, proposal_path=proposal_path, genome=genome, sub=sub,
@@ -793,6 +825,7 @@ def _run_one_iteration_resolved(
         duplicate["trigger_gate_binding_commitment"] = _wal_binding_commitment(
             duplicate["records"], variant=duplicate["variant"],
         )
+        duplicate["condition_gate"] = condition_gate
         return _with_campaign_location(duplicate, campaign_cfg, layout)
     recs = wal.records_by_stage(layout, v) if v else {}
     recs.pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
@@ -807,12 +840,14 @@ def _run_one_iteration_resolved(
             "outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
             "verdict": r.verdict, "records": recs,
             "trigger_gate_binding_commitment": binding_commitment,
+            "condition_gate": condition_gate,
         }, campaign_cfg, layout)
     L.project_whiteboard(state, planner, "fail")
     return _with_campaign_location({
         "outcome": "aborted", "variant": v,
         "verdict": (r.verdict if r else ""), "records": recs,
         "trigger_gate_binding_commitment": binding_commitment,
+        "condition_gate": condition_gate,
     }, campaign_cfg, layout)
 
 

@@ -23,7 +23,9 @@ run_campaign を包む。fitness は配線テストであり baseline ではな�
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import struct
 import sys
 from pathlib import Path
 
@@ -31,7 +33,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import env_contract, ident, wal                     # noqa: E402
+from . import buildcache, condition_meaning_gate, env_contract, ident, wal  # noqa: E402
 from .build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
@@ -61,6 +63,42 @@ STATIC_G = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 50})
 
 NOOP_PATCH = "patches/variant-noop-else-copy.patch"
 STATIC_PATCH = "patches/variant-backoff-static50.patch"
+
+
+def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
+    """Require both condition records before the first campaign build."""
+    value = genome.flags.get("BACKOFF_FIXED")
+    if value is None:
+        return None
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.p3_kickoff",
+        macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
+    )
+    bits = struct.pack(">d", float(value)).hex()
+    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+        "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=declaration, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected p3 kickoff: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 
 def _repo_root() -> str:
@@ -107,6 +145,8 @@ def main(argv=None) -> int:
     cfg, perf = ident.bind_admission_policy(_cfg(), build_context.policy), _perf()
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     assert_pinned_clean(sub, PIN)
+    with applied(os.path.join(root, STATIC_PATCH), PIN, sub):
+        condition_gate = _require_condition_gate(sub, STATIC_G)
     print("=== 完了条件 1: dirty no-op → coder namespace の cache-miss commit ===")
     with applied(os.path.join(root, NOOP_PATCH), PIN, sub):
         s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
@@ -123,6 +163,11 @@ def main(argv=None) -> int:
 
     # --- WAL 機械判定 (完了条件の文言どおり。宣言でなくレコードを gate にする) ---
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    condition_path = Path(layout.root) / "p3_kickoff_condition_gate.json"
+    with condition_path.open("x", encoding="utf-8") as stream:
+        json.dump(condition_gate, stream, ensure_ascii=True, sort_keys=True,
+                  separators=(",", ":"))
+        stream.write("\n")
     v1 = next((r.variant for r in s1.results), variant_id(STOCK_G))
     r1 = wal.records_by_stage(layout, v1)
     v2 = next((r.variant for r in s2.results), None)
@@ -154,6 +199,13 @@ def main(argv=None) -> int:
             (r2.get("verify_done", {}).get("aborts") or 0) > 0,
         "2. certified commit (fitness 込み 1 周)":
             "commit" in r2 and r2["commit"].get("fitness_tps") is not None,
+        "2. promotion condition record IDs を成果物へ束縛":
+            condition_gate is not None
+            and condition_gate["admission"]["use_class"] == "certified-selection"
+            and condition_gate["admission"]["record_ids"] == [
+                condition_gate["supply_record"]["record_id"],
+                condition_gate["meaning_record"]["record_id"],
+            ],
     }
     print("\n=== 判定 (WAL 機械確認) ===")
     ok = True

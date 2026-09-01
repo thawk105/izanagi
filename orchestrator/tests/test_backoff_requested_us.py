@@ -669,11 +669,19 @@ def test_driver_is_balanced_one_rep_raw_only_and_uses_diagnostic_admission():
     assert "patchharness.applied(" not in measure
     checkout = measure.index("patchharness.checkout(")
     fixed_apply = measure.index("patchharness.apply_patch(str(fixed_patch)")
+    fixed_gate = measure.index("_require_fixed_condition_gate_before_measurement")
     diagnostic_apply = measure.index(
         "patchharness.apply_patch(str(diagnostic_patch)"
     )
+    diagnostic_gate = measure.index(
+        "_require_requested_us_condition_gate_before_measurement"
+    )
+    build = measure.index("buildcache.build_v2")
     revert = measure.index("patchharness.revert_worktree(")
-    assert checkout < fixed_apply < diagnostic_apply < revert
+    assert (
+        checkout < fixed_apply < fixed_gate < diagnostic_apply
+        < diagnostic_gate < build < revert
+    )
     assert "finally:" in measure[diagnostic_apply:revert]
     assert "ccbench_dir=isolated_ccbench" in measure
     assert "subprocess.run(" in run_rep
@@ -684,6 +692,29 @@ def test_driver_is_balanced_one_rep_raw_only_and_uses_diagnostic_admission():
     assert "abort_rate" not in source
     assert "latency_ns" not in source
     assert GeneratorId.BACKOFF_PROFILE.value == "backoff-profile"
+
+
+def test_driver_gate_wrappers_bind_fixed_and_requested_us_macros(monkeypatch):
+    calls = []
+
+    def require(*args, **kwargs):
+        calls.append((args, kwargs))
+        return object()
+
+    monkeypatch.setattr(M, "_require_backoff_condition_gate", require)
+    fixed = M.Genome("silo", {"BACKOFF_FIXED": -1})
+    diagnostic = M.Genome("silo", {M.DIAGNOSTIC_FLAG: 1})
+    M._require_fixed_condition_gate_before_measurement(
+        "/patched", stock_root="/stock", genome=fixed, cxx="c++",
+    )
+    M._require_requested_us_condition_gate_before_measurement(
+        "/patched", genome=diagnostic, cxx="c++",
+    )
+
+    assert calls[0][1]["macro_values"] == {"BACKOFF_FIXED": (-1,)}
+    assert calls[0][1]["stock_root"] == "/stock"
+    assert calls[1][1]["macro_values"] == {"BACKOFF_REQUESTED_US": (1,)}
+    assert calls[1][1]["stock_root"] is None
 
 
 def test_measure_uses_real_isolated_checkout_for_fixed_then_diagnostic(
@@ -859,6 +890,25 @@ def test_measure_uses_real_isolated_checkout_for_fixed_then_diagnostic(
             ).strip()
         ),
     )
+
+    def require_fixed_gate(source_root, *, stock_root, **_kwargs):
+        assert source_root == captured["isolated"]
+        assert Path(stock_root) != base
+        assert (Path(stock_root) / "layer.txt").read_text(
+            encoding="utf-8",
+        ) == "base\n"
+        events.append("condition-gate-fixed")
+        return object()
+
+    monkeypatch.setattr(
+        M, "_require_fixed_condition_gate_before_measurement", require_fixed_gate,
+    )
+    monkeypatch.setattr(
+        M,
+        "_require_requested_us_condition_gate_before_measurement",
+        lambda *_args, **_kwargs:
+            events.append("condition-gate-diagnostic") or object(),
+    )
     monkeypatch.setattr(
         M, "_require_fixed_source_match",
         lambda _reference, _evidence: events.append("fixed-match"),
@@ -910,9 +960,10 @@ def test_measure_uses_real_isolated_checkout_for_fixed_then_diagnostic(
     assert result["manifest"]["status"] == "complete"
     assert events == [
         "checkout", "files-fixed", "files-diagnostic", "apply-fixed",
-        "materialized-fixed", "evidence-fixed", "fixed-match",
-        "apply-diagnostic", "materialized-diagnostic", "evidence-diagnostic",
-        "build", "run", "revert", "reverted", "checkout-exit",
+        "materialized-fixed", "condition-gate-fixed", "evidence-fixed",
+        "fixed-match", "apply-diagnostic", "materialized-diagnostic",
+        "condition-gate-diagnostic", "evidence-diagnostic", "build", "run",
+        "revert", "reverted", "checkout-exit",
     ]
     assert not Path(captured["isolated"]).exists()
     assert layer.read_bytes() == before_bytes

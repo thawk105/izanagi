@@ -606,10 +606,11 @@ ORACLE_ENVIRONMENT_CONSUMER_NODES = frozenset({
 })
 
 # production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と
-# loadgroup suffix は除いた ``file::function`` 形で固定する。33 関数 / 36 node。
+# loadgroup suffix は除いた ``file::function`` 形で固定する。34 関数 / 37 node。
 RECEIPT_MEMO_CONSUMER_NODES = frozenset({
     "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
     "test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
+    "test_s8b_oracle_driver.py::test_oracle_evaluate_fn_without_condition_records_cannot_complete",
     "test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement",
     "test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate",
     "test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing",

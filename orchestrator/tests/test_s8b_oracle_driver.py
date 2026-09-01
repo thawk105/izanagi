@@ -8,6 +8,7 @@ import contextlib
 import copy
 import dataclasses
 import errno
+import functools
 import hashlib
 import importlib
 import inspect
@@ -61,6 +62,7 @@ import real_repo_ratified_memo as ratified_memo  # noqa: E402
 from orchestrator.tests import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
+import test_s1_direct_comparison as s1_condition_fixtures  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
@@ -73,7 +75,8 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import artifact_admission  # noqa: E402
 from orchestrator.campaign import execution_guard  # noqa: E402
-from orchestrator.campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
+from orchestrator.campaign import (model, pipeline, s8b_budget,  # noqa: E402
+                                   s8b_oracle_driver as driver, wal)
 from orchestrator.campaign import s8b_oracle_artifacts as oracle_artifacts  # noqa: E402
 from orchestrator.campaign import s8b_freeze_io  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
@@ -2170,6 +2173,36 @@ def _floor_only_freeze(tmp_path: Path) -> Path:
     return path
 
 
+@functools.lru_cache(maxsize=None)
+def _issued_condition_records(
+        flags: tuple[tuple[str, object], ...], driver_id: str,
+):
+    records = s1_condition_fixtures._issued_condition_records(flags, driver_id)
+    if not records[0] and not records[1]:
+        return records
+    admission = s1_condition_fixtures._assert_promotion_admission_contract(
+        *records, use_class="oracle",
+    )
+    assert admission.admitted is True
+    return records
+
+
+def _condition_records(
+        genome: Genome,
+        driver_id: str = "orchestrator.campaign.s1_direct_comparison.prepare_cell",
+):
+    return _issued_condition_records(
+        tuple(sorted(genome.flags.items())), driver_id,
+    )
+
+
+def _with_condition_records(result):
+    supply, meaning = _condition_records(result.genome)
+    result.condition_supply_records = supply
+    result.condition_meaning_records = meaning
+    return result
+
+
 def _prepare_factory(
     *, fail_first: bool = False, token_suffix: str = "",
     suffix_first_only: bool = False,
@@ -2189,9 +2222,12 @@ def _prepare_factory(
         ).hexdigest()
         if not suffix_first_only or len(calls) == 1:
             token += token_suffix
+        supply, meaning = _condition_records(genome)
         yield PreparedCell(
             genome=genome, src_token=token,
             ccbench_dir="/tmp/fixture-ccbench", cache_root="/tmp/fixture-cache",
+            condition_supply_records=supply,
+            condition_meaning_records=meaning,
         )
 
     fake_prepare.calls = calls
@@ -2367,10 +2403,10 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
             operation_identity=attempt_id,
             tags=(pipeline.LEGACY_TAG, pipeline.S2_TAG),
         )
-        return pipeline.EvalResult(
+        return _with_condition_records(pipeline.EvalResult(
             genome=genome, variant=variant, certified=True, aborted=False,
             fitness_tps=12.0,
-        )
+        ))
 
     fake_evaluate.calls = calls
     return fake_evaluate
@@ -2392,9 +2428,9 @@ def _fake_abort_evaluate_factory(reason: str):
         wal.log(layout, variant, "abort", env_tag, {
             "reason": reason, "workload": {"tag": pipeline.LEGACY_TAG},
         })
-        return pipeline.EvalResult(
+        return _with_condition_records(pipeline.EvalResult(
             genome=genome, variant=variant, certified=False, aborted=True,
-        )
+        ))
 
     fake_evaluate.calls = calls
     return fake_evaluate
@@ -2609,6 +2645,28 @@ def _run_with_real_manifest_gate(
             output_root=output_root, budget_path=budget_path,
             marker_root=marker_root,
             prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
+
+
+def test_oracle_evaluate_fn_without_condition_records_cannot_complete(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare_fn = _prepare_factory()
+    manifest_path, _document = _write_manifest(
+        tmp_path, freeze_path, prepare_fn,
+    )
+    prepare_fn.calls.clear()
+    recorded_evaluate = _fake_evaluate_factory()
+
+    def evidence_less_evaluate(*args, **kwargs):
+        result = recorded_evaluate(*args, **kwargs)
+        del result.condition_supply_records
+        del result.condition_meaning_records
+        return result
+
+    with pytest.raises(driver.OracleDriverError, match="condition evidence"):
+        _run(
+            tmp_path, freeze_path, manifest_path,
+            prepare_fn, evidence_less_evaluate,
         )
 
 
@@ -5910,10 +5968,10 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
         def abort(reason, note, extra=None):
             wal.log(layout, variant, pipeline.STAGE_ABORT, env_tag,
                     {"reason": reason, **(extra or {})})
-            return pipeline.EvalResult(
+            return _with_condition_records(pipeline.EvalResult(
                 genome=genome, variant=variant, certified=False, aborted=True,
                 notes=[note],
-            )
+            ))
 
         try:
             aborted, bench = pipeline._run_bench(
@@ -5932,10 +5990,10 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
         if aborted is not None:
             return aborted
         assert bench is not None
-        return pipeline.EvalResult(
+        return _with_condition_records(pipeline.EvalResult(
             genome=genome, variant=variant, certified=True, aborted=False,
             fitness_tps=bench.median_tps,
-        )
+        ))
 
     with mock.patch.object(pipeline, "measure_point", measure_with_fake_subprocess), \
             mock.patch.object(pipeline, "competing_bench_pids", return_value=[]), \

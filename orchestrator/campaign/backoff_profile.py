@@ -53,6 +53,7 @@ from .build_admission import (  # noqa: E402
     build_run_context,
     derive_build_admission,
 )
+from .backoff_sweep import _require_backoff_condition_gate  # noqa: E402
 from .layout import env_scope_dir  # noqa: E402
 from .model import Genome  # noqa: E402
 from .p2_2 import (  # noqa: E402
@@ -340,6 +341,26 @@ def _genome(backoff_us):
     )
 
 
+def _require_condition_gate_before_measurement(
+        source_root: str, *, stock_root: str,
+        amounts: list[int | None], cxx: str,
+):
+    """Gate the fixed amount and diagnostic noinline define independently."""
+    return _require_backoff_condition_gate(
+        source_root,
+        stock_root=stock_root,
+        driver_id="orchestrator/campaign/backoff_profile.py",
+        macro_values={
+            "BACKOFF_FIXED": tuple(
+                -1 if amount is None else amount for amount in amounts
+            ),
+            "BACKOFF_NOINLINE": (1,),
+        },
+        cxx=cxx,
+        use_class="raw-measurement",
+    )
+
+
 @contextlib.contextmanager
 def _applied_backoff_patch():
     """同一 workload 内では一度だけ backoff patch を apply/revert する。"""
@@ -354,6 +375,21 @@ def _applied_backoff_patch():
             yield
         finally:
             _BACKOFF_PATCH_ACTIVE.reset(token)
+
+
+@contextlib.contextmanager
+def _condition_gate_scope(runtime: _ProfileRuntime, amounts: list[int | None]):
+    """Run the family before every enclosing scope can build or measure."""
+    with patchharness.checkout(
+            CCBENCH_COMMIT, base_dir=str(_CCBENCH_DIR),
+    ) as stock_root:
+        _require_condition_gate_before_measurement(
+            str(_CCBENCH_DIR),
+            stock_root=stock_root,
+            amounts=amounts,
+            cxx=runtime.cxx,
+        )
+        yield
 
 
 def _point_label(backoff_us) -> str:
@@ -899,20 +935,21 @@ def profile_point(backoff_us, workload, log=print, *, runtime=None):
     if runtime is None:
         runtime = _default_runtime()
     with _applied_backoff_patch():
-        prebuilt = _PREBUILT_PROFILE_POINTS.get()
-        if prebuilt is None:
-            built_point = _build_profile_point_in_patch(backoff_us, runtime)
-            _assert_profile_point_backoff_symbol(built_point)
-        else:
-            try:
-                built_point = prebuilt[backoff_us]
-            except KeyError as exc:
-                raise RuntimeError(
-                    f"prebuilt backoff point がない: {_point_label(backoff_us)}"
-                ) from exc
-        return _measure_built_profile_point(
-            built_point, workload_snapshot, log, runtime,
-        )
+        with _condition_gate_scope(runtime, [backoff_us]):
+            prebuilt = _PREBUILT_PROFILE_POINTS.get()
+            if prebuilt is None:
+                built_point = _build_profile_point_in_patch(backoff_us, runtime)
+                _assert_profile_point_backoff_symbol(built_point)
+            else:
+                try:
+                    built_point = prebuilt[backoff_us]
+                except KeyError as exc:
+                    raise RuntimeError(
+                        f"prebuilt backoff point がない: {_point_label(backoff_us)}"
+                    ) from exc
+            return _measure_built_profile_point(
+                built_point, workload_snapshot, log, runtime,
+            )
 
 
 def profile_workload(tag, workload, log=print, *, runtime=None):
@@ -931,24 +968,25 @@ def profile_workload(tag, workload, log=print, *, runtime=None):
     )
     amounts = [None, *BACKOFF_US]
     with _applied_backoff_patch():
-        built_points = [
-            _build_profile_point_in_patch(amount, effective) for amount in amounts
-        ]
-        _assert_distinct_backoff_binary_hashes(built_points)
-        for built_point in built_points:
-            _assert_profile_point_backoff_symbol(built_point)
-        token = _PREBUILT_PROFILE_POINTS.set({
-            point.backoff_us: point for point in built_points
-        })
-        try:
-            rows = [
-                profile_point(
-                    amount, workload_snapshot, log, runtime=effective,
-                )
-                for amount in amounts
+        with _condition_gate_scope(effective, amounts):
+            built_points = [
+                _build_profile_point_in_patch(amount, effective) for amount in amounts
             ]
-        finally:
-            _PREBUILT_PROFILE_POINTS.reset(token)
+            _assert_distinct_backoff_binary_hashes(built_points)
+            for built_point in built_points:
+                _assert_profile_point_backoff_symbol(built_point)
+            token = _PREBUILT_PROFILE_POINTS.set({
+                point.backoff_us: point for point in built_points
+            })
+            try:
+                rows = [
+                    profile_point(
+                        amount, workload_snapshot, log, runtime=effective,
+                    )
+                    for amount in amounts
+                ]
+            finally:
+                _PREBUILT_PROFILE_POINTS.reset(token)
     return rows
 
 

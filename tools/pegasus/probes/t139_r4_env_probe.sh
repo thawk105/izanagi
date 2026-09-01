@@ -10,7 +10,8 @@ set -uo pipefail
    -n ${IZANAGI_THIRDPARTY_SOURCE_ROOT:-} &&
    -n ${IZANAGI_GFLAGS_INSTALL:-} && -n ${IZANAGI_GLOG_INSTALL:-} &&
    -n ${IZANAGI_GFLAGS_SRC_HEAD:-} && -n ${IZANAGI_GLOG_SRC_HEAD:-} &&
-   -n ${IZANAGI_RUN_COMMIT:-} && -n ${PBS_JOBID:-} ]] || exit 2
+   -n ${IZANAGI_RUN_COMMIT:-} &&
+   -n ${IZANAGI_T139_EXPECTED_WORKTREE_ROOT:-} && -n ${PBS_JOBID:-} ]] || exit 2
 
 OUT=$(realpath -e "$1") || exit 2
 PYTHON=$(realpath -e "$IZANAGI_T139_R4_PYTHON") || exit 2
@@ -21,6 +22,7 @@ SNAPSHOT=$(realpath -e "$IZANAGI_CCBENCH_SNAPSHOT") || exit 2
 TP=$(realpath -e "$IZANAGI_THIRDPARTY_SOURCE_ROOT") || exit 2
 GFLAGS_INSTALL=$(realpath -e "$IZANAGI_GFLAGS_INSTALL") || exit 2
 GLOG_INSTALL=$(realpath -e "$IZANAGI_GLOG_INSTALL") || exit 2
+REPO_ROOT=$(realpath -e "$IZANAGI_T139_EXPECTED_WORKTREE_ROOT") || exit 2
 STATE="$OUT/state.json"
 STAGE=${IZANAGI_PROBE_STAGE:-${TMPDIR:-/tmp}}
 PREFIX="$GFLAGS_INSTALL;$GLOG_INSTALL"
@@ -238,8 +240,38 @@ PY
   driver_run 30 "${record[@]}"
 }
 
-# The preflight window is intentionally after this TRACE=0 build and its
-# CMakeCache/compile argv/prebuilt-binary validation.
+# The condition family must dominate the first CCBench configure/build.
+condition_gate_configure_args=(
+  -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0
+  -DCCBENCH_BACK_OFF=0 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
+  -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_CCACHE=OFF
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER_LAUNCHER=
+  -DCMAKE_CXX_COMPILER_LAUNCHER= -DRULE_LAUNCH_COMPILE=
+  -DCMAKE_TOOLCHAIN_FILE= "-DCMAKE_PREFIX_PATH=$PREFIX"
+  "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=$TP/masstree"
+  "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=$TP/mimalloc"
+  "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=$TP/googletest"
+  "-DIZANAGI_GFLAGS_SRC_HEAD=$IZANAGI_GFLAGS_SRC_HEAD"
+  "-DIZANAGI_GLOG_SRC_HEAD=$IZANAGI_GLOG_SRC_HEAD"
+  "-DCMAKE_C_COMPILER=$GCC_REAL" -DCCBENCH_ADD_ANALYSIS=0
+  -DCMAKE_CXX_FLAGS=
+)
+condition_gate_argv=("$INTERPRETER" -B -m orchestrator.campaign.condition_meaning_gate
+  --source-root "$SOURCE" --stock-root "$SNAPSHOT"
+  --driver-id tools.pegasus.probes.t139_r4_env_probe
+  --macro BACKOFF_FIXED --requested-value=-1 --stock-comparison
+  --cxx "$GXX_REAL" --cmake "$(command -v cmake)"
+  --use-class raw-measurement)
+for argument in "${condition_gate_configure_args[@]}"; do
+  condition_gate_argv+=("--configure-arg=$argument")
+done
+if ! (cd "$REPO_ROOT" && driver_run 180 "${condition_gate_argv[@]}") \
+    >"$OUT/condition-gate.jsonl" 2>"$OUT/condition-gate.stderr"; then
+  exit 13
+fi
+
+# The sampling preflight window remains after the admitted TRACE=0 build and
+# its CMakeCache/compile argv/prebuilt-binary validation.
 record_one_build trace0 0 0 60 180
 TRACE0_READY=0
 if build_status trace0; then

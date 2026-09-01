@@ -30,6 +30,11 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 from urllib.parse import urlparse
 
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from orchestrator.campaign import condition_meaning_gate  # noqa: E402
+
 
 SCHEMA_VERSION = "t316-sandbox-backend-probe/v1"
 POLICY_SCHEMA_VERSION = "t316-sandbox-backend-policy/v1"
@@ -302,6 +307,73 @@ def verdict_s5(observations: Mapping[str, Mapping[str, Any]]) -> StageVerdict:
     return _merge_stage_verdicts("S5", verdicts)
 
 
+def _condition_gate_receipt_summary(
+    value: tuple[
+        condition_meaning_gate.ConditionArmRecord,
+        condition_meaning_gate.ConditionArmRecord,
+        condition_meaning_gate.ConditionFamilyAdmission,
+    ],
+) -> list[dict[str, Any]]:
+    """Persist digests and conclusions, never an arm record or issuer claim.
+
+    The live records are re-admitted by ``_condition_gate_family_valid`` before
+    this summary is accepted.  JSON readers can compare the persisted result,
+    but cannot reconstruct the evaluator-only issuer capability from it.
+    """
+    supply, meaning, admission = value
+    return [
+        {
+            "arm": supply.arm,
+            "record_digest": supply.record_digest,
+            "terminal_status": supply.terminal_status,
+            "reason_code": supply.reason_code,
+        },
+        {
+            "arm": meaning.arm,
+            "record_digest": meaning.record_digest,
+            "terminal_status": meaning.terminal_status,
+            "reason_code": meaning.reason_code,
+        },
+        {
+            "kind": "family-admission",
+            "admission_digest": admission.admission_digest,
+            "use_class": admission.use_class,
+            "admitted": admission.admitted,
+        },
+    ]
+
+
+def _condition_gate_family_valid(
+    value: object,
+    receipt_summary: object,
+) -> bool:
+    if type(value) is not tuple or len(value) != 3:
+        return False
+    try:
+        supply, meaning, observed = value
+        if type(supply) is not condition_meaning_gate.ConditionArmRecord \
+                or type(meaning) is not condition_meaning_gate.ConditionArmRecord \
+                or type(observed) is not condition_meaning_gate.ConditionFamilyAdmission:
+            return False
+        expected = condition_meaning_gate.require_condition_gate_family(
+            [supply], [meaning], use_class="raw-measurement",
+        )
+    except (TypeError, ValueError, condition_meaning_gate.ConditionMeaningGateError):
+        return False
+    return (
+        observed == expected
+        and receipt_summary == _condition_gate_receipt_summary(value)
+        and observed.admitted is True
+        and supply.driver_id == "tools.pegasus.probes.t316_sandbox_backend_probe"
+        and supply.macro == meaning.macro == "BACKOFF_FIXED"
+        and supply.terminal_status == "green"
+        and supply.reason_code == "stock-inert-preprocess-identical"
+        and supply.evidence.get("comparison") == "stock-inert-identity"
+        and meaning.terminal_status == "unestablished"
+        and meaning.reason_code == "meaning-witness-undeclared"
+    )
+
+
 def verdict_s6(observation: Mapping[str, Any]) -> StageVerdict:
     if observation.get("attempted") is not True:
         return StageVerdict("S6", "blocked", ("S6_BUILD_NOT_ATTEMPTED",))
@@ -311,6 +383,11 @@ def verdict_s6(observation: Mapping[str, Any]) -> StageVerdict:
         return StageVerdict("S6", "blocked", ("S6_TOOLCHAIN_UNAVAILABLE",))
     if observation.get("source_identity_valid") is not True:
         return StageVerdict("S6", "inconclusive", ("S6_SOURCE_IDENTITY_INVALID",))
+    if not _condition_gate_family_valid(
+        observation.get("_condition_gate_family"),
+        observation.get("condition_gates"),
+    ):
+        return StageVerdict("S6", "inconclusive", ("S6_CONDITION_GATE_UNPROVEN",))
     toolchain = observation.get("toolchain")
     if isinstance(toolchain, Mapping) and toolchain.get("sandbox_valid") is not True:
         return StageVerdict("S6", "no-go", ("S6_SANDBOX_TOOLCHAIN_UNAVAILABLE",))
@@ -1773,12 +1850,12 @@ def _execute_ccbench_build(
         f"-DIZANAGI_GLOG_SRC_HEAD={pins['glog']}",
         f"-DCMAKE_C_COMPILER={compiler_c}", f"-DCMAKE_CXX_COMPILER={compiler_cxx}",
     ]
-    commands.extend((
-        ("ccbench-configure", configure, 300),
-        ("ccbench-build", [cmake, "--build", str(ccbench_build), "--target",
-         "ycsb_silo.exe", "-j", "48"], int(policy["stage_budgets_s"]["ccbench_build_cap_s"])),
-    ))
     steps: list[dict[str, Any]] = []
+    condition_gate_family: tuple[
+        condition_meaning_gate.ConditionArmRecord,
+        condition_meaning_gate.ConditionArmRecord,
+        condition_meaning_gate.ConditionFamilyAdmission,
+    ] | tuple[()] = ()
     failure_stage: Optional[str] = None
     for label, argv, cap in commands:
         remaining_s = int((deadline_ns - time.monotonic_ns()) / 1_000_000_000)
@@ -1786,22 +1863,101 @@ def _execute_ccbench_build(
             failure_stage = "walltime"
             break
         record = (
-            profile.run(argv, timeout_s=min(cap, remaining_s), build=True)
+            _build_step(profile, argv, timeout_s=min(cap, remaining_s))
             if inside else _run_command(argv, timeout_s=min(cap, remaining_s))
         )
         steps.append({"label": label, "command": record})
         if record.get("rc") != 0:
             failure_stage = label
             break
+    if failure_stage is None:
+        stock_copy = root / "condition-gate-stock"
+        shutil.copytree(source, stock_copy, symlinks=True)
+        condition_gate_family = _require_condition_gate(
+            source,
+            stock_root=stock_copy,
+            configure_args=configure[5:],
+            cxx=compiler_cxx,
+            cmake=cmake,
+        )
+        commands.extend((
+            ("ccbench-configure", configure, 300),
+            ("ccbench-build", [cmake, "--build", str(ccbench_build), "--target",
+             "ycsb_silo.exe", "-j", "48"], int(policy["stage_budgets_s"]["ccbench_build_cap_s"])),
+        ))
+        for label, argv, cap in commands[-2:]:
+            remaining_s = int(
+                (deadline_ns - time.monotonic_ns()) / 1_000_000_000
+            )
+            if remaining_s < 30:
+                failure_stage = "walltime"
+                break
+            record = (
+                profile.run(argv, timeout_s=min(cap, remaining_s), build=True)
+                if inside else _run_command(argv, timeout_s=min(cap, remaining_s))
+            )
+            steps.append({"label": label, "command": record})
+            if record.get("rc") != 0:
+                failure_stage = label
+                break
     binary = ccbench_build / "cc/silo/ycsb_silo.exe"
     cache = ccbench_build / "CMakeCache.txt"
     trace_disabled = _cmake_cache_equals(cache, "CCBENCH_TRACE", "0")
     return {
         "mode": mode, "success": failure_stage is None and binary.is_file() and trace_disabled,
         "failure_stage": failure_stage, "trace_disabled": trace_disabled, "steps": steps,
+        "condition_gates": (
+            _condition_gate_receipt_summary(condition_gate_family)
+            if condition_gate_family else []
+        ),
+        "_condition_gate_family": condition_gate_family,
         "binary": str(binary), "binary_sha256": _sha256_file(binary) if binary.is_file() else None,
         "cmake_cache_sha256": _sha256_file(cache) if cache.is_file() else None,
     }
+
+
+def _require_condition_gate(
+    source: Path,
+    *,
+    stock_root: Path,
+    configure_args: Sequence[str],
+    cxx: str,
+    cmake: str,
+) -> tuple[
+    condition_meaning_gate.ConditionArmRecord,
+    condition_meaning_gate.ConditionArmRecord,
+    condition_meaning_gate.ConditionFamilyAdmission,
+]:
+    filtered_args = tuple(
+        argument for argument in configure_args
+        if argument != "-DCCBENCH_BACKOFF_FIXED=-1"
+    )
+    captured = condition_meaning_gate.capture_define_inputs(
+        source, stock_root=stock_root, configure_args=filtered_args,
+    )
+    request = condition_meaning_gate.make_define_request(
+        driver_id="tools.pegasus.probes.t316_sandbox_backend_probe",
+        macro="BACKOFF_FIXED",
+        requested_value=-1,
+        default_value=None,
+        stock_comparison=True,
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=None, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected t316 CCBench build: "
+            f"supply={supply.terminal_status}/{supply.reason_code}, "
+            f"meaning={meaning.terminal_status}/{meaning.reason_code}"
+        )
+    return supply, meaning, admission
 
 
 def observe_s6(
@@ -1881,6 +2037,8 @@ def observe_s6(
             deadline_ns, inside=True,
         ) if outside["success"] else {"success": False, "failure_stage": "outside-control"}
     )
+    condition_gate_family = outside.pop("_condition_gate_family", ())
+    inside.pop("_condition_gate_family", None)
     return {
         "attempted": True, "outside_success": outside["success"],
         "inside_success": inside["success"], "success": inside["success"],
@@ -1891,6 +2049,8 @@ def observe_s6(
         ),
         "trace_disabled": outside.get("trace_disabled") is True
         and inside.get("trace_disabled") is True,
+        "condition_gates": outside.get("condition_gates", []),
+        "_condition_gate_family": condition_gate_family,
         "source_identity_valid": source_identity_valid,
         "source_identities": identities, "toolchain": toolchain,
         "outside_build": outside, "inside_build": inside,
@@ -2115,6 +2275,7 @@ def _git_metadata(repo_root: Path) -> dict[str, Any]:
 
 
 _BOUND_RELATIVE_PATHS = (
+    "orchestrator/campaign/condition_meaning_gate.py",
     "tools/pegasus/probes/t316_sandbox_backend_probe.py",
     "tools/pegasus/probes/t316_sandbox_backend_probe.pbs",
     "tools/pegasus/policies/t316_sandbox_backend_v1.json",
@@ -2393,6 +2554,7 @@ def run_probe(
         except Exception as exc:
             observations["S6"] = _blocked_observation("S6 raised", exc)
         verdicts.append(verdict_s6(observations["S6"]))
+        observations["S6"].pop("_condition_gate_family", None)
         persist("S6")
 
         cleanup_integrity = _payload_cleanup_integrity(observations)
@@ -2445,6 +2607,7 @@ def run_probe(
                 "single PBS allocation sample; do not generalize to every gen_S node",
                 "S7 is a repeated elapsed-overhead sample for one trace-disabled stock binary, not TPS or an absolute CC performance claim",
                 "missing external positive controls make their category inconclusive rather than proving containment",
+                "condition gate receipt entries preserve live-validated digests and conclusions, not a reusable production-issuer capability",
             ],
             "r3_1_coverage": _r3_1_coverage(verdicts),
         }

@@ -14,8 +14,9 @@ from typing import Callable, Dict, Mapping, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
 from . import (
-    buildcache, env_attestation, env_contract as _env_contract,
-    execution_guard, ident, source_digest, wal,
+    buildcache, condition_meaning_gate, env_attestation,
+    env_contract as _env_contract, execution_guard, ident, patchharness,
+    source_digest, wal,
 )
 from .build_admission import BuildRunContext
 from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
@@ -36,6 +37,183 @@ class PreparedScreening:
     screening: ScreeningConfig
     execution_receipt: Optional[dict] = None
     verified_calibration: Optional[env_attestation.VerifiedCalibration] = None
+
+
+@dataclass(frozen=True, slots=True)
+class _ScreeningConditionGateRun:
+    supply_records: tuple[condition_meaning_gate.ConditionArmRecord, ...]
+    meaning_records: tuple[condition_meaning_gate.ConditionArmRecord, ...]
+    admission: condition_meaning_gate.ConditionFamilyAdmission
+
+
+_CONDITION_DEFAULTS = {
+    "BACKOFF_FIXED": -1,
+    "BACKOFF_NOINLINE": 0,
+    "BACKOFF_REQUESTED_US": 0,
+    "BACKOFF_TRIGGER_GATING": 0,
+    "SORT_VARIANT": 0,
+    "SS2PL_LOCK_IMPL": 0,
+    "SS2PL_LOCK_KIND": 1,
+    "SS2PL_DLR": 1,
+    "SS2PL_WFG_DIAG": 0,
+    "IZANAGI_BREAK_PERMUTATION": 0,
+    "IZANAGI_BREAK_PERMUTATION_SWAP": 0,
+    "IZANAGI_BREAK_LOCK_COVERAGE": 0,
+    "IZANAGI_BREAK_EARLY_UNLOCK": 0,
+    "IZANAGI_BREAK_NOREAD_VALIDATION": 0,
+    "IZANAGI_BREAK_HIGHKEY_VALIDATION": 0,
+    "IZANAGI_BREAK_WRITE_INTENT_ERASE": 0,
+    "IZANAGI_BREAK_WRITE_INTENT_FORGE": 0,
+    "IZANAGI_BREAK_WRITE_INTENT_OPSWAP": 0,
+    "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP": 0,
+    "IZANAGI_BREAK_TRIGGER_MISATTR": 0,
+    "IZANAGI_SILO_LADDER_RUNG1": 0,
+    "IZANAGI_SILO_LADDER_RUNG1_REPORT": 0,
+}
+
+
+def _condition_requests_for_genome(
+        genome: Genome,
+) -> tuple[condition_meaning_gate.DefineRequest, ...]:
+    """Derive exact gate requests from the Genome passed to the build sink."""
+    if type(genome) is not Genome:
+        raise TypeError("condition gate genome は exact Genome が必要")
+    macros = sorted(set(genome.flags) & set(condition_meaning_gate.DEFINE_SPECS))
+    missing_defaults = set(macros).difference(_CONDITION_DEFAULTS)
+    if missing_defaults:
+        raise RuntimeError(
+            "screening condition default が未宣言: "
+            f"{sorted(missing_defaults)!r}"
+        )
+    requests = []
+    for macro in macros:
+        value = genome.flags[macro]
+        if type(value) is not int:
+            raise TypeError(
+                f"screening Genome の domain macro は exact int が必要: {macro}"
+            )
+        default = _CONDITION_DEFAULTS[macro]
+        spec = condition_meaning_gate.DEFINE_SPECS[macro]
+        stock_comparison = value == default or str(value) in spec.inert_values
+        requests.append(condition_meaning_gate.make_define_request(
+            driver_id="orchestrator/campaign/screening_driver.py:evaluate_candidate",
+            macro=macro,
+            requested_value=value,
+            default_value=default,
+            stock_comparison=stock_comparison,
+        ))
+    return tuple(requests)
+
+
+def _require_requests_match_genome_build_arguments(
+        genome: Genome,
+        requests: tuple[condition_meaning_gate.DefineRequest, ...],
+) -> None:
+    """Reject a gate route/value that the generic Genome build will not use."""
+    configure_args = tuple(genome.cmake_defines())
+    cxx_flag_values = tuple(
+        argument.removeprefix("-DCMAKE_CXX_FLAGS=")
+        for argument in configure_args
+        if argument.startswith("-DCMAKE_CXX_FLAGS=")
+    )
+    for request in requests:
+        required = ((request.macro, str(request.requested_value)), *(
+            (macro, str(value)) for macro, value in request.companion_defines
+        ))
+        for macro, value in required:
+            if request.route == condition_meaning_gate.ROUTE_CMAKE_CACHE:
+                present = f"-DCCBENCH_{macro}={value}" in configure_args
+            elif request.route == condition_meaning_gate.ROUTE_CMAKE_CXX_FLAGS:
+                define = f"-D{macro}={value}"
+                present = any(
+                    define in flags.split() for flags in cxx_flag_values
+                )
+            else:
+                present = False
+            if not present:
+                raise condition_meaning_gate.ConditionMeaningGateError(
+                    "screening-build-route-mismatch",
+                    f"runtime Genome build arguments do not supply {macro}={value} "
+                    f"through {request.route}",
+                )
+
+
+def _condition_gate_base_configure_args(genome: Genome) -> tuple[str, ...]:
+    """Keep real non-domain build inputs; each request supplies its own domain arm."""
+    domain_arguments = {
+        f"-DCCBENCH_{macro}={genome.flags[macro]}"
+        for macro in set(genome.flags) & set(condition_meaning_gate.DEFINE_SPECS)
+    }
+    return tuple(
+        argument for argument in genome.cmake_defines()
+        if argument not in domain_arguments
+    )
+
+
+def _run_condition_gate_for_genome(
+        source_root: str, genome: Genome, *, stock_root: Optional[str],
+        cxx: str, cmake: str,
+) -> Optional[_ScreeningConditionGateRun]:
+    """Evaluate both arms for every domain macro supplied by this Genome."""
+    requests = _condition_requests_for_genome(genome)
+    if not requests:
+        return None
+    _require_requests_match_genome_build_arguments(genome, requests)
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root,
+        stock_root=stock_root,
+        configure_args=_condition_gate_base_configure_args(genome),
+    )
+    supply_records = tuple(
+        condition_meaning_gate.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+        )
+        for request in requests
+    )
+    meaning_records = tuple(
+        condition_meaning_gate.evaluate_define_runtime_meaning(
+            captured, request=request, declaration=None, cxx=cxx,
+        )
+        for request in requests
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class="raw",
+    )
+    if not admission.admitted:
+        reasons = ", ".join(
+            f"{record.macro}:{record.arm}="
+            f"{record.terminal_status}/{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+            if record.terminal_status == "red"
+        )
+        raise condition_meaning_gate.ConditionMeaningGateError(
+            "condition-family-rejected",
+            "screening Genome condition gate rejected before evaluation: " + reasons,
+        )
+    return _ScreeningConditionGateRun(
+        supply_records, meaning_records, admission,
+    )
+
+
+def _require_condition_gate_before_evaluation(
+        source_root: str, ccbench_commit: str, genome: Genome, *,
+        cxx: str, cmake: str,
+) -> Optional[_ScreeningConditionGateRun]:
+    """Provide stock identity when needed, then close the pre-build gate."""
+    requests = _condition_requests_for_genome(genome)
+    if not requests:
+        return None
+    _require_requests_match_genome_build_arguments(genome, requests)
+    if not any(request.stock_comparison for request in requests):
+        return _run_condition_gate_for_genome(
+            source_root, genome, stock_root=None, cxx=cxx, cmake=cmake,
+        )
+    with patchharness.checkout(
+            ccbench_commit, base_dir=source_root,
+    ) as stock_root:
+        return _run_condition_gate_for_genome(
+            source_root, genome, stock_root=stock_root, cxx=cxx, cmake=cmake,
+        )
 
 
 def _default_calibration_dir(env_tag: Optional[str] = None) -> str:
@@ -322,10 +500,12 @@ def evaluate_candidate(
     ), log)
     if expected_toolchain_manifest is None:
         _, resolved_cxx = buildcache.compilers_for_current_site()
+        resolved_cmake = "cmake"
     else:
         _, resolved_cxx = buildcache.toolchain_compilers_from_manifest(
             expected_toolchain_manifest,
         )
+        resolved_cmake = expected_toolchain_manifest["cmake"]["requested"]
     evidence_cxx = (
         buildcache.DEFAULT_CXX
         if resolved_cxx == buildcache.DEFAULT_CXX else resolved_cxx
@@ -357,6 +537,13 @@ def evaluate_candidate(
     extra_correctness = None
     if cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2:
         extra_correctness = [(S2_TAG, s2_correctness_workload())]
+    _require_condition_gate_before_evaluation(
+        evidence.source_root,
+        cfg.ccbench_commit,
+        genome,
+        cxx=resolved_cxx,
+        cmake=resolved_cmake,
+    )
     try:
         evaluate_kwargs = {
             "numactl": numactl,

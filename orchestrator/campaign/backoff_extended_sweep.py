@@ -17,7 +17,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from . import buildcache, ident, p2_2, patchharness, pin, source_digest  # noqa: E402
-from .backoff_sweep import _BASE, _official_durable_root_policy  # noqa: E402
+from .backoff_sweep import (  # noqa: E402
+    _BASE,
+    _official_durable_root_policy,
+    _require_backoff_condition_gate,
+)
 from .build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -302,6 +306,24 @@ def genomes(tag: str) -> list[Genome]:
     return [Genome("silo", flags) for _label, flags in _ordered_points(tag)]
 
 
+def _require_condition_gate_before_measurement(
+        source_root: str, *, stock_root: str, points: list[Genome], cxx: str,
+):
+    """Bind this driver's concrete BACKOFF_FIXED requests to the family gate."""
+    return _require_backoff_condition_gate(
+        source_root,
+        stock_root=stock_root,
+        driver_id="orchestrator/campaign/backoff_extended_sweep.py",
+        macro_values={
+            "BACKOFF_FIXED": tuple(
+                point.flags["BACKOFF_FIXED"] for point in points
+            ),
+        },
+        cxx=cxx,
+        use_class="raw-measurement",
+    )
+
+
 def config_for(tag: str, workload: dict[str, str], *, contract=None) -> CampaignConfig:
     expected = WORKLOAD_BY_TAG.get(tag)
     if workload != expected:
@@ -376,41 +398,50 @@ def run_workload(
     )
     patch_path = os.path.join(_repo_root(), TEMPLATE_PATCH)
     try:
-        with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
-            _assert_backoff_fixed_materialized(ccbench_dir)
-            _prebuild_backoff_binaries(
-                ordered_genomes,
-                contract=contract,
-                cache_root=cache_root,
-                ccbench_dir=ccbench_dir,
-                resolved_cc=resolved_cc,
-                resolved_cxx=resolved_cxx,
-                expected_toolchain_manifest=expected_toolchain_manifest,
-                build_context=build_context,
-                capability_resolver=capability_resolver,
-            )
-            return run_campaign(
-                cfg,
-                ordered_genomes,
-                perf,
-                contract.env_tag,
-                contract.clocks_per_us,
-                numactl=list(contract.numactl),
-                output_root=output_root,
-                log=log,
-                ccbench_dir=ccbench_dir,
-                cache_root=cache_root,
-                authorization_contract=authorization,
-                env_contract=contract,
-                expected_toolchain_manifest=expected_toolchain_manifest,
-                build_context=build_context,
-                declared_use_class="official",
-                capability_resolver=capability_resolver,
-                perf_preflight_receipt_path=str(preflight_receipt_path),
-                durable_root_policy=_official_durable_root_policy(
-                    Path(output_root) if output_root else None,
-                ),
-            )
+        with patchharness.checkout(
+                pin.CURRENT_PIN, base_dir=ccbench_dir,
+        ) as stock_root:
+            with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
+                _assert_backoff_fixed_materialized(ccbench_dir)
+                _require_condition_gate_before_measurement(
+                    ccbench_dir,
+                    stock_root=stock_root,
+                    points=ordered_genomes,
+                    cxx=resolved_cxx,
+                )
+                _prebuild_backoff_binaries(
+                    ordered_genomes,
+                    contract=contract,
+                    cache_root=cache_root,
+                    ccbench_dir=ccbench_dir,
+                    resolved_cc=resolved_cc,
+                    resolved_cxx=resolved_cxx,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                    build_context=build_context,
+                    capability_resolver=capability_resolver,
+                )
+                return run_campaign(
+                    cfg,
+                    ordered_genomes,
+                    perf,
+                    contract.env_tag,
+                    contract.clocks_per_us,
+                    numactl=list(contract.numactl),
+                    output_root=output_root,
+                    log=log,
+                    ccbench_dir=ccbench_dir,
+                    cache_root=cache_root,
+                    authorization_contract=authorization,
+                    env_contract=contract,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                    build_context=build_context,
+                    declared_use_class="official",
+                    capability_resolver=capability_resolver,
+                    perf_preflight_receipt_path=str(preflight_receipt_path),
+                    durable_root_policy=_official_durable_root_policy(
+                        Path(output_root) if output_root else None,
+                    ),
+                )
     except perf_preflight.PerfPreflightError as exc:
         if not preflight_receipt_path.is_file():
             raise
