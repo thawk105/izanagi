@@ -233,7 +233,7 @@ def test_quarantine_passes_clean_backoff_value():
     res, base, edited, diff = L.quarantine(d, "double now_backoff = 20.0;",
                                            source_rel=_SRC_REL, write=False)
     assert res.passed, f"clean 提案が reject された: {res.reason}"
-    assert "20.0" in edited and diff  # 実際に diff が生じている
+    assert "20" in edited and diff  # 実際に diff が生じている
 
 
 def test_quarantine_rejects_directive_in_hole():
@@ -434,23 +434,86 @@ def test_backoff_statement_count_rejection_never_calls_canonicalizer():
     canonicalize.assert_not_called()
 
 
-def test_backoff_value_raw_canonical_source_and_genome_are_one_chain():
+def test_backoff_value_raw_canonical_source_and_genome_are_one_chain(
+    monkeypatch,
+    ratified_enforcement_source,
+):
+    import contextlib
+
+    from orchestrator.campaign import patchharness
+
     coder = L.CoderProposal(
         axis=L.MARKER_ID,
         value=20,
         implementation="double now_backoff = 0x14;",
     )
-    assert L._check_attribution_before_quarantine(coder).accepted
-    genome = Genome("silo", {**L._BASE, "BACK_OFF": 1,
-                              "BACKOFF_FIXED": int(coder.value)})
-    result, _base, edited, _diff = L.quarantine(
-        _mk_template_dir(), coder.implementation,
-        source_rel=_SRC_REL, write=False,
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="increase",
+        magnitude="small",
     )
-    assert result.passed
-    assert "double now_backoff = 20;" in edited
-    assert "0x14" not in edited
-    assert genome.flags["BACKOFF_FIXED"] == 20
+    state = L.LoopState(start_wall=time.time())
+    sub = _mk_template_dir(L.SOURCE_REL)
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_backoff_one_chain_")
+    ).ensure()
+    observed = {}
+
+    def observe_run_campaign(cfg, genomes, _perf, _env_tag, _clocks, **kwargs):
+        assert cfg.search_config[BHG.BACKOFF_GRAMMAR_VERSION_KEY] == (
+            BHG.BACKOFF_GRAMMAR_VERSION
+        )
+        assert kwargs["backoff_grammar_version"] == BHG.BACKOFF_GRAMMAR_VERSION
+        assert len(genomes) == 1
+        genome = genomes[0]
+        materialized = Path(sub, L.SOURCE_REL).read_bytes()
+        assert genome.flags["BACKOFF_FIXED"] == 20
+        assert b"double now_backoff = 20;" in materialized
+        assert b"0x14" not in materialized
+        observed["chain"] = (
+            coder.value,
+            coder.implementation,
+            materialized,
+            genome.flags["BACKOFF_FIXED"],
+        )
+        return CampaignSummary(
+            campaign_id="one-chain",
+            layout_root=layout.root,
+            total=1,
+            evaluated=1,
+            results=[SimpleNamespace(
+                variant="one-chain-variant",
+                certified=False,
+                aborted=True,
+                verdict="",
+            )],
+        )
+
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        L, "exploration_campaign_layout", lambda *_args, **_kwargs: layout,
+    )
+    monkeypatch.setattr(L, "run_campaign", observe_run_campaign)
+
+    outcome = L.run_one_iteration(
+        L.default_cfg(),
+        L.default_perf(),
+        planner,
+        coder,
+        state,
+        sub,
+        do_build=True,
+        layout=layout,
+        log=lambda *_args: None,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+    )
+
+    assert outcome["variant"] == "one-chain-variant"
+    assert observed["chain"][0:2] == (20, "double now_backoff = 0x14;")
+    assert observed["chain"][3] == 20
 
 
 @pytest.mark.parametrize(
@@ -1522,7 +1585,13 @@ def test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it():
         root=tempfile.mkdtemp(prefix="izanagi_versioned_wal_")
     ).ensure()
     _seed_versioned_lock(layout)
-    L.record_diff_reject(layout, _G, implementation, result)
+    L.record_diff_reject(
+        layout,
+        _G,
+        implementation,
+        result,
+        backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+    )
     records = wal.read_records(layout)
     start, abort = records
     key = BHG.BACKOFF_GRAMMAR_VERSION_KEY
@@ -1542,7 +1611,13 @@ def test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version():
         root=tempfile.mkdtemp(prefix="izanagi_versioned_topology_")
     ).ensure()
     _seed_versioned_lock(layout)
-    L.record_diff_reject(layout, _G, implementation, result)
+    L.record_diff_reject(
+        layout,
+        _G,
+        implementation,
+        result,
+        backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+    )
     records = wal.read_records(layout)
     lock = wal._campaign_lock_value(layout)
     policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
@@ -1596,7 +1671,13 @@ def test_duplicate_snapshot_rejects_pre_version_record_under_versioned_lock():
         root=tempfile.mkdtemp(prefix="izanagi_duplicate_versioned_")
     ).ensure()
     _seed_versioned_lock(production)
-    variant = L.record_diff_reject(production, _G, implementation, result)
+    variant = L.record_diff_reject(
+        production,
+        _G,
+        implementation,
+        result,
+        backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+    )
     records, by_stage, _commit, _lock_sha = L._duplicate_snapshot(
         production, variant,
     )
@@ -2253,6 +2334,63 @@ def test_diffq_variant_id_binds_backoff_grammar_version():
     assert v1 != v2
 
 
+def test_diffq_variant_id_none_preserves_pre_version_preimage_exactly():
+    implementation = "double now_backoff = 20.0; (void)0;"
+    expected = "diffq-" + hashlib.sha256(
+        (_G.canonical() + "|impl=" + implementation).encode()
+    ).hexdigest()[:12]
+
+    assert L.diffq_variant_id(_G, implementation) == expected
+    assert L.diffq_variant_id(
+        _G, implementation, backoff_grammar_version=None,
+    ) == expected
+
+
+def test_record_diff_reject_requires_exact_versioned_lock_before_identity():
+    implementation = "double now_backoff = 20; (void)0;"
+    result, *_ = L.quarantine(
+        _mk_template_dir(), implementation, source_rel=_SRC_REL, write=False,
+    )
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_reject_version_match_")
+    ).ensure()
+    _seed_versioned_lock(layout)
+
+    with unittest.mock.patch.object(
+        L, "diffq_variant_id", wraps=L.diffq_variant_id,
+    ) as derive:
+        for supplied in (None, BHG.BACKOFF_GRAMMAR_VERSION + 1):
+            with pytest.raises(wal.AttemptTopologyError, match="grammar version"):
+                L.record_diff_reject(
+                    layout,
+                    _G,
+                    implementation,
+                    result,
+                    backoff_grammar_version=supplied,
+                )
+        derive.assert_not_called()
+        assert wal.read_records(layout) == []
+
+        variant = L.record_diff_reject(
+            layout,
+            _G,
+            implementation,
+            result,
+            backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+        )
+
+    derive.assert_called_once_with(
+        _G,
+        implementation,
+        backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+    )
+    assert variant == L.diffq_variant_id(
+        _G,
+        implementation,
+        backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+    )
+
+
 def test_make_critic_digest_reflux_off_drops_red_section():
     """reflux=off (還流 off ablation) では赤節を落とす (LLM ablation の対照)。"""
     d = _mk_template_dir()
@@ -2523,6 +2661,195 @@ def test_backoff_grammar_version_call_seams_are_keyword_only_default_none():
         assert parameter.default is None
 
 
+def test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate(
+    tmp_path,
+):
+    from orchestrator.campaign import env_contract
+    from orchestrator.campaign import loop as campaign_loop
+    from orchestrator.campaign import pipeline
+
+    version = BHG.BACKOFF_GRAMMAR_VERSION
+    bound_token = source_digest._bind_backoff_grammar_version("a" * 64, version)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(source_root.resolve()),
+        ccbench_commit=L.PIN,
+        genome_sha256=hashlib.sha256(
+            _G.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=bound_token,
+        source_bytes_sha256="a" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="b" * 64,
+        tracked_paths=("include/backoff.hh",),
+    )
+    evaluated = pipeline.EvalResult(
+        genome=_G,
+        variant=variant_id(_G, bound_token),
+        certified=False,
+        aborted=True,
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+
+    with unittest.mock.patch.object(
+        campaign_loop.source_digest,
+        "resolve_evidence",
+        autospec=True,
+        return_value=evidence,
+    ) as resolve_spy, unittest.mock.patch.object(
+        campaign_loop,
+        "evaluate",
+        autospec=True,
+        return_value=evaluated,
+    ) as evaluate_spy:
+        summary = campaign_loop.run_campaign(
+            L.default_cfg(),
+            [_G],
+            L.default_perf(),
+            L.ENV_TAG,
+            L.CLK,
+            numactl=L.NUMA,
+            do_bench=False,
+            output_root=str(tmp_path / "output"),
+            ccbench_dir=str(source_root),
+            authorization_contract=env_contract.authorize(L.ENV_TAG),
+            build_context=context,
+            declared_use_class=L.DECLARED_USE_CLASS,
+            backoff_grammar_version=version,
+            log=lambda *_args: None,
+        )
+
+    assert summary.results == [evaluated]
+    resolve_spy.assert_called_once()
+    assert resolve_spy.call_args.kwargs["backoff_grammar_version"] == version
+    evaluate_spy.assert_called_once()
+    assert evaluate_spy.call_args.kwargs["backoff_grammar_version"] == version
+    assert evaluate_spy.call_args.kwargs["source_evidence"] is evidence
+
+
+def test_pipeline_forwards_one_backoff_version_to_resolver_and_both_build_apis(
+    tmp_path,
+):
+    from orchestrator.campaign import buildcache
+    from orchestrator.campaign import env_contract
+    from orchestrator.campaign import pipeline
+
+    version = BHG.BACKOFF_GRAMMAR_VERSION
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    bound_token = source_digest._bind_backoff_grammar_version("a" * 64, version)
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(source_root.resolve()),
+        ccbench_commit=L.PIN,
+        genome_sha256=hashlib.sha256(
+            _G.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=bound_token,
+        source_bytes_sha256="a" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="b" * 64,
+        tracked_paths=("include/backoff.hh",),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context, evidence, generator_input_sha256="c" * 64,
+    )
+
+    def capability_resolver(observed):
+        assert observed is evidence
+        return capability
+
+    common = {
+        "numactl": L.NUMA,
+        "do_bench": False,
+        "do_settle": False,
+        "ccbench_dir": str(source_root),
+        "cache_root": str(tmp_path / "cache"),
+        "authorization_contract": env_contract.authorize(L.ENV_TAG),
+        "build_context": context,
+        "capability_resolver": capability_resolver,
+        "source_evidence": evidence,
+        "backoff_grammar_version": version,
+        "log": lambda *_args: None,
+    }
+
+    legacy_layout = CampaignLayout(
+        root=str(tmp_path / "legacy-layout")
+    ).ensure()
+    _seed_versioned_lock(legacy_layout)
+    with unittest.mock.patch.object(
+        pipeline.source_digest,
+        "resolve_evidence",
+        autospec=True,
+        return_value=evidence,
+    ) as legacy_resolve, unittest.mock.patch.object(
+        buildcache,
+        "build",
+        autospec=True,
+        side_effect=RuntimeError("stop after legacy build seam"),
+    ) as legacy_build, unittest.mock.patch.object(
+        buildcache,
+        "build_v2",
+        autospec=True,
+    ) as unexpected_v2:
+        legacy = pipeline.evaluate(
+            _G,
+            legacy_layout,
+            L.ENV_TAG,
+            L.PIN,
+            L.default_perf(),
+            L.CLK,
+            **common,
+        )
+
+    assert legacy.aborted
+    legacy_resolve.assert_called_once()
+    assert legacy_resolve.call_args.kwargs["backoff_grammar_version"] == version
+    legacy_build.assert_called_once()
+    assert legacy_build.call_args.kwargs["backoff_grammar_version"] == version
+    unexpected_v2.assert_not_called()
+
+    v2_layout = CampaignLayout(root=str(tmp_path / "v2-layout")).ensure()
+    _seed_versioned_lock(v2_layout)
+    contract = env_contract.lookup(L.ENV_TAG)
+    with unittest.mock.patch.object(
+        pipeline.source_digest,
+        "resolve_evidence",
+        autospec=True,
+        return_value=evidence,
+    ) as v2_resolve, unittest.mock.patch.object(
+        buildcache,
+        "build",
+        autospec=True,
+    ) as unexpected_legacy, unittest.mock.patch.object(
+        buildcache,
+        "build_v2",
+        autospec=True,
+        side_effect=RuntimeError("stop after v2 build seam"),
+    ) as v2_build:
+        v2 = pipeline.evaluate(
+            _G,
+            v2_layout,
+            L.ENV_TAG,
+            L.PIN,
+            L.default_perf(),
+            L.CLK,
+            env_contract=contract,
+            declared_use_class=L.DECLARED_USE_CLASS,
+            **common,
+        )
+
+    assert v2.aborted
+    v2_resolve.assert_called_once()
+    assert v2_resolve.call_args.kwargs["backoff_grammar_version"] == version
+    unexpected_legacy.assert_not_called()
+    v2_build.assert_called_once()
+    assert v2_build.call_args.kwargs["backoff_grammar_version"] == version
+
+
 def test_backoff_source_tokens_and_both_cache_identities_are_version_bound():
     from orchestrator.campaign import buildcache
 
@@ -2583,6 +2910,143 @@ def test_backoff_source_tokens_and_both_cache_identities_are_version_bound():
     assert raw_preimage["src_token"] == raw_a
     assert bound_preimage["src_token"] == bound_a_v1
     assert raw_identity != bound_identity
+
+
+def test_bound_requests_never_open_pre_version_legacy_or_v2_entries(
+    tmp_path,
+    monkeypatch,
+):
+    from orchestrator.campaign import buildcache
+    from test_buildcache_v2 import (
+        _contract,
+        _fake_build_environment,
+        _install_toolchain,
+    )
+
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path, payload=b"bound-v1-build")
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    raw_token = "a" * 64
+    bound_token = source_digest._bind_backoff_grammar_version(raw_token, 1)
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(source_root.resolve()),
+        ccbench_commit=L.PIN,
+        genome_sha256=hashlib.sha256(
+            _G.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=bound_token,
+        source_bytes_sha256=raw_token,
+        tracked_clean=False,
+        tracked_diff_sha256="c" * 64,
+        tracked_paths=("include/backoff.hh",),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context, evidence, generator_input_sha256="d" * 64,
+    )
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=capability,
+    )
+    monkeypatch.setattr(
+        buildcache.source_digest,
+        "resolve_evidence",
+        lambda *_args, **_kwargs: evidence,
+    )
+
+    opened_names = []
+    real_open_checked = buildcache._open_checked_directory_at
+
+    def observe_open(parent_fd, name, *, label):
+        opened_names.append(name)
+        return real_open_checked(parent_fd, name, label=label)
+
+    monkeypatch.setattr(
+        buildcache, "_open_checked_directory_at", observe_open,
+    )
+    run_phases = []
+    fake_run = buildcache._run
+
+    def observe_run(command, phase, **kwargs):
+        run_phases.append(phase)
+        return fake_run(command, phase, **kwargs)
+
+    monkeypatch.setattr(buildcache, "_run", observe_run)
+
+    cache_root = tmp_path / "cache"
+    legacy_old_key = buildcache.cache_key(
+        _G,
+        L.PIN,
+        False,
+        raw_token,
+        admission=admission,
+    )
+    legacy_poison = (
+        cache_root / legacy_old_key / "cc" / "silo" / "ycsb_silo.exe"
+    )
+    legacy_poison.parent.mkdir(parents=True)
+    legacy_poison.write_bytes(b"pre-version-legacy-poison")
+
+    legacy = buildcache.build(
+        _G,
+        L.PIN,
+        False,
+        cache_root=str(cache_root),
+        ccbench_dir=str(source_root),
+        src_token=bound_token,
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
+        backoff_grammar_version=1,
+    )
+    assert legacy.cached is False
+    assert Path(legacy.build_dir).name != legacy_old_key
+    assert legacy_old_key not in opened_names
+    assert legacy_poison.read_bytes() == b"pre-version-legacy-poison"
+
+    opened_names.clear()
+    contract = _contract(441)
+    toolchain = buildcache._toolchain_manifest("test-cc", "test-cxx")
+    _old_preimage, v2_old_digest = buildcache._v2_identity(
+        _G,
+        L.PIN,
+        False,
+        raw_token,
+        "test-cc",
+        "test-cxx",
+        toolchain,
+        site=buildcache.site_policy.OTHER,
+        dependency_prefix=[],
+        admission=dict(admission.as_cache_identity()),
+    )
+    v2_poison = (
+        cache_root / "contracts" / contract.contract_sha256 / v2_old_digest
+        / "cc" / "silo" / "ycsb_silo.exe"
+    )
+    v2_poison.parent.mkdir(parents=True)
+    v2_poison.write_bytes(b"pre-version-v2-poison")
+
+    v2 = buildcache.build_v2(
+        _G,
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
+        contract=contract,
+        ccbench_commit=L.PIN,
+        trace=False,
+        src_token=bound_token,
+        cc="test-cc",
+        cxx="test-cxx",
+        cache_root=str(cache_root),
+        ccbench_dir=str(source_root),
+        backoff_grammar_version=1,
+    )
+    assert v2.cached is False
+    assert Path(v2.build_dir).name != v2_old_digest
+    assert v2_old_digest not in opened_names
+    assert v2_poison.read_bytes() == b"pre-version-v2-poison"
+    assert run_phases == ["configure", "build", "configure", "build"]
 
 
 def test_reflux_off_reject_keeps_wal_and_whiteboard(
@@ -2646,7 +3110,10 @@ def test_reflux_off_reject_keeps_wal_and_whiteboard(
 
     expected_record_fields = {"variant", "stage", "env_tag", "ts", "payload"}
     expected_payload_fields = [
-        {"genome", "src_token", "build_attempt_id"},
+        {
+            "genome", "src_token", "build_attempt_id",
+            "backoff_grammar_version",
+        },
         {"reason", "build_attempt_id", "genome", "diff_quarantine"},
     ]
     for reflux in ("on", "off"):

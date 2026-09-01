@@ -379,36 +379,45 @@ def diffq_variant_id(
     genome: Genome,
     implementation: str,
     *,
-    backoff_grammar_version: int = (
-        backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION
-    ),
+    backoff_grammar_version: Optional[int] = None,
 ) -> str:
     """diff 検疫で reject された variant の WAL キー。build しない (src_token 無し) ため
     pipeline.variant_id は使えない — genome + 提案コードのハッシュで一意化する。"""
-    if type(backoff_grammar_version) is not int or backoff_grammar_version < 1:
+    if (backoff_grammar_version is not None
+            and (type(backoff_grammar_version) is not int
+                 or backoff_grammar_version < 1)):
         raise ValueError(
             "backoff_grammar_version must be an exact positive integer"
         )
     import hashlib
-    h = hashlib.sha256((
-        genome.canonical()
-        + f"|backoff_grammar_version={backoff_grammar_version}"
-        + "|impl=" + implementation
-    ).encode()).hexdigest()[:12]
+    preimage = genome.canonical()
+    if backoff_grammar_version is not None:
+        preimage += f"|backoff_grammar_version={backoff_grammar_version}"
+    h = hashlib.sha256(
+        (preimage + "|impl=" + implementation).encode()
+    ).hexdigest()[:12]
     return f"diffq-{h}"
 
 
 def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: str,
                        res: DiffQuarantineResult, env_tag: str = ENV_TAG, *,
                        trigger_gate_binding=None,
-                       backoff_grammar_version: int = (
-                           backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION
-                       )) -> str:
+                       backoff_grammar_version: Optional[int] = None) -> str:
     """diff 検疫 reject を WAL に BUILD_START→ABORT(reason=diff-quarantine) で焼く。
 
     load_diff_rejections がこの形を読み返し critic に渡す (規律3: 検疫が reject を出した
     だけで消費されない片肺を作らない)。build/verify には到達しないので verify payload も
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
+    lock_grammar_version = wal._declared_backoff_grammar_version(
+        wal._campaign_lock_value(layout)
+    )
+    if (lock_grammar_version is not None
+            or backoff_grammar_version is not None):
+        if (type(backoff_grammar_version) is not int
+                or backoff_grammar_version != lock_grammar_version):
+            raise wal.AttemptTopologyError(
+                "diff reject backoff grammar version が campaign.lock と不一致"
+            )
     v = diffq_variant_id(
         genome,
         implementation,
@@ -1104,13 +1113,10 @@ def _duplicate_snapshot(layout: CampaignLayout, variant: str):
             "duplicate campaign lock changed while reading WAL"
         )
 
-    wal._validate_attempt_topology(
-        records,
-        admission_policy=build_run_context(
-            generator_id=GeneratorId.BACKOFF_SWEEP
-        ).policy,
-        campaign_lock=decoded_lock,
+    wal.validate_backoff_grammar_bindings(
+        records, campaign_lock=decoded_lock,
     )
+    wal.validate_commit_contract_bindings(records, campaign_lock=decoded_lock)
     wal.validate_trigger_bindings(records, campaign_lock=decoded_lock)
     records_by_stage: Dict[str, Dict] = {}
     commit_record = None
