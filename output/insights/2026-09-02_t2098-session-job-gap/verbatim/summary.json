@@ -1,0 +1,2313 @@
+{
+  "auxiliary_coverage_and_signs": {
+    "accounting_by_prefix_fallback": 87,
+    "file_stat_failure_paths": 0,
+    "missing_created_shards": 0,
+    "missing_ended_shards": 0,
+    "missing_login_collection_sessions": 15,
+    "missing_receipt_shards": 92,
+    "missing_report_shards": 155,
+    "missing_request_name_shards": 0,
+    "missing_root_junit_sessions": 73,
+    "missing_shard_junit_shards": 153,
+    "missing_started_shards": 0,
+    "negative_head_offset_including_sessions": 20,
+    "negative_rout_sessions": 0,
+    "negative_rpair_sessions": 0,
+    "path_component_symlink": 0,
+    "queue_wait_timeout_outcome_shards": 18,
+    "receipt_parse_failure_shards": 0,
+    "unavailable_receipt_shards": 92
+  },
+  "d1320_reproduction": {
+    "kind": "falsifiable",
+    "target": {
+      "included_sessions": 549,
+      "inventory_sessions": 568,
+      "median_s": 338,
+      "missing_confirm_or_handled": 18,
+      "missing_dispatch_intents": 1
+    },
+    "with_fallback": {
+      "cutoff_anchor_sources": {
+        "max_available_F_j": 3,
+        "max_available_H_j": 9,
+        "max_j_H_j": 692,
+        "session_directory_mtime_fallback": 35
+      },
+      "cutoff_membership_rule": "Complete-marker sessions use max_j H_j as the inclusive local calendar-date cutoff anchor. For a session where max_j H_j is undefined, this variant falls back to max available H_j, then max available F_j, then session directory mtime. A session still lacking an anchor is retained in every cutoff and reported as unassignable.",
+      "evaluations": [
+        {
+          "cutoff": "2026-08-23",
+          "included_sessions": 0,
+          "inventory_sessions": 10,
+          "median_max_h_minus_matching_f_s": null,
+          "median_max_h_minus_min_f_s": null,
+          "missing_confirm_or_handled": 10,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-24",
+          "included_sessions": 52,
+          "inventory_sessions": 66,
+          "median_max_h_minus_matching_f_s": 331.0,
+          "median_max_h_minus_min_f_s": 332.0,
+          "missing_confirm_or_handled": 14,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-25",
+          "included_sessions": 183,
+          "inventory_sessions": 198,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 333.0,
+          "missing_confirm_or_handled": 14,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-08-26",
+          "included_sessions": 310,
+          "inventory_sessions": 326,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 333.0,
+          "missing_confirm_or_handled": 15,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-08-27",
+          "included_sessions": 397,
+          "inventory_sessions": 415,
+          "median_max_h_minus_matching_f_s": 323.0,
+          "median_max_h_minus_min_f_s": 324.0,
+          "missing_confirm_or_handled": 17,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-08-28",
+          "included_sessions": 516,
+          "inventory_sessions": 540,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 335.0,
+          "missing_confirm_or_handled": 23,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-08-29",
+          "included_sessions": 559,
+          "inventory_sessions": 586,
+          "median_max_h_minus_matching_f_s": 338.0,
+          "median_max_h_minus_min_f_s": 338.0,
+          "missing_confirm_or_handled": 26,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-08-30",
+          "included_sessions": 561,
+          "inventory_sessions": 588,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 335.0,
+          "missing_confirm_or_handled": 26,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-08-31",
+          "included_sessions": 566,
+          "inventory_sessions": 594,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 335.0,
+          "missing_confirm_or_handled": 27,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-09-01",
+          "included_sessions": 656,
+          "inventory_sessions": 688,
+          "median_max_h_minus_matching_f_s": 338.0,
+          "median_max_h_minus_min_f_s": 339.0,
+          "missing_confirm_or_handled": 31,
+          "missing_dispatch_intents": 1
+        },
+        {
+          "cutoff": "2026-09-02",
+          "included_sessions": 692,
+          "inventory_sessions": 739,
+          "median_max_h_minus_matching_f_s": 342.0,
+          "median_max_h_minus_min_f_s": 343.0,
+          "missing_confirm_or_handled": 34,
+          "missing_dispatch_intents": 13
+        }
+      ],
+      "formula_identification": "not_identified",
+      "matching_cutoffs": [],
+      "matching_evaluations": [],
+      "reproduced": false,
+      "status": "fail"
+    },
+    "without_fallback": {
+      "cutoff_anchor_sources": {
+        "max_j_H_j": 692,
+        "unavailable": 47
+      },
+      "cutoff_membership_rule": "Only complete regular-file marker sessions use max_j H_j as the inclusive local calendar-date cutoff anchor. Sessions without that anchor are omitted from cohort counts; no fallback is used.",
+      "evaluations": [
+        {
+          "cutoff": "2026-08-24",
+          "included_sessions": 52,
+          "inventory_sessions": 52,
+          "median_max_h_minus_matching_f_s": 331.0,
+          "median_max_h_minus_min_f_s": 332.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-25",
+          "included_sessions": 183,
+          "inventory_sessions": 183,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 333.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-26",
+          "included_sessions": 310,
+          "inventory_sessions": 310,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 333.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-27",
+          "included_sessions": 397,
+          "inventory_sessions": 397,
+          "median_max_h_minus_matching_f_s": 323.0,
+          "median_max_h_minus_min_f_s": 324.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-28",
+          "included_sessions": 516,
+          "inventory_sessions": 516,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 335.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-29",
+          "included_sessions": 559,
+          "inventory_sessions": 559,
+          "median_max_h_minus_matching_f_s": 338.0,
+          "median_max_h_minus_min_f_s": 338.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-30",
+          "included_sessions": 561,
+          "inventory_sessions": 561,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 335.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-08-31",
+          "included_sessions": 566,
+          "inventory_sessions": 566,
+          "median_max_h_minus_matching_f_s": 333.0,
+          "median_max_h_minus_min_f_s": 335.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-09-01",
+          "included_sessions": 656,
+          "inventory_sessions": 656,
+          "median_max_h_minus_matching_f_s": 338.0,
+          "median_max_h_minus_min_f_s": 339.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        },
+        {
+          "cutoff": "2026-09-02",
+          "included_sessions": 692,
+          "inventory_sessions": 692,
+          "median_max_h_minus_matching_f_s": 342.0,
+          "median_max_h_minus_min_f_s": 343.0,
+          "missing_confirm_or_handled": 0,
+          "missing_dispatch_intents": 0
+        }
+      ],
+      "formula_identification": "not_identified",
+      "matching_cutoffs": [],
+      "matching_evaluations": [],
+      "reproduced": false,
+      "status": "fail"
+    }
+  },
+  "diagnostics": {
+    "elapse_minus_scheduler_displayed_run": {
+      "max": 10.0,
+      "median": 4.0,
+      "min": 1.0,
+      "n": 1740,
+      "p25": 4.0,
+      "p75": 5.0,
+      "p90": 5.0,
+      "unit": "seconds"
+    },
+    "oracle_queue_wait_example": {
+      "interpretation": "The expected approximate contrast is 5.34 seconds versus 208 seconds; they are different quantities.",
+      "receipt_queue_wait_s": 5.3356158129899995,
+      "scheduler_started_minus_created_s": 208.0,
+      "session_id": "00e791819b6e2fd7908f1c2261f35e0a",
+      "shard_index": 0
+    },
+    "receipt_queue_wait_minus_scheduler_queue": {
+      "max": -1.4101003152318299,
+      "median": -2.9912067521363497,
+      "min": -789.7485060198233,
+      "n": 1737,
+      "p25": -14.583355841998127,
+      "p75": -2.6888976329937577,
+      "p90": -1.7655554758384824,
+      "unit": "seconds"
+    }
+  },
+  "estimands": {
+    "Env": "max_j E_j - min_j C_j; scheduler clock",
+    "Jmax": "max_j (E_j - C_j); scheduler clock",
+    "Rout": "S - Env; difference of durations",
+    "Rpair": "S - Jmax; difference of durations",
+    "S": "max_j H_j - min_j F_j; login-node marker clock",
+    "Skew": "Env - Jmax; scheduler durations",
+    "head_offset_including": "min_j C_j - min_j F_j; raw cross-clock value including offset",
+    "tail_offset_including": "max_j H_j - max_j E_j; raw cross-clock value including offset"
+  },
+  "exclusions": {
+    "condition_counters": {
+      "missing_confirm_sessions": 35,
+      "missing_created_sessions": 0,
+      "missing_ended_sessions": 0,
+      "missing_handled_sessions": 47,
+      "shard_count_invalid_sessions": 0
+    },
+    "exclusive_reason_counters": {
+      "accounting_ambiguous": 0,
+      "accounting_missing": 12,
+      "accounting_unparseable": 0,
+      "login_order_invalid": 0,
+      "marker_missing_or_invalid": 34,
+      "missing_created": 0,
+      "missing_dispatch_intents": 13,
+      "missing_ended": 0,
+      "path_component_symlink": 0,
+      "scheduler_order_invalid": 0,
+      "shard_count_invalid": 0,
+      "unreadable_session_directory": 0
+    },
+    "multiple_reason_counters": {
+      "accounting_ambiguous": 0,
+      "accounting_missing": 55,
+      "accounting_unparseable": 0,
+      "login_order_invalid": 0,
+      "marker_missing_or_invalid": 47,
+      "missing_created": 0,
+      "missing_dispatch_intents": 13,
+      "missing_ended": 0,
+      "path_component_symlink": 0,
+      "scheduler_order_invalid": 0,
+      "shard_count_invalid": 0,
+      "unreadable_session_directory": 0
+    },
+    "unit": "sessions"
+  },
+  "independent_checks": [
+    {
+      "interpretation": "This is an algebraic identity, not validation of the estimand or data.",
+      "kind": "identity",
+      "max_absolute_difference_ns": 0,
+      "name": "rpair_equals_rout_plus_skew_at_ns_precision",
+      "nonzero_difference_rows": 0,
+      "rows_checked": 680,
+      "status": "pass"
+    },
+    {
+      "interpretation": "This is also algebraic; head and tail individually include clock offset.",
+      "kind": "identity",
+      "name": "rout_equals_cross_clock_raw_head_plus_tail_at_ns_precision",
+      "nonzero_difference_rows": 0,
+      "rows_checked": 680,
+      "status": "pass"
+    },
+    {
+      "duplicate_or_missing_session_ids": [],
+      "exclusive_excluded_sessions": 59,
+      "inventory_sessions": 739,
+      "kind": "self_consistency",
+      "name": "inventory_partition_and_one_session_row",
+      "primary_included_sessions": 680,
+      "status": "pass"
+    },
+    {
+      "formula_identification": "not_identified",
+      "kind": "falsifiable",
+      "matching_cutoffs": [],
+      "name": "d1320_cohort_reproduction_with_fallback",
+      "reproduced": false,
+      "status": "fail"
+    },
+    {
+      "formula_identification": "not_identified",
+      "kind": "falsifiable",
+      "matching_cutoffs": [],
+      "name": "d1320_cohort_reproduction_without_fallback",
+      "reproduced": false,
+      "status": "fail"
+    },
+    {
+      "kind": "self_consistency",
+      "name": "nqsv_created_started_ended_order",
+      "shards_checked": 1740,
+      "status": "pass",
+      "violation_count": 0,
+      "violations": []
+    },
+    {
+      "difference": {
+        "max": -1.4101003152318299,
+        "median": -2.9912067521363497,
+        "min": -789.7485060198233,
+        "n": 1737,
+        "p25": -14.583355841998127,
+        "p75": -2.6888976329937577,
+        "p90": -1.7655554758384824,
+        "unit": "seconds"
+      },
+      "interpretation": "No equality criterion applies: receipt queue_wait_s measures qsub return to first qstat RUN interpretation, while scheduler Started minus Created is a different quantity.",
+      "kind": "diagnostic",
+      "name": "receipt_queue_wait_minus_scheduler_started_minus_created",
+      "status": "reported"
+    },
+    {
+      "any_overlap_count": 677,
+      "any_overlap_rate": 0.9955882352941177,
+      "exact_set_match_count": 669,
+      "exact_set_match_rate": 0.9838235294117647,
+      "handled_mtime_tie_sessions": 9,
+      "job_span_tie_sessions": 4,
+      "kind": "diagnostic",
+      "name": "job_span_argmax_vs_handled_mtime_argmax",
+      "sessions": 680,
+      "status": "reported"
+    },
+    {
+      "difference": {
+        "max": 10.0,
+        "median": 4.0,
+        "min": 1.0,
+        "n": 1740,
+        "p25": 4.0,
+        "p75": 5.0,
+        "p90": 5.0,
+        "unit": "seconds"
+      },
+      "interpretation": "Elapse is not assumed equal to Ended Request Time minus Started Request Time.",
+      "kind": "diagnostic",
+      "name": "elapse_minus_ended_minus_started",
+      "status": "reported"
+    },
+    {
+      "actual_ns": {
+        "env_ns": 443000000000,
+        "head_offset_including_ns": 0,
+        "jmax_ns": 442000000000,
+        "rout_ns": 14000000000,
+        "rpair_ns": 15000000000,
+        "s_ns": 457000000000,
+        "skew_ns": 1000000000,
+        "tail_offset_including_ns": 14000000000
+      },
+      "expected_ns": {
+        "env_ns": 443000000000,
+        "head_offset_including_ns": 0,
+        "jmax_ns": 442000000000,
+        "rout_ns": 14000000000,
+        "rpair_ns": 15000000000,
+        "s_ns": 457000000000,
+        "skew_ns": 1000000000,
+        "tail_offset_including_ns": 14000000000
+      },
+      "kind": "falsifiable",
+      "mismatches": {},
+      "name": "oracle_session_exact_eight_values",
+      "session_id": "00e791819b6e2fd7908f1c2261f35e0a",
+      "status": "pass"
+    }
+  ],
+  "interpretation_notes": [
+    "The historic 338 second session median minus 263 second job median is an unpaired difference across different units and populations; it is not decomposed here.",
+    "Medians are not additive or subtractive term by term. In this primary complete case, median(S) - median(Jmax) is 12.0 seconds, while median(S - Jmax) is 14.0 seconds. A difference of medians is not a per-session decomposition.",
+    "Rpair = Rout + Skew is checked at nanosecond precision on every primary row, but it is an algebraic identity and not validation.",
+    "head_offset_including and tail_offset_including cross clocks, include offset, can be negative, and are not used for the primary conclusion.",
+    "Ended to handled is not split into polling, artifact collection, or merge because saved observation points do not support that split.",
+    "This inventory contains 739 sessions across 105 primary checkout groups and 2 primary max-handled months. It is a mixed population, not one single acceptance profile.",
+    "The stated 743-session cohort spans multiple checkouts and multiple months, so it cannot be described as one acceptance profile; the same stratification rule is applied to this live inventory count."
+  ],
+  "inventory": {
+    "ended_at_utc": "2026-09-01T22:16:11.981821+00:00",
+    "is_snapshot": false,
+    "primary_excluded_sessions": 59,
+    "primary_included_sessions": 680,
+    "root": "/work/1/SFC/tanab/.izanagi-acceptance-shards",
+    "sessions": 739,
+    "started_at_utc": "2026-09-01T22:15:56.959206+00:00"
+  },
+  "login_collection_marker_comparison": {
+    "all_inventory_sessions": {
+      "indeterminate": 47,
+      "off_path": 692,
+      "on_path_candidate": 0
+    },
+    "definition": "off_path means login-collection.log mtime <= max_j H_j; on_path_candidate means it is later; indeterminate means either marker is unavailable. Both compared markers are written on the login node.",
+    "limitation": "The log mtime is a write after the collection subprocess returns, not the collection end event. Even an off_path classification does not imply that collection did not delay the parent: the parent starts reading worker results only after collection returns.",
+    "primary_sessions": {
+      "indeterminate": 0,
+      "off_path": 680,
+      "on_path_candidate": 0
+    }
+  },
+  "oracle": {
+    "actual_ns": {
+      "env_ns": 443000000000,
+      "head_offset_including_ns": 0,
+      "jmax_ns": 442000000000,
+      "rout_ns": 14000000000,
+      "rpair_ns": 15000000000,
+      "s_ns": 457000000000,
+      "skew_ns": 1000000000,
+      "tail_offset_including_ns": 14000000000
+    },
+    "expected_ns": {
+      "env_ns": 443000000000,
+      "head_offset_including_ns": 0,
+      "jmax_ns": 442000000000,
+      "rout_ns": 14000000000,
+      "rpair_ns": 15000000000,
+      "s_ns": 457000000000,
+      "skew_ns": 1000000000,
+      "tail_offset_including_ns": 14000000000
+    },
+    "kind": "falsifiable",
+    "mismatches": {},
+    "name": "oracle_session_exact_eight_values",
+    "session_id": "00e791819b6e2fd7908f1c2261f35e0a",
+    "status": "pass"
+  },
+  "output_directory": "/home/SFC/tanab/.claude/jobs/c470891f/tmp/t2098/run-parent-v2",
+  "primary_complete_case": {
+    "distributions": {
+      "env": {
+        "max": 3844.0,
+        "median": 328.0,
+        "min": 14.0,
+        "n": 680,
+        "p25": 280.0,
+        "p75": 472.0,
+        "p90": 626.0,
+        "unit": "seconds"
+      },
+      "head_offset_including": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": -2.0,
+        "n": 680,
+        "p25": 0.0,
+        "p75": 0.0,
+        "p90": 0.0,
+        "unit": "seconds"
+      },
+      "jmax": {
+        "max": 3844.0,
+        "median": 327.0,
+        "min": 12.0,
+        "n": 680,
+        "p25": 279.0,
+        "p75": 472.0,
+        "p90": 626.0,
+        "unit": "seconds"
+      },
+      "rout": {
+        "max": 66.0,
+        "median": 13.0,
+        "min": 8.0,
+        "n": 680,
+        "p25": 11.0,
+        "p75": 14.0,
+        "p90": 15.0,
+        "unit": "seconds"
+      },
+      "rpair": {
+        "max": 67.0,
+        "median": 14.0,
+        "min": 9.0,
+        "n": 680,
+        "p25": 12.0,
+        "p75": 15.0,
+        "p90": 16.0,
+        "unit": "seconds"
+      },
+      "s": {
+        "max": 3909.0,
+        "median": 339.0,
+        "min": 25.0,
+        "n": 680,
+        "p25": 292.0,
+        "p75": 486.0,
+        "p90": 640.0,
+        "unit": "seconds"
+      },
+      "skew": {
+        "max": 6.0,
+        "median": 1.0,
+        "min": 0.0,
+        "n": 680,
+        "p25": 0.0,
+        "p75": 2.0,
+        "p90": 3.0,
+        "unit": "seconds"
+      },
+      "tail_offset_including": {
+        "max": 66.0,
+        "median": 13.0,
+        "min": 8.0,
+        "n": 680,
+        "p25": 11.0,
+        "p75": 14.0,
+        "p90": 15.0,
+        "unit": "seconds"
+      }
+    },
+    "median_differences_seconds": {
+      "median_rpair": 14.0,
+      "median_s_minus_median_jmax": 12.0,
+      "median_s_minus_median_jmax_equals_median_rpair": false,
+      "median_s_minus_median_pooled_shard_job_span": 80.0
+    },
+    "pooled_shard_job_span": {
+      "max": 3844.0,
+      "median": 259.0,
+      "min": 11.0,
+      "n": 1720,
+      "p25": 171.0,
+      "p75": 341.0,
+      "p90": 516.0,
+      "unit": "seconds"
+    },
+    "warning": "This is a complete-case distribution. Long sessions can be preferentially absent when timeouts, qdel, shared deadlines, or late accounting leave required markers or C/E missing."
+  },
+  "quantiles": {
+    "definition": "For p in (0,1], select sorted value at one-based rank ceil(p*n).",
+    "method": "nearest-rank"
+  },
+  "scheduler_time": {
+    "assumption": "Timezone-less NQSV accounting timestamps are interpreted as Asia/Tokyo only when the requested scheduler timezone is Asia/Tokyo; the configured name is recorded here.",
+    "input_resolution_seconds": 1,
+    "timezone": "Asia/Tokyo"
+  },
+  "schema_version": 1,
+  "status": "ok",
+  "stratification": {
+    "by_checkout_top_10_and_other": {
+      "groups": {
+        "24014bdb259d971571f22b54a8f10a49352b825f": {
+          "distributions": {
+            "env": {
+              "max": 3616.0,
+              "median": 290.0,
+              "min": 238.0,
+              "n": 17,
+              "p25": 261.0,
+              "p75": 379.0,
+              "p90": 615.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 17,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 3613.0,
+              "median": 289.0,
+              "min": 238.0,
+              "n": 17,
+              "p25": 260.0,
+              "p75": 379.0,
+              "p90": 615.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 15.0,
+              "median": 13.0,
+              "min": 10.0,
+              "n": 17,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 17.0,
+              "median": 14.0,
+              "min": 10.0,
+              "n": 17,
+              "p25": 13.0,
+              "p75": 15.0,
+              "p90": 17.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 3629.0,
+              "median": 303.0,
+              "min": 251.0,
+              "n": 17,
+              "p25": 273.0,
+              "p75": 390.0,
+              "p90": 626.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 17,
+              "p25": 0.0,
+              "p75": 2.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 15.0,
+              "median": 13.0,
+              "min": 10.0,
+              "n": 17,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 17
+        },
+        "44ff4390504dd72b882bdb90ac80aee6d49fa5d1": {
+          "distributions": {
+            "env": {
+              "max": 1100.0,
+              "median": 645.0,
+              "min": 321.0,
+              "n": 7,
+              "p25": 558.0,
+              "p75": 690.0,
+              "p90": 1100.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 7,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 1100.0,
+              "median": 644.0,
+              "min": 321.0,
+              "n": 7,
+              "p25": 558.0,
+              "p75": 690.0,
+              "p90": 1100.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 18.0,
+              "median": 13.0,
+              "min": 10.0,
+              "n": 7,
+              "p25": 12.0,
+              "p75": 14.0,
+              "p90": 18.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 20.0,
+              "median": 14.0,
+              "min": 10.0,
+              "n": 7,
+              "p25": 12.0,
+              "p75": 15.0,
+              "p90": 20.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 1112.0,
+              "median": 659.0,
+              "min": 331.0,
+              "n": 7,
+              "p25": 571.0,
+              "p75": 704.0,
+              "p90": 1112.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 2.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 7,
+              "p25": 0.0,
+              "p75": 1.0,
+              "p90": 2.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 18.0,
+              "median": 13.0,
+              "min": 10.0,
+              "n": 7,
+              "p25": 12.0,
+              "p75": 14.0,
+              "p90": 18.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 7
+        },
+        "5361bf943bf5482100875f2927efa72af69f006d": {
+          "distributions": {
+            "env": {
+              "max": 779.0,
+              "median": 361.0,
+              "min": 239.0,
+              "n": 6,
+              "p25": 241.0,
+              "p75": 692.0,
+              "p90": 779.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": -1.0,
+              "n": 6,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 776.0,
+              "median": 358.0,
+              "min": 239.0,
+              "n": 6,
+              "p25": 241.0,
+              "p75": 690.0,
+              "p90": 776.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 15.0,
+              "median": 11.0,
+              "min": 11.0,
+              "n": 6,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 18.0,
+              "median": 14.0,
+              "min": 11.0,
+              "n": 6,
+              "p25": 14.0,
+              "p75": 15.0,
+              "p90": 18.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 790.0,
+              "median": 376.0,
+              "min": 250.0,
+              "n": 6,
+              "p25": 255.0,
+              "p75": 705.0,
+              "p90": 790.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 2.0,
+              "min": 0.0,
+              "n": 6,
+              "p25": 0.0,
+              "p75": 3.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 15.0,
+              "median": 12.0,
+              "min": 11.0,
+              "n": 6,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 6
+        },
+        "5f0803010fc19c47fdda6e3e3d599b84324b21cf": {
+          "distributions": {
+            "env": {
+              "max": 702.0,
+              "median": 293.0,
+              "min": 268.0,
+              "n": 6,
+              "p25": 273.0,
+              "p75": 411.0,
+              "p90": 702.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 6,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 699.0,
+              "median": 292.0,
+              "min": 266.0,
+              "n": 6,
+              "p25": 272.0,
+              "p75": 411.0,
+              "p90": 699.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 15.0,
+              "median": 14.0,
+              "min": 13.0,
+              "n": 6,
+              "p25": 14.0,
+              "p75": 15.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 18.0,
+              "median": 15.0,
+              "min": 13.0,
+              "n": 6,
+              "p25": 15.0,
+              "p75": 17.0,
+              "p90": 18.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 717.0,
+              "median": 307.0,
+              "min": 283.0,
+              "n": 6,
+              "p25": 287.0,
+              "p75": 424.0,
+              "p90": 717.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 6,
+              "p25": 1.0,
+              "p75": 2.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 15.0,
+              "median": 14.0,
+              "min": 13.0,
+              "n": 6,
+              "p25": 14.0,
+              "p75": 15.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 6
+        },
+        "73a437e67655034d0b5369474fb38f06fefb9ca4": {
+          "distributions": {
+            "env": {
+              "max": 635.0,
+              "median": 260.0,
+              "min": 247.0,
+              "n": 6,
+              "p25": 255.0,
+              "p75": 472.0,
+              "p90": 635.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": -1.0,
+              "n": 6,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 633.0,
+              "median": 259.0,
+              "min": 245.0,
+              "n": 6,
+              "p25": 252.0,
+              "p75": 471.0,
+              "p90": 633.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 15.0,
+              "median": 14.0,
+              "min": 12.0,
+              "n": 6,
+              "p25": 13.0,
+              "p75": 15.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 17.0,
+              "median": 15.0,
+              "min": 13.0,
+              "n": 6,
+              "p25": 15.0,
+              "p75": 16.0,
+              "p90": 17.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 649.0,
+              "median": 272.0,
+              "min": 262.0,
+              "n": 6,
+              "p25": 268.0,
+              "p75": 486.0,
+              "p90": 649.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 6,
+              "p25": 1.0,
+              "p75": 2.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 15.0,
+              "median": 14.0,
+              "min": 12.0,
+              "n": 6,
+              "p25": 13.0,
+              "p75": 15.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 6
+        },
+        "7d9a4cc64e3707ecde4a6e79a2f119ea5dddf74e": {
+          "distributions": {
+            "env": {
+              "max": 766.0,
+              "median": 317.0,
+              "min": 243.0,
+              "n": 8,
+              "p25": 247.0,
+              "p75": 504.0,
+              "p90": 766.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 8,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 765.0,
+              "median": 317.0,
+              "min": 241.0,
+              "n": 8,
+              "p25": 245.0,
+              "p75": 502.0,
+              "p90": 765.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 16.0,
+              "median": 14.0,
+              "min": 11.0,
+              "n": 8,
+              "p25": 13.0,
+              "p75": 15.0,
+              "p90": 16.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 18.0,
+              "median": 15.0,
+              "min": 12.0,
+              "n": 8,
+              "p25": 13.0,
+              "p75": 17.0,
+              "p90": 18.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 779.0,
+              "median": 331.0,
+              "min": 258.0,
+              "n": 8,
+              "p25": 263.0,
+              "p75": 519.0,
+              "p90": 779.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 2.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 8,
+              "p25": 1.0,
+              "p75": 2.0,
+              "p90": 2.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 16.0,
+              "median": 14.0,
+              "min": 11.0,
+              "n": 8,
+              "p25": 13.0,
+              "p75": 15.0,
+              "p90": 16.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 8
+        },
+        "9aea380461e92d70ffa54dee4389a6b7ca64e00c": {
+          "distributions": {
+            "env": {
+              "max": 282.0,
+              "median": 15.0,
+              "min": 14.0,
+              "n": 10,
+              "p25": 14.0,
+              "p75": 19.0,
+              "p90": 233.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 10,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 279.0,
+              "median": 14.0,
+              "min": 12.0,
+              "n": 10,
+              "p25": 13.0,
+              "p75": 17.0,
+              "p90": 232.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 14.0,
+              "median": 11.0,
+              "min": 8.0,
+              "n": 10,
+              "p25": 10.0,
+              "p75": 12.0,
+              "p90": 12.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 15.0,
+              "median": 12.0,
+              "min": 9.0,
+              "n": 10,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 294.0,
+              "median": 26.0,
+              "min": 25.0,
+              "n": 10,
+              "p25": 26.0,
+              "p75": 31.0,
+              "p90": 247.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 2.0,
+              "min": 0.0,
+              "n": 10,
+              "p25": 1.0,
+              "p75": 2.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 14.0,
+              "median": 11.0,
+              "min": 8.0,
+              "n": 10,
+              "p25": 10.0,
+              "p75": 12.0,
+              "p90": 12.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 10
+        },
+        "9ca1de05de146f93f62ca4de5d77974bd66f63c5": {
+          "distributions": {
+            "env": {
+              "max": 625.0,
+              "median": 529.0,
+              "min": 432.0,
+              "n": 7,
+              "p25": 490.0,
+              "p75": 586.0,
+              "p90": 625.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 7,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 625.0,
+              "median": 528.0,
+              "min": 431.0,
+              "n": 7,
+              "p25": 489.0,
+              "p75": 583.0,
+              "p90": 625.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 14.0,
+              "median": 13.0,
+              "min": 11.0,
+              "n": 7,
+              "p25": 13.0,
+              "p75": 13.0,
+              "p90": 14.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 17.0,
+              "median": 14.0,
+              "min": 12.0,
+              "n": 7,
+              "p25": 13.0,
+              "p75": 16.0,
+              "p90": 17.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 638.0,
+              "median": 542.0,
+              "min": 445.0,
+              "n": 7,
+              "p25": 501.0,
+              "p75": 600.0,
+              "p90": 638.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 7,
+              "p25": 0.0,
+              "p75": 3.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 14.0,
+              "median": 13.0,
+              "min": 11.0,
+              "n": 7,
+              "p25": 13.0,
+              "p75": 13.0,
+              "p90": 14.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 7
+        },
+        "<missing>": {
+          "distributions": {
+            "env": {
+              "max": 3615.0,
+              "median": 317.0,
+              "min": 191.0,
+              "n": 390,
+              "p25": 282.0,
+              "p75": 428.0,
+              "p90": 573.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": -2.0,
+              "n": 390,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 3614.0,
+              "median": 316.0,
+              "min": 190.0,
+              "n": 390,
+              "p25": 282.0,
+              "p75": 427.0,
+              "p90": 571.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 66.0,
+              "median": 13.0,
+              "min": 9.0,
+              "n": 390,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 67.0,
+              "median": 14.0,
+              "min": 9.0,
+              "n": 390,
+              "p25": 12.0,
+              "p75": 15.0,
+              "p90": 16.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 3681.0,
+              "median": 329.0,
+              "min": 202.0,
+              "n": 390,
+              "p25": 296.0,
+              "p75": 440.0,
+              "p90": 585.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 6.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 390,
+              "p25": 0.0,
+              "p75": 1.0,
+              "p90": 2.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 66.0,
+              "median": 13.0,
+              "min": 9.0,
+              "n": 390,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 390
+        },
+        "<other>": {
+          "distributions": {
+            "env": {
+              "max": 3844.0,
+              "median": 372.0,
+              "min": 218.0,
+              "n": 204,
+              "p25": 273.0,
+              "p75": 511.0,
+              "p90": 681.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": -1.0,
+              "n": 204,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 3844.0,
+              "median": 370.0,
+              "min": 218.0,
+              "n": 204,
+              "p25": 273.0,
+              "p75": 509.0,
+              "p90": 679.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 65.0,
+              "median": 13.0,
+              "min": 10.0,
+              "n": 204,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 65.0,
+              "median": 14.0,
+              "min": 10.0,
+              "n": 204,
+              "p25": 13.0,
+              "p75": 15.0,
+              "p90": 17.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 3909.0,
+              "median": 386.0,
+              "min": 230.0,
+              "n": 204,
+              "p25": 287.0,
+              "p75": 522.0,
+              "p90": 695.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 4.0,
+              "median": 2.0,
+              "min": 0.0,
+              "n": 204,
+              "p25": 0.0,
+              "p75": 3.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 65.0,
+              "median": 13.0,
+              "min": 10.0,
+              "n": 204,
+              "p25": 11.0,
+              "p75": 14.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 204
+        },
+        "dbdacb666ccec0341fd5108e1aa12d7381bdcd52": {
+          "distributions": {
+            "env": {
+              "max": 905.0,
+              "median": 416.0,
+              "min": 237.0,
+              "n": 11,
+              "p25": 280.0,
+              "p75": 472.0,
+              "p90": 482.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 11,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 905.0,
+              "median": 413.0,
+              "min": 235.0,
+              "n": 11,
+              "p25": 277.0,
+              "p75": 472.0,
+              "p90": 479.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 12.0,
+              "median": 11.0,
+              "min": 10.0,
+              "n": 11,
+              "p25": 10.0,
+              "p75": 12.0,
+              "p90": 12.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 15.0,
+              "median": 13.0,
+              "min": 10.0,
+              "n": 11,
+              "p25": 11.0,
+              "p75": 15.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 917.0,
+              "median": 428.0,
+              "min": 248.0,
+              "n": 11,
+              "p25": 290.0,
+              "p75": 482.0,
+              "p90": 494.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 11,
+              "p25": 0.0,
+              "p75": 3.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 12.0,
+              "median": 11.0,
+              "min": 10.0,
+              "n": 11,
+              "p25": 10.0,
+              "p75": 12.0,
+              "p90": 12.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 11
+        },
+        "dd5fddf04e7d876cee9ff9a87849cdf60d07080b": {
+          "distributions": {
+            "env": {
+              "max": 571.0,
+              "median": 310.0,
+              "min": 288.0,
+              "n": 8,
+              "p25": 292.0,
+              "p75": 448.0,
+              "p90": 571.0,
+              "unit": "seconds"
+            },
+            "head_offset_including": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0,
+              "n": 8,
+              "p25": 0.0,
+              "p75": 0.0,
+              "p90": 0.0,
+              "unit": "seconds"
+            },
+            "jmax": {
+              "max": 571.0,
+              "median": 309.0,
+              "min": 285.0,
+              "n": 8,
+              "p25": 290.0,
+              "p75": 447.0,
+              "p90": 571.0,
+              "unit": "seconds"
+            },
+            "rout": {
+              "max": 14.0,
+              "median": 12.0,
+              "min": 11.0,
+              "n": 8,
+              "p25": 11.0,
+              "p75": 13.0,
+              "p90": 14.0,
+              "unit": "seconds"
+            },
+            "rpair": {
+              "max": 15.0,
+              "median": 14.0,
+              "min": 11.0,
+              "n": 8,
+              "p25": 13.0,
+              "p75": 15.0,
+              "p90": 15.0,
+              "unit": "seconds"
+            },
+            "s": {
+              "max": 584.0,
+              "median": 324.0,
+              "min": 300.0,
+              "n": 8,
+              "p25": 304.0,
+              "p75": 462.0,
+              "p90": 584.0,
+              "unit": "seconds"
+            },
+            "skew": {
+              "max": 3.0,
+              "median": 1.0,
+              "min": 0.0,
+              "n": 8,
+              "p25": 0.0,
+              "p75": 2.0,
+              "p90": 3.0,
+              "unit": "seconds"
+            },
+            "tail_offset_including": {
+              "max": 14.0,
+              "median": 12.0,
+              "min": 11.0,
+              "n": 8,
+              "p25": 11.0,
+              "p75": 13.0,
+              "p90": 14.0,
+              "unit": "seconds"
+            }
+          },
+          "sessions": 8
+        }
+      },
+      "top_10_checkout_values": [
+        "24014bdb259d971571f22b54a8f10a49352b825f",
+        "dbdacb666ccec0341fd5108e1aa12d7381bdcd52",
+        "9aea380461e92d70ffa54dee4389a6b7ca64e00c",
+        "7d9a4cc64e3707ecde4a6e79a2f119ea5dddf74e",
+        "dd5fddf04e7d876cee9ff9a87849cdf60d07080b",
+        "44ff4390504dd72b882bdb90ac80aee6d49fa5d1",
+        "9ca1de05de146f93f62ca4de5d77974bd66f63c5",
+        "5361bf943bf5482100875f2927efa72af69f006d",
+        "5f0803010fc19c47fdda6e3e3d599b84324b21cf",
+        "73a437e67655034d0b5369474fb38f06fefb9ca4"
+      ]
+    },
+    "by_k": {
+      "2": {
+        "distributions": {
+          "env": {
+            "max": 3615.0,
+            "median": 321.0,
+            "min": 244.0,
+            "n": 320,
+            "p25": 288.0,
+            "p75": 424.0,
+            "p90": 564.0,
+            "unit": "seconds"
+          },
+          "head_offset_including": {
+            "max": 0.0,
+            "median": 0.0,
+            "min": -2.0,
+            "n": 320,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0,
+            "unit": "seconds"
+          },
+          "jmax": {
+            "max": 3614.0,
+            "median": 319.0,
+            "min": 244.0,
+            "n": 320,
+            "p25": 287.0,
+            "p75": 422.0,
+            "p90": 563.0,
+            "unit": "seconds"
+          },
+          "rout": {
+            "max": 66.0,
+            "median": 13.0,
+            "min": 9.0,
+            "n": 320,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          },
+          "rpair": {
+            "max": 67.0,
+            "median": 13.0,
+            "min": 9.0,
+            "n": 320,
+            "p25": 12.0,
+            "p75": 15.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          },
+          "s": {
+            "max": 3681.0,
+            "median": 333.0,
+            "min": 256.0,
+            "n": 320,
+            "p25": 301.0,
+            "p75": 437.0,
+            "p90": 578.0,
+            "unit": "seconds"
+          },
+          "skew": {
+            "max": 4.0,
+            "median": 0.0,
+            "min": 0.0,
+            "n": 320,
+            "p25": 0.0,
+            "p75": 1.0,
+            "p90": 2.0,
+            "unit": "seconds"
+          },
+          "tail_offset_including": {
+            "max": 66.0,
+            "median": 13.0,
+            "min": 9.0,
+            "n": 320,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          }
+        },
+        "sessions": 320
+      },
+      "3": {
+        "distributions": {
+          "env": {
+            "max": 3844.0,
+            "median": 343.0,
+            "min": 14.0,
+            "n": 360,
+            "p25": 263.0,
+            "p75": 509.0,
+            "p90": 672.0,
+            "unit": "seconds"
+          },
+          "head_offset_including": {
+            "max": 0.0,
+            "median": 0.0,
+            "min": -2.0,
+            "n": 360,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0,
+            "unit": "seconds"
+          },
+          "jmax": {
+            "max": 3844.0,
+            "median": 342.0,
+            "min": 12.0,
+            "n": 360,
+            "p25": 261.0,
+            "p75": 509.0,
+            "p90": 671.0,
+            "unit": "seconds"
+          },
+          "rout": {
+            "max": 65.0,
+            "median": 13.0,
+            "min": 8.0,
+            "n": 360,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          },
+          "rpair": {
+            "max": 65.0,
+            "median": 14.0,
+            "min": 9.0,
+            "n": 360,
+            "p25": 13.0,
+            "p75": 15.0,
+            "p90": 17.0,
+            "unit": "seconds"
+          },
+          "s": {
+            "max": 3909.0,
+            "median": 356.0,
+            "min": 25.0,
+            "n": 360,
+            "p25": 276.0,
+            "p75": 521.0,
+            "p90": 685.0,
+            "unit": "seconds"
+          },
+          "skew": {
+            "max": 6.0,
+            "median": 2.0,
+            "min": 0.0,
+            "n": 360,
+            "p25": 0.0,
+            "p75": 3.0,
+            "p90": 3.0,
+            "unit": "seconds"
+          },
+          "tail_offset_including": {
+            "max": 65.0,
+            "median": 13.0,
+            "min": 8.0,
+            "n": 360,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          }
+        },
+        "sessions": 360
+      }
+    },
+    "by_max_handled_month": {
+      "2026-08": {
+        "distributions": {
+          "env": {
+            "max": 3615.0,
+            "median": 322.0,
+            "min": 14.0,
+            "n": 558,
+            "p25": 280.0,
+            "p75": 479.0,
+            "p90": 622.0,
+            "unit": "seconds"
+          },
+          "head_offset_including": {
+            "max": 0.0,
+            "median": 0.0,
+            "min": -2.0,
+            "n": 558,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0,
+            "unit": "seconds"
+          },
+          "jmax": {
+            "max": 3614.0,
+            "median": 321.0,
+            "min": 12.0,
+            "n": 558,
+            "p25": 280.0,
+            "p75": 479.0,
+            "p90": 619.0,
+            "unit": "seconds"
+          },
+          "rout": {
+            "max": 66.0,
+            "median": 13.0,
+            "min": 8.0,
+            "n": 558,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          },
+          "rpair": {
+            "max": 67.0,
+            "median": 14.0,
+            "min": 9.0,
+            "n": 558,
+            "p25": 12.0,
+            "p75": 15.0,
+            "p90": 16.0,
+            "unit": "seconds"
+          },
+          "s": {
+            "max": 3681.0,
+            "median": 334.0,
+            "min": 25.0,
+            "n": 558,
+            "p25": 292.0,
+            "p75": 491.0,
+            "p90": 633.0,
+            "unit": "seconds"
+          },
+          "skew": {
+            "max": 6.0,
+            "median": 1.0,
+            "min": 0.0,
+            "n": 558,
+            "p25": 0.0,
+            "p75": 2.0,
+            "p90": 3.0,
+            "unit": "seconds"
+          },
+          "tail_offset_including": {
+            "max": 66.0,
+            "median": 13.0,
+            "min": 8.0,
+            "n": 558,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          }
+        },
+        "sessions": 558
+      },
+      "2026-09": {
+        "distributions": {
+          "env": {
+            "max": 3844.0,
+            "median": 354.0,
+            "min": 220.0,
+            "n": 122,
+            "p25": 278.0,
+            "p75": 462.0,
+            "p90": 677.0,
+            "unit": "seconds"
+          },
+          "head_offset_including": {
+            "max": 0.0,
+            "median": 0.0,
+            "min": -1.0,
+            "n": 122,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0,
+            "unit": "seconds"
+          },
+          "jmax": {
+            "max": 3844.0,
+            "median": 354.0,
+            "min": 218.0,
+            "n": 122,
+            "p25": 277.0,
+            "p75": 459.0,
+            "p90": 676.0,
+            "unit": "seconds"
+          },
+          "rout": {
+            "max": 65.0,
+            "median": 12.0,
+            "min": 10.0,
+            "n": 122,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          },
+          "rpair": {
+            "max": 65.0,
+            "median": 14.0,
+            "min": 10.0,
+            "n": 122,
+            "p25": 13.0,
+            "p75": 15.0,
+            "p90": 17.0,
+            "unit": "seconds"
+          },
+          "s": {
+            "max": 3909.0,
+            "median": 369.0,
+            "min": 233.0,
+            "n": 122,
+            "p25": 289.0,
+            "p75": 474.0,
+            "p90": 689.0,
+            "unit": "seconds"
+          },
+          "skew": {
+            "max": 4.0,
+            "median": 1.0,
+            "min": 0.0,
+            "n": 122,
+            "p25": 0.0,
+            "p75": 3.0,
+            "p90": 3.0,
+            "unit": "seconds"
+          },
+          "tail_offset_including": {
+            "max": 65.0,
+            "median": 13.0,
+            "min": 10.0,
+            "n": 122,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 15.0,
+            "unit": "seconds"
+          }
+        },
+        "sessions": 122
+      }
+    },
+    "shards_by_receipt_outcome_kind_reason": {
+      "all_inventory_sessions": {
+        "<receipt-missing>": {
+          "job_created_to_ended": {
+            "max": 521.0,
+            "median": 155.0,
+            "min": 155.0,
+            "n": 2,
+            "p25": 155.0,
+            "p75": 521.0,
+            "p90": 521.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "n": 0,
+            "unit": "seconds"
+          },
+          "sessions": 37,
+          "shards": 92
+        },
+        "child/<missing-reason>": {
+          "job_created_to_ended": {
+            "max": 3614.0,
+            "median": 260.0,
+            "min": 11.0,
+            "n": 1705,
+            "p25": 173.0,
+            "p75": 342.0,
+            "p90": 517.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 1224.163416611962,
+            "median": 5.237986742999055,
+            "min": 0.10756498202681541,
+            "n": 1705,
+            "p25": 5.2271116599440575,
+            "p75": 5.2755188349983655,
+            "p90": 36.01717494055629,
+            "unit": "seconds"
+          },
+          "sessions": 685,
+          "shards": 1705
+        },
+        "infra/DispatchError: cannot write runner binding report": {
+          "job_created_to_ended": {
+            "max": 676.0,
+            "median": 336.0,
+            "min": 270.0,
+            "n": 5,
+            "p25": 272.0,
+            "p75": 403.0,
+            "p90": 676.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 5.257244995998917,
+            "median": 5.237045255998964,
+            "min": 5.165454478003085,
+            "n": 5,
+            "p25": 5.2098822100088,
+            "p75": 5.250648139990517,
+            "p90": 5.257244995998917,
+            "unit": "seconds"
+          },
+          "sessions": 2,
+          "shards": 5
+        },
+        "infra/DispatchError: queue-wait-timeout": {
+          "job_created_to_ended": {
+            "n": 0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "n": 0,
+            "unit": "seconds"
+          },
+          "sessions": 18,
+          "shards": 18
+        },
+        "infra/DispatchError: result/log/accounting-grace-expired": {
+          "job_created_to_ended": {
+            "max": 3844.0,
+            "median": 3614.0,
+            "min": 3614.0,
+            "n": 2,
+            "p25": 3614.0,
+            "p75": 3844.0,
+            "p90": 3844.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 5.255665428005159,
+            "median": 5.224394485820085,
+            "min": 5.224394485820085,
+            "n": 2,
+            "p25": 5.224394485820085,
+            "p75": 5.255665428005159,
+            "p90": 5.255665428005159,
+            "unit": "seconds"
+          },
+          "sessions": 2,
+          "shards": 2
+        },
+        "infra/_SignalAbort: signal 15": {
+          "job_created_to_ended": {
+            "max": 1183.0,
+            "median": 15.0,
+            "min": 11.0,
+            "n": 26,
+            "p25": 12.0,
+            "p75": 234.0,
+            "p90": 977.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 811.2702511050738,
+            "median": 5.242875097785145,
+            "min": 5.205055440994329,
+            "n": 25,
+            "p25": 5.2302157250232995,
+            "p75": 5.259367261081934,
+            "p90": 383.23991178395227,
+            "unit": "seconds"
+          },
+          "sessions": 28,
+          "shards": 55
+        }
+      },
+      "excluded_sessions": {
+        "<receipt-missing>": {
+          "job_created_to_ended": {
+            "max": 521.0,
+            "median": 155.0,
+            "min": 155.0,
+            "n": 2,
+            "p25": 155.0,
+            "p75": 521.0,
+            "p90": 521.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "n": 0,
+            "unit": "seconds"
+          },
+          "sessions": 37,
+          "shards": 92
+        },
+        "child/<missing-reason>": {
+          "job_created_to_ended": {
+            "max": 783.0,
+            "median": 259.0,
+            "min": 21.0,
+            "n": 8,
+            "p25": 168.0,
+            "p75": 593.0,
+            "p90": 783.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 270.40455507673323,
+            "median": 5.288196092005819,
+            "min": 5.207509741187096,
+            "n": 8,
+            "p25": 5.230797300115228,
+            "p75": 112.67352159088477,
+            "p90": 270.40455507673323,
+            "unit": "seconds"
+          },
+          "sessions": 6,
+          "shards": 8
+        },
+        "infra/DispatchError: queue-wait-timeout": {
+          "job_created_to_ended": {
+            "n": 0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "n": 0,
+            "unit": "seconds"
+          },
+          "sessions": 18,
+          "shards": 18
+        },
+        "infra/_SignalAbort: signal 15": {
+          "job_created_to_ended": {
+            "max": 1183.0,
+            "median": 363.0,
+            "min": 148.0,
+            "n": 10,
+            "p25": 228.0,
+            "p75": 977.0,
+            "p90": 1040.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 811.2702511050738,
+            "median": 5.2461737976409495,
+            "min": 5.205055440994329,
+            "n": 9,
+            "p25": 5.22715416084975,
+            "p75": 383.23991178395227,
+            "p90": 811.2702511050738,
+            "unit": "seconds"
+          },
+          "sessions": 20,
+          "shards": 39
+        }
+      },
+      "primary_sessions": {
+        "child/<missing-reason>": {
+          "job_created_to_ended": {
+            "max": 3614.0,
+            "median": 260.0,
+            "min": 11.0,
+            "n": 1697,
+            "p25": 173.0,
+            "p75": 342.0,
+            "p90": 516.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 1224.163416611962,
+            "median": 5.237969003152102,
+            "min": 0.10756498202681541,
+            "n": 1697,
+            "p25": 5.227091736160219,
+            "p75": 5.274420601999736,
+            "p90": 36.000510790006956,
+            "unit": "seconds"
+          },
+          "sessions": 679,
+          "shards": 1697
+        },
+        "infra/DispatchError: cannot write runner binding report": {
+          "job_created_to_ended": {
+            "max": 676.0,
+            "median": 336.0,
+            "min": 270.0,
+            "n": 5,
+            "p25": 272.0,
+            "p75": 403.0,
+            "p90": 676.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 5.257244995998917,
+            "median": 5.237045255998964,
+            "min": 5.165454478003085,
+            "n": 5,
+            "p25": 5.2098822100088,
+            "p75": 5.250648139990517,
+            "p90": 5.257244995998917,
+            "unit": "seconds"
+          },
+          "sessions": 2,
+          "shards": 5
+        },
+        "infra/DispatchError: result/log/accounting-grace-expired": {
+          "job_created_to_ended": {
+            "max": 3844.0,
+            "median": 3614.0,
+            "min": 3614.0,
+            "n": 2,
+            "p25": 3614.0,
+            "p75": 3844.0,
+            "p90": 3844.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 5.255665428005159,
+            "median": 5.224394485820085,
+            "min": 5.224394485820085,
+            "n": 2,
+            "p25": 5.224394485820085,
+            "p75": 5.255665428005159,
+            "p90": 5.255665428005159,
+            "unit": "seconds"
+          },
+          "sessions": 2,
+          "shards": 2
+        },
+        "infra/_SignalAbort: signal 15": {
+          "job_created_to_ended": {
+            "max": 17.0,
+            "median": 12.0,
+            "min": 11.0,
+            "n": 16,
+            "p25": 11.0,
+            "p75": 14.0,
+            "p90": 17.0,
+            "unit": "seconds"
+          },
+          "receipt_queue_wait": {
+            "max": 5.310541657265276,
+            "median": 5.239658267702907,
+            "min": 5.224961749278009,
+            "n": 16,
+            "p25": 5.2302157250232995,
+            "p75": 5.2526880470104516,
+            "p90": 5.2916622422635555,
+            "unit": "seconds"
+          },
+          "sessions": 8,
+          "shards": 16
+        }
+      }
+    }
+  }
+}
