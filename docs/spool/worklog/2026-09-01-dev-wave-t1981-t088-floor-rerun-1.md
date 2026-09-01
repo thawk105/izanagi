@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-01
 wave: dev-wave-t1981-t088-floor-rerun
 seq: 1
-title: [T-1981][T-088] 消費済み 12 cell の再測定を実機で確かめた — 2 つの測定世代が同じ 12 cell を同時に保持した (実測のみ、実装差分ゼロ、branch worktree-dev-wave-t1981-t088-floor-rerun、変異 matrix は DW-S04 の免除)
+title: [T-1981][T-088] 消費済み 12 cell の再測定を第 2 の独立観測で確かめ、2 つの測定世代が同じ 12 cell を同時に保持することを実機で見た (実測のみ、実装差分ゼロ、branch worktree-dev-wave-t1981-t088-floor-rerun、終端はエントリ 1135 が閉じた、変異 matrix は DW-S04 の免除)
 ---
 
 ## 本文
@@ -101,11 +101,21 @@ title: [T-1981][T-088] 消費済み 12 cell の再測定を実機で確かめた
   受入全走は免除していない。
 - 走行の一次資料は repo 外へ退避した (job directory 配下の evidence bundle と
   `/work/1/SFC/tanab/izanagi-job-evidence/pegasus/964044.nqsv/`)。repo には入れていない。
+- **[T-1981]/[T-088] の終端は先発 wave が閉じた (エントリ 1135)。本 wave はそちらを重複させず、
+  本項の carry からも外している。** 分担どおり、本 wave の走行は第 2 の独立観測として
+  先発の記録に組み込まれた。
+- **先発が 3 走行を並べて構造を 1 つ見つけたので、本 wave の値の読み方もそれに従う。**
+  rr80 の非 p2_2 pair は 3 走行で 45509.145 / 45692.985 / 45835.665 と 0.72% 以内に収まるのに、
+  `scalar_alt` は 45.5k / 48.5k / 76.0k と動く。差はすべて p2_2_flag_opt 由来で、
+  床値は通常 3% の相対床に張り付き、最高スループット cell のノイズ項がそれを超えたときだけ
+  持ち上がる。**本 wave が rr80 で得た 75975.57 は「値が動いた」ではなくこの性質の現れである。**
+  繰り返し測れるようになって初めて見えた観測であり、gate は足していない。
+- **本 wave が断定を避けた点は、先発が一次資料で埋めた。** 1053 の rr80 4.551e+04 が
+  `scalar_alt` か pairs かは、945229 の evidence bundle の result.json で `scalar_alt` = 45509.145
+  かつ 5 pair 同値と確定した。材料は先発の側にあり、本 wave の手元には無かった。
 
 ## 次の一手差分
 
 ### carry
 
-- [T-1981]
-- [T-088]
 - [T-2043]
