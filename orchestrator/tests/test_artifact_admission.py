@@ -1737,9 +1737,13 @@ def test_certified_view_rejects_non_exact_commit_count(tmp_path: Path) -> None:
     class IntSubclass(int):
         pass
 
-    for count in (True, IntSubclass(0)):
-        with pytest.raises(TypeError, match="exact int"):
-            _private_zero_commit_certified_view(tmp_path, count=count)
+    with pytest.raises(TypeError, match="exact int"):
+        _private_zero_commit_certified_view(tmp_path, count=IntSubclass(0))
+
+
+def test_certified_view_rejects_bool_commit_count(tmp_path: Path) -> None:
+    with pytest.raises(TypeError, match="exact int"):
+        _private_zero_commit_certified_view(tmp_path, count=False)
 
 
 def test_certified_view_rejects_negative_commit_count(tmp_path: Path) -> None:

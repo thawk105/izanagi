@@ -331,6 +331,8 @@ class AdmittedCampaign:
 class CertifiedCampaignView(AdmittedCampaign):
     """記録 commit に束縛した E1 と current closure 可用性を持つ専用 view。
 
+    件数は共通 admission 入口が WAL snapshot から投影した値であり、各 commit が
+    証拠検査を通ったことを独立に証明するものではない。
     この view 自体は commit の存在を保証しない。存在保証を与えるのは
     ``require_certified_commit_evidence`` だけである。
     """
@@ -1368,7 +1370,11 @@ def require_certified_campaign_view(
 def require_certified_commit_evidence(
         view: object,
 ) -> CertifiedCampaignView:
-    """Require an exact certified view containing at least one admitted COMMIT."""
+    """共通入口が投影した COMMIT 件数を exact view 上で非ゼロ要求する。
+
+    件数は存在保証にだけ使い、各 commit が証拠検査を通ったことの独立した
+    証拠とは扱わない。
+    """
     certified_view = require_certified_campaign_view(view)
     if certified_view.persisted_certified_commit_count == 0:
         raise ArtifactAdmissionError(

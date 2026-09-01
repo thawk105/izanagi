@@ -243,8 +243,10 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
 
 
 def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
+    start_record = _record("build_start", genome="g", src_token="s")
+    start_record["env_tag"] = "linux-baremetal"
     campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")],
+        tmp_path, [start_record],
     )
     layout = CampaignLayout(root=str(campaign))
     start = wal.read_records(layout)[0]
@@ -281,10 +283,13 @@ def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
         Path(layout.lock_file).read_text(encoding="utf-8")
     )
     assert decoded.authority is not None
+    contract_env_tag = env_contract.resolve_by_contract_sha256(
+        decoded.authority.environment_contract_sha256
+    ).contract.env_tag
     receipt_support.log_receipted_commit(
         layout,
         start.variant,
-        start.env_tag,
+        contract_env_tag,
         {
             **terminal,
             model.COMMIT_CONTRACT_SHA256_KEY: (
