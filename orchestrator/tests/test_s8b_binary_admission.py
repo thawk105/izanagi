@@ -63,6 +63,7 @@ def _honest_record(
     holdout_id: str = "h1", configuration_id: str = "cfg",
     binary_bytes: bytes = b"honest-s8b-binary",
     compiler_schema: str = "v1", before_issue=None,
+    provide_dependency_context: bool = True,
 ) -> dict:
     source_root = Path(tempfile.mkdtemp(prefix=f"{root_name}-", dir=tmp_path))
     compiler_input = source_root / "include" / "fixture.hh"
@@ -79,6 +80,7 @@ def _honest_record(
         }],
     }
     current_masstree_root = None
+    current_dependency_roots = None
     if compiler_schema == "v2":
         current_masstree_root = tmp_path / f"{root_name}-masstree"
         current_input = current_masstree_root / "include" / "fixture.hh"
@@ -89,6 +91,22 @@ def _honest_record(
         )
         compiler_input_manifest["inputs"] = [{
             "root": "fetchcontent-masstree",
+            "path": "include/fixture.hh",
+            "sha256": hashlib.sha256(current_input.read_bytes()).hexdigest(),
+        }]
+    elif compiler_schema == "v3":
+        first = tmp_path / f"{root_name}-dependency-a"
+        second = tmp_path / f"{root_name}-dependency-b"
+        current_input = first / "include" / "fixture.hh"
+        current_input.parent.mkdir(parents=True)
+        current_input.write_bytes(b"fixture compiler input\n")
+        second.mkdir()
+        current_dependency_roots = (first, second)
+        compiler_input_manifest["input_policy"] = (
+            "snapshot-and-external-hashes/v1"
+        )
+        compiler_input_manifest["inputs"] = [{
+            "root": "dependency-prefix",
             "path": "include/fixture.hh",
             "sha256": hashlib.sha256(current_input.read_bytes()).hexdigest(),
         }]
@@ -116,7 +134,11 @@ def _honest_record(
     binary_sha = hashlib.sha256(binary_bytes).hexdigest()
     binding = _binding()
     if before_issue is not None:
-        before_issue(current_masstree_root)
+        before_issue(
+            current_masstree_root
+            if current_masstree_root is not None
+            else current_dependency_roots[0]
+        )
     receipt = A.issue_binary_admission_receipt(
         admission=admission, expected_policy=context.policy, source=source,
         cell_id=cell_id, holdout_id=holdout_id, configuration_id=configuration_id,
@@ -127,6 +149,9 @@ def _honest_record(
         compiler_input_manifest=compiler_input_manifest,
         compiler_input_manifest_sha256=compiler_input_manifest_sha256,
         current_compiler_input_masstree_root=current_masstree_root,
+        current_compiler_input_dependency_prefix_roots=(
+            current_dependency_roots if provide_dependency_context else None
+        ),
     )
     record = {
         "cell_id": cell_id,
@@ -180,7 +205,8 @@ def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
     def issuer_boundary_validate(
             manifest, expected_sha256, *, snapshot_root, target=None,
             expected_evolve_block_sources=None,
-            current_fetchcontent_masstree_root=None):
+            current_fetchcontent_masstree_root=None,
+            current_dependency_prefix_roots=None):
         # Isolate the issuer boundary: omitting the live root must not receive
         # an independent fail-closed assist from the lower validator.
         if current_fetchcontent_masstree_root is None:
@@ -194,6 +220,9 @@ def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
             expected_evolve_block_sources=expected_evolve_block_sources,
             current_fetchcontent_masstree_root=(
                 current_fetchcontent_masstree_root
+            ),
+            current_dependency_prefix_roots=(
+                current_dependency_prefix_roots
             ),
         )
 
@@ -212,6 +241,48 @@ def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
         )
 
 
+def test_issue_v3_receipt_rechecks_current_dependency_prefix_roots(
+        tmp_path: Path):
+    def drift(root):
+        (root / "include" / "fixture.hh").write_bytes(
+            b"receipt-time dependency drift\n"
+        )
+
+    with pytest.raises(A.BinaryAdmissionError, match="compiler input manifest"):
+        _honest_record(
+            tmp_path, compiler_schema="v3", before_issue=drift,
+        )
+
+
+@pytest.mark.parametrize("mutation", ["missing", "ambiguous"])
+def test_issue_v3_receipt_rejects_missing_and_ambiguous_dependency_root(
+        tmp_path: Path, mutation):
+    def mutate(root):
+        leaf = root / "include" / "fixture.hh"
+        if mutation == "missing":
+            leaf.unlink()
+        else:
+            assert root.name.endswith("-a")
+            other = root.with_name(root.name[:-2] + "-b")
+            candidate = other / "include" / "fixture.hh"
+            candidate.parent.mkdir()
+            candidate.write_bytes(leaf.read_bytes())
+
+    with pytest.raises(A.BinaryAdmissionError, match="compiler input manifest"):
+        _honest_record(
+            tmp_path, root_name=f"v3-{mutation}", compiler_schema="v3",
+            before_issue=mutate,
+        )
+
+
+def test_issue_v3_receipt_rejects_unpresented_dependency_context(tmp_path: Path):
+    with pytest.raises(A.BinaryAdmissionError, match="compiler input manifest"):
+        _honest_record(
+            tmp_path, compiler_schema="v3",
+            provide_dependency_context=False,
+        )
+
+
 def test_portable_validator_accepts_v1_and_v2_without_live_paths(tmp_path: Path):
     legacy = _honest_record(tmp_path, root_name="legacy", compiler_schema="v1")
     current = _honest_record(tmp_path, root_name="current", compiler_schema="v2")
@@ -224,6 +295,21 @@ def test_portable_validator_accepts_v1_and_v2_without_live_paths(tmp_path: Path)
     shutil.rmtree(current_root)
     assert current_manifest["schema_version"] == "s8b-compiler-input/v2"
     assert _validate(current) == current["admission_receipt"]
+
+
+def test_portable_validator_accepts_v3_after_live_dependency_roots_disappear(
+        tmp_path: Path):
+    record = _honest_record(
+        tmp_path, root_name="portable-v3", compiler_schema="v3",
+    )
+    receipt_text = json.dumps(record["admission_receipt"], sort_keys=True)
+    assert "portable-v3-dependency-a" not in receipt_text
+    assert "portable-v3-dependency-b" not in receipt_text
+
+    import shutil
+    shutil.rmtree(tmp_path / "portable-v3-dependency-a")
+    shutil.rmtree(tmp_path / "portable-v3-dependency-b")
+    assert _validate(record) == record["admission_receipt"]
 
 
 def test_portable_validator_rejects_nonexact_v2_manifest_after_resealing(

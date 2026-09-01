@@ -1,3 +1,4 @@
+import ast
 import base64
 import copy
 import errno
@@ -2659,11 +2660,55 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
 
 
 def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields():
-    source = inspect.getsource(
-        __import__(
-            "orchestrator.campaign.pipeline", fromlist=["evaluate"]).evaluate)
-    assert "for _repetition in range(workload.reps)" in source
-    assert "verification_receipt_tags.extend([tag] * workload.reps)" in source
+    pipeline_module = __import__(
+        "orchestrator.campaign.pipeline", fromlist=["evaluate"],
+    )
+    tree = ast.parse(
+        Path(pipeline_module.__file__).read_text(encoding="utf-8"),
+        filename=pipeline_module.__file__,
+    )
+    functions = {
+        node.name: node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    core = functions["_prepare_evaluation_core"]
+    one_pass = [
+        node for node in ast.walk(core)
+        if isinstance(node, ast.FunctionDef) and node.name == "_run_one_pass"
+    ]
+    assert len(one_pass) == 1
+    repetition_loops = [
+        node for node in ast.walk(one_pass[0])
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "_repetition"
+        and ast.unparse(node.iter) == "range(workload.reps)"
+    ]
+    assert len(repetition_loops) == 1
+    receipt_extensions = [
+        node for node in ast.walk(core)
+        if isinstance(node, ast.Call)
+        and ast.unparse(node.func) == "verification_receipt_tags.extend"
+        and len(node.args) == 1
+        and ast.unparse(node.args[0]) == "[tag] * workload.reps"
+    ]
+    assert len(receipt_extensions) == 1
+
+    for caller_name in ("evaluate", "_prepare_evaluation"):
+        caller = functions[caller_name]
+        core_calls = [
+            node for node in ast.walk(caller)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_prepare_evaluation_core"
+        ]
+        assert len(core_calls) == 1
+        assert "workload.reps" not in ast.unparse(caller)
+        assert not any(
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func) == "wal.log"
+            for node in ast.walk(caller)
+        )
 
 
 @pytest.mark.parametrize("mutation", (

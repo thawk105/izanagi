@@ -1,0 +1,146 @@
+{
+  "baseline": {
+    "rc": 0,
+    "status": "PASSED"
+  },
+  "mutations": [
+    {
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_v3_dependency_prefix_hit_revalidates_same_identity_without_rebuild",
+        "orchestrator/tests/test_buildcache_v2.py::test_v3_result_exposes_runtime_dependency_roots_without_new_durable_field",
+        "orchestrator/tests/test_s8b_binary_admission.py::test_portable_validator_accepts_v3_after_live_dependency_roots_disappear",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_does_not_accept_v3_dependency_prefix_tag",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_collector_ignores_missing_origin_and_current_root_elements",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_entry_rejects_only_missing_root_as_zero_matches",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_ambiguous_current_root",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[directory]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[drift]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[missing]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[symlink]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_noncanonical_relative_paths[.]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_noncanonical_relative_paths[//include/portable.hh]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_unit_binding_ignores_root_order_and_basename",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_filesystem_tag_cannot_alias_current_dependency_prefix_root",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_manifest_classifies_dependency_prefix_root_relative_and_rebinds_setwise",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_probe_dependency_entry_accepts_matching_and_missing_roots",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_probe_dependency_entry_accepts_one_matching_root",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_symlink_spelled_dependency_root_rebinds_identically",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_validator_rejects_dependency_root_overlap_with_other_live_roots[masstree]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_validator_rejects_dependency_root_overlap_with_other_live_roots[snapshot]",
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_noncanonical_relative_paths[//include/portable.hh]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_noncanonical_relative_paths[.]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[symlink]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_manifest_classifies_dependency_prefix_root_relative_and_rebinds_setwise",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_unit_binding_ignores_root_order_and_basename",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_probe_dependency_entry_accepts_matching_and_missing_roots",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_probe_dependency_entry_accepts_one_matching_root",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_ambiguous_current_root",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_entry_rejects_only_missing_root_as_zero_matches",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_filesystem_tag_cannot_alias_current_dependency_prefix_root",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[drift]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[missing]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_missing_drift_symlink_and_nonregular[directory]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_collector_ignores_missing_origin_and_current_root_elements",
+        "orchestrator/tests/test_s8b_binary_admission.py::test_portable_validator_accepts_v3_after_live_dependency_roots_disappear",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_symlink_spelled_dependency_root_rebinds_identically",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_validator_rejects_dependency_root_overlap_with_other_live_roots[snapshot]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_validator_rejects_dependency_root_overlap_with_other_live_roots[masstree]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_does_not_accept_v3_dependency_prefix_tag",
+        "orchestrator/tests/test_buildcache_v2.py::test_v3_result_exposes_runtime_dependency_roots_without_new_durable_field",
+        "orchestrator/tests/test_buildcache_v2.py::test_v3_dependency_prefix_hit_revalidates_same_identity_without_rebuild",
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer"
+      ],
+      "id": "m01-v3-root-membership-dropped",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_issue_v3_receipt_rejects_missing_and_ambiguous_dependency_root[ambiguous]",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_ambiguous_current_root"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_dependency_prefix_rejects_ambiguous_current_root",
+        "orchestrator/tests/test_s8b_binary_admission.py::test_issue_v3_receipt_rejects_missing_and_ambiguous_dependency_root[ambiguous]"
+      ],
+      "id": "m02-current-root-uniqueness-collapsed",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_filesystem_tag_cannot_alias_current_dependency_prefix_root"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_filesystem_tag_cannot_alias_current_dependency_prefix_root"
+      ],
+      "id": "m03-filesystem-tag-canonicality-narrowed",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_portable_validator_accepts_v3_after_live_dependency_roots_disappear",
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_portable_validator_accepts_v3_after_live_dependency_roots_disappear",
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer"
+      ],
+      "id": "m04-issuer-drops-current-roots",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer",
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_real_receipt_issuer_rejects_wrong_dependency_root_context"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_real_receipt_issuer_rejects_wrong_dependency_root_context",
+        "orchestrator/tests/test_s8b_dependency_prefix_bridge.py::test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer"
+      ],
+      "id": "m05-floor-bridge-drops-current-roots",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    },
+    {
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_none_dependency_context_is_rejected_but_explicit_empty_is_accepted",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_probe_snapshot_only_rejects_none_root_context"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_probe_snapshot_only_rejects_none_root_context",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v3_none_dependency_context_is_rejected_but_explicit_empty_is_accepted"
+      ],
+      "id": "m06b-none-context-accepted-both-layers",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED"
+    }
+  ],
+  "repo_head": "6fbd72cfa74f55c34201609f5b7a3b786c1ede52",
+  "runner_sha256": "eed159c6f3bf056d424add1c10dca9e16efaebd299fcfd82689b401b14e34914",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "796924e3877fc0b40f5cc75b036e5e17b4aec05fda2d5c05f2e062225aef78a5",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_sha256": "14cee291b7ddccf03a561b1b894fa88b7756c38ae60d9fa8ea8c6ce4c4e50673"
+}

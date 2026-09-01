@@ -266,6 +266,7 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
 
     prepared = screening_driver.prepare_screening_campaign(
         cfg, workload, baseline_ref, measure_baseline,
+        protocol=baseline.protocol,
         authorization_contract=authorization_contract,
         env_tag=runtime_contract.env_tag,
         clocks_per_us=runtime_contract.clocks_per_us,

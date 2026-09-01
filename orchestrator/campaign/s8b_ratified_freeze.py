@@ -3555,6 +3555,106 @@ def launch_validate(ratified: RatifiedFreeze, root=ROOT) -> LaunchValidatedFreez
     return validated
 
 
+def assert_g1_floor_selection_identity(
+        ratified: RatifiedFreeze, root=ROOT,
+) -> None:
+    """g1 の批准床値に選択規則だけを再強制する。
+
+    g2 以降の選択・投影は未定義のため、非 g1 は観測せずに返る。
+    protocol は generation commit に記録された contract で解決し、
+    activation HEAD・build policy・closure・live scan はこの境界では検査しない。
+    """
+    if type(ratified) is not RatifiedFreeze:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", "ratified が RatifiedFreeze でない",
+            cause="argument-type",
+        )
+    if ratified.generation_number != 1:
+        return
+
+    root = Path(root)
+    try:
+        protocol_path, protocol_record_sha = _source_record_path_sha(
+            ratified.document, "floor_protocol",
+        )
+        selected_rel, _selected_record_sha = _source_record_path_sha(
+            ratified.document, "floor_source",
+        )
+        _assert_canonical_relative_path(
+            protocol_path, reason="floor-selection-unverifiable",
+            label="floor_protocol.path",
+        )
+        _assert_canonical_relative_path(
+            selected_rel, reason="floor-selection-unverifiable",
+            label="floor_source.path",
+        )
+        selected_path_info = _parse_official_run_path(
+            selected_rel, expected_basename="result.json",
+        )
+        protocol_raw = _blob_at_or_fail(
+            ratified.generation_commit, protocol_path, root,
+            reason="floor-selection-unverifiable",
+        )
+        if _sha256_hex(protocol_raw) != protocol_record_sha:
+            raise RatifiedFreezeError(
+                "floor-selection-unverifiable",
+                "floor_protocol raw hash が generation record と不一致",
+                cause="protocol-record-sha",
+            )
+        protocol_doc = _strict_load(protocol_raw, what="floor_protocol")
+        protocol, _contract = _validate_published_protocol(
+            protocol_doc, contract_resolver=_resolve_historical_contract_sha256,
+        )
+        protocol_sha = _floor_contract.canonical_protocol_sha256(protocol)
+        if selected_path_info["proto8"] != protocol_sha[:8]:
+            raise RatifiedFreezeError(
+                "floor-selection-unverifiable",
+                "official path proto8 が記録 protocol hash と不一致",
+                cause="selection-path-proto8",
+            )
+        if (ratified.document.get("env_tag") != selected_path_info["env_tag"]
+                or selected_path_info["env_tag"] != protocol["env_tag"]):
+            raise RatifiedFreezeError(
+                "floor-selection-unverifiable",
+                "generation/path/protocol env が不一致",
+                cause="selection-env-chain",
+            )
+    except RatifiedFreezeError as exc:
+        if exc.reason == "floor-selection-unverifiable":
+            raise
+        raise RatifiedFreezeError(
+            "floor-selection-unverifiable",
+            f"選択規則の入力を解決できない: {exc}", cause=exc.reason,
+        ) from exc
+    except (
+        _LaunchCertError, _floor_contract.FloorContractError,
+        _env_contract.EnvContractError, KeyError, TypeError, ValueError,
+    ) as exc:
+        raise RatifiedFreezeError(
+            "floor-selection-unverifiable",
+            f"選択規則の入力を解決できない: {exc}", cause=str(exc),
+        ) from exc
+
+    try:
+        _hf._assert_floor_selection_identity(  # noqa: SLF001
+            root=root, selected_rel=selected_rel,
+            selected_path_info=selected_path_info, protocol=protocol,
+            v1=ratified.document,
+        )
+    except _hf.FreezeError as exc:
+        detail = str(exc)
+        if detail.startswith("floor-selection-eligibility-underivable:"):
+            reason = "floor-selection-eligibility-underivable"
+            cause = detail
+        elif detail.startswith("floor-selection-rule-mismatch:"):
+            reason = "floor-selection-rule-mismatch"
+            cause = _hf._FLOOR_SELECTION_RULE_VERSION  # noqa: SLF001
+        else:
+            reason = "floor-selection-unverifiable"
+            cause = detail
+        raise RatifiedFreezeError(reason, detail, cause=cause) from exc
+
+
 def reverify_published_freeze(
         ratified: RatifiedFreeze, root=ROOT,
 ) -> ReverifiedFreeze:

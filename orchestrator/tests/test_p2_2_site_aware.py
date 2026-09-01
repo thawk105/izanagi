@@ -487,6 +487,7 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(
     prepare_cfg, prepare_kwargs = prepare_calls[0]
     assert prepare_cfg.bound_environment_contract == expected
     assert prepare_kwargs["env_tag"] == expected.env_tag
+    assert prepare_kwargs["protocol"] == "silo"
     assert prepare_kwargs["clocks_per_us"] == expected.clocks_per_us
     assert prepare_kwargs["numactl"] == list(expected.numactl)
     assert prepare_kwargs["env_contract"] == expected

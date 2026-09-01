@@ -84,9 +84,31 @@ SILO_SPACE = GenomeSpace(
           "生 2^4=16、no-wait XOR (両 1=冗長 + 両 0=livelock を除外) で 8 有効。",
 )
 
-# protocol 名 → 空間。Phase 2 で cicada/oze/... を足す (今は silo のみ = 段階導入 規律5)。
+# mocc の現行 CMake から直交操作できる YCSB 向け空間。
+# RWLOCK は live なコード分岐だが cc/mocc/CMakeLists.txt の bare define であり、cache
+# option から off にできない。INSERT_*_DELAY_MS は計測撹乱ノブなので探索から除外する
+# (絶対規律4)。KEY_SORT の live site は include/ycsb.hh に限られるため、8 通りという
+# 数は YCSB workload での数である。
+MOCC_SPACE = GenomeSpace(
+    protocol="mocc",
+    axes={
+        "BACK_OFF": [0, 1],
+        "TEMPERATURE_RESET_OPT": [0, 1],
+        "KEY_SORT": [0, 1],
+    },
+    constraints=[],
+    notes="mocc の現行 CMake から直交操作できる YCSB 向け空間。"
+          "RWLOCK は live 分岐だが bare define で直交操作できないため軸にしない。"
+          "INSERT_*_DELAY_MS は計測撹乱ノブとして除外する (絶対規律4)。"
+          "8 通りは YCSB workload での数であり、KEY_SORT の live site は "
+          "include/ycsb.hh に限られる。",
+)
+
+
+# protocol 名 → 空間。D1360 の初手 mocc までを登録し、tictoc/cicada はまだ登録しない。
 SPACES: Dict[str, GenomeSpace] = {
     "silo": SILO_SPACE,
+    "mocc": MOCC_SPACE,
 }
 
 
@@ -94,3 +116,34 @@ def space_for(protocol: str) -> GenomeSpace:
     if protocol not in SPACES:
         raise KeyError(f"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})")
     return SPACES[protocol]
+
+
+def protocol_from_floor_genome(value: object) -> str:
+    """floor JSON の canonical genome から protocol を取り出す共有規則。
+
+    floor consumer が不正な値を別々に解釈しないための最小 helper である。
+    ``Genome.canonical()`` が生成する、非空 body の正準形だけを受理する。
+    """
+    if type(value) is not str or "|" not in value:
+        raise ValueError("floor genome が canonical 文字列でない")
+    protocol, body = value.split("|", 1)
+    if not protocol or not body:
+        raise ValueError("floor genome が canonical 文字列でない")
+    flags: Dict[str, int] = {}
+    for assignment in body.split(","):
+        if "=" not in assignment:
+            raise ValueError("floor genome が canonical 文字列でない")
+        name, encoded = assignment.split("=", 1)
+        if not name or name in flags:
+            raise ValueError("floor genome が canonical 文字列でない")
+        try:
+            flags[name] = int(encoded)
+        except ValueError as exc:
+            raise ValueError("floor genome が canonical 文字列でない") from exc
+    try:
+        canonical = Genome(protocol=protocol, flags=flags).canonical()
+    except (TypeError, ValueError) as exc:
+        raise ValueError("floor genome が canonical 文字列でない") from exc
+    if canonical != value:
+        raise ValueError("floor genome が canonical 文字列でない")
+    return protocol

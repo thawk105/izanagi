@@ -256,6 +256,26 @@ def test_current_repository_snapshot_exactly_matches_head(
     current_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
     _require_unchanged_head(evaluated_head, current_head)
     assert snapshot == actual
+    verifier_source = _git(
+        _ROOT,
+        "show",
+        f"{evaluated_head}:orchestrator/campaign/autonomous_trial_completeness.py",
+    ).decode("utf-8")
+    verifier_module = ast.parse(verifier_source)
+    verifier = next(
+        node
+        for node in verifier_module.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "verify_s8c_cross_binding"
+    )
+    assert "proposal_build_source_bindings" in {
+        node.value
+        for node in ast.walk(verifier)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    c10 = next(item for item in actual if item.id == "C10")
+    assert c10.status is core.PredicateStatus.SATISFIED
+    assert c10.reason_code == "cross-binding-readiness-satisfied"
 
 
 @pytest.mark.xdist_group("s8c-predicate-snapshot")
@@ -868,8 +888,8 @@ def verify_s8c_cross_binding():
     fields = (
         "input_payload_sha256", "raw_response_path", "raw_response_sha256",
         "provider_payload_sha256", "provider_envelope_sha256", "proposal_path",
-        "proposal_sha256", "build_records", "bench_records", "artifact_refs",
-        "source_refs", "admission_decision",
+        "proposal_sha256", "proposal_build_source_bindings", "build_records",
+        "bench_records", "artifact_refs", "source_refs", "admission_decision",
     )
     read_and_verify_bytes()
     return fields
@@ -917,6 +937,44 @@ def assert_trial_registry_acceptance(event):
         raise RuntimeError("cross binding failed") from exc
     return {"cross_binding_receipt_sha256": receipt}
 """
+
+ACTIVE_VALUE_CHECK_C10 = """
+import hashlib
+from pathlib import Path
+
+def read_and_verify_bytes(path, *, expected_sha256):
+    raw = Path(path).read_bytes()
+    actual_sha256 = hashlib.sha256(raw).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise ValueError("digest mismatch")
+    return raw
+
+def _never():
+    return False
+
+def verify_s8c_cross_binding(actual, expected):
+    fields = (
+        "input_payload_sha256", "raw_response_path", "raw_response_sha256",
+        "provider_payload_sha256", "provider_envelope_sha256", "proposal_path",
+        "proposal_sha256", "proposal_build_source_bindings", "build_records",
+        "bench_records", "artifact_refs", "source_refs", "admission_decision",
+    )
+    read_and_verify_bytes(
+        actual["raw_response_path"],
+        expected_sha256=actual["raw_response_sha256"],
+    )
+    actual_value = actual["proposal_build_source_bindings"]
+    expected_value = expected["proposal_build_source_bindings"]
+    if actual_value != expected_value:
+        raise ValueError("proposal_build_source_bindings differs")
+    return fields
+"""
+
+NEUTERED_VALUE_CHECK_C10 = ACTIVE_VALUE_CHECK_C10.replace(
+    "    if actual_value != expected_value:\n",
+    "    if _never() and actual_value != expected_value:\n",
+)
+assert NEUTERED_VALUE_CHECK_C10 != ACTIVE_VALUE_CHECK_C10
 
 TOKEN_ONLY_C11 = """
 MAX_APPROVED_GENERATIONS = 2
@@ -2862,6 +2920,138 @@ def test_static_negative_control_binds_c03_to_its_contract_case() -> None:
 
 def test_static_negative_control_binds_c08_to_its_contract_case() -> None:
     assert STATIC_NEGATIVE_CONTROL_CASES["nc_c08_parent_commit_substitution"] == "C08"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "unexpected-extra-field-path",
+        "binding-pair-removed",
+        "verifier-literal-removed",
+    ),
+)
+def test_c10_load_bearing_check_requires_live_literals_not_semantic_guards_or_value_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    """literal な常偽枝は除外するが、意味的に常偽の guard と値束縛は証明しない。"""
+    assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13
+    assert len(M._C10_FIELDS) == 13
+    assert len(M._C10_EXPECTED_FIELD_PATHS) == 13
+    root = _init_repo(tmp_path)
+    verifier_path = "orchestrator/campaign/autonomous_trial_completeness.py"
+    registry_path = "orchestrator/campaign/trial_registry.py"
+    _write(root, verifier_path, C10_SATISFIED_VERIFIER)
+    _write(root, registry_path, C10_SATISFIED_REGISTRY)
+    baseline_head = _commit(root, "C10 production-equivalent 13 of 13")
+    baseline = _result(root, baseline_head, "C10")
+    assert baseline.status is core.PredicateStatus.SATISFIED
+    assert baseline.reason_code == "cross-binding-readiness-satisfied"
+
+    if mutation == "unexpected-extra-field-path":
+        contract = json.loads(CONTRACT_FILE.read_bytes())
+        requirement = next(
+            item
+            for item in contract["conditions"][9]["required_evidence"]
+            if item["artifact_kind"] == "cross_binding_verifier"
+        )
+        assert len(requirement["field_paths"]) == 13
+        requirement["field_paths"].append("proposal.unimplemented_field")
+        assert len(requirement["field_paths"]) == 14
+        _write(
+            root,
+            core.EVIDENCE_CONTRACT_PATH,
+            json.dumps(contract, ensure_ascii=False).encode("utf-8"),
+        )
+        mutated_head = _commit(root, "C10 unexpected fourteenth field path")
+    elif mutation == "binding-pair-removed":
+        bindings = tuple(
+            binding
+            for binding in M._C10_CROSS_BINDING_FIELD_BINDINGS
+            if binding[0] != "proposal_build_source_bindings"
+        )
+        assert len(bindings) == 12
+        monkeypatch.setattr(M, "_C10_CROSS_BINDING_FIELD_BINDINGS", bindings)
+        monkeypatch.setattr(
+            M, "_C10_FIELDS", frozenset(literal for literal, _ in bindings)
+        )
+        monkeypatch.setattr(
+            M, "_C10_EXPECTED_FIELD_PATHS", frozenset(path for _, path in bindings)
+        )
+        mutated_head = baseline_head
+    else:
+        assert mutation == "verifier-literal-removed"
+        _write(
+            root,
+            verifier_path,
+            C10_SATISFIED_VERIFIER.replace(
+                '        "proposal_build_source_bindings",\n', "", 1
+            ),
+        )
+        mutated_head = _commit(root, "C10 verifier literal removed")
+
+    mutated = _result(root, mutated_head, "C10")
+    assert mutated.status is core.PredicateStatus.UNSATISFIED
+    assert mutated.reason_code == "cross-binding-verifier-incomplete"
+
+
+def test_c10_gate_survives_semantically_false_guard_and_unbound_proposal_value(
+    tmp_path: Path,
+) -> None:
+    """live literal 検査は literal な常偽枝を落とすが、値照合の恒真化は拒否できない。
+
+    定数でない述語による意味的な常偽 guard と値束縛は、producer 側の functional test の責務である。
+    """
+    raw_response = tmp_path / "raw-response.bin"
+    raw_response_bytes = b"fixture raw response"
+    raw_response.write_bytes(raw_response_bytes)
+    actual = {
+        "proposal_build_source_bindings": ["actual"],
+        "raw_response_path": str(raw_response),
+        "raw_response_sha256": core._sha256(raw_response_bytes),
+    }
+    expected = {"proposal_build_source_bindings": ["expected"]}
+    active_namespace: dict[str, object] = {}
+    exec(ACTIVE_VALUE_CHECK_C10, active_namespace)
+    active_verify = active_namespace["verify_s8c_cross_binding"]
+    assert callable(active_verify)
+    with pytest.raises(ValueError, match="proposal_build_source_bindings differs"):
+        active_verify(actual, expected)
+    neutered_namespace: dict[str, object] = {}
+    exec(NEUTERED_VALUE_CHECK_C10, neutered_namespace)
+    neutered_verify = neutered_namespace["verify_s8c_cross_binding"]
+    assert callable(neutered_verify)
+    neutered_fields = neutered_verify(actual, expected)
+    assert "proposal_build_source_bindings" in neutered_fields
+
+    results: dict[str, core.PredicateResult] = {}
+    for name, source in (
+        ("active-value-check", ACTIVE_VALUE_CHECK_C10),
+        ("neutered-value-check", NEUTERED_VALUE_CHECK_C10),
+    ):
+        root = _init_repo(tmp_path, name)
+        _write(
+            root,
+            "orchestrator/campaign/autonomous_trial_completeness.py",
+            source,
+        )
+        _write(
+            root,
+            "orchestrator/campaign/trial_registry.py",
+            C10_SATISFIED_REGISTRY,
+        )
+        head = _commit(root, f"C10 {name}")
+        results[name] = _result(root, head, "C10")
+
+    assert results["active-value-check"].status is core.PredicateStatus.SATISFIED
+    assert results["active-value-check"].reason_code == (
+        "cross-binding-readiness-satisfied"
+    )
+    assert results["neutered-value-check"].status is core.PredicateStatus.SATISFIED
+    assert results["neutered-value-check"].reason_code == (
+        "cross-binding-readiness-satisfied"
+    )
 
 
 @pytest.mark.parametrize(

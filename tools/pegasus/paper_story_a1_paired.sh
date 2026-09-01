@@ -10,14 +10,39 @@
 set -Eeuo pipefail
 umask 077
 
-EXPECTED_STUDY_ID="paper-story-a1-20260826-sized-v1"
 EXPECTED_QUEUE="gen_S"
 SUBMISSION_SCHEMA="paper-story-a1-paired-submission/v1"
 DRIVER_RELATIVE="orchestrator/campaign/paper_story_a1_paired.py"
-POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v2.json"
 PIPELINE_RELATIVE="orchestrator/campaign/pipeline.py"
 JOB_RELATIVE="tools/pegasus/paper_story_a1_paired.sh"
 PEGASUS_POLICY_RELATIVE="tools/pegasus/policy.json"
+
+refuse() {
+  printf 'paper-story A-1 job refused: %s\n' "$1" >&2
+  exit 2
+}
+
+EXPECTED_STUDY_ID="paper-story-a1-20260826-sized-v1"
+REQUESTED_STUDY_ID=${IZANAGI_A1_STUDY_ID:-}
+V3_STUDY=0
+case "$REQUESTED_STUDY_ID" in
+  paper-story-a1-20260826-sized-v1)
+    POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v2.json"
+    ;;
+  paper-story-a1-20260901-balanced5-pilot-v1)
+    EXPECTED_STUDY_ID="$REQUESTED_STUDY_ID"
+    POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v3-pilot.json"
+    V3_STUDY=1
+    ;;
+  paper-story-a1-20260901-balanced5-sized-v1)
+    EXPECTED_STUDY_ID="$REQUESTED_STUDY_ID"
+    POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v3-sized.json"
+    V3_STUDY=1
+    ;;
+  *)
+    refuse "study ID differs"
+    ;;
+esac
 NON_CERTIFYING_SOURCE_RELATIVE_PATHS=(
   "orchestrator/campaign/paper_story_a1_paired.py"
   "orchestrator/campaign/paper_story_a1_paired.v2.json"
@@ -29,11 +54,10 @@ NON_CERTIFYING_SOURCE_RELATIVE_PATHS=(
   "orchestrator/campaign/loop.py"
   "orchestrator/campaign/trial_registry.py"
 )
-
-refuse() {
-  printf 'paper-story A-1 job refused: %s\n' "$1" >&2
-  exit 2
-}
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  NON_CERTIFYING_SOURCE_RELATIVE_PATHS[1]="$POLICY_RELATIVE"
+  NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=("orchestrator/calibrator/runner.py")
+fi
 
 [[ -n "${PBS_JOBID:-}" ]] || refuse "PBS_JOBID is required"
 [[ "$PBS_JOBID" =~ ^(0:)?[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || refuse "unsafe PBS_JOBID"
@@ -67,8 +91,14 @@ for relative in "${NON_CERTIFYING_SOURCE_RELATIVE_PATHS[@]}"; do
 done
 CURRENT_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD) || refuse "cannot resolve HEAD"
 [[ "$CURRENT_HEAD" == "$IZANAGI_EXPECTED_HEAD" ]] || refuse "HEAD mismatch"
-[[ -z "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]] || \
-  refuse "working tree is dirty"
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  PARENT_STATUS=$(git -C "$REPO_ROOT" status --ignore-submodules=all \
+    --porcelain --untracked-files=all) || refuse "cannot inspect working tree"
+else
+  PARENT_STATUS=$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all) || \
+    refuse "cannot inspect working tree"
+fi
+[[ -z "$PARENT_STATUS" ]] || refuse "working tree is dirty"
 CURRENT_SCRIPT_SHA=$(sha256sum "$REPO_ROOT/$JOB_RELATIVE" | awk '{print $1}') || \
   refuse "cannot hash tracked job body"
 [[ "$CURRENT_SCRIPT_SHA" =~ ^[0-9a-f]{64}$ ]] || refuse "tracked job body SHA is invalid"
@@ -97,6 +127,50 @@ from orchestrator.campaign import site_policy
 if site_policy.current_site() != site_policy.PEGASUS_COMPUTE:
     raise SystemExit("not Pegasus compute")
 PY
+
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  CCBENCH_CANONICAL_PIN=$("$PYTHON_BIN" - \
+    "$REPO_ROOT/$POLICY_RELATIVE" "$EXPECTED_STUDY_ID" <<'PY'
+import json
+import re
+import sys
+
+def reject_duplicates(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate key")
+        value[key] = item
+    return value
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    policy = json.load(stream, object_pairs_hook=reject_duplicates)
+acceptance = policy.get("ccbench_acceptance")
+pin = acceptance.get("canonical_pin") if type(acceptance) is dict else None
+if (
+    policy.get("schema_version") != "paper-story-a1-paired-policy/v3"
+    or policy.get("study_id") != sys.argv[2]
+    or type(pin) is not str
+    or re.fullmatch(r"[0-9a-f]{40}", pin) is None
+):
+    raise SystemExit("v3 policy CCBench binding differs")
+print(pin)
+PY
+  ) || refuse "CCBench job-preflight policy binding differs"
+  [[ "$CCBENCH_CANONICAL_PIN" == \
+    "511c9538e4e8efa54b45cda62e72389ed3b706ec" ]] || \
+    refuse "CCBench job-preflight canonical pin differs"
+  CCBENCH_ROOT="$REPO_ROOT/external/ccbench"
+  CCBENCH_HEAD=$(git -C "$CCBENCH_ROOT" rev-parse HEAD) || \
+    refuse "CCBench job-preflight cannot resolve HEAD"
+  [[ "$CCBENCH_HEAD" == "$CCBENCH_CANONICAL_PIN" ]] || \
+    refuse "CCBench job-preflight canonical HEAD mismatch"
+  CCBENCH_TRACKED_STATUS=$(git -C "$CCBENCH_ROOT" status \
+    --porcelain --untracked-files=no) || \
+    refuse "CCBench job-preflight cannot inspect tracked status"
+  [[ -z "$CCBENCH_TRACKED_STATUS" ]] || \
+    refuse "CCBench job-preflight tracked files are dirty"
+fi
 
 for ((WAITED=0; WAITED<60; WAITED++)); do
   [[ -e "$IZANAGI_A1_ACQUISITION_RECEIPT" ]] && break
@@ -430,8 +504,9 @@ write_terminal() {
   IZANAGI_A1_TERMINAL_POLICY_RELATIVE="$POLICY_RELATIVE" \
   IZANAGI_A1_TERMINAL_PIPELINE_RELATIVE="$PIPELINE_RELATIVE" \
   IZANAGI_A1_TERMINAL_JOB_RELATIVE="$JOB_RELATIVE" \
+  IZANAGI_A1_TERMINAL_RUNNER_RELATIVE="orchestrator/calibrator/runner.py" \
   "$PYTHON_BIN" - "$TERMINAL_PATH" "$REPO_ROOT" "$EXPECTED_STUDY_ID" \
-  "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD" "$DRIVER_RC" "$shell_rc" \
+  "$V3_STUDY" "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD" "$DRIVER_RC" "$shell_rc" \
     "$RESULT_ROOT" "$IZANAGI_A1_ACQUISITION_RECEIPT" "$ACQUISITION_SHA" \
     "$IZANAGI_A1_COMPLETION_RECEIPT" "$ATTEMPT_ROOT" \
     "$PBS_O_HOST" "$PBS_O_WORKDIR" <<'PY'
@@ -444,11 +519,14 @@ import sys
 import time
 
 (
-    path, repo, study_id, pbs_jobid, expected_head, driver_rc_raw,
+    path, repo, study_id, v3_study_raw, pbs_jobid, expected_head, driver_rc_raw,
     shell_rc_raw, result_root, acquisition_path, acquisition_sha,
     completion_path, attempt_root, pbs_o_host, pbs_o_workdir,
 ) = sys.argv[1:]
-source_paths = tuple(
+if v3_study_raw not in {"0", "1"}:
+    raise SystemExit("terminal v3 selector differs")
+v3_study = v3_study_raw == "1"
+source_paths = [
     os.environ[key]
     for key in (
         "IZANAGI_A1_TERMINAL_DRIVER_RELATIVE",
@@ -456,7 +534,10 @@ source_paths = tuple(
         "IZANAGI_A1_TERMINAL_PIPELINE_RELATIVE",
         "IZANAGI_A1_TERMINAL_JOB_RELATIVE",
     )
-)
+]
+if v3_study:
+    source_paths.append(os.environ["IZANAGI_A1_TERMINAL_RUNNER_RELATIVE"])
+source_paths = tuple(source_paths)
 driver_rc = int(driver_rc_raw)
 shell_rc = int(shell_rc_raw)
 
@@ -478,7 +559,11 @@ def git(*args):
     return proc.stdout.strip()
 
 observed_head = git("rev-parse", "HEAD")
-porcelain = git("status", "--porcelain", "--untracked-files=all")
+status_args = ["status"]
+if v3_study:
+    status_args.append("--ignore-submodules=all")
+status_args.extend(("--porcelain", "--untracked-files=all"))
+porcelain = git(*status_args)
 files = {}
 for relative in source_paths:
     files[relative] = {

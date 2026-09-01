@@ -4328,6 +4328,9 @@ def _build_cells_impl(
             compiler_input_manifest_sha256 = getattr(
                 result, "compiler_input_manifest_sha256", None,
             )
+            compiler_input_dependency_prefix_roots = getattr(
+                result, "compiler_input_dependency_prefix_roots", (),
+            )
             source_snapshot_sha256 = getattr(
                 result, "source_snapshot_sha256", None,
             )
@@ -4389,6 +4392,9 @@ def _build_cells_impl(
                     current_compiler_input_masstree_root=(
                         str(dependency_binding.source_root)
                         if dependency_binding is not None else None
+                    ),
+                    current_compiler_input_dependency_prefix_roots=(
+                        compiler_input_dependency_prefix_roots
                     ),
                 )
             except _binary_admission.BinaryAdmissionError as exc:

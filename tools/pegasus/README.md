@@ -227,6 +227,10 @@ tools/pegasus/submit_floor.sh             # 床値 pilot を実際に走らせ�
 
 - `--repo-root` / `--attempts-root` / `--job-script` の override は `--dry-run` 専用で、実投入では拒否する。
 - dry-run でも submission staging と `output/claims` (mode 0700) を作る。副作用ゼロではない。
+- **dry-run は third-party payload staging を飛ばすので、緑を投入可能性の証拠にしない。**
+  新規 worktree では dry-run が rc=0 でも実投入が
+  `floor third-party source root is missing or unsafe` で qsub 前に落ちる。先に §6 の
+  `fetch_third_party.py hydrate` で永続 cache から供給する (2026-09-01、2 session が独立に実測)。
 - 生成物: `output/env/pegasus/floor/attempts/submissions/<nonce>/` (pre-submit / submit-receipt) と
   `output/env/pegasus/floor/job-staging/<PBS_JOBID>/` (reservation・qstat raw・job-result・failure)。
 - scheduler への walltime 要求宣言は job script の `10:00:00` (36000 秒)。policy の

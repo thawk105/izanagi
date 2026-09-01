@@ -1346,6 +1346,7 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
         observed_campaign_ids = []
         forwarded_output_roots = []
         run_calls = []
+        summaries = []
 
         def paper_story_run_sink(*run_args, **kwargs):
             index = len(run_calls)
@@ -1372,7 +1373,7 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
                 ident.canonical_preimage(observed_bound_cfg)
             ))
             Path(sink_layout.wal_file).touch(exist_ok=True)
-            return SimpleNamespace(
+            summary = SimpleNamespace(
                 campaign_id=campaign_id,
                 layout_root=sink_layout.root,
                 results=[],
@@ -1380,7 +1381,10 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
                 evaluated=2,
                 skipped=0,
                 identity_skipped=0,
+                balanced_schedule_receipt=None,
             )
+            summaries.append(summary)
+            return summary
 
         monkeypatch.setattr(module, "run_campaign", paper_story_run_sink)
         assert module.main(list(argv)) == 0
@@ -1403,6 +1407,9 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
             assert expected.is_dir()
             assert not (harness.output_root / "campaigns" / campaign_id).exists()
         assert len(run_calls) == contract.runtime_run_campaign_calls
+        assert [
+            summary.balanced_schedule_receipt for summary in summaries
+        ] == [None] * contract.runtime_run_campaign_calls
         harness.assert_complete(contract.runtime_run_campaign_calls)
         return
 

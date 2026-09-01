@@ -20,6 +20,7 @@ from . import (
 )
 from .build_admission import BuildRunContext
 from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
+from .genome import protocol_from_floor_genome
 from .layout import CampaignLayout, campaign_layout, env_scope_dir
 from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT,
                     CampaignConfig, Genome)
@@ -301,8 +302,10 @@ def attest_runtime_contract(
 BETWEEN_RUN_FLOOR_SCHEMA_VERSION = "between-run-noise-floor/v1"
 
 
-def load_between_run_floor(workload: Dict[str, str], calibration_dir: str = "") -> float:
-    """workload が完全一致する between-run JSON を一意に選び、CVをfloorとして返す。"""
+def load_between_run_floor(
+    workload: Dict[str, str], *, protocol: str, calibration_dir: str = "",
+) -> float:
+    """protocol/workload が完全一致する between-run JSON を一意に選ぶ。"""
     root = calibration_dir or _default_calibration_dir()
     matches = []
     for path in sorted(glob.glob(os.path.join(root, "between_run_noise_*.json"))):
@@ -322,11 +325,20 @@ def load_between_run_floor(workload: Dict[str, str], calibration_dir: str = "") 
         if isinstance(stored_workload, dict) and {
                 str(k): str(v) for k, v in stored_workload.items()} == {
                 str(k): str(v) for k, v in workload.items()}:
-            matches.append((path, doc))
+            try:
+                stored_protocol = protocol_from_floor_genome(doc.get("genome"))
+            except ValueError as exc:
+                raise ValueError(
+                    f"floor JSONのgenomeがcanonicalでない: {path}: "
+                    f"{doc.get('genome')!r}"
+                ) from exc
+            if stored_protocol == protocol:
+                matches.append((path, doc))
     if len(matches) != 1:
         raise ValueError(
-            "workload対応のbetween-run floor JSONは一意に必要: "
-            f"workload={workload!r}, matches={[p for p, _ in matches]!r}")
+            "protocol/workload対応のbetween-run floor JSONは一意に必要: "
+            f"protocol={protocol!r}, workload={workload!r}, "
+            f"matches={[p for p, _ in matches]!r}")
     path, doc = matches[0]
     between_run = doc.get("between_run")
     if not isinstance(between_run, dict):
@@ -355,6 +367,7 @@ def prepare_screening_campaign(
         measure_baseline: Callable[[CampaignConfig, CampaignLayout], None], *,
         authorization_contract: AuthorizedContract,
         env_tag: str, clocks_per_us: int, numactl: Sequence[str],
+        protocol: str,
         calibration_dir: str = "", output_root: str = "", k: float = 1.5,
         high_abort_factor: float = 2.0,
         reanchor_threshold_s: float = 1800.0, log=print,
@@ -394,7 +407,9 @@ def prepare_screening_campaign(
     floor_root = calibration_dir or _default_calibration_dir(
         authorized_contract.env_tag,
     )
-    floor = load_between_run_floor(workload, floor_root)
+    floor = load_between_run_floor(
+        workload, protocol=protocol, calibration_dir=floor_root,
+    )
     policy = ident.screening_policy_search_config(
         baseline_ref, floor, k, high_abort_factor)
     cfg = replace(base_cfg, search_config={**base_cfg.search_config, **policy})
