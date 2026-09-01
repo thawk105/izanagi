@@ -45,6 +45,7 @@ _PRODUCTION_PROJECTED_SHA256 = (
 )
 _PRODUCTION_PROJECTED_BYTES = 1919
 _PRODUCTION_WAVE = "dev-wave-t1985-ratification-terminal"
+_OTHER_WAVE = "dev-wave-t1984-external-signer"
 _PRODUCTION_MAIN = "cb4a11b6e9c5281b4aa1feb7c7c1b67315d62aa0"
 _PRODUCTION_TIP = "704ea7f1fd71974958db3855e4578f11d28838df"
 _LEASE_GENERATION = (
@@ -134,13 +135,14 @@ def _verify(
     receipt: dict[str, object],
     configured_key: signing.ConfiguredPublicKey,
     *,
+    acceptance_wave: str = _PRODUCTION_WAVE,
     tested_tip: str = _PRODUCTION_TIP,
     lease_generation: str = _LEASE_GENERATION,
 ) -> dict[str, object]:
     return signing.verify_signed_receipt_signature(
         receipt,
         configured_key,
-        expected_acceptance_wave=_PRODUCTION_WAVE,
+        expected_acceptance_wave=acceptance_wave,
         expected_tested_main=_PRODUCTION_MAIN,
         expected_tested_tip=tested_tip,
         expected_lease_generation=lease_generation,
@@ -328,6 +330,13 @@ def test_signed_receipt_replay_to_other_tested_tip_context_is_rejected():
     receipt, configured_key = _signed_control()
     _assert_rejected(
         lambda: _verify(receipt, configured_key, tested_tip=_OTHER_TIP)
+    )
+
+
+def test_signed_receipt_replay_to_other_acceptance_wave_is_rejected():
+    receipt, configured_key = _signed_control()
+    _assert_rejected(
+        lambda: _verify(receipt, configured_key, acceptance_wave=_OTHER_WAVE)
     )
 
 
