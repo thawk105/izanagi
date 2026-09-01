@@ -1,0 +1,24 @@
+=== compute-node read-only bind probe ===
+date: 2026-09-01 21:27:52 JST
+host: bnode024
+kernel: 5.15.0-173-generic
+--- sysctl ---
+max_user_namespaces: 509439
+unprivileged_userns_clone: 1
+--- tools ---
+bwrap: /bin/bwrap
+unshare: /bin/unshare
+--- test 1: bwrap ro-bind resists owner chmod ---
+chmod: changing permissions of '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t822-arm-source-binding/robind-probe/src': Read-only file system
+chmod-rc=1
+bash: line 1: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t822-arm-source-binding/robind-probe/src/f.txt: Read-only file system
+write-rc=1
+content-after: A
+--- test 2: read still works under ro-bind ---
+A
+--- test 3: unshare fallback ---
+mount-rc=0
+bash: line 1: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t822-arm-source-binding/robind-probe/src/f.txt: Read-only file system
+write-rc=1
+content-after-test3: A
+=== done ===
