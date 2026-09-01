@@ -59,7 +59,7 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
-着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
+着手前に `git grep -n "<成果物パス>"` を使い、
 bytes を pin する台帳・test・trust root を全列挙する。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
 review ledger、全 field から同一性 hash を導く dataclass・schema も対象に含める。path 検索が見つけるのは path を key にする

@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "B1-PREFLIGHT-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_reasoning_ab.py",
+          "old": "    resolved, missing = _resolve_required_historical_rollouts(\n        sessions_root,\n        pins=pins,\n    )\n",
+          "new": "    resolved, missing = (\n        {\n            label: TOOL._find_rollout(sessions_root, session_id)\n            for label, (session_id, _) in (\n                pins if pins is not None\n                else _required_historical_rollout_pins()\n            ).items()\n        },\n        (),\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "B2-DUPLICATE-SWALLOWED-AS-MISSING",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_reasoning_ab.py",
+          "old": "        if not candidates and not named_candidates[label]:\n            missing.append(label)\n            continue\n",
+          "new": "        if len(candidates) != 1:\n            missing.append(label)\n            continue\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "B3-CORRUPTION-SWALLOWED-AS-MISSING",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_reasoning_ab.py",
+          "old": "        TOOL._verify_rollout_sha(\n            rollout,\n            label,\n            expected_sha256=expected_sha256,\n        )\n",
+          "new": "        try:\n            TOOL._verify_rollout_sha(\n                rollout,\n                label,\n                expected_sha256=expected_sha256,\n            )\n        except TOOL.ValidationError:\n            missing.append(label)\n            continue\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "B4-SKIP-REASON-DROPS-LABELS",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_reasoning_ab.py",
+          "old": "        pytest.skip(\n            \"historical rollouts unavailable; expired session labels: \"\n            + \", \".join(missing)\n        )\n",
+          "new": "        pytest.skip(\"historical rollouts unavailable\")\n"
+        }
+      ]
+    }
+  ]
+}

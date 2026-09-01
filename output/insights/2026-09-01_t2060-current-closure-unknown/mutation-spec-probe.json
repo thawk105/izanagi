@@ -1,0 +1,120 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1200,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "M1-HISTORICAL-EARLY-RETURN-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n        return recorded.diagnostic\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M2-CERTIFIED-CAPTURE-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    try:\n        # D1163 keeps only the availability prerequisite here.  A clean\n        # committed current closure may differ from the recorded closure.\n        contract_loader_binding.capture_contract_loader_binding()\n    except contract_loader_binding.ContractLoaderBindingError as exc:\n        raise CampaignVerifierEpochRejected(_stale_epoch(\n            recorded, reason_code=\"current-closure-unavailable\",\n        )) from exc\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M3-PERSISTED-COMPARISON-NORMALIZATION-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if not include_current_verifier_conformance:\n        normalized.pop(\"current_verifier_conformance\", None)\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "D1-CONFORMANCE-VALUE-CHANGED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    @property\n    def current_verifier_conformance(self) -> str:\n        return \"unknown\"\n",
+          "new": "    @property\n    def current_verifier_conformance(self) -> str:\n        return \"conformant\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "D2-HISTORICAL-PROJECTION-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        \"current_verifier_conformance\": (\n            admitted_campaign.current_verifier_conformance\n        ),\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "C1-FIELD-MADE-REQUIRED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_schema.json",
+          "old": "  \"required\": [\"schema_version\", \"meta\", \"workload\", \"variants\", \"runs\", \"verifications\", \"rejects\", \"aborts\", \"noise_floor\", \"env_tags\", \"whiteboard\", \"whiteboard_provenance\", \"artifact_refs\", \"source_refs\", \"admission_decision\", \"mechanism_hypotheses\"],\n",
+          "new": "  \"required\": [\"schema_version\", \"meta\", \"workload\", \"variants\", \"runs\", \"verifications\", \"rejects\", \"aborts\", \"noise_floor\", \"env_tags\", \"whiteboard\", \"whiteboard_provenance\", \"artifact_refs\", \"source_refs\", \"admission_decision\", \"mechanism_hypotheses\", \"current_verifier_conformance\"],\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "C2-CERTIFIED-PROHIBITION-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_schema.json",
+          "old": "        \"not\": {\"required\": [\"current_verifier_conformance\"]},\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "L1-CERTIFIED-REMOVAL-DROPPED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    report.pop(\"current_verifier_conformance\")\n",
+          "new": ""
+        }
+      ]
+    }
+  ]
+}

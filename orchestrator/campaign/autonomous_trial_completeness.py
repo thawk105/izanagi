@@ -4687,6 +4687,7 @@ def _fresh_layer3_for_comparison(
 def _layer3_comparison_projection(
     report: Mapping[str, Any], *, include_epoch: bool,
     include_verifier_assessment_basis: bool,
+    include_current_verifier_conformance: bool,
 ) -> dict[str, Any]:
     """Normalize volatile fields and the allowed legacy schema omissions.
 
@@ -4695,6 +4696,8 @@ def _layer3_comparison_projection(
     does carry the field must compare it exactly with the fresh rebuild.
     Historical documents written before D1163 have an exact five-key epoch;
     only their fresh-side assessment marker is omitted for compatibility.
+    Historical documents written before D1245 have no current verifier
+    conformance marker; a marker that is present must still compare exactly.
     """
     normalized = dict(report)
     normalized.setdefault("acceptance_receipt", None)
@@ -4707,6 +4710,8 @@ def _layer3_comparison_projection(
             normalized_epoch = dict(epoch)
             normalized_epoch.pop("verifier_assessment_basis", None)
             normalized["campaign_verifier_epoch"] = normalized_epoch
+    if not include_current_verifier_conformance:
+        normalized.pop("current_verifier_conformance", None)
     meta = _mapping(
         report.get("meta"), gate="campaign-chain", label="layer3 report.meta",
     )
@@ -5004,15 +5009,24 @@ def assert_campaign_layer3_chain(
             include_epoch
             and "verifier_assessment_basis" in persisted_epoch
         )
+        include_current_verifier_conformance = (
+            "current_verifier_conformance" in persisted
+        )
         if _canonical_bytes(_layer3_comparison_projection(
             persisted, include_epoch=include_epoch,
             include_verifier_assessment_basis=(
                 include_verifier_assessment_basis
             ),
+            include_current_verifier_conformance=(
+                include_current_verifier_conformance
+            ),
         )) != _canonical_bytes(_layer3_comparison_projection(
             fresh, include_epoch=include_epoch,
             include_verifier_assessment_basis=(
                 include_verifier_assessment_basis
+            ),
+            include_current_verifier_conformance=(
+                include_current_verifier_conformance
             ),
         )):
             _fail("campaign-chain", "persisted layer3 report differs from fresh rebuild")

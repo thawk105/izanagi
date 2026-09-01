@@ -120,6 +120,16 @@
 - **再発: 2026-08-23** (受入 lease 直列化撤去 wave)。親が進捗報告と handoff へ書いた JST 時刻 5 件 (04:33 / 05:20 / 06:00 / 06:35 / 07:00) がいずれも実測でなく推定で、段 7 直前に `date` を打った実測値は 06:13 だった。最後の 2 件は実時刻より先へ進んでおり、時系列として成立していない。2026-08-17 の再発で定めた「報告に時刻を書く直前に必ず `date` を実行する」を、wave の途中から守らなくなった。原因は、最初の 1 回だけ `date` を打ち、その後は経過時間を体感で足していたことである。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` を実行する。**「セッション開始時に 1 回測ってから加算する」は実測ではない。**
 
 - **再発: 2026-08-24 (near-miss)** — handoffの最終更新を`date`で実測せず「13:50 JST」と記入した。commit前に実測して「14:13 JST」へ訂正したためcanonicalへの誤記は回避した。恒久対応は既存どおり、時刻を書く1回ごとに`date`を実行する。
+
+- **再発: 2026-09-01** — [T-2060] wave の親が、進捗報告 4 件と handoff の最終更新に書いた JST 時刻を
+  1 度も `date` で実測せず、子の投入からの経過を体感で足して書いた。ユーザーの「待ちすぎていないか」
+  という指摘を受けて初めて `date` を実行し、直前の報告に書いた「00:28」が実測 00:21 より
+  7 分先行していたことが判明した。同報告が説明している段 5 実装子の投入は job log の mtime で
+  00:19 であり、報告時刻は実際より 7〜9 分進んでいた。2026-08-23 の再発が定めた
+  「時刻を書く 1 回ごとに `date` を実行する」を、**wave の途中からではなく最初から一度も
+  実行しなかった**点が新しい。原因は、wave 開始時に時刻を測る手順を起動列へ入れず、
+  最初の報告の時点で推定値を書き、以後それに加算したことである。恒久対応は変更なし。
+  **時刻を書く 1 回ごとに `date` を実行する。過去の推定値への加算は実測ではない。**
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -3253,6 +3263,27 @@
   停止した。F71 根本原因 (2) と同じ「runner のコンソール出力は行前置と切り詰めを伴うため
   正本にならない」型で、consumer が harness ではなく spec 執筆へ移っただけである。
   件数は passed 数 (35 = 1 + 8 × 4 + 1 + 1) で照合して確定した。
+
+- **再発: 2026-09-01** — node 抽出規約の射程に **xdist group 接尾辞**が入っておらず、
+  `@pytest.mark.xdist_group` を持つテストは変異 matrix の期待 node に**どちらの表記でも
+  書けない**ことが判明した。group 接尾辞込み
+  (`...::test_current_repository_snapshot_has_zero_satisfied_predicates@s8c-predicate-snapshot`)
+  を書くと spec 事前検査が「期待 node が pytest collection に実在しない」で起動前に中止し、
+  接尾辞を外すと比較器が接尾辞付きの記録 node と突き合わせて MISMATCH を返す。
+  前回 (F71 本体) は抽出が 0 件になる向きだったが、今回は**抽出はされるが検査側と形式が
+  揃わない**向きであり、根本原因は同じ「記録側と検査側で node 形式が揃っていない」。
+  実測: 本走 2 回目は 4 変異中 2 変異が MISMATCH、差分は同じ 2 テストの接尾辞のみで
+  SURVIVED は 0 だった。group を持つ 3 テストを runner argv の `--deselect` で外した 3 回目は
+  4/4 KILLED / 一致 4/4。除外前の台帳
+  (`mutation-ledger-real2.json`) は erratum として保存した。
+- 恒久対応 (本再発分): **既存の `DW-M08` が既に「同形式へ正規化した記録 node との完全一致だけを
+  KILLED とする」と定めており、`tools/mutation_harness.py` の比較器がこの正規化を記録側へ
+  適用していない。** 規約の追加ではなく道具を規約へ合わせるのが対応であり、
+  harness 側の正規化実装を本 fold で採番した新規タスクへ起票した。
+  それまでの回避は `DW-M08` の erratum 手順 (期待から外し `--deselect`、除外前の実測を残す) で行う。
+- 再発検知 (本再発分): 期待 node に `@` を含む文字列が 1 件でもあれば spec 事前検査が
+  起動前に中止する (実測済みの fail-closed)。正規化実装後は、group 付き node を期待へ含めた
+  spec が KILLED 一致することを正例として要求する。
 ### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
 - 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
   していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
@@ -20045,3 +20076,73 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ただし本 wave 自身の 3 件は実測であり、恒久対応を個人の作法ではなく**手順**の側に置く根拠に
   なる。並行 session が同じ全称を独立に出しうる状況 (共有の repo 外資源が消え、各 session が
   同じ症状を別々に診断する) では、この型は構造的に起きやすい。
+
+### F775. 成果物へ新 field を足すと、保存済み成果物との byte 比較が壊れる [ドリフト] [手順漏れ]
+
+- 事象: 歴史 Layer 3 report へ top-level field を 1 つ足したところ、
+  `autonomous_trial_completeness.py` の「保存済み report と `build_report` の再構築を
+  `_canonical_bytes` で byte 比較する」経路が、**同 field を持たない保存済み report をすべて
+  拒否する**状態になった。`output/campaigns/` の保存済み report 7 件はいずれも同 field を持たない。
+  段 6 の敵対レビュー 2 本はどちらもこれを指摘せず、親がレビュー B の「焦点走の漏れ」を追跡して
+  実測で発見した。
+- 根本原因: producer に field を足す変更を、**同じ producer の出力を過去分と突き合わせる
+  consumer の互換層まで閉じずに**行った。当該 consumer には既に
+  `include_epoch` / `include_verifier_assessment_basis` という legacy omission の正規化機構が
+  あり、**新 field はそこへ登録されていなかった**。
+- **テスト色では見えない型である。** テスト内で保存済み side を同じ producer で作れば両側に
+  field が付いて緑になる。壊れるのは実成果物だけであり、焦点走も受入全走も緑のまま通りうる。
+- 恒久対応: 既存の legacy omission 正規化と同型の flag を 1 つ増やし、保存済み側に field が
+  無ければ両側から落とし、有れば厳密比較を維持した。回帰は
+  `orchestrator/tests/test_autonomous_trial_completeness.py` の正例・負例 2 node が守り、
+  変異 `M3-PERSISTED-COMPARISON-NORMALIZATION-REMOVED` が同 1 node だけで KILLED になることを
+  実測した。
+- 再発検知: producer の出力 shape を変える wave では、その出力を**過去分と突き合わせる
+  consumer**を参照関係で引き、legacy omission の正規化機構があるなら新 field を登録したかを
+  確認する。保存済み実成果物を 1 件開いて top-level key を数えるのが最も速い。
+
+### F776. 受入全走が、保持期限で消えるホーム配下の実 session に依存していた [テスト代表性] [手順漏れ]
+
+- 事象: [T-2060] の受入全走が `21 error, 5 failed, 19043 passed, 67 skipped` で赤になった。
+  赤は全件 `orchestrator/tests/test_codex_reasoning_ab.py` で、本文は
+  `session 019fac6b-... rollout count is 0, expected 1` (21 件) と
+  `FileNotFoundError: /home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-...jsonl`
+  (5 件のうち 4 件) である。
+- 根本原因: 同 test file は `_HISTORICAL_SESSIONS = Path("/home/SFC/tanab/.codex/sessions")` と
+  **repo 外のホーム配下 directory を絶対 path で焼き込み**、2026-07-29 の実 rollout を読む。
+  この directory は Codex 側の保持期限で失効する。実測すると
+  `/home/SFC/tanab/.codex/sessions/2026/07` は**空**で、親 `2026/` の mtime は
+  **2026-09-01 00:54:20 JST** — 当日の受入投入 (01:52) の約 1 時間前に 07 が削除されている。
+  残るのは `08` (31 日分) と `09` だけで、**日ごとに失効が進む**。
+- **これは特定 wave の問題ではない。** 期限切れ以降に受入全走を投げるすべての wave が
+  同じ赤を受け取る。00:54 より前に着地した wave が緑だったのは、失効前だったからである。
+- 恒久対応: D1367 に従い、pin された session の
+  **名前の実在だけ**を判定し、不在のときだけ失効識別子を理由に出して skip する。
+  重複と内容不一致は precondition を素通りして production の判定へ届き、従来どおり赤になる。
+  実装は並行 wave が先に着地させた main の `b227c23bb` / `267d72d4a` である。
+  本 wave も独自の実装を書いたが、着地版より大きく穴を作りやすいため**破棄し、
+  衝突は main 側を採って解消した**。
+- **同じ失効を複数の wave が同時刻帯に独立で踏んだ。** 環境失効は wave 固有の事象ではないため、
+  受入の赤が自分の編集面と接点を持たないときは、**並行 wave が既に同じ修正を着地させていないか**を
+  main の当該 file の履歴で確認する。
+- 親は次のいずれも行わなかった — テストの弱体化、`flaky_test_holds.py` への登録
+  (DW-O18 は main 既存 F を証拠に要求し、本件に該当する F は存在しない)、
+  決定的な赤に対する受入再走、失効した証拠の合成、着地済みの他 wave 実装の上書き。
+- 再発検知: 受入の赤が `test_codex_reasoning_ab.py` に集中し、本文が
+  `~/.codex/sessions` の path を含むなら、まず当該日の directory の実在を確かめる。
+
+### F777. prompt が出力形式に深い見出しを混ぜ、完成した子出力が採用 gate で落ちた [手順漏れ]
+
+- 事象: [T-1769] の段 3 敵対相談 A で、子は所見 8 件と対案を含む完成した本文 10727 bytes を
+  返したが、最終節を `### 総括` と書いたため `tools/check_codex_output.py` の
+  `^## 総括` 要求に掛かり `failure_class=f43_fragment` で不採用になった。子の再投入 1 本
+  (初回 wall 289 秒) が無駄になった。
+- 根本原因: 親の prompt が出力形式の節を `### 所見` `### 文面の対案` と深い階層で書き、
+  最後だけ `## 総括` にしていた。子は見出し階層を全体で揃えて出力するため、深い側へ引かれて
+  `## 総括` が出なかった。`DW-O01` の既存規則「prompt に `## 総括` 必須」は満たしており、
+  規則を守っても落ちる形だった。
+- 恒久対応: memory `codex-child-levels-prompt-heading-depth` — codex 子の prompt では出力形式の
+  見出しを全部 `## 総括` と同じ階層で書く。`docs/dev-wave/operations.md` の `DW-O02` へ足す案は
+  採らなかった — dev-wave docs の L1.5 byte 予算 9696 を 188 bytes 超過し、空けるには他の
+  安全義務を削ることになるためである (超過は実測、`tools/check_docs.py`)。
+- 再発検知: 同 gate (`tools/check_codex_output.py` の `--require-heading`) が引き続き
+  fails-closed で落とす。検知はもともと効いており、欠けていたのは親側の prompt 規律である。

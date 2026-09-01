@@ -613,7 +613,10 @@ def test_candidate_is_not_effective_and_has_zero_satisfied_predicates(
     assert sum(
         result.status is prereg.PredicateStatus.SATISFIED
         for result in report.predicates
-    ) == 0
+    ) == 1
+    result_by_id = {result.id: result for result in report.predicates}
+    assert result_by_id["C10"].status is prereg.PredicateStatus.SATISFIED
+    assert result_by_id["C10"].reason_code == "cross-binding-readiness-satisfied"
 
 
 @CANDIDATE_XDIST_GROUP
