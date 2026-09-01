@@ -1,0 +1,76 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1-screening-protocol-compare",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "            if stored_protocol == protocol:",
+          "new": "            if True:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_selects_requested_protocol_among_same_workload",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_single_wrong_protocol_floor"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-layer3-protocol-key",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "                    and doc_protocol == protocol and doc_records == records",
+          "new": "                    and doc_records == records"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_floor_match_uses_protocol_records_threads_and_workload",
+        "orchestrator/tests/test_layer3_report.py::test_wrong_protocol_floor_is_reported_as_mismatch",
+        "orchestrator/tests/test_layer3_report.py::test_legacy_within_floor_without_genome_does_not_match_mocc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-floor-trace-hook-admission",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "    if not _protocol_source_has_trace_hook_evidence_only(protocol):",
+          "new": "    if False and not _protocol_source_has_trace_hook_evidence_only(protocol):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-genome-mocc-registration",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "old": "    \"mocc\": MOCC_SPACE,\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_mocc_space_has_eight_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
