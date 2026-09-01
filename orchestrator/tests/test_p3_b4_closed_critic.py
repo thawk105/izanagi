@@ -218,6 +218,7 @@ def _write_admitted_attempt(
     )
     receipt = admission.as_wal_receipt()
     candidate = variant_id(_G, src_token)
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
     wal.log(layout, candidate, L.STAGE_BUILD_START, L.ENV_TAG, {
         "genome": _G.canonical(),
         "src_token": src_token,
@@ -230,7 +231,6 @@ def _write_admitted_attempt(
         "build_attempt_id": attempt_id,
         "build_admission_receipt_sha256": receipt["receipt_sha256"],
     })
-    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
 
 
 def _make_admitted_fixture(
@@ -3067,8 +3067,8 @@ def test_public_b4_receipt_gate_requires_exact_protocol_marker():
         (
             "base",
             (
-                "p3-s4-loop-s4-autonomous-ad0444da",
-                "p3-s4-loop-s4-autonomous-8700ee8e",
+                "p3-s4-loop-s4-autonomous-4e54b9ea",
+                "p3-s4-loop-s4-autonomous-7a8e044f",
             ),
         ),
         (
