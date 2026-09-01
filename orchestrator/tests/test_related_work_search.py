@@ -1183,6 +1183,65 @@ def test_unimplemented_count_only_control_never_claims_completion(catalog):
     assert len(transport.calls) == 1
 
 
+def test_bundle_rederived_count_only_control_never_claims_completion(
+    catalog, seal
+):
+    row = next(
+        row
+        for row in catalog["rows"]
+        if row["stream_id"] == "AX3A1-C-OR-1-A@arxiv"
+    )
+    request = search.materialize_request(row)
+    body = _arxiv_body(total=250, interpreted_query=_arxiv_echo(request))
+    response = search.TransportResponse(
+        status=200,
+        entity_body=body,
+        headers=(),
+        endpoint=search.ARXIV_ENDPOINT,
+        final_url=request["url"],
+        content_type="application/atom+xml",
+        response_received_at="2026-08-28T00:00:00Z",
+    )
+    evidence = search.capture_page_evidence(
+        stream_id=row["stream_id"],
+        pass_number=1,
+        page_number=0,
+        request=request,
+        response=response,
+        required_response_fields=row["required_response_fields"],
+    )
+    budget = search.WireBudget()
+    budget.consume(_fixed_clock())
+    checkpoint = search._response_checkpoint(
+        row=row,
+        request=request,
+        response=response,
+        seal=seal,
+        budget=budget,
+        now=_fixed_clock(),
+        run_id="axis3-run-ready",
+        pass_number=1,
+        page_number=0,
+        next_request=None,
+    )
+
+    result = search._derive_stream_result(
+        row, [(evidence, body, checkpoint)]
+    )
+
+    assert result["complete"] is False
+    assert result["reason"] == "control_evaluator_unimplemented"
+    assert result["completion"] == {
+        "complete": False,
+        "completion_kind": "count_only",
+        "declared_total": 250,
+        "reason": "control_evaluator_unimplemented",
+    }
+    assert result["pages"] == [evidence]
+    assert result["checkpoint"] == checkpoint
+    assert result["next_position"] is None
+
+
 def test_wire_budget_includes_preflight_and_starts_thirty_day_clock():
     first = datetime(2026, 8, 1, tzinfo=timezone.utc)
     budget = search.WireBudget()
