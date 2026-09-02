@@ -19,12 +19,10 @@ wait側`--receipt-file`はworker launcher receiptと別pathにする（同じpat
 
 ## DW-O02 — job artifact
 
-prompt、log、patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave の同名
-artifact と共有しない。専用場所を確保できなければ作成を止める。
-親 brief と前段の子成果物は同 subdirectory へ置き、prompt へ全文複製せず絶対パスで
-読ませる。prompt には読めなければ即停止と書き、context 無しの子出力をレビュー結果と
-数えない。必読資料と前提の既裁定は逐語を job dir へ取り出して渡す（repo 内 path は
-worktree の遅れで fail-closed する）。
+prompt・log・patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave と共有せず、
+確保できなければ止める。親 brief と前段の子成果物も同 dir へ置き、全文複製せず絶対パスで読ませる。prompt に読めなければ即停止と書き、context 無しの子出力を結果と数えない。
+必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空の
+成功で戻る、F819）。
 出力へ結合文字 U+0300〜U+036F を使わせない。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
