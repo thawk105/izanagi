@@ -80,6 +80,24 @@ D1198 は「供給と意味を独立した必須節として持つ」と書い�
 なお、この record は赤ではないため A-2 を止めている原因ではない。
 driver が非 green を一律に列挙するので拒否理由の文字列には出る。
 
+## main 取り込み後の再確認 (2026-09-02、merge commit `0428ddcd2`)
+
+本 wave の途中で main が 110 commit 進み、関門本体も T-2153 で大きく変わった
+(意味 witness を広げ、意味の節が供給の節の compile command を受け取る形にした)。
+取り込み後に上の 2 件を測り直した。**どちらも変わらず成立している。**
+
+- 裁定 1 (root path 依存): guard は健在。`root_dependent = (b"__FILE__", b"__BASE_FILE__")`
+  と `preprocess-root-dependent-builtin` は取り込み後も同じ位置にある。
+- 裁定 2 (`BACKOFF_NOINLINE` の意味が未確立): `MEANING_SUPPORTED_MACROS` は 9 個へ増えたが、
+  増えた 8 個はすべて `IZANAGI_BREAK_*` である。`BACKOFF_NOINLINE` は**依然として含まれない**。
+
+```
+['BACKOFF_FIXED', 'IZANAGI_BREAK_EARLY_UNLOCK', 'IZANAGI_BREAK_LOCK_COVERAGE',
+ 'IZANAGI_BREAK_PERMUTATION', 'IZANAGI_BREAK_PERMUTATION_SWAP',
+ 'IZANAGI_BREAK_WRITE_INTENT_ERASE', 'IZANAGI_BREAK_WRITE_INTENT_FORGE',
+ 'IZANAGI_BREAK_WRITE_INTENT_OPSWAP', 'IZANAGI_BREAK_WRITE_INTENT_PTRSWAP']
+```
+
 ## 実装しなかったもの (指示どおり)
 
 - `_run_process` の stderr 規則の緩和。今回は不要だった。patch 済みの木にすれば
