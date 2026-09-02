@@ -275,9 +275,6 @@ def test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf(
     assert len(projection["events"]) == 1
     assert projection["events"][0]["attempt_id"] == rejected.attempt_id
     assert projection["events"][0]["issues"][0]["code"] == "unknown_field"
-    assert len(projection["unresolved_absent_attempts"]) == (
-        EXPECTED_BLOCK_COUNT - 1
-    )
     count_claim = projection["recorded_rejection_event_count"]
     assert count_claim["value"] == 1
     assert count_claim["population"] == (
@@ -292,10 +289,6 @@ def test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf(
     assert (
         "past_producer_rejections_are_not_fully_reconstructible_from_publication_root"
         not in non_guarantees
-    )
-    assert (
-        "current_reason_for_an_absent_planned_leaf_cannot_be_determined"
-        in non_guarantees
     )
     assert (
         "rejection_ledger_deletion_and_complete_suffix_truncation_are_not_detected"

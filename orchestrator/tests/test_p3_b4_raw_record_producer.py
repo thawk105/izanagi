@@ -22,6 +22,7 @@ from orchestrator.campaign import (
     ident,
 )
 from orchestrator.campaign import p3_b4_closed_critic as C
+from orchestrator.campaign import p3_b4_material_report as material_report
 from orchestrator.campaign import p3_b4_prerun_issuer as issuer
 from orchestrator.campaign import p3_b4_raw_record_producer as P
 from orchestrator.campaign import p3_s4_loop as L
@@ -857,6 +858,7 @@ def test_validated_rejection_is_appended_as_one_canonical_event(
         "event_sha256",
         "event_index",
     }.isdisjoint(event)
+    assert event["schema_version"] == "p3-b4-raw-record-rejection-event/v1"
     assert event["issuer_commitment_sha256"] == (
         publication.issuer_commitment_sha256
     )
@@ -903,7 +905,42 @@ def test_unterminated_tail_is_truncated_before_the_next_single_write(
     history = P.load_b4_raw_record_rejection_history(publication)
     assert history.status == "readable"
     assert history.fragment_discarded is False
-    assert len(history.events) == 2
+    attempt_events = tuple(
+        event for event in history.events if event.attempt_id is not None
+    )
+    fragment_events = tuple(
+        event for event in history.events if event.attempt_id is None
+    )
+    assert len(attempt_events) == 2
+    assert len(fragment_events) == 1
+    assert fragment_events[0].issues == (
+        P.B4RawRecordIssue(
+            artifact=str(ledger),
+            field="rejection_history",
+            code=P.B4RawRecordIssueCode.IO_ERROR,
+            detail=(
+                "unterminated rejection ledger fragment was discarded before append"
+            ),
+        ),
+    )
+    assert [event.attempt_id for event in history.events] == [
+        first.attempt_id,
+        None,
+        second.attempt_id,
+    ]
+
+    report = material_report.build_material_report_document(
+        publication.publication_root
+    ).json_value
+    projected_events = report["producer_rejections"]["events"]
+    assert [event["attempt_id"] for event in projected_events] == [
+        first.attempt_id,
+        None,
+        second.attempt_id,
+    ]
+    assert projected_events[1]["issues"][0]["detail"] == (
+        "unterminated rejection ledger fragment was discarded before append"
+    )
 
 
 def test_rejection_append_failure_adds_io_error_without_publishing(
@@ -931,6 +968,66 @@ def test_rejection_append_failure_adds_io_error_without_publishing(
     assert not Path(target).exists()
     ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
     assert not ledger.exists()
+
+
+def test_rejection_fsync_failure_rolls_back_to_preappend_length(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    publication = _publication(tmp_path)
+    request = _pre_evidence_rejection_request(publication)
+    first = P.publish_b4_attempt_result(
+        publication=publication,
+        request=request,
+    )
+    assert isinstance(first, P.B4RawRecordDurableRejection), first
+    ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    before = ledger.read_bytes()
+    outcomes = iter((OSError("injected fsync failure"), None))
+
+    def injected_fsync(_fd: int) -> None:
+        outcome = next(outcomes)
+        if outcome is not None:
+            raise outcome
+
+    monkeypatch.setattr(P.os, "fsync", injected_fsync)
+
+    second = P.publish_b4_attempt_result(
+        publication=publication,
+        request=request,
+    )
+
+    assert isinstance(second, P.B4RawRecordDurableRejection), second
+    assert tuple(issue.code for issue in second.issues) == (
+        P.B4RawRecordIssueCode.UNKNOWN_FIELD,
+        P.B4RawRecordIssueCode.IO_ERROR,
+    )
+    assert ledger.read_bytes() == before
+    history = P.load_b4_raw_record_rejection_history(publication)
+    assert len(history.events) == 1
+
+
+def test_rejection_ledger_symlink_is_rejected_without_touching_target(
+    tmp_path: Path,
+) -> None:
+    publication = _publication(tmp_path / "publication-case")
+    ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    target = tmp_path / "outside-ledger-target"
+    target.write_bytes(b"sentinel")
+    ledger.symlink_to(target)
+
+    result = P.publish_b4_attempt_result(
+        publication=publication,
+        request=_pre_evidence_rejection_request(publication),
+    )
+
+    assert isinstance(result, P.B4RawRecordDurableRejection), result
+    assert tuple(issue.code for issue in result.issues) == (
+        P.B4RawRecordIssueCode.UNKNOWN_FIELD,
+        P.B4RawRecordIssueCode.IO_ERROR,
+    )
+    assert ledger.is_symlink()
+    assert target.read_bytes() == b"sentinel"
 
 
 def test_batch_records_only_rejections_after_publication_validation(
@@ -967,6 +1064,61 @@ def test_batch_records_only_rejections_after_publication_validation(
     assert not ledger.exists()
 
 
+def test_batch_prescan_rejection_is_durably_recorded(
+    tmp_path: Path,
+) -> None:
+    publication = _publication(tmp_path)
+    existing = Path(publication.planned_result_artifacts[0].artifact_path)
+    existing.parent.mkdir(parents=True, exist_ok=True)
+    existing.write_bytes(b"not-json")
+
+    results = P.publish_b4_attempt_results(
+        publication=publication,
+        requests=(),
+    )
+
+    assert len(results) == 1
+    assert isinstance(results[0], P.B4RawRecordDurableRejection), results
+    assert tuple(issue.code for issue in results[0].issues) == (
+        P.B4RawRecordIssueCode.EVIDENCE_SCHEMA,
+    )
+    history = P.load_b4_raw_record_rejection_history(publication)
+    assert len(history.events) == 1
+    assert history.events[0].attempt_id is None
+    assert tuple(issue.code for issue in history.events[0].issues) == (
+        P.B4RawRecordIssueCode.EVIDENCE_SCHEMA,
+    )
+
+
+def test_batch_per_item_unexpected_exception_is_durably_recorded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    publication = _publication(tmp_path)
+    monkeypatch.setattr(
+        P,
+        "_request",
+        mock.Mock(side_effect=RuntimeError("injected per-item failure")),
+    )
+
+    results = P.publish_b4_attempt_results(
+        publication=publication,
+        requests=[{}],
+    )
+
+    assert len(results) == 1
+    assert isinstance(results[0], P.B4RawRecordDurableRejection), results
+    assert tuple(issue.code for issue in results[0].issues) == (
+        P.B4RawRecordIssueCode.IO_ERROR,
+    )
+    history = P.load_b4_raw_record_rejection_history(publication)
+    assert len(history.events) == 1
+    assert history.events[0].attempt_id is None
+    assert tuple(issue.code for issue in history.events[0].issues) == (
+        P.B4RawRecordIssueCode.IO_ERROR,
+    )
+
+
 def test_invalid_rejection_history_does_not_replace_assembly_rejection(
     tmp_path: Path,
 ) -> None:
@@ -982,6 +1134,42 @@ def test_invalid_rejection_history_does_not_replace_assembly_rejection(
     )
     assert assembled.rejection_history.status == "invalid"
     assert assembled.rejection_history.events == ()
+
+
+@pytest.fixture(scope="module")
+def recorded_rejection_report(tmp_path_factory):
+    publication = _publication(tmp_path_factory.mktemp("b4-recorded-rejection-report"))
+    rejected = P.publish_b4_attempt_result(
+        publication=publication,
+        request=_pre_evidence_rejection_request(publication),
+    )
+    assert isinstance(rejected, P.B4RawRecordDurableRejection), rejected
+    report = material_report.build_material_report_document(
+        publication.publication_root
+    ).json_value
+    return publication, rejected, report
+
+
+def test_unresolved_absent_attempts_exclude_matching_recorded_rejection(
+    recorded_rejection_report,
+) -> None:
+    publication, rejected, report = recorded_rejection_report
+    unresolved = report["producer_rejections"]["unresolved_absent_attempts"]
+    assert {item["attempt_id"] for item in unresolved} == {
+        planned.attempt_id
+        for planned in publication.planned_result_artifacts
+        if planned.attempt_id != rejected.attempt_id
+    }
+
+
+def test_unresolved_absence_retains_current_reason_non_guarantee(
+    recorded_rejection_report,
+) -> None:
+    _publication_value, _rejected, report = recorded_rejection_report
+    assert (
+        "current_reason_for_an_absent_planned_leaf_cannot_be_determined"
+        in report["provenance"]["report_non_guarantees"]
+    )
 
 
 @pytest.fixture
@@ -1791,10 +1979,14 @@ def test_positive_201_block_certified_preserves_decimal_and_all_pair_protocol_bi
     publication = certified_publication_evidence.publication
     evidence = certified_publication_evidence.evidence
     _assert_replicas_match_real_except_identity(evidence)
+    ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    ledger.write_bytes(b"not-json\n")
     publication, assembled = _publish_full_publication(
         publication=publication,
         evidence=evidence,
     )
+    assert assembled.rejection_history.status == "invalid"
+    assert assembled.rejection_history.events == ()
     assert len(assembled.source_artifact_bytes) == 2 * EXPECTED_BLOCK_COUNT
     assert len({hashlib.sha256(item).hexdigest() for item in assembled.source_artifact_bytes}) == 2 * EXPECTED_BLOCK_COUNT
     assert assembled.canonical_bytes.count(b'"throughput":0.10000000000000001') == 2 * EXPECTED_BLOCK_COUNT

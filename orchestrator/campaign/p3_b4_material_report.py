@@ -977,12 +977,7 @@ def _render_markdown(report: Mapping[str, Any], json_sha256: str) -> bytes:
     provenance = report["provenance"]
     artifacts = provenance["artifacts"]
     assembly_reason = report["assembly"].get("reason")
-    producer_rejections = report["producer_rejections"]
-    history_status = producer_rejections["rejection_history_status"]
-    event_count = producer_rejections["recorded_rejection_event_count"]
-    rejection_rate = producer_rejections[
-        "recorded_scheduled_attempt_rejection_rate"
-    ]
+    producer_rejections = report.get("producer_rejections")
     lines = [
         "# B-4 evidence-only material report",
         "",
@@ -996,16 +991,28 @@ def _render_markdown(report: Mapping[str, Any], json_sha256: str) -> bytes:
         f"- analysis verdict: `{verdict if verdict is not None else 'not_evaluated'}`",
         f"- campaign disjointness: `{report['campaign_disjointness']['status']}`",
         f"- publication root: `{_display(provenance['publication_root'])}`",
-        f"- rejection history status: `{_display(history_status)}`",
-        f"- recorded rejection event count: `{event_count['value']}`",
-        f"- recorded rejection event count caveat: `{_display(event_count['caveat'])}`",
-        "- recorded scheduled-attempt rejection rate: "
-        f"`{rejection_rate['numerator']}/{rejection_rate['denominator']}`",
-        f"- recorded rejection rate caveat: `{_display(rejection_rate['caveat'])}`",
-        "- unresolved absent attempts: "
-        f"`{len(producer_rejections['unresolved_absent_attempts'])}`",
-        "- manifest-non-selected scheduled attempts: "
-        f"`{len(producer_rejections['not_selected'])}`",
+    ]
+    if producer_rejections is not None:
+        history_status = producer_rejections["rejection_history_status"]
+        event_count = producer_rejections["recorded_rejection_event_count"]
+        rejection_rate = producer_rejections[
+            "recorded_scheduled_attempt_rejection_rate"
+        ]
+        lines.extend([
+            f"- rejection history status: `{_display(history_status)}`",
+            f"- recorded rejection event count: `{event_count['value']}`",
+            "- recorded rejection event count caveat: "
+            f"`{_display(event_count['caveat'])}`",
+            "- recorded scheduled-attempt rejection rate: "
+            f"`{rejection_rate['numerator']}/{rejection_rate['denominator']}`",
+            "- recorded rejection rate caveat: "
+            f"`{_display(rejection_rate['caveat'])}`",
+            "- unresolved absent attempts: "
+            f"`{len(producer_rejections['unresolved_absent_attempts'])}`",
+            "- manifest-non-selected scheduled attempts: "
+            f"`{len(producer_rejections['not_selected'])}`",
+        ])
+    lines.extend([
         f"- reproduction argv (JSON): `{_display(provenance['reproduction_argv'])}`",
         "- certification: this report does not certify a selection",
         "",
@@ -1013,7 +1020,7 @@ def _render_markdown(report: Mapping[str, Any], json_sha256: str) -> bytes:
         "",
         "| artifact | path | SHA-256 |",
         "|---|---|---|",
-    ]
+    ])
     for name in ("registry", "manifest", "issuer_receipt", "raw_analysis"):
         artifact = artifacts[name]
         lines.append(

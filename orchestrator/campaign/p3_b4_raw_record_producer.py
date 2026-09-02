@@ -630,6 +630,18 @@ def _rejection_event_payload(
     }
 
 
+def _fragment_discarded_rejection(path: str) -> B4RawRecordRejection:
+    return _rejection(
+        None,
+        B4RawRecordIssue(
+            artifact=path,
+            field="rejection_history",
+            code=B4RawRecordIssueCode.IO_ERROR,
+            detail="unterminated rejection ledger fragment was discarded before append",
+        ),
+    )
+
+
 def _last_complete_line_offset(fd: int, size: int) -> int:
     end = size
     while end > 0:
@@ -665,7 +677,7 @@ def _append_rejection_event(
         | os.O_CREAT
         | getattr(os, "O_NOFOLLOW", 0)
     )
-    line = canonical_json_bytes(
+    rejection_line = canonical_json_bytes(
         _rejection_event_payload(publication, rejection)
     ) + b"\n"
     try:
@@ -693,12 +705,31 @@ def _append_rejection_event(
         if size > 0 and os.pread(ledger_fd, 1, size - 1) != b"\n":
             os.ftruncate(ledger_fd, _last_complete_line_offset(ledger_fd, size))
             fragment_discarded = True
-        written = os.write(ledger_fd, line)
-        if written != len(line):
-            raise OSError("rejection ledger write was incomplete")
-        os.fsync(ledger_fd)
-        if created:
-            os.fsync(root_fd)
+        append_offset = os.lseek(ledger_fd, 0, os.SEEK_END)
+        lines = [rejection_line]
+        if fragment_discarded:
+            lines.insert(0, canonical_json_bytes(_rejection_event_payload(
+                publication,
+                _fragment_discarded_rejection(path),
+            )) + b"\n")
+        for line in lines:
+            written = os.write(ledger_fd, line)
+            if written != len(line):
+                raise OSError("rejection ledger write was incomplete")
+        try:
+            os.fsync(ledger_fd)
+            if created:
+                os.fsync(root_fd)
+        except Exception as sync_exc:
+            try:
+                os.ftruncate(ledger_fd, append_offset)
+                os.fsync(ledger_fd)
+            except Exception as rollback_exc:
+                raise OSError(
+                    "rejection ledger fsync failed and append rollback failed: "
+                    f"{type(rollback_exc).__name__}: {rollback_exc}"
+                ) from sync_exc
+            raise
         return fragment_discarded
     finally:
         if ledger_fd >= 0:
