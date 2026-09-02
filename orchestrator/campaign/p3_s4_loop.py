@@ -62,6 +62,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from . import (backoff_hole_grammar, buildcache,                         # noqa: E402
                campaign_lock as campaign_lock_codec, condition_meaning_gate,
                coder_effect_gate, env_contract, ident, trigger_gate_binding, wal)
+from . import knowledge_manifest                                      # noqa: E402
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -721,15 +722,26 @@ def whiteboard_for_planner(state: LoopState) -> List[Dict]:
     return out
 
 
-def planner_context_payload(state: LoopState, cfg: CampaignConfig) -> Dict[str, Any]:
+def planner_context_payload(
+    state: LoopState,
+    cfg: CampaignConfig,
+    *,
+    knowledge_input: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """段4 human-supervised loop: このharnessが権威を持つ入力 (whiteboard + 任意の
     policy_hint) を planner-v4 spawn 用 JSON へ射影する。current_perf/leading_indicators は
     メインセッションが別途合成し本関数の責務外。
+
+    ``knowledge_input`` がある場合は両既存 key と同じ階層の兄弟 key として加える。
 
     ``policy_hint`` は search_config にキーがある場合だけ exact ``str`` を受け付ける。
     キーが無い場合は planner payload にも出力しない。
     """
     payload: Dict[str, Any] = {"whiteboard": whiteboard_for_planner(state)}
+    if knowledge_input is not None:
+        if type(knowledge_input) is not dict:
+            raise ValueError("knowledge_input は exact dict が必要")
+        payload["knowledge_input"] = knowledge_input
     if "policy_hint" not in cfg.search_config:
         return payload
     hint = cfg.search_config.get("policy_hint")
@@ -1009,6 +1021,55 @@ def default_cfg(
     return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
 
+def _resolve_knowledge_manifest_argument(
+    manifest_path: Optional[str | os.PathLike[str]],
+) -> Optional[knowledge_manifest.ResolvedKnowledgeManifest]:
+    if manifest_path is None:
+        return None
+    return knowledge_manifest.load_and_resolve_manifest(
+        manifest_path,
+        repo_root=_repo_root(),
+    )
+
+
+def _prepare_knowledge_campaign(
+    cfg: CampaignConfig,
+    resolved: Optional[knowledge_manifest.ResolvedKnowledgeManifest],
+    *,
+    classification: str,
+    de_novo_claim: bool,
+) -> tuple[
+    CampaignConfig,
+    CampaignLayout,
+    Optional[Dict[str, Any]],
+]:
+    """両 CLI 経路で同じ typed manifest から identity、receipt、projection を作る。"""
+    if resolved is None:
+        return (
+            cfg,
+            exploration_campaign_layout(str(ident.campaign_id(cfg))),
+            None,
+        )
+    bound = replace(
+        cfg,
+        search_config={
+            **cfg.search_config,
+            wal.KNOWLEDGE_LEVEL_SEARCH_KEY: resolved.manifest.knowledge_level,
+            wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY:
+                resolved.knowledge_manifest_sha256,
+        },
+    )
+    layout = exploration_campaign_layout(str(ident.campaign_id(bound)))
+    layout.ensure()
+    knowledge_manifest.write_receipt(
+        layout.root,
+        resolved,
+        classification=classification,
+        de_novo_claim=de_novo_claim,
+    )
+    return bound, layout, knowledge_manifest.planner_projection(resolved)
+
+
 def default_perf() -> PerfConfig:
     """配線規模 (kickoff/red と同じ、性能比較用 calibration ではない — 規律4)。
     実 fitness 比較に入る段では calibrator が決めた records/threads/reps に差し替える。"""
@@ -1152,6 +1213,9 @@ def _duplicate_snapshot(layout: CampaignLayout, variant: str):
         )
 
     wal.validate_backoff_grammar_bindings(
+        records, campaign_lock=decoded_lock,
+    )
+    wal.validate_knowledge_provenance_bindings(
         records, campaign_lock=decoded_lock,
     )
     wal.validate_commit_contract_bindings(records, campaign_lock=decoded_lock)
@@ -1811,6 +1875,14 @@ def main(
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
     ap.add_argument("--emit-planner-context", metavar="PATH.json",
                     help="proposal 生成前の planner-v4 入力 (whiteboard + 任意の policy_hint) を JSON 出力")
+    ap.add_argument("--knowledge-manifest", type=Path, metavar="PATH",
+                    help="K2 knowledge manifest (commit/path/raw-byte SHA を検証して条件付き bind)")
+    ap.add_argument("--knowledge-classification", metavar="TEXT",
+                    default="reproduction_or_selection",
+                    help="knowledge receipt へ記録する呼び手宣言の候補分類")
+    ap.add_argument("--knowledge-de-novo-claim", choices=("true", "false"),
+                    default="false",
+                    help="knowledge receipt へ記録する呼び手宣言の de novo claim")
     ap.add_argument("--policy-hint", metavar="TEXT", default=None,
                     help="planner-v4 へ渡す任意の policy hint (--emit-planner-context と併用)")
     ap.add_argument("--isolate-worktree", action="store_true",
@@ -1835,6 +1907,10 @@ def main(
         raise B4ProtocolError(
             "B-4 protocol forbids the fixture run_one_iteration route"
         )
+    resolved_knowledge = _resolve_knowledge_manifest_argument(
+        a.knowledge_manifest,
+    )
+    knowledge_de_novo_claim = a.knowledge_de_novo_claim == "true"
     if a.emit_planner_context:
         if a.b4_reflux_ablation:
             cfg = default_cfg(
@@ -1849,11 +1925,21 @@ def main(
                 cfg,
                 search_config={**cfg.search_config, "policy_hint": a.policy_hint},
             )
+        cfg, _knowledge_layout, knowledge_input = _prepare_knowledge_campaign(
+            cfg,
+            resolved_knowledge,
+            classification=a.knowledge_classification,
+            de_novo_claim=knowledge_de_novo_claim,
+        )
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         state = load_loop_state(layout)
         if state is None:
             state = LoopState(start_wall=time.time())
         payload = planner_context_payload(state, cfg)
+        if knowledge_input is not None:
+            payload = planner_context_payload(
+                state, cfg, knowledge_input=knowledge_input,
+            )
         with open(a.emit_planner_context, "w", encoding="utf-8") as f:
             f.write(json.dumps(payload, ensure_ascii=False))
         print(f"planner context を出力しました: {a.emit_planner_context}")
@@ -1883,6 +1969,12 @@ def main(
         cfg = default_cfg(reflux=(a.reflux == "on"))
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    cfg, _knowledge_layout, _knowledge_input = _prepare_knowledge_campaign(
+        cfg,
+        resolved_knowledge,
+        classification=a.knowledge_classification,
+        de_novo_claim=knowledge_de_novo_claim,
+    )
     perf = default_perf()
 
     # 段5 git worktree 隔離 (opt-in): 有効時は 1 回だけ使い捨て worktree を作り、build
