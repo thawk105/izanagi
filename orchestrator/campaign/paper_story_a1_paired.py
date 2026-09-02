@@ -54,6 +54,7 @@ from .build_admission import (  # noqa: E402
 )
 from .durable_root import DurableRootPolicy  # noqa: E402
 from .layout import CampaignLayout, exploration_campaign_layout  # noqa: E402
+from . import loop as campaign_loop  # noqa: E402
 from .loop import run_campaign  # noqa: E402
 from .model import (  # noqa: E402
     CampaignConfig,
@@ -94,6 +95,19 @@ SUBMISSION_SCHEMA = "paper-story-a1-paired-submission/v1"
 SUBMISSION_INTENT_SCHEMA = "paper-story-a1-paired-submission-intent/v1"
 ACQUISITION_SCHEMA = SUBMISSION_SCHEMA
 COMPLETION_SCHEMA = "paper-story-a1-paired-scheduler-completion/v2"
+V3_GROUP_SUBMISSION_SCHEMA = "paper-story-a1-paired-group-submission/v1"
+V3_GROUP_SUBMISSION_FAILURE_SCHEMA = (
+    "paper-story-a1-paired-group-submission-failure/v1"
+)
+V3_GROUP_INTENT_SCHEMA = "paper-story-a1-paired-group-intent/v1"
+V3_WORKLOAD_SHARD_SCHEMA = "paper-story-a1-paired-workload-shard/v1"
+V3_WORKLOAD_RECEIPT_SCHEMA = "paper-story-a1-paired-workload-receipt/v1"
+V3_JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-workload-job-terminal/v1"
+V3_GROUP_TERMINAL_SCHEMA = "paper-story-a1-paired-group-terminal/v1"
+V3_GROUP_COMPLETION_SCHEMA = "paper-story-a1-paired-group-completion/v1"
+V3_READY_SCHEMA = "paper-story-a1-paired-workload-ready/v1"
+V3_BENCH_GO_SCHEMA = "paper-story-a1-paired-bench-go/v1"
+V3_BENCH_START_SCHEMA = "paper-story-a1-paired-bench-start/v1"
 _SUBMISSION_RECEIPT_KEYS = frozenset({
     "schema_version", "route", "study_id", "source_commit", "attempt_root",
     "request_id", "submission_receipt_path", "completion_receipt_path",
@@ -110,12 +124,19 @@ _NON_CERTIFYING_RESULT_KEYS = frozenset({
     "all_workloads_terminal", "complete", "measurement_error", "workloads",
     "limitations",
 })
+_V3_NON_CERTIFYING_RESULT_KEYS = (
+    _NON_CERTIFYING_RESULT_KEYS - {"reservation_binding"}
+) | {"job_executions"}
 _NON_CERTIFYING_RECEIPT_KEYS = frozenset({
     "schema_version", "study_id", "formal", "promotion_prohibited", "route",
     "pbs_jobid", "host", "recorded_epoch", "policy", "source_binding",
     "submission_receipt", "scheduler_completion_receipt", "roots", "result",
     "calibration_sha256",
 })
+_V3_NON_CERTIFYING_RECEIPT_KEYS = (
+    _NON_CERTIFYING_RECEIPT_KEYS
+    - {"pbs_jobid", "host", "calibration_sha256"}
+) | {"job_executions"}
 PAIRING_DESIGN = "arm-grouped-positional-v1"
 V3_PAIRING_DESIGN = "balanced-a5b5-b5a5-v1"
 ARM_ORDER = ("adaptive", "static10")
@@ -311,6 +332,22 @@ RESERVATION_BINDING_KEYS = (
     "script_sha256",
     "nonce",
 )
+V3_ACCOUNTING_KEYS = frozenset({
+    "method",
+    "started_epoch_s",
+    "ended_epoch_s",
+    "started_monotonic_s",
+    "ended_monotonic_s",
+    "elapsed_s",
+    "shell_user_s",
+    "shell_system_s",
+    "reaped_descendants_user_s",
+    "reaped_descendants_system_s",
+    "cpu_total_s",
+    "times_baseline_raw",
+    "times_final_raw",
+    "unreaped_descendants",
+})
 PBS_EVIDENCE_SCOPE = {
     "job_environment_fields": (
         "PBS_JOBID",
@@ -533,6 +570,110 @@ def _validate_reservation_binding_document(value: object) -> dict[str, object]:
         field: getattr(binding, field)
         for field in RESERVATION_BINDING_KEYS
     }
+
+
+def _validate_v3_accounting(value: object) -> dict[str, object]:
+    """Validate one shell/reaped-descendant accounting window."""
+    if type(value) is not dict or set(value) != V3_ACCOUNTING_KEYS:
+        raise PaperStoryError("job accounting shape differs")
+    if value.get("method") != "bash-times-delta-reaped-descendants/v1":
+        raise PaperStoryError("job accounting method differs")
+    numeric = (
+        "started_epoch_s",
+        "ended_epoch_s",
+        "started_monotonic_s",
+        "ended_monotonic_s",
+        "elapsed_s",
+        "shell_user_s",
+        "shell_system_s",
+        "reaped_descendants_user_s",
+        "reaped_descendants_system_s",
+        "cpu_total_s",
+    )
+    if any(not _finite_number(value.get(key)) for key in numeric):
+        raise PaperStoryError("job accounting contains a non-finite value")
+    if any(float(value[key]) < 0.0 for key in numeric):
+        raise PaperStoryError("job accounting contains a negative value")
+    if (
+        float(value["ended_epoch_s"]) < float(value["started_epoch_s"])
+        or float(value["ended_monotonic_s"])
+        < float(value["started_monotonic_s"])
+        or not math.isclose(
+            float(value["elapsed_s"]),
+            float(value["ended_monotonic_s"])
+            - float(value["started_monotonic_s"]),
+            rel_tol=0.0,
+            abs_tol=1e-6,
+        )
+    ):
+        raise PaperStoryError("job accounting elapsed window differs")
+    components = sum(float(value[key]) for key in (
+        "shell_user_s",
+        "shell_system_s",
+        "reaped_descendants_user_s",
+        "reaped_descendants_system_s",
+    ))
+    if not math.isclose(
+        float(value["cpu_total_s"]), components, rel_tol=0.0, abs_tol=1e-6,
+    ):
+        raise PaperStoryError("job accounting CPU total differs")
+    if (
+        type(value.get("times_baseline_raw")) is not str
+        or not value["times_baseline_raw"]
+        or type(value.get("times_final_raw")) is not str
+        or not value["times_final_raw"]
+    ):
+        raise PaperStoryError("job accounting times snapshots are missing")
+    if value.get("unreaped_descendants") != []:
+        raise PaperStoryError("job accounting has unreaped descendants")
+    return dict(value)
+
+
+def _validate_v3_job_executions(
+    value: object,
+    *,
+    attempt: Path | None = None,
+) -> list[dict[str, object]]:
+    """Bind the exact workload triple to distinct normalized scheduler jobs."""
+    if type(value) is not list or len(value) != len(WORKLOAD_ORDER):
+        raise PaperStoryError("job executions are not the exact workload triple")
+    validated: list[dict[str, object]] = []
+    normalized_request_ids: list[str] = []
+    for ordinal, (raw, workload) in enumerate(zip(value, WORKLOAD_ORDER)):
+        if type(raw) is not dict or set(raw) != {
+            "workload", "ordinal", "request_id", "reservation_binding",
+            "accounting",
+        }:
+            raise PaperStoryError("job execution shape differs")
+        if raw.get("workload") != workload or raw.get("ordinal") != ordinal:
+            raise PaperStoryError("job execution workload ordinal differs")
+        request_id = _validated_request_id(
+            raw.get("request_id"), f"{workload} request ID",
+        )
+        reservation = _validate_reservation_binding_document(
+            raw.get("reservation_binding")
+        )
+        if _validated_request_id(
+            reservation["job_id"], f"{workload} reservation job ID",
+        ) != request_id:
+            raise PaperStoryError("job execution reservation request ID differs")
+        if attempt is not None and reservation["nonce"] != (
+            f"{attempt.name}.{workload}"
+        ):
+            raise PaperStoryError("job execution reservation nonce differs")
+        accounting = _validate_v3_accounting(raw.get("accounting"))
+        normalized_request_ids.append(request_id)
+        validated.append({
+            "workload": workload,
+            "ordinal": ordinal,
+            "request_id": raw["request_id"],
+            "reservation_binding": reservation,
+            "accounting": accounting,
+        })
+    # MF1: uniqueness is deliberately checked only after NQSV normalization.
+    if len(set(normalized_request_ids)) != len(WORKLOAD_ORDER):
+        raise PaperStoryError("normalized request IDs are not a unique triple")
+    return validated
 
 
 def _reservation_binding_from_environment(
@@ -2209,6 +2350,155 @@ def _attempt_evidence_paths(attempt: Path) -> dict[str, str]:
     }
 
 
+def _v3_attempt_evidence_paths(attempt: Path) -> dict[str, str]:
+    return {
+        "submission_receipt": os.fspath(attempt / "receipts" / "submission.json"),
+        "submission_failure": os.fspath(
+            attempt / "receipts" / "submission-failure.json"
+        ),
+        "completion_receipt": os.fspath(attempt / "receipts" / "completion.json"),
+        "group_terminal": os.fspath(attempt / "raw" / "job-terminal.json"),
+        "result_root": os.fspath(attempt / "raw" / "results"),
+    }
+
+
+def _v3_job_roots(attempt: Path, workload: str) -> dict[str, str]:
+    if workload not in WORKLOAD_ORDER:
+        raise PaperStoryError("workload selector differs")
+    job_root = attempt / "jobs" / workload
+    scheduler_root = job_root / "scheduler"
+    raw_root = job_root / "raw"
+    return {
+        "attempt_root": os.fspath(attempt),
+        "attempt_identity": _attempt_root_identity(attempt),
+        "job_root": os.fspath(job_root),
+        "scheduler_root": os.fspath(scheduler_root),
+        "raw_root": os.fspath(raw_root),
+        "output_root": os.fspath(raw_root / "campaign-output"),
+        "cache_root": os.fspath(job_root / "cache"),
+        "result_root": os.fspath(raw_root / "results"),
+        "tmp_root": os.fspath(raw_root / "tmp"),
+        "stdout_path": os.fspath(scheduler_root / "job.stdout"),
+        "stderr_path": os.fspath(scheduler_root / "job.stderr"),
+        "qsub_stdout_path": os.fspath(scheduler_root / "qsub.stdout"),
+        "qsub_stderr_path": os.fspath(scheduler_root / "qsub.stderr"),
+        "request_id_path": os.fspath(scheduler_root / "request-id"),
+        "submission_receipt": os.fspath(
+            attempt / "receipts" / "submission.json"
+        ),
+        "completion_receipt": os.fspath(
+            attempt / "receipts" / "completion.json"
+        ),
+        "job_terminal": os.fspath(job_root / "job-terminal.json"),
+        "ready": os.fspath(attempt / "barrier" / "ready" / f"{workload}.json"),
+        "bench_go": os.fspath(attempt / "barrier" / "bench-go.json"),
+        "bench_start": os.fspath(
+            attempt / "barrier" / "bench-start" / f"{workload}.json"
+        ),
+    }
+
+
+def _canonical_v3_qsub_contract(
+    *,
+    repo_root: Path,
+    study_id: str,
+    source_commit: str,
+    attempt: Path,
+    workload: str,
+) -> tuple[list[str], dict[str, object]]:
+    roots = _v3_job_roots(attempt, workload)
+    variables = {
+        "IZANAGI_EXPECTED_HEAD": source_commit,
+        "IZANAGI_A1_STUDY_ID": study_id,
+        "IZANAGI_A1_ATTEMPT_ROOT": os.fspath(attempt),
+        "IZANAGI_A1_WORKLOAD": workload,
+        "IZANAGI_A1_ACQUISITION_RECEIPT": roots["submission_receipt"],
+        "IZANAGI_A1_COMPLETION_RECEIPT": roots["completion_receipt"],
+        "IZANAGI_SUBMISSION_NONCE": f"{attempt.name}.{workload}",
+    }
+    variable_text = ",".join(f"{key}={value}" for key, value in variables.items())
+    options = {
+        "v": variable_text,
+        "variables": variables,
+        "o": roots["stdout_path"],
+        "e": roots["stderr_path"],
+    }
+    argv = [
+        "qsub", "-v", variable_text,
+        "-o", roots["stdout_path"],
+        "-e", roots["stderr_path"],
+        os.fspath((repo_root / JOB_RELATIVE_PATH).resolve(strict=True)),
+    ]
+    return argv, options
+
+
+def _v3_group_intent(
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    source_commit: str,
+    attempt: Path,
+) -> dict[str, object]:
+    jobs = []
+    for ordinal, workload in enumerate(WORKLOAD_ORDER):
+        argv, options = _canonical_v3_qsub_contract(
+            repo_root=repo_root,
+            study_id=_policy_study_id(policy),
+            source_commit=source_commit,
+            attempt=attempt,
+            workload=workload,
+        )
+        jobs.append({
+            "workload": workload,
+            "ordinal": ordinal,
+            "qsub_argv": argv,
+            "qsub_options": options,
+        })
+    value = {
+        "schema_version": V3_GROUP_INTENT_SCHEMA,
+        "study_id": _policy_study_id(policy),
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "jobs": jobs,
+        "source_binding": _non_certifying_source_binding(
+            repo_root, source_commit, policy,
+        ),
+    }
+    value["intent_sha256"] = _submission_intent_digest(value)
+    return value
+
+
+def _assert_no_prior_v3_bench_start(
+    base: Path, *, study_id: str, current_attempt: Path,
+) -> None:
+    """MF2 rear gate: a measured study cannot be group-rerun."""
+    try:
+        entries = tuple(base.iterdir())
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise PaperStoryError(f"cannot inspect prior attempts: {exc}") from exc
+    suffix = ".intent.json"
+    for intent_path in entries:
+        if not intent_path.name.endswith(suffix) or intent_path.is_symlink():
+            continue
+        attempt_name = intent_path.name[:-len(suffix)]
+        if not attempt_name or attempt_name == current_attempt.name:
+            continue
+        try:
+            intent = _read_json(intent_path)
+        except PaperStoryError:
+            continue
+        if intent.get("study_id") != study_id:
+            continue
+        prior = base / attempt_name
+        for workload in WORKLOAD_ORDER:
+            if os.path.lexists(_v3_job_roots(prior, workload)["bench_start"]):
+                raise PaperStoryError(
+                    "prior attempt has bench-start evidence; group rerun is prohibited"
+                )
+
+
 def _attempt_intent_path(attempt: Path) -> Path:
     return attempt.parent / f"{attempt.name}.intent.json"
 
@@ -2233,6 +2523,23 @@ def _validate_submission_intent(
 ) -> dict[str, object]:
     policy = policy if policy is not None else load_policy()[0]
     study_id = _policy_study_id(policy)
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        expected = _v3_group_intent(
+            repo_root=repo_root,
+            policy=policy,
+            source_commit=source_commit,
+            attempt=attempt,
+        )
+        if type(value) is not dict or value != expected:
+            raise PaperStoryError("group submission intent identity differs")
+        _verify_current_source_paths(
+            repo_root,
+            source_commit,
+            value["source_binding"],
+            relative_paths=_source_relative_paths(policy, non_certifying=True),
+            label="group submission intent",
+        )
+        return dict(value)
     if type(value) is not dict or set(value) != {
         "schema_version", "study_id", "source_commit", "attempt_root",
         "qsub_argv", "qsub_options", "source_binding", "intent_sha256",
