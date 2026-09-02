@@ -40,3 +40,27 @@ seq: 3
   clean な作業ツリーを渡し、競合両側と自動 merge 結果を **repo 外の job dir へ射影して**読ませる。
 - 再発検知: 子の投入前に対象 worktree が merge 途中でないことを確かめる
   (`.git/MERGE_HEAD` の不在、`git status --porcelain` に `UU` が無いこと)。
+
+## 再発
+
+### F57
+
+- **再発: 2026-09-02 ([T-2145] 受入全走 2 走目)** — tip `e281804b4` の全走 (20166 collected) で
+  `test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running`
+  が 1 件落ちた (**1 failed / 20073 passed / 92 skipped**)。同 node は F57 に既載である。
+  本 wave の差分は launcher 実装にも同 test file にも到達しない (全範囲の path 検索で 0 件)。
+  **同一 tip の 1 走目では同 file が全件通っている** (そちらは別の 3 件が落ち、いずれも本 wave の
+  設計の帰結として追随済み)。`DW-O18` により帰属しない。
+  **新しい情報が 2 つある。**
+  (1) `loadavg=(26.72, 19.58, 20.02)` で発火した。既載の 1 分平均は 15.05 / 12.67 / 12.92 / 17.42 で、
+  **26.72 は既載の最大を大きく上回る**。5 分平均 19.58・15 分平均 20.02 も既載の最大 (4.83 / 4.03) の
+  4 倍以上であり、**持続負荷がこの水準での発火は初出**である。発火時は他 wave の codex 子が
+  16 本 (7 wave: `a1-pilot-sizing` 6 本ほか) 走っていた。
+  (2) **単独再走が緑にならなかったのは初出である。** 既載の再発はいずれも
+  「全走で赤、単独再走は緑」だったが、本件は同 file の単独再走が
+  `test_thread_missing_after_grace_kills_process_group` (`FileNotFoundError` on pytest tmpdir)、
+  `test_cumulative_limits_do_not_reset_between_attempts`、
+  `test_authority_bound_job_rejects_prior_invalid_attempt` (いずれも launcher returncode mismatch)
+  の**別 3 node**で赤になった。**赤の node が単独再走でも移動する**ことを示し、
+  「再走すれば緑が取れる」という運用上の前提がこの負荷帯では成り立たないことの直接の証拠になる。
+  恒久対応は既載のまま変えない。
