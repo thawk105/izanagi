@@ -58,18 +58,39 @@ producer 一覧からの plotting 2 本の欠落である。
 paper-story A-2 認証 8 件)。段 3 レンズ B は 5 件と申告したが、古い数字だった。
 閉包をどの大きさへ広げても同じ代償が出るので、段階の切り方の問題ではない。
 
-**ただし本 wave が作る回帰ではない。** 旧 grammar の拒否は
-`test_v2_rejects_legacy_exact_two_source_blob_keys` と
+旧 grammar の拒否そのものは、`test_v2_rejects_legacy_exact_two_source_blob_keys` と
 `test_v2_rejects_pre_wave_exact_twelve_source_blob_keys` が過去の閉包拡張から一貫して固定して
-いる意図的な挙動である。さらに repo 側 consumer はこの 11 件を decode 経由で読んでいない
-(`test_b10_extended_figure_provenance.py` は外部 source を file bytes の SHA-256 で束縛し、
-`campaign_lock` の decode を通さない)。受入は赤にならず、図の再生成も壊れない。
-失われるのは admission API 経由でこの 11 件を読み直す能力だけである。
+いる意図的な挙動である。
 
-歴史 grammar registry (旧 8/12/14/25/27/24 を `HISTORICAL_RAW` だけで読む versioned decoder) は
-新しい機構で受理集合を変えるため、実装せず裁定パッケージへ回した。
-段 2 が提案した「pre-T733 exact-24 map を拒否するテストの新設」も、裁定待ちの方針を先に
+### 親の段 4 裁定はここで誤った (受入で判明)
+
+親は段 4 で「repo 側 consumer はこの 11 件を decode 経由で読んでいない」と裁定し、
+受入は赤にならず図の再生成も壊れないと結論した。**これは誤りだった。**
+
+親が確認したのは `test_b10_extended_figure_provenance.py` (外部 source を file bytes の
+SHA-256 で束縛し decode を通さない) だけで、**別 file の
+`test_plot_b10_extended_backoff.py` を見ていなかった**。同 test は
+`tools/plotting/plot_b10_extended_backoff.py` の `load_measurements()` を実 root に対して呼び、
+そこで外部 lock を `artifact_admission` 経由で decode する。
+
+受入全走 (attempt 1) の結果は `1 failed, 19869 passed, 92 skipped` で、唯一の赤は
+
+```
+orchestrator/campaign/campaign_lock.py:263: CampaignLockCodecError:
+authority.contract_loader_blob_sha256s の exact key 集合が不正
+```
+
+だった。lock は `b10-backoff-grid; workload=write-heavy` の外部 official lock である。
+**閉包拡張に帰属する回帰であり、非帰属赤ではない。**
+さらに同じ decode 経路は fig2c の生成器そのものなので、図の再生成も現状では通らない。
+
+**この wave は land していない。** 旧 grammar の扱いを決めるまで進めない。
+段 2 が提案した「pre-T733 exact-24 map を拒否するテストの新設」も、この裁定を先に
 凍結してしまうため採らなかった。
+
+教訓: 「外部成果物を repo が decode 経由で読んでいるか」は、1 つの test file を見て
+結論してはならない。同じ成果物 root を指す consumer は複数 file に分かれ、
+束縛の仕方 (bytes hash か decode か) が file ごとに違う。
 
 ## 検査が空回りしていた穴と、その塞ぎ方
 

@@ -28,10 +28,17 @@ title: [T-733] enforcement source closure を exact 24 path から exact 62 path
   問題ではない。**ただし本 wave が作る回帰ではない** — 旧 grammar の拒否は
   `test_v2_rejects_legacy_exact_two_source_blob_keys` と
   `test_v2_rejects_pre_wave_exact_twelve_source_blob_keys` が過去の拡張から一貫して固定している。
-  さらに repo 側 consumer はこの 11 件を decode 経由で読んでおらず
-  (`test_b10_extended_figure_provenance.py` は file bytes の SHA-256 で束縛)、
-  受入は赤にならず図の再生成も壊れない。失われるのは admission API 経由で読み直す能力だけである。
-  歴史 grammar decoder は新機構なので実装せず、下記の裁定パッケージへ回した。
+  **親は段 4 で「repo 側 consumer はこの 11 件を decode 経由で読んでいない」と裁定したが、
+  これは誤りだった。** 親が確認したのは `test_b10_extended_figure_provenance.py` (外部 source を
+  file bytes の SHA-256 で束縛する) だけで、別 file の `test_plot_b10_extended_backoff.py` を
+  見ていなかった。同 test は `tools/plotting/plot_b10_extended_backoff.py` の
+  `load_measurements()` を実 root に対して呼び、そこで外部 lock を `artifact_admission` 経由で
+  decode する。受入全走で
+  `test_throughput_ci_is_wal_t95_and_abort_has_no_ci_in_canonical_data` が
+  `CampaignLockCodecError: authority.contract_loader_blob_sha256s の exact key 集合が不正` で
+  落ちた (1 failed / 19869 passed / 92 skipped)。**閉包拡張に帰属する回帰である。**
+  さらに同じ decode 経路は fig2c の生成器そのものなので、図の再生成も現状では通らない。
+  したがって歴史 grammar の扱いを決めない限り本 wave は land できない。
 - **段 2 が提案した「pre-T733 exact-24 map を拒否するテストの新設」は採らなかった。**
   上記が裁定待ちである以上、先にその方針を凍結してしまうためである。既存の exact-2 / exact-12
   拒否テストが、受理を緩める変異を十分に検出することを変異走行で確かめた。
@@ -46,17 +53,19 @@ title: [T-733] enforcement source closure を exact 24 path から exact 62 path
 - **固定 known-answer の値は子の計算を信用せず親が独立に計算して照合した。**
   順序付き path 列の SHA-256 と合成 fixture の E1 の両方が一致した
   ({{D:closure-order-pinned-by-known-answer}})。
-- 段 6 レビューが出した受入時間の見積りは、検査項目 190 件増・直列で約 60 秒増だった。
-  実測は下記の受入結果を正とする。
+- 受入全走 (attempt 1): `1 failed, 19869 passed, 92 skipped`。唯一の赤は上記の
+  `test_plot_b10_extended_backoff.py::test_throughput_ci_is_wal_t95_and_abort_has_no_ci_in_canonical_data`
+  で、非帰属ではなく本 wave の閉包拡張に帰属する。**land していない。**
 - 工数: codex 子 6 本 (plan 1、consult 2、author 1、review 2、fix 1)。変異走行は probe 2 回 + 本走 1 回。
 
 ## 次の一手差分
 
 ### 更新
 
-- [T-733] **P2・進行中**: 第 1 層として exact 24 path から exact 62 path へ広げた。
-  残りは未収載 69 module の収載と、非 import 委譲の束縛である。保証の文言は
-  推移閉包を名乗らない形にしてある。
+- [T-733] **P1・ユーザー裁定待ち**: 第 1 層として exact 24 path から exact 62 path へ広げる実装は
+  branch 上で完成し、変異 5/5 KILLED まで通した。しかし受入全走で
+  fig2c の生成経路が外部の旧 grammar lock を decode できずに落ちるため land していない。
+  旧 grammar の扱い ({{T:historical-grammar-registry}}) を決めるまで進めない。
   base: 2e830bbb64bfb811c16385cf9f5c1b7614d38ad4a39191136ecbc95d9e1d654e
 
 ### 新規
@@ -66,11 +75,12 @@ title: [T-733] enforcement source closure を exact 24 path から exact 62 path
   実測したうえで、全 131 へ広げるか、収載を止めて文言で閉じるかを決める。
   成果物影響 = 決めない限り「certified 経路が source-bound」を推移閉包の意味では名乗れない。
 - {{T:historical-grammar-registry}} **P1・ユーザー裁定待ち**: 旧 grammar の campaign lock を
-  `HISTORICAL_RAW` に限って読む versioned decoder を作るか。現時点で外部 root に
-  exact-24 map の official lock が 11 件あり、閉包拡張後は decode できない。
-  現行 certified 経路を緩めないことを必須条件とする。
-  成果物影響 = 作らなければ、B10 格子 3 件と paper-story A-2 認証 8 件を
-  admission API 経由で読み直せない。
+  どう扱うか。外部 root に exact-24 map の official lock が 11 件あり (B10 格子 3 件、
+  paper-story A-2 認証 8 件)、閉包を広げると decode できない。これは T-733 の land を止めている。
+  択一は (a) `HISTORICAL_RAW` に限って旧 grammar を読む versioned decoder を作る、
+  (b) 11 件を新閉包で発行し直す、(c) 損失を受け入れて fig2c の生成経路を別の束縛へ移す。
+  いずれも現行 certified 経路を緩めないことを必須条件とする。
+  成果物影響 = 決めない限り T-733 が land できず、fig2c の再生成も通らない。
 - {{T:qualification-schema-binding}} **P2・新規**: qualification schema の live bytes を
   記録 blob と結ぶか。`qualification/artifacts.py` などが live schema を直接使って受理を決める一方、
   `qualification/identity.py` は記録 commit blob を検証するだけで、実際に読んだ live bytes との
