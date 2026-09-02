@@ -1,0 +1,93 @@
+{
+  "artifact_files_found": 10,
+  "by_origin": {
+    "test-fixture": {
+      "artifact_files": 10,
+      "distinct_value_count": 201,
+      "distinct_value_sample": [
+        [
+          100001,
+          10
+        ],
+        [
+          100011,
+          10
+        ],
+        [
+          100021,
+          10
+        ],
+        [
+          100031,
+          10
+        ],
+        [
+          100041,
+          10
+        ],
+        [
+          100051,
+          10
+        ],
+        [
+          100061,
+          10
+        ],
+        [
+          100071,
+          10
+        ],
+        [
+          100081,
+          10
+        ],
+        [
+          100091,
+          10
+        ],
+        [
+          100101,
+          10
+        ],
+        [
+          100111,
+          10
+        ]
+      ],
+      "non_finite_decimal": [],
+      "non_ratio_values": [],
+      "null_values": 0,
+      "reference_tps_values": 2010
+    }
+  },
+  "roots": [
+    "/work/1/SFC/tanab",
+    "/home/SFC/tanab",
+    "/tmp",
+    "/dev/shm"
+  ],
+  "unreadable": [],
+  "walk_errors": [
+    "/tmp/snap-private-tmp: Permission denied",
+    "/tmp/systemd-private-215237a12636487e9013210704d711ea-systemd-timesyncd.service-k6n7aC: Permission denied",
+    "/tmp/systemd-private-215237a12636487e9013210704d711ea-systemd-resolved.service-lstVfe: Permission denied",
+    "/tmp/systemd-private-215237a12636487e9013210704d711ea-systemd-logind.service-7YDlzl: Permission denied",
+    "/tmp/systemd-private-215237a12636487e9013210704d711ea-apache2.service-zvTvoU: Permission denied",
+    "/tmp/systemd-private-215237a12636487e9013210704d711ea-freeradius.service-61l2ZA: Permission denied",
+    "/tmp/mcp-bHO1SZ: Permission denied",
+    "/tmp/claude-31514: Permission denied",
+    "/tmp/pyright-745509-Q7O4MDl2kG5s: Permission denied",
+    "/tmp/claude-31565: Permission denied",
+    "/tmp/tmux-31618: Permission denied",
+    "/tmp/mcp-wbi59B: Permission denied",
+    "/tmp/mcp-H5CESz: Permission denied",
+    "/tmp/mcp-96BGX5: Permission denied",
+    "/tmp/pyright-2161123-99mdO32VQKay: Permission denied",
+    "/tmp/claude-31454: Permission denied",
+    "/tmp/cc-daemon-31454: Permission denied",
+    "/tmp/mcp-Y9OV1O: Permission denied",
+    "/tmp/icpx-49442da9dc: Permission denied",
+    "/tmp/mcp-xWa7Mb: Permission denied",
+    "/tmp/tmp-2610628-2yS86Syu7Bn9: Permission denied"
+  ]
+}

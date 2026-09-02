@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import errno
 import hashlib
+import inspect
 import itertools
 import json
 import os
@@ -64,6 +65,25 @@ _REAL_E0_CAMPAIGN = (
     Path(_ORCH).parent
     / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_condition_gate_from_nonbuild_unit_tests(monkeypatch):
+    """The real compiler-backed gate is covered by its production API suite."""
+    monkeypatch.setattr(
+        W, "_preflight_condition_gate",
+        lambda _source_root, _patch: {"admission": {"admitted": True}},
+    )
+
+
+def test_condition_gate_preflight_dominates_candidate_evaluation():
+    source = inspect.getsource(W.run_sweep)
+    assert source.index("_preflight_condition_gate") < source.index("active_screening")
+
+
+def test_screening_forwards_stock_genome_protocol():
+    source = Path(W.__file__).read_text(encoding="utf-8")
+    assert source.count("protocol=_genome(0).protocol") == 1
 
 # ==== C++ 比較式 → Python モデルの機械導出 ====================================
 # 生成器 (_one/_two/_mk) が出す式形のみ受理する。受理できない式は即 fail

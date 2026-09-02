@@ -1,0 +1,321 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/beb3342932f496378455067894ec22a7/izdw-beb3342932.o963210",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/beb3342932f496378455067894ec22a7/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....                                                                    [100%]\n5 passed in 4.00s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "06f2a6230381dce8c3c445755eefc2681aa6136921a107a405bfb5ceadba33b5"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f13e04becff29fc7fe4581d4393f69c7884f92e1b25dfc060ff30c2552c3fc9d",
+    "duration_s": 37.279,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "5534c380aef3ef0fcc69bebe99b52da807a467261f380fb17203a4c1280deb46",
+    "repo_head": "3bd9b5d3a986819e90072900ab702b2e84e6b901",
+    "runner_sha256": "9a9c4f06265eb4faa6a90ea8fa4f59c939b670334a456fd8876138ab336abdfc",
+    "spec_sha256": "475e8b2ac33f9f70974509806cc9598d1fa68f7016a241b49658ca3e5fc2a75b",
+    "status": "PASSED",
+    "test_output_sha256": "06f2a6230381dce8c3c445755eefc2681aa6136921a107a405bfb5ceadba33b5",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "fa6c611377b331ba0e135224790f574fe5899320a958ec747838d20b5c14e454"
+  },
+  "date": "2026-08-31T16:49:57.071857+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/4f2fa45b9d6321af0e80f4c79286bdfe/izdw-4f2fa45b9d.o963224",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/4f2fa45b9d6321af0e80f4c79286bdfe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nFFFFF                                                                    [100%]\n=================================== FAILURES ===================================\n_ test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed] _\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_c10_load_bearing_check_pr0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a9fe9bf2b0>\nmutation = 'verifier-literal-removed'\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        (\n            \"unexpected-extra-field-path\",\n            \"binding-pair-removed\",\n            \"verifier-literal-removed\",\n        ),\n    )\n    def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        mutation: str,\n    ) -> None:\n        \"\"\"この検査は literal の実在までしか証明せず、field の生成・再読・値束縛は証明しない。\"\"\"\n>       assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\nE       AssertionError: assert 12 == 13\nE        +  where 12 = len((('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...))\nE        +    where (('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...) = M._C10_CROSS_BINDING_FIELD_BINDINGS\n\norchestrator/tests/test_s8c_preregistration_predicates.py:2874: AssertionError\n_ test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path] _\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_c10_load_bearing_check_pr0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cd55bba260>\nmutation = 'unexpected-extra-field-path'\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        (\n            \"unexpected-extra-field-path\",\n            \"binding-pair-removed\",\n            \"verifier-literal-removed\",\n        ),\n    )\n    def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        mutation: str,\n    ) -> None:\n        \"\"\"この検査は literal の実在までしか証明せず、field の生成・再読・値束縛は証明しない。\"\"\"\n>       assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\nE       AssertionError: assert 12 == 13\nE        +  where 12 = len((('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...))\nE        +    where (('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...) = M._C10_CROSS_BINDING_FIELD_BINDINGS\n\norchestrator/tests/test_s8c_preregistration_predicates.py:2874: AssertionError\n_ test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed] _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_c10_load_bearing_check_pr0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152dc283f6a0>\nmutation = 'binding-pair-removed'\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        (\n            \"unexpected-extra-field-path\",\n            \"binding-pair-removed\",\n            \"verifier-literal-removed\",\n        ),\n    )\n    def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        mutation: str,\n    ) -> None:\n        \"\"\"この検査は literal の実在までしか証明せず、field の生成・再読・値束縛は証明しない。\"\"\"\n>       assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\nE       AssertionError: assert 12 == 13\nE        +  where 12 = len((('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...))\nE        +    where (('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...) = M._C10_CROSS_BINDING_FIELD_BINDINGS\n\norchestrator/tests/test_s8c_preregistration_predicates.py:2874: AssertionError\n_ test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10] _\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_noop_and_token_only_fixtu0')\nnegative_control_id = 'nc_c10_raw_response_unbound', identifier = 'C10'\n\n    @pytest.mark.parametrize(\n        (\"negative_control_id\", \"identifier\"),\n        tuple(NEGATIVE_CONTROL_CASES.items()),\n    )\n    def test_noop_and_token_only_fixtures_never_satisfy(\n        tmp_path: Path, negative_control_id: str, identifier: str\n    ) -> None:\n        root = _init_repo(tmp_path)\n        sources, mutated_path, mutated_source = _negative_control_case(negative_control_id)\n        for path, source in sources.items():\n            _write(root, path, source)\n        token_only = _commit(root, f\"token only {identifier}\")\n        token_result = _result(root, token_only, identifier)\n>       assert token_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\nE       AssertionError: assert <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> is <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>\nE        +  where <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = PredicateResult(id='C10', status=<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, reason_code='cross-binding-verifier-inc...istration_evidence_contract.v1.json', blob_sha256='e1f739911f342846cb79349b839967370be4d04ac4c250022db503be0f8b03a7'))).status\nE        +  and   <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = <enum 'PredicateStatus'>.EVIDENCE_UNDEFINED\nE        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n\norchestrator/tests/test_s8c_preregistration_predicates.py:3000: AssertionError\n______ test_c10_gate_intentionally_survives_neutered_proposal_value_check ______\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_c10_gate_intentionally_su0')\n\n    def test_c10_gate_intentionally_survives_neutered_proposal_value_check(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"C10 の gate は literal の実在までしか見ないため、値照合を恒真化した source を拒否できない。\n    \n        この生存は意図されたものであり、値束縛は producer 側の functional test の責務である。\n        \"\"\"\n        actual = {\"proposal_build_source_bindings\": [\"actual\"]}\n        expected = {\"proposal_build_source_bindings\": [\"expected\"]}\n        active_namespace: dict[str, object] = {}\n        exec(ACTIVE_VALUE_CHECK_C10, active_namespace)\n        active_verify = active_namespace[\"verify_s8c_cross_binding\"]\n        assert callable(active_verify)\n        with pytest.raises(ValueError, match=\"proposal_build_source_bindings differs\"):\n            active_verify(actual, expected)\n        neutered_namespace: dict[str, object] = {}\n        exec(NEUTERED_VALUE_CHECK_C10, neutered_namespace)\n        neutered_verify = neutered_namespace[\"verify_s8c_cross_binding\"]\n        assert callable(neutered_verify)\n        neutered_fields = neutered_verify(actual, expected)\n        assert \"proposal_build_source_bindings\" in neutered_fields\n    \n        results: dict[str, core.PredicateResult] = {}\n        for name, source in (\n            (\"active-value-check\", ACTIVE_VALUE_CHECK_C10),\n            (\"neutered-value-check\", NEUTERED_VALUE_CHECK_C10),\n        ):\n            root = _init_repo(tmp_path, name)\n            _write(\n                root,\n                \"orchestrator/campaign/autonomous_trial_completeness.py\",\n                source,\n            )\n            _write(\n                root,\n                \"orchestrator/campaign/trial_registry.py\",\n                TOKEN_ONLY_C10_REGISTRY,\n            )\n            head = _commit(root, f\"C10 {name}\")\n            results[name] = _result(root, head, \"C10\")\n    \n>       assert results[\"active-value-check\"].status is (\n            core.PredicateStatus.EVIDENCE_UNDEFINED\n        )\nE       AssertionError: assert <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> is <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>\nE        +  where <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = PredicateResult(id='C10', status=<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, reason_code='cross-binding-verifier-inc...istration_evidence_contract.v1.json', blob_sha256='e1f739911f342846cb79349b839967370be4d04ac4c250022db503be0f8b03a7'))).status\nE        +  and   <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = <enum 'PredicateStatus'>.EVIDENCE_UNDEFINED\nE        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n\norchestrator/tests/test_s8c_preregistration_predicates.py:2973: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check\n5 failed in 4.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=2889 retained_bytes=2889 omitted_bytes=0 rendered_excerpt_bytes=3181 sha256=ed91ccca624d187e4fdbbba923dd34d3e8d717a61575123d86317b8fedc8995c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_c10_gate_intentionally_su0')\n> \n>     def test_c10_gate_intentionally_survives_neutered_proposal_value_check(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"C10 \\u306e gate \\u306f literal \\u306e\\u5b9f\\u5728\\u307e\\u3067\\u3057\\u304b\\u898b\\u306a\\u3044\\u305f\\u3081\\u3001\\u5024\\u7167\\u5408\\u3092\\u6052\\u771f\\u5316\\u3057\\u305f source \\u3092\\u62d2\\u5426\\u3067\\u304d\\u306a\\u3044\\u3002\n>     \n>         \\u3053\\u306e\\u751f\\u5b58\\u306f\\u610f\\u56f3\\u3055\\u308c\\u305f\\u3082\\u306e\\u3067\\u3042\\u308a\\u3001\\u5024\\u675f\\u7e1b\\u306f producer \\u5074\\u306e functional test \\u306e\\u8cac\\u52d9\\u3067\\u3042\\u308b\\u3002\n>         \"\"\"\n>         actual = {\"proposal_build_source_bindings\": [\"actual\"]}\n>         expected = {\"proposal_build_source_bindings\": [\"expected\"]}\n>         active_namespace: dict[str, object] = {}\n>         exec(ACTIVE_VALUE_CHECK_C10, active_namespace)\n>         active_verify = active_namespace[\"verify_s8c_cross_binding\"]\n>         assert callable(active_verify)\n>         with pytest.raises(ValueError, match=\"proposal_build_source_bindings differs\"):\n>             active_verify(actual, expected)\n>         neutered_namespace: dict[str, object] = {}\n>         exec(NEUTERED_VALUE_CHECK_C10, neutered_namespace)\n>         neutered_verify = neutered_namespace[\"verify_s8c_cross_binding\"]\n>         assert callable(neutered_verify)\n>         neutered_fields = neutered_verify(actual, expected)\n>         assert \"proposal_build_source_bindings\" in neutered_fields\n>     \n>         results: dict[str, core.PredicateResult] = {}\n>         for name, source in (\n>             (\"active-value-check\", ACTIVE_VALUE_CHECK_C10),\n>             (\"neutered-value-check\", NEUTERED_VALUE_CHECK_C10),\n>         ):\n>             root = _init_repo(tmp_path, name)\n>             _write(\n>                 root,\n>                 \"orchestrator/campaign/autonomous_trial_completeness.py\",\n>                 source,\n>             )\n>             _write(\n>                 root,\n>                 \"orchestrator/campaign/trial_registry.py\",\n>                 TOKEN_ONLY_C10_REGISTRY,\n>             )\n>             head = _commit(root, f\"C10 {name}\")\n>             results[name] = _result(root, head, \"C10\")\n>     \n> >       assert results[\"active-value-check\"].status is (\n>             core.PredicateStatus.EVIDENCE_UNDEFINED\n>         )\n> E       AssertionError: assert <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> is <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>\n> E        +  where <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = PredicateResult(id='C10', status=<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, reason_code='cross-binding-verifier-inc...istration_evidence_contract.v1.json', blob_sha256='e1f739911f342846cb79349b839967370be4d04ac4c250022db503be0f8b03a7'))).status\n> E        +  and   <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = <enum 'PredicateStatus'>.EVIDENCE_UNDEFINED\n> E        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:2973: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1619 retained_bytes=1619 omitted_bytes=0 rendered_excerpt_bytes=1670 sha256=0e9af6b2e1dea9a29874b82975095cd601e5127b3116d7368651793ce62b17fb\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_noop_and_token_only_fixtu0')\n> negative_control_id = 'nc_c10_raw_response_unbound', identifier = 'C10'\n> \n>     @pytest.mark.parametrize(\n>         (\"negative_control_id\", \"identifier\"),\n>         tuple(NEGATIVE_CONTROL_CASES.items()),\n>     )\n>     def test_noop_and_token_only_fixtures_never_satisfy(\n>         tmp_path: Path, negative_control_id: str, identifier: str\n>     ) -> None:\n>         root = _init_repo(tmp_path)\n>         sources, mutated_path, mutated_source = _negative_control_case(negative_control_id)\n>         for path, source in sources.items():\n>             _write(root, path, source)\n>         token_only = _commit(root, f\"token only {identifier}\")\n>         token_result = _result(root, token_only, identifier)\n> >       assert token_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n> E       AssertionError: assert <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> is <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>\n> E        +  where <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = PredicateResult(id='C10', status=<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, reason_code='cross-binding-verifier-inc...istration_evidence_contract.v1.json', blob_sha256='e1f739911f342846cb79349b839967370be4d04ac4c250022db503be0f8b03a7'))).status\n> E        +  and   <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = <enum 'PredicateStatus'>.EVIDENCE_UNDEFINED\n> E        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:3000: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]\" nodeid_bytes=189 nodeid_omitted_bytes=0 source_bytes=1549 retained_bytes=1549 omitted_bytes=0 rendered_excerpt_bytes=1704 sha256=f717bdb46868e3f2cd49c2cc45228186d20a96bf701c94183e3a169eee7c5341\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_c10_load_bearing_check_pr0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cd55bba260>\n> mutation = 'unexpected-extra-field-path'\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         (\n>             \"unexpected-extra-field-path\",\n>             \"binding-pair-removed\",\n>             \"verifier-literal-removed\",\n>         ),\n>     )\n>     def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         mutation: str,\n>     ) -> None:\n>         \"\"\"\\u3053\\u306e\\u691c\\u67fb\\u306f literal \\u306e\\u5b9f\\u5728\\u307e\\u3067\\u3057\\u304b\\u8a3c\\u660e\\u305b\\u305a\\u3001field \\u306e\\u751f\\u6210\\u30fb\\u518d\\u8aad\\u30fb\\u5024\\u675f\\u7e1b\\u306f\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\"\"\"\n> >       assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\n> E       AssertionError: assert 12 == 13\n> E        +  where 12 = len((('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...))\n> E        +    where (('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...) = M._C10_CROSS_BINDING_FIELD_BINDINGS\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:2874: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]\" nodeid_bytes=186 nodeid_omitted_bytes=0 source_bytes=1546 retained_bytes=1546 omitted_bytes=0 rendered_excerpt_bytes=1701 sha256=26a3dd32a90419e242fb93deb4caa95f455429c2c40b891a15db8245aa355344\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_c10_load_bearing_check_pr0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a9fe9bf2b0>\n> mutation = 'verifier-literal-removed'\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         (\n>             \"unexpected-extra-field-path\",\n>             \"binding-pair-removed\",\n>             \"verifier-literal-removed\",\n>         ),\n>     )\n>     def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         mutation: str,\n>     ) -> None:\n>         \"\"\"\\u3053\\u306e\\u691c\\u67fb\\u306f literal \\u306e\\u5b9f\\u5728\\u307e\\u3067\\u3057\\u304b\\u8a3c\\u660e\\u305b\\u305a\\u3001field \\u306e\\u751f\\u6210\\u30fb\\u518d\\u8aad\\u30fb\\u5024\\u675f\\u7e1b\\u306f\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\"\"\"\n> >       assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\n> E       AssertionError: assert 12 == 13\n> E        +  where 12 = len((('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...))\n> E        +    where (('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...) = M._C10_CROSS_BINDING_FIELD_BINDINGS\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:2874: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]\" nodeid_bytes=182 nodeid_omitted_bytes=0 source_bytes=1542 retained_bytes=1542 omitted_bytes=0 rendered_excerpt_bytes=1697 sha256=190ec9387f60dc0f9c18fa9bba2436e1c8c44b47e183d728e765d253b7cc8d6a\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_c10_load_bearing_check_pr0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152dc283f6a0>\n> mutation = 'binding-pair-removed'\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         (\n>             \"unexpected-extra-field-path\",\n>             \"binding-pair-removed\",\n>             \"verifier-literal-removed\",\n>         ),\n>     )\n>     def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         mutation: str,\n>     ) -> None:\n>         \"\"\"\\u3053\\u306e\\u691c\\u67fb\\u306f literal \\u306e\\u5b9f\\u5728\\u307e\\u3067\\u3057\\u304b\\u8a3c\\u660e\\u305b\\u305a\\u3001field \\u306e\\u751f\\u6210\\u30fb\\u518d\\u8aad\\u30fb\\u5024\\u675f\\u7e1b\\u306f\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\"\"\"\n> >       assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\n> E       AssertionError: assert 12 == 13\n> E        +  where 12 = len((('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...))\n> E        +    where (('input_payload_sha256', 'role_event.input_payload_sha256'), ('raw_response_path', 'role_event.raw_response_path'), (...er.payload_sha256'), ('provider_envelope_sha256', 'provider.envelope_sha256'), ('proposal_path', 'proposal.path'), ...) = M._C10_CROSS_BINDING_FIELD_BINDINGS\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:2874: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=9145 retained_bytes=9145 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12767 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ce83c41aa2789c66506934f6e55bea195e7d353476bbd845b4abe94411a2d236"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f13e04becff29fc7fe4581d4393f69c7884f92e1b25dfc060ff30c2552c3fc9d",
+      "duration_s": 27.297,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check"
+      ],
+      "hang_risk": false,
+      "id": "M01-UNCOND-BINDING-PAIR-REMOVED",
+      "injection_diff_sha256": "40e35f71a28800ac2f34252d2d827719f2d51467da11cddfce1fcf8ebbdc1c7b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6d421ea8a5919ef85a56abdac397ca804e431a285d4b5d8c65a8537c70f005a5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "",
+          "old": "    (\"proposal_build_source_bindings\", \"proposal.build_source_bindings\"),\n"
+        }
+      ],
+      "repo_head": "3bd9b5d3a986819e90072900ab702b2e84e6b901",
+      "runner_sha256": "9a9c4f06265eb4faa6a90ea8fa4f59c939b670334a456fd8876138ab336abdfc",
+      "spec_sha256": "475e8b2ac33f9f70974509806cc9598d1fa68f7016a241b49658ca3e5fc2a75b",
+      "status": "KILLED",
+      "test_output_sha256": "ce83c41aa2789c66506934f6e55bea195e7d353476bbd845b4abe94411a2d236",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fa6c611377b331ba0e135224790f574fe5899320a958ec747838d20b5c14e454"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/e948eece0a9e81f37f8f3a036fbbbd97/izdw-e948eece0a.o963226",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/e948eece0a9e81f37f8f3a036fbbbd97/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...FF                                                                    [100%]\n=================================== FAILURES ===================================\n_ test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed] _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_c10_load_bearing_check_pr0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150bd507e260>\nmutation = 'binding-pair-removed'\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        (\n            \"unexpected-extra-field-path\",\n            \"binding-pair-removed\",\n            \"verifier-literal-removed\",\n        ),\n    )\n    def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        mutation: str,\n    ) -> None:\n        \"\"\"この検査は literal の実在までしか証明せず、field の生成・再読・値束縛は証明しない。\"\"\"\n        assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\n        assert len(M._C10_FIELDS) == 13\n        assert len(M._C10_EXPECTED_FIELD_PATHS) == 13\n        root = _init_repo(tmp_path)\n        verifier_path = \"orchestrator/campaign/autonomous_trial_completeness.py\"\n        registry_path = \"orchestrator/campaign/trial_registry.py\"\n        _write(root, verifier_path, TOKEN_ONLY_C10)\n        _write(root, registry_path, TOKEN_ONLY_C10_REGISTRY)\n        baseline_head = _commit(root, \"C10 production-equivalent 13 of 13\")\n        baseline = _result(root, baseline_head, \"C10\")\n        assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n        assert baseline.reason_code == \"completion-proof-not-machine-checkable\"\n    \n        if mutation == \"unexpected-extra-field-path\":\n            contract = json.loads(CONTRACT_FILE.read_bytes())\n            requirement = next(\n                item\n                for item in contract[\"conditions\"][9][\"required_evidence\"]\n                if item[\"artifact_kind\"] == \"cross_binding_verifier\"\n            )\n            assert len(requirement[\"field_paths\"]) == 13\n            requirement[\"field_paths\"].append(\"proposal.unimplemented_field\")\n            assert len(requirement[\"field_paths\"]) == 14\n            _write(\n                root,\n                core.EVIDENCE_CONTRACT_PATH,\n                json.dumps(contract, ensure_ascii=False).encode(\"utf-8\"),\n            )\n            mutated_head = _commit(root, \"C10 unexpected fourteenth field path\")\n        elif mutation == \"binding-pair-removed\":\n            bindings = tuple(\n                binding\n                for binding in M._C10_CROSS_BINDING_FIELD_BINDINGS\n                if binding[0] != \"proposal_build_source_bindings\"\n            )\n            assert len(bindings) == 12\n            monkeypatch.setattr(M, \"_C10_CROSS_BINDING_FIELD_BINDINGS\", bindings)\n            monkeypatch.setattr(\n                M, \"_C10_FIELDS\", frozenset(literal for literal, _ in bindings)\n            )\n            monkeypatch.setattr(\n                M, \"_C10_EXPECTED_FIELD_PATHS\", frozenset(path for _, path in bindings)\n            )\n            mutated_head = baseline_head\n        else:\n            assert mutation == \"verifier-literal-removed\"\n            _write(\n                root,\n                verifier_path,\n                TOKEN_ONLY_C10.replace('\"proposal_build_source_bindings\", ', \"\", 1),\n            )\n            mutated_head = _commit(root, \"C10 verifier literal removed\")\n    \n        mutated = _result(root, mutated_head, \"C10\")\n>       assert mutated.status is core.PredicateStatus.UNSATISFIED\nE       AssertionError: assert <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> is <PredicateStatus.UNSATISFIED: 'UNSATISFIED'>\nE        +  where <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = PredicateResult(id='C10', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-p...estrator/campaign/trial_registry.py', blob_sha256='61c93107cc8f161a153514522a47d741c8ad54f5a103832bec3b251c6582a43f'))).status\nE        +  and   <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = <enum 'PredicateStatus'>.UNSATISFIED\nE        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n\norchestrator/tests/test_s8c_preregistration_predicates.py:2928: AssertionError\n_ test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path] _\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_c10_load_bearing_check_pr0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14638fb086d0>\nmutation = 'unexpected-extra-field-path'\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        (\n            \"unexpected-extra-field-path\",\n            \"binding-pair-removed\",\n            \"verifier-literal-removed\",\n        ),\n    )\n    def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        mutation: str,\n    ) -> None:\n        \"\"\"この検査は literal の実在までしか証明せず、field の生成・再読・値束縛は証明しない。\"\"\"\n        assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\n        assert len(M._C10_FIELDS) == 13\n        assert len(M._C10_EXPECTED_FIELD_PATHS) == 13\n        root = _init_repo(tmp_path)\n        verifier_path = \"orchestrator/campaign/autonomous_trial_completeness.py\"\n        registry_path = \"orchestrator/campaign/trial_registry.py\"\n        _write(root, verifier_path, TOKEN_ONLY_C10)\n        _write(root, registry_path, TOKEN_ONLY_C10_REGISTRY)\n        baseline_head = _commit(root, \"C10 production-equivalent 13 of 13\")\n        baseline = _result(root, baseline_head, \"C10\")\n        assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n        assert baseline.reason_code == \"completion-proof-not-machine-checkable\"\n    \n        if mutation == \"unexpected-extra-field-path\":\n            contract = json.loads(CONTRACT_FILE.read_bytes())\n            requirement = next(\n                item\n                for item in contract[\"conditions\"][9][\"required_evidence\"]\n                if item[\"artifact_kind\"] == \"cross_binding_verifier\"\n            )\n            assert len(requirement[\"field_paths\"]) == 13\n            requirement[\"field_paths\"].append(\"proposal.unimplemented_field\")\n            assert len(requirement[\"field_paths\"]) == 14\n            _write(\n                root,\n                core.EVIDENCE_CONTRACT_PATH,\n                json.dumps(contract, ensure_ascii=False).encode(\"utf-8\"),\n            )\n            mutated_head = _commit(root, \"C10 unexpected fourteenth field path\")\n        elif mutation == \"binding-pair-removed\":\n            bindings = tuple(\n                binding\n                for binding in M._C10_CROSS_BINDING_FIELD_BINDINGS\n                if binding[0] != \"proposal_build_source_bindings\"\n            )\n            assert len(bindings) == 12\n            monkeypatch.setattr(M, \"_C10_CROSS_BINDING_FIELD_BINDINGS\", bindings)\n            monkeypatch.setattr(\n                M, \"_C10_FIELDS\", frozenset(literal for literal, _ in bindings)\n            )\n            monkeypatch.setattr(\n                M, \"_C10_EXPECTED_FIELD_PATHS\", frozenset(path for _, path in bindings)\n            )\n            mutated_head = baseline_head\n        else:\n            assert mutation == \"verifier-literal-removed\"\n            _write(\n                root,\n                verifier_path,\n                TOKEN_ONLY_C10.replace('\"proposal_build_source_bindings\", ', \"\", 1),\n            )\n            mutated_head = _commit(root, \"C10 verifier literal removed\")\n    \n        mutated = _result(root, mutated_head, \"C10\")\n>       assert mutated.status is core.PredicateStatus.UNSATISFIED\nE       AssertionError: assert <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> is <PredicateStatus.UNSATISFIED: 'UNSATISFIED'>\nE        +  where <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = PredicateResult(id='C10', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-p...estrator/campaign/trial_registry.py', blob_sha256='61c93107cc8f161a153514522a47d741c8ad54f5a103832bec3b251c6582a43f'))).status\nE        +  and   <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = <enum 'PredicateStatus'>.UNSATISFIED\nE        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n\norchestrator/tests/test_s8c_preregistration_predicates.py:2928: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]\n2 failed, 3 passed in 4.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]\" nodeid_bytes=189 nodeid_omitted_bytes=0 source_bytes=4146 retained_bytes=3845 omitted_bytes=301 rendered_excerpt_bytes=4096 sha256=10b998bd85707c8462a088d8c8fc1989b7c2ec0429ef2db6f27c578a8f1e6a7b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> tion\",\n>         (\n>             \"unexpected-extra-field-path\",\n>             \"binding-pair-removed\",\n>             \"verifier-literal-removed\",\n>         ),\n>     )\n>     def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         mutation: str,\n>     ) -> None:\n>         \"\"\"\\u3053\\u306e\\u691c\\u67fb\\u306f literal \\u306e\\u5b9f\\u5728\\u307e\\u3067\\u3057\\u304b\\u8a3c\\u660e\\u305b\\u305a\\u3001field \\u306e\\u751f\\u6210\\u30fb\\u518d\\u8aad\\u30fb\\u5024\\u675f\\u7e1b\\u306f\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\"\"\"\n>         assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\n>         assert len(M._C10_FIELDS) == 13\n>         assert len(M._C10_EXPECTED_FIELD_PATHS) == 13\n>         root = _init_repo(tmp_path)\n>         verifier_path = \"orchestrator/campaign/autonomous_trial_completeness.py\"\n>         registry_path = \"orchestrator/campaign/trial_registry.py\"\n>         _write(root, verifier_path, TOKEN_ONLY_C10)\n>         _write(root, registry_path, TOKEN_ONLY_C10_REGISTRY)\n>         baseline_head = _commit(root, \"C10 production-equivalent 13 of 13\")\n>         baseline = _result(root, baseline_head, \"C10\")\n>         assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n>         assert baseline.reason_code == \"completion-proof-not-machine-checkable\"\n>     \n>         if mutation == \"unexpected-extra-field-path\":\n>             contract = json.loads(CONTRACT_FILE.read_bytes())\n>             requirement = next(\n>                 item\n>                 for item in contract[\"conditions\"][9][\"required_evidence\"]\n>                 if item[\"artifact_kind\"] == \"cross_binding_verifier\"\n>             )\n>             assert len(requirement[\"field_paths\"]) == 13\n>             requirement[\"field_paths\"].append(\"proposal.unimplemented_field\")\n>             assert len(requirement[\"field_paths\"]) == 14\n>             _write(\n>                 root,\n>                 core.EVIDENCE_CONTRACT_PATH,\n>                 json.dumps(contract, ensure_ascii=False).encode(\"utf-8\"),\n>             )\n>             mutated_head = _commit(root, \"C10 unexpected fourteenth field path\")\n>         elif mutation == \"binding-pair-removed\":\n>             bindings = tuple(\n>                 binding\n>                 for binding in M._C10_CROSS_BINDING_FIELD_BINDINGS\n>                 if binding[0] != \"proposal_build_source_bindings\"\n>             )\n>             assert len(bindings) == 12\n>             monkeypatch.setattr(M, \"_C10_CROSS_BINDING_FIELD_BINDINGS\", bindings)\n>             monkeypatch.setattr(\n>                 M, \"_C10_FIELDS\", frozenset(literal for literal, _ in bindings)\n>             )\n>             monkeypatch.setattr(\n>                 M, \"_C10_EXPECTED_FIELD_PATHS\", frozenset(path for _, path in bindings)\n>             )\n>             mutated_head = baseline_head\n>         else:\n>             assert mutation == \"verifier-literal-removed\"\n>             _write(\n>                 root,\n>                 verifier_path,\n>                 TOKEN_ONLY_C10.replace('\"proposal_build_source_bindings\", ', \"\", 1),\n>             )\n>             mutated_head = _commit(root, \"C10 verifier literal removed\")\n>     \n>         mutated = _result(root, mutated_head, \"C10\")\n> >       assert mutated.status is core.PredicateStatus.UNSATISFIED\n> E       AssertionError: assert <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> is <PredicateStatus.UNSATISFIED: 'UNSATISFIED'>\n> E        +  where <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = PredicateResult(id='C10', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-p...estrator/campaign/trial_registry.py', blob_sha256='61c93107cc8f161a153514522a47d741c8ad54f5a103832bec3b251c6582a43f'))).status\n> E        +  and   <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = <enum 'PredicateStatus'>.UNSATISFIED\n> E        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:2928: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]\" nodeid_bytes=182 nodeid_omitted_bytes=0 source_bytes=4139 retained_bytes=3845 omitted_bytes=294 rendered_excerpt_bytes=4096 sha256=4e593a476ea8103dcf489ed71c3172f944a7700195e205d6794d44af1d84d94e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> tion\",\n>         (\n>             \"unexpected-extra-field-path\",\n>             \"binding-pair-removed\",\n>             \"verifier-literal-removed\",\n>         ),\n>     )\n>     def test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         mutation: str,\n>     ) -> None:\n>         \"\"\"\\u3053\\u306e\\u691c\\u67fb\\u306f literal \\u306e\\u5b9f\\u5728\\u307e\\u3067\\u3057\\u304b\\u8a3c\\u660e\\u305b\\u305a\\u3001field \\u306e\\u751f\\u6210\\u30fb\\u518d\\u8aad\\u30fb\\u5024\\u675f\\u7e1b\\u306f\\u8a3c\\u660e\\u3057\\u306a\\u3044\\u3002\"\"\"\n>         assert len(M._C10_CROSS_BINDING_FIELD_BINDINGS) == 13\n>         assert len(M._C10_FIELDS) == 13\n>         assert len(M._C10_EXPECTED_FIELD_PATHS) == 13\n>         root = _init_repo(tmp_path)\n>         verifier_path = \"orchestrator/campaign/autonomous_trial_completeness.py\"\n>         registry_path = \"orchestrator/campaign/trial_registry.py\"\n>         _write(root, verifier_path, TOKEN_ONLY_C10)\n>         _write(root, registry_path, TOKEN_ONLY_C10_REGISTRY)\n>         baseline_head = _commit(root, \"C10 production-equivalent 13 of 13\")\n>         baseline = _result(root, baseline_head, \"C10\")\n>         assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n>         assert baseline.reason_code == \"completion-proof-not-machine-checkable\"\n>     \n>         if mutation == \"unexpected-extra-field-path\":\n>             contract = json.loads(CONTRACT_FILE.read_bytes())\n>             requirement = next(\n>                 item\n>                 for item in contract[\"conditions\"][9][\"required_evidence\"]\n>                 if item[\"artifact_kind\"] == \"cross_binding_verifier\"\n>             )\n>             assert len(requirement[\"field_paths\"]) == 13\n>             requirement[\"field_paths\"].append(\"proposal.unimplemented_field\")\n>             assert len(requirement[\"field_paths\"]) == 14\n>             _write(\n>                 root,\n>                 core.EVIDENCE_CONTRACT_PATH,\n>                 json.dumps(contract, ensure_ascii=False).encode(\"utf-8\"),\n>             )\n>             mutated_head = _commit(root, \"C10 unexpected fourteenth field path\")\n>         elif mutation == \"binding-pair-removed\":\n>             bindings = tuple(\n>                 binding\n>                 for binding in M._C10_CROSS_BINDING_FIELD_BINDINGS\n>                 if binding[0] != \"proposal_build_source_bindings\"\n>             )\n>             assert len(bindings) == 12\n>             monkeypatch.setattr(M, \"_C10_CROSS_BINDING_FIELD_BINDINGS\", bindings)\n>             monkeypatch.setattr(\n>                 M, \"_C10_FIELDS\", frozenset(literal for literal, _ in bindings)\n>             )\n>             monkeypatch.setattr(\n>                 M, \"_C10_EXPECTED_FIELD_PATHS\", frozenset(path for _, path in bindings)\n>             )\n>             mutated_head = baseline_head\n>         else:\n>             assert mutation == \"verifier-literal-removed\"\n>             _write(\n>                 root,\n>                 verifier_path,\n>                 TOKEN_ONLY_C10.replace('\"proposal_build_source_bindings\", ', \"\", 1),\n>             )\n>             mutated_head = _commit(root, \"C10 verifier literal removed\")\n>     \n>         mutated = _result(root, mutated_head, \"C10\")\n> >       assert mutated.status is core.PredicateStatus.UNSATISFIED\n> E       AssertionError: assert <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> is <PredicateStatus.UNSATISFIED: 'UNSATISFIED'>\n> E        +  where <PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'> = PredicateResult(id='C10', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-p...estrator/campaign/trial_registry.py', blob_sha256='61c93107cc8f161a153514522a47d741c8ad54f5a103832bec3b251c6582a43f'))).status\n> E        +  and   <PredicateStatus.UNSATISFIED: 'UNSATISFIED'> = <enum 'PredicateStatus'>.UNSATISFIED\n> E        +    where <enum 'PredicateStatus'> = core.PredicateStatus\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:2928: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=8285 retained_bytes=7690 omitted_bytes=595 budget_bytes=49152 rendered_bytes=9538 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "45f31657c592a26454a9aa2a1291c79be1679f9c3a68547f60ba9bfa8c37de32"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f13e04becff29fc7fe4581d4393f69c7884f92e1b25dfc060ff30c2552c3fc9d",
+      "duration_s": 32.788,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]"
+      ],
+      "hang_risk": false,
+      "id": "M04-EXACT-EQUALITY-WEAKENED-TO-SUBSET",
+      "injection_diff_sha256": "9dc515e869d0ea9641bb5c0c5e35c4f5715c20eb0eaf23d485999247705e4e14",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "11706ef348473ee98e41f14a6973b92475bccc32ae7c8fd8992b6b35ab777b44",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        >= _C10_EXPECTED_FIELD_PATHS\n",
+          "old": "        == _C10_EXPECTED_FIELD_PATHS\n"
+        }
+      ],
+      "repo_head": "3bd9b5d3a986819e90072900ab702b2e84e6b901",
+      "runner_sha256": "9a9c4f06265eb4faa6a90ea8fa4f59c939b670334a456fd8876138ab336abdfc",
+      "spec_sha256": "475e8b2ac33f9f70974509806cc9598d1fa68f7016a241b49658ca3e5fc2a75b",
+      "status": "KILLED",
+      "test_output_sha256": "45f31657c592a26454a9aa2a1291c79be1679f9c3a68547f60ba9bfa8c37de32",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fa6c611377b331ba0e135224790f574fe5899320a958ec747838d20b5c14e454"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/261cb963214fef53c234a5c2734a4c7f/izdw-261cb96321.o963231",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/261cb963214fef53c234a5c2734a4c7f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....                                                                    [100%]\n5 passed in 4.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "c1138f85bb843f1cead3834dc35d270fc69e5ac7a93271ffd7ead964c36f1275"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f13e04becff29fc7fe4581d4393f69c7884f92e1b25dfc060ff30c2552c3fc9d",
+      "duration_s": 27.515,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M01-COND-E2-DIGEST-EQUALITY-NEUTERED",
+      "injection_diff_sha256": "9ee645ec5d473d8fa75df60d2d48099ab60dd756a59be4c78f8d648aa78e606b",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "bf773c24ddb7f09a814f35707b9c73524173906dd47fea23cf18ad3bb49a99ff",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "                if False and preimage_sha256 != source.source_bytes_sha256:\n",
+          "old": "                if preimage_sha256 != source.source_bytes_sha256:\n"
+        }
+      ],
+      "repo_head": "3bd9b5d3a986819e90072900ab702b2e84e6b901",
+      "runner_sha256": "9a9c4f06265eb4faa6a90ea8fa4f59c939b670334a456fd8876138ab336abdfc",
+      "spec_sha256": "475e8b2ac33f9f70974509806cc9598d1fa68f7016a241b49658ca3e5fc2a75b",
+      "status": "SURVIVED",
+      "test_output_sha256": "c1138f85bb843f1cead3834dc35d270fc69e5ac7a93271ffd7ead964c36f1275",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fa6c611377b331ba0e135224790f574fe5899320a958ec747838d20b5c14e454"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/3469e79a5a919b56e6c6811510286e1b/izdw-3469e79a5a.o963208",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/output/pegasus-dispatch/3469e79a5a919b56e6c6811510286e1b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]\n\n5/198 tests collected (193 deselected) in 0.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "191193a50ded35dd4778ced47edebad8d4aeda7237d9a55622b2f0a89174f211"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]"
+      ],
+      "duration_s": 32.068,
+      "rc": 0,
+      "repo_head": "3bd9b5d3a986819e90072900ab702b2e84e6b901",
+      "runner_sha256": "9a9c4f06265eb4faa6a90ea8fa4f59c939b670334a456fd8876138ab336abdfc",
+      "spec_sha256": "475e8b2ac33f9f70974509806cc9598d1fa68f7016a241b49658ca3e5fc2a75b",
+      "status": "PASSED",
+      "tool_sha256": "fa6c611377b331ba0e135224790f574fe5899320a958ec747838d20b5c14e454"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01-COND-E2-DIGEST-EQUALITY-NEUTERED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "9ee645ec5d473d8fa75df60d2d48099ab60dd756a59be4c78f8d648aa78e606b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+            "new": "                if False and preimage_sha256 != source.source_bytes_sha256:\n",
+            "old": "                if preimage_sha256 != source.source_bytes_sha256:\n"
+          }
+        ]
+      },
+      "M01-UNCOND-BINDING-PAIR-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[verifier-literal-removed]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_gate_intentionally_survives_neutered_proposal_value_check"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "40e35f71a28800ac2f34252d2d827719f2d51467da11cddfce1fcf8ebbdc1c7b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "",
+            "old": "    (\"proposal_build_source_bindings\", \"proposal.build_source_bindings\"),\n"
+          }
+        ]
+      },
+      "M04-EXACT-EQUALITY-WEAKENED-TO-SUBSET": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[binding-pair-removed]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c10_load_bearing_check_proves_literal_presence_only_not_field_generation_reread_or_value_binding[unexpected-extra-field-path]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9dc515e869d0ea9641bb5c0c5e35c4f5715c20eb0eaf23d485999247705e4e14",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "        >= _C10_EXPECTED_FIELD_PATHS\n",
+            "old": "        == _C10_EXPECTED_FIELD_PATHS\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "5534c380aef3ef0fcc69bebe99b52da807a467261f380fb17203a4c1280deb46",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-p",
+      "no:randomly",
+      "-rf",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-k",
+      "c10",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "3bd9b5d3a986819e90072900ab702b2e84e6b901",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-p",
+      "no:randomly",
+      "-rf",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-k",
+      "c10",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "8311bf4020cad2368149bcd1836078906b818083",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "9a9c4f06265eb4faa6a90ea8fa4f59c939b670334a456fd8876138ab336abdfc",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "475e8b2ac33f9f70974509806cc9598d1fa68f7016a241b49658ca3e5fc2a75b",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1806-prereg-c10-fieldpaths/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "fa6c611377b331ba0e135224790f574fe5899320a958ec747838d20b5c14e454",
+  "updated_at": "2026-08-31T16:52:31.903029+00:00"
+}

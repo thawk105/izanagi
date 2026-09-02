@@ -62,8 +62,9 @@ from .artifact_admission import (  # noqa: E402
     CampaignReadPurpose,
     CampaignVerifierEpoch,
     require_admitted_campaign,
-    require_certified_campaign_view,
+    require_certified_commit_evidence,
 )
+from .genome import protocol_from_floor_genome  # noqa: E402
 
 
 _SCHEMA_PATH = _HERE / "layer3_schema.json"
@@ -319,6 +320,25 @@ def _variant_rows(records: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
     return rows
 
 
+def _campaign_protocol(records: Sequence[Mapping[str, Any]]) -> Optional[str]:
+    """WAL build_start の canonical genome が示す一意な protocol を返す。"""
+    starts = [record for record in records if record.get("stage") == "build_start"]
+    if not starts:
+        return None
+    protocols = set()
+    for record in starts:
+        payload = record.get("payload")
+        if not isinstance(payload, Mapping):
+            return None
+        try:
+            protocols.add(protocol_from_floor_genome(payload.get("genome")))
+        except ValueError:
+            return None
+    if len(protocols) != 1:
+        return None
+    return next(iter(protocols))
+
+
 def _view_row(event: Mapping[str, Any]) -> Dict[str, Any]:
     payload = {
         key: value for key, value in event["payload"].items()
@@ -331,12 +351,15 @@ def _view_row(event: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
-                        workload: Any) -> Tuple[Dict[str, Dict[str, Any]],
-                                                Dict[str, Dict[str, Any]]]:
+                        workload: Any, *, protocol: Optional[str]
+                        ) -> Tuple[Dict[str, Dict[str, Any]],
+                                   Dict[str, Dict[str, Any]]]:
     """floor を kind 別に分類・照合し、report 値と完全な検索詳細を返す。"""
     paths = sorted(calibration_dir.glob("*.json")) if calibration_dir.is_dir() else []
     block_for_kind = {"within_run": "noise_floor", "between_run": "between_run"}
-    candidates: Dict[str, List[Tuple[Path, Dict[str, Any], Any, Any, Dict[str, Any]]]] = {
+    candidates: Dict[str, List[Tuple[
+        Path, Dict[str, Any], Any, Any, Dict[str, Any], str, str,
+    ]]] = {
         kind: [] for kind in block_for_kind
     }
     skipped_no_floor_block = []
@@ -365,8 +388,24 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
         if "workload" not in doc or not isinstance(doc["workload"], dict):
             raise Layer3ReportError("floor calibration に workload dict がない: %s" % path)
         kind = kinds[0]
+        if "genome" in doc:
+            try:
+                doc_protocol = protocol_from_floor_genome(doc["genome"])
+            except ValueError as exc:
+                raise Layer3ReportError(
+                    "floor calibration の genome が canonical でない: %s" % path
+                ) from exc
+            protocol_match_basis = "canonical-floor-genome"
+        elif kind == "within_run":
+            doc_protocol = "silo"
+            protocol_match_basis = "genome-absent-legacy-record"
+        else:
+            raise Layer3ReportError(
+                "between-run floor calibration に canonical genome がない: %s" % path
+            )
         candidates[kind].append(
-            (path, doc[block_for_kind[kind]], doc_records, doc["threads"], doc["workload"]))
+            (path, doc[block_for_kind[kind]], doc_records, doc["threads"],
+             doc["workload"], doc_protocol, protocol_match_basis))
 
     campaign_has_no_ycsb = not isinstance(workload, dict)
     report_floors: Dict[str, Dict[str, Any]] = {}
@@ -375,13 +414,17 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
         candidate_rows = candidates[kind]
         mismatches = []
         matches = []
-        for path, floor, doc_records, doc_threads, doc_workload in candidate_rows:
-            if (not campaign_has_no_ycsb and doc_records == records
+        for (path, floor, doc_records, doc_threads, doc_workload,
+             doc_protocol, protocol_match_basis) in candidate_rows:
+            if (protocol is not None and not campaign_has_no_ycsb
+                    and doc_protocol == protocol and doc_records == records
                     and doc_threads == threads and doc_workload == workload):
-                matches.append((path, floor))
+                matches.append((path, floor, protocol_match_basis))
             else:
                 mismatches.append({
                     "file": path.name,
+                    "protocol": doc_protocol,
+                    "protocol_match_basis": protocol_match_basis,
                     "records": doc_records,
                     "threads": doc_threads,
                     "workload": doc_workload,
@@ -394,22 +437,29 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
             "candidate_files": [row[0].name for row in candidate_rows],
             "skipped_no_floor_block": list(skipped_no_floor_block),
             "campaign_has_no_ycsb": campaign_has_no_ycsb,
-            "criteria": {"records": records, "threads": threads,
+            "campaign_protocol_resolution": (
+                "unique-canonical-build-start-genome" if protocol is not None
+                else "campaign-protocol-missing-invalid-or-multiple"
+            ),
+            "criteria": {"protocol": protocol, "records": records, "threads": threads,
                          "workload": workload if isinstance(workload, dict) else None},
             "mismatches": mismatches,
         }
         search_details[kind] = detail
         if matches:
-            path, floor = matches[0]
+            path, floor, protocol_match_basis = matches[0]
             report_floors[kind] = {
                 "value": floor,
                 "provenance": "env-record",
+                "protocol": protocol,
                 "source": {
                     "path": str(path.relative_to(calibration_dir.parents[2])),
                     "sha256": _sha256_file(path),
                 },
                 "search": None,
             }
+            if protocol_match_basis == "genome-absent-legacy-record":
+                report_floors[kind]["protocol_match_basis"] = protocol_match_basis
         else:
             report_floors[kind] = {
                 "value": None,
@@ -417,6 +467,8 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
                 "source": None,
                 "search": detail,
             }
+            if protocol is not None:
+                report_floors[kind]["protocol"] = protocol
     return report_floors, search_details
 
 
@@ -573,6 +625,7 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     if isinstance(records_count, bool) or isinstance(threads, bool) or not isinstance(records_count, int) or not isinstance(threads, int):
         raise Layer3ReportError("campaign search_config の records/threads が整数でない")
     variant_rows = _variant_rows(records)
+    protocol = _campaign_protocol(records)
     ordered = sorted(records, key=_event_key)
     events_by_variant = {row["variant"]: row["events"] for row in variant_rows}
     runs = [_view_row(event) for event in ordered if event["stage"] == "bench_done"]
@@ -584,7 +637,9 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
                if not any(event["stage"] == "commit" for event in events)]
     calibration_dir = output_root / "env" / next(iter(env_tags)) / "calibration"
     noise_floor, _ = _calibration_floors(
-        calibration_dir, records_count, threads, lock["search_config"].get("ycsb"))
+        calibration_dir, records_count, threads, lock["search_config"].get("ycsb"),
+        protocol=protocol,
+    )
     report: Dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "meta": {
@@ -685,7 +740,7 @@ def build_accepted_report(
             "certifying Layer3 report には admission_status=admitted が必須"
         )
     try:
-        certified_campaign = require_certified_campaign_view(
+        certified_campaign = require_certified_commit_evidence(
             require_admitted_campaign(
                 resolved_campaign,
                 purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,

@@ -59,7 +59,13 @@ from .build_admission import (  # noqa: E402
     build_run_context,
     derive_build_admission,
 )
-from .layout import CampaignLayout, campaign_layout  # noqa: E402
+from .layout import (  # noqa: E402
+    CampaignLayout,
+    DurableRootPolicy,
+    campaign_layout,
+    env_scope_dir,
+    resolve_campaign_output_root,
+)
 from .lock import bench_lock  # noqa: E402
 from .loop import run_campaign  # noqa: E402
 from .model import (  # noqa: E402
@@ -97,11 +103,22 @@ THREADS = 48
 EXTIME = 3
 REPS = 5
 RUN_PHASES = ("build", "verify", "perf", "probe")
+FORMAL_PHASES = (*RUN_PHASES, "verify-perf")
 PROBE_CALLS_PER_CELL = 100_000
 PROBE_SCHEMA = "izanagi-b10-backoff-shape-probe/v2"
 MIXER = 0x9E3779B97F4A7C15
 _MASK64 = (1 << 64) - 1
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
+
+
+def _require_binary_path_policy() -> None:
+    if os.environ.get(buildcache.B10_BINARY_PATH_POLICY_ENV) != (
+            buildcache.B10_BINARY_PATH_POLICY):
+        raise PreflightError(
+            "binary-path-policy",
+            "B-10 formal build は path-independent policy token が必須",
+        )
+
 
 WORKLOADS = {
     "write-heavy": {
@@ -473,7 +490,7 @@ def load_submission_identity(
         "submission receipt request",
     )
     if request != {
-        "project": "SFC", "queue": "gen_S", "nodes": 1, "elapstim_req_s": 21600,
+        "project": "SFC", "queue": "gen_S", "nodes": 1, "elapstim_req_s": 43200,
     }:
         raise PreflightError("submission-receipt", "receipt request が B10 PBS contract と不一致")
     return SubmissionIdentity(
@@ -2791,6 +2808,20 @@ def run_probe(
     return output_path
 
 
+def _prepare_official_output(
+    env_tag: str,
+) -> tuple[str, DurableRootPolicy]:
+    """Resolve the formal root and provision the claim capability boundary."""
+    resolved_output = resolve_campaign_output_root("official")
+    claim_root = Path(env_scope_dir(env_tag, resolved_output)) / "claims"
+    claim_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    durable_policy = DurableRootPolicy(
+        approved_roots=(Path(resolved_output),),
+        forbidden_roots=(Path("/tmp"), Path("/scr")),
+    )
+    return resolved_output, durable_policy
+
+
 def run_formal(
     *,
     phase: str,
@@ -2802,18 +2833,23 @@ def run_formal(
     """Run one closed B10 phase in one compute allocation."""
     from .patchharness import applied, assert_pinned_clean, checkout
 
-    if phase not in RUN_PHASES:
-        raise PreflightError("phase", "phase は build/verify/perf/probe の閉集合が必要")
+    if phase not in FORMAL_PHASES:
+        raise PreflightError(
+            "phase", "phase は build/verify/perf/probe/verify-perf の閉集合が必要",
+        )
     if phase in {"build", "probe"}:
         if workload is not None:
             raise PreflightError("phase", "build/probe phase に workload を指定してはならない")
     elif workload not in WORKLOADS:
-        raise PreflightError("phase", "verify/perf phase は workload 指定が必要")
+        raise PreflightError(
+            "phase", "verify/perf/verify-perf phase は workload 指定が必要",
+        )
     if phase == "probe":
         return run_probe(
             prereg_commit=prereg_commit,
             submission_receipt=submission_receipt,
         ), None, True
+    _require_binary_path_policy()
     root = _repo_root()
     prereg = load_preregistration(root, prereg_commit)
     submission = load_submission_identity(
@@ -2864,11 +2900,16 @@ def run_formal(
                 return None, None, True
 
             assert workload is not None
+            resolved_output, durable_policy = _prepare_official_output(
+                contract.env_tag,
+            )
             cfg = config_for(workload, prereg, calibration, context, contract)
-            layout = campaign_layout(str(ident.campaign_id(cfg)))
+            layout = campaign_layout(
+                str(ident.campaign_id(cfg)), resolved_output,
+            )
             assert_resumable_binding(layout, prereg.binding)
             perf = perf_for(workload, calibration, prereg.spec)
-            if phase == "verify":
+            if phase in {"verify", "verify-perf"}:
                 with bind_build_start_wal(prereg.binding):
                     summary = run_campaign(
                         cfg, genomes(), perf, contract.env_tag, contract.clocks_per_us,
@@ -2881,6 +2922,8 @@ def run_formal(
                             context, prereg.binding,
                         ),
                         declared_use_class="official",
+                        output_root=resolved_output,
+                        durable_root_policy=durable_policy,
                     )
                 if summary.committed + summary.skipped + summary.aborted \
                         != POINTS_PER_BLOCK:
@@ -2888,7 +2931,8 @@ def run_formal(
                         f"correctness campaign incomplete: workload={workload} "
                         f"committed={summary.committed} skipped={summary.skipped} aborted={summary.aborted}"
                     )
-                return None, None, summary.aborted == 0
+                if phase == "verify" or summary.aborted != 0:
+                    return None, None, summary.aborted == 0
 
             if not os.path.lexists(layout.lock_file) or not os.path.lexists(layout.wal_file):
                 raise PreflightError("resume-binding", "perf phase 前に verify WAL/lock が無い")
@@ -3005,7 +3049,9 @@ def run_formal(
                 other_cfg = config_for(
                     other_workload, prereg, calibration, context, contract,
                 )
-                other_layout = campaign_layout(str(ident.campaign_id(other_cfg)))
+                other_layout = campaign_layout(
+                    str(ident.campaign_id(other_cfg)), resolved_output,
+                )
                 other_root = Path(other_layout.runs_dir) / "b10-backoff-shape-blocks"
                 if not other_root.exists():
                     continue
@@ -3049,7 +3095,7 @@ def p2_2_loop_perf_preflight() -> tuple[dict, bool]:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", required=True, choices=RUN_PHASES)
+    parser.add_argument("--phase", required=True, choices=FORMAL_PHASES)
     parser.add_argument("--workload", choices=tuple(WORKLOADS))
     parser.add_argument("--prereg-commit", required=True)
     parser.add_argument("--submission-receipt", required=True)

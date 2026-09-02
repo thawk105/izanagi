@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import errno
 import hashlib
+import inspect
 import itertools
 import json
 import os
@@ -41,6 +42,8 @@ from orchestrator.campaign import ident                                         
 from orchestrator.campaign import pipeline                                      # noqa: E402
 from orchestrator.campaign import p3_s4_loop as L                               # noqa: E402
 from orchestrator.campaign import s8a_trigger_sweep as W                        # noqa: E402
+from orchestrator.campaign import s8a_trigger_coverage as coverage               # noqa: E402
+from orchestrator.campaign import s8a_trigger_freq as frequency                  # noqa: E402
 from orchestrator.campaign import wal                                           # noqa: E402
 from orchestrator.campaign.artifact_admission import (                          # noqa: E402
     CampaignNotAdmitted,
@@ -69,6 +72,31 @@ _REAL_E0_CAMPAIGN = (
     Path(_ORCH).parent
     / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_condition_gate_from_nonbuild_unit_tests(monkeypatch):
+    """The real compiler-backed gate is covered by its production API suite."""
+    monkeypatch.setattr(
+        W, "_preflight_condition_gate",
+        lambda _source_root, _patch: {"admission": {"admitted": True}},
+    )
+
+
+def test_condition_gate_preflight_dominates_candidate_evaluation():
+    source = inspect.getsource(W.run_sweep)
+    assert source.index("_preflight_condition_gate") < source.index("active_screening")
+
+
+@pytest.mark.parametrize("module", [coverage, frequency])
+def test_trigger_characterization_gate_dominates_first_build(module):
+    source = inspect.getsource(module.main)
+    assert source.index("_preflight_condition_gates") < source.index("_build(")
+
+
+def test_screening_forwards_ident_baseline_genome_protocol():
+    source = Path(W.__file__).read_text(encoding="utf-8")
+    assert source.count("protocol=_genome(1).protocol") == 1
 
 # 頻度実測の予想結果 (シート導出: YCSB では node/absent 構造ゼロ)。テストは実測に
 # 依存しない — 代表として 3 ビットの実効集合で列挙の機械性質を検査する。

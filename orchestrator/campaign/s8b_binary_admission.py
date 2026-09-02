@@ -189,6 +189,7 @@ def issue_binary_admission_receipt(
     compiler_input_manifest: Mapping,
     compiler_input_manifest_sha256: str,
     current_compiler_input_masstree_root: Path | str | None = None,
+    current_compiler_input_dependency_prefix_roots: object = None,
 ) -> dict[str, object]:
     """完全検証した sealed admission から root 非依存 receipt を発行する。"""
 
@@ -234,6 +235,9 @@ def issue_binary_admission_receipt(
             snapshot_root=source.source_root,
             current_fetchcontent_masstree_root=(
                 current_compiler_input_masstree_root
+            ),
+            current_dependency_prefix_roots=(
+                current_compiler_input_dependency_prefix_roots
             ),
         )
     except s8b_compiler_input.CompilerInputError as exc:

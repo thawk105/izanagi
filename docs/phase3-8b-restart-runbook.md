@@ -229,10 +229,14 @@ official mode の guard は変更していない (受理集合は空のまま)�
 - 投入手順は次の順で行う。**順序を崩さない。**
   1. pilot 経路と docs の**全 tracked 変更を commit する** (未 commit の変更があると
      `submit_floor.sh` の drift 検査が qsub 前に rc=2 で止める)
-  2. `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認する
-  3. 同 script を明示実行する。投入インタフェースは同 script が正本で、
+  2. **third-party staging root を供給する。** `submit_floor.sh` はこれを消費するが自分では
+     作らない。新しい作業木では `--dry-run` が rc=0 でも実投入が
+     `floor third-party source root is missing or unsafe` で qsub 前に落ちる。
+     手順は `tools/pegasus/README.md` §6 (`fetch_third_party.py hydrate`) が正本
+  3. `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認する
+  4. 同 script を明示実行する。投入インタフェースは同 script が正本で、
      `qsub -v VAR=value <script>` 形を自分で発明しない (runbook §8)
-  4. 床値 pilot の投入に**承認引数は要らない** (D1124)。測定の反復を拒否する関門を撤去したため、
+  5. 床値 pilot の投入に**承認引数は要らない** (D1124)。測定の反復を拒否する関門を撤去したため、
      承認すべき不可逆消費が無い。**同じ cell を何度でも測ってよく**、測定ごとに新しい測定世代を
      発行して台帳へ追記する。挙動の正本は `tools/pegasus/README.md` の該当項
 - 背景 job セッションからの投入は F49 (ii) の例外で許されるが、投入直後に有効性検査 3 点

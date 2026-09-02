@@ -43,6 +43,12 @@ from orchestrator.campaign.source_digest import (  # noqa: E402
     SOURCE_EVIDENCE_SCHEMA,
     SourceEvidence,
 )
+from condition_gate_test_support import (  # noqa: E402
+    TRIGGER_GATING_SOURCE,
+    condition_gate_compilers,
+    cxx_flag_owner_source,
+    install_condition_gate_build_fixture,
+)
 
 
 _COVERAGE_MODULES = (
@@ -163,11 +169,17 @@ def test_s2_run_once_rejects_nonzero_batch_commit_witness():
 def _call_coverage_configure(module, root: Path, site: str) -> None:
     if module is s2_verify_calibration:
         module._broken_build_and_verify(
-            "unused.patch", "UNUSED_DEFINE", {}, site=site,
+            "unused.patch", module.NORW_DEFINE, {}, site=site,
         )
-    elif module in (s3_lock_coverage, s5_permutation_coverage):
+    elif module is s3_lock_coverage:
         module._build_broken(
-            "unused.patch", "UNUSED_DEFINE", str(root / "build"), site=site,
+            "unused.patch", module.LOCKSKIP_DEFINE,
+            str(root / "build"), site=site,
+        )
+    elif module is s5_permutation_coverage:
+        module._build_broken(
+            "unused.patch", module.ERASE_DEFINE,
+            str(root / "build"), site=site,
         )
     elif module is s8a_trigger_coverage:
         module._build(str(root / "build"), site=site)
@@ -623,17 +635,51 @@ def test_m11_coverage_configure_gates_are_independent():
     coverage 各 module の configure 直前 gate を単独で削除した場合、後段 build gate
     が拒否しても configure subprocess 到達を観測して赤にする。
     """
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        raise AssertionError(
+            "condition gate fixture requires real compilers and CMake"
+        )
+    real_subprocess_run = subprocess.run
     for module in _COVERAGE_MODULES:
         for site in (site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT):
             calls = []
 
             def fake_subprocess_run(*args, **kwargs):
+                command = tuple(args[0])
+                if (
+                        Path(command[0]).resolve() == Path(compilers[1]).resolve()
+                        or any("izanagi_condition_supply_" in item
+                               for item in command)):
+                    return real_subprocess_run(*args, **kwargs)
                 calls.append((args, kwargs))
                 return SimpleNamespace(returncode=0)
 
             with tempfile.TemporaryDirectory(
                     prefix="izanagi_coverage_configure_gate_") as tmp:
+                repo_root = Path(tmp) / "repo"
+                source_root = install_condition_gate_build_fixture(
+                    repo_root / "external" / "ccbench",
+                )
+                if module is s8a_trigger_coverage:
+                    owner_source = TRIGGER_GATING_SOURCE
+                elif module is s2_verify_calibration:
+                    owner_source = cxx_flag_owner_source(module.NORW_DEFINE)
+                elif module is s3_lock_coverage:
+                    owner_source = cxx_flag_owner_source(module.LOCKSKIP_DEFINE)
+                else:
+                    assert module is s5_permutation_coverage
+                    owner_source = cxx_flag_owner_source(module.ERASE_DEFINE)
+                (source_root / "cc" / "silo" / "transaction.cc").write_text(
+                    owner_source, encoding="utf-8",
+                )
                 with ExitStack() as stack:
+                    stack.enter_context(patch.object(
+                        module, "_repo_root", lambda: str(repo_root),
+                    ))
+                    stack.enter_context(patch.object(
+                        module.buildcache, "DEFAULT_CXX", compilers[1],
+                    ))
                     if hasattr(module, "applied"):
                         stack.enter_context(patch.object(
                             module, "applied",

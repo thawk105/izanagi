@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "axis3_search_checkpoint.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "resume_action",
+    "registration_seal_sha256",
+    "catalog_sha256",
+    "parser_sha256",
+    "runner_sha256",
+    "schema_sha256",
+    "run_id",
+    "stream_id",
+    "index",
+    "pass_number",
+    "pass_kind",
+    "window_number",
+    "state",
+    "page_identity",
+    "last_committed_page",
+    "ledger_prefix_sha256",
+    "previous_checkpoint_sha256",
+    "wire_attempt_count",
+    "first_external_request_at",
+    "deadline_at",
+    "quota_observed_at",
+    "quota_remaining",
+    "continue_cursor_request",
+    "start_independent_pass_request"
+  ],
+  "properties": {
+    "schema_version": {"const": "axis3-search-checkpoint/v1"},
+    "resume_action": {
+      "enum": [
+        "continue_cursor",
+        "start_independent_pass",
+        "restart_branch",
+        "blocked_on_ruling",
+        "not_applicable"
+      ]
+    },
+    "registration_seal_sha256": {"$ref": "#/definitions/digest"},
+    "catalog_sha256": {"$ref": "#/definitions/digest"},
+    "parser_sha256": {"$ref": "#/definitions/digest"},
+    "runner_sha256": {"$ref": "#/definitions/digest"},
+    "schema_sha256": {"$ref": "#/definitions/digest"},
+    "run_id": {"type": "string", "minLength": 1},
+    "stream_id": {"type": "string", "pattern": "^AX3A1-"},
+    "index": {"enum": ["arxiv", "openalex", "dblp"]},
+    "pass_number": {"type": "integer", "minimum": 1},
+    "pass_kind": {"enum": ["cursor_traversal", "independent", "fixed", "offset_traversal"]},
+    "window_number": {"type": "integer", "minimum": 1},
+    "state": {
+      "enum": [
+        "committed",
+        "http_failure",
+        "quota_wait",
+        "pass_complete",
+        "blocked_on_ruling"
+      ]
+    },
+    "page_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stream_id", "pass_number", "page_number"],
+      "properties": {
+        "stream_id": {"type": "string", "pattern": "^AX3A1-"},
+        "pass_number": {"type": "integer", "minimum": 1},
+        "page_number": {"type": "integer", "minimum": 0}
+      }
+    },
+    "last_committed_page": {"type": "integer", "minimum": -1},
+    "ledger_prefix_sha256": {"$ref": "#/definitions/digest"},
+    "previous_checkpoint_sha256": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/definitions/digest"}]
+    },
+    "wire_attempt_count": {"type": "integer", "minimum": 0, "maximum": 200000},
+    "first_external_request_at": {"$ref": "#/definitions/time"},
+    "deadline_at": {"$ref": "#/definitions/time"},
+    "quota_observed_at": {"$ref": "#/definitions/time"},
+    "quota_remaining": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "integer", "minimum": 0}
+      ]
+    },
+    "retry_after": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1}]},
+    "continue_cursor_request": {"$ref": "#/definitions/request"},
+    "cursor_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page_number", "entity_body_path", "entity_body_sha256", "field_locator"],
+      "properties": {
+        "page_number": {"type": "integer", "minimum": 0},
+        "entity_body_path": {"type": "string", "minLength": 1},
+        "entity_body_sha256": {"$ref": "#/definitions/digest"},
+        "field_locator": {"type": "string", "pattern": "^/"}
+      }
+    },
+    "start_independent_pass_request": {"$ref": "#/definitions/request"},
+    "previous_pass_complete": {"type": "boolean"},
+    "previous_pass_ledger_sha256": {"$ref": "#/definitions/digest"},
+    "restart_branch_request": {"$ref": "#/definitions/request"},
+    "failed_ledger_sha256": {"$ref": "#/definitions/digest"},
+    "blocking_ruling_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {"resume_action": {"const": "continue_cursor"}},
+      "required": ["continue_cursor_request"]
+    },
+    {
+      "properties": {"resume_action": {"const": "start_independent_pass"}},
+      "required": [
+        "previous_pass_complete",
+        "previous_pass_ledger_sha256"
+      ]
+    },
+    {
+      "properties": {"resume_action": {"const": "restart_branch"}},
+      "required": ["restart_branch_request", "failed_ledger_sha256"]
+    },
+    {
+      "properties": {"resume_action": {"const": "blocked_on_ruling"}},
+      "required": ["blocking_ruling_ids"]
+    },
+    {
+      "properties": {"resume_action": {"const": "not_applicable"}}
+    }
+  ],
+  "definitions": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "headerPair": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"type": "string"}
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "url", "headers", "body_sha256", "position_kind"],
+      "properties": {
+        "method": {"const": "GET"},
+        "url": {"type": "string", "pattern": "^https://"},
+        "headers": {"type": "array", "items": {"$ref": "#/definitions/headerPair"}},
+        "body_sha256": {"$ref": "#/definitions/digest"},
+        "position_kind": {
+          "enum": [
+            "cursor",
+            "offset",
+            "fixed",
+            "page_zero",
+            "cursor_star",
+            "offset_zero"
+          ]
+        }
+      }
+    }
+  }
+}

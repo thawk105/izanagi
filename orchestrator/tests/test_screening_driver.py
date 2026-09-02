@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
+import shutil
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -13,7 +16,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import env_contract, ident, screening_driver, wal  # noqa: E402
+from orchestrator.campaign import (condition_meaning_gate, env_contract, ident,  # noqa: E402
+                                   screening_driver, wal)
 from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -37,6 +41,23 @@ from campaign_lock_test_support import build_v2_lock              # noqa: E402
 WORKLOAD = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 _BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
 _CONTRACT = env_contract.GENERATIONS["linux-baremetal"][0].contract
+_CONDITION_FIXTURES = (
+    Path(__file__).parent / "fixtures" / "condition_meaning_gate"
+)
+
+
+def _any_cxx() -> str:
+    for candidate in ("g++-13", "g++-12", "g++"):
+        if shutil.which(candidate):
+            return candidate
+    pytest.skip("no supported C++ compiler is installed")
+
+
+def _any_cmake() -> str:
+    candidate = shutil.which("cmake")
+    if candidate is None:
+        pytest.skip("cmake is not installed")
+    return candidate
 
 
 def _canonical_perf_receipt(status: str) -> dict:
@@ -127,12 +148,17 @@ def _cfg():
     return ident.bind_environment_contract(cfg, _CONTRACT)
 
 
-def _write_floor(root, *, floor=0.03, workload=WORKLOAD,
+def _write_floor(root, *, floor=0.03, workload=WORKLOAD, protocol="silo",
+                 filename="between_run_noise_fixture.json",
                  schema_version="between-run-noise-floor/v1"):
     """Write the versioned fixture by default; pass None for a legacy JSON."""
     os.makedirs(root, exist_ok=True)
-    path = os.path.join(root, "between_run_noise_fixture.json")
-    document = {"workload": workload, "between_run": {"cv": floor}}
+    path = os.path.join(root, filename)
+    document = {
+        "workload": workload,
+        "genome": f"{protocol}|BACK_OFF=0",
+        "between_run": {"cv": floor},
+    }
     if schema_version is not None:
         document["schema_version"] = schema_version
     with open(path, "w", encoding="utf-8") as f:
@@ -140,23 +166,143 @@ def _write_floor(root, *, floor=0.03, workload=WORKLOAD,
     return path
 
 
+def test_screening_condition_gate_accepts_real_runtime_genome_value():
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+    run = screening_driver._run_condition_gate_for_genome(
+        str(_CONDITION_FIXTURES / "supplied"), genome,
+        stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    assert run is not None and run.admission.admitted
+    assert run.admission.use_class == "raw"
+    assert [(record.macro, record.terminal_status)
+            for record in run.supply_records] == [("BACKOFF_FIXED", "green")]
+    assert [(record.macro, record.terminal_status)
+            for record in run.meaning_records] == [
+                ("BACKOFF_FIXED", "unestablished")]
+    requests = screening_driver._condition_requests_for_genome(genome)
+    assert [(request.macro, request.requested_value)
+            for request in requests] == [("BACKOFF_FIXED", 5)]
+
+
+def test_screening_condition_gate_rejects_real_ignored_runtime_define():
+    genome = Genome("silo", {"BACKOFF_FIXED": 5})
+
+    with pytest.raises(
+            condition_meaning_gate.ConditionMeaningGateError,
+            match="preprocess-bytes-identical",
+    ):
+        screening_driver._run_condition_gate_for_genome(
+            str(_CONDITION_FIXTURES / "effectuation-ignored"), genome,
+            stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+
+
+def test_screening_condition_gate_rejects_route_absent_from_real_build_args():
+    genome = Genome("silo", {"IZANAGI_BREAK_PERMUTATION": 1})
+
+    with pytest.raises(
+            condition_meaning_gate.ConditionMeaningGateError,
+            match="screening-build-route-mismatch.*IZANAGI_BREAK_PERMUTATION=1",
+    ):
+        screening_driver._run_condition_gate_for_genome(
+            str(_CONDITION_FIXTURES / "supplied"), genome,
+            stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+
+
+def test_screening_condition_gate_rejects_missing_real_companion_define():
+    genome = Genome("ss2pl", {"SS2PL_LOCK_KIND": 0})
+
+    with pytest.raises(
+            condition_meaning_gate.ConditionMeaningGateError,
+            match="screening-build-route-mismatch.*SS2PL_LOCK_IMPL=1",
+    ):
+        screening_driver._run_condition_gate_for_genome(
+            str(_CONDITION_FIXTURES / "supplied"), genome,
+            stock_root=None, cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+
+
+def test_screening_condition_gate_is_before_real_evaluate_build_sink():
+    source = inspect.getsource(screening_driver.evaluate_candidate)
+
+    source_evidence = source.index("evidence = source_digest.resolve_evidence(")
+    gate = source.index("_require_condition_gate_before_evaluation(")
+    build_sink = source.index("return evaluate(")
+    assert source_evidence < gate < build_sink
+    assert "evidence.source_root" in source[source_evidence:gate + 160]
+
+
+def test_screening_condition_requests_reject_non_exact_domain_value():
+    genome = Genome("silo", {"SORT_VARIANT": True})
+
+    with pytest.raises(TypeError, match="exact int"):
+        screening_driver._condition_requests_for_genome(genome)
+
+
+def test_screening_condition_requests_cover_exact_define_specs():
+    flags = {
+        macro: screening_driver._CONDITION_DEFAULTS[macro] + 1
+        for macro in condition_meaning_gate.DEFINE_SPECS
+    }
+    requests = screening_driver._condition_requests_for_genome(
+        Genome("silo", flags),
+    )
+
+    assert set(screening_driver._CONDITION_DEFAULTS) == set(
+        condition_meaning_gate.DEFINE_SPECS
+    )
+    assert [request.macro for request in requests] == sorted(
+        condition_meaning_gate.DEFINE_SPECS
+    )
+    assert [request.requested_value for request in requests] == [
+        flags[macro] for macro in sorted(condition_meaning_gate.DEFINE_SPECS)
+    ]
+
+
+def test_screening_condition_requests_accept_no_non_domain_substitute():
+    genome = Genome("silo", {"BACK_OFF": 1, "WAL": 0})
+
+    assert screening_driver._condition_requests_for_genome(genome) == ()
+
+
+def test_screening_condition_gate_preserves_real_non_domain_build_inputs():
+    genome = Genome("silo", {
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": 5,
+        "NO_WAIT_OF_TICTOC": 0,
+    })
+
+    assert screening_driver._condition_gate_base_configure_args(genome) == (
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+    )
+
+
 def test_load_between_run_floor_accepts_legacy_schema_without_version(tmp_path):
     calibration = str(tmp_path / "calibration")
     _write_floor(calibration, floor=0.03, schema_version=None)
-    assert screening_driver.load_between_run_floor(WORKLOAD, calibration) == 0.03
+    assert screening_driver.load_between_run_floor(
+        WORKLOAD, protocol="silo", calibration_dir=calibration,
+    ) == 0.03
 
 
 def test_load_between_run_floor_accepts_current_schema_version(tmp_path):
     calibration = str(tmp_path / "calibration")
     _write_floor(calibration, floor=0.04)
-    assert screening_driver.load_between_run_floor(WORKLOAD, calibration) == 0.04
+    assert screening_driver.load_between_run_floor(
+        WORKLOAD, protocol="silo", calibration_dir=calibration,
+    ) == 0.04
 
 
 def test_load_between_run_floor_rejects_mismatched_schema_version(tmp_path):
     calibration = str(tmp_path / "calibration")
     _write_floor(calibration, schema_version="between-run-noise-floor/v0")
     with pytest.raises(ValueError, match="schema_version"):
-        screening_driver.load_between_run_floor(WORKLOAD, calibration)
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=calibration,
+        )
 
 
 def test_load_between_run_floor_rejects_explicit_null_schema_version(tmp_path):
@@ -169,7 +315,9 @@ def test_load_between_run_floor_rejects_explicit_null_schema_version(tmp_path):
             "between_run": {"cv": 0.03},
         }), encoding="utf-8")
     with pytest.raises(ValueError, match="schema_version"):
-        screening_driver.load_between_run_floor(WORKLOAD, str(calibration))
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=str(calibration),
+        )
 
 
 def test_load_between_run_floor_rejects_explicit_empty_schema_version(tmp_path):
@@ -182,7 +330,9 @@ def test_load_between_run_floor_rejects_explicit_empty_schema_version(tmp_path):
             "between_run": {"cv": 0.03},
         }), encoding="utf-8")
     with pytest.raises(ValueError, match="schema_version"):
-        screening_driver.load_between_run_floor(WORKLOAD, str(calibration))
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=str(calibration),
+        )
 
 
 def test_load_between_run_floor_rejects_non_dict_json_root(tmp_path):
@@ -191,7 +341,9 @@ def test_load_between_run_floor_rejects_non_dict_json_root(tmp_path):
     (calibration / "between_run_noise_root.json").write_text(
         json.dumps([{"workload": WORKLOAD}]), encoding="utf-8")
     with pytest.raises(ValueError, match="root"):
-        screening_driver.load_between_run_floor(WORKLOAD, str(calibration))
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=str(calibration),
+        )
 
 
 def test_load_between_run_floor_rejects_non_dict_between_run(tmp_path):
@@ -202,10 +354,85 @@ def test_load_between_run_floor_rejects_non_dict_between_run(tmp_path):
         json.dump({
             "schema_version": "between-run-noise-floor/v1",
             "workload": WORKLOAD,
+            "genome": "silo|BACK_OFF=0",
             "between_run": "not-an-object",
         }, f)
     with pytest.raises(ValueError, match="between_run"):
-        screening_driver.load_between_run_floor(WORKLOAD, calibration)
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=calibration,
+        )
+
+
+def test_load_between_run_floor_selects_requested_protocol_among_same_workload(
+        tmp_path):
+    calibration = str(tmp_path / "calibration")
+    _write_floor(
+        calibration, floor=0.03, protocol="silo",
+        filename="between_run_noise_silo.json",
+    )
+    _write_floor(
+        calibration, floor=0.07, protocol="mocc",
+        filename="between_run_noise_mocc.json",
+    )
+    assert screening_driver.load_between_run_floor(
+        WORKLOAD, protocol="silo", calibration_dir=calibration,
+    ) == 0.03
+    assert screening_driver.load_between_run_floor(
+        WORKLOAD, protocol="mocc", calibration_dir=calibration,
+    ) == 0.07
+
+
+def test_load_between_run_floor_rejects_single_wrong_protocol_floor(tmp_path):
+    calibration = str(tmp_path / "calibration")
+    _write_floor(
+        calibration, floor=0.07, protocol="mocc",
+        filename="between_run_noise_mocc.json",
+    )
+    with pytest.raises(ValueError, match="一意"):
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=calibration,
+        )
+
+
+def test_load_between_run_floor_rejects_duplicate_same_protocol(tmp_path):
+    calibration = str(tmp_path / "calibration")
+    _write_floor(calibration, filename="between_run_noise_first.json")
+    _write_floor(calibration, filename="between_run_noise_second.json")
+    with pytest.raises(ValueError, match="一意"):
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=calibration,
+        )
+
+
+@pytest.mark.parametrize("genome", [
+    None,
+    3,
+    "silo",
+    "|BACK_OFF=0",
+    "mocc|garbage",
+    "silo|B=x",
+    "silo|Z=1,A=0",
+    "silo|A=1,A=2",
+    "silo|",
+])
+def test_load_between_run_floor_rejects_missing_or_malformed_genome(
+        tmp_path, genome):
+    calibration = tmp_path / "calibration"
+    calibration.mkdir()
+    document = {
+        "schema_version": "between-run-noise-floor/v1",
+        "workload": WORKLOAD,
+        "between_run": {"cv": 0.03},
+    }
+    if genome is not None:
+        document["genome"] = genome
+    (calibration / "between_run_noise_invalid.json").write_text(
+        json.dumps(document), encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="genome"):
+        screening_driver.load_between_run_floor(
+            WORKLOAD, protocol="silo", calibration_dir=str(calibration),
+        )
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
@@ -236,6 +463,7 @@ def test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline(
 
     prepared = screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
+        protocol="silo",
         authorization_contract=authorization,
         env_tag=contract.env_tag,
         clocks_per_us=contract.clocks_per_us,
@@ -263,6 +491,7 @@ def test_prepare_screening_fails_closed_when_floor_json_missing(
     with pytest.raises(ValueError, match="floor JSON"):
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
+            protocol="silo",
             authorization_contract=authorization,
             env_tag=contract.env_tag,
             clocks_per_us=contract.clocks_per_us,
@@ -287,6 +516,7 @@ def test_prepare_screening_rejects_authorization_before_layout_or_wal(
     with pytest.raises(TypeError, match="authorization_contract"):
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
+            protocol="silo",
             authorization_contract=None,
             env_tag=contract.env_tag,
             clocks_per_us=contract.clocks_per_us,
@@ -324,6 +554,7 @@ def test_prepare_screening_requires_complete_baseline_evidence(
     with pytest.raises(ValueError):
         screening_driver.prepare_screening_campaign(
             _cfg(), WORKLOAD, "baseline-v1", measure,
+            protocol="silo",
             authorization_contract=authorization,
             env_tag=contract.env_tag,
             clocks_per_us=contract.clocks_per_us,
@@ -364,6 +595,7 @@ def test_prepare_repairs_tail_before_baseline_callback(
 
     screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
+        protocol="silo",
         authorization_contract=authorization,
         env_tag=contract.env_tag,
         clocks_per_us=contract.clocks_per_us,

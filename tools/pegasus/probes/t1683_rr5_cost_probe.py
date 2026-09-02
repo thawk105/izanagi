@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
-from orchestrator.campaign import buildcache, env_contract, site_policy, source_digest  # noqa: E402
+from orchestrator.campaign import (buildcache, condition_meaning_gate, env_contract,  # noqa: E402
+                                   site_policy, source_digest)
 from orchestrator.campaign.build_admission import GeneratorId, build_run_context, derive_build_admission  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.p2_2 import _assert_single_tenant  # noqa: E402
-from orchestrator.campaign.patchharness import assert_pinned_clean  # noqa: E402
+from orchestrator.campaign.patchharness import applied, assert_pinned_clean, checkout  # noqa: E402
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 from orchestrator.campaign.s2_verify_calibration import _parse_abort_counts, _parse_commit_witness  # noqa: E402
 
@@ -142,6 +143,86 @@ def _dry_run(out: Path, ccbench_head: str, cc: str, cxx: str, workload: dict) ->
     verifier = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier", "<trace-dir>", "--json", "--quiet", "--expected-commits", "<commits>"]
     return {"mode": "dry-run", "env_tag": ENV_TAG, "workload": workload["id"], "rratio": workload["rratio"], "ccbench_commit": CURRENT_PIN, "ccbench_head": ccbench_head, "cc": cc, "cxx": cxx, "output": str(out), "output_exists": out.exists(), "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "numactl": NUMA, "workload_argv": workload["argv"], "genomes": genomes, "verifier_argv": verifier}
 
+def _condition_requests_by_genome(workload: dict) -> tuple:
+    cells = []
+    for cell_name, adopted in workload["genomes"]:
+        requests = []
+        for macro, requested, default in (
+            ("BACKOFF_FIXED", int(adopted["BACKOFF_FIXED"]), -1),
+            ("BACKOFF_NOINLINE", int(adopted["BACKOFF_NOINLINE"]), 0),
+        ):
+            inert = requested == default or (
+                macro == "BACKOFF_FIXED" and requested == -1
+            )
+            request = condition_meaning_gate.make_define_request(
+                driver_id=(
+                    "tools.pegasus.probes.t1683_rr5_cost_probe:"
+                    f"{cell_name}"
+                ),
+                macro=macro,
+                requested_value=requested,
+                default_value=default,
+                stock_comparison=inert,
+            )
+            declaration = None
+            if macro == "BACKOFF_FIXED" and requested == -1:
+                declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+                    macro,
+                    (condition_meaning_gate.MeaningCase(
+                        -1, None, condition_meaning_gate.STOCK_ADAPTIVE_BRANCH,
+                    ),),
+                )
+            requests.append((request, declaration))
+        cells.append((cell_name, adopted, tuple(requests)))
+    return tuple(cells)
+
+
+def _require_condition_gates(
+    source_root: Path, stock_root: Path, workload: dict, cxx: str,
+) -> list[dict]:
+    receipts = []
+    for cell_name, adopted, requests in _condition_requests_by_genome(workload):
+        configure_args = tuple(
+            argument for argument in Genome("silo", adopted).cmake_defines()
+            if not argument.startswith((
+                "-DCCBENCH_BACKOFF_FIXED=",
+                "-DCCBENCH_BACKOFF_NOINLINE=",
+            ))
+        )
+        captured = condition_meaning_gate.capture_define_inputs(
+            source_root, stock_root=stock_root, configure_args=configure_args,
+        )
+        supply_records = []
+        meaning_records = []
+        for request, declaration in requests:
+            supply_records.append(
+                condition_meaning_gate.evaluate_define_supply_effectuation(
+                    captured, request=request, cxx=cxx, cmake="cmake",
+                )
+            )
+            meaning_records.append(
+                condition_meaning_gate.evaluate_define_runtime_meaning(
+                    captured, request=request, declaration=declaration, cxx=cxx,
+                )
+            )
+        admission = condition_meaning_gate.require_condition_gate_family(
+            supply_records, meaning_records, use_class="raw-measurement",
+        )
+        if not admission.admitted:
+            states = ", ".join(
+                f"{record.macro}={record.terminal_status}/{record.reason_code}"
+                for record in (*supply_records, *meaning_records)
+            )
+            raise RuntimeError(
+                f"condition gate rejected cost probe cell {cell_name}: {states}"
+            )
+        receipts.extend((
+            *(json.loads(record.canonical_json()) for record in supply_records),
+            *(json.loads(record.canonical_json()) for record in meaning_records),
+            json.loads(admission.canonical_json()),
+        ))
+    return receipts
+
 def main() -> int:
     parser = argparse.ArgumentParser(); parser.add_argument("--workload", choices=("rr5", "rr50"), default="rr5"); parser.add_argument("--out"); parser.add_argument("--dry-run", action="store_true"); args = parser.parse_args()
     workload = _load_workload(args.workload); out = Path(args.out) if args.out is not None else _default_out(workload); out = out if out.is_absolute() else ROOT / out
@@ -152,15 +233,21 @@ def main() -> int:
     site = site_policy.current_site()
     if site_policy.refuses_heavy_work(site): raise RuntimeError(site_policy.heavy_work_refusal(site, f"{workload['id']} cost measurement"))
     _assert_single_tenant(); free_gb = _assert_free_disk(tempfile.gettempdir()); assert_pinned_clean(str(submodule), CURRENT_PIN)
-    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    payload = {"schema_version": "a2-perf-verify-cost/v1", "env_tag": ENV_TAG, "workload": workload["id"], "rratio": workload["rratio"], "ccbench_commit": CURRENT_PIN, "ccbench_head": ccbench_head, "cc": cc, "cxx": cxx, "clocks_per_us": CLOCKS_PER_US, "workload_argv": workload["argv"], "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "free_disk_gb_at_start": free_gb, "genomes": []}
-    for name, defines in workload["genomes"]:
-        genome = Genome("silo", defines); evidence = source_digest.resolve_evidence(genome, CURRENT_PIN, cxx=cxx); admission = derive_build_admission(build_context, evidence)
-        build = buildcache.build(genome, ccbench_commit=CURRENT_PIN, trace=True, cc=cc, cxx=cxx, admission=admission, build_context=build_context, source_evidence=evidence)
-        run, trace_dir = _run_once(build.binary, workload["id"], workload["argv"])
-        try: verifier = _verifier_run(trace_dir, run["commits"])
-        finally: shutil.rmtree(trace_dir, ignore_errors=True)
-        payload["genomes"].append({"id": name, "defines": defines, "genome": genome.canonical(), "build": {"binary_sha256": build.bin_sha256, "cache_hit": build.cached}, "run": run, "verifier": verifier})
+    backoff_patch = ROOT / "patches" / "silo-backoff-fixed.patch"
+    with checkout(CURRENT_PIN, str(submodule)) as gate_stock_root:
+        with applied(str(backoff_patch), CURRENT_PIN, str(submodule)):
+            condition_gates = _require_condition_gates(
+                submodule, Path(gate_stock_root), workload, cxx,
+            )
+            build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+            payload = {"schema_version": "a2-perf-verify-cost/v1", "env_tag": ENV_TAG, "workload": workload["id"], "rratio": workload["rratio"], "ccbench_commit": CURRENT_PIN, "ccbench_head": ccbench_head, "cc": cc, "cxx": cxx, "clocks_per_us": CLOCKS_PER_US, "workload_argv": workload["argv"], "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "free_disk_gb_at_start": free_gb, "condition_gates": condition_gates, "genomes": []}
+            for name, defines in workload["genomes"]:
+                genome = Genome("silo", defines); evidence = source_digest.resolve_evidence(genome, CURRENT_PIN, cxx=cxx); admission = derive_build_admission(build_context, evidence)
+                build = buildcache.build(genome, ccbench_commit=CURRENT_PIN, trace=True, cc=cc, cxx=cxx, admission=admission, build_context=build_context, source_evidence=evidence)
+                run, trace_dir = _run_once(build.binary, workload["id"], workload["argv"])
+                try: verifier = _verifier_run(trace_dir, run["commits"])
+                finally: shutil.rmtree(trace_dir, ignore_errors=True)
+                payload["genomes"].append({"id": name, "defines": defines, "genome": genome.canonical(), "build": {"binary_sha256": build.bin_sha256, "cache_hit": build.cached}, "run": run, "verifier": verifier})
     payload["measured_at_utc"] = datetime.now(timezone.utc).isoformat(); out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("x", encoding="utf-8") as stream: json.dump(payload, stream, indent=2, ensure_ascii=False); stream.write("\n")
     print(out); return 0

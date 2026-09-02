@@ -9808,6 +9808,14 @@ _COST_TOKEN_FIELDS = (
 )
 _COST_QUANTUM = Decimal("0.00000001")
 _COST_DENOMINATOR = Decimal(1_000_000)
+_COST_PAIR_UNIT_STATUSES = ("observed", "unavailable", "not-incurred")
+
+
+def _cost_rounding() -> dict[str, Any]:
+    return {
+        "decimal_places": 8,
+        "mode": "ROUND_HALF_EVEN",
+    }
 
 
 def _load_frozen_price_snapshot_for_cost() -> dict[str, Any]:
@@ -9965,6 +9973,72 @@ def _normalized_cost_metadata(
     return metadata, sku
 
 
+def _normalized_cost_comparability(
+    *,
+    dimensions: Mapping[str, Any],
+    metadata: Mapping[str, Any],
+    material_manifest_sha256: str | None,
+    attempt_count: int,
+    unavailable_count: int,
+    not_incurred_count: int,
+    scheduled_attempt_count: int,
+    pair_units_by_status: Mapping[str, Iterable[tuple[str, int]]],
+) -> dict[str, Any]:
+    """Build deterministic, non-gating metadata for partial cost totals."""
+    rule = (
+        "basis_key and accounted_total_key must both match exactly to compare "
+        "partial accounted component totals; this does not establish "
+        "comparability of per-attempt averages, complete costs, or actual "
+        "billed amounts"
+    )
+    if material_manifest_sha256 is None:
+        rule += (
+            "; when comparison_universe.material_manifest_sha256 is null, "
+            "comparison is limited to rows in the same aggregate result"
+        )
+    return {
+        "rule": rule,
+        "basis_key": {
+            "comparison_scope": {
+                "benchmark_task_id": dimensions.get("benchmark_task_id"),
+                "stage": dimensions.get("stage"),
+                "cache_condition": dimensions.get("cache_condition"),
+            },
+            "comparison_universe": {
+                "material_manifest_sha256": material_manifest_sha256,
+            },
+            "accounting_basis": {
+                "price_version": metadata.get("price_version"),
+                "currency": metadata.get("currency"),
+                "price_unit": metadata.get("price_unit"),
+                "unaccounted_token_categories": list(
+                    metadata.get("unaccounted_token_categories", [])
+                ),
+                "coverage_status": metadata.get("coverage_status"),
+                "reasoning_output_tokens_accounting": metadata.get(
+                    "reasoning_output_tokens_accounting"
+                ),
+                "rounding": _cost_rounding(),
+            },
+        },
+        "accounted_total_key": {
+            "attempt_count": attempt_count,
+            "unavailable_count": unavailable_count,
+            "not_incurred_count": not_incurred_count,
+            "scheduled_attempt_count": scheduled_attempt_count,
+            "pair_units_by_status": {
+                status: [
+                    {"block_id": block_id, "attempt": attempt}
+                    for block_id, attempt in sorted(
+                        set(pair_units_by_status.get(status, ()))
+                    )
+                ]
+                for status in _COST_PAIR_UNIT_STATUSES
+            },
+        },
+    }
+
+
 def _normalized_cost_for_attempt(
     attempt: Mapping[str, Any],
     *,
@@ -10043,10 +10117,7 @@ def _normalized_cost_for_attempt(
         **metadata,
         "accounted_amount": _format_cost_amount(total),
         "components": components,
-        "rounding": {
-            "decimal_places": 8,
-            "mode": "ROUND_HALF_EVEN",
-        },
+        "rounding": _cost_rounding(),
     }
 
 
@@ -10057,9 +10128,13 @@ def _aggregate_normalized_costs(
     *,
     price_version: str,
     price_snapshot: Mapping[str, Any],
+    material_manifest_sha256: str | None = None,
 ) -> tuple[list[dict[str, Any] | None], list[dict[str, Any]]]:
     per_attempt: list[dict[str, Any] | None] = []
     axes: dict[tuple[Any, ...], dict[str, Any]] = {}
+    axis_pair_units: dict[
+        tuple[Any, ...], dict[str, set[tuple[str, int]]]
+    ] = {}
     for attempt in attempts:
         run_id = str(attempt.get("run_id"))
         dimensions = slot_dimensions.get(str(attempt.get("slot_id")))
@@ -10090,7 +10165,6 @@ def _aggregate_normalized_costs(
                 f"{run_id}: normalized cost unavailable: {reason}"
                 for reason in exc.reasons
             )
-        per_attempt.append(cost)
         key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
             dimensions["arm"],
         )
@@ -10121,8 +10195,42 @@ def _aggregate_normalized_costs(
                 ],
             }
             axes[key] = axis
+            axis_pair_units[key] = {
+                status: set() for status in _COST_PAIR_UNIT_STATUSES
+            }
         axis["scheduled_attempt_count"] += 1
         availability = cost.get("token_availability")
+        block_id = attempt.get("block_id")
+        attempt_number = attempt.get("attempt")
+        pair_unit = (
+            (block_id, attempt_number)
+            if isinstance(block_id, str) and type(attempt_number) is int
+            else None
+        )
+        per_attempt_pair_units = {
+            status: (
+                {pair_unit}
+                if status == availability and pair_unit is not None
+                else set()
+            )
+            for status in _COST_PAIR_UNIT_STATUSES
+        }
+        if availability in axis_pair_units[key] and pair_unit is not None:
+            axis_pair_units[key][availability].add(pair_unit)
+        per_attempt_counts = {
+            "attempt_count": int(availability == "observed"),
+            "unavailable_count": int(availability == "unavailable"),
+            "not_incurred_count": int(availability == "not-incurred"),
+            "scheduled_attempt_count": 1,
+        }
+        cost["comparability"] = _normalized_cost_comparability(
+            dimensions=dimensions,
+            metadata=cost,
+            material_manifest_sha256=material_manifest_sha256,
+            **per_attempt_counts,
+            pair_units_by_status=per_attempt_pair_units,
+        )
+        per_attempt.append(cost)
         if availability == "unavailable":
             axis["unavailable_count"] += 1
             continue
@@ -10136,6 +10244,17 @@ def _aggregate_normalized_costs(
             + Decimal(str(cost["accounted_amount"]))
         )
         axis["attempt_count"] += 1
+    for key, axis in axes.items():
+        axis["comparability"] = _normalized_cost_comparability(
+            dimensions=axis,
+            metadata=axis,
+            material_manifest_sha256=material_manifest_sha256,
+            attempt_count=int(axis["attempt_count"]),
+            unavailable_count=int(axis["unavailable_count"]),
+            not_incurred_count=int(axis["not_incurred_count"]),
+            scheduled_attempt_count=int(axis["scheduled_attempt_count"]),
+            pair_units_by_status=axis_pair_units[key],
+        )
     return per_attempt, list(axes.values())
 
 
@@ -10390,6 +10509,7 @@ def _aggregate_verified(
                 reasons,
                 price_version=aggregate_price_version,
                 price_snapshot=validated_price_snapshot,
+                material_manifest_sha256=material_manifest_sha256,
             )
     token_usage_observations = _aggregate_token_usage_observations(
         attempts,

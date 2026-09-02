@@ -42,12 +42,14 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
     build_run_context,
     derive_build_admission,
 )
+from orchestrator.campaign.layout import CampaignLayout  # noqa: E402
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 from orchestrator.campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
 from orchestrator.calibrator import perf_preflight  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 
 ROOT = _HERE.parent.parent
@@ -112,7 +114,9 @@ def build_v2_campaign_lock(
     )
 
 
-def _admission_bound_records(tmp_path: Path, records: list[dict]) -> tuple[list[dict], dict]:
+def _admission_bound_records(
+    tmp_path: Path, records: list[dict], *, protocol: str | None = None,
+) -> tuple[list[dict], dict]:
     """Turn semantic Layer3 fixtures into independently generated post-policy WAL."""
     copied = json.loads(json.dumps(records))
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
@@ -128,8 +132,15 @@ def _admission_bound_records(tmp_path: Path, records: list[dict]) -> tuple[list[
         })
         if not needs_start:
             continue
-        protocol = f"fixture-{hashlib.sha256(label.encode()).hexdigest()[:8]}"
-        canonical = f"{protocol}|"
+        bound_protocol = (
+            protocol
+            if protocol is not None
+            else f"fixture-{hashlib.sha256(label.encode()).hexdigest()[:8]}"
+        )
+        canonical = (
+            f"{bound_protocol}|FIXTURE_VARIANT={ordinal}"
+            if protocol is not None else f"{bound_protocol}|"
+        )
         variant = hashlib.sha256(canonical.encode()).hexdigest()[:12]
         evidence = SourceEvidence(
             schema_version="source-evidence/v1",
@@ -193,9 +204,12 @@ def _admission_bound_records(tmp_path: Path, records: list[dict]) -> tuple[list[
 
 
 def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
-              ycsb=None, policy_hint=_UNSET) -> tuple[Path, Path]:
+              ycsb=None, policy_hint=_UNSET,
+              protocol: str | None = None) -> tuple[Path, Path]:
     output_root = tmp_path / "repo" / "output"
-    records, admission_policy = _admission_bound_records(tmp_path, records)
+    records, admission_policy = _admission_bound_records(
+        tmp_path, records, protocol=protocol,
+    )
     search_config = {
         "records": 100000,
         "threads": 4,
@@ -226,6 +240,67 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     (root / "runs/wal.jsonl").write_text(
         "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
     return root, output_root
+
+
+def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
+    start_record = _record("build_start", genome="g", src_token="s")
+    start_record["env_tag"] = "linux-baremetal"
+    campaign, output_root = _campaign(
+        tmp_path, [start_record],
+    )
+    layout = CampaignLayout(root=str(campaign))
+    start = wal.read_records(layout)[0]
+    attempt_id = start.payload["build_attempt_id"]
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": (
+            start.payload["build_admission_receipt_sha256"]
+        ),
+    }
+    wal.log(
+        layout,
+        start.variant,
+        "build_done",
+        start.env_tag,
+        terminal,
+        ts=2.0,
+    )
+    wal.log(
+        layout,
+        start.variant,
+        "verify_done",
+        start.env_tag,
+        {
+            "build_attempt_id": attempt_id,
+            "verdict": "serializable",
+            "certified": True,
+            "anomalies": 0,
+            "workload": {"tag": "legacy"},
+        },
+        ts=3.0,
+    )
+    decoded = campaign_lock.decode_campaign_lock(
+        Path(layout.lock_file).read_text(encoding="utf-8")
+    )
+    assert decoded.authority is not None
+    contract_env_tag = env_contract.resolve_by_contract_sha256(
+        decoded.authority.environment_contract_sha256
+    ).contract.env_tag
+    receipt_support.log_receipted_commit(
+        layout,
+        start.variant,
+        contract_env_tag,
+        {
+            **terminal,
+            model.COMMIT_CONTRACT_SHA256_KEY: (
+                decoded.authority.environment_contract_sha256
+            ),
+        },
+        operation_identity=attempt_id,
+        tags=("legacy",),
+        ts=4.0,
+    )
+    return campaign, output_root
 
 
 def _assert_external_campaign_without_git_head(campaign: Path) -> None:
@@ -1812,9 +1887,7 @@ def test_accepted_report_rejects_historical_before_certifying_fields_are_set(
 def test_accepted_report_requires_e1_and_records_epoch(
     tmp_path: Path, monkeypatch,
 ) -> None:
-    campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")],
-    )
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,
@@ -1844,12 +1917,35 @@ def test_accepted_report_requires_e1_and_records_epoch(
     }
 
 
-def test_certified_report_omits_current_verifier_conformance(
+def test_accepted_report_rejects_no_commit_campaign(
     tmp_path: Path, monkeypatch,
 ) -> None:
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
     )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="at least one persisted COMMIT",
+    ):
+        layer3_report.build_accepted_report(
+            campaign,
+            acceptance_receipt=object(),
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+
+
+def test_certified_report_omits_current_verifier_conformance(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,
@@ -1899,9 +1995,7 @@ def test_certified_schema_forbids_current_verifier_conformance(
 def test_render_accepted_persists_certifying_report(
     tmp_path: Path, monkeypatch,
 ) -> None:
-    campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")],
-    )
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,
@@ -2759,7 +2853,8 @@ def test_layer3_report_wraps_missing_whiteboard_value_with_keyerror_cause(
 
 def test_floor_kinds_match_independently_and_classification_records_skips(tmp_path):
     campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")], ycsb=YCSB)
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
     calibration.mkdir(parents=True)
     within = {"cv": 0.01, "median": 12.0}
@@ -2770,6 +2865,7 @@ def test_floor_kinds_match_independently_and_classification_records_skips(tmp_pa
     }), encoding="utf-8")
     (calibration / "between.json").write_text(json.dumps({
         "records": 100000, "threads": 4, "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
         "between_run": between,
     }), encoding="utf-8")
     (calibration / "frequency.json").write_text(json.dumps({
@@ -2791,25 +2887,27 @@ def test_floor_kinds_match_independently_and_classification_records_skips(tmp_pa
         assert report["noise_floor"][kind]["search"] is None
 
     _, search_details = layer3_report._calibration_floors(
-        calibration, 100000, 4, YCSB)
+        calibration, 100000, 4, YCSB, protocol="silo")
     for kind in ("within_run", "between_run"):
         assert search_details[kind]["skipped_no_floor_block"] == ["frequency.json"]
 
 
 def test_between_run_schema_version_does_not_change_floor_classification(tmp_path):
     campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")], ycsb=YCSB)
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
     calibration.mkdir(parents=True)
     between = {"max_delta_pct": 2.0}
     (calibration / "between.json").write_text(json.dumps({
         "schema_version": "between-run-noise-floor/v1",
         "records": 100000, "threads": 4, "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
         "between_run": between,
     }), encoding="utf-8")
 
     floors, details = layer3_report._calibration_floors(
-        calibration, 100000, 4, YCSB)
+        calibration, 100000, 4, YCSB, protocol="silo")
     assert details["between_run"]["candidate_files"] == ["between.json"]
     assert floors["between_run"]["provenance"] == "env-record"
     assert floors["between_run"]["value"] == between
@@ -2819,9 +2917,232 @@ def test_between_run_schema_version_does_not_change_floor_classification(tmp_pat
     assert report["noise_floor"]["between_run"]["value"] == between
 
 
+def test_floor_match_uses_protocol_records_threads_and_workload(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB,
+        protocol="mocc",
+    )
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True)
+    for protocol, cv in (("silo", 0.02), ("mocc", 0.07)):
+        (calibration / f"between-{protocol}.json").write_text(json.dumps({
+            "records": 100000,
+            "threads": 4,
+            "workload": YCSB,
+            "genome": f"{protocol}|BACK_OFF=0",
+            "between_run": {"cv": cv},
+        }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    floor = report["noise_floor"]["between_run"]
+    assert floor["value"] == {"cv": 0.07}
+    assert floor["protocol"] == "mocc"
+    assert floor["source"]["path"].endswith("between-mocc.json")
+
+
+def test_wrong_protocol_floor_is_reported_as_mismatch(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB,
+        protocol="mocc",
+    )
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True)
+    (calibration / "between-silo.json").write_text(json.dumps({
+        "records": 100000,
+        "threads": 4,
+        "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
+        "between_run": {"cv": 0.02},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    floor = report["noise_floor"]["between_run"]
+    assert floor["value"] is None
+    assert floor["protocol"] == "mocc"
+    assert floor["search"]["criteria"]["protocol"] == "mocc"
+    assert floor["search"]["mismatches"][0]["protocol"] == "silo"
+
+
+def test_mixed_protocol_campaign_cannot_receive_report_level_floor(tmp_path):
+    campaign, output_root = _campaign(tmp_path, [
+        _record("build_start", variant="v1", genome="g", src_token="s"),
+        _record("build_start", variant="v2", genome="h", src_token="t"),
+    ], ycsb=YCSB)
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True)
+    (calibration / "within.json").write_text(json.dumps({
+        "threads": 4,
+        "saturation": {"records": 100000},
+        "workload": YCSB,
+        "noise_floor": {"cv": 0.01},
+    }), encoding="utf-8")
+    (calibration / "between.json").write_text(json.dumps({
+        "records": 100000,
+        "threads": 4,
+        "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
+        "between_run": {"cv": 0.02},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    for kind in ("within_run", "between_run"):
+        floor = report["noise_floor"][kind]
+        assert floor["value"] is None
+        assert "protocol" not in floor
+        assert floor["search"]["criteria"]["protocol"] is None
+        assert floor["search"]["campaign_protocol_resolution"] == (
+            "campaign-protocol-missing-invalid-or-multiple"
+        )
+
+
+def test_campaign_protocol_rejects_missing_malformed_and_multiple_canonical_values():
+    def start(genome=_UNSET):
+        payload = {} if genome is _UNSET else {"genome": genome}
+        return {"stage": "build_start", "payload": payload}
+
+    assert layer3_report._campaign_protocol([start()]) is None
+    assert layer3_report._campaign_protocol([start(7)]) is None
+    assert layer3_report._campaign_protocol([start("silo")]) is None
+    assert layer3_report._campaign_protocol([start("|BACK_OFF=0")]) is None
+    for malformed_body in (
+        "mocc|garbage",
+        "silo|B=x",
+        "silo|Z=1,A=0",
+        "silo|A=1,A=2",
+        "silo|",
+    ):
+        assert layer3_report._campaign_protocol([start(malformed_body)]) is None
+    assert layer3_report._campaign_protocol([
+        start("silo|BACK_OFF=0"), start("mocc|BACK_OFF=0"),
+    ]) is None
+
+
+def test_legacy_silo_within_floor_without_genome_states_match_basis(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB,
+        protocol="silo",
+    )
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True)
+    (calibration / "within.json").write_text(json.dumps({
+        "threads": 4,
+        "saturation": {"records": 100000},
+        "workload": YCSB,
+        "noise_floor": {"cv": 0.01},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"] == {"cv": 0.01}
+    assert floor["protocol"] == "silo"
+    assert floor["protocol_match_basis"] == "genome-absent-legacy-record"
+
+
+def test_legacy_within_floor_without_genome_does_not_match_mocc(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB,
+        protocol="mocc",
+    )
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True)
+    (calibration / "within.json").write_text(json.dumps({
+        "threads": 4,
+        "saturation": {"records": 100000},
+        "workload": YCSB,
+        "noise_floor": {"cv": 0.01},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"] is None
+    assert floor["protocol"] == "mocc"
+    assert floor["search"]["mismatches"][0]["protocol_match_basis"] == (
+        "genome-absent-legacy-record"
+    )
+
+
+@pytest.mark.parametrize("genome", [
+    pytest.param(_UNSET, id="missing"),
+    pytest.param(None, id="null"),
+    pytest.param(7, id="non-string"),
+    pytest.param("mocc", id="missing-separator"),
+    pytest.param("|BACK_OFF=0", id="empty-protocol"),
+    pytest.param("mocc|garbage", id="missing-assignment"),
+    pytest.param("silo|B=x", id="non-integer"),
+    pytest.param("silo|Z=1,A=0", id="unsorted"),
+    pytest.param("silo|A=1,A=2", id="duplicate-name"),
+    pytest.param("silo|", id="empty-body"),
+])
+def test_between_run_floor_rejects_missing_or_malformed_genome(tmp_path, genome):
+    calibration = tmp_path / "calibration"
+    calibration.mkdir()
+    document = {
+        "records": 100000,
+        "threads": 4,
+        "workload": YCSB,
+        "between_run": {"cv": 0.02},
+    }
+    if genome is not _UNSET:
+        document["genome"] = genome
+    (calibration / "between.json").write_text(
+        json.dumps(document), encoding="utf-8",
+    )
+    with pytest.raises(layer3_report.Layer3ReportError, match="genome"):
+        layer3_report._calibration_floors(
+            calibration, 100000, 4, YCSB, protocol="mocc",
+        )
+
+
+def test_existing_report_without_floor_protocol_remains_schema_valid(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        protocol="silo",
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    for floor in report["noise_floor"].values():
+        floor.pop("protocol", None)
+    layer3_report._validate_schema(report)
+
+
+def test_schema_rejects_non_string_floor_protocol(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        protocol="silo",
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["noise_floor"]["within_run"]["protocol"] = False
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
 def test_duplicate_matching_floor_of_same_kind_fails_closed(tmp_path):
     campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")], ycsb=YCSB)
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
     calibration.mkdir(parents=True)
     for name, cv in (("first.json", 0.01), ("second.json", 0.02)):
@@ -2836,7 +3157,8 @@ def test_duplicate_matching_floor_of_same_kind_fails_closed(tmp_path):
 
 def test_floor_candidate_without_workload_fails_closed(tmp_path):
     campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")], ycsb=YCSB)
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
     calibration.mkdir(parents=True)
     (calibration / "broken.json").write_text(json.dumps({
@@ -2858,6 +3180,7 @@ def test_campaign_without_ycsb_has_honest_null_for_both_floor_kinds(tmp_path):
     }), encoding="utf-8")
     (calibration / "between.json").write_text(json.dumps({
         "records": 100000, "threads": 4, "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
         "between_run": {"max_delta_pct": 2.0},
     }), encoding="utf-8")
     report = layer3_report.build_report(
@@ -2969,9 +3292,7 @@ def test_render_accepted_existing_output_fails_before_builder(
 def test_render_and_render_accepted_race_rejects_second_writer(
     tmp_path: Path, monkeypatch, first: str,
 ) -> None:
-    campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")],
-    )
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,

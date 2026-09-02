@@ -48,6 +48,7 @@ import math
 import os
 import re
 import secrets
+import struct
 import sys
 import time
 from dataclasses import dataclass, field, replace
@@ -58,7 +59,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (backoff_hole_grammar, campaign_lock as campaign_lock_codec,  # noqa: E402
+from . import (backoff_hole_grammar, buildcache,                         # noqa: E402
+               campaign_lock as campaign_lock_codec, condition_meaning_gate,
                coder_effect_gate, env_contract, ident, trigger_gate_binding, wal)
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
@@ -122,6 +124,42 @@ CONVERGE_STREAK = 3                   # 同一方向・magnitude=small が N 連
 REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改善なし → 枯渇
 
 B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
+
+
+def _require_condition_gate(source_root: str, genome: Genome) -> dict | None:
+    """Run the independent supply and meaning arms before any benchmark build."""
+    value = genome.flags.get("BACKOFF_FIXED")
+    if value is None:
+        return None
+    _cc, cxx = buildcache.compilers_for_current_site()
+    captured = condition_meaning_gate.capture_define_inputs(source_root)
+    request = condition_meaning_gate.make_define_request(
+        driver_id="orchestrator.campaign.p3_s4_loop",
+        macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
+    )
+    bits = struct.pack(">d", float(value)).hex()
+    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+        "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+    )
+    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=cxx, cmake="cmake",
+    )
+    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=declaration, cxx=cxx,
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+    if not admission.admitted:
+        raise RuntimeError(
+            "condition gate rejected P3 S4 loop: "
+            f"supply={supply.reason_code} meaning={meaning.reason_code}"
+        )
+    return {
+        "supply_record": json.loads(supply.canonical_json()),
+        "meaning_record": json.loads(meaning.canonical_json()),
+        "admission": json.loads(admission.canonical_json()),
+    }
 
 
 class B4ProtocolError(RuntimeError):
@@ -326,6 +364,16 @@ def quarantine(sub: str, implementation: str,
             res = _backoff_grammar_rejection(
                 decision, source_rel=source_rel, marker_id=marker_id,
             )
+        else:
+            canonical = (
+                backoff_hole_grammar.canonicalize_backoff_implementation(
+                    implementation
+                )
+            )
+            edited_text = render_hole(base_text, marker, canonical)
+            working_diff = make_working_diff(
+                base_text, edited_text, source_rel
+            )
     if write:
         if res.passed:
             with open(path, "w", encoding="utf-8") as f:
@@ -365,23 +413,54 @@ def _backoff_grammar_rejection(
 
 # ==== diff-quarantine reject の WAL 記録 (片肺の書き手側) ======================
 
-def diffq_variant_id(genome: Genome, implementation: str) -> str:
+def diffq_variant_id(
+    genome: Genome,
+    implementation: str,
+    *,
+    backoff_grammar_version: Optional[int] = None,
+) -> str:
     """diff 検疫で reject された variant の WAL キー。build しない (src_token 無し) ため
     pipeline.variant_id は使えない — genome + 提案コードのハッシュで一意化する。"""
+    if (backoff_grammar_version is not None
+            and (type(backoff_grammar_version) is not int
+                 or backoff_grammar_version < 1)):
+        raise ValueError(
+            "backoff_grammar_version must be an exact positive integer"
+        )
     import hashlib
-    h = hashlib.sha256((genome.canonical() + "|impl=" + implementation).encode()).hexdigest()[:12]
+    preimage = genome.canonical()
+    if backoff_grammar_version is not None:
+        preimage += f"|backoff_grammar_version={backoff_grammar_version}"
+    h = hashlib.sha256(
+        (preimage + "|impl=" + implementation).encode()
+    ).hexdigest()[:12]
     return f"diffq-{h}"
 
 
 def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: str,
                        res: DiffQuarantineResult, env_tag: str = ENV_TAG, *,
-                       trigger_gate_binding=None) -> str:
+                       trigger_gate_binding=None,
+                       backoff_grammar_version: Optional[int] = None) -> str:
     """diff 検疫 reject を WAL に BUILD_START→ABORT(reason=diff-quarantine) で焼く。
 
     load_diff_rejections がこの形を読み返し critic に渡す (規律3: 検疫が reject を出した
     だけで消費されない片肺を作らない)。build/verify には到達しないので verify payload も
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
-    v = diffq_variant_id(genome, implementation)
+    lock_grammar_version = wal._declared_backoff_grammar_version(
+        wal._campaign_lock_value(layout)
+    )
+    if (lock_grammar_version is not None
+            or backoff_grammar_version is not None):
+        if (type(backoff_grammar_version) is not int
+                or backoff_grammar_version != lock_grammar_version):
+            raise wal.AttemptTopologyError(
+                "diff reject backoff grammar version が campaign.lock と不一致"
+            )
+    v = diffq_variant_id(
+        genome,
+        implementation,
+        backoff_grammar_version=backoff_grammar_version,
+    )
     attempt_id = secrets.token_hex(16)
     start_payload = {"genome": genome.canonical(), "src_token": "",
                      "build_attempt_id": attempt_id}
@@ -905,7 +984,9 @@ def default_cfg(
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
     search_config = {"scale": "silo", "axis": MARKER_ID,
                      "reflux": "on" if reflux else "off",
-                     "records": 100_000, "threads": 4}
+                     "records": 100_000, "threads": 4,
+                     backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY:
+                         backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION}
     if b4_reflux_ablation:
         from .p3_b4_launcher import require_b4_any_context
         require_b4_any_context(
@@ -1029,6 +1110,19 @@ def _check_attribution_before_quarantine(
     return decision
 
 
+def _require_backoff_grammar_version(cfg: CampaignConfig) -> int:
+    """Return the single campaign-declared grammar version or fail closed."""
+
+    key = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY
+    declared = cfg.search_config.get(key)
+    expected = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION
+    if type(declared) is not int or declared != expected:
+        raise ValueError(
+            f"cfg.search_config.{key} must exactly equal {expected}"
+        )
+    return declared
+
+
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
 
 def _duplicate_snapshot(layout: CampaignLayout, variant: str):
@@ -1057,6 +1151,9 @@ def _duplicate_snapshot(layout: CampaignLayout, variant: str):
             "duplicate campaign lock changed while reading WAL"
         )
 
+    wal.validate_backoff_grammar_bindings(
+        records, campaign_lock=decoded_lock,
+    )
     wal.validate_commit_contract_bindings(records, campaign_lock=decoded_lock)
     wal.validate_trigger_bindings(records, campaign_lock=decoded_lock)
     records_by_stage: Dict[str, Dict] = {}
@@ -1189,6 +1286,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    backoff_grammar_version = _require_backoff_grammar_version(cfg)
     preflight_decision = backoff_hole_grammar.validate_backoff_preflight(
         coder.implementation
     )
@@ -1226,6 +1324,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     if preflight_rejection is not None:
         variant = record_diff_reject(
             layout, genome, coder.implementation, preflight_rejection,
+            backoff_grammar_version=backoff_grammar_version,
         )
         project_whiteboard(state, planner, "rejected")
         if do_build:
@@ -1244,7 +1343,10 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
             res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)
         if not res.passed:
-            v = record_diff_reject(layout, genome, coder.implementation, res)
+            v = record_diff_reject(
+                layout, genome, coder.implementation, res,
+                backoff_grammar_version=backoff_grammar_version,
+            )
             project_whiteboard(state, planner, "rejected")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
         return {"outcome": "dry-pass", "variant": None}
@@ -1252,10 +1354,14 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
         res, _b, _e, _d = quarantine(sub, coder.implementation, write=True)
         if not res.passed:
-            v = record_diff_reject(layout, genome, coder.implementation, res)
+            v = record_diff_reject(
+                layout, genome, coder.implementation, res,
+                backoff_grammar_version=backoff_grammar_version,
+            )
             project_whiteboard(state, planner, "rejected")
             log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
+        condition_gate = _require_condition_gate(sub, genome)
         # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
@@ -1263,19 +1369,24 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                               ccbench_dir=sub, cache_root=cache_root,
                               authorization_contract=env_contract.authorize(ENV_TAG),
                               build_context=build_context,
-                              declared_use_class=DECLARED_USE_CLASS)
+                              declared_use_class=DECLARED_USE_CLASS,
+                              backoff_grammar_version=backoff_grammar_version)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
-        return _resolve_duplicate(layout, planner, state, summary, log=log)
+        duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
+        duplicate["condition_gate"] = condition_gate
+        return duplicate
     recs = wal.records_by_stage(layout, v) if v else {}
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
         project_whiteboard(state, planner, "success", delta_pct=None)  # 段 6 予約 (率算出は統計的 delta とセット、D39 残存リスク c)
         return {"outcome": "certified", "variant": v, "fitness_tps": r.fitness_tps,
-                "verdict": r.verdict, "records": recs}
+                "verdict": r.verdict, "records": recs,
+                "condition_gate": condition_gate}
     project_whiteboard(state, planner, "fail")
     return {"outcome": "aborted", "variant": v,
-            "verdict": (r.verdict if r else ""), "records": recs}
+            "verdict": (r.verdict if r else ""), "records": recs,
+            "condition_gate": condition_gate}
 
 
 # ==== 段 4b 駆動口 (実 planner/coder proposal を受けて 1 iteration を継続) =========

@@ -1,0 +1,22 @@
+{
+  "compile_count": 80,
+  "corpus_sha256": "7d25fac23469f4bb807bccd4fb97dc7a6fbcf34dd5de602ba08bcf7bb70df5eb",
+  "dependency_manifest_verified": false,
+  "driver": "t2113-liveness",
+  "ground_truth": "real-oracle-tu-and-broker",
+  "guarantee_boundary": "guarantees[candidate-corpus-mutation-is-impossible,candidate-protocol-frame-write-is-impossible];does-not-guarantee[reported-relation-matrix-is-comparator-true-relation]",
+  "ir_domain_size": 79,
+  "m1_emitter_byte_conformance": true,
+  "m1_mismatch": [],
+  "m2_mismatch": [],
+  "m2_mismatch_count": 0,
+  "m2_real_type_matrix_agreement": true,
+  "m3_failures": [],
+  "m3_wire_ingress_rejection": true,
+  "m4_failures": [],
+  "m4_narrowing_direction": true,
+  "positive_control": "ok",
+  "status": "PASS",
+  "tu_template_sha256": "7732f044d8ab2b657231cfeb132f59a981b761b9ac62a8d61e6b5338140083e4",
+  "workdir": "/tmp/t2113-mn7or8mg"
+}

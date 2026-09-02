@@ -12,6 +12,7 @@ from unittest import mock
 
 import pytest
 
+from orchestrator.campaign import backoff_hole_grammar
 from orchestrator.campaign import ident
 from orchestrator.campaign import p3_b4_admission_record as A
 from orchestrator.campaign import p3_b4_closed_critic as C
@@ -899,6 +900,7 @@ def test_context_is_not_persisted_in_campaign_identity():
     assert set(marked.search_config) == {
         "scale", "axis", "reflux", "records", "threads",
         L.B4_PROTOCOL_KEY,
+        backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY,
         "build_admission",
     }
     assert all(value is not context for value in marked.search_config.values())

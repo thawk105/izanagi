@@ -1,0 +1,518 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2049R-M01-ASSEMBLY-REJECTION-STILL-REPORTS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    if isinstance(assembly, B4RawRecordRejection):\n        return B4MaterialReportInputs(\n",
+          "new": "    if isinstance(assembly, B4RawRecordRejection):\n        _fail(\"assembly_rejected\", \"mutated: refuse to report\")\n        return B4MaterialReportInputs(\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M02-FRAME-DROPS-ABSENT-LEAF",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        artifact_availability = _observe_artifact_availability(planned_path)\n        for arm_index, arm in enumerate((\"on\", \"off\")):\n",
+          "new": "        artifact_availability = _observe_artifact_availability(planned_path)\n        if artifact_availability != \"present\":\n            continue\n        for arm_index, arm in enumerate((\"on\", \"off\")):\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M03-TERMINAL-REASON-DROPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        \"stop_reason\": {\n            \"execution_disposition\": raw.get(\"execution_disposition\"),\n            \"terminal_stage\": raw.get(\"terminal_stage\"),\n            \"terminal_reason\": raw.get(\"terminal_reason\"),\n        },\n",
+          "new": "        \"stop_reason\": {\n            \"execution_disposition\": raw.get(\"execution_disposition\"),\n            \"terminal_stage\": raw.get(\"terminal_stage\"),\n            \"terminal_reason\": None,\n        },\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M04-CAMPAIGN-ID-REWRITTEN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        \"campaign_id\": identity.get(\"campaign_id\"),\n        \"initial_snapshot_hash\": initial_snapshot,\n",
+          "new": "        \"campaign_id\": \"mutated-campaign\",\n        \"initial_snapshot_hash\": initial_snapshot,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M05-ROW-COUNT-GATE-REMOVED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    if len(rows) != required_count:\n        _fail(\"projection_incomplete\", f\"expected {required_count} arm rows, got {len(rows)}\")\n",
+          "new": "    if False:\n        _fail(\"projection_incomplete\", f\"expected {required_count} arm rows, got {len(rows)}\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M06-BIJECTION-GATE-REMOVED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    if len(set(identities)) != required_count:\n        _fail(\"projection_not_bijective\", \"attempt/arm identities are duplicated\")\n",
+          "new": "    if False:\n        _fail(\"projection_not_bijective\", \"attempt/arm identities are duplicated\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M07-SOURCE-ROUNDTRIP-GATE-REMOVED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if tuple(embedded) != source_bytes:\n            _fail(\"projection_source_mismatch\", \"source UTF-8 bytes do not round-trip\")\n",
+          "new": "        if False:\n            _fail(\"projection_source_mismatch\", \"source UTF-8 bytes do not round-trip\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M08-FLOOR-DEFAULT-INJECTED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    result = evaluate_b4_artifacts(\n        floor=None,\n",
+          "new": "    result = evaluate_b4_artifacts(\n        floor=0,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M09-MARKDOWN-REPRODUCTION-ARGV-DROPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        f\"- reproduction argv (JSON): `{_display(provenance['reproduction_argv'])}`\",\n",
+          "new": "        \"- reproduction argv (JSON): omitted\",\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M10-DISJOINT-EQUAL-REMOVED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if resolved_output == resolved_campaign:\n            _fail(\"output_campaign_intersection\", \"output root equals an arm campaign root\")\n",
+          "new": "        if False:\n            _fail(\"output_campaign_intersection\", \"output root equals an arm campaign root\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M11-DISJOINT-BELOW-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if _is_relative_to(resolved_output, resolved_campaign):\n            _fail(\"output_campaign_intersection\", \"output root is below an arm campaign root\")\n",
+          "new": "        if False:\n            _fail(\"output_campaign_intersection\", \"output root is below an arm campaign root\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M12-DISJOINT-ABOVE-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if _is_relative_to(resolved_campaign, resolved_output):\n            _fail(\"output_campaign_intersection\", \"output root is above an arm campaign root\")\n",
+          "new": "        if False:\n            _fail(\"output_campaign_intersection\", \"output root is above an arm campaign root\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M13-RESOLVED-COMPARISON-TO-LEXICAL",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    resolved_output = output_root.resolve(strict=False)\n    for campaign_root in discovery.roots:\n        resolved_campaign = campaign_root.resolve(strict=False)\n",
+          "new": "    resolved_output = output_root\n    for campaign_root in discovery.roots:\n        resolved_campaign = campaign_root\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M14-ANOMALY-CLASS-ALIASED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        \"anomaly_class\": dict(_ABSENT),\n        \"performance_value_present\": raw.get(\"throughput\") is not None,\n",
+          "new": "        \"anomaly_class\": {\n            \"availability\": \"present\",\n            \"value\": [item.value for item in registry_attempt.digest_red_classes],\n        },\n        \"performance_value_present\": raw.get(\"throughput\") is not None,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M15A-ISSUER-EXCEPTION-UNWRAPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    except B4PrerunIssuerError as exc:\n        _fail(\n            \"publication_rejected\",\n",
+          "new": "    except B4PrerunIssuerError as exc:\n        raise\n        _fail(\n            \"publication_rejected\",\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M15B-LEDGER-EXCEPTION-UNWRAPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    except B4LedgerError as exc:\n        _fail(\"ledger_rejected\", str(exc), cause=exc)\n",
+          "new": "    except B4LedgerError as exc:\n        raise\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M16A-EARLY-OVERWRITE-GATE-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    _assert_output_absent(resolved_output)\n    inputs = _load_and_evaluate(publication_path)\n",
+          "new": "    inputs = _load_and_evaluate(publication_path)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M16B-PREPUBLISH-OVERWRITE-GATE-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    _assert_output_absent(output_root)\n    commit_bytes = _canonical_json_bytes({\n",
+          "new": "    commit_bytes = _canonical_json_bytes({\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M16C-CREATE-ONLY-LINK-TO-REPLACE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "            try:\n                os.link(temporary, target, follow_symlinks=False)\n            except FileExistsError as exc:\n                _fail(\"output_exists\", f\"refusing to overwrite: {target}\", cause=exc)\n",
+          "new": "            try:\n                if target.exists():\n                    target.unlink()\n                os.link(temporary, target, follow_symlinks=False)\n            except FileExistsError as exc:\n                _fail(\"output_exists\", f\"refusing to overwrite: {target}\", cause=exc)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M17-ABSENT-RENDERED-AS-ZERO",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "def _unavailable_field(reason: str) -> dict[str, Any]:\n    return {\"availability\": \"absent\", \"reason\": reason, \"value\": None}\n",
+          "new": "def _unavailable_field(reason: str) -> dict[str, Any]:\n    return {\"availability\": \"present\", \"reason\": reason, \"value\": 0}\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M18-TRANSCRIBED-BINDING-DROPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    initial_snapshot = {\n        \"availability\": \"present\",\n        \"binding\": \"transcribed\",\n",
+          "new": "    initial_snapshot = {\n        \"availability\": \"present\",\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M19-PARTIAL-DISJOINTNESS-FAIL-OPEN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    if discovery.status == \"partial\":\n        parts = resolved_output.parts\n",
+          "new": "    if False:\n        parts = resolved_output.parts\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M20-CAMPAIGN-ROOT-OFF-BY-ONE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    if type(lock_path) is str and lock_path:\n        return Path(lock_path).resolve(strict=False).parent\n",
+          "new": "    if type(lock_path) is str and lock_path:\n        return Path(lock_path).resolve(strict=False)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M21-COUNT-AND-ROUNDTRIP-BOTH-REMOVED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    if len(rows) != required_count:\n        _fail(\"projection_incomplete\", f\"expected {required_count} arm rows, got {len(rows)}\")\n",
+          "new": "    if False:\n        _fail(\"projection_incomplete\", f\"expected {required_count} arm rows, got {len(rows)}\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if tuple(embedded) != source_bytes:\n            _fail(\"projection_source_mismatch\", \"source UTF-8 bytes do not round-trip\")\n",
+          "new": "        if False:\n            _fail(\"projection_source_mismatch\", \"source UTF-8 bytes do not round-trip\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M22-BIJECTION-AND-IDENTITY-BOTH-REMOVED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    if len(set(identities)) != required_count:\n        _fail(\"projection_not_bijective\", \"attempt/arm identities are duplicated\")\n",
+          "new": "    if False:\n        _fail(\"projection_not_bijective\", \"attempt/arm identities are duplicated\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "            \"attempt_id\": manifest_row.attempt_id,\n            \"block_id\": manifest_row.block_id,\n            \"arm\": arm,\n            \"initial_snapshot_hash\": {\n",
+          "new": "            \"attempt_id\": row.get(\"attempt_id\"),\n            \"block_id\": row.get(\"block_id\"),\n            \"arm\": row.get(\"arm\"),\n            \"initial_snapshot_hash\": {\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M23-EQUAL-AND-BELOW-BOTH-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if resolved_output == resolved_campaign:\n            _fail(\"output_campaign_intersection\", \"output root equals an arm campaign root\")\n",
+          "new": "        if False:\n            _fail(\"output_campaign_intersection\", \"output root equals an arm campaign root\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if _is_relative_to(resolved_output, resolved_campaign):\n            _fail(\"output_campaign_intersection\", \"output root is below an arm campaign root\")\n",
+          "new": "        if False:\n            _fail(\"output_campaign_intersection\", \"output root is below an arm campaign root\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2049R-M24-LEXICAL-AND-BELOW-BOTH-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    resolved_output = output_root.resolve(strict=False)\n    for campaign_root in discovery.roots:\n        resolved_campaign = campaign_root.resolve(strict=False)\n",
+          "new": "    resolved_output = output_root\n    for campaign_root in discovery.roots:\n        resolved_campaign = campaign_root\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        if _is_relative_to(resolved_output, resolved_campaign):\n            _fail(\"output_campaign_intersection\", \"output root is below an arm campaign root\")\n",
+          "new": "        if False:\n            _fail(\"output_campaign_intersection\", \"output root is below an arm campaign root\")\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "_trimmed": "non_numeric_values と unparsable_tokens は件数 + 先頭 3 件へ畳んだ。非有限十進は 0 件のため畳んでいない。全文は dev-wave job dir に残る。",
+  "populations": {
+    "bench.median_tps": {
+      "distinct_tokens": 584,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": {
+        "count": 0,
+        "sample": []
+      },
+      "observations": 62691,
+      "sample_tokens": [
+        "0.0",
+        "1.0",
+        "1.5",
+        "100.0",
+        "10000.0",
+        "1002.0",
+        "102.0",
+        "10219045.0",
+        "10233974.0",
+        "10322313.0",
+        "1035161.0",
+        "1038757.0"
+      ],
+      "unparsable_tokens": {
+        "count": 0,
+        "sample": []
+      }
+    },
+    "bench.tps_series": {
+      "distinct_tokens": 2841,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": {
+        "count": 0,
+        "sample": []
+      },
+      "observations": 315101,
+      "sample_tokens": [
+        "0.0",
+        "1",
+        "1.0",
+        "10.0",
+        "100.0",
+        "1000.0",
+        "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "1001.0",
+        "1002.0",
+        "1003.0",
+        "1004.0",
+        "1004608.0"
+      ],
+      "unparsable_tokens": {
+        "count": 0,
+        "sample": []
+      }
+    },
+    "commit.fitness_tps": {
+      "distinct_tokens": 615,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": {
+        "count": 4834,
+        "sample": [
+          {
+            "file": "/work/1/SFC/tanab/.codex-trash/mutation-source-t2018-20260828/output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a/runs/wal.jsonl",
+            "line": 7,
+            "stage": "commit",
+            "type": "NoneType"
+          },
+          {
+            "file": "/work/1/SFC/tanab/.codex-trash/mutation-source-t2018-20260828/output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a/runs/wal.jsonl",
+            "line": 14,
+            "stage": "commit",
+            "type": "NoneType"
+          },
+          {
+            "file": "/work/1/SFC/tanab/.codex-trash/mutation-source-t2018-20260828/output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a/runs/wal.jsonl",
+            "line": 21,
+            "stage": "commit",
+            "type": "NoneType"
+          }
+        ]
+      },
+      "observations": 66119,
+      "sample_tokens": [
+        "0.0",
+        "1.0",
+        "1.5",
+        "100.0",
+        "100.05",
+        "100.1",
+        "100.15",
+        "100.2",
+        "100.25",
+        "100.3",
+        "100.35",
+        "10000.0"
+      ],
+      "unparsable_tokens": {
+        "count": 0,
+        "sample": []
+      }
+    }
+  },
+  "roots": [
+    "/work/1/SFC/tanab"
+  ],
+  "stage_counts": {
+    "abort": 2386,
+    "bench_done": 63731,
+    "build_done": 68903,
+    "build_start": 74806,
+    "commit": 72097,
+    "s1-session": 101145,
+    "s8b-oracle-session": 4799,
+    "trigger_binding": 87,
+    "unknown-stage": 1,
+    "verify_done": 91399
+  },
+  "wal_files": 5541,
+  "wal_files_scanned": 5537,
+  "wal_files_unreadable": [
+    {
+      "file": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_plot_backoff_rejects_unfr0/campaign/runs/wal.jsonl",
+      "reason": "UnicodeDecodeError: 'utf-8' codec can't decode bytes in position 884-885: unexpected end of data"
+    },
+    {
+      "file": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_dry_run_refuses_unframed_0/out/campaigns/s1-direct-develop-direct-comparison-0b0be459/runs/wal.jsonl",
+      "reason": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe4 in position 280: unexpected end of data"
+    },
+    {
+      "file": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_v5_truncated_wal_rejects_0/out/campaigns/s8b-oracle-fixture-b0/runs/wal.jsonl",
+      "reason": "UnicodeDecodeError: 'utf-8' codec can't decode bytes in position 19-20: unexpected end of data"
+    },
+    {
+      "file": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_unframed_wal_tail_is_tran0/repo/output/campaigns/campaign/runs/wal.jsonl",
+      "reason": "UnicodeDecodeError: 'utf-8' codec can't decode bytes in position 1300-1301: unexpected end of data"
+    }
+  ],
+  "wal_json_parse_errors": 22
+}

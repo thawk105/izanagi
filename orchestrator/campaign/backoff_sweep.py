@@ -22,7 +22,8 @@ import argparse
 import hashlib
 import os
 import sys
-from typing import Optional
+from dataclasses import dataclass
+from typing import Mapping, Optional, Sequence
 from pathlib import Path
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -30,7 +31,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from .loop import run_campaign                          # noqa: E402
-from . import buildcache                                 # noqa: E402
+from . import buildcache, condition_meaning_gate, patchharness  # noqa: E402
 from .build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       attest_generator_output, build_run_context)
 from .layout import (CampaignLayout, _OFFICIAL_OUTPUT_ROOT_ENV)  # noqa: E402
@@ -65,6 +66,105 @@ WORKLOADS = [
     ("balanced", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}),
     ("read-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"}),
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class _BackoffConditionGateRun:
+    """The two independent arm records and their reference-only admission."""
+
+    supply_records: tuple[condition_meaning_gate.ConditionArmRecord, ...]
+    meaning_records: tuple[condition_meaning_gate.ConditionArmRecord, ...]
+    admission: condition_meaning_gate.ConditionFamilyAdmission
+
+
+_CONDITION_GATE_DEFAULTS = {
+    "BACKOFF_FIXED": -1,
+    "BACKOFF_NOINLINE": 0,
+    "BACKOFF_REQUESTED_US": 0,
+}
+
+
+def _require_backoff_condition_gate(
+        source_root: str, *, stock_root: Optional[str], driver_id: str,
+        macro_values: Mapping[str, Sequence[int]], cxx: str,
+        cmake: str = "cmake", use_class: str = "raw-measurement",
+) -> _BackoffConditionGateRun:
+    """Run both condition-gate arms for every concrete driver request."""
+    unsupported = set(macro_values).difference(condition_meaning_gate.DEFINE_SPECS)
+    if unsupported:
+        raise RuntimeError(
+            "driver supplied macros outside DEFINE_SPECS: "
+            f"{sorted(unsupported)!r}"
+        )
+    unknown_defaults = set(macro_values).difference(_CONDITION_GATE_DEFAULTS)
+    if unknown_defaults:
+        raise RuntimeError(
+            "backoff driver has no reviewed default for macros: "
+            f"{sorted(unknown_defaults)!r}"
+        )
+    captured = condition_meaning_gate.capture_define_inputs(
+        source_root, stock_root=stock_root,
+    )
+    requests = []
+    for macro, values in macro_values.items():
+        if type(values) not in {tuple, list} or not values:
+            raise RuntimeError(f"condition gate values are missing for {macro}")
+        if any(type(value) is not int for value in values):
+            raise RuntimeError(f"condition gate values must be exact integers for {macro}")
+        for value in dict.fromkeys(values):
+            stock_comparison = macro == "BACKOFF_FIXED" and value == -1
+            requests.append(condition_meaning_gate.make_define_request(
+                driver_id=driver_id,
+                macro=macro,
+                requested_value=value,
+                default_value=(
+                    None if stock_comparison else _CONDITION_GATE_DEFAULTS[macro]
+                ),
+                stock_comparison=stock_comparison,
+            ))
+    supply_records = tuple(
+        condition_meaning_gate.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+        )
+        for request in requests
+    )
+    meaning_records = tuple(
+        condition_meaning_gate.evaluate_define_runtime_meaning(
+            captured,
+            request=request,
+            declaration=(
+                condition_meaning_gate.MeaningWitnessDeclaration(
+                    "BACKOFF_FIXED",
+                    (
+                        condition_meaning_gate.MeaningCase(
+                            -1,
+                            None,
+                            condition_meaning_gate.STOCK_ADAPTIVE_BRANCH,
+                        ),
+                    ),
+                )
+                if request.macro == "BACKOFF_FIXED"
+                and request.requested_value == -1
+                else None
+            ),
+            cxx=cxx,
+        )
+        for request in requests
+    )
+    admission = condition_meaning_gate.require_condition_gate_family(
+        supply_records, meaning_records, use_class=use_class,
+    )
+    if not admission.admitted:
+        terminal = [
+            f"{record.macro}={record.terminal_status}/{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+            if record.terminal_status == "red"
+        ]
+        raise RuntimeError(
+            "condition gate rejected the driver before build/measurement: "
+            + ", ".join(terminal)
+        )
+    return _BackoffConditionGateRun(supply_records, meaning_records, admission)
 
 
 def _official_durable_root_policy(
@@ -166,6 +266,7 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
 
     prepared = screening_driver.prepare_screening_campaign(
         cfg, workload, baseline_ref, measure_baseline,
+        protocol=baseline.protocol,
         authorization_contract=authorization_contract,
         env_tag=runtime_contract.env_tag,
         clocks_per_us=runtime_contract.clocks_per_us,
@@ -250,30 +351,50 @@ def run_workload(tag: str, workload: dict, log=print, *,
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,
                       extime=EXTIME, reps=REPS)
     log(f"\n=== backoff sweep  workload={tag}  ({workload})  {len(gs)} genome ===")
-    if screening_enabled:
-        s = _run_screened_workload(
-            cfg, gs, perf, workload, calibration_dir, log,
-            build_context=build_context,
-            capability_resolver=capability_resolver,
-            runtime_contract=contract,
-            authorization_contract=authorization,
-            expected_toolchain_manifest=expected_toolchain_manifest,
-            confirm_each_candidate=confirm_each_candidate,
-            verified_calibration=(
-                getattr(loaded_calibration, "verified", None)
-                if contract.attestation_mode == "required"
-                else None
-            ))
-    else:
-        s = run_campaign(cfg, gs, perf, contract.env_tag,
-                         contract.clocks_per_us, numactl=list(contract.numactl), log=log,
-                         authorization_contract=authorization,
-                         env_contract=contract,
-                         expected_toolchain_manifest=expected_toolchain_manifest,
-                         build_context=build_context,
-                         declared_use_class="official",
-                         capability_resolver=capability_resolver,
-                         durable_root_policy=_official_durable_root_policy())
+    ccbench_dir = buildcache._ccbench_dir()
+    patch_path = os.fspath(
+        Path(__file__).resolve().parents[2] / "patches/silo-backoff-fixed.patch"
+    )
+    with patchharness.checkout(CCBENCH_COMMIT, base_dir=ccbench_dir) as stock_root:
+        with patchharness.applied(patch_path, CCBENCH_COMMIT, ccbench_dir):
+            _require_backoff_condition_gate(
+                ccbench_dir,
+                stock_root=stock_root,
+                driver_id="orchestrator/campaign/backoff_sweep.py",
+                macro_values={
+                    "BACKOFF_FIXED": tuple(
+                        genome.flags["BACKOFF_FIXED"] for genome in gs
+                    ),
+                },
+                cxx=resolved_cxx,
+                use_class="raw-measurement",
+            )
+            if screening_enabled:
+                s = _run_screened_workload(
+                    cfg, gs, perf, workload, calibration_dir, log,
+                    build_context=build_context,
+                    capability_resolver=capability_resolver,
+                    runtime_contract=contract,
+                    authorization_contract=authorization,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                    confirm_each_candidate=confirm_each_candidate,
+                    verified_calibration=(
+                        getattr(loaded_calibration, "verified", None)
+                        if contract.attestation_mode == "required"
+                        else None
+                    ))
+            else:
+                s = run_campaign(
+                    cfg, gs, perf, contract.env_tag, contract.clocks_per_us,
+                    numactl=list(contract.numactl), log=log,
+                    authorization_contract=authorization,
+                    env_contract=contract,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                    build_context=build_context,
+                    declared_use_class="official",
+                    capability_resolver=capability_resolver,
+                    durable_root_policy=_official_durable_root_policy(),
+                )
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
     rows.sort(key=lambda t: t[0], reverse=True)

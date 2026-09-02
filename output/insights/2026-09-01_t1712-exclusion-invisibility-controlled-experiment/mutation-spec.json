@@ -1,0 +1,109 @@
+{
+  "estimated_run_seconds": 400,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation1_off_arm_supervisor_to_claude_cli_launch_contract_is_holdout_invariant",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_excluded_paths_preserve_supervisor_to_claude_cli_explicit_launch_call_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1712-ROLE-AGENTS-JSON",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "                self.inline_agents_json + str(self.mcp_config_path),\n",
+          "old": "                self.inline_agents_json,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation1_off_arm_supervisor_to_claude_cli_launch_contract_is_holdout_invariant",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_excluded_paths_preserve_supervisor_to_claude_cli_explicit_launch_call_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1712-ROLE-STDIN",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "                input=payload_bytes + os.fsencode(neutral_cwd),\n",
+          "old": "                input=payload_bytes,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation1_off_arm_supervisor_to_claude_cli_launch_contract_is_holdout_invariant",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_excluded_paths_preserve_supervisor_to_claude_cli_explicit_launch_call_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1712-ENV-CWD",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "                env={**self.env, \"T1712_LEAK\": str(neutral_cwd)},\n",
+          "old": "                env=dict(self.env),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation1_off_arm_supervisor_to_claude_cli_launch_contract_is_holdout_invariant",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_excluded_paths_preserve_supervisor_to_claude_cli_explicit_launch_call_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1712-NONEXCLUDED-ARGV",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "                \"--output-format\",\n                \"json\" + str(self.mcp_config_path),\n",
+          "old": "                \"--output-format\",\n                \"json\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation1_off_arm_supervisor_to_claude_cli_launch_contract_is_holdout_invariant",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_excluded_paths_preserve_supervisor_to_claude_cli_explicit_launch_call_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1712-TEMP-PARENT-LEAK",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "                env={**self.env, \"T1712_TMPPARENT\": str(self.mcp_config_path.parent.parent)},\n",
+          "old": "                env=dict(self.env),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_projected_provider_excluded_paths_preserve_supervisor_to_claude_cli_explicit_launch_call_arguments"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1712-PATH-LENGTH-LEAK",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/claude_projected_provider.py",
+          "new": "                \"--output-format\",\n                \"json\" + str(len(str(self.mcp_config_path))),\n",
+          "old": "                \"--output-format\",\n                \"json\",\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}
