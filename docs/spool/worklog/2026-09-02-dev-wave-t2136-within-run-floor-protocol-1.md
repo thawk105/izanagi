@@ -58,6 +58,13 @@ title: [T-2136] within-run 較正へ protocol を記録し、層 3 を認定較�
 - 工数: codex 子 8 本 (plan 1、consult 2、author 1、review 3、fix 1)。いずれも
   model=gpt-5.6-sol、effort=xhigh、outcome=accepted。受入は main の進行により 3 回投入した
   (1 回目と 2 回目は main 取り込み要求で、テストの赤ではない)。
+- **受入全走で非帰属の赤を 1 件着地させた。** `test_codex_worker_launch.py::`
+  `test_manifest_is_appended_while_correlated_session_is_running` が 20049 件中 1 件だけ落ちた。
+  この試験は launcher を subprocess で起動し manifest の出現を **3 秒の壁時計 deadline**で
+  polling する時間依存の形で、本 wave の編集面 (較正器・層 3) から到達する経路が無い。
+  判定は署名一致ではなく試験本文で行った。同一 tip で単独再走したところ 1 passed で
+  再現しなかったため、`DW-O18` に従い非帰属として受入を再走した。
+  flaky hold への登録はしていない (決定的赤でも再赤でもないため)。
 - **段 8 の改善候補 2 件は、いずれも byte 予算に阻まれて入れられなかった。**
   実装せず候補として残す。予算のために既存の安全義務を削る道は採らない。
   (a) `DW-M01` へ変異 spec の `category` 語彙 (`negative` / `positive` / `both-layers` の 3 語で
