@@ -874,6 +874,20 @@ _DEFERRED_GATE_MEMBERS = (
         "<module>.build_binaries",
         944,
     ),
+    _DeferredGateMember(
+        "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+        "wave t2187",
+        (
+            "この probe は性能測定専用で直列性検査を通さず、成果物は認証されない。"
+            "BACKOFF_INCR_MILLI、BACKOFF_MAX_US、BACKOFF_UPDATE_US の既定値は"
+            "stock と同値で inert であり、既定では build 出力を変えない。"
+            "backoff_sweep.py 型の supply effectuation、runtime meaning、"
+            "family admission の正配線は後続タスクで行う"
+        ),
+        "buildcache",
+        "<module>.main",
+        414,
+    ),
 )
 
 
@@ -2606,6 +2620,10 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
             "protocol-r33 preregistration", "injected-build_fn",
             "<module>.build_binaries", 944,
         ),
+        (
+            "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "wave t2187", "buildcache", "<module>.main", 414,
+        ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
     assert all(
@@ -2820,9 +2838,9 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     )
     assert classifications[s1_sink] == Counter({
         "covered": 4,
-        "proven-unreachable": 18,
+        "proven-unreachable": 21,
     })
-    assert classifications[s8b_sink] == Counter({"covered": 22})
+    assert classifications[s8b_sink] == Counter({"covered": 25})
     assert failures == []
 
 

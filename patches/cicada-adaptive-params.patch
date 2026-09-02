@@ -1,0 +1,77 @@
+diff --git a/cmake/Options.cmake b/cmake/Options.cmake
+--- a/cmake/Options.cmake
++++ b/cmake/Options.cmake
+@@ -18,6 +18,12 @@ set(CCBENCH_ADD_ANALYSIS  0 CACHE STRING "extra per-tx analysis counters")
+ # dir; never mix into a perf build (absolute discipline #1 / decisions.md D14).
+ set(CCBENCH_TRACE         0 CACHE STRING "izanagi correctness trace (0=off, perf)")
+ set(CCBENCH_BACK_OFF      1 CACHE STRING "exponential backoff on abort")
++# Cicada's adaptive backoff constants. Defaults reproduce the stock source.
++# INCR_MILLI uses thousandths of a microsecond so sub-microsecond steps remain
++# integer CMake cache values (100000 = 100us).
++set(CCBENCH_BACKOFF_INCR_MILLI 100000 CACHE STRING "adaptive backoff step, thousandths of us (100000=stock)")
++set(CCBENCH_BACKOFF_MAX_US 1000 CACHE STRING "adaptive backoff ceiling in us (1000=stock)")
++set(CCBENCH_BACKOFF_UPDATE_US 10 CACHE STRING "adaptive backoff update interval in us (10=stock)")
+ set(CCBENCH_KEY_SIZE      8 CACHE STRING "key size in bytes (YCSB)")
+ set(CCBENCH_MASSTREE_USE  1 CACHE STRING "use Masstree as the index")
+ set(CCBENCH_VAL_SIZE      4 CACHE STRING "value size in bytes (YCSB)")
+@@ -61,6 +67,9 @@ function(ccbench_universal_definitions out_var)
+   set(${out_var}
+     ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}
+     BACK_OFF=${CCBENCH_BACK_OFF}
++    BACKOFF_INCR_MILLI=${CCBENCH_BACKOFF_INCR_MILLI}
++    BACKOFF_MAX_US=${CCBENCH_BACKOFF_MAX_US}
++    BACKOFF_UPDATE_US=${CCBENCH_BACKOFF_UPDATE_US}
+     KEY_SIZE=${CCBENCH_KEY_SIZE}
+     MASSTREE_USE=${CCBENCH_MASSTREE_USE}
+     VAL_SIZE=${CCBENCH_VAL_SIZE}
+diff --git a/include/backoff.hh b/include/backoff.hh
+--- a/include/backoff.hh
++++ b/include/backoff.hh
+@@ -11,15 +11,35 @@
+ #include "tsc.hh"
+ #include "util.hh"
+ 
++// CMake supplies stock-equivalent defaults. Missing definitions must stop the
++// build: an absent tuning macro can otherwise silently become zero in an
++// arithmetic expression and turn the adaptive controller into fixed zero.
++#ifndef BACKOFF_INCR_MILLI
++#error "BACKOFF_INCR_MILLI must be defined (100000 = stock 100us step)"
++#endif
++#ifndef BACKOFF_MAX_US
++#error "BACKOFF_MAX_US must be defined (1000 = stock ceiling)"
++#endif
++#ifndef BACKOFF_UPDATE_US
++#error "BACKOFF_UPDATE_US must be defined (10 = stock update interval)"
++#endif
++
+ using namespace std;
+ 
+ class Backoff {
+ public:
+   static std::atomic<double> Backoff_;
+   static constexpr double kMinBackoff = 0;
+-  static constexpr double kMaxBackoff = 1000;
+-  static constexpr double kIncrBackoff = 100;
+-  //static constexpr double kIncrBackoff = 0.5;
++  static constexpr double kMaxBackoff = static_cast<double>(BACKOFF_MAX_US);
++  static constexpr double kIncrBackoff =
++      static_cast<double>(BACKOFF_INCR_MILLI) / 1000.0;
++  static constexpr size_t kUpdateBackoffUs =
++      static_cast<size_t>(BACKOFF_UPDATE_US);
++  static_assert(kIncrBackoff > 0, "hill-climb step must be positive");
++  static_assert(kMaxBackoff > 0, "backoff ceiling must be positive");
++  static_assert(BACKOFF_UPDATE_US > 0 &&
++                    kUpdateBackoffUs == BACKOFF_UPDATE_US,
++                "update interval must be a positive whole number of us");
+ 
+   uint64_t last_committed_txs_ = 0;
+   double last_committed_tput_ = 0;
+@@ -34,7 +54,7 @@ public:
+   }
+ 
+   bool check_update_backoff() {
+-    if (chkClkSpan(last_time_, rdtscp(), clocks_per_us_ * 10))
++    if (chkClkSpan(last_time_, rdtscp(), clocks_per_us_ * kUpdateBackoffUs))
+       return true;
+     else
+       return false;
