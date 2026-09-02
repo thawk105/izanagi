@@ -10,7 +10,12 @@ import sys
 
 import pytest
 
-from orchestrator.campaign import masstree_archive_projection as projection
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from orchestrator.campaign import masstree_archive_projection as projection  # noqa: E402
 
 
 _ELF_HEADER = struct.Struct("<16sHHIQQQIHHHHHH")
@@ -147,6 +152,7 @@ def test_masstree_archive_projection_single_file_cli(tmp_path: Path) -> None:
     write_masstree_archive(archive)
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [sys.executable, str(Path(projection.__file__).resolve()), str(archive)],
         cwd=tmp_path,
@@ -294,3 +300,12 @@ def test_malformed_member_set_section_range_and_symlink_fail_closed(
             projection.MasstreeArchiveProjectionError,
             match="non-symlink regular file"):
         projection.masstree_archive_digests(link)
+
+
+def _run() -> int:
+    """Keep this test file inside the repository plain-runner contract."""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

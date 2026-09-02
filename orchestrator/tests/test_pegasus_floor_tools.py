@@ -691,6 +691,7 @@ def test_floor_masstree_generator_direct_cli_bootstraps_repo_root(
 ) -> None:
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [sys.executable, str(GENERATOR), "--help"],
         cwd=tmp_path,
