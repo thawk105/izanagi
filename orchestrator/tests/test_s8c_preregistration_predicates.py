@@ -2295,6 +2295,38 @@ def test_c09_provably_dead_calls_are_not_reachability_witnesses(
     assert result.reason_code == "layer3-producer-unreachable"
 
 
+def test_c09_provably_dead_acceptance_call_is_not_a_formal_witness(
+    tmp_path: Path,
+) -> None:
+    sources, registry_path, _ = _negative_control_case(
+        "nc_c09_acceptance_skips_layer3"
+    )
+    layer3_path = "orchestrator/campaign/autonomous_trial_completeness.py"
+    sources[layer3_path] = _git(
+        _ROOT, "show", f"HEAD:{layer3_path}"
+    ).decode("utf-8")
+    root, _, positive = _terminal_result(
+        tmp_path, "live-acceptance-call", "C09", sources
+    )
+    assert positive.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert positive.reason_code == "completion-proof-not-machine-checkable"
+
+    assert registry_path == "orchestrator/campaign/trial_registry.py"
+    target = "    assert_campaign_layer3_chain()\n"
+    registry = sources[registry_path]
+    assert isinstance(registry, str)
+    assert registry.count(target) == 1
+    replacement = "    if False:\n        assert_campaign_layer3_chain()\n"
+    mutated = registry.replace(target, replacement, 1)
+    assert mutated != registry
+    _write(root, registry_path, mutated)
+    head = _commit(root, "dead acceptance call")
+
+    negative = _result(root, head, "C09")
+    assert negative.status is core.PredicateStatus.UNSATISFIED
+    assert negative.reason_code == "formal-acceptance-layer3-consumer-absent"
+
+
 def test_c09_unknown_branch_remains_a_potential_reachability_witness(
     tmp_path: Path,
 ) -> None:

@@ -1255,11 +1255,9 @@ class Backoff {
             template = SORT_VARIANT_SOURCE
             coder = module.CoderProposalSort(
                 axis=module.MARKER_ID,
-                implementation=(
-                    "    sort(write_set_.begin(), write_set_.end(),\n"
-                    "         [](const auto& a, const auto& b) { "
-                    "return a.key_ < b.key_; });"
-                ),
+                implementation=SWO.render_sort_ir(SWO.SortComparatorIr(((
+                    SWO.SortIrField.KEY, SWO.SortIrDirection.ASC,
+                ),))),
             )
             cfg, perf = module.default_cfg(), module.default_perf()
         else:

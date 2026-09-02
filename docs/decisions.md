@@ -47194,3 +47194,184 @@ live bytes と記録 blob の等値検査**を最小の形で足す。
 **却下した選択肢:**
 - 未 land fragment を索引源から外す — 稼働 wave にしか無い真の裁定待ちを落とす。
 - 全項の全文を毎回突き合わせる — 索引規模に対して成立しない。
+
+## D1517. 段 4 loop の実行場所は Pegasus とし、cygnus へ退避しない (2026-09-02)
+
+**決定:** 段 4 coder 自律 loop を実走させる場所は Pegasus 計算ノードとする。`linux-baremetal`
+(cygnus) へ退避する案は採らない。到達させる手段は、段 4 loop へ site-aware な環境契約配線を
+移植することであり、`p3_s4_loop_trigger_gating.py` に既にある形を写す。
+
+**理由:**
+- D59 は正式計測の正本 env-tag を `linux-baremetal` に据え置いたが、Pegasus の env 契約は
+  その後 registry へ登録され、g1 が current activation になっている。実行場所として Pegasus を
+  選ぶことは D59 の据置と衝突しない — 混ぜないことだけが不変条件である。
+- ユーザーの確定方針は「cygnus は使えるが使わない。新規 evidence は Pegasus」である
+  (2026-08-05)。これを覆すには実測の根拠が要る。
+- 移植先の形は新設ではない。`p3_s4_loop_trigger_gating.py` の `_admit_env_contract()` が
+  site を契約へ写像し (未知 site は fail-closed)、`_campaign_cfg_for_site()` が identity へ束縛し、
+  `authorize(contract.env_tag)` を渡す。同型の兄弟実装が既に review を通っている。
+
+**却下した選択肢:**
+- **cygnus で走らせる** — 起草子が「直ちに安い」として推奨した。費用比較の cygnus 側が
+  過去の成功 4 iteration、Pegasus 側が目的の異なる 6 投入であり、沈んだ費用を将来費用として
+  読んでいる。起草子自身が現在の cygnus 到達性を未確認と書いた。**到達不能とは判定していない。**
+- **`p3_s4_loop.py` の env_tag 固定のまま Pegasus で走らせる** — `execution_guard.py` の
+  認可検査が build より前に拒否する。この拒否は Pegasus の値が `linux-baremetal` の系列へ
+  混入するのを防ぐためのものであり、迂回しない。
+- **job script 側の PATH wrapper で環境差を吸収する** — 受理集合の変更になる
+  (F813)。
+
+## D1518. sort hole の受理権威は IR admission 一本にし、恒真化する 2 者を gate と数えない (2026-09-02)
+
+**決定:** sort comparator の受理言語を 79 値の型付き IR へ縮めたうえで、受理権威を次のとおり確定する。
+
+| 機構 | 位置づけ |
+|---|---|
+| sort IR admission | **受理権威。** comparator 言語へ入れてよいと言える唯一の機構 |
+| `_validate_single_sort_statement` | **恒真化。** 正準形への事後条件へ降格し、候補 gate として数えない |
+| `coder_effect_gate.DENY_TABLE` | **別の関心事。** 全 hole 共通の deny-only veto であり受理を主張しない |
+| `check_relation_matrix` | **候補 gate としては恒真化。** 79 値は構成上すべて SWO である |
+| 実 TU conformance 照合 | **別の関心事。** 候補ではなく実装・環境の drift 検出器 |
+| `sort_comparator_authority` | **別 domain の受理権威。** certified 側の 15 組 exact binding。触らない |
+
+**理由:**
+
+- T-396 で破棄された設計は、同じ hole を独立に**受理と主張できる**機構が 2 つ並ぶ形だった。
+  `coder_effect_gate` は `passed=False` を作る経路しか持たない deny-only の前置 veto であり、
+  これに当たらない。決定的な根拠は、**backoff 軸が既に「effect gate → 軸固有文法 admission」の
+  並びで承認・稼働している**ことである。これが同じ失敗型なら backoff 側が先に壊れている。
+- 恒真化する 2 者を実効 gate として数えると、成果物が発火しない保証を根拠として引く。
+  proof chain は「候補の SWO 違反を動的に見つける gate」ではなく
+  「構成的に SWO な言語への membership + 実 TU conformance」と書く。
+- 79 値 admission と certified 側の 15 組 exact binding は別権威として分離する。
+  79 値で置き換えると certified 側の受理集合が広がる。
+
+**却下した選択肢:**
+
+- 旧文形検査を候補 gate として残す — 入力が trusted 生成物になるため発火せず、恒真な保証になる。
+- effect gate を sort だけ後段へ動かす、または外す — 全 hole 共通の防壁を軸ごとに非対称にする。
+  deny-only である限り受理権威の二重化には当たらない。
+- `sort_comparator_authority` を IR domain から生成し直す — certified 側の受理集合が 15 から 79 へ広がる。
+
+## D1519. 実 TU と trusted evaluator の行列不一致は候補の拒否ではなく判定不能とする (2026-09-02)
+
+**決定:** admission を通った候補は正準形へ正準化し、**正準形を材へ再 materialize する**。
+build 対象・compile 対象・照合対象はすべてこの正準形で一致させる。
+実 TU の観測行列と trusted evaluator の行列が byte 一致しない場合、および正準形の
+compile / 実行 / timeout / 非決定性の finding は、候補の `REJECT` ではなく `UNAVAILABLE` とする。
+`PASS` へ倒す経路は作らない。
+
+**理由:**
+
+- 正準化して再 materialize すると、候補が build へ入れられるバイト列は 79 個の正準形に限られる。
+  compile されるのは trusted renderer の出力なので、その失敗や不一致は候補の欠陥ではなく
+  evaluator・compiler・TU・pointer mapping の drift でしか起きない。
+- D344 決定 4 は「候補に帰属できない故障は `REJECT` ではなく `UNAVAILABLE` とし、
+  候補の受理集合・fitness・試行台帳に混ぜない」と定めている。本件はこれに該当する。
+- 受理集合を狭める変更は過剰拒否を招きやすい。正当な IR が候補 reject として台帳と critic へ
+  混入すると、その値の certified 選択を失わせる。
+- `PASS` へ倒さないので規律 2 は緩まない。`UNAVAILABLE` は consumer 側で retryable として
+  分離され、受理集合を広げない。
+
+**却下した選択肢:**
+
+- 不一致を候補の `REJECT` にする — 原因を候補へ一意に帰属できない。段 2 プランはこれを採っていたが
+  段 4 で覆した。
+- 候補の raw bytes を compile する — 正準化との二重表現になり、build 対象と照合対象がずれる。
+- 不一致を無視して trusted 行列だけ採る — 実 TU conformance が恒真になり、検出器が消える。
+
+## D1520. hole の harness indent は整形ではなく安全性質として保持する (2026-09-02)
+
+**決定:** 正準形の再 materialize も、既存の hole 挿入と同じく hole 行の indent を各行へ付ける。
+sort 経路だけ indent を落とす引数を設けない。
+
+**理由:**
+
+- 既存実装が明記しているとおり、この indent は「行頭が空白+コードになり、diff 検疫の
+  二次検査 (行頭 `#`) に偶発ヒットしない」ための担保である。整形上の都合ではない。
+- 現在の正準形がたまたま空白始まりで `#` にならないことは、**候補集合に含意された恒真**であって
+  担保ではない。正準 renderer の書式が変われば黙って防壁が消える。
+- backoff 軸の正準再挿入は既定 (indent 保持) で行われている。sort だけ非対称にしない。
+
+**却下した選択肢:**
+
+- 正準形を逐語挿入する引数を足す — 上記の担保を sort 経路だけで外す。実装中に一度この形が
+  入ったが、既存の検査が落ちたことで露見した。検査側の期待が過剰指定だったのではなく、
+  実装側が防壁を外していた。
+
+## D1521. reference_tps の有限十進述語は registry admission だけに置き、狭まる面を過小に書かない (2026-09-03)
+
+**決定:** D1424 決定 4 が示した配置の択一のうち、**registry admission 限定 (択 A)** を採る。
+述語は `p3_b4_analysis_ledgers._validate_attempt` の既存 exact-rational / 正値検査の直後に
+1 つだけ置き、`_ratio_payload` / `_ratio_from_payload` / `_manifest_row_payload` の
+manifest codec には置かない。判定は「既約分母から 2 を割り切れるだけ割り、次に 5 を
+割り切れるだけ割り、残りが 1」で、`p3_b4_raw_record_producer._fraction_token` と同じ手順を
+**独立に**書く。共有 helper へ切り出さない。
+
+`reference_tps` は schema 上 optional であり、非 `SCHEDULED` row では `None` が正当な値である。
+述語は値が `None` でないときだけ評価する。
+
+**択 A が実際に狭める面を、説明で過小にしない。** `_validate_attempt` は 3 箇所から呼ばれるため、
+in-memory batch の hash、封印、外部 registry JSONL の読取、完全性検査、manifest 生成、
+registry violation の追記と計数、contract binding の構築がすべて狭まる。
+意図的に狭めないのは `load_analysis_manifest` 単独と `assert_manifest_unchanged_before_run` で、
+非有限十進を含む単独 manifest は引き続き読める。完全な registry/manifest 組は registry を
+先に読むため成立しない。
+
+**述語の射程は「有限十進性の判定が一致する」までとし、「受理集合が完全に一致する」とは
+主張しない。** `_fraction_token` は十進 token 化の最終段で整数から文字列への変換を行うため、
+処理系の桁数上限という操作上の制約を追加で持つ。有限十進でも桁数上限を超える比は registry を
+通り、publication で `EVIDENCE_SCHEMA` として落ちる。この残差は本決定では埋めない。
+
+**理由:**
+
+- `_ratio_payload` と `_ratio_from_payload` は registry と manifest の共用である。狭めると
+  manifest 単独の reader/writer の wire 受理集合まで縮む。事前登録 §5.1.1 の純関数契約は
+  `reference_tps` を「有限の正の exact rational」としており、三分の一はその条件を満たす。
+  manifest transport がそれを運べなくなると、§5.1.1 が述べる入力値域と transport の能力がずれる。
+- 狭まる面を過小に書かないのは、D1424 決定 4 が「registry only と説明しながら 4 境界を実装するな」
+  と縛った禁止の対称である。説明と実装の食い違いは、どちらの向きでも同じ害を持つ。
+- 独立実装を選ぶのは、producer 側防壁との故障独立性を保ち、producer を source closure の外に
+  保ち、変更 scope を増やさないためである。共有 helper が必然的に adapter/contract の単一変換
+  権威と結合するわけではない。
+- 桁数上限を足さないのは、D1424 決定 4 が述語を名指しで指定しており、該当する比を生む producer が
+  存在しないためである。名指しされていない第 2 の述語を実測なしに足すことになる。
+
+**却下した選択肢:**
+
+- **manifest codec も含めて 4 境界すべてを狭める** — manifest 単独 transport の受理集合が縮み、
+  事前登録が述べる入力値域と transport の能力がずれる。
+- **丸めて受理する** — 受理集合を広げ、凍結側が受け取る値を元の値と別物にする。D1344 が却下済み。
+- **凍結された消費側を改訂して非有限十進を exact に運ぶ** — 支持する production 証拠が 0 件。
+- **述語を adapter と contract が共有する単一変換権威へ置く** — 分析入力の値域の意味までずれる。
+- **桁数上限の検査を同じ wave で足す** — 裁定が名指ししていない第 2 の述語であり、該当値を生む
+  producer が存在しない仮想リスクである。
+
+## D1522. 受理集合を縮めた層より下の防壁は、縮小と同じ変更で下層の直接検査へ作り直す (2026-09-03)
+
+**決定:** 上流の層で受理集合を縮めた結果、下流の防壁を検査していた既存テストがその防壁へ
+到達しなくなる場合、**そのテストを上流の拒否期待へ移設してはならない。** 下層の実体を名指しする
+直接検査へ作り直す。B-4 の M12 では次の二段にする。
+
+1. 下層の実体 (`p3_b4_raw_record_producer._fraction_token`) を直接呼び、非有限十進に対して
+   専用の例外を送出することを検査する。
+2. 上流を通る正常な入力で下層の実体を差し替え、その例外が下層の拒否 code へ写ることを、
+   artifact・field・code・detail の全項目で検査する。**差し替えが実際に呼ばれたことを
+   assertion で固定する。**差し替えなしで成功する正例対照を同じテストに置く。
+
+差し替え (monkeypatch) を使ってよいのは、正規の注入 seam が無く、かつ実体へ当該入力を届ける
+経路が上流の検査で閉じていることを、呼出し元まで読んで確かめた場合に限る。
+
+**理由:**
+
+- 上流の拒否期待へ移すと、下層の分岐は一度も実行されなくなる。テストは緑のままだが、
+  その緑は何も保証しない恒真な保証になる。これは絶対規律 2 に直接触れる。
+- 差し替えの実効発火を固定しないと、下層の呼出しそのものを例外送出へ置き換える変異が
+  検査を素通りする。差し替えが呼ばれたことの assertion は、上流が実際に下層を通ることの証拠でもある。
+- 正例対照が無いと、差し替え以外の理由で拒否された場合と区別できない。
+
+**却下した選択肢:**
+
+- **上流の拒否期待へ移設する** — 下層の分岐が無検査になる。
+- **下層の実体を再実装したものを検査する** — 実体を名指ししないため、両層を stub にしても緑になる。
+- **上流の検査を緩めて実体へ入力を届ける** — 受理集合を広げることになる。
