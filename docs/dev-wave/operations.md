@@ -182,9 +182,9 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 ## DW-O26 — 焦点走の consumer test 拡張
 
 `DW-O18` の焦点走対象 file 集合は、変更した test file だけでなく、変更した production file を
-参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
-`orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
-初回実測でも取り逃す（F242）。
+参照する consumer test も含める。名前の推測でなく参照関係で引く。private symbol の変更は
+公開 API の consumer 表に出ない。symbol 名で production 全体を grep する。この拡張を欠く
+焦点走は、静的レビューが見落とした破れを初回実測でも取り逃す（F242）。
 同一 worktree からの dispatch は全種を直列にする。並行投入は orphan hold で rc=16 になる。
 変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
 test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
