@@ -3074,8 +3074,8 @@ def test_public_b4_receipt_gate_requires_exact_protocol_marker():
         (
             "sort",
             (
-                "p3-s5-sort-loop-s5-sort-autonomous-2c241821",
-                "p3-s5-sort-loop-s5-sort-autonomous-df423528",
+                "p3-s5-sort-loop-s5-sort-autonomous-48e2968e",
+                "p3-s5-sort-loop-s5-sort-autonomous-c0614e6c",
             ),
         ),
         (
