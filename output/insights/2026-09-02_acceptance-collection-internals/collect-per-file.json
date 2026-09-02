@@ -1,0 +1,308 @@
+{
+ "files": 319,
+ "sum_file_s": 12.542465687030926,
+ "all_collectors": 383,
+ "sum_all_s": 13.20737950198236,
+ "top": [
+  {
+   "nodeid": "orchestrator/tests/test_p3_exploration_namespace.py",
+   "self_plus_children_s": 3.4370280820003245,
+   "children": 33
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t316_sandbox_probe.py",
+   "self_plus_children_s": 0.5420573320006952,
+   "children": 122
+  },
+  {
+   "nodeid": "orchestrator/tests/test_codex_agents.py",
+   "self_plus_children_s": 0.3201592320110649,
+   "children": 43
+  },
+  {
+   "nodeid": "orchestrator/tests/test_check_ai_provenance.py",
+   "self_plus_children_s": 0.27821083000162616,
+   "children": 366
+  },
+  {
+   "nodeid": "orchestrator/tests/test_codex_jsonl_line_split.py",
+   "self_plus_children_s": 0.23027571800048463,
+   "children": 12
+  },
+  {
+   "nodeid": "orchestrator/tests/test_s8b_oracle_n_pilot.py",
+   "self_plus_children_s": 0.1750904459913727,
+   "children": 103
+  },
+  {
+   "nodeid": "orchestrator/tests/test_codex_reasoning_ab.py",
+   "self_plus_children_s": 0.17341436498099938,
+   "children": 637
+  },
+  {
+   "nodeid": "orchestrator/tests/test_codex_worker_launch.py",
+   "self_plus_children_s": 0.1697923720057588,
+   "children": 211
+  },
+  {
+   "nodeid": "orchestrator/tests/test_attempt_registry_core_equivalence.py",
+   "self_plus_children_s": 0.15952436698717065,
+   "children": 16
+  },
+  {
+   "nodeid": "orchestrator/tests/test_campaign.py",
+   "self_plus_children_s": 0.14585899200756103,
+   "children": 415
+  },
+  {
+   "nodeid": "orchestrator/tests/test_dev_wave_land.py",
+   "self_plus_children_s": 0.14566443499643356,
+   "children": 300
+  },
+  {
+   "nodeid": "orchestrator/tests/test_paper_story_a1_paired.py",
+   "self_plus_children_s": 0.13756768000894226,
+   "children": 165
+  },
+  {
+   "nodeid": "orchestrator/tests/test_dev_wave_wait.py",
+   "self_plus_children_s": 0.13250780099770054,
+   "children": 378
+  },
+  {
+   "nodeid": "orchestrator/tests/test_artifact_admission.py",
+   "self_plus_children_s": 0.1310944189899601,
+   "children": 139
+  },
+  {
+   "nodeid": "orchestrator/tests/test_holdout_observation.py",
+   "self_plus_children_s": 0.11581471501267515,
+   "children": 108
+  },
+  {
+   "nodeid": "orchestrator/tests/test_backoff_consumers.py",
+   "self_plus_children_s": 0.10325888398801908,
+   "children": 14
+  },
+  {
+   "nodeid": "orchestrator/tests/test_hooks.py",
+   "self_plus_children_s": 0.10320765501819551,
+   "children": 458
+  },
+  {
+   "nodeid": "orchestrator/tests/test_autonomous_trial_completeness.py",
+   "self_plus_children_s": 0.10240125801647082,
+   "children": 259
+  },
+  {
+   "nodeid": "orchestrator/tests/test_paper_story_a1_balanced_sizing.py",
+   "self_plus_children_s": 0.09907790698343888,
+   "children": 9
+  },
+  {
+   "nodeid": "orchestrator/tests/test_guided.py",
+   "self_plus_children_s": 0.0909042400016915,
+   "children": 18
+  },
+  {
+   "nodeid": "orchestrator/tests/test_pegasus_floor_tools.py",
+   "self_plus_children_s": 0.08026139400317334,
+   "children": 136
+  },
+  {
+   "nodeid": "orchestrator/tests/test_a1_non_certifying_marker.py",
+   "self_plus_children_s": 0.08011652500135824,
+   "children": 32
+  },
+  {
+   "nodeid": "orchestrator/tests/test_claude_transport.py",
+   "self_plus_children_s": 0.07633490499574691,
+   "children": 44
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t139_submission_path.py",
+   "self_plus_children_s": 0.07468981799320318,
+   "children": 25
+  },
+  {
+   "nodeid": "orchestrator/tests/test_s8b_floor_campaign.py",
+   "self_plus_children_s": 0.07239945401670411,
+   "children": 463
+  },
+  {
+   "nodeid": "orchestrator/tests/test_dev_waves_checker.py",
+   "self_plus_children_s": 0.07176289797644131,
+   "children": 12
+  },
+  {
+   "nodeid": "orchestrator/tests/test_codex_role_runtime.py",
+   "self_plus_children_s": 0.06793995201587677,
+   "children": 87
+  },
+  {
+   "nodeid": "orchestrator/tests/test_check_docs.py",
+   "self_plus_children_s": 0.06768020798335783,
+   "children": 574
+  },
+  {
+   "nodeid": "orchestrator/tests/test_check_acceptance_reds.py",
+   "self_plus_children_s": 0.06668098599766381,
+   "children": 107
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t810_coordinator.py",
+   "self_plus_children_s": 0.06235136798932217,
+   "children": 45
+  },
+  {
+   "nodeid": "orchestrator/tests/test_acceptance_nproc_study.py",
+   "self_plus_children_s": 0.06186941501800902,
+   "children": 81
+  },
+  {
+   "nodeid": "orchestrator/tests/test_p3_b4_material_report.py",
+   "self_plus_children_s": 0.05961254998692311,
+   "children": 42
+  },
+  {
+   "nodeid": "orchestrator/tests/test_dev_waves_cli.py",
+   "self_plus_children_s": 0.05846163199748844,
+   "children": 15
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t810_budget.py",
+   "self_plus_children_s": 0.05801591998897493,
+   "children": 34
+  },
+  {
+   "nodeid": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+   "self_plus_children_s": 0.055944518011529,
+   "children": 251
+  },
+  {
+   "nodeid": "orchestrator/tests/test_s8b_binding_driftguards.py",
+   "self_plus_children_s": 0.055870499985758215,
+   "children": 19
+  },
+  {
+   "nodeid": "orchestrator/tests/test_dev_waves_ledger.py",
+   "self_plus_children_s": 0.05487452200031839,
+   "children": 30
+  },
+  {
+   "nodeid": "orchestrator/tests/test_axis1_search_catalog.py",
+   "self_plus_children_s": 0.053798501001438126,
+   "children": 21
+  },
+  {
+   "nodeid": "orchestrator/tests/test_bench_first_real_wal.py",
+   "self_plus_children_s": 0.052762664010515437,
+   "children": 15
+  },
+  {
+   "nodeid": "orchestrator/tests/test_build_site_gate.py",
+   "self_plus_children_s": 0.052133777004200965,
+   "children": 23
+  },
+  {
+   "nodeid": "orchestrator/tests/test_calibrator_certify.py",
+   "self_plus_children_s": 0.05011739500332624,
+   "children": 79
+  },
+  {
+   "nodeid": "orchestrator/tests/test_backoff_profile_pegasus.py",
+   "self_plus_children_s": 0.04934703599428758,
+   "children": 43
+  },
+  {
+   "nodeid": "orchestrator/tests/test_run_tests_shards.py",
+   "self_plus_children_s": 0.049025017011445016,
+   "children": 173
+  },
+  {
+   "nodeid": "orchestrator/tests/test_axis1_search_runner.py",
+   "self_plus_children_s": 0.047474938997766,
+   "children": 97
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t139_approval_payload.py",
+   "self_plus_children_s": 0.04731657900265418,
+   "children": 25
+  },
+  {
+   "nodeid": "orchestrator/tests/test_ccbench_spawn_sites.py",
+   "self_plus_children_s": 0.04722015600418672,
+   "children": 43
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t793_addendum_p_envelope.py",
+   "self_plus_children_s": 0.045901831006631255,
+   "children": 4
+  },
+  {
+   "nodeid": "orchestrator/tests/test_pegasus_dispatch_compute.py",
+   "self_plus_children_s": 0.04393575101858005,
+   "children": 334
+  },
+  {
+   "nodeid": "orchestrator/tests/test_p3_s4_loop.py",
+   "self_plus_children_s": 0.04316167099750601,
+   "children": 355
+  },
+  {
+   "nodeid": "orchestrator/tests/test_external_acceptance_signing.py",
+   "self_plus_children_s": 0.042105020984308794,
+   "children": 17
+  },
+  {
+   "nodeid": "orchestrator/tests/test_floor_pair_driver.py",
+   "self_plus_children_s": 0.04155105000245385,
+   "children": 140
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t338_submission_gate_unit5.py",
+   "self_plus_children_s": 0.0414233960036654,
+   "children": 58
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t126_pegasus_tools.py",
+   "self_plus_children_s": 0.04125259700231254,
+   "children": 273
+  },
+  {
+   "nodeid": "orchestrator/tests/test_check_wave_startup.py",
+   "self_plus_children_s": 0.04087450201041065,
+   "children": 162
+  },
+  {
+   "nodeid": "orchestrator/tests/test_spool_fold.py",
+   "self_plus_children_s": 0.03998612900613807,
+   "children": 167
+  },
+  {
+   "nodeid": "orchestrator/tests/test_t2187_adaptive_const_probe.py",
+   "self_plus_children_s": 0.03986958699533716,
+   "children": 16
+  },
+  {
+   "nodeid": "orchestrator/tests/test_backoff_extended_sweep.py",
+   "self_plus_children_s": 0.039743529981933534,
+   "children": 29
+  },
+  {
+   "nodeid": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+   "self_plus_children_s": 0.03867673399508931,
+   "children": 215
+  },
+  {
+   "nodeid": "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+   "self_plus_children_s": 0.038646028988296166,
+   "children": 89
+  },
+  {
+   "nodeid": "orchestrator/tests/test_trial_registry.py",
+   "self_plus_children_s": 0.0385950609925203,
+   "children": 225
+  }
+ ]
+}
