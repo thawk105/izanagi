@@ -176,10 +176,12 @@ def test_backoff_report_declares_certified_purpose_and_epoch(
     [
         (120.0, "静的最良が無 backoff を +20.0% 上回る "
                 "(between-run noise floor 超)"),
+        (105.0, "静的最良が無 backoff を +5.0% 上回る "
+                "(between-run noise floor 超)"),
         (102.0, "静的最良と無 backoff の差は noise 内 (+2.0%)"),
         (80.0, "静的最良が無 backoff を下回る (-20.0%)"),
     ],
-    ids=("above-noise", "within-noise", "below-no-backoff"),
+    ids=("above-noise", "between-thresholds", "within-noise", "below-no-backoff"),
 )
 def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(
         best_static, expected):
