@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import ast
-from contextlib import contextmanager
+import copy
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -35,38 +40,38 @@ VALID_CELLS = (
 CERT_CELL = "tuned:1:1:1000:2560"
 
 
-SERIAL_TRACE_WITH_ABORT = """\
+SERIAL_TRACE = """\
 C 0 0 2 1 1 1
 R 0 aa 1 0
 W 0 aa U 2 1
 E 0
-A validation-failure
 C 1 0 2 2 1 1
 R 1 aa 2 1
 W 1 bb U 2 2
 E 1
 """
 
-
-SERIAL_TRACE_WITHOUT_ABORT = SERIAL_TRACE_WITH_ABORT.replace(
-    "A validation-failure\n", ""
-)
-
-
 SERIAL_TRACE_WITHOUT_EDGES = """\
 C 0 0 2 1 1 1
 R 0 aa 1 0
 W 0 aa U 2 1
 E 0
-A validation-failure
 C 1 0 2 2 1 1
 R 1 bb 1 0
 W 1 bb U 2 2
 E 1
 """
 
+G6_SERIAL_TRACE = ROOT / "orchestrator" / "tests" / "fixtures" / "g6_silo_serial_1thread"
 
-def _certify_argv(tmp_path: Path, *, workload: str = "balanced", slot: int = 0):
+
+def _certify_argv(
+    tmp_path: Path,
+    *,
+    workload: str = "balanced",
+    slot: int = 0,
+    attempt_id: str = "attempt-test",
+):
     performance = tmp_path / "performance.json"
     if not performance.exists():
         performance.write_text(
@@ -80,7 +85,18 @@ def _certify_argv(tmp_path: Path, *, workload: str = "balanced", slot: int = 0):
             + "\n",
             encoding="utf-8",
         )
-    return [
+    expected_identity = tmp_path / "expected-verifier-identity.json"
+    if not expected_identity.exists():
+        expected_identity.write_text(
+            json.dumps(probe._verifier_identity(), sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    result_paths = [
+        tmp_path / f"certify-{item_workload}-slot{item_slot}-{attempt_id}.json"
+        for item_workload in probe.CERT_WORKLOADS
+        for item_slot in probe.CERT_SLOTS
+    ]
+    argv = [
         "--mode",
         "certify",
         "--cells",
@@ -95,20 +111,40 @@ def _certify_argv(tmp_path: Path, *, workload: str = "balanced", slot: int = 0):
         "1",
         "--extime",
         "3",
+        "--prologue-elapsed-s",
+        "2.5",
+        "--prologue-cpu-s",
+        "1.25",
         "--group-receipt-out",
         str(tmp_path / "group.json"),
+        "--attempt-id",
+        attempt_id,
         "--performance-artifact",
         str(performance),
-        "--out",
-        str(tmp_path / f"certify-{workload}-slot{slot}.json"),
+        "--performance-artifact-sha256",
+        hashlib.sha256(performance.read_bytes()).hexdigest(),
+        "--expected-verifier-identity",
+        str(expected_identity),
+        "--expected-verifier-identity-sha256",
+        hashlib.sha256(expected_identity.read_bytes()).hexdigest(),
     ]
+    for path in result_paths:
+        argv.extend(("--group-result-path", str(path)))
+    argv.extend(
+        (
+            "--out",
+            str(tmp_path / f"certify-{workload}-slot{slot}-{attempt_id}.json"),
+        )
+    )
+    return argv
 
 
 def _install_certification_runtime(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     *,
-    trace_text: str = SERIAL_TRACE_WITH_ABORT,
+    trace_text: str = SERIAL_TRACE,
+    abort_count_stdout: object = 1,
     events: list[str] | None = None,
 ) -> None:
     """Replace only compute-heavy build/run seams; verifier CLIs remain real."""
@@ -120,36 +156,43 @@ def _install_certification_runtime(
     monkeypatch.setattr(probe.site_policy, "current_site", lambda: "PEGASUS_COMPUTE")
     monkeypatch.setattr(probe.site_policy, "refuses_heavy_work", lambda _site: False)
     monkeypatch.setattr(probe, "_assert_single_tenant", lambda: None)
-    monkeypatch.setattr(probe, "_ccbench_head", lambda _path: PIN_FULL)
-    monkeypatch.setattr(probe, "assert_pinned_clean", lambda *_args: None)
-
-    @contextmanager
-    def fake_checkout(_submodule, _pin):
-        yield str(tmp_path / "ccbench-source")
-
-    @contextmanager
-    def fake_applied(*_args):
-        yield
-
-    monkeypatch.setattr(probe, "isolated_checkout", fake_checkout)
-    monkeypatch.setattr(probe, "applied", fake_applied)
     monkeypatch.setattr(
         probe.buildcache, "compilers_for_current_site", lambda: ("gcc", "g++")
     )
-    monkeypatch.setattr(
-        probe.source_digest,
-        "resolve_evidence",
-        lambda *_args, **_kwargs: SimpleNamespace(genome_sha256="e" * 64),
-    )
-    monkeypatch.setattr(probe, "build_run_context", lambda **_kwargs: object())
-    monkeypatch.setattr(probe, "attest_generator_output", lambda *_args, **_kwargs: object())
-    monkeypatch.setattr(probe, "derive_build_admission", lambda *_args, **_kwargs: object())
+    real_build_deadline = probe._run_build_with_deadline
+
+    def observed_build_deadline(builder, timeout_s):
+        events.append("build")
+        return real_build_deadline(builder, timeout_s)
+
+    monkeypatch.setattr(probe, "_run_build_with_deadline", observed_build_deadline)
 
     def fake_build(*_args, **kwargs):
-        events.append("build")
+        from orchestrator.campaign.build_admission import BuildAdmission
+
         if kwargs.get("trace") is not True:
             raise RuntimeError("certification build did not request trace=True")
-        return SimpleNamespace(binary="ycsb_silo", bin_sha256="a" * 64)
+        assert type(kwargs["admission"]) is BuildAdmission
+        assert kwargs["source_evidence"].ccbench_commit == probe.CURRENT_PIN
+        checkout = Path(kwargs["ccbench_dir"])
+        assert checkout.is_dir()
+        applied_diff = subprocess.run(
+            ["git", "-C", str(checkout), "diff", "--"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        assert all(
+            macro in applied_diff
+            for macro in (
+                "BACKOFF_INCR_MILLI",
+                "BACKOFF_MAX_US",
+                "BACKOFF_UPDATE_US",
+            )
+        )
+        return SimpleNamespace(
+            binary="ycsb_silo", bin_sha256="a" * 64, trace=True
+        )
 
     monkeypatch.setattr(probe.buildcache, "build", fake_build)
 
@@ -169,7 +212,7 @@ def _install_certification_runtime(
         return SimpleNamespace(
             trace_c_lines=2,
             returncode=0,
-            abort_counts=1 if "\nA " in trace_text else 0,
+            abort_counts=abort_count_stdout,
             commit_count_witness=2,
             batch_commit_count_witness=0,
         )
@@ -358,32 +401,104 @@ def test_public_certification_contract_runs_full_real_verifier_path_and_saves_cr
     }
     assert document["verifier_json"] == document["target_verifier"]["json"]
     assert document["abort_count"] == 1
+    assert document["abort_reasons"] == {}
+    assert document["build_cache_key"].endswith("_t1")
+    assert re.fullmatch(r"[0-9a-f]{64}", document["build_admission_receipt_sha256"])
+    assert document["source_evidence"]["ccbench_commit"] == probe.CURRENT_PIN
+    assert re.fullmatch(
+        r"[0-9a-f]{64}", document["source_evidence"]["source_bytes_sha256"]
+    )
+    assert document["verifier_identity"] == document["expected_verifier_identity"]
     assert document["trace_manifest"]["file_count"] == 1
     assert document["run_phase"]["cpu_over_elapsed"] is not None
     assert document["verify_phase"]["cpu_over_elapsed"] is not None
     assert document["job_phase"]["cpu_over_elapsed"] is not None
+    assert document["prologue_phase"] == {
+        "elapsed_seconds": 2.5,
+        "cpu_seconds": 1.25,
+        "cpu_over_elapsed": 0.5,
+    }
+    assert document["job_phase"]["elapsed_seconds"] >= 2.5
+    assert document["job_phase"]["cpu_seconds"] >= 1.25
     assert "run_phase" in document and "verify_phase" in document
+    assert Path(document["trace_directory"]).is_dir()
     assert not (tmp_path / "group.json").exists()
 
     with pytest.raises(FileExistsError, match="refusing to overwrite"):
         probe.main(argv)
 
 
+def test_trace_build_budget_is_a_hard_deadline() -> None:
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._run_build_with_deadline(lambda: time.sleep(5.0), 0.05)
+    assert caught.value.reason == "trace-build-budget-exceeded"
+
+
+def test_run_and_verify_phase_measurements_keep_distinct_meanings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_certification_runtime(monkeypatch, tmp_path)
+    measurements = iter(
+        (
+            {"elapsed_seconds": 11.0, "cpu_seconds": 22.0, "cpu_over_elapsed": 2.0},
+            {"elapsed_seconds": 3.0, "cpu_seconds": 12.0, "cpu_over_elapsed": 4.0},
+        )
+    )
+    monkeypatch.setattr(probe, "_phase_measurement", lambda *_args: next(measurements))
+    real_run_verifier = probe._run_verifier
+
+    def phase_tagged_verifier(trace_dir, expected_commits, timeout_s):
+        invocation = real_run_verifier(trace_dir, expected_commits, timeout_s)
+        if Path(trace_dir).resolve() != probe.POSITIVE_CONTROL_TRACE.resolve():
+            invocation.update(
+                elapsed_seconds=5.0,
+                cpu_seconds=4.0,
+                cpu_over_elapsed=0.8,
+                max_rss_kib=123,
+            )
+        return invocation
+
+    monkeypatch.setattr(probe, "_run_verifier", phase_tagged_verifier)
+    argv = _certify_argv(tmp_path)
+    assert probe.main(argv) == 0
+    document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
+    assert document["run_phase"] == {
+        "elapsed_seconds": 3.0,
+        "cpu_seconds": 12.0,
+        "cpu_over_elapsed": 4.0,
+    }
+    assert document["verify_phase"] == {
+        "elapsed_seconds": 5.0,
+        "cpu_seconds": 4.0,
+        "cpu_over_elapsed": 0.8,
+        "max_rss_kib": 123,
+    }
+
+
 @pytest.mark.parametrize(
-    ("trace_text", "expected_reason"),
+    ("trace_text", "abort_count_stdout", "expected_reason"),
     (
-        (SERIAL_TRACE_WITHOUT_ABORT, "target-abort-empty"),
-        (SERIAL_TRACE_WITHOUT_EDGES, "target-edges-empty"),
+        (SERIAL_TRACE, None, "target-abort-empty"),
+        (SERIAL_TRACE, 0, "target-abort-empty"),
+        (SERIAL_TRACE, -1, "target-abort-empty"),
+        (SERIAL_TRACE, "1", "target-abort-empty"),
+        (SERIAL_TRACE_WITHOUT_EDGES, 1, "target-edges-empty"),
     ),
-    ids=("M1-abort-sum", "M2-edges"),
+    ids=("M17-none", "M17-zero", "M17-negative", "M17-non-int", "M2-edges"),
 )
 def test_public_certification_rejects_nonexercising_target_for_one_reason(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     trace_text: str,
+    abort_count_stdout: object,
     expected_reason: str,
 ) -> None:
-    _install_certification_runtime(monkeypatch, tmp_path, trace_text=trace_text)
+    _install_certification_runtime(
+        monkeypatch,
+        tmp_path,
+        trace_text=trace_text,
+        abort_count_stdout=abort_count_stdout,
+    )
     argv = _certify_argv(tmp_path)
     assert probe.main(argv) == 1
     document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
@@ -398,12 +513,9 @@ def test_public_certification_rejects_substituted_target_trace_only(
     real_run_verifier = probe._run_verifier
 
     def substitute(trace_dir, expected_commits, timeout_s):
-        invocation = real_run_verifier(trace_dir, expected_commits, timeout_s)
-        if Path(trace_dir).resolve() != probe.POSITIVE_CONTROL_TRACE.resolve():
-            invocation["json"]["results"][0]["trace_dir"] = str(
-                probe.POSITIVE_CONTROL_TRACE.resolve()
-            )
-        return invocation
+        if Path(trace_dir).resolve() == probe.POSITIVE_CONTROL_TRACE.resolve():
+            return real_run_verifier(trace_dir, expected_commits, timeout_s)
+        return real_run_verifier(G6_SERIAL_TRACE, 200, timeout_s)
 
     monkeypatch.setattr(probe, "_run_verifier", substitute)
     argv = _certify_argv(tmp_path)
@@ -451,18 +563,71 @@ def test_public_certification_rejects_verifier_identity_drift_only(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _install_certification_runtime(monkeypatch, tmp_path)
+    argv = _certify_argv(tmp_path)
     calls = 0
 
     def drifting_identity():
         nonlocal calls
         calls += 1
-        return {"repository_commit": "f" * 40, "module_sha256": {"call": calls}}
+        return {
+            "repository_commit": "f" * 40,
+            "module_sha256": {"x.py": f"{calls:064x}"},
+        }
 
     monkeypatch.setattr(probe, "_verifier_identity", drifting_identity)
-    argv = _certify_argv(tmp_path)
     assert probe.main(argv) == 1
     document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
     assert document["reject_reason"] == "verifier-identity-mismatch"
+
+
+def test_public_certification_rejects_post_verifier_identity_drift_only(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_certification_runtime(monkeypatch, tmp_path)
+    argv = _certify_argv(tmp_path)
+    expected = json.loads(
+        Path(argv[argv.index("--expected-verifier-identity") + 1]).read_text(
+            encoding="utf-8"
+        )
+    )
+    calls = 0
+
+    def after_drift_identity():
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return expected
+        return {
+            "repository_commit": "f" * 40,
+            "module_sha256": {"x.py": "a" * 64},
+        }
+
+    monkeypatch.setattr(probe, "_verifier_identity", after_drift_identity)
+    assert probe.main(argv) == 1
+    document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
+    assert document["reject_reason"] == "verifier-identity-mismatch"
+
+
+def test_real_serial_fixture_with_positive_stdout_abort_satisfies_abort_gate() -> None:
+    invocation = probe._run_verifier(G6_SERIAL_TRACE, 200, 30.0)
+    identity = probe._verifier_identity()
+    trace_result = SimpleNamespace(
+        returncode=0,
+        trace_c_lines=200,
+        commit_count_witness=200,
+        batch_commit_count_witness=0,
+        abort_counts=7,
+    )
+    document, result = probe._validate_target(
+        invocation,
+        G6_SERIAL_TRACE,
+        trace_result,
+        identity,
+        identity,
+    )
+    assert result["certified"] is True
+    assert result["stats"]["abort_reasons"] == {}
+    assert document["certified_serializable"] == 1
 
 
 def test_positive_control_real_fixture_accepts_wr_without_v_ver() -> None:
@@ -590,7 +755,188 @@ def test_public_certification_exact_axes_reject_widening(
     assert caught.value.reason == reason
 
 
+def test_certification_budget_includes_pbs_prologue(tmp_path: Path) -> None:
+    parser = probe._argument_parser()
+    argv = _certify_argv(tmp_path)
+    argv.extend(("--outer-walltime-s", "7200"))
+    args = parser.parse_args(argv)
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._certification_contract(args)
+    assert caught.value.reason == "certification-time-budget-invalid"
+
+
+def test_public_certification_rejects_trace_disabled_cache_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_certification_runtime(monkeypatch, tmp_path)
+    monkeypatch.setattr(probe.buildcache, "cache_key", lambda *_args, **_kwargs: "silo_x_t0")
+    argv = _certify_argv(tmp_path)
+    assert probe.main(argv) == 1
+    document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
+    assert document["reject_reason"] == "trace-build-identity"
+
+
+def test_performance_artifact_requires_preregistered_sha(tmp_path: Path) -> None:
+    performance = tmp_path / "performance.json"
+    performance.write_text(
+        json.dumps(
+            {
+                "schema_version": probe.SCHEMA_VERSION,
+                "kind": "performance-only-probe",
+                "not_certified": probe.NOT_CERTIFIED,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(performance, "0" * 64)
+    assert caught.value.reason == "performance-artifact-identity-mismatch"
+
+
+def test_verifier_identity_manifest_requires_preregistered_sha(tmp_path: Path) -> None:
+    manifest = tmp_path / "verifier-identity.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "repository_commit": "f" * 40,
+                "module_sha256": {"x.py": "a" * 64},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._load_expected_verifier_identity(manifest, "0" * 64)
+    assert caught.value.reason == "verifier-identity-mismatch"
+
+
 def test_group_receipt_requires_exact_24_terminal_request_set(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _install_certification_runtime(monkeypatch, tmp_path)
+    with monkeypatch.context() as source_run_patch:
+        source_run_patch.setattr(probe, "_try_finalize_group", lambda *_args: False)
+        source_argv = _certify_argv(tmp_path)
+        assert probe.main(source_argv) == 0
+    source_document = json.loads(Path(source_argv[-1]).read_text(encoding="utf-8"))
+    source_trace = Path(source_document["trace_directory"])
+    performance = Path(source_argv[source_argv.index("--performance-artifact") + 1])
+    performance_sha256 = hashlib.sha256(performance.read_bytes()).hexdigest()
+    attempt_id = source_document["attempt_id"]
+    identity = source_document["verifier_identity"]
+    identity_file_sha256 = source_document[
+        "expected_verifier_identity_file_sha256"
+    ]
+    result_files = []
+    valid_documents = []
+    for workload in probe.CERT_WORKLOADS:
+        for slot in probe.CERT_SLOTS:
+            trace_dir = tmp_path / f"group-trace-{workload}-{slot}"
+            shutil.copytree(source_trace, trace_dir)
+            document = copy.deepcopy(source_document)
+            document["workload"] = workload
+            document["workload_flags"] = {
+                **probe.WORKLOADS[workload],
+                "ycsb_tuple_num": str(probe.CERT_RECORDS),
+                "thread_num": str(probe.CERT_THREADS[0]),
+                "extime": str(probe.CERT_EXTIME),
+            }
+            document["independent_run_slot"] = slot
+            document["pbs_jobid"] = f"{workload}-{slot}"
+            document["trace_directory"] = str(trace_dir.resolve())
+            document["target_verifier"]["argv"][3] = str(trace_dir.resolve())
+            document["target_verifier"]["json"]["results"][0]["trace_dir"] = str(
+                trace_dir.resolve()
+            )
+            document["target_verifier"]["stdout"] = json.dumps(
+                document["target_verifier"]["json"]
+            )
+            document["verifier_json"] = document["target_verifier"]["json"]
+            document["trace_manifest"] = probe._trace_manifest(trace_dir)
+            path = tmp_path / f"group-result-{workload}-slot{slot}.json"
+            path.write_text(
+                json.dumps(document) + "\n",
+                encoding="utf-8",
+            )
+            result_files.append(path)
+            valid_documents.append(copy.deepcopy(document))
+
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._group_receipt_payload(
+            result_files[:-1],
+            performance,
+            performance_sha256,
+            attempt_id,
+            identity,
+            identity_file_sha256,
+        )
+    assert caught.value.reason == "group-incomplete"
+
+    receipt = probe._group_receipt_payload(
+        result_files,
+        performance,
+        performance_sha256,
+        attempt_id,
+        identity,
+        identity_file_sha256,
+    )
+    assert receipt["complete"] is True
+    assert receipt["expected_requests"] == receipt["terminal_requests"] == 24
+    assert len(receipt["results"]) == 24
+    assert receipt["claim"] == probe.ALLOWED_GROUP_CLAIM
+    assert probe._group_receipt_payload(
+        result_files,
+        performance,
+        performance_sha256,
+        attempt_id,
+        identity,
+        identity_file_sha256,
+    ) == receipt
+
+    concurrent_group = tmp_path / "group-concurrent.json"
+    finalize_barrier = threading.Barrier(2)
+
+    def finalize_concurrently():
+        finalize_barrier.wait()
+        return probe._try_finalize_group(
+            result_files,
+            concurrent_group,
+            performance,
+            performance_sha256,
+            attempt_id,
+            identity,
+            identity_file_sha256,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(lambda _index: finalize_concurrently(), range(2)))
+    assert outcomes == [True, True]
+    assert json.loads(concurrent_group.read_text(encoding="utf-8"))["complete"] is True
+
+    for certified_count in (0, 23):
+        for index, (path, document) in enumerate(zip(result_files, valid_documents)):
+            candidate = copy.deepcopy(document)
+            if index >= certified_count:
+                candidate["terminal_status"] = "rejected"
+                candidate["certified"] = False
+                candidate.pop("certification_gate", None)
+                candidate["reject_reason"] = "synthetic-reject"
+            path.write_text(json.dumps(candidate) + "\n", encoding="utf-8")
+        group_out = tmp_path / f"group-{certified_count}.json"
+        assert probe._try_finalize_group(
+            result_files,
+            group_out,
+            performance,
+            performance_sha256,
+            attempt_id,
+            identity,
+            identity_file_sha256,
+        ) is False
+        assert not group_out.exists()
+
+
+def test_group_receipt_rejects_status_only_certification_json(
     tmp_path: Path,
 ) -> None:
     performance = tmp_path / "performance.json"
@@ -605,39 +951,36 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
         + "\n",
         encoding="utf-8",
     )
+    identity = {
+        "repository_commit": "f" * 40,
+        "module_sha256": {"x.py": "a" * 64},
+    }
     result_files = []
-    identity = {"repository_commit": "f" * 40, "module_sha256": {"x.py": "a" * 64}}
     for workload in probe.CERT_WORKLOADS:
         for slot in probe.CERT_SLOTS:
-            path = tmp_path / f"certify-{workload}-slot{slot}.json"
+            path = tmp_path / f"status-only-{workload}-{slot}.json"
             path.write_text(
                 json.dumps(
                     {
                         "schema_version": probe.CERTIFICATION_SCHEMA_VERSION,
                         "workload": workload,
                         "independent_run_slot": slot,
-                        "pbs_jobid": f"{workload}-{slot}",
                         "terminal_status": "certified",
-                        "binary_sha256": "b" * 64,
-                        "patch_sha256": "c" * 64,
-                        "ccbench_commit": PIN_FULL,
-                        "verifier_identity": identity,
                     }
-                )
-                + "\n",
+                ),
                 encoding="utf-8",
             )
             result_files.append(path)
-
     with pytest.raises(probe.CertificationReject) as caught:
-        probe._group_receipt_payload(result_files[:-1], performance)
-    assert caught.value.reason == "group-incomplete"
-
-    receipt = probe._group_receipt_payload(result_files, performance)
-    assert receipt["complete"] is True
-    assert receipt["expected_requests"] == receipt["terminal_requests"] == 24
-    assert len(receipt["results"]) == 24
-    assert receipt["claim"] == probe.ALLOWED_GROUP_CLAIM
+        probe._group_receipt_payload(
+            result_files,
+            performance,
+            hashlib.sha256(performance.read_bytes()).hexdigest(),
+            "attempt-test",
+            identity,
+            "b" * 64,
+        )
+    assert caught.value.reason == "group-result-not-certified"
 
 
 def test_public_certification_creates_group_only_after_all_24_requests(
@@ -649,6 +992,17 @@ def test_public_certification_creates_group_only_after_all_24_requests(
         for workload in probe.CERT_WORKLOADS
         for slot in probe.CERT_SLOTS
     ]
+    (tmp_path / "stale-duplicate.json").write_text(
+        json.dumps(
+            {
+                "schema_version": probe.CERTIFICATION_SCHEMA_VERSION,
+                "workload": "balanced",
+                "independent_run_slot": 0,
+                "terminal_status": "certified",
+            }
+        ),
+        encoding="utf-8",
+    )
     for index, (workload, slot) in enumerate(pairs):
         private_tmp = tmp_path / f"runtime-{index}"
         private_tmp.mkdir()
@@ -656,8 +1010,10 @@ def test_public_certification_creates_group_only_after_all_24_requests(
         monkeypatch.setenv("PBS_JOBID", f"{10000 + index}.test")
         argv = _certify_argv(tmp_path, workload=workload, slot=slot)
         assert probe.main(argv) == 0
+        document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
         if index < 23:
             assert not (tmp_path / "group.json").exists()
+            assert Path(document["trace_directory"]).is_dir()
 
     receipt = json.loads((tmp_path / "group.json").read_text(encoding="utf-8"))
     assert receipt["complete"] is True
@@ -666,6 +1022,7 @@ def test_public_certification_creates_group_only_after_all_24_requests(
         (row["workload"], row["independent_run_slot"])
         for row in receipt["results"]
     } == set(pairs)
+    assert all(not Path(row["trace_dir"]).exists() for row in receipt["results"])
 
 
 def test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes() -> None:
@@ -682,9 +1039,18 @@ def test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes() ->
     assert '"$CELLS_RAW" != tuned:1:1:1000:2560' in text
     assert '"$THREADS_RAW" != 48' in text
     assert "--mode certify" in text
-    assert "qsub -l elapstim_req=02:00:00" in text
+    assert "qsub -l elapstim_req=02:15:00" in text
+    assert "IZANAGI_T2187_OUTER_WALLTIME_S=8100" in text
     assert '--outer-walltime-s "$OUTER_WALLTIME_S"' in text
     assert '--verifier-timeout-s "$VERIFIER_TIMEOUT_S"' in text
+    assert '--prologue-budget-s "$PROLOGUE_BUDGET_S"' in text
+    assert '--performance-artifact-sha256 "$PERFORMANCE_ARTIFACT_SHA256"' in text
+    assert '--expected-verifier-identity "$EXPECTED_VERIFIER_IDENTITY"' in text
+    assert (
+        '--expected-verifier-identity-sha256 '
+        '"$EXPECTED_VERIFIER_IDENTITY_SHA256"'
+    ) in text
+    assert '"${GROUP_RESULT_ARGS[@]}"' in text
     performance_branch = text.split('if [[ "$MODE" == performance ]]; then', 1)[1].split(
         "fi", 1
     )[0]

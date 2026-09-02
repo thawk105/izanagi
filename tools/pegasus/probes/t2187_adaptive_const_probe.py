@@ -10,9 +10,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import multiprocessing
 import os
 import re
 import resource
+import signal
 import statistics
 import subprocess
 import sys
@@ -71,8 +73,10 @@ POSITIVE_CONTROL_EXPECTED_COMMITS = 288
 POSITIVE_CONTROL_TIMEOUT_S = 120.0
 DEFAULT_VERIFIER_TIMEOUT_S = 5_400.0
 DEFAULT_BUILD_BUDGET_S = 900.0
-DEFAULT_OUTER_WALLTIME_S = 7_200.0
+DEFAULT_PROLOGUE_BUDGET_S = 540.0
+DEFAULT_OUTER_WALLTIME_S = 8_100.0
 DEFAULT_EXIT_MARGIN_S = 300.0
+GROUP_RECEIPT_WAIT_S = 300.0
 POSITIVE_CONTROL_TRACE = (
     ROOT / "orchestrator" / "tests" / "fixtures" / "r8_silo_broken_norw"
 )
@@ -125,6 +129,8 @@ WORKLOADS = {
 
 _LABEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _INTEGER_RE = re.compile(r"[0-9]+")
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 
 
 @dataclass(frozen=True)
@@ -405,13 +411,58 @@ def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
             "certification-slot-mismatch",
             "certify requires rep-index in 0..7",
         )
-    if args.group_receipt_out is None or args.performance_artifact is None:
+    if (
+        args.group_receipt_out is None
+        or args.performance_artifact is None
+        or args.performance_artifact_sha256 is None
+        or args.expected_verifier_identity is None
+        or args.expected_verifier_identity_sha256 is None
+        or args.attempt_id is None
+    ):
         raise CertificationReject(
             "certification-group-binding-missing",
-            "certify requires --group-receipt-out and --performance-artifact",
+            "certify requires group, performance, verifier, and attempt bindings",
+        )
+    if _LABEL_RE.fullmatch(args.attempt_id) is None:
+        raise CertificationReject(
+            "certification-attempt-invalid", "attempt id is not a safe exact label"
+        )
+    if any(
+        not path.is_absolute()
+        for path in (
+            args.group_receipt_out,
+            args.performance_artifact,
+            args.expected_verifier_identity,
+        )
+    ):
+        raise CertificationReject(
+            "certification-group-binding-invalid",
+            "group/performance/verifier binding paths must be absolute",
+        )
+    if (
+        type(args.prologue_elapsed_s) is not float
+        or args.prologue_elapsed_s < 0
+        or type(args.prologue_cpu_s) is not float
+        or args.prologue_cpu_s < 0
+    ):
+        raise CertificationReject(
+            "certification-prologue-measurement-invalid",
+            "prologue elapsed/CPU measurements must be nonnegative",
+        )
+    result_paths = [path.resolve(strict=False) for path in args.group_result_path]
+    if (
+        len(result_paths) != 24
+        or len(set(result_paths)) != 24
+        or any(not path.is_absolute() for path in args.group_result_path)
+        or Path(args.out).resolve(strict=False) not in set(result_paths)
+    ):
+        raise CertificationReject(
+            "certification-result-path-set-invalid",
+            "certify requires 24 unique absolute result paths including --out",
         )
     inner_budget = (
-        args.build_budget_s
+        args.prologue_budget_s
+        + args.build_budget_s
         + RUN_TIMEOUT_S
         + POSITIVE_CONTROL_TIMEOUT_S
         + args.verifier_timeout_s
@@ -424,6 +475,117 @@ def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
             "must be strictly below the outer walltime",
         )
     return cells[0], workloads[0], threads[0]
+
+
+def _validate_verifier_identity_shape(identity: object) -> dict:
+    if type(identity) is not dict or set(identity) != {
+        "repository_commit",
+        "module_sha256",
+    }:
+        raise CertificationReject(
+            "verifier-identity-invalid", "verifier identity has an invalid schema"
+        )
+    commit = identity.get("repository_commit")
+    modules = identity.get("module_sha256")
+    if (
+        type(commit) is not str
+        or _COMMIT_RE.fullmatch(commit) is None
+        or type(modules) is not dict
+        or not modules
+        or any(
+            type(name) is not str
+            or not name
+            or type(digest) is not str
+            or _SHA256_RE.fullmatch(digest) is None
+            for name, digest in modules.items()
+        )
+    ):
+        raise CertificationReject(
+            "verifier-identity-invalid",
+            "verifier commit/modules are not exact full identities",
+        )
+    return identity
+
+
+def _load_expected_verifier_identity(
+    path: Path, expected_file_sha256: str
+) -> tuple[dict, str]:
+    try:
+        raw = path.read_bytes()
+        identity = json.loads(raw)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise CertificationReject(
+            "verifier-identity-invalid", "expected verifier identity is unavailable"
+        ) from exc
+    actual_file_sha256 = hashlib.sha256(raw).hexdigest()
+    if (
+        type(expected_file_sha256) is not str
+        or _SHA256_RE.fullmatch(expected_file_sha256) is None
+        or actual_file_sha256 != expected_file_sha256
+    ):
+        raise CertificationReject(
+            "verifier-identity-mismatch",
+            "expected verifier identity file does not match its preregistered SHA",
+        )
+    validated = _validate_verifier_identity_shape(identity)
+    return validated, actual_file_sha256
+
+
+def _require_expected_verifier_identity(actual: object, expected: dict) -> None:
+    if _validate_verifier_identity_shape(actual) != expected:
+        raise CertificationReject(
+            "verifier-identity-mismatch",
+            "verifier closure does not match the preregistered identity",
+        )
+
+
+def _build_worker(connection, builder) -> None:
+    """Run one build in its own process group and return a pickled result."""
+    try:
+        os.setsid()
+        connection.send(("ok", builder()))
+    except BaseException as exc:  # child boundary: parent converts to one reject
+        connection.send(("error", f"{type(exc).__name__}: {exc}"))
+    finally:
+        connection.close()
+
+
+def _run_build_with_deadline(builder, timeout_s: float):
+    """Enforce the build budget while also terminating spawned descendants."""
+    context = multiprocessing.get_context("fork")
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(target=_build_worker, args=(sender, builder))
+    process.start()
+    sender.close()
+    if not receiver.poll(timeout_s):
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            process.terminate()
+        process.join(timeout=2.0)
+        if process.is_alive():
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                process.kill()
+            process.join()
+        receiver.close()
+        raise CertificationReject(
+            "trace-build-budget-exceeded",
+            "trace build exceeded its preregistered hard deadline",
+        )
+    try:
+        status, value = receiver.recv()
+    except EOFError as exc:
+        raise RuntimeError("trace build worker exited without a result") from exc
+    finally:
+        receiver.close()
+        process.join()
+    if status != "ok":
+        raise RuntimeError(f"trace build failed in deadline worker: {value}")
+    if process.exitcode != 0:
+        raise RuntimeError(f"trace build worker exited {process.exitcode}")
+    return value
 
 
 def _phase_measurement(started_wall: float, started_cpu: float) -> dict:
@@ -622,13 +784,12 @@ def _validate_target(
     invocation: dict,
     trace_dir: Path,
     trace_result: object,
-    verifier_identity_before: dict,
+    expected_verifier_identity: dict,
     verifier_identity_after: dict,
 ) -> tuple[dict, dict]:
-    if verifier_identity_after != verifier_identity_before:
-        raise CertificationReject(
-            "verifier-identity-mismatch", "verifier closure changed during the job"
-        )
+    _require_expected_verifier_identity(
+        verifier_identity_after, expected_verifier_identity
+    )
     if invocation.get("timed_out") is not False or invocation.get("exit_code") != 0:
         raise CertificationReject(
             "target-verifier-exit", "target verifier must exit exactly 0"
@@ -670,15 +831,11 @@ def _validate_target(
         if type(value) is not int or value < lower_bound:
             reason = "target-edges-empty" if field == "edges" else f"target-{field}-empty"
             raise CertificationReject(reason, f"target stats.{field} is below {lower_bound}")
-    abort_reasons = stats.get("abort_reasons")
-    if (
-        type(abort_reasons) is not dict
-        or not abort_reasons
-        or any(type(value) is not int or value < 0 for value in abort_reasons.values())
-        or sum(abort_reasons.values()) <= 0
-    ):
+    abort_count_stdout = getattr(trace_result, "abort_counts", None)
+    if type(abort_count_stdout) is not int or abort_count_stdout <= 0:
         raise CertificationReject(
-            "target-abort-empty", "target abort_reasons must be nonempty with sum > 0"
+            "target-abort-empty",
+            "target abort_count_stdout must be a positive exact integer",
         )
     if (
         getattr(trace_result, "returncode", None) != 0
@@ -737,7 +894,12 @@ def _write_json_create_only(path: Path, payload: dict) -> None:
         stream.write("\n")
 
 
-def _performance_artifact_identity(path: Path) -> dict:
+def _performance_artifact_identity(path: Path, expected_sha256: str) -> dict:
+    if type(expected_sha256) is not str or _SHA256_RE.fullmatch(expected_sha256) is None:
+        raise CertificationReject(
+            "performance-artifact-identity-mismatch",
+            "expected performance artifact sha256 is not exact",
+        )
     raw = path.read_bytes()
     try:
         document = json.loads(raw)
@@ -755,42 +917,333 @@ def _performance_artifact_identity(path: Path) -> dict:
             "performance-artifact-invalid",
             "performance artifact lacks the exact performance-only identity",
         )
+    actual_sha256 = hashlib.sha256(raw).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise CertificationReject(
+            "performance-artifact-identity-mismatch",
+            "performance artifact does not match the preregistered path/SHA",
+        )
     return {
         "path": str(path.resolve(strict=True)),
-        "sha256": hashlib.sha256(raw).hexdigest(),
+        "sha256": actual_sha256,
     }
 
 
-def _group_receipt_payload(
-    result_files: list[Path], performance_artifact: Path
-) -> dict:
-    expected = {(workload, slot) for workload in CERT_WORKLOADS for slot in CERT_SLOTS}
-    rows = []
-    actual = set()
-    identities = []
-    for path in sorted(result_files):
+@dataclass(frozen=True)
+class _ReceiptTraceResult:
+    trace_c_lines: object
+    returncode: object
+    abort_counts: object
+    commit_count_witness: object
+    batch_commit_count_witness: object
+
+
+def _validate_trace_manifest_receipt(trace_dir: Path, manifest: object) -> None:
+    if not (trace_dir / "log").is_dir():
+        raise CertificationReject(
+            "group-trace-dir-invalid", "raw trace directory no longer has log/"
+        )
+    if type(manifest) is not dict or set(manifest) != {
+        "file_count",
+        "bytes",
+        "lines",
+        "files",
+    }:
+        raise CertificationReject(
+            "group-trace-manifest-mismatch", "trace manifest schema is invalid"
+        )
+    files = manifest.get("files")
+    if (
+        type(files) is not list
+        or not files
+        or manifest.get("file_count") != len(files)
+        or type(manifest.get("bytes")) is not int
+        or manifest["bytes"] <= 0
+        or type(manifest.get("lines")) is not int
+        or manifest["lines"] <= 0
+    ):
+        raise CertificationReject(
+            "group-trace-manifest-mismatch", "trace manifest totals are invalid"
+        )
+    names = set()
+    total_bytes = 0
+    total_lines = 0
+    for item in files:
+        if type(item) is not dict or set(item) != {
+            "name",
+            "size_bytes",
+            "lines",
+            "sha256",
+        }:
+            raise CertificationReject(
+                "group-trace-manifest-mismatch", "trace file manifest is invalid"
+            )
+        name = item.get("name")
+        size = item.get("size_bytes")
+        lines = item.get("lines")
+        digest = item.get("sha256")
+        if (
+            type(name) is not str
+            or re.fullmatch(r"trace_[0-9]+\.log", name) is None
+            or name in names
+            or type(size) is not int
+            or size <= 0
+            or type(lines) is not int
+            or lines <= 0
+            or type(digest) is not str
+            or _SHA256_RE.fullmatch(digest) is None
+        ):
+            raise CertificationReject(
+                "group-trace-manifest-mismatch", "trace file metadata is invalid"
+            )
+        trace_file = trace_dir / name
+        if not trace_file.is_file() or trace_file.stat().st_size != size:
+            raise CertificationReject(
+                "group-trace-manifest-mismatch",
+                "raw trace is missing or its size differs before aggregation",
+            )
+        names.add(name)
+        total_bytes += size
+        total_lines += lines
+    if total_bytes != manifest["bytes"] or total_lines != manifest["lines"]:
+        raise CertificationReject(
+            "group-trace-manifest-mismatch", "trace manifest totals do not add up"
+        )
+
+
+def _validated_certification_row(
+    path: Path,
+    *,
+    attempt_id: str,
+    expected_verifier_identity: dict,
+    expected_verifier_identity_file_sha256: str,
+    performance_identity: dict,
+) -> tuple[dict, tuple[str, int]]:
+    try:
         raw = path.read_bytes()
         document = json.loads(raw)
-        if document.get("schema_version") != CERTIFICATION_SCHEMA_VERSION:
-            continue
-        pair = (document.get("workload"), document.get("independent_run_slot"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise CertificationReject(
+            "group-result-invalid", f"certification result is unreadable: {path}"
+        ) from exc
+    if (
+        type(document) is not dict
+        or document.get("schema_version") != CERTIFICATION_SCHEMA_VERSION
+        or document.get("kind") != "correctness-certification-request"
+        or document.get("terminal_status") != "certified"
+        or document.get("certified") is not True
+        or document.get("certification_gate") != "all-10-conditions-passed"
+        or document.get("attempt_id") != attempt_id
+        or document.get("performance_artifact") != performance_identity
+    ):
+        raise CertificationReject(
+            "group-result-not-certified",
+            f"result is not one certified receipt for attempt {attempt_id}: {path}",
+        )
+    workload = document.get("workload")
+    slot = document.get("independent_run_slot")
+    if workload not in CERT_WORKLOADS or type(slot) is not int or slot not in CERT_SLOTS:
+        raise CertificationReject(
+            "group-result-invalid", f"result workload/slot is invalid: {path}"
+        )
+    expected_workload_flags = {
+        **WORKLOADS[workload],
+        "ycsb_tuple_num": str(CERT_RECORDS),
+        "thread_num": str(CERT_THREADS[0]),
+        "extime": str(CERT_EXTIME),
+    }
+    if (
+        document.get("workload_flags") != expected_workload_flags
+        or document.get("records") != CERT_RECORDS
+        or document.get("threads") != CERT_THREADS[0]
+        or document.get("extime_s") != CERT_EXTIME
+        or document.get("cell") != CERT_CELL.label
+        or document.get("back_off") != CERT_CELL.back_off
+        or document.get("step_us") != CERT_CELL.step_us
+        or document.get("ceiling_us") != CERT_CELL.ceiling_us
+        or document.get("update_us") != CERT_CELL.update_us
+        or document.get("rng_seed_controlled") is not False
+    ):
+        raise CertificationReject(
+            "group-workload-contract-mismatch",
+            f"result workload constants/flags are invalid: {path}",
+        )
+    request_id = document.get("pbs_jobid")
+    if type(request_id) is not str or not request_id:
+        raise CertificationReject(
+            "group-result-invalid", f"result request id is invalid: {path}"
+        )
+    actual_identity = _validate_verifier_identity_shape(
+        document.get("verifier_identity")
+    )
+    _require_expected_verifier_identity(actual_identity, expected_verifier_identity)
+    if document.get("expected_verifier_identity_file_sha256") != (
+        expected_verifier_identity_file_sha256
+    ):
+        raise CertificationReject(
+            "group-verifier-identity-mismatch",
+            "result is not bound to the preregistered verifier manifest file",
+        )
+    if (
+        document.get("build_trace_enabled") is not True
+        or type(document.get("build_cache_key")) is not str
+        or not document["build_cache_key"].endswith("_t1")
+        or type(document.get("binary_sha256")) is not str
+        or _SHA256_RE.fullmatch(document["binary_sha256"]) is None
+        or document.get("patch_sha256")
+        != hashlib.sha256(PATCH.read_bytes()).hexdigest()
+        or document.get("ccbench_commit") != PIN_FULL
+        or type(document.get("build_admission_receipt_sha256")) is not str
+        or _SHA256_RE.fullmatch(document["build_admission_receipt_sha256"]) is None
+        or type(document.get("source_evidence")) is not dict
+        or document["source_evidence"].get("ccbench_commit") != CURRENT_PIN
+        or type(document["source_evidence"].get("genome_sha256")) is not str
+        or _SHA256_RE.fullmatch(
+            document["source_evidence"]["genome_sha256"]
+        )
+        is None
+        or type(document["source_evidence"].get("source_bytes_sha256")) is not str
+        or _SHA256_RE.fullmatch(
+            document["source_evidence"]["source_bytes_sha256"]
+        )
+        is None
+    ):
+        raise CertificationReject(
+            "group-build-identity-mismatch",
+            f"result build/pin/patch/trace identity is invalid: {path}",
+        )
+    trace_value = document.get("trace_directory")
+    normalized_trace = _normalized_path(trace_value)
+    if normalized_trace is None or normalized_trace != trace_value:
+        raise CertificationReject(
+            "group-trace-dir-invalid", f"result trace_dir is not exact: {path}"
+        )
+    trace_dir = Path(normalized_trace)
+    _validate_trace_manifest_receipt(trace_dir, document.get("trace_manifest"))
+    positive = document.get("positive_control")
+    if type(positive) is not dict:
+        raise CertificationReject(
+            "group-result-invalid", f"positive-control receipt is missing: {path}"
+        )
+    try:
+        positive_stdout_json = json.loads(positive.get("stdout"))
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise CertificationReject(
+            "group-result-invalid", f"positive-control stdout is invalid: {path}"
+        ) from exc
+    if positive.get("json_parse_error") is not None or positive_stdout_json != positive.get(
+        "json"
+    ):
+        raise CertificationReject(
+            "group-result-invalid", f"positive-control JSON binding differs: {path}"
+        )
+    _validate_positive_control(positive)
+    run = document.get("run")
+    target = document.get("target_verifier")
+    if type(run) is not dict or type(target) is not dict:
+        raise CertificationReject(
+            "group-result-invalid", f"run/verifier receipt is missing: {path}"
+        )
+    try:
+        target_stdout_json = json.loads(target.get("stdout"))
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise CertificationReject(
+            "group-result-invalid", f"target verifier stdout is invalid: {path}"
+        ) from exc
+    if target.get("json_parse_error") is not None or target_stdout_json != target.get(
+        "json"
+    ):
+        raise CertificationReject(
+            "group-result-invalid", f"target verifier JSON binding differs: {path}"
+        )
+    trace_result = _ReceiptTraceResult(
+        trace_c_lines=run.get("trace_c_lines"),
+        returncode=run.get("exit_code"),
+        abort_counts=run.get("abort_count_stdout"),
+        commit_count_witness=run.get("commit_count"),
+        batch_commit_count_witness=run.get("batch_commit_count"),
+    )
+    target_document, target_result = _validate_target(
+        target,
+        trace_dir,
+        trace_result,
+        expected_verifier_identity,
+        actual_identity,
+    )
+    if document.get("verifier_json") != target_document:
+        raise CertificationReject(
+            "group-result-invalid", f"verifier JSON binding differs: {path}"
+        )
+    abort_reasons = target_result.get("stats", {}).get("abort_reasons")
+    if type(abort_reasons) is not dict or any(
+        type(value) is not int or value < 0 for value in abort_reasons.values()
+    ):
+        raise CertificationReject(
+            "group-result-invalid", f"abort reason information is malformed: {path}"
+        )
+    return (
+        {
+            "path": str(path.resolve(strict=True)),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "workload": workload,
+            "independent_run_slot": slot,
+            "request_id": request_id,
+            "terminal_status": "certified",
+            "certified": True,
+            "trace_dir": normalized_trace,
+            "verifier_identity": actual_identity,
+            "binary_sha256": document["binary_sha256"],
+            "build_cache_key": document["build_cache_key"],
+            "build_admission_receipt_sha256": document[
+                "build_admission_receipt_sha256"
+            ],
+            "patch_sha256": document["patch_sha256"],
+            "ccbench_commit": document["ccbench_commit"],
+            "attempt_id": attempt_id,
+        },
+        (workload, slot),
+    )
+
+
+def _group_receipt_payload(
+    result_files: list[Path],
+    performance_artifact: Path,
+    performance_artifact_sha256: str,
+    attempt_id: str,
+    expected_verifier_identity: dict,
+    expected_verifier_identity_file_sha256: str,
+) -> dict:
+    expected = {(workload, slot) for workload in CERT_WORKLOADS for slot in CERT_SLOTS}
+    normalized_files = [path.resolve(strict=False) for path in result_files]
+    if len(normalized_files) != 24:
+        raise CertificationReject(
+            "group-incomplete",
+            "group aggregation requires exactly 24 explicit result paths",
+        )
+    if len(set(normalized_files)) != 24:
+        raise CertificationReject(
+            "group-result-path-set-invalid",
+            "group aggregation requires 24 unique result paths",
+        )
+    rows = []
+    actual = set()
+    performance_identity = _performance_artifact_identity(
+        performance_artifact, performance_artifact_sha256
+    )
+    for path in sorted(normalized_files):
+        row, pair = _validated_certification_row(
+            path,
+            attempt_id=attempt_id,
+            expected_verifier_identity=expected_verifier_identity,
+            expected_verifier_identity_file_sha256=(
+                expected_verifier_identity_file_sha256
+            ),
+            performance_identity=performance_identity,
+        )
         if pair in actual:
             raise CertificationReject("group-duplicate-request", f"duplicate pair: {pair}")
         actual.add(pair)
-        identities.append(document.get("verifier_identity"))
-        rows.append(
-            {
-                "path": str(path.resolve(strict=True)),
-                "sha256": hashlib.sha256(raw).hexdigest(),
-                "workload": pair[0],
-                "independent_run_slot": pair[1],
-                "request_id": document.get("pbs_jobid"),
-                "terminal_status": document.get("terminal_status"),
-                "binary_sha256": document.get("binary_sha256"),
-                "patch_sha256": document.get("patch_sha256"),
-                "ccbench_commit": document.get("ccbench_commit"),
-            }
-        )
+        rows.append(row)
     if actual != expected or len(rows) != 24:
         missing = sorted(expected - actual)
         extra = sorted(actual - expected, key=repr)
@@ -798,28 +1251,13 @@ def _group_receipt_payload(
             "group-incomplete",
             f"group requires exact 24 workload/slot pairs; missing={missing} extra={extra}",
         )
-    if any(
-        type(row["request_id"]) is not str
-        or not row["request_id"]
-        or row["terminal_status"] not in {"certified", "rejected"}
-        for row in rows
-    ):
-        raise CertificationReject(
-            "group-request-not-terminal",
-            "every result must bind a request id and an exact terminal state",
-        )
     if len({row["request_id"] for row in rows}) != 24:
         raise CertificationReject(
             "group-request-identity-duplicate", "request ids must be unique"
         )
-    if any(identity != identities[0] for identity in identities):
-        raise CertificationReject(
-            "group-verifier-identity-mismatch", "result verifier identities differ"
-        )
-    performance_identity = _performance_artifact_identity(performance_artifact)
-    complete = all(row["terminal_status"] == "certified" for row in rows)
-    if complete and (
-        len({row["binary_sha256"] for row in rows}) != 1
+    if (
+        len({row["trace_dir"] for row in rows}) != 24
+        or len({row["binary_sha256"] for row in rows}) != 1
         or len({row["patch_sha256"] for row in rows}) != 1
         or len({row["ccbench_commit"] for row in rows}) != 1
         or any(
@@ -836,52 +1274,179 @@ def _group_receipt_payload(
     ):
         raise CertificationReject(
             "group-build-identity-mismatch",
-            "a complete group requires one binary and exact patch/pin identities",
+            "a complete group requires unique traces and exact build identities",
         )
     return {
         "schema_version": GROUP_RECEIPT_SCHEMA_VERSION,
-        "complete": complete,
+        "complete": True,
+        "attempt_id": attempt_id,
         "expected_requests": 24,
         "terminal_requests": 24,
-        "claim": ALLOWED_GROUP_CLAIM if complete else None,
+        "certified_requests": 24,
+        "claim": ALLOWED_GROUP_CLAIM,
         "claim_limitations": list(CLAIM_LIMITATIONS),
         # The correctness campaign binds the trace-disabled performance
         # artifact, but never relabels its measurements as verifier outputs.
         "performance_values_remain_uncertified": True,
-        "verifier_identity": identities[0],
+        "verifier_identity": expected_verifier_identity,
+        "expected_verifier_identity_file_sha256": (
+            expected_verifier_identity_file_sha256
+        ),
         "performance_artifact": performance_identity,
         "results": rows,
     }
 
 
-def _try_finalize_group(
-    result_dir: Path, group_out: Path, performance_artifact: Path
+def _validate_published_group(
+    group_out: Path,
+    result_files: list[Path],
+    performance_artifact: Path,
+    performance_artifact_sha256: str,
+    attempt_id: str,
+    expected_verifier_identity: dict,
+    expected_verifier_identity_file_sha256: str,
 ) -> None:
-    candidates = []
-    for path in sorted(result_dir.glob("*.json")):
-        if path == group_out or not path.is_file():
-            continue
-        try:
-            document = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            continue
-        if document.get("schema_version") == CERTIFICATION_SCHEMA_VERSION:
-            candidates.append(path)
     try:
-        receipt = _group_receipt_payload(candidates, performance_artifact)
-    except CertificationReject as exc:
-        if exc.reason == "group-incomplete":
-            return
-        raise
-    encoded = (json.dumps(receipt, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
-    try:
-        with group_out.open("xb") as stream:
-            stream.write(encoded)
-    except FileExistsError:
-        if group_out.read_bytes() != encoded:
+        receipt = json.loads(group_out.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise CertificationReject(
+            "group-receipt-collision", "published group receipt is incomplete"
+        ) from exc
+    if type(receipt) is not dict:
+        raise CertificationReject(
+            "group-receipt-collision", "published group receipt is not an object"
+        )
+    expected_paths = {str(path.resolve(strict=True)): path for path in result_files}
+    rows = receipt.get("results")
+    if (
+        receipt.get("schema_version") != GROUP_RECEIPT_SCHEMA_VERSION
+        or receipt.get("complete") is not True
+        or receipt.get("certified_requests") != 24
+        or receipt.get("attempt_id") != attempt_id
+        or receipt.get("verifier_identity") != expected_verifier_identity
+        or receipt.get("expected_verifier_identity_file_sha256")
+        != expected_verifier_identity_file_sha256
+        or receipt.get("performance_artifact")
+        != _performance_artifact_identity(
+            performance_artifact, performance_artifact_sha256
+        )
+        or type(rows) is not list
+        or len(rows) != 24
+        or {row.get("path") for row in rows if type(row) is dict}
+        != set(expected_paths)
+    ):
+        raise CertificationReject(
+            "group-receipt-collision", "published group receipt has another identity"
+        )
+    for row in rows:
+        path = expected_paths[row["path"]]
+        if row.get("sha256") != hashlib.sha256(path.read_bytes()).hexdigest():
             raise CertificationReject(
-                "group-receipt-collision", "existing group receipt bytes differ"
+                "group-receipt-collision", "published group result hash differs"
             )
+
+
+def _try_finalize_group(
+    result_files: list[Path],
+    group_out: Path,
+    performance_artifact: Path,
+    performance_artifact_sha256: str,
+    attempt_id: str,
+    expected_verifier_identity: dict,
+    expected_verifier_identity_file_sha256: str,
+) -> bool:
+    if any(not path.is_file() for path in result_files):
+        return False
+    group_out.parent.mkdir(parents=True, exist_ok=True)
+    reservation = group_out.with_name(group_out.name + ".reserve")
+    deadline = time.monotonic() + GROUP_RECEIPT_WAIT_S
+    while True:
+        if group_out.is_file():
+            _validate_published_group(
+                group_out,
+                result_files,
+                performance_artifact,
+                performance_artifact_sha256,
+                attempt_id,
+                expected_verifier_identity,
+                expected_verifier_identity_file_sha256,
+            )
+            return True
+        try:
+            reservation.mkdir(mode=0o700)
+            break
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                raise CertificationReject(
+                    "group-receipt-timeout",
+                    "timed out waiting for the reserved group receipt",
+                )
+            time.sleep(0.1)
+
+    temporary = reservation / "group-receipt.tmp"
+    try:
+        if group_out.exists():
+            _validate_published_group(
+                group_out,
+                result_files,
+                performance_artifact,
+                performance_artifact_sha256,
+                attempt_id,
+                expected_verifier_identity,
+                expected_verifier_identity_file_sha256,
+            )
+            return True
+        try:
+            receipt = _group_receipt_payload(
+                result_files,
+                performance_artifact,
+                performance_artifact_sha256,
+                attempt_id,
+                expected_verifier_identity,
+                expected_verifier_identity_file_sha256,
+            )
+        except CertificationReject:
+            return False
+        encoded = (
+            json.dumps(receipt, indent=2, ensure_ascii=False) + "\n"
+        ).encode("utf-8")
+        with temporary.open("xb") as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if group_out.exists():
+            raise CertificationReject(
+                "group-receipt-collision", "group receipt appeared under reservation"
+            )
+        os.rename(temporary, group_out)
+        parent_fd = os.open(
+            group_out.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        )
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+        return True
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+        try:
+            reservation.rmdir()
+        except OSError:
+            pass
+
+
+def _remove_group_traces(group_out: Path) -> None:
+    """Delete raw traces only after a complete group receipt is published."""
+    import shutil
+
+    receipt = json.loads(group_out.read_text(encoding="utf-8"))
+    for row in receipt["results"]:
+        trace_dir = row.get("trace_dir")
+        if type(trace_dir) is str:
+            shutil.rmtree(trace_dir, ignore_errors=True)
 
 
 def _argument_parser() -> argparse.ArgumentParser:
@@ -909,6 +1474,13 @@ def _argument_parser() -> argparse.ArgumentParser:
         "--build-budget-s", type=_positive_float, default=DEFAULT_BUILD_BUDGET_S
     )
     parser.add_argument(
+        "--prologue-budget-s",
+        type=_positive_float,
+        default=DEFAULT_PROLOGUE_BUDGET_S,
+    )
+    parser.add_argument("--prologue-elapsed-s", type=float, default=0.0)
+    parser.add_argument("--prologue-cpu-s", type=float, default=0.0)
+    parser.add_argument(
         "--outer-walltime-s",
         type=_positive_float,
         default=DEFAULT_OUTER_WALLTIME_S,
@@ -917,7 +1489,12 @@ def _argument_parser() -> argparse.ArgumentParser:
         "--exit-margin-s", type=_positive_float, default=DEFAULT_EXIT_MARGIN_S
     )
     parser.add_argument("--group-receipt-out", type=Path)
+    parser.add_argument("--group-result-path", action="append", type=Path, default=[])
+    parser.add_argument("--attempt-id")
     parser.add_argument("--performance-artifact", type=Path)
+    parser.add_argument("--performance-artifact-sha256")
+    parser.add_argument("--expected-verifier-identity", type=Path)
+    parser.add_argument("--expected-verifier-identity-sha256")
     parser.add_argument("--out", required=True)
     return parser
 
@@ -929,13 +1506,27 @@ def _certify_main(args: argparse.Namespace) -> int:
     cell, workload_id, threads = _certification_contract(args)
     assert args.group_receipt_out is not None
     assert args.performance_artifact is not None
+    assert args.performance_artifact_sha256 is not None
+    assert args.expected_verifier_identity is not None
+    assert args.expected_verifier_identity_sha256 is not None
+    assert args.attempt_id is not None
     group_out = args.group_receipt_out
     performance_artifact = args.performance_artifact
+    performance_artifact_sha256 = args.performance_artifact_sha256
+    result_files = [path.resolve(strict=False) for path in args.group_result_path]
+    expected_verifier_identity, expected_verifier_identity_file_sha256 = (
+        _load_expected_verifier_identity(
+            args.expected_verifier_identity,
+            args.expected_verifier_identity_sha256,
+        )
+    )
     if not performance_artifact.is_file():
         raise FileNotFoundError(
             f"performance artifact is missing: {performance_artifact}"
         )
-    _performance_artifact_identity(performance_artifact)
+    performance_identity = _performance_artifact_identity(
+        performance_artifact, performance_artifact_sha256
+    )
     if not PATCH.is_file():
         raise FileNotFoundError(f"patch is missing: {PATCH}")
 
@@ -951,6 +1542,7 @@ def _certify_main(args: argparse.Namespace) -> int:
     started_utc = datetime.now(timezone.utc).isoformat()
     job_wall_started = time.monotonic()
     job_cpu_started = _cpu_seconds()
+    out.parent.mkdir(parents=True, exist_ok=True)
     trace_dir: Path | None = None
     payload = {
         "schema_version": CERTIFICATION_SCHEMA_VERSION,
@@ -959,6 +1551,7 @@ def _certify_main(args: argparse.Namespace) -> int:
         "allowed_group_claim": ALLOWED_GROUP_CLAIM,
         "claim_limitations": list(CLAIM_LIMITATIONS),
         "performance_values_remain_uncertified": True,
+        "attempt_id": args.attempt_id,
         "stage": args.stage,
         "site": "pegasus",
         "host": os.uname().nodename,
@@ -982,6 +1575,11 @@ def _certify_main(args: argparse.Namespace) -> int:
         "update_us": cell.update_us,
         "ccbench_commit": PIN_FULL,
         "patch_sha256": hashlib.sha256(PATCH.read_bytes()).hexdigest(),
+        "performance_artifact": performance_identity,
+        "expected_verifier_identity": expected_verifier_identity,
+        "expected_verifier_identity_file_sha256": (
+            expected_verifier_identity_file_sha256
+        ),
         "positive_control_provenance": {
             "kind": "static-fixture-not-live-broken-build",
             "trace_dir": str(POSITIVE_CONTROL_TRACE.resolve(strict=True)),
@@ -1004,12 +1602,22 @@ def _certify_main(args: argparse.Namespace) -> int:
             },
         },
         "time_budget": {
+            "prologue_seconds": args.prologue_budget_s,
             "build_seconds": args.build_budget_s,
             "run_seconds": RUN_TIMEOUT_S,
             "positive_control_seconds": POSITIVE_CONTROL_TIMEOUT_S,
             "target_verifier_seconds": args.verifier_timeout_s,
             "exit_margin_seconds": args.exit_margin_s,
             "outer_walltime_seconds": args.outer_walltime_s,
+        },
+        "prologue_phase": {
+            "elapsed_seconds": args.prologue_elapsed_s,
+            "cpu_seconds": args.prologue_cpu_s,
+            "cpu_over_elapsed": (
+                args.prologue_cpu_s / args.prologue_elapsed_s
+                if args.prologue_elapsed_s > 0
+                else None
+            ),
         },
         "started_utc": started_utc,
     }
@@ -1052,17 +1660,37 @@ def _certify_main(args: argparse.Namespace) -> int:
                 admission = derive_build_admission(
                     build_context, evidence, generator_receipt=receipt
                 )
-                build = buildcache.build(
+                build_cache_key = buildcache.cache_key(
                     genome,
-                    ccbench_commit=CURRENT_PIN,
-                    trace=True,
+                    CURRENT_PIN,
+                    True,
+                    src_token=evidence.src_token,
                     cc=cc,
                     cxx=cxx,
                     admission=admission,
-                    build_context=build_context,
-                    source_evidence=evidence,
-                    cache_root=str(cache_root),
-                    ccbench_dir=work_root,
+                )
+                if not build_cache_key.endswith("_t1"):
+                    raise CertificationReject(
+                        "trace-build-identity",
+                        "trace build cache identity is not trace-enabled",
+                    )
+
+                def _build_trace_binary():
+                    return buildcache.build(
+                        genome,
+                        ccbench_commit=CURRENT_PIN,
+                        trace=True,
+                        cc=cc,
+                        cxx=cxx,
+                        admission=admission,
+                        build_context=build_context,
+                        source_evidence=evidence,
+                        cache_root=str(cache_root),
+                        ccbench_dir=work_root,
+                    )
+
+                build = _run_build_with_deadline(
+                    _build_trace_binary, args.build_budget_s
                 )
                 payload["build_phase"] = _phase_measurement(
                     build_wall_started, build_cpu_started
@@ -1073,21 +1701,34 @@ def _certify_main(args: argparse.Namespace) -> int:
                         "trace build exceeded its preregistered inner budget",
                     )
                 payload["build_trace_enabled"] = True
+                payload["build_cache_key"] = build_cache_key
+                payload["build_admission_receipt_sha256"] = (
+                    admission.receipt_sha256
+                )
+                payload["source_evidence"] = {
+                    "ccbench_commit": evidence.ccbench_commit,
+                    "genome_sha256": evidence.genome_sha256,
+                    "src_token": evidence.src_token,
+                    "source_bytes_sha256": evidence.source_bytes_sha256,
+                }
                 payload["binary_sha256"] = build.bin_sha256
                 payload["ccbench_head"] = head
                 payload["genome"] = genome.canonical()
-                if not re.fullmatch(r"[0-9a-f]{64}", build.bin_sha256):
+                if (
+                    getattr(build, "trace", None) is not True
+                    or not re.fullmatch(r"[0-9a-f]{64}", build.bin_sha256)
+                ):
                     raise CertificationReject(
-                        "trace-build-identity", "trace binary has no full sha256"
+                        "trace-build-identity",
+                        "trace binary lacks trace identity or a full sha256",
                     )
 
-                tmp_parent = os.environ.get("TMPDIR")
                 trace_dir = Path(
                     tempfile.mkdtemp(
                         prefix=(
                             f"t2187-cert-{workload_id}-slot{args.rep_index}-"
                         ),
-                        dir=tmp_parent,
+                        dir=out.parent,
                     )
                 )
                 if any(trace_dir.iterdir()):
@@ -1137,6 +1778,9 @@ def _certify_main(args: argparse.Namespace) -> int:
                     )
 
                 verifier_identity_before = _verifier_identity()
+                _require_expected_verifier_identity(
+                    verifier_identity_before, expected_verifier_identity
+                )
                 payload["verifier_identity"] = verifier_identity_before
                 positive = _run_verifier(
                     POSITIVE_CONTROL_TRACE,
@@ -1157,7 +1801,7 @@ def _certify_main(args: argparse.Namespace) -> int:
                     target,
                     trace_dir,
                     trace_result,
-                    verifier_identity_before,
+                    expected_verifier_identity,
                     verifier_identity_after,
                 )
                 payload["verify_phase"] = {
@@ -1171,7 +1815,7 @@ def _certify_main(args: argparse.Namespace) -> int:
                 }
                 payload["trace_manifest"] = _trace_manifest(trace_dir)
                 payload["abort_reasons"] = target_result["stats"]["abort_reasons"]
-                payload["abort_count"] = sum(payload["abort_reasons"].values())
+                payload["abort_count"] = trace_result.abort_counts
                 payload["verifier_json"] = target_document
     except CertificationReject as exc:
         rejected = exc
@@ -1186,8 +1830,10 @@ def _certify_main(args: argparse.Namespace) -> int:
                     payload["trace_manifest"] = _trace_manifest(trace_dir)
                 except OSError:
                     pass
-        wall_seconds = max(0.0, time.monotonic() - job_wall_started)
-        cpu_seconds = max(0.0, _cpu_seconds() - job_cpu_started)
+        driver_wall_seconds = max(0.0, time.monotonic() - job_wall_started)
+        driver_cpu_seconds = max(0.0, _cpu_seconds() - job_cpu_started)
+        wall_seconds = args.prologue_elapsed_s + driver_wall_seconds
+        cpu_seconds = args.prologue_cpu_s + driver_cpu_seconds
         if (
             rejected is None
             and wall_seconds + args.exit_margin_s >= args.outer_walltime_s
@@ -1200,23 +1846,33 @@ def _certify_main(args: argparse.Namespace) -> int:
             "elapsed_seconds": wall_seconds,
             "cpu_seconds": cpu_seconds,
             "cpu_over_elapsed": cpu_seconds / wall_seconds if wall_seconds > 0 else None,
+            "driver_elapsed_seconds": driver_wall_seconds,
+            "driver_cpu_seconds": driver_cpu_seconds,
         }
         payload["finished_utc"] = datetime.now(timezone.utc).isoformat()
         if rejected is None:
             payload["terminal_status"] = "certified"
+            payload["certified"] = True
             payload["certification_gate"] = "all-10-conditions-passed"
         else:
             payload["terminal_status"] = "rejected"
+            payload["certified"] = False
             payload["reject_reason"] = rejected.reason
             payload["reject_detail"] = rejected.detail
             payload["performance_values_remain_uncertified"] = True
         _write_json_create_only(out, payload)
-        if trace_dir is not None:
-            import shutil
 
-            shutil.rmtree(trace_dir, ignore_errors=True)
-
-    _try_finalize_group(out.parent, group_out, performance_artifact)
+    group_complete = _try_finalize_group(
+        result_files,
+        group_out,
+        performance_artifact,
+        performance_artifact_sha256,
+        args.attempt_id,
+        expected_verifier_identity,
+        expected_verifier_identity_file_sha256,
+    )
+    if group_complete:
+        _remove_group_traces(group_out)
     if rejected is not None:
         print(f"[reject] {rejected}", file=sys.stderr, flush=True)
         return 1

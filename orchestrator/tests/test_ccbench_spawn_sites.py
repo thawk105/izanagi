@@ -883,8 +883,8 @@ _DEFERRED_GATE_MEMBERS = (
             "condition-gate family admission は本 wave の scope 外"
         ),
         "buildcache",
-        "<module>._certify_main",
-        1055,
+        "<module>._certify_main._build_trace_binary",
+        1679,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -895,7 +895,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>.main",
-        1314,
+        1970,
     ),
 )
 
@@ -2631,11 +2631,12 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2189", "buildcache", "<module>._certify_main", 1055,
+            "wave t2189", "buildcache",
+            "<module>._certify_main._build_trace_binary", 1679,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2187", "buildcache", "<module>.main", 1314,
+            "wave t2187", "buildcache", "<module>.main", 1970,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
