@@ -799,6 +799,13 @@
   この点を恒真な対応として扱わない。次に再発したら、消失の直前に走った worktree 操作の特定を
   先に行う。
 - **supersede: 2026-08-23** — 2026-08-01 と 2026-08-05 の再発が指摘した「dev-wave の段 9 は自分の worktree を畳むよう求めるが、その手順の正本が `/cleanup-branches` §3 にあることを指していない」は、経路の新設で閉じた。実測すると段 9 に撤去義務自体が存在しなかった。`docs/dev-wave/operations.md` の `DW-O28` と条件 dispatch 27、および `tools/dev_wave_cleanup.py` が正本である (D702)。`/cleanup-branches` §3 の撤去順と F51 由来の記述の是正は [T-1560] で別途行う。
+
+- **再発: 2026-09-02** — 削除側でなく**作成側**で、しかも一括ループでなく **1 件の
+  `git worktree add` 単独**が 2 分の command timeout に掛かって kill された。残った中途状態は
+  「branch は作成済み・checkout も進行済みだが `.git/worktrees/<name>` の admin dir が無い」形で、
+  **`git worktree list` に現れない**。既載の運用則 (1 件ずつ・timeout を延ばす) は作成側にも要る。
+  `git worktree prune` だけでは checkout 済み dir が残るので、`rm -rf` と併せて畳んでから
+  既存 branch を再利用して作り直す。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -17179,6 +17186,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   敵対レンズが実測で訂正したため下流へ伝播していない。既存の敵対相談段が想定どおり機能した
   事例であり、契約側の欠落ではないと判定して手順の変更は行わない。
 
+
+- **再発: 2026-09-02** — 2 本目の書き手が自分の `git status` ではなく、**背景で走らせていた
+  自分の `git worktree add`** および他 wave の活動だった。根本原因は「並行 `git status`」より広く、
+  対象 worktree の index を refresh または書き換える**任意の並行 git 操作**で成立する。
+  **新しいのは症状の形である。** pathspec を付けて走査したため、出力が「全 tracked file が編集中」
+  ではなく**問い合わせた特定 path だけが `D` (staged delete) + `??` (untracked)** という形になり、
+  狙い撃ちの編集面重複 hit と見分けが付かなかった。安価な判別子は再走査で、
+  **本物の重複は同じ worktree に留まり、F615 は走査ごとに別の worktree へ移る** (今回は 5 件 → 1 件 →
+  0 件と移動し、直接測り直すといずれも clean だった)。既載の恒久対応 (単独で測り直す) は有効だった。
 ### F616. 新設した関門の設計正本が、関門を経由しない直呼びを将来の呼び手へ指示していた [恒真ゲート] [手順漏れ]
 
 - 事象: 段 0 の繰越義務述語を production の前提関門 adapter へ結線する wave で、親が設計正本の
@@ -21096,3 +21112,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   producer が構造的に必須とするセルは、consumer 側の fixture にも必ず含める。
 - 再発検知: 図の生成は合成テストだけで closed としない。**実データで両モードを実走し、
   rc=0 と 3 成果物 (png / pdf / provenance) の生成を親が確かめる**まで完了と申告しない。
+
+### F813. code file を 1 byte も変えない PATH wrapper が、判定器の受理集合を変える案として起草された [計測汚染] [恒真ゲート]
+
+- 事象: 段 4 loop のビルドを Pegasus で通すため、段 2 のプランが「job-private な `cmake` wrapper を
+  PATH の先頭に置き、configure 時だけ pin 済み `FETCHCONTENT_SOURCE_DIR_*` を注入する」案を出した。
+  親 brief 自身も「`condition_meaning_gate.py` を変えずに環境側で解く」を provisional 裁定に
+  していた。段 3 のレンズ A が real 所見として反証し、親が段 4 で不採用にした。**実装には至って
+  いない (near miss)。**
+- 根本原因: condition gate は `cmake` を PATH から解決して実行し、その出力
+  (`compile_commands.json`) を受理判定の入力にする。ところが gate の green record は
+  **CMake の path も wrapper の hash も実効 configure argv も保存しない**
+  (`condition_meaning_gate.py:1402-1415, 1479-1490, 2064-2085`)。したがって wrapper は、
+  source-dir・compiler launcher・任意の `-D`・compile entry そのものを差し替えられるのに、
+  証拠には現れない。**「code file を変えない」ことを「受理集合を変えない」ことと取り違えた**
+  のが誤りの本体である。判定器が環境から実体を解決する設計では、PATH・環境変数・生成された
+  入力が受理集合の一部である。
+- 恒久対応: 絶対規律 2 (正しさゲートを緩める変異を許さない) をこの型へ適用する
+  — 判定器が環境から解決する実体を差し替える案は、差し替えた実体の identity が判定の証拠へ
+  束縛されない限り採らない。実行場所の択一としての結論は D1517 が持つ。
+  **機械的な検出器は無い。** gate 側に wrapper hash と configure argv を束縛する変更が要るが、
+  それは本 wave の編集面の外であり、未実装である。この限界は主張せず明記する (規律 7、D387)。
+- 再発検知: 「機体 X でビルドを通す」型のタスクで、PATH・`CMAKE_PREFIX_PATH`・compiler launcher・
+  interpreter shim を job script 側で差し替える案が出たら、その実体が判定器の入力になるかを先に
+  確かめる。入力になるなら、識別子が判定の証拠に残るかを確かめてから採る。
+  段 3 の敵対レンズがこの経路を検出した実績がある (本エントリ)。

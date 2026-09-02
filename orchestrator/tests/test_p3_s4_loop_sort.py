@@ -65,6 +65,11 @@ def test_sort_condition_gate_precedes_run_campaign():
     assert 'macro="SORT_VARIANT"' in helper
     assert 'use_class="certified-selection"' in helper
     assert '"condition_gate": condition_gate' in source
+    specification = S.default_cfg().spec_content
+    assert "閉じた 79 値 IR 文法" in specification
+    assert "別実験" in specification
+    assert "D344 は元の raw C++ 独立合成実験について有効なまま" in specification
+    assert "supersede しない" in specification
 
 
 _B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
@@ -137,10 +142,16 @@ class TxExecutor {
 # テストする)、fixture 側をネスト構造に合わせる。
 _SRC_REL = S.SOURCE_REL
 _G = Genome("silo", {**S._BASE, "SORT_VARIANT": 1})
-_CLEAN_IMPL = ("    sort(write_set_.begin(), write_set_.end(),\n"
-              "         [](const auto& a, const auto& b) { return a.key_ < b.key_; });")
-_NON_SWO_IMPL = ("    sort(write_set_.begin(), write_set_.end(),\n"
-                 "         [](const auto& a, const auto& b) { return &a != &b; });")
+_CLEAN_IMPL = ("  sort(write_set_.begin(), write_set_.end(),\n"
+               "       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b)"
+               " -> bool {\n"
+               "         return a.key_ < b.key_;\n"
+               "       });")
+_NON_SWO_IMPL = ("  sort(write_set_.begin(), write_set_.end(),\n"
+                 "       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b)"
+                 " -> bool {\n"
+                 "         return b.key_ < a.key_;\n"
+                 "       });")
 _HOST_EFFECT_INJECTIONS = (
     'std::system("ignored");',
     'execl("ignored", "ignored", nullptr);',
@@ -215,6 +226,63 @@ def test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches():
     gate = S._quarantine_and_audit(d, coder, auditor, _G, _tmp_layout("pass"), state,
                                    _planner(), write=False)
     assert gate is None
+
+
+def test_materialized_hole_is_canonical_form():
+    from orchestrator.campaign import sort_swo_oracle as oracle
+    from orchestrator.campaign.diff_quarantine import parse_template_file
+
+    d = _mk_template_dir()
+    path = Path(d, _SRC_REL)
+    marker = parse_template_file(str(path), S.MARKER_ID)
+    assert marker is not None
+    template_lines = path.read_text(encoding="utf-8").split("\n")
+    hole_line = template_lines[marker.hole_first - 1]
+    harness_indent = hole_line[:len(hole_line) - len(hole_line.lstrip())]
+    assert harness_indent
+    raw = " \n\t".join(oracle._sort_ir_tokens(_CLEAN_IMPL))
+    result, _base, edited, _diff = L.quarantine(
+        d, raw, marker_id=S.MARKER_ID, source_rel=_SRC_REL, write=True,
+    )
+    assert result.passed
+    assert raw != _CLEAN_IMPL
+    materialized_hole = oracle.extract_materialized_hole(
+        edited, S.MARKER_ID,
+    )
+    assert oracle.canonicalize_sort_implementation(materialized_hole) == _CLEAN_IMPL
+    for line in materialized_hole.splitlines():
+        assert line.startswith(harness_indent)
+    assert Path(d, _SRC_REL).read_text(encoding="utf-8") == edited
+
+
+def test_sort_ir_admission_rejects_after_effect_veto_and_before_oracle(
+        monkeypatch):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    quarantine_source = inspect.getsource(L.quarantine)
+    assert quarantine_source.index("scan_host_effects(implementation)") < (
+        quarantine_source.index('marker_id == "silo-writeset-sort"')
+    )
+    d = _mk_template_dir()
+    generic = (
+        "sort(write_set_.begin(), write_set_.end(), "
+        "[](const auto& a, const auto& b) { return a.key_ < b.key_; });"
+    )
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo",
+        lambda *_args, **_kwargs: pytest.fail("non-IR reached oracle environment"),
+    )
+    result, *_ = L.quarantine(
+        d, generic, marker_id=S.MARKER_ID, source_rel=_SRC_REL, write=False,
+    )
+    assert result.passed is False
+    assert result.subtype is DiffRejectSubtype.SORT_SWO_ORACLE
+    assert result.reason == "sort-ir.parameter-signature.v1"
+    assert result.digest["oracle_finding"] == {
+        "kind": "structure",
+        "reason_code": "sort-ir.parameter-signature.v1",
+        "corpus_id": oracle.CORPUS_ID,
+    }
 
 
 def test_oracle_receives_materialized_source_and_separate_proposal(monkeypatch):
@@ -901,7 +969,7 @@ def test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged(
     assert L.B4_PROTOCOL_KEY not in ordinary.search_config
     assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
     assert str(ident.campaign_id(ordinary)) == (
-        "p3-s5-sort-loop-s5-sort-autonomous-081dd46f"
+        "p3-s5-sort-loop-s5-sort-autonomous-6f6a8cf1"
     )
     assert ident.campaign_id(marked) != ident.campaign_id(ordinary)
 

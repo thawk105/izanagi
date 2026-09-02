@@ -1,0 +1,187 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T2136-M1-PRODUCER-DROPS-GENOME",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibrator_certify.py::test_cli_certified_attempt_and_published_artifact_record_receipt_genome"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/calibrator/cli.py",
+     "old": "    doc[\"genome\"] = genome\n",
+     "new": "    doc.pop(\"genome\", None)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M2-PROTOCOL-PINNED-TO-SILO",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibrator_certify.py::test_receipt_genome_derivation_names_mocc_and_preserves_non_axis_define"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/calibrator/cli.py",
+     "old": "    protocol = target_match.group(1)\n",
+     "new": "    protocol = \"silo\"\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M3-AXIS-COMPLETENESS-DROPPED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibrator_certify.py::test_receipt_genome_invalid_is_rejected_before_benchmark[missing-protocol-axis]"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/calibrator/cli.py",
+     "old": "    if missing_axes:\n        raise CertificationError(\n            \"receipt-genome-invalid\",\n            \"configure argv is missing protocol axes: \" + \",\".join(missing_axes),\n        )\n",
+     "new": "    if False:\n        raise CertificationError(\n            \"receipt-genome-invalid\",\n            \"configure argv is missing protocol axes: \" + \",\".join(missing_axes),\n        )\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M4-TRACE-CHECK-DROPPED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibrator_certify.py::test_receipt_genome_invalid_is_rejected_before_benchmark[receipt-trace-enabled]",
+    "orchestrator/tests/test_calibrator_certify.py::test_receipt_genome_malformed_argv_is_rejected_before_benchmark[missing-trace-define]"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/calibrator/cli.py",
+     "old": "    if flags.get(\"TRACE\") != 0:\n        raise CertificationError(\n            \"receipt-genome-invalid\", \"CCBENCH_TRACE must appear exactly once with value 0\",\n        )\n",
+     "new": "    if False:\n        raise CertificationError(\n            \"receipt-genome-invalid\", \"CCBENCH_TRACE must appear exactly once with value 0\",\n        )\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M5-SCHEMA-GENOME-CHECK-WEAKENED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_schema_v2.py::test_v2_rejects_noncanonical_or_reserved_genome[duplicate]",
+    "orchestrator/tests/test_schema_v2.py::test_v2_rejects_noncanonical_or_reserved_genome[empty-body]",
+    "orchestrator/tests/test_schema_v2.py::test_v2_rejects_noncanonical_or_reserved_genome[non-integer]",
+    "orchestrator/tests/test_schema_v2.py::test_v2_rejects_noncanonical_or_reserved_genome[reserved-trace]",
+    "orchestrator/tests/test_schema_v2.py::test_v2_rejects_noncanonical_or_reserved_genome[unsorted]"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/calibrator/schema_v2.py",
+     "old": "def _canonical_genome(value: object) -> str:\n    encoded = _text(value, field=\"genome\")\n",
+     "new": "def _canonical_genome(value: object) -> str:\n    return _text(value, field=\"genome\")\n    encoded = _text(value, field=\"genome\")\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M6-PIN-NOT-ADDED-AS-CANDIDATE",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_resolves_contract_pin_by_suffix",
+    "orchestrator/tests/test_layer3_report.py::test_pegasus_v2_adds_only_contract_pin_not_registered_glob"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "            path_sources[pin_path] = path_sources.get(pin_path, False)\n",
+     "new": "            pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M7-PIN-SHA-CHECK-DROPPED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_contract_pin_sha_mismatch_fails_closed_before_floor_use"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "    if actual_sha256 != contract_pin.sha256:\n        raise Layer3ReportError(\n            \"contract calibration pin の SHA-256 が不一致: \"\n            f\"expected={contract_pin.sha256} actual={actual_sha256}\"\n        )\n",
+     "new": "    if False:\n        raise Layer3ReportError(\n            \"contract calibration pin の SHA-256 が不一致: \"\n            f\"expected={contract_pin.sha256} actual={actual_sha256}\"\n        )\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M8-PIN-ONLY-REGRESSION",
+   "category": "positive",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_between_run_schema_version_does_not_change_floor_classification",
+    "orchestrator/tests/test_layer3_report.py::test_duplicate_matching_floor_of_same_kind_fails_closed",
+    "orchestrator/tests/test_layer3_report.py::test_floor_candidate_without_workload_fails_closed",
+    "orchestrator/tests/test_layer3_report.py::test_floor_kinds_match_independently_and_classification_records_skips",
+    "orchestrator/tests/test_layer3_report.py::test_floor_match_uses_protocol_records_threads_and_workload",
+    "orchestrator/tests/test_layer3_report.py::test_legacy_silo_within_floor_without_genome_states_match_basis",
+    "orchestrator/tests/test_layer3_report.py::test_linux_v2_keeps_direct_skew_zero_floor_in_addition_to_pin",
+    "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing",
+    "orchestrator/tests/test_layer3_report.py::test_report_projects_both_nonlegacy_protocol_match_bases",
+    "orchestrator/tests/test_layer3_report.py::test_wrong_protocol_floor_is_reported_as_mismatch"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "    direct_paths = (\n        sorted(path.resolve() for path in calibration_dir.glob(\"*.json\"))\n        if calibration_dir.is_dir() else []\n    )\n",
+     "new": "    direct_paths = (\n        sorted(path.resolve() for path in calibration_dir.glob(\"*.json\"))\n        if calibration_dir.is_dir() and contract_pin is None else []\n    )\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M9-BASIS-UNIFORM-CANONICAL",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_floor_protocol_basis_distinguishes_receipt_from_producer_genome",
+    "orchestrator/tests/test_layer3_report.py::test_report_projects_both_nonlegacy_protocol_match_bases"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "        basis = (\n            \"receipt-derived-build-argv\"\n            if \"acquisition_receipt\" in doc\n            else \"canonical-floor-genome\"\n        )\n",
+     "new": "        basis = \"canonical-floor-genome\"\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2136-M10-LEGACY-BASIS-DROPPED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_legacy_silo_within_floor_without_genome_states_match_basis",
+    "orchestrator/tests/test_layer3_report.py::test_legacy_within_floor_without_genome_does_not_match_mocc",
+    "orchestrator/tests/test_layer3_report.py::test_linux_v2_keeps_direct_skew_zero_floor_in_addition_to_pin",
+    "orchestrator/tests/test_layer3_report.py::test_pegasus_v2_adds_only_contract_pin_not_registered_glob"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "old": "        return \"silo\", \"genome-absent-legacy-record\"\n",
+     "new": "        return \"silo\", \"canonical-floor-genome\"\n"
+    }
+   ]
+  }
+ ]
+}
