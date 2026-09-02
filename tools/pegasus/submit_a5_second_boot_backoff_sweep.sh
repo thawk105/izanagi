@@ -166,6 +166,7 @@ PY
 append_submission_event manifest "$GROUP_ID" "$SUBMISSION_NONCE" \
   "$JOB_SCRIPT_SHA256" "$EXPECTED_HEAD" "${WORKLOADS[@]}"
 
+cd -- "$REPO_ROOT"
 for workload in "${WORKLOADS[@]}"; do
   root="$OUTPUT_PARENT/$GROUP_ID-$workload"
   stdout="$OUTPUT_PARENT/$GROUP_ID-$workload.stdout"

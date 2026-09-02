@@ -123,6 +123,8 @@ trap on_error ERR
 remove_worktrees() {
   local cleanup_rc=0
   local command_rc=0
+  local remove_rc=0
+  local prune_rc=0
   local deadline=$((SECONDS + WORKTREE_CLEANUP_CAP_S))
   local remaining
   if [[ -n "$CCBENCH_BASE" && -n "$JOB_CCBENCH" ]]; then
@@ -150,7 +152,20 @@ remove_worktrees() {
       [[ "$command_rc" -eq 0 ]] && JOB_REPO=""
     fi
   fi
-  printf '%s\n' "$cleanup_rc" >"$OUTPUT_ROOT/env/worktree-remove.rc" || true
+  remove_rc=$cleanup_rc
+  if [[ -n "$CCBENCH_BASE" ]]; then
+    remaining=$((deadline - SECONDS))
+    if [[ "$remaining" -le 0 ]]; then
+      prune_rc=124
+    else
+      timeout "$remaining" git -C "$CCBENCH_BASE" worktree prune --expire now \
+        >>"$OUTPUT_ROOT/env/ccbench-worktree-prune.stdout" \
+        2>>"$OUTPUT_ROOT/env/ccbench-worktree-prune.stderr" || prune_rc=$?
+    fi
+    [[ "$cleanup_rc" -ne 0 || "$prune_rc" -eq 0 ]] || cleanup_rc=$prune_rc
+  fi
+  printf '%s\nprune_rc=%s\n' "$remove_rc" "$prune_rc" \
+    >"$OUTPUT_ROOT/env/worktree-remove.rc" || true
   return "$cleanup_rc"
 }
 
@@ -201,6 +216,8 @@ for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
 done
 [[ -n "$PY" ]] || fail 2 "Python 3.10 is required"
 
+# FetchContent dependencies use the same proxy path as B-10; the campaign
+# driver has no binding for the former third-party cache environment variable.
 export http_proxy="$BUILD_NETWORK_PROXY_URL"
 export https_proxy="$BUILD_NETWORK_PROXY_URL"
 for command_name in \
@@ -436,11 +453,6 @@ with open(destination, "x", encoding="utf-8") as handle:
     handle.flush()
     os.fsync(handle.fileno())
 PY
-
-export IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cache
-[[ -d "$IZANAGI_PEGASUS_THIRDPARTY_CACHE" \
-  && ! -L "$IZANAGI_PEGASUS_THIRDPARTY_CACHE" ]] || \
-  fail 2 "Pegasus third-party source cache is unavailable"
 
 # The campaign driver resolves external/ccbench relative to its own repository.
 # Materialize both repositories in scratch so the submitted checkout is never patched.
@@ -782,14 +794,21 @@ document = {
 }
 payload = (canonical_json(document) + "\n").encode("utf-8")
 destination = base / "result.json"
+temporary = base / f".result.json.tmp.{os.getpid()}"
 flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-fd = os.open(destination, flags, 0o600)
+fd = os.open(temporary, flags, 0o600)
 try:
-    if os.write(fd, payload) != len(payload):
-        raise OSError("short result receipt write")
-    os.fsync(fd)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+except BaseException:
+    temporary.unlink(missing_ok=True)
+    raise
+try:
+    os.link(temporary, destination, follow_symlinks=False)
 finally:
-    os.close(fd)
+    temporary.unlink(missing_ok=True)
 parent_fd = os.open(base, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
 try:
     os.fsync(parent_fd)

@@ -13,10 +13,36 @@ EXPECTED_WORKLOADS = ("write-heavy", "balanced")
 
 
 def _shell_array(source: str, name: str) -> tuple[str, ...]:
-    match = re.search(rf"(?m)^{re.escape(name)}=\(([^\n()]*)\)$", source)
-    if match is None:
-        raise AssertionError(f"missing literal shell array: {name}")
-    return tuple(shlex.split(match.group(1)))
+    assignment_pattern = re.compile(
+        rf"(?m)^[ \t]*(?:(?:declare|readonly|typeset)"
+        rf"(?:[ \t]+-[A-Za-z]+)*[ \t]+)?{re.escape(name)}"
+        rf"(?:\[[^\]\n]*\])?[ \t]*\+?="
+    )
+    assignments = list(assignment_pattern.finditer(source))
+    if len(assignments) != 1:
+        raise AssertionError(
+            f"expected exactly one assignment or append for {name}, "
+            f"found {len(assignments)}"
+        )
+    array_pattern = re.compile(
+        rf"(?ms)^[ \t]*{re.escape(name)}[ \t]*=[ \t]*"
+        rf"\((?P<body>.*?)\)[ \t]*(?:\#.*)?$"
+    )
+    arrays = list(array_pattern.finditer(source))
+    if len(arrays) != 1 or arrays[0].start() != assignments[0].start():
+        raise AssertionError(f"missing unique literal shell array: {name}")
+    return tuple(shlex.split(arrays[0].group("body"), comments=True, posix=True))
+
+
+def _shell_case_patterns(source: str) -> tuple[str, ...]:
+    lexer = shlex.shlex(source, posix=True, punctuation_chars="|")
+    lexer.whitespace_split = True
+    tokens = list(lexer)
+    if not tokens or tokens[0] == "|" or tokens[-1] == "|":
+        raise AssertionError(f"invalid shell case pattern list: {source!r}")
+    if any(token != "|" for token in tokens[1::2]):
+        raise AssertionError(f"invalid shell case alternation: {source!r}")
+    return tuple(tokens[::2])
 
 
 def _job_workload_case(source: str) -> tuple[str, ...]:
@@ -28,19 +54,105 @@ def _job_workload_case(source: str) -> tuple[str, ...]:
     if match is None:
         raise AssertionError("missing literal WORKLOAD case gate")
     accepted = []
-    for line in match.group("body").splitlines():
-        candidate = line.strip()
-        if candidate.startswith("*") or not candidate.endswith(") ;;"):
+    for clause in match.group("body").split(";;"):
+        candidate = clause.strip()
+        if not candidate:
             continue
-        accepted.extend(candidate[:-4].split("|"))
+        pattern_source, separator, _commands = candidate.partition(")")
+        if not separator:
+            raise AssertionError(f"unterminated WORKLOAD case clause: {candidate!r}")
+        patterns = _shell_case_patterns(pattern_source.strip())
+        if patterns == ("*",):
+            continue
+        accepted.extend(patterns)
     return tuple(accepted)
 
 
-def _python_literal(source: str, name: str):
-    match = re.search(rf"(?m)^{re.escape(name)} = (.+)$", source)
-    if match is None:
-        raise AssertionError(f"missing finalizer literal: {name}")
-    return ast.literal_eval(match.group(1))
+def _finalizer_tree(source: str) -> ast.Module:
+    blocks = re.findall(r"<<'PY'\n(?P<body>.*?)\nPY(?:\n|$)", source, re.DOTALL)
+    matches = [block for block in blocks if "BASELINE_FLAGS" in block]
+    if len(matches) != 1:
+        raise AssertionError(f"expected one Python finalizer, found {len(matches)}")
+    return ast.parse(matches[0])
+
+
+def _target_writes_name(target: ast.AST, name: str) -> bool:
+    if isinstance(target, ast.Name):
+        return target.id == name
+    if isinstance(target, (ast.Attribute, ast.Subscript, ast.Starred)):
+        return _target_writes_name(target.value, name)
+    if isinstance(target, (ast.List, ast.Tuple)):
+        return any(_target_writes_name(item, name) for item in target.elts)
+    return False
+
+
+def _mutation_sites(tree: ast.AST, name: str) -> list[ast.AST]:
+    sites = []
+    mutating_methods = {
+        "__delitem__", "__setitem__", "add", "append", "clear", "discard",
+        "difference_update", "extend", "insert", "intersection_update", "pop",
+        "popitem", "remove", "reverse", "setdefault", "sort",
+        "symmetric_difference_update", "update",
+    }
+    for node in ast.walk(tree):
+        targets: list[ast.AST] = []
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            targets = [node.target]
+        elif isinstance(node, ast.Delete):
+            targets = node.targets
+        if any(_target_writes_name(target, name) for target in targets):
+            sites.append(node)
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr in mutating_methods
+                and _target_writes_name(node.func.value, name)):
+            sites.append(node)
+    return sites
+
+
+def _single_assignment(tree: ast.AST, name: str) -> ast.Assign:
+    sites = _mutation_sites(tree, name)
+    if len(sites) != 1:
+        raise AssertionError(
+            f"expected exactly one assignment or mutation for {name}, found {len(sites)}"
+        )
+    assignment = sites[0]
+    if (not isinstance(assignment, ast.Assign) or len(assignment.targets) != 1
+            or not isinstance(assignment.targets[0], ast.Name)
+            or assignment.targets[0].id != name):
+        raise AssertionError(f"{name} must have one direct assignment")
+    return assignment
+
+
+def _assert_assignment_expression(tree: ast.AST, name: str, expression: str) -> ast.Assign:
+    assignment = _single_assignment(tree, name)
+    expected = ast.parse(expression, mode="eval").body
+    assert ast.dump(assignment.value, include_attributes=False) == ast.dump(
+        expected, include_attributes=False
+    )
+    return assignment
+
+
+def _if_with_system_exit(tree: ast.AST, message: str) -> ast.If:
+    matches = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        for statement in node.body:
+            if (isinstance(statement, ast.Raise)
+                    and isinstance(statement.exc, ast.Call)
+                    and isinstance(statement.exc.func, ast.Name)
+                    and statement.exc.func.id == "SystemExit"
+                    and len(statement.exc.args) == 1
+                    and isinstance(statement.exc.args[0], ast.Constant)
+                    and statement.exc.args[0].value == message):
+                matches.append(node)
+    if len(matches) != 1:
+        raise AssertionError(
+            f"expected one active completeness check for {message!r}, found {len(matches)}"
+        )
+    return matches[0]
 
 
 def _integer_assignment(source: str, name: str) -> int:
@@ -62,22 +174,27 @@ def _pbs_walltime_seconds(source: str) -> int:
 
 
 def _assert_submitter_workloads(source: str) -> None:
-    assert _shell_array(source, "WORKLOADS") == EXPECTED_WORKLOADS
+    workloads = _shell_array(source, "WORKLOADS")
+    assert len(workloads) == len(EXPECTED_WORKLOADS)
+    assert set(workloads) == set(EXPECTED_WORKLOADS)
 
 
 def _assert_job_workloads(source: str) -> None:
-    assert _job_workload_case(source) == EXPECTED_WORKLOADS
+    workloads = _job_workload_case(source)
+    assert len(workloads) == len(EXPECTED_WORKLOADS)
+    assert set(workloads) == set(EXPECTED_WORKLOADS)
 
 
 def _assert_no_backoff_denominator(source: str) -> None:
-    assert _python_literal(source, "BASELINE_FLAGS") == {
-        "BACK_OFF": 0,
-        "BACKOFF_FIXED": -1,
+    tree = _finalizer_tree(source)
+    flags_assignment = _single_assignment(tree, "BASELINE_FLAGS")
+    assert ast.literal_eval(flags_assignment.value) == {
+        "BACK_OFF": 0, "BACKOFF_FIXED": -1,
     }
-    assert (
-        'baseline = selected_by_flags(BASELINE_FLAGS)'
-        in source
+    baseline_assignment = _assert_assignment_expression(
+        tree, "baseline", "selected_by_flags(BASELINE_FLAGS)"
     )
+    assert flags_assignment.lineno < baseline_assignment.lineno
     assert (
         'target = selected_by_flags({"BACK_OFF": 1, "BACKOFF_FIXED": target_fixed_us})'
         in source
@@ -85,25 +202,47 @@ def _assert_no_backoff_denominator(source: str) -> None:
 
 
 def _assert_complete_committed_sweep(source: str) -> None:
-    required = {
-        "eight-genome-literal": "EXPECTED_GENOME_COUNT = 8",
-        "expected-genomes": (
-            "expected_genomes = {genome.canonical() for genome in "
-            "expected_genome_objects}"
-        ),
-        "all-genomes": "if committed_genomes != expected_genomes:",
-        "abort-count": 'abort_count = sum(record.stage == "abort" for record in records)',
-        "abort-zero": "or abort_count != 0",
-        "all-committed": (
-            "or any(not state.committed or state.aborted for state in "
-            "states.values())"
-        ),
-        "five-tps": "EXPECTED_TPS_COUNT = 5",
-        "wal-replay": "states = wal.replay(layout, admission_policy=policy)",
-    }
-    missing = [label for label, fragment in required.items() if fragment not in source]
-    if missing:
-        raise AssertionError("incomplete A-5 finalizer contract: " + ",".join(missing))
+    tree = _finalizer_tree(source)
+    genome_count = _single_assignment(tree, "EXPECTED_GENOME_COUNT")
+    assert ast.literal_eval(genome_count.value) == 8
+    tps_count = _single_assignment(tree, "EXPECTED_TPS_COUNT")
+    assert ast.literal_eval(tps_count.value) == 5
+    _assert_assignment_expression(
+        tree, "states", "wal.replay(layout, admission_policy=policy)"
+    )
+    _assert_assignment_expression(tree, "records", "wal.read_records(layout)")
+    _assert_assignment_expression(
+        tree,
+        "expected_genomes",
+        "{genome.canonical() for genome in expected_genome_objects}",
+    )
+    _assert_assignment_expression(
+        tree,
+        "abort_count",
+        'sum(record.stage == "abort" for record in records)',
+    )
+    completeness = _if_with_system_exit(
+        tree, "A-5 requires exactly eight committed genomes and zero abort records"
+    )
+    expected_condition = ast.parse(
+        "len(states) != EXPECTED_GENOME_COUNT "
+        "or abort_count != 0 "
+        "or any(not state.committed or state.aborted for state in states.values())",
+        mode="eval",
+    ).body
+    assert ast.dump(completeness.test, include_attributes=False) == ast.dump(
+        expected_condition, include_attributes=False
+    )
+    _assert_assignment_expression(tree, "committed_genomes", "set(committed)")
+    canonical_check = _if_with_system_exit(
+        tree, "all eight canonical genomes must commit"
+    )
+    expected_canonical_check = ast.parse(
+        "committed_genomes != expected_genomes", mode="eval"
+    ).body
+    assert ast.dump(canonical_check.test, include_attributes=False) == ast.dump(
+        expected_canonical_check, include_attributes=False
+    )
 
 
 def _assert_walltime_budget(source: str) -> None:
@@ -145,17 +284,22 @@ def _assert_execution_shape(job: str, submitter: str) -> None:
     assert "--screening" not in job
     assert "--screening-fixed-us" not in job
     assert "--confirm-each-candidate" not in job
-    assert (
-        "export IZANAGI_PEGASUS_THIRDPARTY_CACHE="
-        "/work/1/SFC/tanab/izanagi-thirdparty-cache"
-    ) in job
+    assert "IZANAGI_PEGASUS_THIRDPARTY_CACHE" not in job
+    assert 'export http_proxy="$BUILD_NETWORK_PROXY_URL"' in job
+    assert 'export https_proxy="$BUILD_NETWORK_PROXY_URL"' in job
     assert 'JOB_REPO="$TMPDIR/job-repo"' in job
     assert 'JOB_CCBENCH="$JOB_REPO/external/ccbench"' in job
     assert 'mkdir -m 0700 "$OUTPUT_ROOT/env/pegasus" "$OUTPUT_ROOT/env/pegasus/claims"' in job
     assert 'destination = base / "result.json"' in job
-    assert 'os.O_WRONLY | os.O_CREAT | os.O_EXCL' in job
+    assert 'fd = os.open(temporary, flags, 0o600)' in job
+    assert 'os.link(temporary, destination, follow_symlinks=False)' in job
+    assert 'git -C "$CCBENCH_BASE" worktree prune --expire now' in normalized_job
+    assert "printf '%s\\nprune_rc=%s\\n'" in job
     assert 'A5_EXPECTED_HEAD=$EXPECTED_HEAD' in submitter
     assert '-o "$stdout" -e "$stderr" "$JOB_SCRIPT"' in normalized_submitter
+    assert normalized_submitter.index('cd -- "$REPO_ROOT"') < normalized_submitter.index(
+        "job_id=$(qsub"
+    )
     for fragment in (
         '"hostname": hostname',
         '"fqdn": fqdn',
