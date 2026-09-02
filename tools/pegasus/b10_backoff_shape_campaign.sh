@@ -105,7 +105,8 @@ on_err() {
 }
 trap on_err ERR
 on_signal() {
-  local name=$1 number=$2 rc=$((128 + number))
+  local name=$1 number=$2
+  local rc=$((128 + number))
   trap - ERR INT TERM HUP
   write_failure "$rc" signal "received $name"
   exit "$rc"
