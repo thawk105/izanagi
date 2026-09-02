@@ -190,7 +190,9 @@ def _require_condition_gate(
         captured, request=request, cxx=cxx, cmake=cmake,
     )
     meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
-        captured, request=request, declaration=None, cxx=cxx,
+        captured, request=request,
+        declaration=condition_meaning_gate.declare_define_runtime_meaning(request),
+        cxx=cxx,
     )
     admission = condition_meaning_gate.require_condition_gate_family(
         [supply], [meaning], use_class="raw-measurement",
