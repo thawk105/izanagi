@@ -21311,3 +21311,37 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: receipt の `failure_class=f45_missing_output` と
   `attempt-0001.events.jsonl` 末尾の `turn.failed` を段 3・5・6 の採用 gate 前に読む
   (`tools/check_codex_output.py` は出力不在を rc 非 0 で拒否するが、原因までは示さない)。
+
+### F819. 段 5 実装子の投げ文が親の worktree を指し、子が 1 byte も書かずに「成功」で戻った [恒真ゲート] [手順漏れ]
+
+- 事象: [T-2200] の段 5 で、実装子の prompt に書いた repo root と必読 path が**親の wave worktree**
+  を指していた。子の書込み許可は自分の worktree だけなので `apply_patch` が
+  `writing outside of the project; rejected by user approval settings` で拒否され、
+  実装は 1 件も行われなかった。**`.done` は 0、`check_codex_output.py` も rc=0** で、
+  完了検査だけでは成功と見分けがつかない。1 回分の投入を空費した。
+- 根本原因: `DW-S05-A` は「各投入先 root を cwd にし」と書いているが、これは親が走らせる
+  midflight gate の cwd の話であり、prompt 本文へ書く絶対パスの話ではない。`DW-O02` の
+  「絶対パスで読ませる」も、どの worktree の絶対パスかを言っていない。親は brief と裁定を
+  自分の worktree で書いたため、その path をそのまま prompt へ写した。
+- 恒久対応: `docs/dev-wave/workers.md` の `DW-S05-A` に、prompt 本文の repo root と必読 path は
+  子自身の worktree でなければならないこと、および `.done` と `check_codex_output.py` の rc は
+  この失敗を検出しないことを追記する。
+- 再発検知: 子の完了報告の `git status --porcelain` が空、かつ「実装した内容」が空である組合せ。
+  親は投入先 worktree の `git status --porcelain` を実測して照合する。
+
+### F820. 変異点の内側に別の検査がネストしており、単一理由性が成り立たなかった [恒真ゲート]
+
+- 事象: [T-2200] の段 4 で登録した変異 M2 は、`policy.py` の backoff scalar 分岐の membership から
+  新 role 名を外すものだった。ところが同 membership の**内側**に、本 wave が足した
+  `knowledge_use` 参照整合性検査がネストしていた。外すと文法・value 一致検査と参照整合性検査の
+  2 機構を同時に迂回し、3 node が 2 つの理由で赤になる。段 6 のレンズ D が実装後に指摘するまで
+  親は気づかず、`DW-M01` の「無効化時の赤理由が一つに絞れる」をコードで確認したつもりでいた。
+- 根本原因: 親は事前登録の時点で「その行を変えると何が赤になるか」を、**変異点そのものの
+  意味だけ**で判定した。同じ wave で自分が変異点の内側へ新しい検査を足す予定だったことを、
+  単一理由性の判定に織り込んでいなかった。事前登録は実装前に行うため、
+  「実装後にどうネストするか」を先読みしない限りこの穴は開く。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M01` に、変異点が制御構造 (条件・ループ・
+  try) であるとき、その**内側に入る予定の検査も含めて**赤理由を数えることを追記する。
+  段 6 のレビュー子へは、事前登録した変異の期待 node を完全集合で再導出させる。
+- 再発検知: 段 6 のレビュー子に変異ごとの期待 node を完全集合で列挙させ、親の事前登録と
+  突き合わせる。件数が違えば単一理由性を再判定する。本 wave ではこの経路で実際に検出した。
