@@ -141,12 +141,16 @@ done
 check_quota >/dev/null
 QUEUE_STATE=$(qstat -Q)
 printf '%s\n' "$QUEUE_STATE" | "$PYTHON_BIN" -I -B -c '
-import re, sys
-text = sys.stdin.read()
+import sys
 queue = sys.argv[1]
-raise SystemExit(0 if queue in text
-                 and re.search(r"(?i)\b(ENA|ENABLE(?:D)?)\b", text)
-                 and re.search(r"(?i)\b(ACT|ACTIVE)\b", text) else 1)
+for line in sys.stdin:
+    fields = line.split()
+    if not fields or fields[0] != queue:
+        continue
+    states = {field.upper() for field in fields[1:]}
+    if states & {"ENA", "ENABLE", "ENABLED"} and states & {"ACT", "ACTIVE"}:
+        raise SystemExit(0)
+raise SystemExit(1)
 ' "$SCHEDULER_QUEUE" || {
   echo "$SCHEDULER_QUEUE is not ENA/ACT" >&2
   exit 2
@@ -203,14 +207,23 @@ fi
 TMP_ROOT=$(mktemp -d)
 trap 'rm -rf -- "$TMP_ROOT"' EXIT
 inventory_rc=0
-qstat >"$TMP_ROOT/request-inventory.stdout" \
+qstat -f >"$TMP_ROOT/request-inventory.stdout" \
   2>"$TMP_ROOT/request-inventory.stderr" || inventory_rc=$?
 if [[ "$inventory_rc" -ne 0 || -s "$TMP_ROOT/request-inventory.stderr" ]]; then
   echo "cannot inventory existing certification requests" >&2
   exit 2
 fi
-REQUEST_INVENTORY=$(<"$TMP_ROOT/request-inventory.stdout")
-if [[ "$REQUEST_INVENTORY" == *"$JOB_NAME"* ]]; then
+if "$PYTHON_BIN" -I -B - "$TMP_ROOT/request-inventory.stdout" "$JOB_NAME" <<'PY'
+import pathlib
+import sys
+
+inventory_path, job_name = sys.argv[1:]
+expected = f"    Request Name = {job_name}"
+lines = pathlib.Path(inventory_path).read_text(
+    encoding="utf-8", errors="replace").splitlines()
+raise SystemExit(0 if expected in lines else 1)
+PY
+then
   echo "a same-study certification request is already visible" >&2
   exit 2
 fi

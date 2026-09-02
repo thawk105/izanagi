@@ -28,6 +28,44 @@ fi
 repo=$IZANAGI_A2_REPO_ROOT
 attempt=$IZANAGI_A2_ATTEMPT_ROOT
 workload=$IZANAGI_A2_WORKLOAD
+job_root=$attempt/jobs/$workload
+raw_root=$job_root/raw
+campaign_root=$job_root/campaigns
+cache_root=$job_root/cache
+scheduler_root=$job_root/scheduler
+dependency_source=$IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE
+ccbench_root=$IZANAGI_A2_CCBENCH_ROOT
+if [[ ! -d "$repo" || -L "$repo" || ! -d "$attempt" || -L "$attempt" \
+   || ! -d "$job_root" || -L "$job_root" \
+   || ! -d "$campaign_root" || -L "$campaign_root" \
+   || ! -d "$cache_root" || -L "$cache_root" \
+   || ! -d "$scheduler_root" || -L "$scheduler_root" ]]; then
+  echo "repo or durable workload job root is unavailable" >&2
+  exit 2
+fi
+result=$job_root/compute-result.json
+if [[ -e "$result" || -L "$result" ]]; then
+  echo "compute result already exists" >&2
+  exit 2
+fi
+pbs_jobid_path_component=${PBS_JOBID//:/_}
+finish() {
+  rc=$?
+  trap - EXIT
+  tmp=$job_root/.compute-result.${pbs_jobid_path_component}.tmp
+  printf '{"schema_version":"paper-story-a2-compute-result/v2","workload":"%s","driver_rc":%s,"pbs_jobid":"%s","current_pin":"%s"}\n' \
+    "$workload" "$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN" >"$tmp"
+  sync "$tmp"
+  if ! ln "$tmp" "$result"; then
+    rm "$tmp"
+    exit 2
+  fi
+  rm "$tmp"
+  sync "$job_root"
+  exit "$rc"
+}
+trap finish EXIT
+
 resolve_python() {
   local candidate resolved selected=""
   for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
@@ -76,43 +114,6 @@ POLICY_ARGS=()
 if [[ -n "$POLICY_SELECTION" ]]; then
   POLICY_ARGS=(--policy "$POLICY_PATH")
 fi
-job_root=$attempt/jobs/$workload
-raw_root=$job_root/raw
-campaign_root=$job_root/campaigns
-cache_root=$job_root/cache
-scheduler_root=$job_root/scheduler
-dependency_source=$IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE
-ccbench_root=$IZANAGI_A2_CCBENCH_ROOT
-if [[ ! -d "$repo" || -L "$repo" || ! -d "$attempt" || -L "$attempt" \
-   || ! -d "$job_root" || -L "$job_root" \
-   || ! -d "$campaign_root" || -L "$campaign_root" \
-   || ! -d "$cache_root" || -L "$cache_root" \
-   || ! -d "$scheduler_root" || -L "$scheduler_root" ]]; then
-  echo "repo or durable workload job root is unavailable" >&2
-  exit 2
-fi
-result=$job_root/compute-result.json
-if [[ -e "$result" || -L "$result" ]]; then
-  echo "compute result already exists" >&2
-  exit 2
-fi
-pbs_jobid_path_component=${PBS_JOBID//:/_}
-finish() {
-  rc=$?
-  trap - EXIT
-  tmp=$job_root/.compute-result.${pbs_jobid_path_component}.tmp
-  printf '{"schema_version":"paper-story-a2-compute-result/v2","workload":"%s","driver_rc":%s,"pbs_jobid":"%s","current_pin":"%s"}\n' \
-    "$workload" "$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN" >"$tmp"
-  sync "$tmp"
-  if ! ln "$tmp" "$result"; then
-    rm "$tmp"
-    exit 2
-  fi
-  rm "$tmp"
-  sync "$job_root"
-  exit "$rc"
-}
-trap finish EXIT
 
 if [[ ! -d "$dependency_source" || -L "$dependency_source" ]]; then
   echo "pinned dependency source is unavailable" >&2

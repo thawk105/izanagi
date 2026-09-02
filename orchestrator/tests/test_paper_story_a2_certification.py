@@ -788,7 +788,7 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
         hashlib.sha256(A2._canonical_json(decorative_changed)).hexdigest()
 
 
-def test_m7_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
+def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
     raw = A2.POLICY_PATH.read_bytes()
     policy = A2.load_policy()
 
@@ -804,7 +804,7 @@ def test_m7_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
     assert A2._qsub_environment_keys(policy) == A2._QSUB_ENV_KEYS
 
 
-def test_m3_study_shape_map_rejects_three_workload_a6_policy(tmp_path):
+def test_m3_combined_count_layers_reject_three_workload_a6_policy(tmp_path):
     document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
     document["study"] = "paper-story-a6-certification"
     document["workloads"].append({
@@ -2448,6 +2448,7 @@ def test_collector_never_calls_positive_path_for_failed_or_manifestless_compute(
 
     monkeypatch.setattr(A2, "materialize", materialize)
     args = type("Args", (), {
+        "policy": None,
         "acquisition_receipt": str(acquisition),
         "current_pin": CURRENT_PIN,
         "attempt_root": str(root),

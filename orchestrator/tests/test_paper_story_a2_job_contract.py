@@ -95,6 +95,13 @@ def _assert_static_job_contract(source):
     first_python_use = source.index('"$PY" - "')
     if resolver_call >= first_python_use:
         raise AssertionError("interpreter resolution must precede Python use")
+    job_root_check = source.index('if [[ ! -d "$repo"')
+    trap_install = source.index("trap finish EXIT")
+    policy_resolution = source.index("readarray -t POLICY_VALUES")
+    if not job_root_check < trap_install < resolver_call < policy_resolution:
+        raise AssertionError(
+            "job root must precede the recovery trap, which must cover "
+            "interpreter and policy resolution")
     if source.count('--workload "$workload"') != 2:
         raise AssertionError("preflight and run must use the selected workload")
     if "finalize-raw" in source:
@@ -358,15 +365,40 @@ def _write_executable(path, source):
     path.chmod(0o755)
 
 
+def _write_qstat_inventory_fixture(tmp_path, request_names):
+    base = (
+        REPO / "orchestrator/tests/fixtures/paper_story_a2"
+        / "qstat-visibility-fanout-945411.stdout"
+    ).read_text(encoding="utf-8")
+    records = []
+    for index, request_name in enumerate(request_names):
+        request_id = f"{945410 + index}.nqsv"
+        record = base.replace(
+            "Request ID: 945411.nqsv", f"Request ID: {request_id}", 1)
+        record = record.replace(
+            "    Request Name = paper-a2-cert",
+            f"    Request Name = {request_name}",
+            1,
+        )
+        records.append(record.rstrip("\n"))
+    path = tmp_path / "qstat-inventory.stdout"
+    path.write_text("\n\n".join(records) + ("\n" if records else ""),
+                    encoding="utf-8")
+    return path
+
+
 def _run_submitter_harness(
         tmp_path, *, inventory_rc=0, stop_at_preregister=False,
         visibility_rc=23, visibility_fail_workload="rr5",
-        inventory_text="unrelated-request", inventory_stderr="",
+        inventory_names=(), inventory_stderr="", queue_state="gen_S ENA ACT\n",
         qsub_fail_workload="", qsub_rc=29,
         qsub_stderr_workload="", qsub_stderr_text="qsub diagnostic\n",
         precreate_diagnostic="", ccbench_head=None, resolved_pin=None,
-        resolver_rc=0, tracked_dirty=False, study="a2"):
-    policy = _a6_policy(tmp_path) if study == "a6" else _policy(tmp_path)
+        resolver_rc=0, tracked_dirty=False, study="a2",
+        exercise_finish_group=False):
+    a2_policy = _policy(tmp_path)
+    a6_policy = _a6_policy(tmp_path)
+    policy = a6_policy if study == "a6" else a2_policy
     workloads = A2.workload_ids(policy)
     first_workload = workloads[0]
     attempt_id = "submitter-harness"
@@ -381,6 +413,8 @@ def _run_submitter_harness(
     event_log = tmp_path / "event.log"
     qsub_log_dir = tmp_path / "qsub-log"
     qsub_log_dir.mkdir()
+    inventory_fixture = _write_qstat_inventory_fixture(
+        tmp_path, inventory_names)
     driver_log.touch()
     event_log.touch()
     if ccbench_head is None:
@@ -450,6 +484,7 @@ if [[ "$A2_TEST_QSUB_FAIL_WORKLOAD" == "$workload" ]]; then
 fi
 request=945411.nqsv
 [[ "$workload" == rr50 ]] && request=945412.nqsv
+[[ "$workload" == rr95 ]] && request=945413.nqsv
 printf 'Request %s submitted\n' "$request"
 if [[ "$A2_TEST_QSUB_STDERR_WORKLOAD" == "$workload" ]]; then
   printf '%s' "$A2_TEST_QSUB_STDERR_TEXT" >&2
@@ -458,23 +493,25 @@ exit 0
 """)
     _write_executable(binary_dir / "qstat", r"""#!/bin/bash
 if [[ ${1:-} == -Q ]]; then
-  printf '%s\n' 'gen_S ENA ACT'
+  printf '%s' "$A2_TEST_QUEUE_STATE"
   exit 0
 fi
-if [[ $# -eq 0 ]]; then
+if [[ $# -eq 1 && ${1:-} == -f ]]; then
   printf '%s\n' inventory >>"$A2_TEST_EVENT_LOG"
-  printf '%s\n' "$A2_TEST_INVENTORY_TEXT"
+  /bin/cat "$A2_TEST_INVENTORY_FIXTURE"
   printf '%s' "$A2_TEST_INVENTORY_STDERR" >&2
   exit "$A2_TEST_INVENTORY_RC"
 fi
-if [[ ${1:-} == -f ]]; then
+if [[ $# -eq 2 && ${1:-} == -f ]]; then
   request=${2#0:}
   request=${request%.}
   workload=rr5
   if [[ "$request" == 945412.nqsv ]]; then
     workload=rr50
-  elif [[ "$A2_TEST_STUDY" == a6 ]]; then
+  elif [[ "$request" == 945413.nqsv ]]; then
     workload=rr95
+  elif [[ "$request" != 945411.nqsv ]]; then
+    exit 89
   fi
   scheduler="$A2_TEST_ATTEMPT_ROOT/jobs/$workload/scheduler"
   sidecar="$scheduler/request-id"
@@ -491,7 +528,8 @@ if [[ ${1:-} == -f ]]; then
     printf '%s\n' 'visibility unavailable' >&2
     exit "$A2_TEST_VISIBILITY_RC"
   fi
-  printf 'Request ID: %s\n    Current State = Staging\n    Ended Request Time = (none)\n' "$request"
+  exec /bin/cat \
+    "$A2_TEST_QSTAT_FIXTURES/qstat-visibility-fanout-${request%%.*}.stdout"
 fi
 exit 96
 """)
@@ -510,11 +548,24 @@ def production_a2():
     sys.path.insert(0, os.environ["A2_TEST_REPO"])
     from orchestrator.campaign import paper_story_a2_certification as a2
     original_load_policy = a2.load_policy
-    policy_path = Path(os.environ["A2_TEST_POLICY"])
-    loaded = original_load_policy(policy_path)
-    canonical = a2.A6_POLICY_PATH if loaded.study.endswith("a6-certification") else a2.POLICY_PATH
-    loaded = replace(loaded, path=canonical)
-    a2.load_policy = lambda path=a2.POLICY_PATH: loaded
+    loaded_a2 = replace(
+        original_load_policy(Path(os.environ["A2_TEST_A2_POLICY"])),
+        path=a2.POLICY_PATH,
+    )
+    loaded_a6 = replace(
+        original_load_policy(Path(os.environ["A2_TEST_A6_POLICY"])),
+        path=a2.A6_POLICY_PATH,
+    )
+
+    def load_fixture_policy(path=a2.POLICY_PATH):
+        selected = Path(path).resolve()
+        if selected == a2.POLICY_PATH.resolve():
+            return loaded_a2
+        if selected == a2.A6_POLICY_PATH.resolve():
+            return loaded_a6
+        return original_load_policy(path)
+
+    a2.load_policy = load_fixture_policy
     a2.socket.gethostname = lambda: "pegasus01"
     return a2
 
@@ -559,14 +610,16 @@ os.execv(sys.executable, [sys.executable, *args])
         "PYTHON": str(python_wrapper),
         "PYTHONDONTWRITEBYTECODE": "1",
         "A2_TEST_REPO": str(REPO),
-        "A2_TEST_POLICY": str(policy.path),
+        "A2_TEST_A2_POLICY": str(a2_policy.path),
+        "A2_TEST_A6_POLICY": str(a6_policy.path),
         "A2_TEST_ATTEMPT_ROOT": str(attempt_root),
         "A2_TEST_FIRST_WORKLOAD": first_workload,
         "A2_TEST_STUDY": study,
         "A2_TEST_DRIVER_LOG": str(driver_log),
         "A2_TEST_INVENTORY_RC": str(inventory_rc),
-        "A2_TEST_INVENTORY_TEXT": inventory_text,
+        "A2_TEST_INVENTORY_FIXTURE": str(inventory_fixture),
         "A2_TEST_INVENTORY_STDERR": inventory_stderr,
+        "A2_TEST_QUEUE_STATE": queue_state,
         "A2_TEST_STOP_AT_PREREGISTER": (
             "1" if stop_at_preregister else "0"),
         "A2_TEST_VISIBILITY_RC": str(visibility_rc),
@@ -597,12 +650,22 @@ os.execv(sys.executable, [sys.executable, *args])
         command,
         cwd=REPO, env=environment, capture_output=True, text=True, check=False,
     )
+    if exercise_finish_group and completed.returncode == 0:
+        finish_command = [str(SUBMITTER), "finish-group"]
+        if study == "a6":
+            finish_command.extend(["--policy", str(A2.A6_POLICY_PATH)])
+        finish_command.extend(["--attempt-id", attempt_id])
+        subprocess.run(
+            finish_command, cwd=REPO, env=environment,
+            capture_output=True, text=True, check=False,
+        )
     return completed, attempt_root, driver_log.read_text(encoding="utf-8")
 
 
 def _run_compute_pin_harness(
         tmp_path, *, ccbench_head=None, resolved_pin=None, resolver_rc=0,
-        tracked_dirty=False, current_pin=CANONICAL_PIN, study="a2"):
+        tracked_dirty=False, current_pin=CANONICAL_PIN, study="a2",
+        policy_selection=None):
     workload = "rr95" if study == "a6" else "rr5"
     attempt_root = tmp_path / "attempt"
     job_root = attempt_root / "jobs" / workload
@@ -683,6 +746,8 @@ exit 97
     })
     if study == "a6":
         environment["IZANAGI_A2_POLICY_PATH"] = str(A2.A6_POLICY_PATH)
+    if policy_selection is not None:
+        environment["IZANAGI_A2_POLICY_PATH"] = policy_selection
     completed = subprocess.run(
         [str(JOB)], cwd=REPO, env=environment,
         capture_output=True, text=True, check=False,
@@ -743,6 +808,18 @@ def test_a6_compute_job_accepts_rr95_membership_before_source_gate(tmp_path):
     assert not (job_root / "raw").exists()
 
 
+def test_compute_job_trap_records_policy_resolution_failure(tmp_path):
+    completed, job_root = _run_compute_pin_harness(
+        tmp_path, study="a6",
+        policy_selection=str(tmp_path / "not-a-canonical-policy.json"))
+
+    assert completed.returncode == 2
+    result = json.loads((job_root / "compute-result.json").read_text())
+    assert result["workload"] == "rr95"
+    assert result["driver_rc"] == 2
+    assert not (job_root / "raw").exists()
+
+
 def test_prereg_m1_submitter_fails_closed_when_inventory_qstat_fails(tmp_path):
     completed, attempt_root, driver_log = _run_submitter_harness(
         tmp_path, inventory_rc=19)
@@ -761,6 +838,16 @@ def test_submitter_fails_closed_when_inventory_qstat_writes_stderr(tmp_path):
     assert not attempt_root.exists()
 
 
+def test_submitter_requires_selected_queue_line_to_be_enabled_and_active(tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, queue_state="gen_S DIS INA\ngen_L ENA ACT\n")
+
+    assert completed.returncode == 2
+    assert "gen_S is not ENA/ACT" in completed.stderr
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
 def test_prereg_pc1_submitter_continues_after_empty_request_inventory(tmp_path):
     completed, attempt_root, driver_log = _run_submitter_harness(
         tmp_path, inventory_rc=0, stop_at_preregister=True)
@@ -773,7 +860,7 @@ def test_prereg_pc1_submitter_continues_after_empty_request_inventory(tmp_path):
 def test_submitter_rejects_an_existing_a2_request_before_preregistration(
         tmp_path):
     completed, attempt_root, driver_log = _run_submitter_harness(
-        tmp_path, inventory_text="945410 paper-a2-cert RUN")
+        tmp_path, inventory_names=("paper-a2-cert",))
     assert completed.returncode == 2
     assert "already visible" in completed.stderr
     assert " preregister " not in " " + driver_log
@@ -781,18 +868,28 @@ def test_submitter_rejects_an_existing_a2_request_before_preregistration(
 
 
 @pytest.mark.parametrize(
-    "study,inventory_name,expected_rc",
+    "study,inventory_names,expected_rc",
     (
-        ("a2", "paper-a2-cert", 2),
-        ("a2", "paper-a6-cert", 37),
-        ("a6", "paper-a2-cert", 37),
-        ("a6", "paper-a6-cert", 2),
+        pytest.param("a2", ("paper-a2-cert",), 2, id="a2-same-study"),
+        pytest.param("a2", ("paper-a6-cert",), 37, id="a2-other-study"),
+        pytest.param(
+            "a6", ("paper-a2-cert", "izdw-b51"), 37,
+            id="p4-a6-other-study-and-unrelated",
+        ),
+        pytest.param(
+            "a6", ("paper-a6-cert-x",), 37,
+            id="p5-a6-prefix-collision",
+        ),
+        pytest.param(
+            "a6", ("paper-a6-cert",), 2,
+            id="p6-a6-same-study",
+        ),
     ),
 )
 def test_m6_submitter_duplicate_detection_is_study_scoped(
-        tmp_path, study, inventory_name, expected_rc):
+        tmp_path, study, inventory_names, expected_rc):
     completed, attempt_root, driver_log = _run_submitter_harness(
-        tmp_path, study=study, inventory_text=f"945410 {inventory_name} RUN",
+        tmp_path, study=study, inventory_names=inventory_names,
         stop_at_preregister=True,
     )
 
@@ -948,11 +1045,12 @@ def test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract(
 
 def test_p3_a6_submitter_uses_one_rr95_job_and_policy_scheduler(tmp_path):
     completed, attempt_root, driver_log = _run_submitter_harness(
-        tmp_path, study="a6", visibility_fail_workload="")
+        tmp_path, study="a6", visibility_fail_workload="",
+        exercise_finish_group=True)
     receipt_path = attempt_root / "receipts" / "submission.json"
 
     assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.splitlines() == [str(receipt_path), "945411.nqsv"]
+    assert completed.stdout.splitlines() == [str(receipt_path), "945413.nqsv"]
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     assert receipt["study"] == "paper-story-a6-certification"
     assert [job["workload"] for job in receipt["jobs"]] == ["rr95"]
@@ -964,8 +1062,25 @@ def test_p3_a6_submitter_uses_one_rr95_job_and_policy_scheduler(tmp_path):
         "-l", "elapstim_req=12:00:00", "-N", "paper-a6-cert"]
     assert (tmp_path / "event.log").read_text(encoding="utf-8").splitlines() == [
         "inventory", "qsub:rr95", "visibility:rr95",
+        "visibility:rr95",  # finish-group terminal-state inspection
     ]
-    assert "--policy" in driver_log
+    driver_invocations = []
+    module = "orchestrator.campaign.paper_story_a2_certification"
+    for line in driver_log.splitlines():
+        tokens = shlex.split(line)
+        if module not in tokens:
+            continue
+        command_args = tokens[tokens.index(module) + 1:]
+        assert command_args[:2] == ["--policy", str(A2.A6_POLICY_PATH)]
+        driver_invocations.append(command_args[2])
+    assert driver_invocations == [
+        "preregister", "exact-qsub", "durabilize-qsub-diagnostics",
+        "record-request-id", "record-submission", "finish-group",
+    ]
+    assert receipt["jobs"][0]["qstat_visibility"]["stdout"] == (
+        REPO / "orchestrator/tests/fixtures/paper_story_a2"
+        / "qstat-visibility-fanout-945413.stdout"
+    ).read_text(encoding="utf-8")
     assert "rr50" not in json.dumps(receipt)
 
 
