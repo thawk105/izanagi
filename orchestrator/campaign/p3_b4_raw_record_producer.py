@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from enum import Enum
+import fcntl
 from fractions import Fraction
 import hashlib
 import json
@@ -39,6 +40,7 @@ from .lock import CampaignBusy, campaign_lock
 from .model import STAGE_ABORT, STAGE_COMMIT
 from .p3_b4_analysis_adapter import RAW_ANALYSIS_SCHEMA_VERSION
 from .p3_b4_prerun_issuer import (
+    B4_RAW_RECORD_REJECTIONS_NAME,
     B4PrerunPublication,
     load_b4_prerun_publication,
 )
@@ -52,6 +54,9 @@ from orchestrator.verifier.commit_receipt import (
 B4_ATTEMPT_RESULT_SCHEMA_VERSION = "p3-b4-attempt-result/v1"
 B4_ARM_SOURCE_SCHEMA_VERSION = "p3-b4-arm-source-artifact/v1"
 B4_RAW_RECORD_REJECTION_SCHEMA_VERSION = "p3-b4-raw-record-rejection/v1"
+B4_RAW_RECORD_REJECTION_EVENT_SCHEMA_VERSION = (
+    "p3-b4-raw-record-rejection-event/v1"
+)
 B4_RAW_RECORD_DEFERRED_SCHEMA_VERSION = "p3-b4-raw-record-deferred/v1"
 
 B4_RAW_RECORD_NON_GUARANTEES = (
@@ -133,6 +138,33 @@ class B4RawRecordRejection:
 
 
 @dataclass(frozen=True, slots=True)
+class B4RawRecordDurableRejection(B4RawRecordRejection):
+    rejection_history_fragment_discarded: bool
+
+
+@dataclass(frozen=True, slots=True)
+class B4RawRecordRejectionEvent:
+    schema_version: str
+    issuer_commitment_sha256: str
+    attempt_id: str | None
+    issues: tuple[B4RawRecordIssue, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class B4RawRecordRejectionHistory:
+    path: str
+    status: str
+    fragment_discarded: bool
+    events: tuple[B4RawRecordRejectionEvent, ...]
+    detail: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class B4RawAnalysisRejection(B4RawRecordRejection):
+    rejection_history: B4RawRecordRejectionHistory
+
+
+@dataclass(frozen=True, slots=True)
 class B4RawRecordDeferred:
     schema_version: str
     attempt_id: str
@@ -158,6 +190,7 @@ class B4RawAnalysisAssembly:
     sha256: str
     source_artifact_bytes: tuple[bytes, ...]
     planned_attempt_artifact_paths: tuple[str, ...]
+    rejection_history: B4RawRecordRejectionHistory
 
 
 @dataclass(frozen=True, slots=True)
@@ -273,6 +306,25 @@ def _rejection(
         attempt_id=attempt_id,
         issues=tuple(issues),
     )
+
+
+def _recording_attempt_id(
+    publication: B4PrerunPublication,
+    request: object,
+) -> str | None:
+    """Recover only an issuer-planned ID without changing request validation."""
+
+    if type(request) is not dict:
+        return None
+    candidate = request.get("attempt_id")
+    if type(candidate) is not str:
+        return None
+    if any(
+        planned.attempt_id == candidate
+        for planned in publication.planned_result_artifacts
+    ):
+        return candidate
+    return None
 
 
 def _sha256(data: bytes) -> str:
@@ -556,6 +608,255 @@ def _publish_exact(path: str, data: bytes) -> bool:
         except OSError:
             pass
         os.close(parent_fd)
+
+
+def _rejection_event_payload(
+    publication: B4PrerunPublication,
+    rejection: B4RawRecordRejection,
+) -> dict[str, Any]:
+    return {
+        "schema_version": B4_RAW_RECORD_REJECTION_EVENT_SCHEMA_VERSION,
+        "issuer_commitment_sha256": publication.issuer_commitment_sha256,
+        "attempt_id": rejection.attempt_id,
+        "issues": [
+            {
+                "artifact": issue.artifact,
+                "field": issue.field,
+                "code": issue.code.value,
+                "detail": issue.detail,
+            }
+            for issue in rejection.issues
+        ],
+    }
+
+
+def _last_complete_line_offset(fd: int, size: int) -> int:
+    end = size
+    while end > 0:
+        start = max(0, end - 65536)
+        chunk = os.pread(fd, end - start, start)
+        newline = chunk.rfind(b"\n")
+        if newline >= 0:
+            return start + newline + 1
+        end = start
+    return 0
+
+
+def _append_rejection_event(
+    publication: B4PrerunPublication,
+    rejection: B4RawRecordRejection,
+) -> bool:
+    """Append one event and return whether an unterminated tail was removed."""
+
+    path = os.path.join(
+        publication.publication_root,
+        B4_RAW_RECORD_REJECTIONS_NAME,
+    )
+    _ensure_real_parent(path)
+    root_fd = os.open(
+        publication.publication_root,
+        os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+    )
+    ledger_fd = -1
+    created = False
+    flags = (
+        os.O_RDWR
+        | os.O_APPEND
+        | os.O_CREAT
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    line = canonical_json_bytes(
+        _rejection_event_payload(publication, rejection)
+    ) + b"\n"
+    try:
+        try:
+            ledger_fd = os.open(
+                B4_RAW_RECORD_REJECTIONS_NAME,
+                flags | os.O_EXCL,
+                0o600,
+                dir_fd=root_fd,
+            )
+            created = True
+        except FileExistsError:
+            ledger_fd = os.open(
+                B4_RAW_RECORD_REJECTIONS_NAME,
+                flags,
+                0o600,
+                dir_fd=root_fd,
+            )
+        info = os.fstat(ledger_fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise OSError("rejection ledger is not a regular file")
+        fcntl.flock(ledger_fd, fcntl.LOCK_EX)
+        size = os.lseek(ledger_fd, 0, os.SEEK_END)
+        fragment_discarded = False
+        if size > 0 and os.pread(ledger_fd, 1, size - 1) != b"\n":
+            os.ftruncate(ledger_fd, _last_complete_line_offset(ledger_fd, size))
+            fragment_discarded = True
+        written = os.write(ledger_fd, line)
+        if written != len(line):
+            raise OSError("rejection ledger write was incomplete")
+        os.fsync(ledger_fd)
+        if created:
+            os.fsync(root_fd)
+        return fragment_discarded
+    finally:
+        if ledger_fd >= 0:
+            os.close(ledger_fd)
+        os.close(root_fd)
+
+
+def _durably_record_rejection(
+    publication: B4PrerunPublication,
+    rejection: B4RawRecordRejection,
+) -> B4RawRecordDurableRejection:
+    path = os.path.join(
+        publication.publication_root,
+        B4_RAW_RECORD_REJECTIONS_NAME,
+    )
+    try:
+        fragment_discarded = _append_rejection_event(publication, rejection)
+    except Exception as exc:
+        return B4RawRecordDurableRejection(
+            schema_version=rejection.schema_version,
+            attempt_id=rejection.attempt_id,
+            issues=rejection.issues + (
+                B4RawRecordIssue(
+                    artifact=path,
+                    field="rejection_history",
+                    code=B4RawRecordIssueCode.IO_ERROR,
+                    detail=f"rejection ledger append failed: {type(exc).__name__}: {exc}",
+                ),
+            ),
+            rejection_history_fragment_discarded=False,
+        )
+    return B4RawRecordDurableRejection(
+        schema_version=rejection.schema_version,
+        attempt_id=rejection.attempt_id,
+        issues=rejection.issues,
+        rejection_history_fragment_discarded=fragment_discarded,
+    )
+
+
+def _parse_rejection_event(
+    line: bytes,
+    *,
+    publication: B4PrerunPublication,
+) -> B4RawRecordRejectionEvent:
+    value = _strict_json(line)
+    if type(value) is not dict or set(value) != {
+        "schema_version",
+        "issuer_commitment_sha256",
+        "attempt_id",
+        "issues",
+    }:
+        raise ValueError("rejection event fields differ")
+    if canonical_json_bytes(value) != line:
+        raise ValueError("rejection event is not canonical JSON")
+    if value["schema_version"] != B4_RAW_RECORD_REJECTION_EVENT_SCHEMA_VERSION:
+        raise ValueError("rejection event schema differs")
+    if value["issuer_commitment_sha256"] != publication.issuer_commitment_sha256:
+        raise ValueError("rejection event issuer commitment differs")
+    attempt_id = value["attempt_id"]
+    if attempt_id is not None and (
+        type(attempt_id) is not str
+        or not attempt_id
+        or attempt_id.strip() != attempt_id
+    ):
+        raise ValueError("rejection event attempt_id is invalid")
+    raw_issues = value["issues"]
+    if type(raw_issues) is not list or not raw_issues:
+        raise ValueError("rejection event issues are invalid")
+    issues: list[B4RawRecordIssue] = []
+    for raw_issue in raw_issues:
+        if type(raw_issue) is not dict or set(raw_issue) != {
+            "artifact",
+            "field",
+            "code",
+            "detail",
+        }:
+            raise ValueError("rejection event issue fields differ")
+        if any(
+            type(raw_issue[field]) is not str
+            for field in ("artifact", "field", "code", "detail")
+        ):
+            raise ValueError("rejection event issue values are invalid")
+        try:
+            code = B4RawRecordIssueCode(raw_issue["code"])
+        except ValueError as exc:
+            raise ValueError("rejection event issue code is invalid") from exc
+        issues.append(B4RawRecordIssue(
+            artifact=raw_issue["artifact"],
+            field=raw_issue["field"],
+            code=code,
+            detail=raw_issue["detail"],
+        ))
+    return B4RawRecordRejectionEvent(
+        schema_version=value["schema_version"],
+        issuer_commitment_sha256=value["issuer_commitment_sha256"],
+        attempt_id=attempt_id,
+        issues=tuple(issues),
+    )
+
+
+def load_b4_raw_record_rejection_history(
+    publication: B4PrerunPublication,
+) -> B4RawRecordRejectionHistory:
+    """Read a best-effort ledger snapshot without changing assembly validity."""
+
+    path = os.path.join(
+        publication.publication_root,
+        B4_RAW_RECORD_REJECTIONS_NAME,
+    )
+    if not os.path.lexists(path):
+        return B4RawRecordRejectionHistory(
+            path=path,
+            status="absent",
+            fragment_discarded=False,
+            events=(),
+            detail=None,
+        )
+    try:
+        snapshot = _snapshot_regular(
+            path,
+            artifact=path,
+            field="rejection_history",
+        )
+    except Exception as exc:
+        return B4RawRecordRejectionHistory(
+            path=path,
+            status="invalid",
+            fragment_discarded=False,
+            events=(),
+            detail=f"{type(exc).__name__}: {exc}",
+        )
+    data = snapshot.data
+    fragment_discarded = bool(data and not data.endswith(b"\n"))
+    complete = data if not fragment_discarded else data[: data.rfind(b"\n") + 1]
+    events: list[B4RawRecordRejectionEvent] = []
+    try:
+        for raw_line in complete.splitlines(keepends=True):
+            if not raw_line.endswith(b"\n"):
+                raise ValueError("completed rejection event lacks a newline")
+            events.append(_parse_rejection_event(
+                raw_line[:-1],
+                publication=publication,
+            ))
+    except Exception as exc:
+        return B4RawRecordRejectionHistory(
+            path=path,
+            status="invalid",
+            fragment_discarded=fragment_discarded,
+            events=tuple(events),
+            detail=f"{type(exc).__name__}: {exc}",
+        )
+    return B4RawRecordRejectionHistory(
+        path=path,
+        status="readable",
+        fragment_discarded=fragment_discarded,
+        events=tuple(events),
+        detail=None,
+    )
 
 
 def _validated_publication(value: object) -> B4PrerunPublication:
@@ -1735,8 +2036,10 @@ def publish_b4_attempt_result(
     """
 
     attempt_id: str | None = None
+    checked_publication: B4PrerunPublication | None = None
     try:
         checked_publication = _validated_publication(publication)
+        attempt_id = _recording_attempt_id(checked_publication, request)
         checked_request = _request(request)
         attempt_id = checked_request["attempt_id"]
         derived = _derive_b4_attempt_data(
@@ -1758,9 +2061,9 @@ def publish_b4_attempt_result(
             idempotent=idempotent,
         )
     except _Reject as exc:
-        return _rejection(attempt_id, exc.issue)
+        rejection = _rejection(attempt_id, exc.issue)
     except Exception as exc:
-        return _rejection(
+        rejection = _rejection(
             attempt_id,
             B4RawRecordIssue(
                 artifact="producer",
@@ -1769,6 +2072,9 @@ def publish_b4_attempt_result(
                 detail=f"{type(exc).__name__}: {exc}",
             ),
         )
+    if checked_publication is None:
+        return rejection
+    return _durably_record_rejection(checked_publication, rejection)
 
 
 def publish_b4_attempt_results(
@@ -1834,9 +2140,10 @@ def publish_b4_attempt_results(
                     _issue(path, "identity", B4RawRecordIssueCode.PUBLICATION_CONFLICT, "publication identity tuple is duplicated or invalid")
                 owners[triple] = row.attempt_id
     except _Reject as exc:
-        return (_rejection(None, exc.issue),)
+        rejection = _rejection(None, exc.issue)
+        return (_durably_record_rejection(checked, rejection),)
     for item in requests:
-        attempt_id: str | None = None
+        attempt_id = _recording_attempt_id(checked, item)
         try:
             checked_request = _request(item)
             attempt_id = checked_request["attempt_id"]
@@ -1877,15 +2184,21 @@ def publish_b4_attempt_results(
                 idempotent=idempotent,
             ))
         except _Reject as exc:
-            results.append(_rejection(attempt_id, exc.issue))
+            results.append(_durably_record_rejection(
+                checked,
+                _rejection(attempt_id, exc.issue),
+            ))
         except Exception as exc:
-            results.append(_rejection(
-                attempt_id,
-                B4RawRecordIssue(
-                    "producer",
-                    "internal",
-                    B4RawRecordIssueCode.IO_ERROR,
-                    f"{type(exc).__name__}: {exc}",
+            results.append(_durably_record_rejection(
+                checked,
+                _rejection(
+                    attempt_id,
+                    B4RawRecordIssue(
+                        "producer",
+                        "internal",
+                        B4RawRecordIssueCode.IO_ERROR,
+                        f"{type(exc).__name__}: {exc}",
+                    ),
                 ),
             ))
     return tuple(results)
@@ -1897,8 +2210,11 @@ def assemble_b4_raw_analysis(
 ) -> B4RawAnalysisAssembly | B4RawRecordRejection:
     """Assemble all 201 planned attempt artifacts without writing another path."""
 
+    checked: B4PrerunPublication | None = None
+    rejection_history: B4RawRecordRejectionHistory | None = None
     try:
         checked = _validated_publication(publication)
+        rejection_history = load_b4_raw_record_rejection_history(checked)
         planned = {item.attempt_id: item.artifact_path for item in checked.planned_result_artifacts}
         raw_blocks: list[dict[str, Any]] = []
         source_bytes: list[bytes] = []
@@ -2043,11 +2359,12 @@ def assemble_b4_raw_analysis(
             sha256=_sha256(raw_data),
             source_artifact_bytes=tuple(source_bytes),
             planned_attempt_artifact_paths=tuple(paths),
+            rejection_history=rejection_history,
         )
     except _Reject as exc:
-        return _rejection(None, exc.issue)
+        rejection = _rejection(None, exc.issue)
     except Exception as exc:
-        return _rejection(
+        rejection = _rejection(
             None,
             B4RawRecordIssue(
                 artifact="producer",
@@ -2056,6 +2373,14 @@ def assemble_b4_raw_analysis(
                 detail=f"{type(exc).__name__}: {exc}",
             ),
         )
+    if checked is None or rejection_history is None:
+        return rejection
+    return B4RawAnalysisRejection(
+        schema_version=rejection.schema_version,
+        attempt_id=rejection.attempt_id,
+        issues=rejection.issues,
+        rejection_history=rejection_history,
+    )
 
 
 __all__ = [
@@ -2063,14 +2388,20 @@ __all__ = [
     "B4_ATTEMPT_RESULT_SCHEMA_VERSION",
     "B4_RAW_RECORD_DEFERRED_SCHEMA_VERSION",
     "B4_RAW_RECORD_NON_GUARANTEES",
+    "B4_RAW_RECORD_REJECTION_EVENT_SCHEMA_VERSION",
     "B4_RAW_RECORD_REJECTION_SCHEMA_VERSION",
     "B4AttemptResultWrite",
     "B4RawAnalysisAssembly",
+    "B4RawAnalysisRejection",
     "B4RawRecordDeferred",
+    "B4RawRecordDurableRejection",
     "B4RawRecordIssue",
     "B4RawRecordIssueCode",
     "B4RawRecordRejection",
+    "B4RawRecordRejectionEvent",
+    "B4RawRecordRejectionHistory",
     "assemble_b4_raw_analysis",
+    "load_b4_raw_record_rejection_history",
     "publish_b4_attempt_result",
     "publish_b4_attempt_results",
 ]

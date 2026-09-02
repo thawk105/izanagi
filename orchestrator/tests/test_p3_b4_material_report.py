@@ -29,6 +29,7 @@ from test_p3_b4_raw_record_producer import (
     _PublicationEvidence,
     _assert_replicas_match_real_except_identity,
     _build_full_publication_evidence,
+    _pre_evidence_rejection_request,
     _publication,
     _publish_full_publication,
 )
@@ -238,6 +239,115 @@ def test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf(
         report["provenance"]["reproduction_argv"]
     ) in markdown
     assert Path(written.report_commit_path).is_file()
+
+    publication = _publication(tmp_path / "recorded")
+    rejected = producer.publish_b4_attempt_result(
+        publication=publication,
+        request=_pre_evidence_rejection_request(publication),
+    )
+    assert isinstance(rejected, producer.B4RawRecordDurableRejection), rejected
+    rejection_ledger = (
+        Path(publication.publication_root)
+        / producer.B4_RAW_RECORD_REJECTIONS_NAME
+    )
+    rejection_ledger.write_bytes(
+        rejection_ledger.read_bytes() + b'{"unterminated"'
+    )
+
+    document = R.build_material_report_document(publication.publication_root)
+    report = document.json_value
+    projection = report["producer_rejections"]
+
+    assert projection["scheduled_attempt_count"] == EXPECTED_BLOCK_COUNT
+    assert projection["planned_result_artifact_count"] == EXPECTED_BLOCK_COUNT
+    assert projection["manifest_selected_block_count"] == EXPECTED_BLOCK_COUNT
+    assert projection["not_selected"] == []
+    assert projection["rejection_history_status"] == {
+        "path": str(
+            Path(publication.publication_root)
+            / producer.B4_RAW_RECORD_REJECTIONS_NAME
+        ),
+        "status": "readable",
+        "readable": True,
+        "fragment_discarded": True,
+        "detail": None,
+    }
+    assert len(projection["events"]) == 1
+    assert projection["events"][0]["attempt_id"] == rejected.attempt_id
+    assert projection["events"][0]["issues"][0]["code"] == "unknown_field"
+    assert len(projection["unresolved_absent_attempts"]) == (
+        EXPECTED_BLOCK_COUNT - 1
+    )
+    count_claim = projection["recorded_rejection_event_count"]
+    assert count_claim["value"] == 1
+    assert count_claim["population"] == (
+        "events_in_observed_readable_ledger_prefix"
+    )
+    assert "undercount" in count_claim["caveat"]
+    rate_claim = projection["recorded_scheduled_attempt_rejection_rate"]
+    assert rate_claim["numerator"] == 1
+    assert rate_claim["denominator"] == EXPECTED_BLOCK_COUNT
+    assert "undercount" in rate_claim["caveat"]
+    non_guarantees = report["provenance"]["report_non_guarantees"]
+    assert (
+        "past_producer_rejections_are_not_fully_reconstructible_from_publication_root"
+        not in non_guarantees
+    )
+    assert (
+        "current_reason_for_an_absent_planned_leaf_cannot_be_determined"
+        in non_guarantees
+    )
+    assert (
+        "rejection_ledger_deletion_and_complete_suffix_truncation_are_not_detected"
+        in non_guarantees
+    )
+    markdown = document.markdown_bytes.decode("utf-8")
+    assert "recorded rejection event count: `1`" in markdown
+    assert "recorded scheduled-attempt rejection rate: `1/201`" in markdown
+
+    attempts = producer_test_support._eligible_attempts(EXPECTED_BLOCK_COUNT + 1)
+    publication = producer_test_support.issuer.issue_b4_prerun_publication(
+        scheduled_inputs=attempts,
+        planned_result_artifacts=producer_test_support._planned(
+            attempts,
+            tmp_path / "results",
+        ),
+        publication_root=str(tmp_path / "publication"),
+    )
+
+    report = R.build_material_report_document(
+        publication.publication_root
+    ).json_value
+    projection = report["producer_rejections"]
+
+    assert projection["scheduled_attempt_count"] == EXPECTED_BLOCK_COUNT + 1
+    assert projection["planned_result_artifact_count"] == EXPECTED_BLOCK_COUNT + 1
+    assert projection["manifest_selected_block_count"] == EXPECTED_BLOCK_COUNT
+    assert len(projection["not_selected"]) == 1
+    assert projection["not_selected"][0]["status"] == "not_selected"
+    assert len(projection["unresolved_absent_attempts"]) == EXPECTED_BLOCK_COUNT
+
+    publication = _publication(tmp_path / "invalid-ledger")
+    ledger = (
+        Path(publication.publication_root)
+        / producer.B4_RAW_RECORD_REJECTIONS_NAME
+    )
+    ledger.write_bytes(b"not-json\n")
+
+    report = R.build_material_report_document(
+        publication.publication_root
+    ).json_value
+
+    assert report["assembly"]["status"] == "rejected"
+    assert report["assembly"]["reason"]["issues"][0]["code"] == "incomplete_set"
+    history = report["producer_rejections"]["rejection_history_status"]
+    assert history["status"] == "invalid"
+    assert history["readable"] is False
+    assert report["producer_rejections"]["events"] == []
+    assert (
+        "past_producer_rejections_are_not_fully_reconstructible_from_publication_root"
+        in report["provenance"]["report_non_guarantees"]
+    )
 
 
 @pytest.mark.parametrize("damage", ["missing", "malformed"])

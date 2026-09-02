@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 import sys
 from unittest import mock
 
@@ -793,6 +794,21 @@ def _publish(
     return result
 
 
+def _pre_evidence_rejection_request(
+    publication: issuer.B4PrerunPublication,
+    *,
+    attempt_index: int = 0,
+) -> dict[str, object]:
+    return {
+        "attempt_id": publication.manifest.rows[attempt_index].attempt_id,
+        "on_campaign_root": "/pre-evidence/on",
+        "off_campaign_root": "/pre-evidence/off",
+        "on_terminal_receipt_path": "/pre-evidence/on/terminal.json",
+        "off_terminal_receipt_path": "/pre-evidence/off/terminal.json",
+        "treatment_fired": True,
+    }
+
+
 def _assert_write(result) -> P.B4AttemptResultWrite:
     assert isinstance(result, P.B4AttemptResultWrite), result
     assert Path(result.artifact_path).read_bytes() == result.canonical_bytes
@@ -808,6 +824,164 @@ def test_mutation_node_mapping_is_complete_and_one_to_one() -> None:
     assert set(MUTATION_NODE_IDS) == {f"M{index:02d}" for index in range(1, 19)}
     assert len(set(MUTATION_NODE_IDS.values())) == 18
     assert all(callable(globals().get(name)) for name in MUTATION_NODE_IDS.values())
+
+
+def test_validated_rejection_is_appended_as_one_canonical_event(
+    tmp_path: Path,
+) -> None:
+    publication = _publication(tmp_path)
+    result = P.publish_b4_attempt_result(
+        publication=publication,
+        request=_pre_evidence_rejection_request(publication),
+    )
+
+    assert isinstance(result, P.B4RawRecordDurableRejection), result
+    assert result.attempt_id == publication.manifest.rows[0].attempt_id
+    assert tuple(issue.code for issue in result.issues) == (
+        P.B4RawRecordIssueCode.UNKNOWN_FIELD,
+    )
+    ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    ledger_bytes = ledger.read_bytes()
+    assert ledger_bytes.endswith(b"\n")
+    assert len(ledger_bytes.splitlines()) == 1
+    assert stat.S_IMODE(ledger.stat().st_mode) == 0o600
+    event = json.loads(ledger_bytes)
+    assert set(event) == {
+        "schema_version",
+        "issuer_commitment_sha256",
+        "attempt_id",
+        "issues",
+    }
+    assert {
+        "previous_event_sha256",
+        "event_sha256",
+        "event_index",
+    }.isdisjoint(event)
+    assert event["issuer_commitment_sha256"] == (
+        publication.issuer_commitment_sha256
+    )
+    assert event["attempt_id"] == result.attempt_id
+    assert event["issues"] == [
+        {
+            "artifact": result.issues[0].artifact,
+            "field": result.issues[0].field,
+            "code": result.issues[0].code.value,
+            "detail": result.issues[0].detail,
+        }
+    ]
+    history = P.load_b4_raw_record_rejection_history(publication)
+    assert history.status == "readable"
+    assert history.fragment_discarded is False
+    assert history.events[0].issues == result.issues
+
+
+def test_unterminated_tail_is_truncated_before_the_next_single_write(
+    tmp_path: Path,
+) -> None:
+    publication = _publication(tmp_path)
+    request = _pre_evidence_rejection_request(publication)
+    first = P.publish_b4_attempt_result(
+        publication=publication,
+        request=request,
+    )
+    assert isinstance(first, P.B4RawRecordDurableRejection), first
+    ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    ledger.write_bytes(ledger.read_bytes() + b'{"unterminated"')
+    partial_history = P.load_b4_raw_record_rejection_history(publication)
+    assert partial_history.status == "readable"
+    assert partial_history.fragment_discarded is True
+    assert len(partial_history.events) == 1
+
+    second = P.publish_b4_attempt_result(
+        publication=publication,
+        request=request,
+    )
+
+    assert isinstance(second, P.B4RawRecordDurableRejection), second
+    assert second.rejection_history_fragment_discarded is True
+    assert b"unterminated" not in ledger.read_bytes()
+    history = P.load_b4_raw_record_rejection_history(publication)
+    assert history.status == "readable"
+    assert history.fragment_discarded is False
+    assert len(history.events) == 2
+
+
+def test_rejection_append_failure_adds_io_error_without_publishing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    publication = _publication(tmp_path)
+    monkeypatch.setattr(
+        P,
+        "_append_rejection_event",
+        mock.Mock(side_effect=OSError("injected ledger failure")),
+    )
+
+    result = P.publish_b4_attempt_result(
+        publication=publication,
+        request=_pre_evidence_rejection_request(publication),
+    )
+
+    assert isinstance(result, P.B4RawRecordDurableRejection), result
+    assert tuple(issue.code for issue in result.issues) == (
+        P.B4RawRecordIssueCode.UNKNOWN_FIELD,
+        P.B4RawRecordIssueCode.IO_ERROR,
+    )
+    target = publication.planned_result_artifacts[0].artifact_path
+    assert not Path(target).exists()
+    ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    assert not ledger.exists()
+
+
+def test_batch_records_only_rejections_after_publication_validation(
+    tmp_path: Path,
+) -> None:
+    publication = _publication(tmp_path / "items")
+    results = P.publish_b4_attempt_results(
+        publication=publication,
+        requests=[
+            _pre_evidence_rejection_request(publication, attempt_index=0),
+            _pre_evidence_rejection_request(publication, attempt_index=1),
+        ],
+    )
+    assert [result.attempt_id for result in results] == [
+        publication.manifest.rows[0].attempt_id,
+        publication.manifest.rows[1].attempt_id,
+    ]
+    assert all(isinstance(result, P.B4RawRecordDurableRejection) for result in results)
+    history = P.load_b4_raw_record_rejection_history(publication)
+    assert [event.attempt_id for event in history.events] == [
+        publication.manifest.rows[0].attempt_id,
+        publication.manifest.rows[1].attempt_id,
+    ]
+
+    prevalidation = _publication(tmp_path / "prevalidation")
+    rejected = P.publish_b4_attempt_results(
+        publication=prevalidation,
+        requests={"not": "a collection"},
+    )
+    assert tuple(issue.code for issue in rejected[0].issues) == (
+        P.B4RawRecordIssueCode.ILL_TYPED,
+    )
+    ledger = Path(prevalidation.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    assert not ledger.exists()
+
+
+def test_invalid_rejection_history_does_not_replace_assembly_rejection(
+    tmp_path: Path,
+) -> None:
+    publication = _publication(tmp_path)
+    ledger = Path(publication.publication_root) / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    ledger.write_bytes(b"not-json\n")
+
+    assembled = P.assemble_b4_raw_analysis(publication=publication)
+
+    assert isinstance(assembled, P.B4RawAnalysisRejection), assembled
+    assert tuple(issue.code for issue in assembled.issues) == (
+        P.B4RawRecordIssueCode.INCOMPLETE_SET,
+    )
+    assert assembled.rejection_history.status == "invalid"
+    assert assembled.rejection_history.events == ()
 
 
 @pytest.fixture
@@ -1196,6 +1370,11 @@ def test_m14_busy_campaign_with_no_terminal_record_is_deferred_without_publish(
         assert isinstance(result, P.B4RawRecordDeferred), result
         target = publication.planned_result_artifacts[0].artifact_path
         assert not Path(target).exists()
+        ledger = (
+            Path(publication.publication_root)
+            / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+        )
+        assert not ledger.exists()
 
 
 def test_m15_lock_free_campaign_with_no_terminal_record_is_published(
