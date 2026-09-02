@@ -14,7 +14,7 @@ import sys
 import textwrap
 from collections.abc import Mapping
 from types import SimpleNamespace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import jsonschema
 import pytest
@@ -205,14 +205,32 @@ def _admission_bound_records(
 
 def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
               ycsb=None, policy_hint=_UNSET,
-              protocol: str | None = None) -> tuple[Path, Path]:
+              protocol: str | None = None,
+              authorization: env_contract.AuthorizedContract | None = None,
+              records_count: int = 100000,
+              threads: int = 4,
+              exploration_root: bool = False,
+              copy_contract_calibration: bool = True) -> tuple[Path, Path]:
     output_root = tmp_path / "repo" / "output"
+    if exploration_root:
+        output_root = output_root / "exploration"
+    effective_authorization = (
+        authorization
+        if authorization is not None
+        else env_contract.authorize("linux-baremetal")
+    )
+    if authorization is None:
+        fixture_env = output_root / "env/test-env"
+        fixture_env.mkdir(parents=True)
+        (output_root / "env/linux-baremetal").symlink_to(
+            "test-env", target_is_directory=True,
+        )
     records, admission_policy = _admission_bound_records(
         tmp_path, records, protocol=protocol,
     )
     search_config = {
-        "records": 100000,
-        "threads": 4,
+        "records": records_count,
+        "threads": threads,
         "build_admission": admission_policy,
     }
     if ycsb is not None:
@@ -231,7 +249,10 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     )
     (root / "runs").mkdir(parents=True)
     (root / "campaign.lock").write_text(
-        build_v2_campaign_lock(identity_preimage), encoding="utf-8",
+        build_v2_campaign_lock(
+            identity_preimage, authorization=effective_authorization,
+        ),
+        encoding="utf-8",
     )
     if loop_state:
         (root / "loop_state.json").write_text(
@@ -239,6 +260,8 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
             encoding="utf-8")
     (root / "runs/wal.jsonl").write_text(
         "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+    if copy_contract_calibration:
+        _copy_contract_calibration(output_root, effective_authorization)
     return root, output_root
 
 
@@ -309,6 +332,25 @@ def _assert_external_campaign_without_git_head(campaign: Path) -> None:
     assert not resolved.is_relative_to(source_repo)
     with pytest.raises(layer3_report.Layer3ReportError):
         layer3_report._git_head(campaign)
+
+
+def _copy_contract_calibration(
+        output_root: Path,
+        authorization: env_contract.AuthorizedContract) -> Path:
+    ref = authorization.contract.calibration_ref
+    source = ROOT / ref.path
+    env_tag = authorization.contract.env_tag
+    relative_pin = PurePosixPath(ref.path)
+    calibration_prefix = PurePosixPath(
+        "output", "env", env_tag, "calibration",
+    )
+    suffix = relative_pin.relative_to(calibration_prefix)
+    target = (
+        output_root / "env" / env_tag / "calibration" / Path(*suffix.parts)
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(source.read_bytes())
+    return target
 
 
 def _historical_admitted_campaign(campaign: Path):
@@ -536,8 +578,8 @@ def test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding(tmp_p
     assert '"mask"' not in rendered
 
 
-def _record(stage, variant="v1", **payload):
-    return {"ts": 1.0, "stage": stage, "variant": variant, "env_tag": "test-env", "payload": payload}
+def _record(stage, variant="v1", *, env_tag="linux-baremetal", **payload):
+    return {"ts": 1.0, "stage": stage, "variant": variant, "env_tag": env_tag, "payload": payload}
 
 
 def _bench(variant="v1", **extra):
@@ -1498,7 +1540,7 @@ def test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_re
     ).identity_preimage
     v2_text = build_v2_campaign_lock(
         identity_preimage,
-        authorization=env_contract.authorize("pegasus"),
+        authorization=env_contract.authorize("linux-baremetal"),
     )
     lock_path.write_text(v2_text, encoding="utf-8")
     v2_admitted = dataclasses.replace(
@@ -2856,7 +2898,7 @@ def test_floor_kinds_match_independently_and_classification_records_skips(tmp_pa
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     within = {"cv": 0.01, "median": 12.0}
     between = {"max_delta_pct": 2.0}
     (calibration / "within.json").write_text(json.dumps({
@@ -2897,7 +2939,7 @@ def test_between_run_schema_version_does_not_change_floor_classification(tmp_pat
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     between = {"max_delta_pct": 2.0}
     (calibration / "between.json").write_text(json.dumps({
         "schema_version": "between-run-noise-floor/v1",
@@ -2925,7 +2967,7 @@ def test_floor_match_uses_protocol_records_threads_and_workload(tmp_path):
         protocol="mocc",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     for protocol, cv in (("silo", 0.02), ("mocc", 0.07)):
         (calibration / f"between-{protocol}.json").write_text(json.dumps({
             "records": 100000,
@@ -2952,7 +2994,7 @@ def test_wrong_protocol_floor_is_reported_as_mismatch(tmp_path):
         protocol="mocc",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "between-silo.json").write_text(json.dumps({
         "records": 100000,
         "threads": 4,
@@ -2977,7 +3019,7 @@ def test_mixed_protocol_campaign_cannot_receive_report_level_floor(tmp_path):
         _record("build_start", variant="v2", genome="h", src_token="t"),
     ], ycsb=YCSB)
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "threads": 4,
         "saturation": {"records": 100000},
@@ -3035,7 +3077,7 @@ def test_legacy_silo_within_floor_without_genome_states_match_basis(tmp_path):
         protocol="silo",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "threads": 4,
         "saturation": {"records": 100000},
@@ -3060,7 +3102,7 @@ def test_legacy_within_floor_without_genome_does_not_match_mocc(tmp_path):
         protocol="mocc",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "threads": 4,
         "saturation": {"records": 100000},
@@ -3076,6 +3118,338 @@ def test_legacy_within_floor_without_genome_does_not_match_mocc(tmp_path):
     assert floor["protocol"] == "mocc"
     assert floor["search"]["mismatches"][0]["protocol_match_basis"] == (
         "genome-absent-legacy-record"
+    )
+
+
+def test_pegasus_v2_adds_only_contract_pin_not_registered_glob(tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    _copy_contract_calibration(output_root, authorization)
+    second_relative = Path(
+        "output/env/pegasus/calibration/registered/"
+        "calibration-94a4b79fa31bba3c.json"
+    )
+    second_target = output_root.parent / second_relative
+    second_target.parent.mkdir(parents=True, exist_ok=True)
+    second_target.write_bytes((ROOT / second_relative).read_bytes())
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"]["cv"] == 0.011705837968885854
+    assert floor["source"]["path"] == (
+        "env/pegasus/calibration/registered/"
+        "calibration-753f535a8d024727.json"
+    )
+    assert floor["protocol_match_basis"] == "genome-absent-legacy-record"
+
+
+def test_contract_pin_resolution_keeps_v1_none_and_marks_v2_env_mismatch():
+    identity_preimage = campaign_lock.canonical_json({
+        "ccbench_commit": CURRENT_PIN,
+        "search_config": {"records": 1_000_000, "threads": 48},
+        "search_tag": "test",
+        "spec_content": "test",
+        "trial": "trial",
+    })
+    decoded_v1 = campaign_lock.decode_campaign_lock(identity_preimage)
+    assert layer3_report._contract_calibration_pin(
+        decoded_v1, "unregistered-v1-env",
+    ) == (None, None)
+
+    decoded_v2 = campaign_lock.decode_campaign_lock(build_v2_campaign_lock(
+        identity_preimage,
+        authorization=env_contract.authorize("pegasus"),
+    ))
+    pin, search = layer3_report._contract_calibration_pin(
+        decoded_v2, "linux-baremetal",
+    )
+    assert pin is None
+    assert search == {
+        "status": "authority-env-tag-mismatch",
+        "authority_env_tag": "pegasus",
+        "campaign_env_tag": "linux-baremetal",
+    }
+
+
+def test_contract_pin_env_mismatch_is_recorded_without_blocking_report(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="test-env",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=env_contract.authorize("linux-baremetal"),
+        copy_contract_calibration=False,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    for floor in report["noise_floor"].values():
+        assert floor["value"] is None
+        assert floor["search"]["contract_pin"] == {
+            "status": "authority-env-tag-mismatch",
+            "authority_env_tag": "linux-baremetal",
+            "campaign_env_tag": "test-env",
+        }
+
+
+def test_contract_pin_sha_mismatch_fails_closed_before_floor_use(tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    pin_path = _copy_contract_calibration(output_root, authorization)
+    pin_path.write_bytes(pin_path.read_bytes() + b"\n")
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="SHA-256.*不一致",
+    ):
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+
+
+def test_contract_pin_rejects_other_env_directory_and_nonfile(tmp_path):
+    repo_root = tmp_path / "repo"
+    calibration = repo_root / "output/env/pegasus/calibration"
+    calibration.mkdir(parents=True, exist_ok=True)
+    other_env = repo_root / "output/env/linux-baremetal/calibration/pin.json"
+    other_env.parent.mkdir(parents=True)
+    other_env.write_text("{}\n", encoding="utf-8")
+    other_ref = env_contract.CalibrationRef(
+        path="output/env/linux-baremetal/calibration/pin.json",
+        sha256=hashlib.sha256(other_env.read_bytes()).hexdigest(),
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="当該 env の calibration directory 外",
+    ):
+        layer3_report._validated_pin_path(calibration, other_ref)
+
+    directory_ref = env_contract.CalibrationRef(
+        path="output/env/pegasus/calibration",
+        sha256="0" * 64,
+    )
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="通常 file",
+    ):
+        layer3_report._validated_pin_path(calibration, directory_ref)
+
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}\n", encoding="utf-8")
+    escape = calibration / "escape.json"
+    escape.symlink_to(outside)
+    escape_ref = env_contract.CalibrationRef(
+        path="output/env/pegasus/calibration/escape.json",
+        sha256=hashlib.sha256(outside.read_bytes()).hexdigest(),
+    )
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="calibration directory 外",
+    ):
+        layer3_report._validated_pin_path(calibration, escape_ref)
+
+    parent_ref = env_contract.CalibrationRef(
+        path="output/env/pegasus/calibration/../pin.json",
+        sha256="0" * 64,
+    )
+    with pytest.raises(layer3_report.Layer3ReportError, match=r"\.\. 成分"):
+        layer3_report._validated_pin_path(calibration, parent_ref)
+
+    absolute_ref = env_contract.CalibrationRef(
+        path="/output/env/pegasus/calibration/pin.json",
+        sha256="0" * 64,
+    )
+    with pytest.raises(layer3_report.Layer3ReportError, match="repo 相対"):
+        layer3_report._validated_pin_path(calibration, absolute_ref)
+
+
+def test_linux_v2_keeps_direct_skew_zero_floor_in_addition_to_pin(tmp_path):
+    authorization = env_contract.authorize("linux-baremetal")
+    skew_zero = {
+        "ycsb_zipf_skew": "0", "ycsb_rratio": "50", "ycsb_rmw": "0",
+    }
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s",
+            env_tag="linux-baremetal",
+        )],
+        ycsb=skew_zero,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    _copy_contract_calibration(output_root, authorization)
+    skew_zero_relative = Path(
+        "output/env/linux-baremetal/calibration/"
+        "calibration_t48_skew0_rr50_rmw0.json"
+    )
+    skew_zero_target = output_root.parent / skew_zero_relative
+    skew_zero_target.write_bytes((ROOT / skew_zero_relative).read_bytes())
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"]["cv"] == 0.004726195977018071
+    assert floor["source"]["path"] == (
+        "env/linux-baremetal/calibration/"
+        "calibration_t48_skew0_rr50_rmw0.json"
+    )
+    assert floor["protocol_match_basis"] == "genome-absent-legacy-record"
+
+
+def test_nested_exploration_root_resolves_contract_pin_by_suffix(tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+        exploration_root=True,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert output_root == tmp_path / "repo/output/exploration"
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"]["cv"] == 0.011705837968885854
+    assert floor["source"]["path"] == (
+        "env/pegasus/calibration/registered/"
+        "calibration-753f535a8d024727.json"
+    )
+
+
+def test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing(
+        tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        exploration_root=True,
+        copy_contract_calibration=False,
+    )
+    calibration = output_root / "env/pegasus/calibration"
+    calibration.mkdir(parents=True)
+    (calibration / "within.json").write_text(json.dumps({
+        "threads": 4,
+        "saturation": {"records": 100000},
+        "workload": YCSB,
+        "noise_floor": {"cv": 0.01},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["noise_floor"]["within_run"]["value"] == {"cv": 0.01}
+    missing_search = report["noise_floor"]["between_run"]["search"][
+        "contract_pin"
+    ]
+    assert missing_search["status"] == "pin-file-missing"
+    assert missing_search["path"] == authorization.contract.calibration_ref.path
+    assert missing_search["sha256"] == (
+        authorization.contract.calibration_ref.sha256
+    )
+
+
+def test_floor_protocol_basis_distinguishes_receipt_from_producer_genome():
+    receipt_protocol, receipt_basis = layer3_report._floor_protocol_and_basis(
+        {
+            "genome": "mocc|BACK_OFF=0,KEY_SORT=1,TEMPERATURE_RESET_OPT=0",
+            "acquisition_receipt": {"ccbench": {"build_argv": []}},
+        },
+        "within_run",
+        Path("certified-mocc.json"),
+    )
+    producer_protocol, producer_basis = layer3_report._floor_protocol_and_basis(
+        {"genome": "silo|BACK_OFF=0,WAL=0"},
+        "between_run",
+        Path("between-run-silo.json"),
+    )
+
+    assert receipt_protocol == "mocc"
+    assert receipt_basis == "receipt-derived-build-argv"
+    assert producer_protocol == "silo"
+    assert producer_basis == "canonical-floor-genome"
+
+
+def test_report_projects_both_nonlegacy_protocol_match_bases(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB,
+        protocol="mocc",
+    )
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True, exist_ok=True)
+    (calibration / "certified-mocc.json").write_text(json.dumps({
+        "records": 100000,
+        "threads": 4,
+        "workload": YCSB,
+        "genome": "mocc|BACK_OFF=0,KEY_SORT=1,TEMPERATURE_RESET_OPT=0",
+        "acquisition_receipt": {"ccbench": {"build_argv": []}},
+        "noise_floor": {"cv": 0.03},
+    }), encoding="utf-8")
+    (calibration / "between-mocc.json").write_text(json.dumps({
+        "schema_version": "between-run-noise-floor/v1",
+        "records": 100000,
+        "threads": 4,
+        "workload": YCSB,
+        "genome": "mocc|BACK_OFF=0,KEY_SORT=1,TEMPERATURE_RESET_OPT=0",
+        "between_run": {"cv": 0.04},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["noise_floor"]["within_run"]["value"] == {"cv": 0.03}
+    assert report["noise_floor"]["within_run"]["protocol_match_basis"] == (
+        "receipt-derived-build-argv"
+    )
+    assert report["noise_floor"]["between_run"]["value"] == {"cv": 0.04}
+    assert report["noise_floor"]["between_run"]["protocol_match_basis"] == (
+        "canonical-floor-genome"
     )
 
 
@@ -3144,7 +3518,7 @@ def test_duplicate_matching_floor_of_same_kind_fails_closed(tmp_path):
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     for name, cv in (("first.json", 0.01), ("second.json", 0.02)):
         (calibration / name).write_text(json.dumps({
             "records": 100000, "threads": 4, "workload": YCSB,
@@ -3160,7 +3534,7 @@ def test_floor_candidate_without_workload_fails_closed(tmp_path):
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "broken.json").write_text(json.dumps({
         "records": 100000, "threads": 4, "noise_floor": {"cv": 0.01},
     }), encoding="utf-8")
@@ -3173,7 +3547,7 @@ def test_campaign_without_ycsb_has_honest_null_for_both_floor_kinds(tmp_path):
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")])
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "records": 100000, "threads": 4, "workload": YCSB,
         "noise_floor": {"cv": 0.01},
