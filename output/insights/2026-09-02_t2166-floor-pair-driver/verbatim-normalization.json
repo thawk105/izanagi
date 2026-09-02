@@ -1,0 +1,75 @@
+{
+ "s2-plan.md": {
+  "normalized_bytes": 22715,
+  "normalized_sha256": "9899c109b1917a860f94ab1b418a5c4f89130082b731e545f56ff3c711181356",
+  "original_bytes": 22725,
+  "original_sha256": "d345e30d37c7b583c5b6d61b1caea17258e0dee6ac95ba9c2a6f60590b12c37d",
+  "stripped_line_to_suffix": {
+   "3": "  ",
+   "4": "  ",
+   "5": "  ",
+   "6": "  ",
+   "7": "  "
+  }
+ },
+ "s3-consult-lensA.md": {
+  "normalized_bytes": 19349,
+  "normalized_sha256": "cf2560df02a4d8748ff0f4216defa3f8c0e8b31f90ddf1b67f9a40350ef6caa6",
+  "original_bytes": 19357,
+  "original_sha256": "942306c937633355253d2086e6c880aa896cb86a758d70f92fedd7065eb01f62",
+  "stripped_line_to_suffix": {
+   "3": "  ",
+   "4": "  ",
+   "5": "  ",
+   "6": "  "
+  }
+ },
+ "s3-consult-lensB.md": {
+  "normalized_bytes": 18984,
+  "normalized_sha256": "85e33329355b8de18257104cb3035aee585b1575d0d0782d57b3fc2a436ac5fc",
+  "original_bytes": 18992,
+  "original_sha256": "c111b795de479a5c6c825dc3602e4eb469ca9b027e7d4a097e8251aff1208d60",
+  "stripped_line_to_suffix": {
+   "3": "  ",
+   "4": "  ",
+   "5": "  ",
+   "6": "  "
+  }
+ },
+ "s5s6-review-B.md": {
+  "normalized_bytes": 15833,
+  "normalized_sha256": "547a083e75c13db09313a6c26e8789f38251daf0ebc35a625add036add1ee93e",
+  "original_bytes": 15889,
+  "original_sha256": "c3896dd6900227afd1a7d5e2ff5f237a03f976910fb24749ca92da418ffd1b63",
+  "stripped_line_to_suffix": {
+   "3": "  ",
+   "30": "  ",
+   "31": "  ",
+   "32": "  ",
+   "35": "  ",
+   "36": "  ",
+   "37": "  ",
+   "4": "  ",
+   "40": "  ",
+   "41": "  ",
+   "42": "  ",
+   "45": "  ",
+   "46": "  ",
+   "47": "  ",
+   "5": "  ",
+   "50": "  ",
+   "51": "  ",
+   "52": "  ",
+   "55": "  ",
+   "56": "  ",
+   "57": "  ",
+   "6": "  ",
+   "60": "  ",
+   "61": "  ",
+   "62": "  ",
+   "65": "  ",
+   "66": "  ",
+   "67": "  "
+  }
+ }
+}

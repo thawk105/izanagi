@@ -1,0 +1,567 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/7d6cef4c99c26afe701211cdd66d0edc/izdw-7d6cef4c99.o967690",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/7d6cef4c99c26afe701211cdd66d0edc/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................                              [100%]\n43 passed in 22.69s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "7feb864a7ff6cb22c9a69a6b09e0421dd756e5bbde87c2c0e12f9b5822a1890b"
+    },
+    "artifact_error": null,
+    "collection_sha256": "bcb21a9ff28f78f0d659062dcfb51ff9fe3242ef7bd98dcdf9052c699c3f6c80",
+    "duration_s": 42.457,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "1bf3f5d119844aeaf2a0b13419e0eafe23a29d6229a73bfdea921b9ccd7a198c",
+    "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+    "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+    "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+    "status": "PASSED",
+    "test_output_sha256": "7feb864a7ff6cb22c9a69a6b09e0421dd756e5bbde87c2c0e12f9b5822a1890b",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+  },
+  "date": "2026-09-02T04:47:27.084094+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/bebcc65b822839a05d803c10ef0ca744/izdw-bebcc65b82.o967693",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/bebcc65b822839a05d803c10ef0ca744/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................FFF.........                              [100%]\n=================================== FAILURES ===================================\n____ test_define_sink_cross_product_rejects_branch_local_returned_evidence _____\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_branch_local_returned_evidence():\n        relative = \"orchestrator/campaign/synthetic_t2155_branch_local.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, enabled):\\n\"\n            \"    if enabled:\\n\"\n            \"        require_returned_condition_evidence(prepared)\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 6, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_branch_local.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2834: AssertionError\n_____ test_define_sink_cross_product_rejects_false_guard_before_match_exit _____\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_false_guard_before_match_exit():\n        relative = \"orchestrator/campaign/synthetic_t2155_false_guard_exit.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other, value):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    match value:\\n\"\n            \"        case _ if (prepared := other):\\n\"\n            \"            return None\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 8, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_exit.py', scope='<module>.run', lineno=8, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3179: AssertionError\n_____ test_define_sink_cross_product_rejects_false_guard_before_next_case ______\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_false_guard_before_next_case():\n        relative = \"orchestrator/campaign/synthetic_t2155_false_guard_next.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other, value):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    match value:\\n\"\n            \"        case 0 if (prepared := other):\\n\"\n            \"            return None\\n\"\n            \"        case _:\\n\"\n            \"            return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 9, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_next.py', scope='<module>.run', lineno=9, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3200: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\n3 failed, 40 passed in 23.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1460 retained_bytes=1460 omitted_bytes=0 rendered_excerpt_bytes=1542 sha256=8fcd56e43d43369800880cb95e0b7b3e6cbe859b258f03c951fcab6aaa165cbb\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_false_guard_before_next_case():\n>         relative = \"orchestrator/campaign/synthetic_t2155_false_guard_next.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other, value):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    match value:\\x5cn\"\n>             \"        case 0 if (prepared := other):\\x5cn\"\n>             \"            return None\\x5cn\"\n>             \"        case _:\\x5cn\"\n>             \"            return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 9, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_next.py', scope='<module>.run', lineno=9, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3200: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1421 retained_bytes=1421 omitted_bytes=0 rendered_excerpt_bytes=1498 sha256=7b67e86fe7aa7c7f8717794fd96974d4326b9f8dfb662f72c7e48fb50973b45b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_false_guard_before_match_exit():\n>         relative = \"orchestrator/campaign/synthetic_t2155_false_guard_exit.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other, value):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    match value:\\x5cn\"\n>             \"        case _ if (prepared := other):\\x5cn\"\n>             \"            return None\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 8, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_exit.py', scope='<module>.run', lineno=8, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3179: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1317 retained_bytes=1317 omitted_bytes=0 rendered_excerpt_bytes=1384 sha256=99635b2da8da0bcc7618d506c883852ff2422cac727cbd90b12dabbff6d609ea\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_branch_local_returned_evidence():\n>         relative = \"orchestrator/campaign/synthetic_t2155_branch_local.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, enabled):\\x5cn\"\n>             \"    if enabled:\\x5cn\"\n>             \"        require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 6, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_branch_local.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2834: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4198 retained_bytes=4198 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6082 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1b32108fff058905dc454d767b4b90c7b2455c85e3cf954639a217508ce09452"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bcb21a9ff28f78f0d659062dcfb51ff9fe3242ef7bd98dcdf9052c699c3f6c80",
+      "duration_s": 47.548,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case"
+      ],
+      "hang_risk": false,
+      "id": "M3-merge-union-not-intersection",
+      "injection_diff_sha256": "ea5eaac7792161b8ca9e5cc435583189c4cedb5923695b6718ca1ae9ae2ceacb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "62f80799444d143ca99bd91e858baee26de713a596d39024d5bf037e4b38acf6",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "        returned_evidence_names.update(",
+          "old": "        returned_evidence_names.intersection_update("
+        }
+      ],
+      "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+      "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+      "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+      "status": "KILLED",
+      "test_output_sha256": "1b32108fff058905dc454d767b4b90c7b2455c85e3cf954639a217508ce09452",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/85d3bc5a6d50e65f10c4b4a631cdc390/izdw-85d3bc5a6d.o967696",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/85d3bc5a6d50e65f10c4b4a631cdc390/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FFFFF....FF                              [100%]\n=================================== FAILURES ===================================\n_________ test_define_sink_cross_product_accepts_read_only_match_guard _________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_accepts_read_only_match_guard():\n        relative = \"orchestrator/campaign/synthetic_t2155_read_only_guard.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, enabled, value):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    match value:\\n\"\n            \"        case _ if enabled:\\n\"\n            \"            return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n        classifications, failures = _define_sink_cross_product_classification(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        )\n>       assert classifications[expected] == Counter({\"covered\": 1})\nE       AssertionError: assert Counter({'fai...resolved': 1}) == Counter({'covered': 1})\nE         \nE         Left contains 1 more item:\nE         {'failure-unresolved': 1}\nE         Right contains 1 more item:\nE         {'covered': 1}\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3081: AssertionError\n_______ test_define_sink_cross_product_accepts_unrelated_nested_default ________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_accepts_unrelated_nested_default():\n        relative = \"orchestrator/campaign/synthetic_t2155_unrelated_default.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, constant):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    def bind(value=constant):\\n\"\n            \"        pass\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n        classifications, failures = _define_sink_cross_product_classification(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        )\n>       assert classifications[expected] == Counter({\"covered\": 1})\nE       AssertionError: assert Counter({'fai...resolved': 1}) == Counter({'covered': 1})\nE         \nE         Left contains 1 more item:\nE         {'failure-unresolved': 1}\nE         Right contains 1 more item:\nE         {'covered': 1}\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3060: AssertionError\n__ test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value __\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value():\n        relative = \"orchestrator/campaign/synthetic_t2155_with_tuple_checked.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(genome):\\n\"\n            \"    with prepare(genome) as (actual_binding, prepared):\\n\"\n            \"        require_returned_condition_evidence(prepared)\\n\"\n            \"        prepared_for_eval = PreparedCell(\\n\"\n            \"            genome=prepared.genome,\\n\"\n            \"        )\\n\"\n            \"        return pipeline.evaluate(prepared_for_eval.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 9, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == []\nE       AssertionError: assert [('BACKOFF_FI...'unresolved')] == []\nE         \nE         Left contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_with_tuple_checked.py', scope='<module>.run', lineno=9, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2786: AssertionError\n_____ test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal _____\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal():\n        relative = \"orchestrator/campaign/synthetic_t2155_unrelated_declarations.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other):\\n\"\n            \"    auxiliary = prepared\\n\"\n            \"    def rebind():\\n\"\n            \"        nonlocal auxiliary\\n\"\n            \"        auxiliary = other\\n\"\n            \"    class Rebind:\\n\"\n            \"        global alternative_helper\\n\"\n            \"        alternative_helper = lambda value: None\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    rebind()\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 13, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n        classifications, failures = _define_sink_cross_product_classification(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        )\n>       assert classifications[expected] == Counter({\"covered\": 1})\nE       AssertionError: assert Counter({'fai...resolved': 1}) == Counter({'covered': 1})\nE         \nE         Left contains 1 more item:\nE         {'failure-unresolved': 1}\nE         Right contains 1 more item:\nE         {'covered': 1}\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3228: AssertionError\n___ test_define_sink_cross_product_accepts_with_name_checked_campaign_value ____\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_accepts_with_name_checked_campaign_value():\n        relative = \"orchestrator/campaign/synthetic_t2155_with_name_checked.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(genome):\\n\"\n            \"    with prepare(genome) as prepared:\\n\"\n            \"        require_returned_condition_evidence(prepared)\\n\"\n            \"        return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 6, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == []\nE       AssertionError: assert [('BACKOFF_FI...'unresolved')] == []\nE         \nE         Left contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_with_name_checked.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2760: AssertionError\n___ test_define_sink_cross_product_classifies_t2155_production_sinks_exactly ___\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():\n        patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n        classifications, failures = _define_sink_cross_product_classification(\n            _production_build_sources(), frozenset(patch_sources),\n        )\n        s1_sink = _BuildSink(\n            \"orchestrator/campaign/s1_direct_comparison.py\",\n            \"<module>.run_role\",\n            1215,\n            \"campaign\",\n        )\n        s8b_sink = _BuildSink(\n            \"orchestrator/campaign/s8b_oracle_driver.py\",\n            \"<module>.run_block\",\n            1788,\n            \"campaign\",\n        )\n        assert classifications[s1_sink] == Counter({\n            \"covered\": 4,\n            \"proven-unreachable\": 18,\n        })\n>       assert classifications[s8b_sink] == Counter({\"covered\": 22})\nE       AssertionError: assert Counter({'fai...esolved': 22}) == Counter({'covered': 22})\nE         \nE         Left contains 1 more item:\nE         {'failure-unresolved': 22}\nE         Right contains 1 more item:\nE         {'covered': 22}\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2817: AssertionError\n_______ test_define_sink_cross_product_has_no_unreviewed_ungated_member ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_has_no_unreviewed_ungated_member():\n        patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n        failures = _define_sink_cross_product_failures(\n            _production_build_sources(), frozenset(patch_sources),\n        )\n>       assert failures == []\nE       AssertionError: assert [('BACKOFF_FI...solved'), ...] == []\nE         \nE         Left contains 22 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/s8b_oracle_driver.py', scope='<module>.run_block', lineno=1788, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2564: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\n7 failed, 36 passed in 22.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1627 retained_bytes=1627 omitted_bytes=0 rendered_excerpt_bytes=1737 sha256=beda50af1e6ed9174a41fd455437941db10bc62f1c36250619bd86891d34a95e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal():\n>         relative = \"orchestrator/campaign/synthetic_t2155_unrelated_declarations.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other):\\x5cn\"\n>             \"    auxiliary = prepared\\x5cn\"\n>             \"    def rebind():\\x5cn\"\n>             \"        nonlocal auxiliary\\x5cn\"\n>             \"        auxiliary = other\\x5cn\"\n>             \"    class Rebind:\\x5cn\"\n>             \"        global alternative_helper\\x5cn\"\n>             \"        alternative_helper = lambda value: None\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    rebind()\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 13, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n>         classifications, failures = _define_sink_cross_product_classification(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         )\n> >       assert classifications[expected] == Counter({\"covered\": 1})\n> E       AssertionError: assert Counter({'fai...resolved': 1}) == Counter({'covered': 1})\n> E         \n> E         Left contains 1 more item:\n> E         {'failure-unresolved': 1}\n> E         Right contains 1 more item:\n> E         {'covered': 1}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3228: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1470 retained_bytes=1470 omitted_bytes=0 rendered_excerpt_bytes=1552 sha256=e1745c87764ed92ab9e2a815a89667026441bfef6f7de77d368974a181a50c1a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value():\n>         relative = \"orchestrator/campaign/synthetic_t2155_with_tuple_checked.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(genome):\\x5cn\"\n>             \"    with prepare(genome) as (actual_binding, prepared):\\x5cn\"\n>             \"        require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"        prepared_for_eval = PreparedCell(\\x5cn\"\n>             \"            genome=prepared.genome,\\x5cn\"\n>             \"        )\\x5cn\"\n>             \"        return pipeline.evaluate(prepared_for_eval.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 9, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == []\n> E       AssertionError: assert [('BACKOFF_FI...'unresolved')] == []\n> E         \n> E         Left contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_with_tuple_checked.py', scope='<module>.run', lineno=9, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2786: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1367 retained_bytes=1367 omitted_bytes=0 rendered_excerpt_bytes=1447 sha256=4a6dc0f0880401bdb0ae61d922acfb7861efa1628cab5ccd98339784ba15430f\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_accepts_read_only_match_guard():\n>         relative = \"orchestrator/campaign/synthetic_t2155_read_only_guard.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, enabled, value):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    match value:\\x5cn\"\n>             \"        case _ if enabled:\\x5cn\"\n>             \"            return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n>         classifications, failures = _define_sink_cross_product_classification(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         )\n> >       assert classifications[expected] == Counter({\"covered\": 1})\n> E       AssertionError: assert Counter({'fai...resolved': 1}) == Counter({'covered': 1})\n> E         \n> E         Left contains 1 more item:\n> E         {'failure-unresolved': 1}\n> E         Right contains 1 more item:\n> E         {'covered': 1}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3081: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1357 retained_bytes=1357 omitted_bytes=0 rendered_excerpt_bytes=1437 sha256=c38c62fcad8ff6451c805911e7bd198fae67ec5e78a6747d8152964f214801f1\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_accepts_unrelated_nested_default():\n>         relative = \"orchestrator/campaign/synthetic_t2155_unrelated_default.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, constant):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    def bind(value=constant):\\x5cn\"\n>             \"        pass\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n>         classifications, failures = _define_sink_cross_product_classification(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         )\n> >       assert classifications[expected] == Counter({\"covered\": 1})\n> E       AssertionError: assert Counter({'fai...resolved': 1}) == Counter({'covered': 1})\n> E         \n> E         Left contains 1 more item:\n> E         {'failure-unresolved': 1}\n> E         Right contains 1 more item:\n> E         {'covered': 1}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3060: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1302 retained_bytes=1302 omitted_bytes=0 rendered_excerpt_bytes=1369 sha256=2912db3793c0950c40eb9785e82320ce88da645bfa0e85c4f5c545b76fef2fe0\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_accepts_with_name_checked_campaign_value():\n>         relative = \"orchestrator/campaign/synthetic_t2155_with_name_checked.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(genome):\\x5cn\"\n>             \"    with prepare(genome) as prepared:\\x5cn\"\n>             \"        require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"        return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 6, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == []\n> E       AssertionError: assert [('BACKOFF_FI...'unresolved')] == []\n> E         \n> E         Left contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_with_name_checked.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2760: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1254 retained_bytes=1254 omitted_bytes=0 rendered_excerpt_bytes=1321 sha256=81a6f077585a353bb72b83a662d56ccfbd78af15543ac0689ac22de5a4db62dc\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():\n>         patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n>         classifications, failures = _define_sink_cross_product_classification(\n>             _production_build_sources(), frozenset(patch_sources),\n>         )\n>         s1_sink = _BuildSink(\n>             \"orchestrator/campaign/s1_direct_comparison.py\",\n>             \"<module>.run_role\",\n>             1215,\n>             \"campaign\",\n>         )\n>         s8b_sink = _BuildSink(\n>             \"orchestrator/campaign/s8b_oracle_driver.py\",\n>             \"<module>.run_block\",\n>             1788,\n>             \"campaign\",\n>         )\n>         assert classifications[s1_sink] == Counter({\n>             \"covered\": 4,\n>             \"proven-unreachable\": 18,\n>         })\n> >       assert classifications[s8b_sink] == Counter({\"covered\": 22})\n> E       AssertionError: assert Counter({'fai...esolved': 22}) == Counter({'covered': 22})\n> E         \n> E         Left contains 1 more item:\n> E         {'failure-unresolved': 22}\n> E         Right contains 1 more item:\n> E         {'covered': 22}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2817: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=762 retained_bytes=762 omitted_bytes=0 rendered_excerpt_bytes=791 sha256=81d3a7eca497aa0a8f7ccefafcc5ab35d2d4bc77ffb13cdbdfed31f925e239ec\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_has_no_unreviewed_ungated_member():\n>         patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n>         failures = _define_sink_cross_product_failures(\n>             _production_build_sources(), frozenset(patch_sources),\n>         )\n> >       assert failures == []\n> E       AssertionError: assert [('BACKOFF_FI...solved'), ...] == []\n> E         \n> E         Left contains 22 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/s8b_oracle_driver.py', scope='<module>.run_block', lineno=1788, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2564: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=9139 retained_bytes=9139 omitted_bytes=0 budget_bytes=49152 rendered_bytes=13133 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a396e295156aa913eabc39ca072336b3d9d626010e668abe2726d2daf253d122"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "bcb21a9ff28f78f0d659062dcfb51ff9fe3242ef7bd98dcdf9052c699c3f6c80",
+      "duration_s": 42.359,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member"
+      ],
+      "hang_risk": false,
+      "id": "M9-campaign-coverage-grant-off",
+      "injection_diff_sha256": "cba3b29579d8bf03f2f5266e9fe7f18b30688b76ebe751216c0e856e001caddd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b09775eb80db56bf617b0b03802d0d454a7c979750efee87979cc3666e83b38e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "            coverage |= frozenset()\n        if not sink.kind.startswith(\"injected-\"):",
+          "old": "            coverage |= self.patch_macros\n        if not sink.kind.startswith(\"injected-\"):"
+        }
+      ],
+      "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+      "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+      "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+      "status": "KILLED",
+      "test_output_sha256": "a396e295156aa913eabc39ca072336b3d9d626010e668abe2726d2daf253d122",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/951209ea6269d5ea9f36e36f84df5d62/izdw-951209ea62.o967701",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/951209ea6269d5ea9f36e36f84df5d62/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................FF......                              [100%]\n=================================== FAILURES ===================================\n_______ test_define_sink_cross_product_rejects_default_walrus_rebinding ________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_default_walrus_rebinding():\n        relative = \"orchestrator/campaign/synthetic_t2155_default_walrus.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    def bind(value=(prepared := other)):\\n\"\n            \"        pass\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_default_walrus.py', scope='<module>.run', lineno=7, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3002: AssertionError\n____ test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding ____\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding():\n        relative = \"orchestrator/campaign/synthetic_t2155_lambda_default.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    bind = lambda value=(prepared := other): None\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 6, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_lambda_default.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3160: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\n2 failed, 41 passed in 22.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1363 retained_bytes=1363 omitted_bytes=0 rendered_excerpt_bytes=1435 sha256=e66adfa1501a176311e2968681790d2c9fbbcb956be57dc01846a8b274e64b13\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_default_walrus_rebinding():\n>         relative = \"orchestrator/campaign/synthetic_t2155_default_walrus.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    def bind(value=(prepared := other)):\\x5cn\"\n>             \"        pass\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_default_walrus.py', scope='<module>.run', lineno=7, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3002: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1350 retained_bytes=1350 omitted_bytes=0 rendered_excerpt_bytes=1417 sha256=c72ebb5a3b1f28fad10c89bf4a9d4eca150390956fd0d6441dfd9f5c709d5e63\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding():\n>         relative = \"orchestrator/campaign/synthetic_t2155_lambda_default.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    bind = lambda value=(prepared := other): None\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 6, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_lambda_default.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3160: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2713 retained_bytes=2713 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4050 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "82772f1fa8494d224fa53f9374ab7a8b19615d393ad392fd8be6b1b8d0e61b65"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bcb21a9ff28f78f0d659062dcfb51ff9fe3242ef7bd98dcdf9052c699c3f6c80",
+      "duration_s": 47.371,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding"
+      ],
+      "hang_risk": false,
+      "id": "M11-definition-time-expressions-off",
+      "injection_diff_sha256": "4b6d4198b6213ebbf8e10c45f3121a6f6cb45b6640478ba728f3353733ac08d2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bfc874080b0f0153b56598565457bf0dd1a3848370dbdf03ae7a9cd47d243f83",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": ") -> tuple[ast.expr, ...]:\n    return ()\n    expressions: list[ast.expr] = []\n    if not isinstance(node, ast.Lambda):",
+          "old": ") -> tuple[ast.expr, ...]:\n    expressions: list[ast.expr] = []\n    if not isinstance(node, ast.Lambda):"
+        }
+      ],
+      "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+      "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+      "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+      "status": "KILLED",
+      "test_output_sha256": "82772f1fa8494d224fa53f9374ab7a8b19615d393ad392fd8be6b1b8d0e61b65",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/93d01259aaa162ab4459498813a98f06/izdw-93d01259aa.o967702",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/93d01259aaa162ab4459498813a98f06/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................FFF......                              [100%]\n=================================== FAILURES ===================================\n_____ test_define_sink_cross_product_rejects_match_guard_walrus_rebinding ______\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_match_guard_walrus_rebinding():\n        relative = \"orchestrator/campaign/synthetic_t2155_guard_walrus.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other, value):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    match value:\\n\"\n            \"        case _ if (prepared := other):\\n\"\n            \"            return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_guard_walrus.py', scope='<module>.run', lineno=7, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3018: AssertionError\n_____ test_define_sink_cross_product_rejects_false_guard_before_match_exit _____\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_false_guard_before_match_exit():\n        relative = \"orchestrator/campaign/synthetic_t2155_false_guard_exit.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other, value):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    match value:\\n\"\n            \"        case _ if (prepared := other):\\n\"\n            \"            return None\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 8, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_exit.py', scope='<module>.run', lineno=8, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3177: AssertionError\n_____ test_define_sink_cross_product_rejects_false_guard_before_next_case ______\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_false_guard_before_next_case():\n        relative = \"orchestrator/campaign/synthetic_t2155_false_guard_next.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, other, value):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    match value:\\n\"\n            \"        case 0 if (prepared := other):\\n\"\n            \"            return None\\n\"\n            \"        case _:\\n\"\n            \"            return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 9, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_next.py', scope='<module>.run', lineno=9, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3198: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\n3 failed, 40 passed in 22.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1460 retained_bytes=1460 omitted_bytes=0 rendered_excerpt_bytes=1542 sha256=3fbc31abb25f371aa9833b92afbe1a121ca042735ed2ffee3731c95f0c2b8b7f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_false_guard_before_next_case():\n>         relative = \"orchestrator/campaign/synthetic_t2155_false_guard_next.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other, value):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    match value:\\x5cn\"\n>             \"        case 0 if (prepared := other):\\x5cn\"\n>             \"            return None\\x5cn\"\n>             \"        case _:\\x5cn\"\n>             \"            return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 9, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_next.py', scope='<module>.run', lineno=9, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3198: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1421 retained_bytes=1421 omitted_bytes=0 rendered_excerpt_bytes=1498 sha256=c34958d586c65c09347297ef26e006953b97ee0d2ced04d83d360a50f41127d4\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_false_guard_before_match_exit():\n>         relative = \"orchestrator/campaign/synthetic_t2155_false_guard_exit.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other, value):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    match value:\\x5cn\"\n>             \"        case _ if (prepared := other):\\x5cn\"\n>             \"            return None\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 8, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_false_guard_exit.py', scope='<module>.run', lineno=8, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3177: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1380 retained_bytes=1380 omitted_bytes=0 rendered_excerpt_bytes=1452 sha256=d6ebb17f8dff323e24bacf5b28c1c210a3bd4ccbe233e5bc54e38eab4122f411\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_match_guard_walrus_rebinding():\n>         relative = \"orchestrator/campaign/synthetic_t2155_guard_walrus.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, other, value):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    match value:\\x5cn\"\n>             \"        case _ if (prepared := other):\\x5cn\"\n>             \"            return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_guard_walrus.py', scope='<module>.run', lineno=7, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3018: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4261 retained_bytes=4261 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6148 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "35d771670d6b40983b3d47383d6c6def4e67663e81b027c2ec7822705b1ccb24"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bcb21a9ff28f78f0d659062dcfb51ff9fe3242ef7bd98dcdf9052c699c3f6c80",
+      "duration_s": 47.595,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case"
+      ],
+      "hang_risk": false,
+      "id": "M12-match-guard-state-off",
+      "injection_diff_sha256": "bb282c33b91206c3154915ff6e8c4e0da9f99cbbd4c8eb78425833cc9bf48892",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5c754a8fce1c7220a85ec0d9c0e96a087acf21b68ccc6984ba75eee33421333b",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "                guarded = case_entry",
+          "old": "                guarded = self._record_expression(\n                    case.guard, case_entry, scope,\n                )"
+        }
+      ],
+      "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+      "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+      "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+      "status": "KILLED",
+      "test_output_sha256": "35d771670d6b40983b3d47383d6c6def4e67663e81b027c2ec7822705b1ccb24",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/5bb8bd74ee53d5f0d27deb1d15a267a6/izdw-5bb8bd74ee.o967703",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/5bb8bd74ee53d5f0d27deb1d15a267a6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................                              [100%]\n43 passed in 22.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "40d7ca67e0e932fe1dc2291bff2559ce262b842f51a976c39df981fa277dd526"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bcb21a9ff28f78f0d659062dcfb51ff9fe3242ef7bd98dcdf9052c699c3f6c80",
+      "duration_s": 47.801,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M10b-direct-import-requirement-off",
+      "injection_diff_sha256": "3321e12c4f47b037e15d7a8c4c66d41509ca2adc303f3163fc686da66706ea9e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "d512bee4bd5ba77174f655a989ab32b8c2610c60eda63fbb6c9c987ce6678a38",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "            return True\n        return False",
+          "old": "            return any(\n                lineno < call.lineno\n                for lineno in self.returned_evidence_helper_direct_imports[\n                    lexical_scope\n                ]\n            )\n        return False"
+        }
+      ],
+      "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+      "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+      "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+      "status": "SURVIVED",
+      "test_output_sha256": "40d7ca67e0e932fe1dc2291bff2559ce262b842f51a976c39df981fa277dd526",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/20559501d63ff59024e021a989f65938/izdw-20559501d6.o967704",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/20559501d63ff59024e021a989f65938/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................FF......                              [100%]\n=================================== FAILURES ===================================\n________ test_define_sink_cross_product_rejects_helper_argument_shadow _________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_helper_argument_shadow():\n        relative = \"orchestrator/campaign/synthetic_t2155_helper_arg_shadow.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared, require_returned_condition_evidence):\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 5, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_helper_arg_shadow.py', scope='<module>.run', lineno=5, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2977: AssertionError\n_____ test_define_sink_cross_product_rejects_locally_defined_helper_shadow _____\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_rejects_locally_defined_helper_shadow():\n        relative = \"orchestrator/campaign/synthetic_t2155_local_helper_shadow.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign.s1_direct_comparison import \"\n            \"require_returned_condition_evidence\\n\"\n            \"from orchestrator.campaign import pipeline\\n\"\n            \"def run(prepared):\\n\"\n            \"    def require_returned_condition_evidence(value):\\n\"\n            \"        return None\\n\"\n            \"    require_returned_condition_evidence(prepared)\\n\"\n            \"    return pipeline.evaluate(prepared.genome)\\n\"\n        )}\n        expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n        _assert_single_synthetic_campaign_sink(sources, expected)\n>       assert _define_sink_cross_product_failures(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\nE       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\nE         \nE         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_local_helper_shadow.py', scope='<module>.run', lineno=7, kind='campaign'), 'unresolved')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2960: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\n2 failed, 41 passed in 22.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1389 retained_bytes=1389 omitted_bytes=0 rendered_excerpt_bytes=1461 sha256=487980862f9461e9b7e0811ea66106d0f1bd11cb425d19a72407d05876564bcd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_locally_defined_helper_shadow():\n>         relative = \"orchestrator/campaign/synthetic_t2155_local_helper_shadow.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared):\\x5cn\"\n>             \"    def require_returned_condition_evidence(value):\\x5cn\"\n>             \"        return None\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 7, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_local_helper_shadow.py', scope='<module>.run', lineno=7, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2960: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1311 retained_bytes=1311 omitted_bytes=0 rendered_excerpt_bytes=1373 sha256=fae5f31689015c19f7434dbd4c01b4dfb6c89c46667d15c35feaa94015227f48\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_rejects_helper_argument_shadow():\n>         relative = \"orchestrator/campaign/synthetic_t2155_helper_arg_shadow.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign.s1_direct_comparison import \"\n>             \"require_returned_condition_evidence\\x5cn\"\n>             \"from orchestrator.campaign import pipeline\\x5cn\"\n>             \"def run(prepared, require_returned_condition_evidence):\\x5cn\"\n>             \"    require_returned_condition_evidence(prepared)\\x5cn\"\n>             \"    return pipeline.evaluate(prepared.genome)\\x5cn\"\n>         )}\n>         expected = _BuildSink(relative, \"<module>.run\", 5, \"campaign\")\n>         _assert_single_synthetic_campaign_sink(sources, expected)\n> >       assert _define_sink_cross_product_failures(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         ) == [(\"BACKOFF_FIXED\", expected, \"unresolved\")]\n> E       AssertionError: assert [] == [('BACKOFF_FI...'unresolved')]\n> E         \n> E         Right contains one more item: ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_t2155_helper_arg_shadow.py', scope='<module>.run', lineno=5, kind='campaign'), 'unresolved')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2977: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2700 retained_bytes=2700 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4028 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d3099818a5497da7edee2eb22a5be5ef4be41275eb77863f5f75e4a5addf2a4b"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "bcb21a9ff28f78f0d659062dcfb51ff9fe3242ef7bd98dcdf9052c699c3f6c80",
+      "duration_s": 42.852,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow"
+      ],
+      "hang_risk": false,
+      "id": "M10c-both-shadow-layers-off",
+      "injection_diff_sha256": "50bfac1909b8ef66fb802bc9614dbd3e5257dfe86858cc4b984011f63f55b04d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6df8663477bd025ae80b6b98a55b3b46df1ea7ce42dfd738cdc81117a10b8b9c",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "            if False:\n                return False",
+          "old": "            if not all(bindings):\n                return False"
+        },
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "            return True\n        return False",
+          "old": "            return any(\n                lineno < call.lineno\n                for lineno in self.returned_evidence_helper_direct_imports[\n                    lexical_scope\n                ]\n            )\n        return False"
+        }
+      ],
+      "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+      "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+      "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+      "status": "KILLED",
+      "test_output_sha256": "d3099818a5497da7edee2eb22a5be5ef4be41275eb77863f5f75e4a5addf2a4b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/fa5f339e013479d1828f973530af372b/izdw-fa5f339e01.o967689",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/output/pegasus-dispatch/fa5f339e013479d1828f973530af372b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\n\n43 tests collected in 0.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3392650338e5a7f0c0de84ccbf8f6fcefd66488e2f2d7fa69fe5feccf00d3f35"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]"
+      ],
+      "duration_s": 21.909,
+      "rc": 0,
+      "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+      "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+      "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+      "status": "PASSED",
+      "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543"
+    },
+    "hang_timeout_seconds": 1200.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M10b-direct-import-requirement-off": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "3321e12c4f47b037e15d7a8c4c66d41509ca2adc303f3163fc686da66706ea9e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "            return True\n        return False",
+            "old": "            return any(\n                lineno < call.lineno\n                for lineno in self.returned_evidence_helper_direct_imports[\n                    lexical_scope\n                ]\n            )\n        return False"
+          }
+        ]
+      },
+      "M10c-both-shadow-layers-off": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "50bfac1909b8ef66fb802bc9614dbd3e5257dfe86858cc4b984011f63f55b04d",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "            if False:\n                return False",
+            "old": "            if not all(bindings):\n                return False"
+          },
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "            return True\n        return False",
+            "old": "            return any(\n                lineno < call.lineno\n                for lineno in self.returned_evidence_helper_direct_imports[\n                    lexical_scope\n                ]\n            )\n        return False"
+          }
+        ]
+      },
+      "M11-definition-time-expressions-off": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4b6d4198b6213ebbf8e10c45f3121a6f6cb45b6640478ba728f3353733ac08d2",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": ") -> tuple[ast.expr, ...]:\n    return ()\n    expressions: list[ast.expr] = []\n    if not isinstance(node, ast.Lambda):",
+            "old": ") -> tuple[ast.expr, ...]:\n    expressions: list[ast.expr] = []\n    if not isinstance(node, ast.Lambda):"
+          }
+        ]
+      },
+      "M12-match-guard-state-off": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bb282c33b91206c3154915ff6e8c4e0da9f99cbbd4c8eb78425833cc9bf48892",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "                guarded = case_entry",
+            "old": "                guarded = self._record_expression(\n                    case.guard, case_entry, scope,\n                )"
+          }
+        ]
+      },
+      "M3-merge-union-not-intersection": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ea5eaac7792161b8ca9e5cc435583189c4cedb5923695b6718ca1ae9ae2ceacb",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "        returned_evidence_names.update(",
+            "old": "        returned_evidence_names.intersection_update("
+          }
+        ]
+      },
+      "M9-campaign-coverage-grant-off": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cba3b29579d8bf03f2f5266e9fe7f18b30688b76ebe751216c0e856e001caddd",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "            coverage |= frozenset()\n        if not sink.kind.startswith(\"injected-\"):",
+            "old": "            coverage |= self.patch_macros\n        if not sink.kind.startswith(\"injected-\"):"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "1bf3f5d119844aeaf2a0b13419e0eafe23a29d6229a73bfdea921b9ccd7a198c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "f1af403898263e193e161e43e63391ca8c04372b",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ac594a2828171ae89ad3c532ffdefa3c6410e11e",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "f21f29f06d4ebb6ebc725fbbdcbe8427b59052981fe58f4fe53e12cc5a8c3d38",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "791893ef7e2bd927b26c3cb887115268d145ec71667c4a614cf3d8efc74f741d",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2155-closure-with-bindings/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "8212582d0cdcf5e28cf768744b5bf454989bada8da6f42ce845ef6bc2c1ea543",
+  "updated_at": "2026-09-02T04:53:18.062118+00:00"
+}

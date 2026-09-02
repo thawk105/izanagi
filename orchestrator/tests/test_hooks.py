@@ -2571,6 +2571,7 @@ _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS = (
 
 _PEGASUS_EXPECTED_CLASSES = {
     "tools/claude_session_ledger.py": "unknown",
+    "tools/pegasus/a5_second_boot_backoff_sweep.sh": "dispatch-required",
     "tools/pegasus/acceptance_nproc_study.sh": "dispatch-required",
     "tools/pegasus/b10_backoff_grid.sh": "dispatch-required",
     "tools/pegasus/b10_backoff_shape_campaign.sh": "dispatch-required",
@@ -2597,6 +2598,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t1403_walltime_sigterm_probe.py": "unknown",
     "tools/pegasus/probes/t1683_rr5_cost_probe.pbs": "dispatch-required",
     "tools/pegasus/probes/t1683_rr5_cost_probe.py": "dispatch-required",
+    "tools/pegasus/probes/t2187_adaptive_const_probe.pbs": "dispatch-required",
+    "tools/pegasus/probes/t2187_adaptive_const_probe.py": "dispatch-required",
     "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
     "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
     "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": "dispatch-required",
@@ -2614,6 +2617,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
     "tools/pegasus/smoke_probe.sh": "dispatch-required",
     "tools/pegasus/ss2pl_lock_study.sh": "dispatch-required",
+    "tools/pegasus/submit_a5_second_boot_backoff_sweep.sh": "local-ok",
     "tools/pegasus/submit_b10_backoff_grid.sh": "local-ok",
     "tools/pegasus/submit_b10_backoff_shape.sh": "local-ok",
     "tools/pegasus/submit_certify.sh": "local-ok",
@@ -2640,6 +2644,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "inputs are hard-capped; isolated-scope and cap-boundary measurements are unavailable",
         "primary_gate": "hook deny pending isolated-scope admission evidence",
         "evidence": "compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB"
+    },
+    "tools/pegasus/a5_second_boot_backoff_sweep.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS A-5 second-boot backoff sweep measurement job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
     },
     "tools/pegasus/acceptance_nproc_study.sh": {
         "class": "dispatch-required",
@@ -2739,7 +2749,7 @@ _PEGASUS_EXPECTED_ENTRIES = {
     },
     "tools/pegasus/paper_story_a2_certification.sh": {
         "class": "dispatch-required",
-        "reason": "PBS paper-story A-2 certification job body",
+        "reason": "PBS paper-story A-2/A-6 policy-selected certification job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },
@@ -2795,6 +2805,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "class": "dispatch-required",
         "reason": "compute-side rr5 full-scale trace and verifier cost measurement driver",
         "primary_gate": "compute allocation owned by t1683_rr5_cost_probe.pbs",
+        "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t2187_adaptive_const_probe.pbs": {
+        "class": "dispatch-required",
+        "reason": "PBS Cicada adaptive-backoff constant performance measurement job body",
+        "primary_gate": "PBS allocation and job-body compute-host validation",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t2187_adaptive_const_probe.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side Cicada adaptive-backoff constant performance measurement driver",
+        "primary_gate": "compute allocation owned by t2187_adaptive_const_probe.pbs",
         "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {
@@ -2899,6 +2921,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },
+    "tools/pegasus/submit_a5_second_boot_backoff_sweep.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS A-5 two-workload fan-out submitter",
+      "primary_gate": "qsub submission; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
+    },
     "tools/pegasus/submit_b10_backoff_grid.sh": {
       "class": "local-ok",
       "reason": "login-side PBS B-10 three-workload submitter",
@@ -2937,8 +2965,8 @@ _PEGASUS_EXPECTED_ENTRIES = {
     },
     "tools/pegasus/submit_paper_story_a2_certification.sh": {
       "class": "local-ok",
-      "reason": "login-side PBS paper-story A-2 two-workload submitter and finisher",
-      "primary_gate": "ratification precheck then qsub fan-out; compute work stays in independent job bodies",
+      "reason": "login-side PBS paper-story A-2/A-6 policy-selected submitter and finisher",
+      "primary_gate": "policy-scoped precheck then qsub fan-out; compute work stays in independent job bodies",
       "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_silo_ladder_rung1.sh": {
@@ -3430,6 +3458,8 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
     expected_local_evidence = {
         "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
         "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",
+        "tools/pegasus/submit_a5_second_boot_backoff_sweep.sh":
+            "static login-side submitter classification",
         "tools/pegasus/submit_b10_backoff_grid.sh":
             "static login-side submitter classification",
         "tools/pegasus/submit_b10_backoff_shape.sh":

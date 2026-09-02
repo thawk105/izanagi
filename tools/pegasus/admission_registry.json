@@ -7,6 +7,12 @@
       "primary_gate": "hook deny pending isolated-scope admission evidence",
       "evidence": "compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB"
     },
+    "tools/pegasus/a5_second_boot_backoff_sweep.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS A-5 second-boot backoff sweep measurement job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/acceptance_nproc_study.sh": {
       "class": "dispatch-required",
       "reason": "PBS acceptance nproc measurement job body",
@@ -105,7 +111,7 @@
     },
     "tools/pegasus/paper_story_a2_certification.sh": {
       "class": "dispatch-required",
-      "reason": "PBS paper-story A-2 certification job body",
+      "reason": "PBS paper-story A-2/A-6 policy-selected certification job body",
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
@@ -161,6 +167,18 @@
       "class": "dispatch-required",
       "reason": "compute-side rr5 full-scale trace and verifier cost measurement driver",
       "primary_gate": "compute allocation owned by t1683_rr5_cost_probe.pbs",
+      "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t2187_adaptive_const_probe.pbs": {
+      "class": "dispatch-required",
+      "reason": "PBS Cicada adaptive-backoff constant performance measurement job body",
+      "primary_gate": "PBS allocation and job-body compute-host validation",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t2187_adaptive_const_probe.py": {
+      "class": "dispatch-required",
+      "reason": "compute-side Cicada adaptive-backoff constant performance measurement driver",
+      "primary_gate": "compute allocation owned by t2187_adaptive_const_probe.pbs",
       "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {
@@ -265,6 +283,12 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/submit_a5_second_boot_backoff_sweep.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS A-5 two-workload fan-out submitter",
+      "primary_gate": "qsub submission; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
+    },
     "tools/pegasus/submit_b10_backoff_grid.sh": {
       "class": "local-ok",
       "reason": "login-side PBS B-10 three-workload submitter",
@@ -303,8 +327,8 @@
     },
     "tools/pegasus/submit_paper_story_a2_certification.sh": {
       "class": "local-ok",
-      "reason": "login-side PBS paper-story A-2 two-workload submitter and finisher",
-      "primary_gate": "ratification precheck then qsub fan-out; compute work stays in independent job bodies",
+      "reason": "login-side PBS paper-story A-2/A-6 policy-selected submitter and finisher",
+      "primary_gate": "policy-scoped precheck then qsub fan-out; compute work stays in independent job bodies",
       "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_silo_ladder_rung1.sh": {

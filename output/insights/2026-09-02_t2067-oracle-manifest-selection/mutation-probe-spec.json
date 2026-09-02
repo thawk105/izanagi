@@ -1,0 +1,97 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T2067-M1-GATE-REMOVED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067-M2-DOCUMENT-ARG",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified.document, root)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067-M3-MODULE-ROOT",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, ROOT)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067-M4-ROOT-OMITTED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067-M5-GATE-AFTER-SPEC",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+     "old": "        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n",
+     "new": "        pass\n"
+    },
+    {
+     "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+     "old": "    spec = approved.document\n",
+     "new": "    s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)\n    spec = approved.document\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2067-M6-REASON-FLATTENED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+     "old": "            if exc.reason == \"no-active\" else exc.reason\n",
+     "new": "            if exc.reason == \"no-active\" else \"floor-selection-unverifiable\"\n"
+    }
+   ]
+  }
+ ]
+}
