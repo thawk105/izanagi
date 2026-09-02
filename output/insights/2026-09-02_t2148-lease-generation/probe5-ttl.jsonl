@@ -1,0 +1,12 @@
+{"action": "status", "aged_seconds": 0, "rc": 0, "reason": "lease-unavailable", "refreshed": false, "scenario": "fresh-0", "state": "unavailable", "wave": "probe-wave-A"}
+{"action": "release", "aged_seconds": 0, "rc": 0, "reason": "lease-unavailable", "refreshed": false, "scenario": "fresh-0", "state": "unavailable", "wave": "probe-wave-A"}
+{"action": "claim", "aged_seconds": 0, "rc": 0, "reason": "lease-unavailable", "refreshed": false, "scenario": "fresh-0", "state": "unavailable", "wave": "probe-wave-B"}
+{"action": "status", "aged_seconds": 2399, "rc": 0, "reason": "lease-unavailable", "refreshed": false, "scenario": "just-under-ttl-2399", "state": "unavailable", "wave": "probe-wave-A"}
+{"action": "release", "aged_seconds": 2399, "rc": 0, "reason": "lease-unavailable", "refreshed": false, "scenario": "just-under-ttl-2399", "state": "unavailable", "wave": "probe-wave-A"}
+{"action": "claim", "aged_seconds": 2399, "rc": 0, "reason": "lease-unavailable", "refreshed": false, "scenario": "just-under-ttl-2399", "state": "unavailable", "wave": "probe-wave-B"}
+{"action": "status", "aged_seconds": 2401, "rc": 0, "reason": null, "refreshed": false, "scenario": "just-over-ttl-2401", "state": "stale", "wave": "probe-wave-A"}
+{"action": "release", "aged_seconds": 2401, "rc": 0, "reason": "lease-unavailable", "refreshed": false, "scenario": "just-over-ttl-2401", "state": "unavailable", "wave": "probe-wave-A"}
+{"action": "claim", "aged_seconds": 2401, "rc": 0, "reason": null, "refreshed": false, "scenario": "just-over-ttl-2401", "state": "acquired", "wave": "probe-wave-B"}
+{"action": "status", "aged_seconds": 2401, "rc": 0, "reason": "lease-unavailable", "refreshed": true, "scenario": "over-ttl-then-renewed", "state": "unavailable", "wave": "probe-wave-A"}
+{"action": "release", "aged_seconds": 2401, "rc": 0, "reason": "lease-unavailable", "refreshed": true, "scenario": "over-ttl-then-renewed", "state": "unavailable", "wave": "probe-wave-A"}
+{"action": "claim", "aged_seconds": 2401, "rc": 0, "reason": "lease-unavailable", "refreshed": true, "scenario": "over-ttl-then-renewed", "state": "unavailable", "wave": "probe-wave-B"}
