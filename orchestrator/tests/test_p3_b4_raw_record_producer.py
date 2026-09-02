@@ -1144,6 +1144,9 @@ def test_m12_nonterminating_reference_ratio_has_only_named_rejection(
         P._fraction_token((1, 3))
     assert str(exc_info.value) == "reference_tps has no finite decimal expansion"
 
+    control = _publication(tmp_path / "control")
+    _assert_write(_publish(control, certified_evidence))
+
     publication = _publication(tmp_path / "publication-case")
     with mock.patch.object(
         P,
@@ -1151,8 +1154,11 @@ def test_m12_nonterminating_reference_ratio_has_only_named_rejection(
         side_effect=ArithmeticError(
             "reference_tps has no finite decimal expansion"
         ),
-    ):
+    ) as fraction_token:
         result = _publish(publication, certified_evidence)
+        fraction_token.assert_called_once_with(
+            publication.manifest.rows[0].reference_tps
+        )
 
     assert isinstance(result, P.B4RawRecordRejection), result
     assert result.issues == (
