@@ -10541,6 +10541,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入や焦点走が `child_started=false` / `kind":"infra"` / `"reason":"orphan-hold"` で
   戻ったら、上の列挙を 1 回実行する。空でなければ、その走行は負荷でもテストでもなく
   残存 hold で止まっている。
+
+- **再発: 2026-09-03** — T-2229 / T-2230 wave の受入で、親が受入全走
+  (`tools/dev_wave_wait.py acceptance -- python3 tools/run_tests.py`) を前景で投げ、
+  **Bash tool の上限である 10 分**で打ち切られた (rc=143)。shard job `969417.nqsv`
+  (`izdw-shard-0`) が孤児化し、`output/pegasus-dispatch/orphan-hold.json` が
+  `job-may-remain-without-terminal-evidence` で武装した。2 回あとに投入した受入は
+  `stage=acceptance-command rc=70 source_rc=16 reason=dispatch-attestation-missing` で止まり、
+  子 log の実体は `acceptance shard gate failed: dispatch-infrastructure` で、
+  **テストは 1 件も走っていない。** 既載の型どおりだが、次の 1 点が台帳と食い違う。
+  **恒久対応の 2 択のうち片方が、受入全走では選べない。** 既存記述は
+  「長時間走りうる検査は余裕あるタイムアウト、または背景経路で起動する」と書くが、
+  Bash tool の前景タイムアウトは**上限が 10 分**で、並行 wave が走る条件下の受入全走は
+  それを超える。**受入全走に前景経路は存在せず、背景投入が唯一の経路である。**
+  過去の再発は 2 分の既定や `timeout 3000` という書き手が選んだ値が引き金だったのに対し、
+  本件は**上限まで上げても足りなかった**点が違う。
+  復旧は既載の契約どおりで新事実は無い — 手動 qdel をせず (F47 型ラッチを立てないため)、
+  `qstat` の出力本文で request の不在 (`Batch Request: 969417.nqsv does not exist on nqsv.`)
+  を確認し、source が clean で HEAD 不変であることを確かめてから
+  `orphan-hold.json` と `orphan-holds/969417.nqsv.json` の 2 file を手動削除した。
+  作業ツリーへの被害はゼロ (tracked 差分・HEAD とも不変)。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -21345,3 +21365,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   段 6 のレビュー子へは、事前登録した変異の期待 node を完全集合で再導出させる。
 - 再発検知: 段 6 のレビュー子に変異ごとの期待 node を完全集合で列挙させ、親の事前登録と
   突き合わせる。件数が違えば単一理由性を再判定する。本 wave ではこの経路で実際に検出した。
+
+### F821. `dev_wave_submodule_init.py` は成功した初期化に対しても `update-no-fetch` を返す [手順漏れ]
+
+- 事象: 新規 worktree 3 本 (実装子・fix1・fix2) で
+  `python3 tools/dev_wave_submodule_init.py --worktree <path>` が毎回
+  `ERROR: runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}`
+  を返した。しかし `external/ccbench/` は実際には展開されており
+  (`.git` と `CMakeLists.txt` を含む 13 entry)、`tools/check_wave_startup.py --mode midflight`
+  を再走すると緑になった。親は 1 本目で「初期化に失敗した」と読み違えて別手段を探した。
+- 根本原因: 同 tool の最後の `submodule-update` は再帰的に走り、`external/ccbench` 配下の
+  入れ子 submodule が local objects だけでは解決できずに非 0 で戻る。top-level の展開は
+  その前に完了しているが、tool は最後の返り値だけを見て全体を失敗として報告する。
+  開始 gate が要求するのは top-level だけなので、gate と tool の判定基準がずれている。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O20` が既に
+  「新規 worktree は未初期化 submodule で非 0。`DW-C01` に従い初期化して再検査」と定めており、
+  **再検査すれば緑になる**という現行手順で閉じる。tool の返り値を初期化の成否と読み替えない。
+- 再発検知: `tools/check_wave_startup.py` の submodule 検査 (top-level の
+  `CMakeLists.txt` が非 symlink の regular file、`.git` が存在) が権威であり、
+  tool の rc ではなくこちらの結果で判定する。
