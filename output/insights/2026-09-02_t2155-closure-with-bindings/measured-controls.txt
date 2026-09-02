@@ -1,0 +1,121 @@
+=== baseline (現行 main) ===
+totals: {'deferred': 89, 'proven-unreachable': 947, 'covered': 130}
+cross-product failures: 0
+=== 欠陥 (a) だけ修正 ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+cross-product failures: 0
+
+=== 分類が動いた sink ===
+('orchestrator/campaign/s1_direct_comparison.py', '<module>.run_role', 1215, 'campaign')
+   before: {'proven-unreachable': 22}
+   after : {'covered': 4, 'proven-unreachable': 18}
+
+=== (a) だけ修正したときの failure 一覧 ===
+=== baseline (現行 main) ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+cross-product failures: 0
+=== (a) のみ ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+cross-product failures: 0
+=== (a) + (b) ===
+totals: {'deferred': 67, 'proven-unreachable': 943, 'covered': 156}
+cross-product failures: 0
+=== (b) のみ ===
+totals: {'deferred': 67, 'proven-unreachable': 947, 'covered': 152}
+cross-product failures: 0
+
+=== 分類が動いた sink (baseline -> (a)+(b)) ===
+('orchestrator/campaign/s8b_oracle_driver.py', '<module>.run_block', 1788, 'campaign')
+   baseline: {'deferred': 22}
+   (a)only : {'deferred': 22}
+   (b)only : {'covered': 22}
+   (a)+(b) : {'covered': 22}
+
+=== (a)+(b) の failure 一覧 ===
+=== (a)+(b) 近似 ((b) は行番号順) を入れた状態 ===
+--- 正例: 支配的な返却物検査 ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: []
+--- 負例1: 分岐内にしか検査が無い ---
+  採取された sink: [('<module>.run', 6, 'campaign')]
+  failures: []
+--- 負例2: 検査が sink より後 ---
+  採取された sink: [('<module>.run', 3, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_late_gate.py', scope='<module>.run', lineno=3, kind='campaign'), 'unresolved')]
+--- 負例3: 検査後に同名を再束縛 ---
+  採取された sink: [('<module>.run', 5, 'campaign')]
+  failures: []
+--- 参考: with-Name 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: []
+--- 参考: with-Tuple 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: []
+
+=== 現行 main の検査 (差し替えを戻す) ===
+--- 正例: 支配的な返却物検査 ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_returned_evidence.py', scope='<module>.run', lineno=4, kind='campaign'), 'unresolved')]
+--- 負例1: 分岐内にしか検査が無い ---
+  採取された sink: [('<module>.run', 6, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_branch_gate.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')]
+--- 負例2: 検査が sink より後 ---
+  採取された sink: [('<module>.run', 3, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_late_gate.py', scope='<module>.run', lineno=3, kind='campaign'), 'unresolved')]
+--- 負例3: 検査後に同名を再束縛 ---
+  採取された sink: [('<module>.run', 5, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_rebound.py', scope='<module>.run', lineno=5, kind='campaign'), 'unresolved')]
+--- 参考: with-Name 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: []
+--- 参考: with-Tuple 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: []
+
+=== 判定 ===
+  正例: 支配的な返却物検査: sink 1 件 / 現行 failures 1 / 近似(b) failures 0
+  負例1: 分岐内にしか検査が無い: sink 1 件 / 現行 failures 1 / 近似(b) failures 0
+  負例2: 検査が sink より後: sink 1 件 / 現行 failures 1 / 近似(b) failures 1
+  負例3: 検査後に同名を再束縛: sink 1 件 / 現行 failures 1 / 近似(b) failures 0
+  参考: with-Name 束縛で gate 無し: sink 1 件 / 現行 failures 0 / 近似(b) failures 0
+  参考: with-Tuple 束縛で gate 無し: sink 1 件 / 現行 failures 0 / 近似(b) failures 0
+
+=== (a) だけを明示的に適用 (with 束縛追跡あり・被覆拡張なし) ===
+--- 正例: 支配的な返却物検査 ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_returned_evidence.py', scope='<module>.run', lineno=4, kind='campaign'), 'unresolved')]
+--- 負例1: 分岐内にしか検査が無い ---
+  採取された sink: [('<module>.run', 6, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_branch_gate.py', scope='<module>.run', lineno=6, kind='campaign'), 'unresolved')]
+--- 負例2: 検査が sink より後 ---
+  採取された sink: [('<module>.run', 3, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_late_gate.py', scope='<module>.run', lineno=3, kind='campaign'), 'unresolved')]
+--- 負例3: 検査後に同名を再束縛 ---
+  採取された sink: [('<module>.run', 5, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_rebound.py', scope='<module>.run', lineno=5, kind='campaign'), 'unresolved')]
+--- 参考: with-Name 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_with_name.py', scope='<module>.run', lineno=4, kind='campaign'), 'unresolved')]
+--- 参考: with-Tuple 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_with_tuple.py', scope='<module>.run', lineno=4, kind='campaign'), 'unresolved')]
+
+=== (a)+(b) を明示的に適用 ===
+--- 正例: 支配的な返却物検査 ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: []
+--- 負例1: 分岐内にしか検査が無い ---
+  採取された sink: [('<module>.run', 6, 'campaign')]
+  failures: []
+--- 負例2: 検査が sink より後 ---
+  採取された sink: [('<module>.run', 3, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_late_gate.py', scope='<module>.run', lineno=3, kind='campaign'), 'unresolved')]
+--- 負例3: 検査後に同名を再束縛 ---
+  採取された sink: [('<module>.run', 5, 'campaign')]
+  failures: []
+--- 参考: with-Name 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_with_name.py', scope='<module>.run', lineno=4, kind='campaign'), 'unresolved')]
+--- 参考: with-Tuple 束縛で gate 無し ---
+  採取された sink: [('<module>.run', 4, 'campaign')]
+  failures: [('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/synthetic_with_tuple.py', scope='<module>.run', lineno=4, kind='campaign'), 'unresolved')]

@@ -24,13 +24,13 @@
       "const": "izanagi-axis1-search-catalog/v1"
     },
     "registration_epoch": {
-      "const": "AX1-20260829-E1"
+      "const": "AX1-20260902-E1"
     },
     "outcome_informed": {
       "const": true
     },
     "amendment_path": {
-      "const": "docs/related-work/claim-survey/2026-08-29-axis1-search-amendment.md"
+      "const": "docs/related-work/claim-survey/2026-09-02-axis1-search-amendment.md"
     },
     "supersedes": {
       "type": "array",
@@ -344,7 +344,7 @@
         },
         "logical_query_id": {
           "type": "string",
-          "pattern": "^AX1-20260829-E1-Q[36]@(arxiv|openalex)$"
+          "pattern": "^AX1-20260902-E1-Q[36]@(arxiv|openalex)$"
         },
         "generator": {
           "enum": [
@@ -447,7 +447,7 @@
       ]
     },
     "openalex_oqo": {
-      "description": "Acceptance oracle compared structurally with meta.x_query.oqo; array order is significant.",
+      "description": "Acceptance oracle compared structurally with meta.x_query.oqo; sibling order is ignored only within the implicit root and and/or groups, while multiplicity, group boundaries, depth, and join values remain significant.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -485,7 +485,7 @@
       "properties": {
         "query_id": {
           "type": "string",
-          "pattern": "^AX1-20260829-E1-(?:Q[1-6]|T(?:0[1-9]|1[0-2]))(?:-S(?:Y[0-9]{4}|M[0-9]{6}|PRE1991)|-EXCLUSION)?@(arxiv|openalex|dblp)$"
+          "pattern": "^AX1-20260902-E1-(?:Q[1-6]|T(?:0[1-9]|1[0-2]))(?:-S(?:Y[0-9]{4}|M[0-9]{6}|PRE1991)|-EXCLUSION)?@(arxiv|openalex|dblp)$"
         },
         "kind": {
           "enum": [
@@ -508,7 +508,7 @@
           "anyOf": [
             {
               "type": "string",
-              "pattern": "^AX1-20260829-E1-Q[36]@(arxiv|openalex)$"
+              "pattern": "^AX1-20260902-E1-Q[36]@(arxiv|openalex)$"
             },
             {
               "type": "null"
@@ -553,7 +553,7 @@
           "if": {
             "properties": {
               "query_id": {
-                "pattern": "^AX1-20260829-E1-(?:Q6(?:-S(?:Y[0-9]{4}|M[0-9]{6}))?@arxiv|Q[36](?:-S(?:Y[0-9]{4}|PRE1991))?@openalex)$"
+                "pattern": "^AX1-20260902-E1-(?:Q6(?:-S(?:Y[0-9]{4}|M[0-9]{6}))?@arxiv|Q[36](?:-S(?:Y[0-9]{4}|PRE1991))?@openalex)$"
               }
             },
             "required": [
