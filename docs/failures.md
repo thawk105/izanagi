@@ -21345,3 +21345,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   段 6 のレビュー子へは、事前登録した変異の期待 node を完全集合で再導出させる。
 - 再発検知: 段 6 のレビュー子に変異ごとの期待 node を完全集合で列挙させ、親の事前登録と
   突き合わせる。件数が違えば単一理由性を再判定する。本 wave ではこの経路で実際に検出した。
+
+### F821. `dev_wave_submodule_init.py` は成功した初期化に対しても `update-no-fetch` を返す [手順漏れ]
+
+- 事象: 新規 worktree 3 本 (実装子・fix1・fix2) で
+  `python3 tools/dev_wave_submodule_init.py --worktree <path>` が毎回
+  `ERROR: runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}`
+  を返した。しかし `external/ccbench/` は実際には展開されており
+  (`.git` と `CMakeLists.txt` を含む 13 entry)、`tools/check_wave_startup.py --mode midflight`
+  を再走すると緑になった。親は 1 本目で「初期化に失敗した」と読み違えて別手段を探した。
+- 根本原因: 同 tool の最後の `submodule-update` は再帰的に走り、`external/ccbench` 配下の
+  入れ子 submodule が local objects だけでは解決できずに非 0 で戻る。top-level の展開は
+  その前に完了しているが、tool は最後の返り値だけを見て全体を失敗として報告する。
+  開始 gate が要求するのは top-level だけなので、gate と tool の判定基準がずれている。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O20` が既に
+  「新規 worktree は未初期化 submodule で非 0。`DW-C01` に従い初期化して再検査」と定めており、
+  **再検査すれば緑になる**という現行手順で閉じる。tool の返り値を初期化の成否と読み替えない。
+- 再発検知: `tools/check_wave_startup.py` の submodule 検査 (top-level の
+  `CMakeLists.txt` が非 symlink の regular file、`.git` が存在) が権威であり、
+  tool の rc ではなくこちらの結果で判定する。
