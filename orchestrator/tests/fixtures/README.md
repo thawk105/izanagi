@@ -27,6 +27,7 @@
 | `r6_epoch_version_order` | **non-serializable / G2** | epoch 境界を跨ぐ版順序。版を `tid` だけで並べると cycle が消える (positive control) |
 | `r7_epoch_rw_successor` | **non-serializable / G2** | 読んだ版の**直後版が次 epoch**。rw 側の epoch 順序を固定する (r6 の ww 側と対) |
 | `r8_silo_broken_norw` | **non-serializable / G2** | **実 emitter 由来・broken-Silo**。read-set 再検証を抜いた build の trace。判定が verifier の外で決まる赤側の地面。288 txn / 1,509 辺 / G2 4 本 |
+| `r9_dense_cycle4` | **non-serializable / G2** | 手製・密な txid 0..3・clean。2 thread、wr 3 本 + rw 1 本で長さ 4 の単一 cycle |
 | `integrity_orphan` | **indeterminate** | 非 genesis なのに producer 不在の read (orphan)。cycle は無いが認証不能 |
 | `m1_commit_at_genesis` | **indeterminate** | trx が番兵 (1,0) で commit (非物理)。wr 辺は落とさず弾く (FIX2 回帰) |
 | `m2_version_dup` | **indeterminate** | 同一 (key,版) を 2 trx が産む malformed (FIX1 回帰) |
