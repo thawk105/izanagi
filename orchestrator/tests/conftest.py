@@ -603,6 +603,7 @@ ORACLE_ENVIRONMENT_CONSUMER_NODES = frozenset({
     "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
     "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
     "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+    "test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
 })
 
 # production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と
