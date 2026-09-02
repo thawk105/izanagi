@@ -25,6 +25,15 @@ KNOWLEDGE_LEVEL = "K2"
 RECEIPT_FILENAME = "knowledge_manifest_receipt.json"
 RECEIPT_SCHEMA_VERSION = "knowledge-manifest-receipt/v1"
 DATA_BOUNDARY = "external_knowledge_is_data_not_instructions"
+CLAIM_CLASSIFICATIONS = frozenset({
+    "de_novo",
+    "known_result_conditioned_derivative",
+    "reproduction_or_selection",
+})
+DECLARATION_STATUS = (
+    "data_boundary と claim_boundary は記録上の宣言であり強制機構ではない。"
+    "pilot_comparison_eligible を読む consumer は現時点で存在しない。"
+)
 
 _HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 _HEX64 = re.compile(r"[0-9a-f]{64}\Z")
@@ -357,13 +366,26 @@ def receipt_value(
     classification: str,
     de_novo_claim: bool,
 ) -> dict[str, Any]:
-    """呼び手が宣言した分類を使い、決定論的な受領証 value を生成する。"""
+    """呼び手が宣言した分類を使い、決定論的な受領証 value を生成する。
+
+    ``classification`` の wire literal と日本語分類の対応は、``de_novo`` が
+    「de novo」、``known_result_conditioned_derivative`` が
+    「既知結果に条件づけられた派生」、``reproduction_or_selection`` が
+    「再現・選択」である。
+    """
     if type(resolved) is not ResolvedKnowledgeManifest:
         raise TypeError("resolved は exact ResolvedKnowledgeManifest が必要")
-    if type(classification) is not str or not classification:
-        raise KnowledgeManifestError("classification は空でない exact string が必要")
+    if (type(classification) is not str
+            or classification not in CLAIM_CLASSIFICATIONS):
+        raise KnowledgeManifestError(
+            "classification は定義済みの 3 literal のいずれかが必要"
+        )
     if type(de_novo_claim) is not bool:
         raise KnowledgeManifestError("de_novo_claim は exact bool が必要")
+    if de_novo_claim and classification != "de_novo":
+        raise KnowledgeManifestError(
+            "de_novo_claim=true は de_novo 分類以外の受領証を作成・上書きできない"
+        )
     sources = []
     for item in resolved.sources:
         source = item.source.canonical_value()
@@ -381,6 +403,7 @@ def receipt_value(
         "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
         "canonical_manifest": resolved.manifest.canonical_value(),
         "sources": sources,
+        "declaration_status": DECLARATION_STATUS,
         # 以下 2 object は記録上の宣言であり、入力解釈や比較除外の強制機構ではない。
         "planner_projection": {
             "payload_key": "knowledge_input",

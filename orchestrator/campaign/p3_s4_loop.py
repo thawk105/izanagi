@@ -1040,16 +1040,12 @@ def _prepare_knowledge_campaign(
     de_novo_claim: bool,
 ) -> tuple[
     CampaignConfig,
-    CampaignLayout,
+    Optional[CampaignLayout],
     Optional[Dict[str, Any]],
 ]:
     """両 CLI 経路で同じ typed manifest から identity、receipt、projection を作る。"""
     if resolved is None:
-        return (
-            cfg,
-            exploration_campaign_layout(str(ident.campaign_id(cfg))),
-            None,
-        )
+        return cfg, None, None
     bound = replace(
         cfg,
         search_config={

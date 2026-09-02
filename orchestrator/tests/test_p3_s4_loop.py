@@ -1927,6 +1927,40 @@ def test_knowledge_reader_rederives_manifest_digest_from_wal_source_set(tmp_path
         )
 
 
+def test_knowledge_consumer_rejects_nul_path_as_only_failure():
+    source = {
+        "kind": "repo_artifact",
+        "identity": {"commit": "1" * 40, "path": "a\x00b"},
+        "sha256": "2" * 64,
+    }
+    digest = hashlib.sha256(KM.canonical_json_bytes({
+        "knowledge_level": "K2",
+        "sources": [source],
+    })).hexdigest()
+    provenance = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": digest,
+        "sources": [source],
+    }
+    record = wal.parse_line(KM.canonical_json_bytes({
+        "variant": "nul-path",
+        "stage": STAGE_BUILD_START,
+        "env_tag": L.ENV_TAG,
+        "ts": 1.0,
+        "payload": {wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY: provenance},
+    }).decode("utf-8"))
+    assert record.payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY][
+        "sources"
+    ][0]["identity"]["path"] == "a\x00b"
+    lock = {"search_config": {
+        wal.KNOWLEDGE_LEVEL_SEARCH_KEY: "K2",
+        wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY: digest,
+    }}
+
+    with pytest.raises(wal.AttemptTopologyError, match="canonical repo-relative"):
+        wal.validate_knowledge_provenance_bindings([record], campaign_lock=lock)
+
+
 def test_nonstock_source_token_keeps_candidate_identity_distinct_from_stock():
     nonstock = hashlib.sha256(b"knowledge-conditioned-source-bytes").hexdigest()
     assert nonstock != source_digest.STOCK

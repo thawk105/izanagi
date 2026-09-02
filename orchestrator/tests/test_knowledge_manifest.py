@@ -266,6 +266,10 @@ def test_receipt_is_canonical_create_only_and_claims_are_caller_inputs(
         "payload_key": "knowledge_input",
         "data_boundary": KM.DATA_BOUNDARY,
     }
+    assert decoded["declaration_status"] == (
+        "data_boundary と claim_boundary は記録上の宣言であり強制機構ではない。"
+        "pilot_comparison_eligible を読む consumer は現時点で存在しない。"
+    )
     canonical = KM.canonical_json_bytes(decoded) + b"\n"
     assert first == canonical
     assert KM.write_receipt(
@@ -306,3 +310,56 @@ def test_receipt_canonical_manifest_rederives_digest_and_source_identity(
         "knowledge_manifest_sha256"
     ]
     assert receipt["canonical_manifest"]["sources"] == [source]
+
+
+@pytest.mark.parametrize(
+    ("classification", "de_novo_claim"),
+    (
+        ("de_novo", True),
+        ("known_result_conditioned_derivative", False),
+        ("reproduction_or_selection", False),
+    ),
+)
+def test_receipt_accepts_exactly_the_three_declared_classifications(
+    source_repo, classification, de_novo_claim,
+):
+    resolved = KM.resolve_live_sources(_parse(_manifest(_repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    ))), repo_root=source_repo["repo"])
+    receipt = KM.receipt_value(
+        resolved,
+        classification=classification,
+        de_novo_claim=de_novo_claim,
+    )
+    assert receipt["claim_boundary"]["classification"] == classification
+    assert receipt["claim_boundary"]["de_novo_claim"] is de_novo_claim
+
+
+def test_receipt_rejects_unknown_classification_as_only_failure(source_repo):
+    resolved = KM.resolve_live_sources(_parse(_manifest(_repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    ))), repo_root=source_repo["repo"])
+    with pytest.raises(KM.KnowledgeManifestError, match="3 literal"):
+        KM.receipt_value(
+            resolved,
+            classification="unregistered_classification",
+            de_novo_claim=False,
+        )
+
+
+def test_receipt_rejects_de_novo_claim_for_non_de_novo_classification(
+    source_repo,
+):
+    resolved = KM.resolve_live_sources(_parse(_manifest(_repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    ))), repo_root=source_repo["repo"])
+    with pytest.raises(KM.KnowledgeManifestError, match="de_novo 分類以外"):
+        KM.receipt_value(
+            resolved,
+            classification="reproduction_or_selection",
+            de_novo_claim=True,
+        )
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

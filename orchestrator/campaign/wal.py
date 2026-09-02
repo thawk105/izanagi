@@ -689,6 +689,7 @@ def _knowledge_source(value: object, path: str) -> dict:
         raise AttemptTopologyError(f"{path}.identity.path が空または非 string")
     segments = source_path.split("/")
     if (source_path.startswith("/") or "\\" in source_path
+            or "\x00" in source_path
             or any(segment in {"", ".", ".."} for segment in segments)):
         raise AttemptTopologyError(
             f"{path}.identity.path が canonical repo-relative POSIX path でない"
@@ -814,7 +815,7 @@ def _knowledge_provenance_from_receipt(
         {
             "schema_version", "knowledge_level", "knowledge_manifest_sha256",
             "canonical_manifest", "sources", "planner_projection",
-            "claim_boundary",
+            "claim_boundary", "declaration_status",
         },
         "knowledge receipt",
     )
