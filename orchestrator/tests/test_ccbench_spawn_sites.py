@@ -856,19 +856,6 @@ _DEFERRED_GATE_MEMBERS = (
         8409,
     ),
     _DeferredGateMember(
-        "orchestrator/campaign/s8b_oracle_driver.py",
-        "wave t1999",
-        (
-            "実行時は require_returned_condition_evidence(prepared, ...) が支配するが、"
-            "閉包検査は with ... as (..., prepared) の束縛を追えず、"
-            "campaign kind の sink に対する支配的な返却物検査を"
-            "被覆として数えられない。検査側の射程を広げる後続タスクで解消する"
-        ),
-        "campaign",
-        "<module>.run_block",
-        1788,
-    ),
-    _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
         "protocol-r33 preregistration",
         (
@@ -1062,16 +1049,309 @@ _FULL_GATE_COMPONENTS = frozenset({"supply", "meaning", "admission"})
 class _GateFlowState:
     covered_macros: frozenset[str] = frozenset()
     components: frozenset[str] = frozenset()
+    returned_evidence_names: frozenset[str] = frozenset()
 
 
 def _intersect_gate_states(states: list[_GateFlowState]) -> _GateFlowState:
     assert states
     covered = set(states[0].covered_macros)
     components = set(states[0].components)
+    returned_evidence_names = set(states[0].returned_evidence_names)
     for state in states[1:]:
         covered.intersection_update(state.covered_macros)
         components.intersection_update(state.components)
-    return _GateFlowState(frozenset(covered), frozenset(components))
+        returned_evidence_names.intersection_update(
+            state.returned_evidence_names
+        )
+    return _GateFlowState(
+        frozenset(covered),
+        frozenset(components),
+        frozenset(returned_evidence_names),
+    )
+
+
+def _target_bound_names(target: ast.AST | None) -> frozenset[str]:
+    if isinstance(target, ast.Name):
+        return frozenset({target.id})
+    if isinstance(target, ast.Starred):
+        return _target_bound_names(target.value)
+    if isinstance(target, (ast.Tuple, ast.List)):
+        return frozenset().union(*(
+            _target_bound_names(item) for item in target.elts
+        ))
+    return frozenset()
+
+
+def _simple_with_target_names(target: ast.AST | None) -> tuple[str, ...] | None:
+    if isinstance(target, ast.Name):
+        return (target.id,)
+    if isinstance(target, (ast.Tuple, ast.List)):
+        names: list[str] = []
+        for item in target.elts:
+            nested = _simple_with_target_names(item)
+            if nested is None:
+                return None
+            names.extend(nested)
+        return tuple(names)
+    return None
+
+
+_RETURNED_EVIDENCE_HELPER = "require_returned_condition_evidence"
+_RETURNED_EVIDENCE_MODULES = frozenset({
+    "s1_direct_comparison",
+    "orchestrator.campaign.s1_direct_comparison",
+})
+
+
+def _definition_time_expressions(
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda,
+) -> tuple[ast.expr, ...]:
+    expressions: list[ast.expr] = []
+    if not isinstance(node, ast.Lambda):
+        expressions.extend(node.decorator_list)
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        expressions.extend(node.args.defaults)
+        expressions.extend(
+            default for default in node.args.kw_defaults
+            if default is not None
+        )
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        expressions.extend(
+            argument.annotation
+            for argument in (
+                *node.args.posonlyargs,
+                *node.args.args,
+            )
+            if argument.annotation is not None
+        )
+        if node.args.vararg is not None and node.args.vararg.annotation is not None:
+            expressions.append(node.args.vararg.annotation)
+        expressions.extend(
+            argument.annotation
+            for argument in node.args.kwonlyargs
+            if argument.annotation is not None
+        )
+        if node.args.kwarg is not None and node.args.kwarg.annotation is not None:
+            expressions.append(node.args.kwarg.annotation)
+        if node.returns is not None:
+            expressions.append(node.returns)
+    elif isinstance(node, ast.ClassDef):
+        expressions.extend(node.bases)
+        expressions.extend(keyword.value for keyword in node.keywords)
+    return tuple(expressions)
+
+
+class _PotentialBindingVisitor(ast.NodeVisitor):
+    """Collect names that an executed statement region may bind."""
+
+    def __init__(self):
+        self.names: set[str] = set()
+
+    def _add_target(self, target: ast.AST | None) -> None:
+        self.names.update(_target_bound_names(target))
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        for expression in _definition_time_expressions(node):
+            self.visit(expression)
+        self.names.add(node.name)
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for expression in _definition_time_expressions(node):
+            self.visit(expression)
+        self.names.add(node.name)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for expression in _definition_time_expressions(node):
+            self.visit(expression)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            self._add_target(target)
+        self.visit(node.value)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        self._add_target(node.target)
+        if node.value is not None:
+            self.visit(node.value)
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        self._add_target(node.target)
+        self.visit(node.value)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        self._add_target(node.target)
+        self.visit(node.value)
+
+    def visit_For(self, node: ast.For) -> None:
+        self._add_target(node.target)
+        self.visit(node.iter)
+        for statement in (*node.body, *node.orelse):
+            self.visit(statement)
+
+    visit_AsyncFor = visit_For
+
+    def visit_With(self, node: ast.With) -> None:
+        for item in node.items:
+            self.visit(item.context_expr)
+            self._add_target(item.optional_vars)
+        for statement in node.body:
+            self.visit(statement)
+
+    visit_AsyncWith = visit_With
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name is not None:
+            self.names.add(node.name)
+        if node.type is not None:
+            self.visit(node.type)
+        for statement in node.body:
+            self.visit(statement)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if node.name is not None:
+            self.names.add(node.name)
+        if node.pattern is not None:
+            self.visit(node.pattern)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name is not None:
+            self.names.add(node.name)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest is not None:
+            self.names.add(node.rest)
+        for pattern in node.patterns:
+            self.visit(pattern)
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            self.names.add(alias.asname or alias.name.split(".", 1)[0])
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        for alias in node.names:
+            if alias.name != "*":
+                self.names.add(alias.asname or alias.name)
+
+    def visit_Delete(self, node: ast.Delete) -> None:
+        for target in node.targets:
+            self._add_target(target)
+
+    def visit_comprehension(self, node: ast.comprehension) -> None:
+        # Python 3 comprehension targets do not bind in the containing scope.
+        self.visit(node.iter)
+        for condition in node.ifs:
+            self.visit(condition)
+
+
+class _ReturnedEvidenceHelperBindingVisitor(ast.NodeVisitor):
+    """Record all bindings of the campaign evidence helper in one scope."""
+
+    def __init__(self):
+        self.bindings: list[bool] = []
+
+    def _add_target(self, target: ast.AST | None) -> None:
+        if _RETURNED_EVIDENCE_HELPER in _target_bound_names(target):
+            self.bindings.append(False)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if (
+            node.id == _RETURNED_EVIDENCE_HELPER
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+        ):
+            self.bindings.append(False)
+
+    def visit_arg(self, node: ast.arg) -> None:
+        if node.arg == _RETURNED_EVIDENCE_HELPER:
+            self.bindings.append(False)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        for expression in _definition_time_expressions(node):
+            self.visit(expression)
+        if node.name == _RETURNED_EVIDENCE_HELPER:
+            self.bindings.append(False)
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for expression in _definition_time_expressions(node):
+            self.visit(expression)
+        if node.name == _RETURNED_EVIDENCE_HELPER:
+            self.bindings.append(False)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for expression in _definition_time_expressions(node):
+            self.visit(expression)
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            if (alias.asname or alias.name.split(".", 1)[0]) == (
+                _RETURNED_EVIDENCE_HELPER
+            ):
+                self.bindings.append(False)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        for alias in node.names:
+            if (alias.asname or alias.name) != _RETURNED_EVIDENCE_HELPER:
+                continue
+            self.bindings.append(
+                node.module in _RETURNED_EVIDENCE_MODULES
+                and alias.name == _RETURNED_EVIDENCE_HELPER
+            )
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name == _RETURNED_EVIDENCE_HELPER:
+            self.bindings.append(False)
+        if node.type is not None:
+            self.visit(node.type)
+        for statement in node.body:
+            self.visit(statement)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if node.name == _RETURNED_EVIDENCE_HELPER:
+            self.bindings.append(False)
+        if node.pattern is not None:
+            self.visit(node.pattern)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name == _RETURNED_EVIDENCE_HELPER:
+            self.bindings.append(False)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest == _RETURNED_EVIDENCE_HELPER:
+            self.bindings.append(False)
+        for pattern in node.patterns:
+            self.visit(pattern)
+
+    def visit_comprehension(self, node: ast.comprehension) -> None:
+        # The iteration target is local to the comprehension, unlike a walrus
+        # in its iterable or filters.
+        self.visit(node.iter)
+        for condition in node.ifs:
+            self.visit(condition)
+
+
+def _potentially_bound_names(nodes: ast.AST | tuple[ast.AST, ...]) -> frozenset[str]:
+    visitor = _PotentialBindingVisitor()
+    if isinstance(nodes, tuple):
+        for node in nodes:
+            visitor.visit(node)
+    else:
+        visitor.visit(nodes)
+    return frozenset(visitor.names)
+
+
+def _kill_returned_evidence_names(
+    state: _GateFlowState, names: frozenset[str],
+) -> _GateFlowState:
+    if state.returned_evidence_names.isdisjoint(names):
+        return state
+    return _GateFlowState(
+        state.covered_macros,
+        state.components,
+        state.returned_evidence_names - names,
+    )
 
 
 class _QualifiedFunctionVisitor(ast.NodeVisitor):
@@ -1116,6 +1396,49 @@ class _PythonGateFlow:
         functions.visit(self.tree)
         self.bodies = {"<module>": self.tree, **functions.bodies}
         self.node_scopes = functions.node_scopes
+        self.global_nonlocal_names = frozenset().union(*(
+            frozenset(node.names)
+            for node in ast.walk(self.tree)
+            if isinstance(node, (ast.Global, ast.Nonlocal))
+        ))
+        self.has_star_import = any(
+            isinstance(node, ast.ImportFrom)
+            and any(alias.name == "*" for alias in node.names)
+            for node in ast.walk(self.tree)
+        )
+        self.returned_evidence_helper_bindings: dict[str, tuple[bool, ...]] = {}
+        self.returned_evidence_helper_direct_imports: dict[
+            str, tuple[int, ...]
+        ] = {}
+        for scope, body in self.bodies.items():
+            helper_bindings = _ReturnedEvidenceHelperBindingVisitor()
+            if isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for argument in (
+                    *body.args.posonlyargs,
+                    *body.args.args,
+                    *body.args.kwonlyargs,
+                ):
+                    helper_bindings.visit_arg(argument)
+                if body.args.vararg is not None:
+                    helper_bindings.visit_arg(body.args.vararg)
+                if body.args.kwarg is not None:
+                    helper_bindings.visit_arg(body.args.kwarg)
+            for statement in body.body:
+                helper_bindings.visit(statement)
+            self.returned_evidence_helper_bindings[scope] = tuple(
+                helper_bindings.bindings
+            )
+            self.returned_evidence_helper_direct_imports[scope] = tuple(
+                statement.lineno
+                for statement in body.body
+                if isinstance(statement, ast.ImportFrom)
+                if statement.module in _RETURNED_EVIDENCE_MODULES
+                if any(
+                    alias.name == _RETURNED_EVIDENCE_HELPER
+                    and (alias.asname or alias.name) == _RETURNED_EVIDENCE_HELPER
+                    for alias in statement.names
+                )
+            )
         self.module_assignments: dict[str, ast.AST] = {}
         for statement in self.tree.body:
             if isinstance(statement, ast.Assign):
@@ -1154,6 +1477,43 @@ class _PythonGateFlow:
                 return candidate
         candidate = f"<module>.{name}"
         return candidate if candidate in self.bodies else None
+
+    def _lexical_scopes(self, scope: str) -> tuple[str, ...]:
+        scopes: list[str] = []
+        candidate = scope
+        while True:
+            scopes.append(candidate)
+            if candidate == "<module>":
+                return tuple(scopes)
+            parts = candidate.split(".")
+            candidate = "<module>"
+            for length in range(len(parts) - 1, 0, -1):
+                parent = ".".join(parts[:length])
+                if parent in self.bodies:
+                    candidate = parent
+                    break
+
+    def _has_unshadowed_returned_evidence_helper(
+        self, scope: str, call: ast.Call,
+    ) -> bool:
+        if (
+            self.has_star_import
+            or _RETURNED_EVIDENCE_HELPER in self.global_nonlocal_names
+        ):
+            return False
+        for lexical_scope in self._lexical_scopes(scope):
+            bindings = self.returned_evidence_helper_bindings[lexical_scope]
+            if not bindings:
+                continue
+            if not all(bindings):
+                return False
+            return any(
+                lineno < call.lineno
+                for lineno in self.returned_evidence_helper_direct_imports[
+                    lexical_scope
+                ]
+            )
+        return False
 
     def _explicit_call_macros(
         self, scope: str, call: ast.Call,
@@ -1220,14 +1580,18 @@ class _PythonGateFlow:
 
     def _record_expression(
         self, expression: ast.AST | None, state: _GateFlowState, scope: str,
+        *,
+        returned_evidence_call: ast.Call | None = None,
     ) -> _GateFlowState:
         if expression is None:
             return state
+        current = _kill_returned_evidence_names(
+            state, _potentially_bound_names(expression),
+        )
         calls = sorted(
             (item for item in ast.walk(expression) if isinstance(item, ast.Call)),
             key=lambda item: (item.lineno, item.col_offset),
         )
-        current = state
         for call in calls:
             self.call_states.setdefault((scope, call.lineno), []).append(current)
             name = _call_name(call.func) or ""
@@ -1244,6 +1608,17 @@ class _PythonGateFlow:
                 self.returned_evidence_checks.setdefault(scope, []).append(
                     (call.lineno, result_name)
                 )
+            returned_evidence_names = set(current.returned_evidence_names)
+            if (
+                call is returned_evidence_call
+                and self._has_unshadowed_returned_evidence_helper(scope, call)
+                and isinstance(call.func, ast.Name)
+                and call.func.id == _RETURNED_EVIDENCE_HELPER
+                and call.args
+                and isinstance(call.args[0], ast.Name)
+                and call.args[0].id not in self.global_nonlocal_names
+            ):
+                returned_evidence_names.add(call.args[0].id)
             component = None
             if name.endswith("evaluate_define_supply_effectuation"):
                 component = "supply"
@@ -1261,9 +1636,13 @@ class _PythonGateFlow:
             if _FULL_GATE_COMPONENTS.issubset(components):
                 covered.update(self.source_macros)
             current = _GateFlowState(
-                frozenset(covered), frozenset(components),
+                frozenset(covered),
+                frozenset(components),
+                frozenset(returned_evidence_names),
             )
-        return current
+        return _kill_returned_evidence_names(
+            current, _potentially_bound_names(expression),
+        )
 
     def _flow_block(
         self, statements: list[ast.stmt], state: _GateFlowState, scope: str,
@@ -1279,13 +1658,23 @@ class _PythonGateFlow:
         self, statement: ast.stmt, state: _GateFlowState, scope: str,
     ) -> tuple[_GateFlowState, bool]:
         if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            defined = state
+            for expression in _definition_time_expressions(statement):
+                defined = self._record_expression(expression, defined, scope)
             child = self.node_scopes[id(statement)]
             self.definition_incoming[child] = (
-                scope, state.covered_macros,
+                scope, defined.covered_macros,
             )
-            return state, True
+            return _kill_returned_evidence_names(
+                defined, frozenset({statement.name}),
+            ), True
         if isinstance(statement, ast.ClassDef):
-            return state, True
+            defined = state
+            for expression in _definition_time_expressions(statement):
+                defined = self._record_expression(expression, defined, scope)
+            return _kill_returned_evidence_names(
+                defined, frozenset({statement.name}),
+            ), True
         if isinstance(statement, ast.If):
             tested = self._record_expression(statement.test, state, scope)
             exits: list[_GateFlowState] = []
@@ -1307,31 +1696,52 @@ class _PythonGateFlow:
             return _intersect_gate_states(exits), True
         if isinstance(statement, (ast.For, ast.AsyncFor)):
             entered = self._record_expression(statement.iter, state, scope)
-            self._flow_block(statement.body, entered, scope)
+            body_entry = _kill_returned_evidence_names(
+                entered, _target_bound_names(statement.target),
+            )
+            self._flow_block(statement.body, body_entry, scope)
+            rebound = (
+                _target_bound_names(statement.target)
+                | _potentially_bound_names((
+                    *statement.body, *statement.orelse,
+                ))
+            )
             exits = [entered]
             if statement.orelse:
+                else_entry = _kill_returned_evidence_names(entered, rebound)
                 else_state, else_continues = self._flow_block(
-                    statement.orelse, entered, scope,
+                    statement.orelse, else_entry, scope,
                 )
                 if else_continues:
                     exits.append(else_state)
-            return _intersect_gate_states(exits), True
+            return _kill_returned_evidence_names(
+                _intersect_gate_states(exits), rebound,
+            ), True
         if isinstance(statement, ast.While):
             tested = self._record_expression(statement.test, state, scope)
             self._flow_block(statement.body, tested, scope)
+            rebound = _potentially_bound_names((
+                *statement.body, *statement.orelse,
+            ))
             exits = [tested]
             if statement.orelse:
+                else_entry = _kill_returned_evidence_names(tested, rebound)
                 else_state, else_continues = self._flow_block(
-                    statement.orelse, tested, scope,
+                    statement.orelse, else_entry, scope,
                 )
                 if else_continues:
                     exits.append(else_state)
-            return _intersect_gate_states(exits), True
+            return _kill_returned_evidence_names(
+                _intersect_gate_states(exits), rebound,
+            ), True
         if isinstance(statement, (ast.With, ast.AsyncWith)):
             entered = state
             for item in statement.items:
                 entered = self._record_expression(
                     item.context_expr, entered, scope,
+                )
+                entered = _kill_returned_evidence_names(
+                    entered, _target_bound_names(item.optional_vars),
                 )
             return self._flow_block(statement.body, entered, scope)
         if isinstance(statement, ast.Try) or type(statement).__name__ == "TryStar":
@@ -1349,8 +1759,13 @@ class _PythonGateFlow:
                 else:
                     exits.append(body_state)
             for handler in statement.handlers:
+                handler_entry = state
+                if handler.name is not None:
+                    handler_entry = _kill_returned_evidence_names(
+                        handler_entry, frozenset({handler.name}),
+                    )
                 handler_state, handler_continues = self._flow_block(
-                    handler.body, state, scope,
+                    handler.body, handler_entry, scope,
                 )
                 if handler_continues:
                     exits.append(handler_state)
@@ -1362,36 +1777,79 @@ class _PythonGateFlow:
             return merged, bool(exits)
         if isinstance(statement, ast.Match):
             matched = self._record_expression(statement.subject, state, scope)
-            exits = [matched]
+            remaining = matched
+            exits: list[_GateFlowState] = []
             for case in statement.cases:
+                case_entry = _kill_returned_evidence_names(
+                    remaining, _potentially_bound_names(case.pattern),
+                )
+                guarded = self._record_expression(
+                    case.guard, case_entry, scope,
+                )
                 case_state, case_continues = self._flow_block(
-                    case.body, matched, scope,
+                    case.body, guarded, scope,
                 )
                 if case_continues:
                     exits.append(case_state)
+                if case.guard is not None:
+                    remaining = _intersect_gate_states([
+                        remaining,
+                        guarded,
+                    ])
+            exits.append(remaining)
             return _intersect_gate_states(exits), True
 
-        expressions: list[ast.AST] = []
+        expressions: list[tuple[ast.AST, ast.Call | None]] = []
         if isinstance(statement, ast.Expr):
-            expressions = [statement.value]
+            expressions = [(
+                statement.value,
+                statement.value if isinstance(statement.value, ast.Call) else None,
+            )]
         elif isinstance(statement, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             value = getattr(statement, "value", None)
             if value is not None:
-                expressions = [value]
+                simple_assignment = (
+                    isinstance(value, ast.Call)
+                    and (
+                        isinstance(statement, ast.Assign)
+                        and len(statement.targets) == 1
+                        and isinstance(statement.targets[0], ast.Name)
+                        or isinstance(statement, ast.AnnAssign)
+                        and isinstance(statement.target, ast.Name)
+                    )
+                )
+                expressions = [(value, value if simple_assignment else None)]
         elif isinstance(statement, ast.Return):
-            expressions = [statement.value] if statement.value is not None else []
+            expressions = (
+                [(statement.value, None)] if statement.value is not None else []
+            )
         elif isinstance(statement, ast.Raise):
             expressions = [
-                item for item in (statement.exc, statement.cause)
+                (item, None) for item in (statement.exc, statement.cause)
                 if item is not None
             ]
         elif isinstance(statement, ast.Assert):
-            expressions = [statement.test]
+            expressions = [(statement.test, None)]
             if statement.msg is not None:
-                expressions.append(statement.msg)
+                expressions.append((statement.msg, None))
         current = state
-        for expression in expressions:
-            current = self._record_expression(expression, current, scope)
+        for expression, returned_evidence_call in expressions:
+            current = self._record_expression(
+                expression,
+                current,
+                scope,
+                returned_evidence_call=returned_evidence_call,
+            )
+        rebound = frozenset()
+        if isinstance(statement, ast.Assign):
+            rebound = frozenset().union(*(
+                _target_bound_names(target) for target in statement.targets
+            ))
+        elif isinstance(statement, (ast.AnnAssign, ast.AugAssign)):
+            rebound = _target_bound_names(statement.target)
+        elif isinstance(statement, (ast.Import, ast.ImportFrom, ast.Delete)):
+            rebound = _potentially_bound_names(statement)
+        current = _kill_returned_evidence_names(current, rebound)
         terminates = isinstance(statement, (ast.Return, ast.Raise, ast.Break, ast.Continue))
         return current, not terminates
 
@@ -1466,13 +1924,124 @@ class _PythonGateFlow:
         ]
         return min(executions, default=sink.lineno)
 
+    def _campaign_checked_root(
+        self, sink: _BuildSink, checked_names: frozenset[str],
+    ) -> str | None:
+        if sink.kind != "campaign" or not checked_names:
+            return None
+        configuration = _sink_configuration_expression(self.source, sink)
+        if configuration is None:
+            return None
+        body, expression = configuration
+        bindings: dict[str, list[ast.AST | None]] = {}
+
+        def add_binding(target: ast.AST | None, value: ast.AST | None) -> None:
+            if isinstance(target, ast.Name):
+                bindings.setdefault(target.id, []).append(value)
+                return
+            for name in _target_bound_names(target):
+                bindings.setdefault(name, []).append(None)
+
+        pending = list(getattr(body, "body", ()))
+        while pending:
+            node = pending.pop()
+            if getattr(node, "lineno", sink.lineno) < sink.lineno:
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        add_binding(target, node.value)
+                elif isinstance(node, ast.AnnAssign):
+                    add_binding(node.target, node.value)
+                elif isinstance(node, ast.AugAssign):
+                    add_binding(node.target, None)
+                elif isinstance(node, ast.NamedExpr):
+                    add_binding(node.target, node.value)
+                elif isinstance(node, (ast.For, ast.AsyncFor)):
+                    add_binding(node.target, None)
+                elif isinstance(node, (ast.With, ast.AsyncWith)):
+                    for item in node.items:
+                        add_binding(item.optional_vars, None)
+                elif isinstance(node, ast.ExceptHandler) and node.name is not None:
+                    bindings.setdefault(node.name, []).append(None)
+                elif isinstance(node, (ast.MatchAs, ast.MatchStar)):
+                    if node.name is not None:
+                        bindings.setdefault(node.name, []).append(None)
+                elif isinstance(node, ast.MatchMapping) and node.rest is not None:
+                    bindings.setdefault(node.rest, []).append(None)
+                elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                    for name in _potentially_bound_names(node):
+                        bindings.setdefault(name, []).append(None)
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    bindings.setdefault(node.name, []).append(None)
+                elif isinstance(node, ast.ClassDef):
+                    bindings.setdefault(node.name, []).append(None)
+            if isinstance(node, (
+                ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda,
+            )):
+                continue
+            pending.extend(ast.iter_child_nodes(node))
+
+        rejected = (
+            ast.IfExp,
+            ast.BoolOp,
+            ast.ListComp,
+            ast.SetComp,
+            ast.DictComp,
+            ast.GeneratorExp,
+            ast.Starred,
+            ast.Subscript,
+        )
+
+        def resolve(
+            node: ast.AST,
+            selected_attribute: str | None = None,
+            visiting: frozenset[str] = frozenset(),
+        ) -> str | None:
+            if isinstance(node, rejected):
+                return None
+            if isinstance(node, ast.Attribute):
+                return resolve(node.value, node.attr, visiting)
+            if isinstance(node, ast.Name):
+                if node.id in checked_names:
+                    return node.id
+                candidates = bindings.get(node.id, [])
+                if node.id in visiting or len(candidates) != 1:
+                    return None
+                candidate = candidates[0]
+                if candidate is None:
+                    return None
+                return resolve(
+                    candidate, selected_attribute, visiting | {node.id},
+                )
+            if isinstance(node, ast.Call):
+                if selected_attribute is None:
+                    return None
+                matches = [
+                    keyword.value for keyword in node.keywords
+                    if keyword.arg == selected_attribute
+                ]
+                if len(matches) != 1:
+                    return None
+                return resolve(matches[0], None, visiting)
+            return None
+
+        return resolve(expression)
+
     def coverage_for_sink(
         self, sink: _BuildSink, sibling_sinks: set[_BuildSink],
     ) -> frozenset[str]:
         effective_line = self._effective_sink_line(sink)
         states = self.call_states.get((sink.scope, effective_line), [])
-        local = _intersect_gate_states(states).covered_macros if states else frozenset()
-        coverage = local | self.entry_coverage.get(sink.scope, frozenset())
+        sink_state = (
+            _intersect_gate_states(states) if states else _GateFlowState()
+        )
+        coverage = (
+            sink_state.covered_macros
+            | self.entry_coverage.get(sink.scope, frozenset())
+        )
+        if self._campaign_checked_root(
+            sink, sink_state.returned_evidence_names,
+        ) is not None:
+            coverage |= self.patch_macros
         if not sink.kind.startswith("injected-"):
             return coverage
 
@@ -1697,19 +2266,29 @@ def _expression_depends_on_scope_parameter(
             parameters.add(body.args.vararg.arg)
         if body.args.kwarg is not None:
             parameters.add(body.args.kwarg.arg)
-    assignments: dict[str, ast.AST] = {}
+    assignments: dict[str, list[ast.AST]] = {}
+
+    def add_assignment(name: str, value: ast.AST) -> None:
+        assignments.setdefault(name, []).append(value)
+
     for node in ast.walk(body):
         if getattr(node, "lineno", before_line) >= before_line:
             continue
         if isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name):
-                    assignments[target.id] = node.value
+                    add_assignment(target.id, node.value)
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if node.value is not None:
-                assignments[node.target.id] = node.value
+                add_assignment(node.target.id, node.value)
         elif isinstance(node, (ast.For, ast.AsyncFor)) and isinstance(node.target, ast.Name):
-            assignments[node.target.id] = node.iter
+            add_assignment(node.target.id, node.iter)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                names = _simple_with_target_names(item.optional_vars)
+                if names is not None:
+                    for name in names:
+                        add_assignment(name, item.context_expr)
 
     opaque_calls = {
         "input", "getenv", "load", "loads", "load_protocol", "parse_args",
@@ -1720,14 +2299,21 @@ def _expression_depends_on_scope_parameter(
         if isinstance(node, ast.Name):
             if node.id in parameters:
                 return True
-            if node.id in visiting or node.id not in assignments:
+            if node.id in visiting:
+                return True
+            candidates = assignments.get(node.id, [])
+            if not candidates:
                 return False
-            return depends(assignments[node.id], visiting | {node.id})
+            return any(
+                depends(candidate, visiting | {node.id})
+                for candidate in candidates
+            )
         if isinstance(node, ast.Call):
             name = (_call_name(node.func) or "").rsplit(".", 1)[-1]
             if name in opaque_calls or name.startswith(("load_", "parse_", "read_")):
                 return True
             return any(depends(item, visiting) for item in (
+                node.func,
                 *node.args,
                 *(keyword.value for keyword in node.keywords),
             ))
@@ -1859,11 +2445,14 @@ def _sink_macro_reachability(
     return "proven-unreachable"
 
 
-def _define_sink_cross_product_failures(
+def _define_sink_cross_product_classification(
     sources: dict[str, str],
     patch_macros: frozenset[str],
-) -> list[tuple[str, _BuildSink, str]]:
-    """Return reachable or unresolved cross-product cells lacking both arms."""
+) -> tuple[
+    dict[_BuildSink, Counter[str]],
+    list[tuple[str, _BuildSink, str]],
+]:
+    """Classify every sink/macro cell and return the uncovered cells."""
 
     sinks = _benchmark_build_sinks(sources)
     complete_functions = _complete_gate_function_names(sources)
@@ -1907,6 +2496,7 @@ def _define_sink_cross_product_failures(
         )
         for sink in sinks
     }
+    classifications = {sink: Counter() for sink in sinks}
     failures: list[tuple[str, _BuildSink, str]] = []
     for macro in sorted(patch_macros):
         for sink in sorted(sinks):
@@ -1915,12 +2505,28 @@ def _define_sink_cross_product_failures(
                 sources[sink.relative_path], sink, macro, source_macros,
             )
             if reachability == "proven-unreachable":
+                classifications[sink][reachability] += 1
                 continue
             if macro in gate_coverage:
+                classifications[sink]["covered"] += 1
                 continue
             if _deferred_member(sink) is not None:
+                classifications[sink]["deferred"] += 1
                 continue
+            classifications[sink][f"failure-{reachability}"] += 1
             failures.append((macro, sink, reachability))
+    return classifications, failures
+
+
+def _define_sink_cross_product_failures(
+    sources: dict[str, str],
+    patch_macros: frozenset[str],
+) -> list[tuple[str, _BuildSink, str]]:
+    """Return reachable or unresolved cross-product cells lacking both arms."""
+
+    _classifications, failures = _define_sink_cross_product_classification(
+        sources, patch_macros,
+    )
     return failures
 
 
@@ -1986,10 +2592,6 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "campaign", "<module>.main", 8409,
-        ),
-        (
-            "orchestrator/campaign/s8b_oracle_driver.py",
-            "wave t1999", "campaign", "<module>.run_block", 1788,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2134,6 +2736,527 @@ def test_define_sink_cross_product_requires_gate_to_dominate_each_sink():
         ),
         "reachable",
     )]
+
+
+def _assert_single_synthetic_campaign_sink(
+    sources: dict[str, str], expected: _BuildSink,
+) -> None:
+    assert _benchmark_build_sinks(sources) == {expected}
+
+
+def test_define_sink_cross_product_accepts_with_name_checked_campaign_value():
+    relative = "orchestrator/campaign/synthetic_t2155_with_name_checked.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(genome):\n"
+        "    with prepare(genome) as prepared:\n"
+        "        require_returned_condition_evidence(prepared)\n"
+        "        return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 6, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == []
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications[expected] == Counter({"covered": 1})
+    assert failures == []
+
+
+def test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value():
+    relative = "orchestrator/campaign/synthetic_t2155_with_tuple_checked.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(genome):\n"
+        "    with prepare(genome) as (actual_binding, prepared):\n"
+        "        require_returned_condition_evidence(prepared)\n"
+        "        prepared_for_eval = PreparedCell(\n"
+        "            genome=prepared.genome,\n"
+        "        )\n"
+        "        return pipeline.evaluate(prepared_for_eval.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 9, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == []
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications[expected] == Counter({"covered": 1})
+    assert failures == []
+
+
+def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    classifications, failures = _define_sink_cross_product_classification(
+        _production_build_sources(), frozenset(patch_sources),
+    )
+    s1_sink = _BuildSink(
+        "orchestrator/campaign/s1_direct_comparison.py",
+        "<module>.run_role",
+        1215,
+        "campaign",
+    )
+    s8b_sink = _BuildSink(
+        "orchestrator/campaign/s8b_oracle_driver.py",
+        "<module>.run_block",
+        1788,
+        "campaign",
+    )
+    assert classifications[s1_sink] == Counter({
+        "covered": 4,
+        "proven-unreachable": 18,
+    })
+    assert classifications[s8b_sink] == Counter({"covered": 22})
+    assert failures == []
+
+
+def test_define_sink_cross_product_rejects_branch_local_returned_evidence():
+    relative = "orchestrator/campaign/synthetic_t2155_branch_local.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, enabled):\n"
+        "    if enabled:\n"
+        "        require_returned_condition_evidence(prepared)\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 6, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_returned_evidence_after_sink():
+    relative = "orchestrator/campaign/synthetic_t2155_late_check.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared):\n"
+        "    result = pipeline.evaluate(prepared.genome)\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    return result\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 4, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_rebound_checked_name():
+    relative = "orchestrator/campaign/synthetic_t2155_rebound.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    prepared = other\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 6, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_loop_rebound_checked_name():
+    relative = "orchestrator/campaign/synthetic_t2155_loop_rebound.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other, enabled):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    while enabled:\n"
+        "        prepared = other\n"
+        "        enabled = False\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 8, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_unchecked_conditional_alias():
+    relative = "orchestrator/campaign/synthetic_t2155_conditional_alias.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other, enabled):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    selected = prepared if enabled else other\n"
+        "    return pipeline.evaluate(selected.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 6, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_short_circuit_returned_evidence():
+    relative = "orchestrator/campaign/synthetic_t2155_short_circuit.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, enabled):\n"
+        "    enabled and require_returned_condition_evidence(prepared)\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 5, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_same_named_method_as_evidence():
+    relative = "orchestrator/campaign/synthetic_t2155_fake_method.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "class Fake:\n"
+        "    def require_returned_condition_evidence(self, value):\n"
+        "        return None\n"
+        "fake = Fake()\n"
+        "def run(prepared):\n"
+        "    fake.require_returned_condition_evidence(prepared)\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 9, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_locally_defined_helper_shadow():
+    relative = "orchestrator/campaign/synthetic_t2155_local_helper_shadow.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared):\n"
+        "    def require_returned_condition_evidence(value):\n"
+        "        return None\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 7, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_helper_argument_shadow():
+    relative = "orchestrator/campaign/synthetic_t2155_helper_arg_shadow.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, require_returned_condition_evidence):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 5, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_default_walrus_rebinding():
+    relative = "orchestrator/campaign/synthetic_t2155_default_walrus.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    def bind(value=(prepared := other)):\n"
+        "        pass\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 7, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_match_guard_walrus_rebinding():
+    relative = "orchestrator/campaign/synthetic_t2155_guard_walrus.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other, value):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    match value:\n"
+        "        case _ if (prepared := other):\n"
+        "            return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 7, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_same_expression_walrus_rebinding():
+    relative = "orchestrator/campaign/synthetic_t2155_expression_walrus.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    return ((prepared := other), "
+        "pipeline.evaluate(prepared.genome))[1]\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 5, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_accepts_unrelated_nested_default():
+    relative = "orchestrator/campaign/synthetic_t2155_unrelated_default.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, constant):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    def bind(value=constant):\n"
+        "        pass\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 7, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications[expected] == Counter({"covered": 1})
+    assert failures == []
+
+
+def test_define_sink_cross_product_accepts_read_only_match_guard():
+    relative = "orchestrator/campaign/synthetic_t2155_read_only_guard.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, enabled, value):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    match value:\n"
+        "        case _ if enabled:\n"
+        "            return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 7, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications[expected] == Counter({"covered": 1})
+    assert failures == []
+
+
+def test_define_sink_cross_product_rejects_class_global_helper_rebinding():
+    relative = "orchestrator/campaign/synthetic_t2155_class_global_helper.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def fake(value):\n"
+        "    return None\n"
+        "class Rebind:\n"
+        "    global require_returned_condition_evidence\n"
+        "    require_returned_condition_evidence = fake\n"
+        "def run(prepared):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 10, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding():
+    relative = "orchestrator/campaign/synthetic_t2155_nonlocal_checked.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other):\n"
+        "    def rebind():\n"
+        "        nonlocal prepared\n"
+        "        prepared = other\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    rebind()\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 9, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_star_import_after_helper_import():
+    relative = "orchestrator/campaign/synthetic_t2155_star_import.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from evil import *\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 6, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding():
+    relative = "orchestrator/campaign/synthetic_t2155_lambda_default.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    bind = lambda value=(prepared := other): None\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 6, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_false_guard_before_match_exit():
+    relative = "orchestrator/campaign/synthetic_t2155_false_guard_exit.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other, value):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    match value:\n"
+        "        case _ if (prepared := other):\n"
+        "            return None\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 8, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_rejects_false_guard_before_next_case():
+    relative = "orchestrator/campaign/synthetic_t2155_false_guard_next.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other, value):\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    match value:\n"
+        "        case 0 if (prepared := other):\n"
+        "            return None\n"
+        "        case _:\n"
+        "            return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 9, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [("BACKOFF_FIXED", expected, "unresolved")]
+
+
+def test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal():
+    relative = "orchestrator/campaign/synthetic_t2155_unrelated_declarations.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import "
+        "require_returned_condition_evidence\n"
+        "from orchestrator.campaign import pipeline\n"
+        "def run(prepared, other):\n"
+        "    auxiliary = prepared\n"
+        "    def rebind():\n"
+        "        nonlocal auxiliary\n"
+        "        auxiliary = other\n"
+        "    class Rebind:\n"
+        "        global alternative_helper\n"
+        "        alternative_helper = lambda value: None\n"
+        "    require_returned_condition_evidence(prepared)\n"
+        "    rebind()\n"
+        "    return pipeline.evaluate(prepared.genome)\n"
+    )}
+    expected = _BuildSink(relative, "<module>.run", 13, "campaign")
+    _assert_single_synthetic_campaign_sink(sources, expected)
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications[expected] == Counter({"covered": 1})
+    assert failures == []
+
+
+def test_define_sink_cross_product_marks_ungated_with_bindings_unresolved():
+    name_relative = "orchestrator/campaign/synthetic_t2155_ungated_name.py"
+    tuple_relative = "orchestrator/campaign/synthetic_t2155_ungated_tuple.py"
+    sources = {
+        name_relative: (
+            "from orchestrator.campaign import pipeline\n"
+            "def run(genome):\n"
+            "    with prepare(genome) as prepared:\n"
+            "        return pipeline.evaluate(prepared.genome)\n"
+        ),
+        tuple_relative: (
+            "from orchestrator.campaign import pipeline\n"
+            "def run(genome):\n"
+            "    with prepare(genome) as (actual_binding, prepared):\n"
+            "        return pipeline.evaluate(prepared.genome)\n"
+        ),
+    }
+    expected = {
+        _BuildSink(name_relative, "<module>.run", 4, "campaign"),
+        _BuildSink(tuple_relative, "<module>.run", 4, "campaign"),
+    }
+    assert _benchmark_build_sinks(sources) == expected
+    assert _define_sink_cross_product_failures(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    ) == [
+        ("BACKOFF_FIXED", sink, "unresolved")
+        for sink in sorted(expected)
+    ]
 
 
 def test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved():
