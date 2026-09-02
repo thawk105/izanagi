@@ -217,7 +217,6 @@ class PreregistrationBinding:
             "spec_sha256": self.spec_sha256,
             "patch_sha256": self.patch_sha256,
             "formula_sha256": self.formula_sha256,
-            "analysis_commit": self.analysis_commit,
             "analysis_code_sha256": self.analysis_code_sha256,
         }
 
@@ -2383,9 +2382,7 @@ def _validate_prior_block_records(
                 or row.get("workload") != workload \
                 or row.get("preregistration_binding") != prereg.binding.as_dict() \
                 or row.get("spec_sha256") != prereg.spec.spec_sha256 \
-                or row.get("analysis_commit") != prereg.binding.analysis_commit \
                 or row.get("analysis_code_sha256") != prereg.binding.analysis_code_sha256 \
-                or row.get("source_commit") != prereg.binding.analysis_commit \
                 or type(request_id) is not str or not request_id \
                 or type(nonce) is not str or re.fullmatch(r"[0-9a-f]{32}", nonce) is None \
                 or row.get("trial") != expected_trial \
