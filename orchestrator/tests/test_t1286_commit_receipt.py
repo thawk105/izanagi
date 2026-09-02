@@ -433,6 +433,9 @@ def test_caller_built_serialized_receipt_cannot_become_replay_evidence(
         records=view.records,
         decision=view.decision,
         campaign_verifier_epoch=view.campaign_verifier_epoch,
+        persisted_certified_commit_count=sum(
+            record.stage == STAGE_COMMIT for record in view.records
+        ),
         _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
         _replay_admission_capability=FakeReplayAuthority(),
     )
@@ -531,6 +534,9 @@ def _receiptless_certified_source_view(tmp_path: Path):
     return artifact_admission.CertifiedCampaignView(
         layout=source, records=records, decision=decision,
         campaign_verifier_epoch=epoch,
+        persisted_certified_commit_count=sum(
+            record.stage == STAGE_COMMIT for record in records
+        ),
         _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
     )
 

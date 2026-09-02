@@ -63,7 +63,7 @@ from .artifact_admission import (  # noqa: E402
     CampaignReadPurpose,
     CampaignVerifierEpoch,
     require_admitted_campaign,
-    require_certified_campaign_view,
+    require_certified_commit_evidence,
 )
 from .genome import protocol_from_floor_genome  # noqa: E402
 
@@ -885,7 +885,7 @@ def build_accepted_report(
             "certifying Layer3 report には admission_status=admitted が必須"
         )
     try:
-        certified_campaign = require_certified_campaign_view(
+        certified_campaign = require_certified_commit_evidence(
             require_admitted_campaign(
                 resolved_campaign,
                 purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,

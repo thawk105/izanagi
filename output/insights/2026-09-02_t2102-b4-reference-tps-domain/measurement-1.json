@@ -1,0 +1,123 @@
+{
+  "_trimmed": "non_numeric_values と unparsable_tokens は件数 + 先頭 3 件へ畳んだ。非有限十進は 0 件のため畳んでいない。全文は dev-wave job dir に残る。",
+  "populations": {
+    "bench.median_tps": {
+      "distinct_tokens": 427,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": {
+        "count": 0,
+        "sample": []
+      },
+      "observations": 854,
+      "sample_tokens": [
+        "1038757.0",
+        "1040535.0",
+        "1041551.0",
+        "1043026.0",
+        "1043044.0",
+        "1044323.0",
+        "1044396.0",
+        "1044707.0",
+        "1045239.0",
+        "1045252.0",
+        "1046920.0",
+        "1047162.0"
+      ],
+      "unparsable_tokens": {
+        "count": 0,
+        "sample": []
+      }
+    },
+    "bench.tps_series": {
+      "distinct_tokens": 2110,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": {
+        "count": 0,
+        "sample": []
+      },
+      "observations": 4222,
+      "sample_tokens": [
+        "1004608.0",
+        "1007877.0",
+        "1016335.0",
+        "1025251.0",
+        "1025534.0",
+        "1027352.0",
+        "1027385.0",
+        "1027854.0",
+        "1028002.0",
+        "1029721.0",
+        "1030820.0",
+        "1030944.0"
+      ],
+      "unparsable_tokens": {
+        "count": 0,
+        "sample": []
+      }
+    },
+    "commit.fitness_tps": {
+      "distinct_tokens": 426,
+      "non_finite_decimal_via_decimal_token": [],
+      "non_finite_decimal_via_float_roundtrip": [],
+      "non_numeric_values": {
+        "count": 66,
+        "sample": [
+          {
+            "file": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2102-b4-reference-tps-range/output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a/runs/wal.jsonl",
+            "line": 7,
+            "stage": "commit",
+            "type": "NoneType"
+          },
+          {
+            "file": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2102-b4-reference-tps-range/output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a/runs/wal.jsonl",
+            "line": 14,
+            "stage": "commit",
+            "type": "NoneType"
+          },
+          {
+            "file": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2102-b4-reference-tps-range/output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a/runs/wal.jsonl",
+            "line": 21,
+            "stage": "commit",
+            "type": "NoneType"
+          }
+        ]
+      },
+      "observations": 852,
+      "sample_tokens": [
+        "1038757.0",
+        "1040535.0",
+        "1041551.0",
+        "1043026.0",
+        "1043044.0",
+        "1044323.0",
+        "1044396.0",
+        "1044707.0",
+        "1045239.0",
+        "1045252.0",
+        "1046920.0",
+        "1047162.0"
+      ],
+      "unparsable_tokens": {
+        "count": 0,
+        "sample": []
+      }
+    }
+  },
+  "roots": [
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2102-b4-reference-tps-range/output",
+    "/work/1/SFC/tanab/izanagi/output"
+  ],
+  "stage_counts": {
+    "abort": 30,
+    "bench_done": 854,
+    "build_done": 926,
+    "build_start": 952,
+    "commit": 918,
+    "s1-session": 1348,
+    "verify_done": 1144
+  },
+  "wal_files": 60,
+  "wal_json_parse_errors": 0
+}

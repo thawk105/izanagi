@@ -70,6 +70,12 @@ _POST_ORACLE_POPULATION_POLICY_ID = (
 _FETCHCONTENT_FULLY_DISCONNECTED_DEFINE = (
     "-DFETCHCONTENT_FULLY_DISCONNECTED=ON"
 )
+# B-10 の PBS script が exact token を供給し、専用 driver が正式相の入口で
+# 同じ token を必須化する。generic v2 caller は env 不在なら従来どおりである。
+B10_BINARY_PATH_POLICY_ENV = "IZANAGI_B10_BINARY_PATH_POLICY"
+B10_BINARY_PATH_POLICY = "b10-macro-prefix-map-no-rpath/v1"
+B10_LOGICAL_SOURCE_ROOT = "/__izanagi_b10__/source"
+B10_LOGICAL_BUILD_ROOT = "/__izanagi_b10__/build"
 
 _SECURE_FLAG_NAMES = (
     "O_CLOEXEC", "O_DIRECTORY", "O_EXCL", "O_NOFOLLOW", "O_NONBLOCK",
@@ -1292,6 +1298,7 @@ def _v2_identity(
         *, source_snapshot_sha256: Optional[str] = None, site: str,
         dependency_prefix: List[str],
         admission: Dict[str, Any],
+        binary_path_policy: Optional[str] = None,
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
         fetchcontent_archive_sha256: Optional[object] = None,
         fetchcontent_transport_mode: Optional[str] = None,
@@ -1321,6 +1328,10 @@ def _v2_identity(
         preimage["compiler_input_manifest_schema"] = (
             s8b_compiler_input.MANIFEST_SCHEMA
         )
+    if binary_path_policy is not None:
+        if binary_path_policy != B10_BINARY_PATH_POLICY:
+            raise BuildCacheError("binary path policy が不正")
+        preimage["binary_path_policy"] = binary_path_policy
     if compiler_input_policy is not None:
         if compiler_input_policy != "snapshot-and-external-hashes/v1":
             raise BuildCacheError("compiler input policy が不正")
@@ -1864,10 +1875,56 @@ def _resolve_build_jobs(jobs: Optional[int], site: Optional[str]) -> int:
     return site_policy.default_build_jobs(_resolve_site(site))
 
 
+def _binary_path_policy_from_environment() -> Optional[str]:
+    value = os.environ.get(B10_BINARY_PATH_POLICY_ENV)
+    if value is None:
+        return None
+    if value != B10_BINARY_PATH_POLICY:
+        raise BuildCacheError(
+            f"{B10_BINARY_PATH_POLICY_ENV} は exact B-10 policy token が必要"
+        )
+    return value
+
+
+def _binary_path_cmake_defines(
+        binary_path_policy: Optional[str], source_root: str,
+        staging_root: Optional[str] = None,
+) -> List[str]:
+    if binary_path_policy is None:
+        return []
+    if binary_path_policy != B10_BINARY_PATH_POLICY:
+        raise BuildCacheError("binary path policy が不正")
+    canonical_root = os.path.realpath(os.path.abspath(source_root))
+    if "\0" in canonical_root or "=" in canonical_root:
+        raise BuildCacheError(
+            "B-10 macro prefix map の source root に NUL/= は使えない"
+        )
+    macro_map = (
+        f"-fmacro-prefix-map={canonical_root}={B10_LOGICAL_SOURCE_ROOT}"
+    )
+    cxx_flags = [macro_map]
+    if staging_root is not None:
+        canonical_staging_root = os.path.realpath(os.path.abspath(staging_root))
+        if "\0" in canonical_staging_root or "=" in canonical_staging_root:
+            raise BuildCacheError(
+                "B-10 debug prefix map の staging root に NUL/= は使えない"
+            )
+        cxx_flags.append(
+            f"-fdebug-prefix-map={canonical_staging_root}="
+            f"{B10_LOGICAL_BUILD_ROOT}"
+        )
+    return [
+        f"-DCMAKE_CXX_FLAGS={' '.join(cxx_flags)}",
+        "-DCMAKE_SKIP_RPATH=ON",
+    ]
+
+
 def _v2_commands(
         genome: Genome, trace: bool, sub: str, bdir: str,
         toolchain: Dict[str, Dict[str, str]], jobs: Optional[int] = None,
         *, site: Optional[str] = None, dependency_prefix: str = "",
+        binary_path_policy: Optional[str] = None,
+        binary_path_staging_root: Optional[str] = None,
         fetchcontent_base_dir: str = "",
         masstree_source_dir: Optional[object] = None,
         mimalloc_source_dir: Optional[object] = None,
@@ -1902,13 +1959,16 @@ def _v2_commands(
             "FetchContent SOURCE_DIR は FETCHCONTENT_BASE_DIR と同時指定必須"
         )
     source_defines = _fetchcontent_source_defines(source_dirs)
+    binary_path_defines = _binary_path_cmake_defines(
+        binary_path_policy, sub, binary_path_staging_root,
+    )
     configure = [
         toolchain["cmake"]["realpath"], "-S", sub, "-B", bdir,
         "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
         f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
         f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
     ] + prefix_define + fetchcontent_define + fully_disconnected_define \
-        + source_defines + defines
+        + source_defines + binary_path_defines + defines
     if fetchcontent_base_dir and sum(
             token.startswith("-DFETCHCONTENT_BASE_DIR=")
             for token in configure) != 1:
@@ -2029,7 +2089,8 @@ def _v2_result(
         genome: Genome, trace: bool, binary: str, bin_sha256: str, bdir: str,
         cached: bool, sub: str, root: str,
         toolchain: Dict[str, Dict[str, str]], contract_sha256: str, site: str,
-        dependency_prefix: str, fetchcontent_base_dir: str = "",
+        dependency_prefix: str, binary_path_policy: Optional[str] = None,
+        fetchcontent_base_dir: str = "",
         masstree_source_dir: Optional[object] = None,
         mimalloc_source_dir: Optional[object] = None,
         googletest_source_dir: Optional[object] = None,
@@ -2044,6 +2105,7 @@ def _v2_result(
     configure, build_cmd = _v2_commands(
         genome, trace, sub, bdir, toolchain, site=site,
         dependency_prefix=dependency_prefix,
+        binary_path_policy=binary_path_policy,
         fetchcontent_base_dir=fetchcontent_base_dir,
         masstree_source_dir=masstree_source_dir,
         mimalloc_source_dir=mimalloc_source_dir,
@@ -2189,6 +2251,7 @@ def _build_v2_impl(
         contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
+        backoff_grammar_version: Optional[int] = None,
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
@@ -2225,6 +2288,11 @@ def _build_v2_impl(
     ``version`` 全文を別に再観測し、双方の完全一致を要求する。``declared_use_class`` が
     ``official`` のときは expected の省略を build 前に拒否する。その他の caller では
     既定 ``None`` の受理集合と実行順を変えない。
+
+    B-10 専用 policy env が exact token のときだけ、source root の macro 展開と buildcache
+    staging root の debug path を論理 root へ写し、RPATH を生成しない CMake define を加える。
+    policy ID は preimage に加えるが、admission の実 ``source_root`` と dependency prefix は
+    投影せず従来どおり保持する。
 
     ``source_snapshot_sha256`` が指定されたときは Unit A の snapshot tree digest として
     build 前後で ``ccbench_dir`` の実体と exact 照合する。fresh build の成功直後、staging
@@ -2322,6 +2390,7 @@ def _build_v2_impl(
             "dependency_prefix は NUL を含まない str でなければならない: "
             f"{dependency_prefix!r}"
         )
+    binary_path_policy = _binary_path_policy_from_environment()
     post_oracle_binding = _validate_post_oracle_dependency_binding(
         post_oracle_dependency_binding,
     )
@@ -2460,6 +2529,7 @@ def _build_v2_impl(
         source_snapshot_sha256=source_snapshot_sha256,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
+        binary_path_policy=binary_path_policy,
         fetchcontent_dependency_receipt=dependency_receipt,
         fetchcontent_archive_sha256=dependency_archive_sha256,
         fetchcontent_transport_mode=fetchcontent_transport_mode,
@@ -2524,6 +2594,7 @@ def _build_v2_impl(
                 _recheck_source_evidence(
                     genome, ccbench_commit, sub, cxx, source_evidence, bdir,
                     built_fresh=False,
+                    backoff_grammar_version=backoff_grammar_version,
                 )
                 _assert_trace_diff(
                     genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
@@ -2555,6 +2626,7 @@ def _build_v2_impl(
             return _v2_result(
                 genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
                 contract_sha256, resolved_site, configure_dependency_prefix,
+                binary_path_policy,
                 canonical_fetchcontent_base,
                 source_dirs.get("masstree") if source_dirs else None,
                 source_dirs.get("mimalloc") if source_dirs else None,
@@ -2589,6 +2661,10 @@ def _build_v2_impl(
             configure, build_cmd = _v2_commands(
                 genome, trace, sub, staging, toolchain, site=resolved_site,
                 dependency_prefix=configure_dependency_prefix,
+                binary_path_policy=binary_path_policy,
+                binary_path_staging_root=(
+                    staging if binary_path_policy is not None else None
+                ),
                 fetchcontent_base_dir=canonical_fetchcontent_base,
                 masstree_source_dir=(
                     source_dirs.get("masstree") if source_dirs else None
@@ -2760,6 +2836,7 @@ def _build_v2_impl(
             _recheck_source_evidence(
                 genome, ccbench_commit, sub, cxx, source_evidence, staging,
                 built_fresh=True,
+                backoff_grammar_version=backoff_grammar_version,
             )
             _assert_trace_diff(
                 genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
@@ -2840,6 +2917,7 @@ def _build_v2_impl(
         return _v2_result(
             genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
             contract_sha256, resolved_site, configure_dependency_prefix,
+            binary_path_policy,
             canonical_fetchcontent_base,
             source_dirs.get("masstree") if source_dirs else None,
             source_dirs.get("mimalloc") if source_dirs else None,
@@ -2864,6 +2942,7 @@ def build_v2(
         contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
+        backoff_grammar_version: Optional[int] = None,
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
@@ -2926,6 +3005,8 @@ def build_v2(
             current_compiler_input_masstree_root
         ),
     }
+    if backoff_grammar_version is not None:
+        common["backoff_grammar_version"] = backoff_grammar_version
     if expected_materialization_descriptor is None:
         return _build_v2_impl(
             genome,
@@ -3019,7 +3100,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
           jobs: Optional[int] = None, ccbench_dir: str = "",
           src_token: Optional[str] = None, *, admission: BuildAdmission,
           build_context: BuildRunContext, source_evidence: SourceEvidence,
-          site: Optional[str] = None) -> BuildResult:
+          site: Optional[str] = None,
+          backoff_grammar_version: Optional[int] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     ``build_context`` / ``source_evidence`` / evidence-derived ``admission`` を exact
@@ -3094,6 +3176,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                         _recheck_source_evidence(
                             genome, ccbench_commit, sub, cxx, source_evidence,
                             bdir, built_fresh=False,
+                            backoff_grammar_version=backoff_grammar_version,
                         )
                         _assert_trace_diff(
                             genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
@@ -3158,6 +3241,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
             _recheck_source_evidence(
                 genome, ccbench_commit, sub, cxx, source_evidence,
                 staging, built_fresh=True,
+                backoff_grammar_version=backoff_grammar_version,
             )
             _assert_trace_diff(
                 genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
@@ -3223,7 +3307,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
 
 def _recheck_source_evidence(
         genome: Genome, ccbench_commit: str, sub: str, cxx: str,
-        expected: SourceEvidence, bdir: str, built_fresh: bool,
+        expected: SourceEvidence, bdir: str, built_fresh: bool, *,
+        backoff_grammar_version: Optional[int] = None,
 ) -> None:
     """build 出口で current SourceEvidence 全体を exact 再照合する。
 
@@ -3232,8 +3317,14 @@ def _recheck_source_evidence(
     (phase3.md タスク定義)。新規ビルドの不一致は汚染バイナリの永続を防ぐため build dir を
     破棄する。cache hit の不一致は既存 (過去の正当な) 成果物なので破棄せず停止のみ。"""
     try:
+        source_options = {}
+        if backoff_grammar_version is not None:
+            source_options["backoff_grammar_version"] = (
+                backoff_grammar_version
+            )
         actual = source_digest.resolve_evidence(
             genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,
+            **source_options,
         )
     except RuntimeError:
         # resolve 自体の失敗 (TOCTOU 汚染 / git・g++ の transient 障害を区別できない)。

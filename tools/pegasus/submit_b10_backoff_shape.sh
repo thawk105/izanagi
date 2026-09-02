@@ -7,7 +7,7 @@ unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
 usage() {
   cat >&2 <<'EOF'
 usage: submit_b10_backoff_shape.sh --prereg-commit COMMIT
-       --phase {build|verify|perf|probe} [--workload {write-heavy|balanced|read-heavy}]
+       --phase {build|verify|perf|probe|verify-perf} [--workload {write-heavy|balanced|read-heavy}]
        [--dry-run] [--durable-root PATH]
 EOF
 }
@@ -58,15 +58,15 @@ done
   echo "--prereg-commit must be a full lowercase commit ID" >&2
   exit 2
 }
-[[ "$PHASE" =~ ^(build|verify|perf|probe)$ ]] || {
-  echo "--phase must be build, verify, perf, or probe" >&2
+[[ "$PHASE" =~ ^(build|verify|perf|probe|verify-perf)$ ]] || {
+  echo "--phase must be build, verify, perf, probe, or verify-perf" >&2
   exit 2
 }
 if [[ "$PHASE" == build || "$PHASE" == probe ]]; then
   [[ -z "$WORKLOAD" ]] || { echo "build/probe phase must not select a workload" >&2; exit 2; }
 else
   [[ "$WORKLOAD" =~ ^(write-heavy|balanced|read-heavy)$ ]] || {
-    echo "verify/perf phase requires one registered workload" >&2
+    echo "verify/perf/verify-perf phase requires one registered workload" >&2
     exit 2
   }
 fi
@@ -197,7 +197,7 @@ payload = {
     "prepared_epoch": int(prepared_at),
     "dry_run": dry_run == "1",
     "request": {"project": "SFC", "queue": "gen_S", "nodes": 1,
-                "elapstim_req_s": 21600},
+                "elapstim_req_s": 43200},
 }
 with open(target, "x", encoding="utf-8") as stream:
     json.dump(payload, stream, sort_keys=True, separators=(",", ":"), allow_nan=False)

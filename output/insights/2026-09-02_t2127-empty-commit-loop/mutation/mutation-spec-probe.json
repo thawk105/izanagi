@@ -1,0 +1,158 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    admitted_count = 0\n    for record in records:\n        if record.stage == STAGE_COMMIT:\n            require_persisted_certified_commit(\n                records,\n                record,\n                campaign_lock_sha256=campaign_lock_sha256,\n            )\n            admitted_count += 1\n    return admitted_count\n",
+          "new": "    admitted_count = 0\n    for record in records:\n        if record.stage == STAGE_COMMIT:\n            admitted_count += 1\n    return admitted_count\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    admitted_count = 0\n    for record in records:\n        if record.stage == STAGE_COMMIT:\n            require_persisted_certified_commit(\n",
+          "new": "    admitted_count = 0\n    for record in records:\n        if True:\n            require_persisted_certified_commit(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "            )\n            admitted_count += 1\n    return admitted_count\n",
+          "new": "            )\n    admitted_count = len(records)\n    return admitted_count\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        persisted_certified_commit_count = admit_persisted_certified_commits(\n            records,\n            campaign_lock_sha256=decision.campaign_lock_sha256,\n        )\n",
+          "new": "        admit_persisted_certified_commits(\n            records,\n            campaign_lock_sha256=decision.campaign_lock_sha256,\n        )\n        persisted_certified_commit_count = 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        if type(count) is not int:\n            raise TypeError(\n                \"persisted certified commit count requires exact int\"\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        if count != snapshot_commit_count:\n            raise ValueError(\n                \"persisted certified commit count does not match WAL snapshot\"\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    if certified_view.persisted_certified_commit_count == 0:\n",
+          "new": "    if certified_view.persisted_certified_commit_count < 0:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/replay.py",
+          "old": "    require_certified_commit_evidence,\n",
+          "new": "    require_certified_campaign_view,\n    require_certified_commit_evidence,\n"
+        },
+        {
+          "file": "orchestrator/campaign/replay.py",
+          "old": "    view = require_certified_commit_evidence(discover_p2_2_dir(\n",
+          "new": "    view = require_certified_campaign_view(discover_p2_2_dir(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    require_certified_commit_evidence,\n",
+          "new": "    require_certified_campaign_view,\n    require_certified_commit_evidence,\n"
+        },
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        certified_campaign = require_certified_commit_evidence(\n",
+          "new": "        certified_campaign = require_certified_campaign_view(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        persisted_certified_commit_count = admit_persisted_certified_commits(\n            records,\n            campaign_lock_sha256=decision.campaign_lock_sha256,\n        )\n",
+          "new": "        persisted_certified_commit_count = admit_persisted_certified_commits(\n            records,\n            campaign_lock_sha256=decision.campaign_lock_sha256,\n        )\n        if persisted_certified_commit_count == 0:\n            raise CampaignNotAdmitted(\n                \"certified acceptance requires a persisted commit\"\n            )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

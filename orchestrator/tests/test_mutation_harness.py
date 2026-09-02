@@ -185,6 +185,7 @@ def record_run(request):
         )
 
 
+@pytest.mark.xdist_group("mutation-group")
 @pytest.mark.parametrize("case", ["one", "two", "three"])
 def test_gate(case):
     value = TARGET.read_text(encoding="utf-8").splitlines()[0].split("=", 1)[1].strip()
@@ -356,6 +357,24 @@ def _argv(
         ]
     )
     return args
+
+
+def _group_argv(
+    repo: Path,
+    spec: Path,
+    out: Path,
+    calls: Path,
+    mode: Path,
+    *,
+    resume: bool = False,
+) -> list[str]:
+    return [
+        *_argv(repo, spec, out, calls, mode, resume=resume),
+        "-n",
+        "2",
+        "--dist",
+        "loadgroup",
+    ]
 
 
 def _single_spec(path: Path) -> None:
@@ -846,6 +865,84 @@ def test_expected_node_must_exist_in_pytest_collection(repo: Path) -> None:
     assert not out.exists()
 
 
+def test_group_suffixed_expected_node_is_collected_and_killed(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = _mutation("M1", "VALUE = 0", "VALUE = 1", "one")
+    mutation["expected_nodes"] = [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    _write_spec(spec, [mutation])
+
+    assert MH.main(_group_argv(repo, spec, out, calls, mode)) == 0
+
+    ledger = json.loads(out.read_text(encoding="utf-8"))
+    record = ledger["mutations"][0]
+    assert record["status"] == "KILLED"
+    assert record["failed_nodes"] == [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    assert ledger["procedure"]["collection"]["collected_nodes"] == [
+        "tests/test_gate.py::test_gate[one]",
+        "tests/test_gate.py::test_gate[two]",
+        "tests/test_gate.py::test_gate[three]",
+    ]
+    assert ledger["procedure"]["registration_preflight"]["M1"][
+        "expected_nodes"
+    ] == ["tests/test_gate.py::test_gate[one]@mutation-group"]
+
+
+def test_group_unsuffixed_expected_node_matches_suffixed_failure(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _write_spec(spec, [_mutation("M1", "VALUE = 0", "VALUE = 1", "one")])
+
+    assert MH.main(_group_argv(repo, spec, out, calls, mode)) == 0
+
+    record = json.loads(out.read_text(encoding="utf-8"))["mutations"][0]
+    assert record["status"] == "KILLED"
+    assert record["failed_nodes"] == [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    assert record["expected_nodes"] == ["tests/test_gate.py::test_gate[one]"]
+
+
+def test_group_suffixed_expected_node_resume_reuses_valid_ledger(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = _mutation("M1", "VALUE = 0", "VALUE = 1", "one")
+    mutation["expected_nodes"] = [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+    _write_spec(spec, [mutation])
+    assert MH.main(_group_argv(repo, spec, out, calls, mode)) == 0
+    calls_before_resume = _calls(calls)
+
+    assert MH.main(
+        _group_argv(repo, spec, out, calls, mode, resume=True)
+    ) == 0
+
+    assert _calls(calls) == calls_before_resume
+    record = json.loads(out.read_text(encoding="utf-8"))["mutations"][0]
+    assert record["status"] == "KILLED"
+    assert record["expected_nodes"] == [
+        "tests/test_gate.py::test_gate[one]@mutation-group"
+    ]
+
+
+def test_registration_rejects_group_suffix_alias_as_duplicate(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = _mutation("M1", "VALUE = 0", "VALUE = 1", "one")
+    mutation["expected_nodes"] = [
+        "tests/test_gate.py::test_gate[one]",
+        "tests/test_gate.py::test_gate[one]@mutation-group",
+    ]
+    _write_spec(spec, [mutation])
+
+    with pytest.raises(MH.HarnessError, match="expected_nodes .*正規化後に重複"):
+        MH.main(_group_argv(repo, spec, out, calls, mode))
+
+    assert not calls.exists()
+    assert not out.exists()
+
+
 def test_parameter_suffix_is_matched_exactly(repo: Path) -> None:
     spec, out, calls, mode = _paths(repo)
     _write_spec(spec, [_mutation("M1", "VALUE = 0", "VALUE = 2", "one")])
@@ -864,6 +961,22 @@ def test_failed_nodes_strict_superset_never_counts_as_killed(repo: Path) -> None
         result={"timed_out": False, "rc": 1, "artifact_error": None},
         failed=failed,
         expected=expected,
+        repo=repo,
+    )
+
+    assert status == "MISMATCH"
+
+
+def test_group_suffix_normalization_keeps_strict_superset_as_mismatch(
+    repo: Path,
+) -> None:
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[
+            "tests/test_gate.py::test_gate[one]@mutation-group",
+            "tests/test_gate.py::test_gate[two]@mutation-group",
+        ],
+        expected=["tests/test_gate.py::test_gate[one]"],
         repo=repo,
     )
 
@@ -935,6 +1048,65 @@ def test_match_key_keeps_distinct_pytest_nodes_separate(
     assert status == "MISMATCH"
 
 
+@pytest.mark.parametrize(
+    "node",
+    [
+        (
+            "orchestrator/tests/test_axis1_search_runner.py::"
+            "test_real_catalog_leaf_resolves_every_runner_field"
+            "[arxiv-AX1-20260829-E1-Q1@arxiv]"
+        ),
+        (
+            "orchestrator/tests/test_acceptance_schedule_order.py::"
+            "test_g3_splitter_exactly_matches_loadgroup_scheduler[@]"
+        ),
+        (
+            "orchestrator/tests/test_acceptance_schedule_order.py::"
+            "test_g3_splitter_exactly_matches_loadgroup_scheduler[試験::場合@直列]"
+        ),
+        (
+            "orchestrator/tests/test_acceptance_schedule_order.py::"
+            "test_g3_splitter_exactly_matches_loadgroup_scheduler[試験::場合[値@例]]"
+        ),
+    ],
+)
+def test_match_key_preserves_real_parametrize_ids_containing_at(
+    repo: Path, node: str
+) -> None:
+    assert MH._match_key(node, repo) == node
+
+
+def test_match_key_removes_only_group_after_nested_real_parametrize_id(
+    repo: Path,
+) -> None:
+    suffixed = (
+        "orchestrator/tests/test_acceptance_schedule_order.py::"
+        "test_g3_splitter_exactly_matches_loadgroup_scheduler"
+        "[試験::場合[値@例]]@mutation-group"
+    )
+
+    assert MH._match_key(suffixed, repo) == (
+        "orchestrator/tests/test_acceptance_schedule_order.py::"
+        "test_g3_splitter_exactly_matches_loadgroup_scheduler"
+        "[試験::場合[値@例]]"
+    )
+
+
+def test_match_key_does_not_collapse_at_in_realistic_paths(repo: Path) -> None:
+    left = "tests@left/x.py::test_case"
+    right = "tests@right/x.py::test_case"
+
+    assert MH._match_key(left, repo) == "tests@left/x.py::test_case"
+    assert MH._match_key(right, repo) == "tests@right/x.py::test_case"
+    assert MH._match_key(left, repo) != MH._match_key(right, repo)
+    assert MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[right],
+        expected=[left],
+        repo=repo,
+    ) == "MISMATCH"
+
+
 @pytest.mark.parametrize("rc", [2, 3, 5])
 def test_abnormal_pytest_rc_never_counts_as_killed(repo: Path, rc: int) -> None:
     expected = ["tests/test_gate.py::test_gate[one]"]
@@ -955,6 +1127,19 @@ def test_mutation_nonzero_normal_rc_without_failed_nodes_is_parse_error(
         result={"timed_out": False, "rc": 1, "artifact_error": None},
         failed=[],
         expected=["tests/test_gate.py::test_gate[one]"],
+        repo=repo,
+    )
+
+    assert status == "PARSE_ERROR"
+
+
+def test_group_suffixed_expected_with_nonzero_rc_and_no_failures_is_parse_error(
+    repo: Path,
+) -> None:
+    status = MH._observed_status(
+        result={"timed_out": False, "rc": 1, "artifact_error": None},
+        failed=[],
+        expected=["tests/test_gate.py::test_gate[one]@mutation-group"],
         repo=repo,
     )
 

@@ -30,17 +30,22 @@ from .coder_effect_gate import MAX_HOLE_TOKENS
 __all__ = [
     "BackoffGrammarDecision",
     "BackoffGrammarViolation",
+    "BACKOFF_GRAMMAR_VERSION",
+    "BACKOFF_GRAMMAR_VERSION_KEY",
     "BACKOFF_GRAMMAR_RULE_IDS",
     "MAX_BACKOFF_HOLE_BYTES",
     "MAX_BACKOFF_HOLE_NESTING",
     "MAX_BACKOFF_HOLE_TOKENS",
     "attribution_numeric_literals",
+    "canonicalize_backoff_implementation",
     "validate_backoff_implementation",
     "validate_backoff_preflight",
     "validate_backoff_value",
 ]
 
 
+BACKOFF_GRAMMAR_VERSION = 1
+BACKOFF_GRAMMAR_VERSION_KEY = "backoff_grammar_version"
 MAX_BACKOFF_HOLE_BYTES = 4096
 MAX_BACKOFF_HOLE_TOKENS = MAX_HOLE_TOKENS
 MAX_BACKOFF_HOLE_NESTING = 256
@@ -707,6 +712,34 @@ def validate_backoff_implementation(implementation: object) -> BackoffGrammarDec
     if len(statements) != 1:
         return _reject("statement-count")
     return _ACCEPT
+
+
+def canonicalize_backoff_implementation(implementation: object) -> str:
+    """Canonicalize one fully accepted production-domain backoff hole.
+
+    Rejected candidates retain the validator's fixed rejection.  Grammar-only
+    inputs outside the production integer domain retain their accepted bytes;
+    ``run_one_iteration`` rejects those values before materialization.
+    """
+
+    decision = validate_backoff_implementation(implementation)
+    if not decision.accepted:
+        raise BackoffGrammarViolation(decision)
+    assert type(implementation) is str
+    try:
+        present, value, _all_values = attribution_numeric_literals(
+            implementation
+        )
+        if not present or value is None:
+            raise _Malformed
+        converted = int(value)
+    except (OverflowError, TypeError, ValueError, _Malformed):
+        raise AssertionError(
+            "accepted backoff implementation lost its numeric literal"
+        ) from None
+    if value != converted or not 1 <= converted <= 1000:
+        return implementation
+    return f"double now_backoff = {converted};"
 
 
 def validate_backoff_value(value: object) -> BackoffGrammarDecision:

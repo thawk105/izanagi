@@ -12,9 +12,11 @@ import pytest
 ORCH = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ORCH.parent))
 
+from orchestrator.campaign import artifact_admission, contract_loader_binding  # noqa: E402
 from orchestrator.campaign import model, pipeline, s1_direct_comparison as driver, wal  # noqa: E402
 from orchestrator.campaign import s1_report as report  # noqa: E402
 from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock  # noqa: E402
 from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 
@@ -25,6 +27,9 @@ E1_EPOCH = report.CampaignVerifierEpoch(
     campaign_verifier_epoch="E1:" + "1" * 64,
     state="E1",
     reason_code="recorded-closure",
+)
+_REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES = (
+    report._campaign_verifier_epoch_from_lock_bytes
 )
 
 
@@ -513,7 +518,7 @@ def test_non_e1_campaign_is_structured_and_wal_is_not_read(
 
     def epoch_gate(lock_bytes):
         if lock_bytes == rejected_lock:
-            raise report.CampaignVerifierEpochRejected(e0)
+            return _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES(lock_bytes)
         return E1_EPOCH
 
     def observed_read(layout):
@@ -543,6 +548,54 @@ def test_non_e1_campaign_is_structured_and_wal_is_not_read(
         "excluded_scope": e0.excluded_scope,
     }
     assert len(read_roots) == len(report.ROLES) - 1
+
+
+def test_v2_epoch_gate_is_historical_when_current_closure_is_unavailable(
+        monkeypatch):
+    lock_bytes = build_v2_campaign_lock(
+        driver.ident.canonical_preimage(
+            driver.config_for(_freeze(), "develop")
+        )
+    ).encode("utf-8")
+    real_purpose_gate = artifact_admission._require_verifier_epoch_for_purpose
+    observed_purposes = []
+    capture_call_count = 0
+
+    def unavailable_current_closure():
+        nonlocal capture_call_count
+        capture_call_count += 1
+        raise contract_loader_binding.ContractLoaderBindingError(
+            "fixture unavailable"
+        )
+
+    def observed_purpose_gate(recorded, purpose):
+        observed_purposes.append(purpose)
+        return real_purpose_gate(recorded, purpose)
+
+    monkeypatch.setattr(
+        report,
+        "_campaign_verifier_epoch_from_lock_bytes",
+        _REAL_CAMPAIGN_VERIFIER_EPOCH_FROM_LOCK_BYTES,
+    )
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "capture_contract_loader_binding",
+        unavailable_current_closure,
+    )
+    with pytest.raises(contract_loader_binding.ContractLoaderBindingError):
+        contract_loader_binding.capture_contract_loader_binding()
+    monkeypatch.setattr(
+        artifact_admission,
+        "_require_verifier_epoch_for_purpose",
+        observed_purpose_gate,
+    )
+
+    epoch = report._campaign_verifier_epoch_from_lock_bytes(lock_bytes)
+
+    assert observed_purposes == [report.CampaignReadPurpose.HISTORICAL_RAW]
+    assert capture_call_count == 1
+    assert epoch.state == "E1"
+    assert epoch.reason_code == "recorded-closure"
 
 
 def test_floor_cell_with_seven_sessions_makes_comparison_indeterminate(tmp_path):

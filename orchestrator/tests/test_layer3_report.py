@@ -42,12 +42,14 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
     build_run_context,
     derive_build_admission,
 )
+from orchestrator.campaign.layout import CampaignLayout  # noqa: E402
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 from orchestrator.campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
 from orchestrator.calibrator import perf_preflight  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 
 ROOT = _HERE.parent.parent
@@ -261,6 +263,67 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     if copy_contract_calibration:
         _copy_contract_calibration(output_root, effective_authorization)
     return root, output_root
+
+
+def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
+    start_record = _record("build_start", genome="g", src_token="s")
+    start_record["env_tag"] = "linux-baremetal"
+    campaign, output_root = _campaign(
+        tmp_path, [start_record],
+    )
+    layout = CampaignLayout(root=str(campaign))
+    start = wal.read_records(layout)[0]
+    attempt_id = start.payload["build_attempt_id"]
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": (
+            start.payload["build_admission_receipt_sha256"]
+        ),
+    }
+    wal.log(
+        layout,
+        start.variant,
+        "build_done",
+        start.env_tag,
+        terminal,
+        ts=2.0,
+    )
+    wal.log(
+        layout,
+        start.variant,
+        "verify_done",
+        start.env_tag,
+        {
+            "build_attempt_id": attempt_id,
+            "verdict": "serializable",
+            "certified": True,
+            "anomalies": 0,
+            "workload": {"tag": "legacy"},
+        },
+        ts=3.0,
+    )
+    decoded = campaign_lock.decode_campaign_lock(
+        Path(layout.lock_file).read_text(encoding="utf-8")
+    )
+    assert decoded.authority is not None
+    contract_env_tag = env_contract.resolve_by_contract_sha256(
+        decoded.authority.environment_contract_sha256
+    ).contract.env_tag
+    receipt_support.log_receipted_commit(
+        layout,
+        start.variant,
+        contract_env_tag,
+        {
+            **terminal,
+            model.COMMIT_CONTRACT_SHA256_KEY: (
+                decoded.authority.environment_contract_sha256
+            ),
+        },
+        operation_identity=attempt_id,
+        tags=("legacy",),
+        ts=4.0,
+    )
+    return campaign, output_root
 
 
 def _assert_external_campaign_without_git_head(campaign: Path) -> None:
@@ -1866,9 +1929,7 @@ def test_accepted_report_rejects_historical_before_certifying_fields_are_set(
 def test_accepted_report_requires_e1_and_records_epoch(
     tmp_path: Path, monkeypatch,
 ) -> None:
-    campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")],
-    )
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,
@@ -1898,12 +1959,35 @@ def test_accepted_report_requires_e1_and_records_epoch(
     }
 
 
-def test_certified_report_omits_current_verifier_conformance(
+def test_accepted_report_rejects_no_commit_campaign(
     tmp_path: Path, monkeypatch,
 ) -> None:
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
     )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="at least one persisted COMMIT",
+    ):
+        layer3_report.build_accepted_report(
+            campaign,
+            acceptance_receipt=object(),
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+
+
+def test_certified_report_omits_current_verifier_conformance(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,
@@ -1953,9 +2037,7 @@ def test_certified_schema_forbids_current_verifier_conformance(
 def test_render_accepted_persists_certifying_report(
     tmp_path: Path, monkeypatch,
 ) -> None:
-    campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")],
-    )
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,
@@ -3584,9 +3666,7 @@ def test_render_accepted_existing_output_fails_before_builder(
 def test_render_and_render_accepted_race_rejects_second_writer(
     tmp_path: Path, monkeypatch, first: str,
 ) -> None:
-    campaign, output_root = _campaign(
-        tmp_path, [_record("build_start", genome="g", src_token="s")],
-    )
+    campaign, output_root = _certifying_campaign(tmp_path)
     verified = _certifying_receipt_for(campaign)
     monkeypatch.setattr(
         layer3_report.s8c_acceptance_receipt,
