@@ -43,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     bundle.add_argument(
         "--catalog",
         type=Path,
-        default=REPO_ROOT / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json",
+        default=REPO_ROOT / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json",
     )
     return parser
 
@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _default_registered_paths(catalog: Path) -> tuple[str, ...]:
     relative = catalog.resolve().relative_to(REPO_ROOT).as_posix()
     return (
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-amendment.md",
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-amendment.md",
         relative,
         "orchestrator/axis1_search/__init__.py",
         "orchestrator/axis1_search/catalog.py",

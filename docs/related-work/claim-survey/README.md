@@ -41,3 +41,5 @@
 | 2026-08-30 | `2026-08-30-axis1-search-execution.md` | 改訂契約による軸 1 の**実行記録**。生証拠は `output/insights/2026-08-29_t2033-axis1-retake/`。**軸 1 は `未完走` であり成熟度は `RW1` のまま** |
 | 2026-09-01 | `2026-09-01-axis3-search-amendment.md` | 軸 3 の検索契約の改訂 (事前登録)。旧 1543 主 query ID を supersede し、arXiv 360 年 shard・OpenAlex 10・DBLP 1523 の計 1893 主 query と非主 229 stream を後継化する。旧登録 §7.1 条件 1 を 3 索引すべてへ適用し、registration seal の受理 closure を実行器 source 2・schema 4・凍結入力 2 に限る。**登録であって実行ではない。軸 3 は `RW0` のままである** |
 | 2026-09-01 | `2026-09-01-axis3-registration-preflight.md` | 軸 3 の **network-zero な registration preflight の実行記録**。2122 行 catalog と registration seal を発行し、blocking のうち B4 (規範 parser の正例 7・負例 6) だけが閉じた。**外部 request は 1 本も出していない。軸 3 は `RW0` であり、世界の不在は支持しない** |
+| 2026-09-02 | `2026-09-02-axis1-search-amendment.md` | 軸 1 の検索契約の**再改訂** (事前登録)。OpenAlex の完走条件 1 を `oqo` の順序非依存な比較へ改め、登録 epoch を `AX1-20260902-E1` へ、全 query ID を新規化する。旧 epoch の走行は `未完走` に固定し全枝を再実行する (D1432、旧改訂 §8 の意味的 amendment 条項)。**登録であって実行ではない。軸 1 は `RW1` のままである** |
+| 2026-09-02 | `2026-09-02-axis1-search-catalog.json` | 軸 1 の再改訂契約に対応する query program (機械可読 catalog) |
