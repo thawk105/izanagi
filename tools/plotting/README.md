@@ -145,3 +145,33 @@ python3 tools/plotting/plot_ss2pl_lock_study.py \
     --replication /path/to/replication.json \
     --output-dir /path/to/figures
 ```
+
+## T-2216 event-driven backoff walk
+
+`plot_t2216_backoff_walk.py` は、静的 fixed-backoff セルだけで校正した
+event-driven walk model の JSON と、その元になった Pegasus probe 結果 JSON を描く。
+図は計測機の外で生成する。3 mode は同じ入力契約を持つ。
+
+```bash
+python3 tools/t2216_backoff_walk_model.py \
+    /path/to/measured.json /path/to/backoff.hh.txt /path/to/t2216-model.json
+
+python3 tools/plotting/plot_t2216_backoff_walk.py prediction OUT_PREFIX \
+    /path/to/t2216-model.json /path/to/measured.json /path/to/backoff.hh.txt
+
+python3 tools/plotting/plot_t2216_backoff_walk.py residence OUT_PREFIX \
+    /path/to/t2216-model.json /path/to/measured.json /path/to/backoff.hh.txt
+
+python3 tools/plotting/plot_t2216_backoff_walk.py mechanism OUT_PREFIX \
+    /path/to/t2216-model.json /path/to/measured.json /path/to/backoff.hh.txt
+```
+
+- `prediction` は更新間隔ごとの観測 raw 反復と model 反復を別系列にし、いずれも
+  Student-t 95% CI を付ける。stage1 と D1475 は別 dataset として表示し、順位判定では混ぜない。
+- `residence` は時間重み付き survivor と `P(Backoff > 100 us)` を表示する。
+- `mechanism` は source-exact、切り捨て除去、tail 感度、勾配符号の中間量を 2x2 で表示する。
+- 出力は `<OUT_PREFIX>.{png,pdf,provenance.json}`。provenance は model、probe JSON、
+  pinned backoff copy の絶対パスと SHA256、PBS job id、seed、条件順、raw 反復から再計算した
+  主要値、PNG/PDF hash、再現 argv を持つ。入力が作図中に変わった場合は非0で終了する。
+- 数値は認証されていない。trace-disabled の Silo 性能測定を使う純解析であり、
+  直列性検査を通しておらず、variant 採用の根拠には使えない。
