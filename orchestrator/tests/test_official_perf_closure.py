@@ -77,6 +77,7 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/qualification/contract.py",
     "orchestrator/qualification/submission.py",
     "orchestrator/qualification/t126_driver.py",
+    "tools/pegasus/a5_second_boot_backoff_sweep.sh",
     "tools/pegasus/b10_backoff_shape_campaign.sh",
     "tools/pegasus/certify_calibration.sh",
     "tools/pegasus/floor_scoping.sh",
