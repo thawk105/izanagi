@@ -48,7 +48,7 @@
         }
       ]
     },
-    "registration_epoch": {"const": "AX1-20260829-E1"},
+    "registration_epoch": {"const": "AX1-20260902-E1"},
     "registration_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "catalog_path": {"type": "string", "minLength": 1},
     "catalog_sha256": {"$ref": "#/definitions/sha256"},
