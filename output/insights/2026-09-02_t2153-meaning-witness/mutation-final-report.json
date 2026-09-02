@@ -1,0 +1,778 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/582130a44cdd712e6c9f6ea52ee4a3fc/izdw-582130a44c.o967279",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/582130a44cdd712e6c9f6ea52ee4a3fc/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n.............................................                            [100%]\n189 passed in 4.82s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "970d8eee8063b737d951bcf68ce512ac5b9d836d33c0ec3b04bd3ccc44b4bfeb"
+    },
+    "artifact_error": null,
+    "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+    "duration_s": 27.389,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "38fca91f0f969fcfb76bf37993b5cc6600d74db27f478848aafc4f3e81927ab1",
+    "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+    "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+    "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+    "status": "PASSED",
+    "test_output_sha256": "970d8eee8063b737d951bcf68ce512ac5b9d836d33c0ec3b04bd3ccc44b4bfeb",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+  },
+  "date": "2026-09-02T03:35:35.880397+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/a7714902e25e813421fc3d397084fcf6/izdw-a7714902e2.o967280",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/a7714902e25e813421fc3d397084fcf6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n...............................................................F..F.F... [ 76%]\nFF..F........................................                            [100%]\n=================================== FAILURES ===================================\n_ test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string] _\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_compile_time_branch_selec0')\ncontainer = 'raw-string'\n\n    @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n    def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n        tmp_path: Path,\n        container: str,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n        owner_text = (\n            f\"/*\\n#if {macro}\\n#endif\\n*/\\n\"\n            if container == \"block-comment\"\n            else f'const char *text = R\"probe(\\n#if {macro}\\n)probe\";\\n'\n        )\n        root = _compile_time_source_root(\n            tmp_path / container, macro, owner_text=owner_text,\n        )\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('red', 'comp...ocess-failed') == ('red', 'comp...scriminating')\nE         \nE         At index 1 diff: 'compile-time-branch-preprocess-failed' != 'compile-time-branch-selection-not-discriminating'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n________ test_compile_time_branch_selection_rejects_owner_prefix_undef _________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_owner_prefix_undef(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_FORGE\"\n        root = _compile_time_source_root(tmp_path, macro, prefix=f\"#undef {macro}\\n\")\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...scriminating')\nE         \nE         At index 0 diff: 'green' != 'red'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:752: AssertionError\n_ test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment] _\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_compile_time_branch_selec0')\ncontainer = 'block-comment'\n\n    @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n    def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n        tmp_path: Path,\n        container: str,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n        owner_text = (\n            f\"/*\\n#if {macro}\\n#endif\\n*/\\n\"\n            if container == \"block-comment\"\n            else f'const char *text = R\"probe(\\n#if {macro}\\n)probe\";\\n'\n        )\n        root = _compile_time_source_root(\n            tmp_path / container, macro, owner_text=owner_text,\n        )\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...scriminating')\nE         \nE         At index 0 diff: 'green' != 'red'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n_______ test_compile_time_branch_selection_accepts_active_nested_context _______\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_accepts_active_nested_context(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_LOCK_COVERAGE\"\n        root = _compile_time_source_root(tmp_path, macro, nested=True)\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"green\", \"declared-compile-time-branch-selection-observed\",\n        )\nE       AssertionError: assert ('red', 'comp...ocess-failed') == ('green', 'de...ion-observed')\nE         \nE         At index 0 diff: 'red' != 'green'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:693: AssertionError\n____ test_compile_time_branch_selection_rejects_line_spliced_comment_endif _____\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_line_spliced_comment_endif(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\"\n        root = _compile_time_source_root(\n            tmp_path,\n            macro,\n            owner_text=(\n                \"#if 0\\n\"\n                \"// this endif is part of the comment after splicing \\\\\\n\"\n                \"#endif\\n\"\n                f\"#if {macro}\\n\"\n                \"int guarded = 1;\\n\"\n                \"#endif\\n\"\n                \"#endif\\n\"\n            ),\n        )\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('red', 'comp...ocess-failed') == ('red', 'comp...scriminating')\nE         \nE         At index 1 diff: 'compile-time-branch-preprocess-failed' != 'compile-time-branch-selection-not-discriminating'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:784: AssertionError\n___ test_compile_time_branch_selection_rejects_unobserved_completion_marker ____\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_unobserved_completion_marker(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_PERMUTATION\"\n        root = _compile_time_source_root(\n            tmp_path,\n            macro,\n            prefix=(\n                f\"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\\n\"\n                f\"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\\n\"\n            ),\n        )\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-mismatch\",\n        )\nE       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...ion-mismatch')\nE         \nE         At index 0 diff: 'green' != 'red'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:840: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\n6 failed, 183 passed in 4.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1547 retained_bytes=1547 omitted_bytes=0 rendered_excerpt_bytes=1643 sha256=12cc64c9a89d09dc1e901f120c3c108a61f0f34e6c07dfef8e977b80871e7534\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_compile_time_branch_selec0')\n> container = 'raw-string'\n> \n>     @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n>     def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n>         tmp_path: Path,\n>         container: str,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n>         owner_text = (\n>             f\"/*\\x5cn#if {macro}\\x5cn#endif\\x5cn*/\\x5cn\"\n>             if container == \"block-comment\"\n>             else f'const char *text = R\"probe(\\x5cn#if {macro}\\x5cn)probe\";\\x5cn'\n>         )\n>         root = _compile_time_source_root(\n>             tmp_path / container, macro, owner_text=owner_text,\n>         )\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('red', 'comp...ocess-failed') == ('red', 'comp...scriminating')\n> E         \n> E         At index 1 diff: 'compile-time-branch-preprocess-failed' != 'compile-time-branch-selection-not-discriminating'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1487 retained_bytes=1487 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=02ce52a526102fbbfe59421189735d3abbc479ab292a04a6d5d42cbbd11973f7\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_line_spliced_comment_endif(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\"\n>         root = _compile_time_source_root(\n>             tmp_path,\n>             macro,\n>             owner_text=(\n>                 \"#if 0\\x5cn\"\n>                 \"// this endif is part of the comment after splicing \\x5c\\x5c\\x5cn\"\n>                 \"#endif\\x5cn\"\n>                 f\"#if {macro}\\x5cn\"\n>                 \"int guarded = 1;\\x5cn\"\n>                 \"#endif\\x5cn\"\n>                 \"#endif\\x5cn\"\n>             ),\n>         )\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('red', 'comp...ocess-failed') == ('red', 'comp...scriminating')\n> E         \n> E         At index 1 diff: 'compile-time-branch-preprocess-failed' != 'compile-time-branch-selection-not-discriminating'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:784: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]\" nodeid_bytes=144 nodeid_omitted_bytes=0 source_bytes=1473 retained_bytes=1473 omitted_bytes=0 rendered_excerpt_bytes=1569 sha256=2740e26583a90396df4251e8be51c0012ee7f6c23e0f8571c9789129819e01a7\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_compile_time_branch_selec0')\n> container = 'block-comment'\n> \n>     @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n>     def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n>         tmp_path: Path,\n>         container: str,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n>         owner_text = (\n>             f\"/*\\x5cn#if {macro}\\x5cn#endif\\x5cn*/\\x5cn\"\n>             if container == \"block-comment\"\n>             else f'const char *text = R\"probe(\\x5cn#if {macro}\\x5cn)probe\";\\x5cn'\n>         )\n>         root = _compile_time_source_root(\n>             tmp_path / container, macro, owner_text=owner_text,\n>         )\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...scriminating')\n> E         \n> E         At index 0 diff: 'green' != 'red'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 rendered_excerpt_bytes=1342 sha256=79586d6ffaf75ac28eb530782ed2e6d2f538681a1bbd8e5fe6a62474c9f03e44\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_unobserved_completion_marker(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_PERMUTATION\"\n>         root = _compile_time_source_root(\n>             tmp_path,\n>             macro,\n>             prefix=(\n>                 f\"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\\x5cn\"\n>                 f\"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\\x5cn\"\n>             ),\n>         )\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-mismatch\",\n>         )\n> E       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...ion-mismatch')\n> E         \n> E         At index 0 diff: 'green' != 'red'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:840: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1102 retained_bytes=1102 omitted_bytes=0 rendered_excerpt_bytes=1160 sha256=df3b19728f8719d39046b55dcc89499ceae6bd2721f3c756ec4c93fe0b9644ab\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_owner_prefix_undef(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_FORGE\"\n>         root = _compile_time_source_root(tmp_path, macro, prefix=f\"#undef {macro}\\x5cn\")\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...scriminating')\n> E         \n> E         At index 0 diff: 'green' != 'red'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:752: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1086 retained_bytes=1086 omitted_bytes=0 rendered_excerpt_bytes=1141 sha256=eeda39445aa3a3112b7faac76775401c8502c41effec4d877578be5741bf4f91\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_accepts_active_nested_context(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_LOCK_COVERAGE\"\n>         root = _compile_time_source_root(tmp_path, macro, nested=True)\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"green\", \"declared-compile-time-branch-selection-observed\",\n>         )\n> E       AssertionError: assert ('red', 'comp...ocess-failed') == ('green', 'de...ion-observed')\n> E         \n> E         At index 0 diff: 'red' != 'green'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:693: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=7962 retained_bytes=7962 omitted_bytes=0 budget_bytes=49152 rendered_bytes=11536 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "be1cf95577d860c21b9486040c4c14732a79ff393c7e321a49577a1b53dab2c1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+      "duration_s": 27.217,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "hang_risk": false,
+      "id": "t2153.final.owner-tu-context",
+      "injection_diff_sha256": "e8c9b2995b111cf13e943bbf0aad6050b191e8eee3629b8f39fbf78db2a5ba00",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a599b9f73faa3f0eac6673acca43f13f1ede36720d40068a67bd76b6f14ae5c8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "        directive,\n    ))\n    return \"\".join(lines[start:])\n",
+          "old": "        directive,\n    ))\n    return \"\".join(lines)\n"
+        }
+      ],
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "KILLED",
+      "test_output_sha256": "be1cf95577d860c21b9486040c4c14732a79ff393c7e321a49577a1b53dab2c1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/d58386e89ed4b9a2081b904119ea04d1/izdw-d58386e89e.o967287",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/d58386e89ed4b9a2081b904119ea04d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n...F.........................................                            [100%]\n=================================== FAILURES ===================================\n_____ test_compile_time_branch_selection_rejects_duplicate_start_directive _____\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_duplicate_start_directive(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_ERASE\"\n        root = _compile_time_source_root(tmp_path, macro, duplicate=True)\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-start-not-unique\",\n        )\nE       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...t-not-unique')\nE         \nE         At index 0 diff: 'green' != 'red'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:733: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive\n1 failed, 188 passed in 4.78s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1085 retained_bytes=1085 omitted_bytes=0 rendered_excerpt_bytes=1140 sha256=9900a79349d8001398ed70b8d26be256222bd3188f9aa6030eb38bc7b1daa459\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_duplicate_start_directive(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_ERASE\"\n>         root = _compile_time_source_root(tmp_path, macro, duplicate=True)\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-start-not-unique\",\n>         )\n> E       AssertionError: assert ('green', 'de...ion-observed') == ('red', 'comp...t-not-unique')\n> E         \n> E         At index 0 diff: 'green' != 'red'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:733: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1085 retained_bytes=1085 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1887 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f17de9d4dc85d1ff13ad0828e09e52ca9b0979cdfaae3c139fd7335d0f32d4bb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+      "duration_s": 27.105,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive"
+      ],
+      "hang_risk": false,
+      "id": "t2153.final.start-directive-unique",
+      "injection_diff_sha256": "5c19afe90cb4e56b67304eb0e8c52945cc7abe5f4c13bf132560f6d330dd295a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "32b435c48e99a419086d91bc88114ff4da7efe59fe10af7d5dcac0c91a2415d8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    if not starts:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n",
+          "old": "    if len(starts) != 1:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n"
+        }
+      ],
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "KILLED",
+      "test_output_sha256": "f17de9d4dc85d1ff13ad0828e09e52ca9b0979cdfaae3c139fd7335d0f32d4bb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/4b0589bac23ad1462819c5d73815bf46/izdw-4b0589bac2.o967290",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/4b0589bac23ad1462819c5d73815bf46/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n........................................F....                            [100%]\n=================================== FAILURES ===================================\n___ test_compile_time_branch_selection_rejects_unobserved_completion_marker ____\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_unobserved_completion_marker(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_PERMUTATION\"\n        root = _compile_time_source_root(\n            tmp_path,\n            macro,\n            prefix=(\n                f\"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\\n\"\n                f\"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\\n\"\n            ),\n        )\n        request = _compile_time_request(macro)\n>       meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n\norchestrator/tests/test_condition_meaning_gate.py:832: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/condition_meaning_gate.py:2561: in evaluate_define_runtime_meaning\n    return _issue_arm_record(\norchestrator/campaign/condition_meaning_gate.py:894: in _issue_arm_record\n    _validate_arm_record_integrity(record, require_issuer=False)\norchestrator/campaign/condition_meaning_gate.py:3069: in _validate_arm_record_integrity\n    _validate_meaning_green_evidence(record)\norchestrator/campaign/condition_meaning_gate.py:3005: in _validate_meaning_green_evidence\n    requested = _validate_compile_time_branch_observation(\norchestrator/campaign/condition_meaning_gate.py:2885: in _validate_compile_time_branch_observation\n    _invalid_record(f\"{field_name} does not encode the exact branch observation\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndetail = 'requested does not encode the exact branch observation'\n\n    def _invalid_record(detail: str) -> None:\n>       raise ConditionMeaningGateError(\"admission-contract-invalid\", detail)\nE       orchestrator.campaign.condition_meaning_gate.ConditionMeaningGateError: admission-contract-invalid: requested does not encode the exact branch observation\n\norchestrator/campaign/condition_meaning_gate.py:2664: ConditionMeaningGateError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\n1 failed, 188 passed in 4.69s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=2244 retained_bytes=2244 omitted_bytes=0 rendered_excerpt_bytes=2343 sha256=350ed6647ced404826a7365896dee63aeca66eeae6757da4c90e56724df3c4fa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_unobserved_completion_marker(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_PERMUTATION\"\n>         root = _compile_time_source_root(\n>             tmp_path,\n>             macro,\n>             prefix=(\n>                 f\"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\\x5cn\"\n>                 f\"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\\x5cn\"\n>             ),\n>         )\n>         request = _compile_time_request(macro)\n> >       meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n> \n> orchestrator/tests/test_condition_meaning_gate.py:832: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/condition_meaning_gate.py:2561: in evaluate_define_runtime_meaning\n>     return _issue_arm_record(\n> orchestrator/campaign/condition_meaning_gate.py:894: in _issue_arm_record\n>     _validate_arm_record_integrity(record, require_issuer=False)\n> orchestrator/campaign/condition_meaning_gate.py:3069: in _validate_arm_record_integrity\n>     _validate_meaning_green_evidence(record)\n> orchestrator/campaign/condition_meaning_gate.py:3005: in _validate_meaning_green_evidence\n>     requested = _validate_compile_time_branch_observation(\n> orchestrator/campaign/condition_meaning_gate.py:2885: in _validate_compile_time_branch_observation\n>     _invalid_record(f\"{field_name} does not encode the exact branch observation\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> detail = 'requested does not encode the exact branch observation'\n> \n>     def _invalid_record(detail: str) -> None:\n> >       raise ConditionMeaningGateError(\"admission-contract-invalid\", detail)\n> E       orchestrator.campaign.condition_meaning_gate.ConditionMeaningGateError: admission-contract-invalid: requested does not encode the exact branch observation\n> \n> orchestrator/campaign/condition_meaning_gate.py:2664: ConditionMeaningGateError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2244 retained_bytes=2244 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3093 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7ce3ce2263afae5431c93f927c2b6c5c0596eab78730b549bf00595e55c8928a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+      "duration_s": 359.825,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "hang_risk": false,
+      "id": "t2153.final.exact-observation-pair",
+      "injection_diff_sha256": "eb74e16542de3e87c7c7f56dedc4618e0a2ccb7cb62a14edf28a5a9cbc52f3b0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f4f825194f8359467bf437ba98e04393fd57bedea073bc8f3ae46d1d51bd2794",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    if requested_counts[0] != 1:\n",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n"
+        }
+      ],
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "KILLED",
+      "test_output_sha256": "7ce3ce2263afae5431c93f927c2b6c5c0596eab78730b549bf00595e55c8928a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/7e27fdeaffd07eaa5756e07a7d49656c/izdw-7e27fdeaff.o967311",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/7e27fdeaffd07eaa5756e07a7d49656c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n.......................................F.....                            [100%]\n=================================== FAILURES ===================================\n___ test_compile_time_branch_selection_rejects_unobserved_completion_marker ____\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_unobserved_completion_marker(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_PERMUTATION\"\n        root = _compile_time_source_root(\n            tmp_path,\n            macro,\n            prefix=(\n                f\"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\\n\"\n                f\"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\\n\"\n            ),\n        )\n        request = _compile_time_request(macro)\n>       meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n\norchestrator/tests/test_condition_meaning_gate.py:832: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/condition_meaning_gate.py:2561: in evaluate_define_runtime_meaning\n    return _issue_arm_record(\norchestrator/campaign/condition_meaning_gate.py:894: in _issue_arm_record\n    _validate_arm_record_integrity(record, require_issuer=False)\norchestrator/campaign/condition_meaning_gate.py:3069: in _validate_arm_record_integrity\n    _validate_meaning_green_evidence(record)\norchestrator/campaign/condition_meaning_gate.py:3005: in _validate_meaning_green_evidence\n    requested = _validate_compile_time_branch_observation(\norchestrator/campaign/condition_meaning_gate.py:2885: in _validate_compile_time_branch_observation\n    _invalid_record(f\"{field_name} does not encode the exact branch observation\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndetail = 'requested does not encode the exact branch observation'\n\n    def _invalid_record(detail: str) -> None:\n>       raise ConditionMeaningGateError(\"admission-contract-invalid\", detail)\nE       orchestrator.campaign.condition_meaning_gate.ConditionMeaningGateError: admission-contract-invalid: requested does not encode the exact branch observation\n\norchestrator/campaign/condition_meaning_gate.py:2664: ConditionMeaningGateError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\n1 failed, 188 passed in 4.69s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=2244 retained_bytes=2244 omitted_bytes=0 rendered_excerpt_bytes=2343 sha256=350ed6647ced404826a7365896dee63aeca66eeae6757da4c90e56724df3c4fa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_unobserved_completion_marker(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_PERMUTATION\"\n>         root = _compile_time_source_root(\n>             tmp_path,\n>             macro,\n>             prefix=(\n>                 f\"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\\x5cn\"\n>                 f\"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\\x5cn\"\n>             ),\n>         )\n>         request = _compile_time_request(macro)\n> >       meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n> \n> orchestrator/tests/test_condition_meaning_gate.py:832: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/condition_meaning_gate.py:2561: in evaluate_define_runtime_meaning\n>     return _issue_arm_record(\n> orchestrator/campaign/condition_meaning_gate.py:894: in _issue_arm_record\n>     _validate_arm_record_integrity(record, require_issuer=False)\n> orchestrator/campaign/condition_meaning_gate.py:3069: in _validate_arm_record_integrity\n>     _validate_meaning_green_evidence(record)\n> orchestrator/campaign/condition_meaning_gate.py:3005: in _validate_meaning_green_evidence\n>     requested = _validate_compile_time_branch_observation(\n> orchestrator/campaign/condition_meaning_gate.py:2885: in _validate_compile_time_branch_observation\n>     _invalid_record(f\"{field_name} does not encode the exact branch observation\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> detail = 'requested does not encode the exact branch observation'\n> \n>     def _invalid_record(detail: str) -> None:\n> >       raise ConditionMeaningGateError(\"admission-contract-invalid\", detail)\n> E       orchestrator.campaign.condition_meaning_gate.ConditionMeaningGateError: admission-contract-invalid: requested does not encode the exact branch observation\n> \n> orchestrator/campaign/condition_meaning_gate.py:2664: ConditionMeaningGateError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2244 retained_bytes=2244 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3093 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "52fd8e988b50b9007316f13451250806c5fc18e395fdd5979b0058f6d4277542"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+      "duration_s": 27.021,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "hang_risk": false,
+      "id": "t2153.final.completion-marker-required",
+      "injection_diff_sha256": "591ca9f44b98f043f9a319f1a098f1f3b88ed873b6fc49836e5ee2faf05f7856",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2e9d946dafac1a64df5a83a06f8c4fdd3412f9a9c93502b0a7ad2b8fe2855044",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    if requested_counts[0] != 1 or default_counts[0] != 0:\n",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n"
+        }
+      ],
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "KILLED",
+      "test_output_sha256": "52fd8e988b50b9007316f13451250806c5fc18e395fdd5979b0058f6d4277542",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/9f285903201376297ae6429bc54b18ea/izdw-9f28590320.o967314",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/9f285903201376297ae6429bc54b18ea/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................F....................... [ 38%]\n.....................F.................................................. [ 76%]\n.............................................                            [100%]\n=================================== FAILURES ===================================\n________________ test_v1_domain_and_claim_boundaries_are_exact _________________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v1_domain_and_claim_boundaries_are_exact():\n        supply_domain = {\n            \"BACKOFF_FIXED\", \"BACKOFF_NOINLINE\", \"BACKOFF_REQUESTED_US\",\n            \"BACKOFF_TRIGGER_GATING\", \"SORT_VARIANT\", \"SS2PL_LOCK_IMPL\",\n            \"SS2PL_LOCK_KIND\", \"SS2PL_DLR\", \"SS2PL_WFG_DIAG\",\n            \"IZANAGI_BREAK_PERMUTATION\", \"IZANAGI_BREAK_PERMUTATION_SWAP\",\n            \"IZANAGI_BREAK_LOCK_COVERAGE\", \"IZANAGI_BREAK_EARLY_UNLOCK\",\n            \"IZANAGI_BREAK_NOREAD_VALIDATION\", \"IZANAGI_BREAK_HIGHKEY_VALIDATION\",\n            \"IZANAGI_BREAK_WRITE_INTENT_ERASE\", \"IZANAGI_BREAK_WRITE_INTENT_FORGE\",\n            \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\", \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\",\n            \"IZANAGI_BREAK_TRIGGER_MISATTR\", \"IZANAGI_SILO_LADDER_RUNG1\",\n            \"IZANAGI_SILO_LADDER_RUNG1_REPORT\",\n        }\n        assert G.SUPPLY_DOMAIN_MACROS == supply_domain\n        assert G.MEANING_SUPPORTED_MACROS == {\n            \"BACKOFF_FIXED\", *_COMPILE_TIME_BRANCH_MACROS,\n        }\n        assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS\n        assert not hasattr(G, \"SUPPORTED_MACROS\")\n        assert G.RELATED_DEFINE_DECODE_MACROS == {\n            \"BACKOFF_FIXED\", \"BACKOFF_NOINLINE\", \"BACKOFF_REQUESTED_US\",\n            \"BACKOFF_TRIGGER_GATING\", \"SORT_VARIANT\", \"SS2PL_LOCK_IMPL\",\n            \"SS2PL_LOCK_KIND\", \"SS2PL_DLR\", \"SS2PL_WFG_DIAG\",\n        }\n        assert G.RELATED_DEFINE_DECODE_MACROS <= G.SUPPLY_DOMAIN_MACROS\n        for macro in G.SUPPLY_DOMAIN_MACROS - {\"BACKOFF_FIXED\"}:\n>           with pytest.raises(ValueError, match=\"no runtime witness support\"):\nE           Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_condition_meaning_gate.py:1520: Failed\n_______ test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only ________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_legacy_meaning_declaratio0')\n\n    def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(\n        tmp_path: Path,\n    ):\n        assert G.MeaningWitnessDeclaration(\"BACKOFF_FIXED\", ()) \\\n            == G.MeaningWitnessDeclaration(\"BACKOFF_FIXED\", ())\n>       with pytest.raises(ValueError, match=\"no runtime witness support\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_condition_meaning_gate.py:885: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only\n2 failed, 187 passed in 4.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1755 retained_bytes=1755 omitted_bytes=0 rendered_excerpt_bytes=1820 sha256=e8b555363f7495c1bcf6f4391b020eecb7e03c6d52a762ca1e4c47e8c6a2ba78\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v1_domain_and_claim_boundaries_are_exact():\n>         supply_domain = {\n>             \"BACKOFF_FIXED\", \"BACKOFF_NOINLINE\", \"BACKOFF_REQUESTED_US\",\n>             \"BACKOFF_TRIGGER_GATING\", \"SORT_VARIANT\", \"SS2PL_LOCK_IMPL\",\n>             \"SS2PL_LOCK_KIND\", \"SS2PL_DLR\", \"SS2PL_WFG_DIAG\",\n>             \"IZANAGI_BREAK_PERMUTATION\", \"IZANAGI_BREAK_PERMUTATION_SWAP\",\n>             \"IZANAGI_BREAK_LOCK_COVERAGE\", \"IZANAGI_BREAK_EARLY_UNLOCK\",\n>             \"IZANAGI_BREAK_NOREAD_VALIDATION\", \"IZANAGI_BREAK_HIGHKEY_VALIDATION\",\n>             \"IZANAGI_BREAK_WRITE_INTENT_ERASE\", \"IZANAGI_BREAK_WRITE_INTENT_FORGE\",\n>             \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\", \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\",\n>             \"IZANAGI_BREAK_TRIGGER_MISATTR\", \"IZANAGI_SILO_LADDER_RUNG1\",\n>             \"IZANAGI_SILO_LADDER_RUNG1_REPORT\",\n>         }\n>         assert G.SUPPLY_DOMAIN_MACROS == supply_domain\n>         assert G.MEANING_SUPPORTED_MACROS == {\n>             \"BACKOFF_FIXED\", *_COMPILE_TIME_BRANCH_MACROS,\n>         }\n>         assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS\n>         assert not hasattr(G, \"SUPPORTED_MACROS\")\n>         assert G.RELATED_DEFINE_DECODE_MACROS == {\n>             \"BACKOFF_FIXED\", \"BACKOFF_NOINLINE\", \"BACKOFF_REQUESTED_US\",\n>             \"BACKOFF_TRIGGER_GATING\", \"SORT_VARIANT\", \"SS2PL_LOCK_IMPL\",\n>             \"SS2PL_LOCK_KIND\", \"SS2PL_DLR\", \"SS2PL_WFG_DIAG\",\n>         }\n>         assert G.RELATED_DEFINE_DECODE_MACROS <= G.SUPPLY_DOMAIN_MACROS\n>         for macro in G.SUPPLY_DOMAIN_MACROS - {\"BACKOFF_FIXED\"}:\n> >           with pytest.raises(ValueError, match=\"no runtime witness support\"):\n> E           Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:1520: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=559 retained_bytes=559 omitted_bytes=0 rendered_excerpt_bytes=589 sha256=8ee29569f126cb86495af705b37f76b299d0680534a47e440da6608a0fadf8da\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_legacy_meaning_declaratio0')\n> \n>     def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(\n>         tmp_path: Path,\n>     ):\n>         assert G.MeaningWitnessDeclaration(\"BACKOFF_FIXED\", ()) \\x5c\n>             == G.MeaningWitnessDeclaration(\"BACKOFF_FIXED\", ())\n> >       with pytest.raises(ValueError, match=\"no runtime witness support\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:885: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2314 retained_bytes=2314 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3584 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "db08e50247e9d5badc7d904984788428137cd2c47654e90b40e49762111c4eec"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+      "duration_s": 27.093,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only"
+      ],
+      "hang_risk": false,
+      "id": "t2153.final.legacy-declaration-pinned",
+      "injection_diff_sha256": "d536db941344ead813b0e7008ee0e610ffba23cf3ae705349b2b5cdc0bf2cc98",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c43029f3670df1428082329a54316ac14e54d20635f255b2296480bfe9391860",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "        if type(self.macro) is not str or self.macro not in MEANING_SUPPORTED_MACROS:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n",
+          "old": "        if type(self.macro) is not str or self.macro != MACRO:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n"
+        }
+      ],
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "KILLED",
+      "test_output_sha256": "db08e50247e9d5badc7d904984788428137cd2c47654e90b40e49762111c4eec",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/64a0b76c0a9fbc6a222b4a979c7b0415/izdw-64a0b76c0a.o967316",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/64a0b76c0a9fbc6a222b4a979c7b0415/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n...........................................................F............ [ 76%]\n.............................................                            [100%]\n=================================== FAILURES ===================================\n_______ test_compile_time_factory_keeps_unregistered_macro_unestablished _______\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_compile_time_factory_keep0')\n\n    def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: Path):\n        request = _compile_time_request(\"IZANAGI_BREAK_NOREAD_VALIDATION\")\n>       assert G.declare_define_runtime_meaning(request) is None\n\norchestrator/tests/test_condition_meaning_gate.py:848: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/condition_meaning_gate.py:795: in declare_define_runtime_meaning\n    return ConditionalBranchMeaningDeclaration(\n<string>:7: in __init__\n    ???\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = ConditionalBranchMeaningDeclaration(macro='IZANAGI_BREAK_NOREAD_VALIDATION', source_rel='cc/silo/transaction.cc', start_directive='#if IZANAGI_BREAK_PERMUTATION', witness_id='owner-tu-compile-time-conditional-branch-selection')\n\n    def __post_init__(self) -> None:\n        if type(self.macro) is not str:\n            raise ValueError(\"conditional branch declaration macro must be an exact string\")\n        registered = CONDITIONAL_BRANCH_WITNESSES.get(self.macro)\n        if registered is None \\\n                or type(self.source_rel) is not str \\\n                or type(self.start_directive) is not str \\\n                or (self.source_rel, self.start_directive) != registered:\n>           raise ValueError(\"conditional branch declaration is not registry-owned\")\nE           ValueError: conditional branch declaration is not registry-owned\n\norchestrator/campaign/condition_meaning_gate.py:484: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished\n1 failed, 188 passed in 4.68s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1680 retained_bytes=1680 omitted_bytes=0 rendered_excerpt_bytes=1750 sha256=492a4bcdc5d363d77a8480d45df6b88ba2f45e08fcb7bf8c1b529ee967b7f783\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_compile_time_factory_keep0')\n> \n>     def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: Path):\n>         request = _compile_time_request(\"IZANAGI_BREAK_NOREAD_VALIDATION\")\n> >       assert G.declare_define_runtime_meaning(request) is None\n> \n> orchestrator/tests/test_condition_meaning_gate.py:848: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/condition_meaning_gate.py:795: in declare_define_runtime_meaning\n>     return ConditionalBranchMeaningDeclaration(\n> <string>:7: in __init__\n>     ???\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = ConditionalBranchMeaningDeclaration(macro='IZANAGI_BREAK_NOREAD_VALIDATION', source_rel='cc/silo/transaction.cc', start_directive='#if IZANAGI_BREAK_PERMUTATION', witness_id='owner-tu-compile-time-conditional-branch-selection')\n> \n>     def __post_init__(self) -> None:\n>         if type(self.macro) is not str:\n>             raise ValueError(\"conditional branch declaration macro must be an exact string\")\n>         registered = CONDITIONAL_BRANCH_WITNESSES.get(self.macro)\n>         if registered is None \\x5c\n>                 or type(self.source_rel) is not str \\x5c\n>                 or type(self.start_directive) is not str \\x5c\n>                 or (self.source_rel, self.start_directive) != registered:\n> >           raise ValueError(\"conditional branch declaration is not registry-owned\")\n> E           ValueError: conditional branch declaration is not registry-owned\n> \n> orchestrator/campaign/condition_meaning_gate.py:484: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1680 retained_bytes=1680 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2493 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a6fa2a6155aead36a21a66d036272c03ef90ae1c48dd69e60da0f638ee64f62a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+      "duration_s": 27.134,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished"
+      ],
+      "hang_risk": false,
+      "id": "t2153.final.factory-registry-only",
+      "injection_diff_sha256": "629eba15d5a002b5bec8f911e00fb0e077c875578b8c0cd4e30685843aae3fdc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3348d7c52fcc651cf3ed49c2633619476b17f2cf722af18adeb41988174a9c12",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(\n        request.macro, next(iter(CONDITIONAL_BRANCH_WITNESSES.values())))\n",
+          "old": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(request.macro)\n"
+        }
+      ],
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "KILLED",
+      "test_output_sha256": "a6fa2a6155aead36a21a66d036272c03ef90ae1c48dd69e60da0f638ee64f62a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/09bdaa4c92d0b6eaefde92664c04a69c/izdw-09bdaa4c92.o967325",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/09bdaa4c92d0b6eaefde92664c04a69c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n..................................................................F...FF [ 76%]\n..F....................................F.....                            [100%]\n=================================== FAILURES ===================================\n_ test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string] _\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_compile_time_branch_selec0')\ncontainer = 'raw-string'\n\n    @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n    def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n        tmp_path: Path,\n        container: str,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n        owner_text = (\n            f\"/*\\n#if {macro}\\n#endif\\n*/\\n\"\n            if container == \"block-comment\"\n            else f'const char *text = R\"probe(\\n#if {macro}\\n)probe\";\\n'\n        )\n        root = _compile_time_source_root(\n            tmp_path / container, macro, owner_text=owner_text,\n        )\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\nE         \nE         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n_ test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment] _\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_compile_time_branch_selec0')\ncontainer = 'block-comment'\n\n    @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n    def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n        tmp_path: Path,\n        container: str,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n        owner_text = (\n            f\"/*\\n#if {macro}\\n#endif\\n*/\\n\"\n            if container == \"block-comment\"\n            else f'const char *text = R\"probe(\\n#if {macro}\\n)probe\";\\n'\n        )\n        root = _compile_time_source_root(\n            tmp_path / container, macro, owner_text=owner_text,\n        )\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\nE         \nE         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n________ test_compile_time_branch_selection_rejects_owner_prefix_undef _________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_owner_prefix_undef(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_FORGE\"\n        root = _compile_time_source_root(tmp_path, macro, prefix=f\"#undef {macro}\\n\")\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\nE         \nE         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:752: AssertionError\n____ test_compile_time_branch_selection_rejects_line_spliced_comment_endif _____\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_compile_time_branch_selec0')\n\n    def test_compile_time_branch_selection_rejects_line_spliced_comment_endif(\n        tmp_path: Path,\n    ):\n        macro = \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\"\n        root = _compile_time_source_root(\n            tmp_path,\n            macro,\n            owner_text=(\n                \"#if 0\\n\"\n                \"// this endif is part of the comment after splicing \\\\\\n\"\n                \"#endif\\n\"\n                f\"#if {macro}\\n\"\n                \"int guarded = 1;\\n\"\n                \"#endif\\n\"\n                \"#endif\\n\"\n            ),\n        )\n        request = _compile_time_request(macro)\n        meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n    \n>       assert (meaning.terminal_status, meaning.reason_code) == (\n            \"red\", \"compile-time-branch-selection-not-discriminating\",\n        )\nE       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\nE         \nE         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:784: AssertionError\n__ test_compile_time_branch_selection_rejects_non_discriminating_observation ___\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_compile_time_branch_selec0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fc58397fd0>\n\n    def test_compile_time_branch_selection_rejects_non_discriminating_observation(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        macro = \"IZANAGI_BREAK_PERMUTATION\"\n        source_rel, _start_directive = G.CONDITIONAL_BRANCH_WITNESSES[macro]\n        mutated_directive = \"#if 1\"\n        monkeypatch.setitem(\n            G._CONDITIONAL_BRANCH_WITNESSES,\n            macro,\n            (source_rel, mutated_directive),\n        )\n        root = _compile_time_source_root(\n            tmp_path,\n            macro,\n            directive=mutated_directive,\n        )\n        request = _compile_time_request(macro)\n>       meaning = G.evaluate_define_runtime_meaning(\n            G.capture_define_inputs(root),\n            request=request,\n            declaration=G.declare_define_runtime_meaning(request),\n            cxx=_any_cxx(),\n            cmake=_any_cmake(),\n        )\n\norchestrator/tests/test_condition_meaning_gate.py:665: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/condition_meaning_gate.py:2561: in evaluate_define_runtime_meaning\n    return _issue_arm_record(\norchestrator/campaign/condition_meaning_gate.py:894: in _issue_arm_record\n    _validate_arm_record_integrity(record, require_issuer=False)\norchestrator/campaign/condition_meaning_gate.py:3069: in _validate_arm_record_integrity\n    _validate_meaning_green_evidence(record)\norchestrator/campaign/condition_meaning_gate.py:3009: in _validate_meaning_green_evidence\n    default = _validate_compile_time_branch_observation(\norchestrator/campaign/condition_meaning_gate.py:2885: in _validate_compile_time_branch_observation\n    _invalid_record(f\"{field_name} does not encode the exact branch observation\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndetail = 'default does not encode the exact branch observation'\n\n    def _invalid_record(detail: str) -> None:\n>       raise ConditionMeaningGateError(\"admission-contract-invalid\", detail)\nE       orchestrator.campaign.condition_meaning_gate.ConditionMeaningGateError: admission-contract-invalid: default does not encode the exact branch observation\n\norchestrator/campaign/condition_meaning_gate.py:2664: ConditionMeaningGateError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation\n5 failed, 184 passed in 4.84s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=2491 retained_bytes=2491 omitted_bytes=0 rendered_excerpt_bytes=2596 sha256=d75fc47861a98892be0d204700744c49713d8579bba11aab68b7126f003b8fda\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_compile_time_branch_selec0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fc58397fd0>\n> \n>     def test_compile_time_branch_selection_rejects_non_discriminating_observation(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         macro = \"IZANAGI_BREAK_PERMUTATION\"\n>         source_rel, _start_directive = G.CONDITIONAL_BRANCH_WITNESSES[macro]\n>         mutated_directive = \"#if 1\"\n>         monkeypatch.setitem(\n>             G._CONDITIONAL_BRANCH_WITNESSES,\n>             macro,\n>             (source_rel, mutated_directive),\n>         )\n>         root = _compile_time_source_root(\n>             tmp_path,\n>             macro,\n>             directive=mutated_directive,\n>         )\n>         request = _compile_time_request(macro)\n> >       meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n> \n> orchestrator/tests/test_condition_meaning_gate.py:665: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/condition_meaning_gate.py:2561: in evaluate_define_runtime_meaning\n>     return _issue_arm_record(\n> orchestrator/campaign/condition_meaning_gate.py:894: in _issue_arm_record\n>     _validate_arm_record_integrity(record, require_issuer=False)\n> orchestrator/campaign/condition_meaning_gate.py:3069: in _validate_arm_record_integrity\n>     _validate_meaning_green_evidence(record)\n> orchestrator/campaign/condition_meaning_gate.py:3009: in _validate_meaning_green_evidence\n>     default = _validate_compile_time_branch_observation(\n> orchestrator/campaign/condition_meaning_gate.py:2885: in _validate_compile_time_branch_observation\n>     _invalid_record(f\"{field_name} does not encode the exact branch observation\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> detail = 'default does not encode the exact branch observation'\n> \n>     def _invalid_record(detail: str) -> None:\n> >       raise ConditionMeaningGateError(\"admission-contract-invalid\", detail)\n> E       orchestrator.campaign.condition_meaning_gate.ConditionMeaningGateError: admission-contract-invalid: default does not encode the exact branch observation\n> \n> orchestrator/campaign/condition_meaning_gate.py:2664: ConditionMeaningGateError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]\" nodeid_bytes=144 nodeid_omitted_bytes=0 source_bytes=1551 retained_bytes=1551 omitted_bytes=0 rendered_excerpt_bytes=1647 sha256=cd20b9acec902ee281f8f0b978e67ab837afbf3e8aa9dcb522be6dee07164187\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_compile_time_branch_selec0')\n> container = 'block-comment'\n> \n>     @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n>     def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n>         tmp_path: Path,\n>         container: str,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n>         owner_text = (\n>             f\"/*\\x5cn#if {macro}\\x5cn#endif\\x5cn*/\\x5cn\"\n>             if container == \"block-comment\"\n>             else f'const char *text = R\"probe(\\x5cn#if {macro}\\x5cn)probe\";\\x5cn'\n>         )\n>         root = _compile_time_source_root(\n>             tmp_path / container, macro, owner_text=owner_text,\n>         )\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\n> E         \n> E         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1548 retained_bytes=1548 omitted_bytes=0 rendered_excerpt_bytes=1644 sha256=9b328d3bf00652e5526e34951aab9070979d1ee931502194fac9e3ad888af1ad\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_compile_time_branch_selec0')\n> container = 'raw-string'\n> \n>     @pytest.mark.parametrize(\"container\", [\"block-comment\", \"raw-string\"])\n>     def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(\n>         tmp_path: Path,\n>         container: str,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\"\n>         owner_text = (\n>             f\"/*\\x5cn#if {macro}\\x5cn#endif\\x5cn*/\\x5cn\"\n>             if container == \"block-comment\"\n>             else f'const char *text = R\"probe(\\x5cn#if {macro}\\x5cn)probe\";\\x5cn'\n>         )\n>         root = _compile_time_source_root(\n>             tmp_path / container, macro, owner_text=owner_text,\n>         )\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\n> E         \n> E         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:813: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1488 retained_bytes=1488 omitted_bytes=0 rendered_excerpt_bytes=1594 sha256=82585ca9fe1786ed9f12b948e55b20890d5edbbc4b6e034a0b50a42caa1add4b\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_line_spliced_comment_endif(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\"\n>         root = _compile_time_source_root(\n>             tmp_path,\n>             macro,\n>             owner_text=(\n>                 \"#if 0\\x5cn\"\n>                 \"// this endif is part of the comment after splicing \\x5c\\x5c\\x5cn\"\n>                 \"#endif\\x5cn\"\n>                 f\"#if {macro}\\x5cn\"\n>                 \"int guarded = 1;\\x5cn\"\n>                 \"#endif\\x5cn\"\n>                 \"#endif\\x5cn\"\n>             ),\n>         )\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\n> E         \n> E         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:784: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1180 retained_bytes=1180 omitted_bytes=0 rendered_excerpt_bytes=1238 sha256=cfb904759e74c76f8ed52fe714f5d85950937aa538840b49d85d6bb75b91e360\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_compile_time_branch_selec0')\n> \n>     def test_compile_time_branch_selection_rejects_owner_prefix_undef(\n>         tmp_path: Path,\n>     ):\n>         macro = \"IZANAGI_BREAK_WRITE_INTENT_FORGE\"\n>         root = _compile_time_source_root(tmp_path, macro, prefix=f\"#undef {macro}\\x5cn\")\n>         request = _compile_time_request(macro)\n>         meaning = G.evaluate_define_runtime_meaning(\n>             G.capture_define_inputs(root),\n>             request=request,\n>             declaration=G.declare_define_runtime_meaning(request),\n>             cxx=_any_cxx(),\n>             cmake=_any_cmake(),\n>         )\n>     \n> >       assert (meaning.terminal_status, meaning.reason_code) == (\n>             \"red\", \"compile-time-branch-selection-not-discriminating\",\n>         )\n> E       AssertionError: assert ('red', 'comp...ion-mismatch') == ('red', 'comp...scriminating')\n> E         \n> E         At index 1 diff: 'compile-time-branch-selection-mismatch' != 'compile-time-branch-selection-not-discriminating'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:752: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=8258 retained_bytes=8258 omitted_bytes=0 budget_bytes=49152 rendered_bytes=11353 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "652a7be61be0f80e231c367d15d7dba5f20f7c120f7697eca856b95b9b21ba93"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "8e2c0497288463de9004318a13dd8a6d54e8d8035c01220f82c9252998c63a07",
+      "duration_s": 139.744,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation"
+      ],
+      "hang_risk": false,
+      "id": "t2153.final.both-layers-discrimination",
+      "injection_diff_sha256": "3a0c2ed81ccc953eb4cba0e389dfa8bc89d862fe9a8fe5b9966b298522534594",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4cd48665b336e4bc3af1628fe06e47324f10569d633ff3608299427ebc551e54",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    if False:\n",
+          "old": "    if requested_counts == default_counts:\n"
+        },
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    if requested_counts[0] != 1 or default_counts[1] != 1:\n",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n"
+        }
+      ],
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "KILLED",
+      "test_output_sha256": "652a7be61be0f80e231c367d15d7dba5f20f7c120f7697eca856b95b9b21ba93",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/4aa31350c24c142f5b53b21e979e33a4/izdw-4aa31350c2.o967277",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/output/pegasus-dispatch/4aa31350c24c142f5b53b21e979e33a4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_nonnegative_endpoints_match_pointwise\norchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler\norchestrator/tests/test_condition_meaning_gate.py::test_meaning_arm_does_not_depend_on_supply_green\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches\norchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing\norchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero\norchestrator/tests/test_condition_meaning_gate.py::test_generic_f707_is_supply_red_and_meaning_green\norchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red\norchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command\norchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash\norchestrator/tests/test_condition_meaning_gate.py::test_ignored_define_has_identical_preprocessed_bytes_and_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green\norchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock\norchestrator/tests/test_condition_meaning_gate.py::test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green\norchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection\norchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red\norchestrator/tests/test_condition_meaning_gate.py::test_cli_accepts_inert_selected_branch_meaning_case\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION_SWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_LOCK_COVERAGE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_EARLY_UNLOCK]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_ERASE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_FORGE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_OPSWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_PTRSWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_block_comment_prefix\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-None]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-0]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-1]\norchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_requires_stock_preprocess_identity\norchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons\norchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission\norchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning\norchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_non_green_supply_effectuation\norchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset\norchestrator/tests/test_condition_meaning_gate.py::test_empty_green_record_built_from_public_fields_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields\norchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission\norchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance\norchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double\norchestrator/tests/test_condition_meaning_gate.py::test_duplicate_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_unknown_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_timeout_is_120_seconds_and_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_timeout_is_120_seconds_and_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_stderr_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_stderr_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored\norchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact\norchestrator/tests/test_condition_meaning_gate.py::test_captured_input_hash_drift_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_parent_component_symlink_outside_root_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected\norchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_accepts_exact_known_and_unknown_counts\norchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_rejects_any_count_mismatch_or_malformed_details\norchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_rejects_unexpected_count_keys\norchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_rejects_negative_non_int_and_bool_values\norchestrator/tests/test_s5_permutation_coverage.py::test_condition_preflight_dominates_first_benchmark_build[orchestrator.campaign.s2_verify_calibration]\norchestrator/tests/test_s5_permutation_coverage.py::test_condition_preflight_dominates_first_benchmark_build[orchestrator.campaign.s3_lock_coverage]\norchestrator/tests/test_s5_permutation_coverage.py::test_condition_preflight_dominates_first_benchmark_build[orchestrator.campaign.s5_permutation_coverage]\norchestrator/tests/test_s5_permutation_coverage.py::test_condition_gate_rejection_stops_s5_before_build\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_accepts_complete_synthetic_characterization\norchestrator/tests/test_t152_write_intent_coverage.py::test_bomb_flags_assign_exactly_one_s1_and_one_s3_worker\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[stock_silent]\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[abort_exercised]\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[bomb_ops]\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[erase]\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[forge]\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[opswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[ptrswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[three_way_reconciliation]\norchestrator/tests/test_t152_write_intent_coverage.py::test_exit_code_negative_is_one\norchestrator/tests/test_t152_write_intent_coverage.py::test_main_routes_false_payload_through_exit_code\norchestrator/tests/test_t152_write_intent_coverage.py::test_producer_union_check_is_retained\norchestrator/tests/test_t152_write_intent_coverage.py::test_bomb_ops_requires_update_in_bomb_trace\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_writes_must_be_positive\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-trace-write_intent_total-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-trace-lock_coverage_violations-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-trace-permutation_violations-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-total_cycles-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-certified-False]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-verdict-indeterminate]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-txns-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-writes-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[abort_exercised-stock_abort-trace-write_intent_total-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[abort_exercised-stock_abort-verifier-certified-False]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[bomb_ops-bomb_smoke-trace-write_intent_total-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[bomb_ops-bomb_smoke-verifier-certified-False]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-trace-write_intent_total-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-verifier-total_cycles-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-verifier-certified-True]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-verifier-exit_code-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-trace-write_intent_total-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-verifier-total_cycles-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-verifier-certified-True]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-verifier-exit_code-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-trace-write_intent_total-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-verifier-total_cycles-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-verifier-certified-True]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-verifier-exit_code-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-trace-write_intent_total-3]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-verifier-total_cycles-1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-verifier-certified-True]\norchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-verifier-exit_code-0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_producer_union_negative_is_kept_despite_bomb_implication\norchestrator/tests/test_t152_write_intent_coverage.py::test_single_reason_controls_reject_an_extra_reason[erase-intent-missing-from-write-set-independent-extra-reason]\norchestrator/tests/test_t152_write_intent_coverage.py::test_single_reason_controls_reject_an_extra_reason[forge-write-set-entry-without-intent-independent-extra-reason]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-erase]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-forge]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-opswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-ptrswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-erase]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-forge]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-opswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-ptrswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[erase]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[forge]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[opswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[ptrswap]\norchestrator/tests/test_t152_write_intent_coverage.py::test_each_stock_control_rejects_any_nonzero_integrity_counter[stock_single]\norchestrator/tests/test_t152_write_intent_coverage.py::test_each_stock_control_rejects_any_nonzero_integrity_counter[stock_abort]\norchestrator/tests/test_t152_write_intent_coverage.py::test_each_stock_control_rejects_any_nonzero_integrity_counter[bomb_smoke]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[orphan_reads]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[version_dups]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[dup_txids]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[genesis_commits]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[missing_txids]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[write_version_mismatch]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[malformed_keys]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[framing_violations]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[lock_coverage_violations]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[write_intent_violations]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[permutation_violations]\norchestrator/tests/test_t152_write_intent_coverage.py::test_integrity_helper_ignores_framing_violation_details\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[orphan_reads]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[version_dups]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[dup_txids]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[genesis_commits]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[missing_txids]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[write_version_mismatch]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[malformed_keys]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[framing_violations]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[lock_coverage_violations]\norchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[permutation_violations]\norchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[opswap-reasons0]\norchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[opswap-reasons1]\norchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[ptrswap-reasons2]\norchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[ptrswap-reasons3]\norchestrator/tests/test_t152_write_intent_coverage.py::test_three_way_reconciliation_checks_verifier_exit_code\norchestrator/tests/test_t152_write_intent_coverage.py::test_three_way_reconciliation_rejects_raw_verifier_count_mismatch\norchestrator/tests/test_t152_write_intent_coverage.py::test_cli_without_required_ccbench_sha_fails_closed\norchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_records_header_and_library_realpaths\norchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_accepts_shared_only_libraries\norchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_records_all_static_and_shared_candidates\norchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_fails_closed_without_library[gflags-gflags header/library not found]\norchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_fails_closed_without_library[glog-glog header/library not found]\norchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_accepts_recorded_prefix_resolution\norchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_rejects_prefix_mismatch\norchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_rejects_missing_cache_key[gflags_LIBRARY_FILE]\norchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_rejects_missing_cache_key[glog_LIBRARY_FILE]\norchestrator/tests/test_t152_write_intent_coverage.py::test_stock_build_wires_cmake_dependency_probe\norchestrator/tests/test_t152_write_intent_coverage.py::test_cmake_dependency_probe_accepts_actual_shared_resolution[False]\norchestrator/tests/test_t152_write_intent_coverage.py::test_cmake_dependency_probe_accepts_actual_shared_resolution[True]\norchestrator/tests/test_t152_write_intent_coverage.py::test_verify_preserves_complete_integrity_dict\norchestrator/tests/test_t152_write_intent_coverage.py::test_payload_records_semantics_links_limitations_and_no_stdout_counts\norchestrator/tests/test_t152_write_intent_coverage.py::test_all_write_intent_macros_are_gated_before_stock_build\n\n189 tests collected in 0.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f0fea00a6344d74b449fa1ccbae90feac646d1588aa7785c68a8567c85515f5f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_nonnegative_endpoints_match_pointwise",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_meaning_arm_does_not_depend_on_supply_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_generic_f707_is_supply_red_and_meaning_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ignored_define_has_identical_preprocessed_bytes_and_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_cli_accepts_inert_selected_branch_meaning_case",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION_SWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_LOCK_COVERAGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_EARLY_UNLOCK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_ERASE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_FORGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_OPSWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_PTRSWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_block_comment_prefix",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-None]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_requires_stock_preprocess_identity",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_non_green_supply_effectuation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_record_built_from_public_fields_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unknown_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_timeout_is_120_seconds_and_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_timeout_is_120_seconds_and_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_stderr_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_stderr_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_captured_input_hash_drift_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_parent_component_symlink_outside_root_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_accepts_exact_known_and_unknown_counts",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_rejects_any_count_mismatch_or_malformed_details",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_rejects_unexpected_count_keys",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_oracle_cross_check_rejects_negative_non_int_and_bool_values",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_condition_preflight_dominates_first_benchmark_build[orchestrator.campaign.s2_verify_calibration]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_condition_preflight_dominates_first_benchmark_build[orchestrator.campaign.s3_lock_coverage]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_condition_preflight_dominates_first_benchmark_build[orchestrator.campaign.s5_permutation_coverage]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_condition_gate_rejection_stops_s5_before_build",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_accepts_complete_synthetic_characterization",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_bomb_flags_assign_exactly_one_s1_and_one_s3_worker",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[stock_silent]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[abort_exercised]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[bomb_ops]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[erase]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[forge]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[opswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[ptrswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_evaluate_checks_each_predicate_has_an_independent_negative[three_way_reconciliation]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_exit_code_negative_is_one",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_main_routes_false_payload_through_exit_code",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_producer_union_check_is_retained",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_bomb_ops_requires_update_in_bomb_trace",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_writes_must_be_positive",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-trace-write_intent_total-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-trace-lock_coverage_violations-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-trace-permutation_violations-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-total_cycles-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-certified-False]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-verdict-indeterminate]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-txns-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[stock_silent-stock_single-verifier-writes-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[abort_exercised-stock_abort-trace-write_intent_total-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[abort_exercised-stock_abort-verifier-certified-False]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[bomb_ops-bomb_smoke-trace-write_intent_total-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[bomb_ops-bomb_smoke-verifier-certified-False]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-trace-write_intent_total-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-verifier-total_cycles-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-verifier-certified-True]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[erase-erase-verifier-exit_code-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-trace-write_intent_total-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-verifier-total_cycles-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-verifier-certified-True]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[forge-forge-verifier-exit_code-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-trace-write_intent_total-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-verifier-total_cycles-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-verifier-certified-True]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[opswap-opswap-verifier-exit_code-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-trace-write_intent_total-3]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-verifier-total_cycles-1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-verifier-certified-True]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_remaining_evaluate_conjuncts_have_direct_negatives[ptrswap-ptrswap-verifier-exit_code-0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_producer_union_negative_is_kept_despite_bomb_implication",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_single_reason_controls_reject_an_extra_reason[erase-intent-missing-from-write-set-independent-extra-reason]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_single_reason_controls_reject_an_extra_reason[forge-write-set-entry-without-intent-independent-extra-reason]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-erase]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-forge]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-opswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[lock_coverage_violations-ptrswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-erase]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-forge]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-opswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_each_non_intent_trace_counter[permutation_violations-ptrswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[erase]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[forge]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[opswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_controls_reject_a_non_intent_verifier_counter[ptrswap]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_each_stock_control_rejects_any_nonzero_integrity_counter[stock_single]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_each_stock_control_rejects_any_nonzero_integrity_counter[stock_abort]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_each_stock_control_rejects_any_nonzero_integrity_counter[bomb_smoke]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[orphan_reads]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[version_dups]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[dup_txids]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[genesis_commits]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[missing_txids]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[write_version_mismatch]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[malformed_keys]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[framing_violations]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[lock_coverage_violations]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[write_intent_violations]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_integrity_helper_checks_every_counter[permutation_violations]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_integrity_helper_ignores_framing_violation_details",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[orphan_reads]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[version_dups]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[dup_txids]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[genesis_commits]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[missing_txids]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[write_version_mismatch]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[malformed_keys]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[framing_violations]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[lock_coverage_violations]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_broken_integrity_helper_checks_every_non_intent_counter[permutation_violations]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[opswap-reasons0]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[opswap-reasons1]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[ptrswap-reasons2]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_swap_controls_require_both_directional_counts[ptrswap-reasons3]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_three_way_reconciliation_checks_verifier_exit_code",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_three_way_reconciliation_rejects_raw_verifier_count_mismatch",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_cli_without_required_ccbench_sha_fails_closed",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_records_header_and_library_realpaths",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_accepts_shared_only_libraries",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_records_all_static_and_shared_candidates",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_fails_closed_without_library[gflags-gflags header/library not found]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_dependency_contract_fails_closed_without_library[glog-glog header/library not found]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_accepts_recorded_prefix_resolution",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_rejects_prefix_mismatch",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_rejects_missing_cache_key[gflags_LIBRARY_FILE]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_linked_dependency_contract_rejects_missing_cache_key[glog_LIBRARY_FILE]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_stock_build_wires_cmake_dependency_probe",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_cmake_dependency_probe_accepts_actual_shared_resolution[False]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_cmake_dependency_probe_accepts_actual_shared_resolution[True]",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_verify_preserves_complete_integrity_dict",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_payload_records_semantics_links_limitations_and_no_stdout_counts",
+        "orchestrator/tests/test_t152_write_intent_coverage.py::test_all_write_intent_macros_are_gated_before_stock_build"
+      ],
+      "duration_s": 26.921,
+      "rc": 0,
+      "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+      "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+      "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+      "status": "PASSED",
+      "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t2153.final.both-layers-discrimination": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3a0c2ed81ccc953eb4cba0e389dfa8bc89d862fe9a8fe5b9966b298522534594",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    if False:\n",
+            "old": "    if requested_counts == default_counts:\n"
+          },
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    if requested_counts[0] != 1 or default_counts[1] != 1:\n",
+            "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n"
+          }
+        ]
+      },
+      "t2153.final.completion-marker-required": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "591ca9f44b98f043f9a319f1a098f1f3b88ed873b6fc49836e5ee2faf05f7856",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    if requested_counts[0] != 1 or default_counts[0] != 0:\n",
+            "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n"
+          }
+        ]
+      },
+      "t2153.final.exact-observation-pair": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "eb74e16542de3e87c7c7f56dedc4618e0a2ccb7cb62a14edf28a5a9cbc52f3b0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    if requested_counts[0] != 1:\n",
+            "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n"
+          }
+        ]
+      },
+      "t2153.final.factory-registry-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "629eba15d5a002b5bec8f911e00fb0e077c875578b8c0cd4e30685843aae3fdc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(\n        request.macro, next(iter(CONDITIONAL_BRANCH_WITNESSES.values())))\n",
+            "old": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(request.macro)\n"
+          }
+        ]
+      },
+      "t2153.final.legacy-declaration-pinned": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d536db941344ead813b0e7008ee0e610ffba23cf3ae705349b2b5cdc0bf2cc98",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "        if type(self.macro) is not str or self.macro not in MEANING_SUPPORTED_MACROS:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n",
+            "old": "        if type(self.macro) is not str or self.macro != MACRO:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n"
+          }
+        ]
+      },
+      "t2153.final.owner-tu-context": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e8c9b2995b111cf13e943bbf0aad6050b191e8eee3629b8f39fbf78db2a5ba00",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "        directive,\n    ))\n    return \"\".join(lines[start:])\n",
+            "old": "        directive,\n    ))\n    return \"\".join(lines)\n"
+          }
+        ]
+      },
+      "t2153.final.start-directive-unique": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5c19afe90cb4e56b67304eb0e8c52945cc7abe5f4c13bf132560f6d330dd295a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    if not starts:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n",
+            "old": "    if len(starts) != 1:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "38fca91f0f969fcfb76bf37993b5cc6600d74db27f478848aafc4f3e81927ab1",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_condition_meaning_gate.py",
+      "orchestrator/tests/test_s5_permutation_coverage.py",
+      "orchestrator/tests/test_t152_write_intent_coverage.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "a2bcd3aed47c57f781067f250c85ee2860fb7e59",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_condition_meaning_gate.py",
+      "orchestrator/tests/test_s5_permutation_coverage.py",
+      "orchestrator/tests/test_t152_write_intent_coverage.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "94f987a0679500ace461337acf963a028adaecf9",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "5e52ce5baf8f9f85014fb9e9ac052b80bd012d7a47e47eaba17cfa0ed686ea93",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "00014dbc76d0a85008059962316950cd7e45e7288df7715260a43729c6c70c4b",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2153-author/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "5bb450dac2cd31b4f0a9893a73339403057ac49217c549c3aba9e987c1cf4c41",
+  "updated_at": "2026-09-02T03:47:13.228781+00:00"
+}
