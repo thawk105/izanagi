@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import copy
 import shutil
 import subprocess
@@ -1845,6 +1846,40 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
     assert '"$PY" -I -B -m orchestrator.campaign.b10_backoff_shape_sweep' not in job_text
     assert "build|verify|perf|probe" in submit_text + job_text
     assert '[[ "$IZANAGI_B10_PHASE" != probe ]]' in job_text
+
+
+def test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status(
+    tmp_path: Path,
+):
+    job = ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
+    handlers = re.findall(
+        r"(?ms)^on_signal\(\) \{\n.*?^\}\n",
+        job.read_text(encoding="utf-8"),
+    )
+    assert len(handlers) == 1
+
+    failure_args = tmp_path / "failure-args"
+    completed = subprocess.run(
+        [
+            "bash", "-c",
+            "set -Eeuo pipefail\n"
+            "FAILURE_ARGS=$1\n"
+            "write_failure() {\n"
+            "  printf '%s\\n' \"$1\" \"$2\" \"$3\" >>\"$FAILURE_ARGS\"\n"
+            "}\n"
+            f"{handlers[0]}"
+            "on_signal TERM 15\n",
+            "b10-on-signal-test",
+            os.fspath(failure_args),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 143, completed.stdout + completed.stderr
+    assert failure_args.read_text(encoding="utf-8").splitlines() == [
+        "143", "signal", "received TERM",
+    ]
 
 
 def test_verify_perf_launcher_contract_and_walltime_are_consistent():
