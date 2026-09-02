@@ -107,6 +107,11 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/condition_meaning_gate.py", "<module>._run_process"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
+    # Read-only Git HEAD/blob queries bind frozen inputs, and the fixed pgrep
+    # probe only observes competing benchmark processes; none launches CCBench.
+    ("campaign/floor_pair_driver.py", "<module>._git_head"): 1,
+    ("campaign/floor_pair_driver.py", "<module>._git_show_head"): 1,
+    ("campaign/floor_pair_driver.py", "<module>._run_probe"): 1,
     # Resolves manifest-declared Git objects only; it never launches a CCBench
     # measurement process.
     ("campaign/knowledge_manifest.py", "<module>._git"): 1,

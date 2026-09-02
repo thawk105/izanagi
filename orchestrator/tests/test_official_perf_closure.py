@@ -50,6 +50,7 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/campaign/backoff_extended_sweep.py",
     # Consumes producer-recorded perf observations for verdicts; it never launches perf.
     "orchestrator/campaign/backoff_extended_sweep_report.py",
+    "orchestrator/campaign/floor_pair_driver.py",
     "orchestrator/campaign/layer3_report.py",
     "orchestrator/campaign/loop.py",
     # Parses producer-recorded perf-wrapped argv as exploratory trace evidence.
