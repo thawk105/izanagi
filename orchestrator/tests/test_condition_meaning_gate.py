@@ -1547,8 +1547,9 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
-        "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
-        "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
+        "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
+        "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US", "BACKOFF_TRIGGER_GATING",
+        "BACKOFF_UPDATE_US", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
         "IZANAGI_BREAK_PERMUTATION", "IZANAGI_BREAK_PERMUTATION_SWAP",
         "IZANAGI_BREAK_LOCK_COVERAGE", "IZANAGI_BREAK_EARLY_UNLOCK",
@@ -1582,7 +1583,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 9
+    ) == 12
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
     ) == 13

@@ -9,7 +9,7 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 22 patch-derived defines.  The
+Claim boundary: the supply domain contains the 25 patch-derived defines.  The
 legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Eight
 positive-control macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
@@ -73,6 +73,16 @@ _DEFINE_SPECS = {
         "patches/silo-backoff-fixed.patch",
         inert_values=("-1",),
     ),
+    "BACKOFF_INCR_MILLI": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-params.patch",
+        inert_values=("100000",),
+    ),
+    "BACKOFF_MAX_US": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-params.patch",
+        inert_values=("1000",),
+    ),
     "BACKOFF_NOINLINE": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo-backoff-fixed.patch",
@@ -84,6 +94,11 @@ _DEFINE_SPECS = {
     "BACKOFF_TRIGGER_GATING": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo-backoff-trigger-gating-variant.patch",
+    ),
+    "BACKOFF_UPDATE_US": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-params.patch",
+        inert_values=("10",),
     ),
     "SORT_VARIANT": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",

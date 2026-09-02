@@ -1,0 +1,1270 @@
+{
+ "baseline": {
+  "artifact": {
+   "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/worktree-dev-wave-t2166-floor-pair-driver/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99cd39a012deda25a661a168c1e0a7ea/izdw-99cd39a012.o968074",
+   "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/worktree-dev-wave-t2166-floor-pair-driver/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99cd39a012deda25a661a168c1e0a7ea/receipt.json",
+   "runner_mode": "dispatch",
+   "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 51%]\n....................................................................     [100%]\n140 passed in 4.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+   "stdout_sha256": "92030b212e7eebb6688af104a73268890cccb2849e184bfa5a8a93db66d8b8ea"
+  },
+  "artifact_error": null,
+  "collection_sha256": "af9442d7fe06b8f79c53f461899d3dc7c458d92c0cc3c1936712fbbc1259275f",
+  "duration_s": 27.2,
+  "failed_nodes": [],
+  "rc": 0,
+  "registration_sha256": "e5255a357dd1cf958572ad7e65a58c9e019bf4021818b8fb6be47e542e239377",
+  "repo_head": "61e906ad1f49758809a5f3395b65c451857ed49a",
+  "runner_sha256": "e02166b24390d2d8854696c89fc3cfafb64906632a5b843d302309e51cc26ac1",
+  "spec_sha256": "b0610dabc2a1ea4e8794640f438939abec73eee8791a4da5400c8cb3d86cd350",
+  "status": "PASSED",
+  "test_output_sha256": "92030b212e7eebb6688af104a73268890cccb2849e184bfa5a8a93db66d8b8ea",
+  "test_output_tail": [],
+  "timed_out": false,
+  "tool_sha256": "b97631587d5c1ae73a5ff499ce92863e1cbbebc6a9bf162c3f4db092475cf495"
+ },
+ "date": "2026-09-02T07:31:03.915221+00:00",
+ "nonterminal_history": [],
+ "procedure": {
+  "collection": {
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/worktree-dev-wave-t2166-floor-pair-driver/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cc908f3e56c816b00126b609bae15c02/izdw-cc908f3e56.o968071",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/worktree-dev-wave-t2166-floor-pair-driver/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cc908f3e56c816b00126b609bae15c02/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": "orchestrator/tests/test_floor_pair_driver.py::test_all_floor_pair_dataclass_fields_have_no_defaults\norchestrator/tests/test_floor_pair_driver.py::test_module_docstring_names_limits_and_unrecorded_env_failure_is_not_a_status\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[schema]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[randomization]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.source_commit]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration.path]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration.sha256]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration.attestation_mode]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.site]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.env_tag]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.clocks_per_us]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.numactl_argv]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.use_perf]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.timeout_s]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.extra_env]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.probe_timeout_s]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.artifact_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.binary_relpath]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.binary_sha256]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.build_receipt]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.trace]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.build_receipt.path]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.build_receipt.sha256]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.cell_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.records]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.threads]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.extime]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.reps]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.ycsb_max_ope]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload.ycsb_zipf_skew]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload.ycsb_rratio]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload.ycsb_rmw]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.pair_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.cell_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.reference_artifact_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.sides]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.sides.0.side_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.sides.0.candidate_artifact_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.window_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.campaign_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.not_before]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.not_after]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.sample_count]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.pair_ids]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.artifact_relpath]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[randomization.algorithm]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[randomization.seed_hex]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.session_reducer]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.stratum_upper]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.closed_strata]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.final_combiner]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.closed_strata.0.window_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.closed_strata.0.pair_id]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy.policy]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy.retry_count]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy.require_all_reps]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs.window_format]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs.summary_format]\norchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs.summary_relpath]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_01_unknown_key_is_rejected_only_by_exact_loader\norchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[execution_contract]\norchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[protocol]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_02_valid_spec_with_wrong_expected_sha256_is_rejected\norchestrator/tests/test_floor_pair_driver.py::test_mutation_03_head_blob_byte_mismatch_is_rejected\norchestrator/tests/test_floor_pair_driver.py::test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only\norchestrator/tests/test_floor_pair_driver.py::test_git_startup_failure_is_normalized_to_driver_binding_error[head]\norchestrator/tests/test_floor_pair_driver.py::test_git_startup_failure_is_normalized_to_driver_binding_error[show]\norchestrator/tests/test_floor_pair_driver.py::test_nonfinite_and_duplicate_json_are_rejected[{\"schema\":NaN}-\\u975e\\u6709\\u9650]\norchestrator/tests/test_floor_pair_driver.py::test_nonfinite_and_duplicate_json_are_rejected[{\"schema\":\"a\",\"schema\":\"b\"}-duplicate]\norchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path0-True]\norchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path1-False]\norchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path2-0]\norchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path3-1]\norchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path4-0]\norchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path5-x]\norchestrator/tests/test_floor_pair_driver.py::test_loader_rejects_symlink_and_checkout_escape\norchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[threads]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[workload]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[records]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_14_rejected_calibration_is_rejected_for_quality_only\norchestrator/tests/test_floor_pair_driver.py::test_mutation_15_calibration_records_mismatch_is_rejected_for_records_only\norchestrator/tests/test_floor_pair_driver.py::test_calibration_none_mode_rejection_is_explicit_and_intentional\norchestrator/tests/test_floor_pair_driver.py::test_build_receipt_uses_real_binary_admission_validator_and_binds_sha\norchestrator/tests/test_floor_pair_driver.py::test_build_receipt_binary_sha_and_trace_mutations_fail_closed[record-binary-sha]\norchestrator/tests/test_floor_pair_driver.py::test_build_receipt_binary_sha_and_trace_mutations_fail_closed[receipt-trace]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field\norchestrator/tests/test_floor_pair_driver.py::test_mutation_19_source_commit_must_equal_loaded_head\norchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[PATH]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_PRELOAD]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_LIBRARY_PATH]\norchestrator/tests/test_floor_pair_driver.py::test_pair_owns_artifact_references_and_requires_same_candidate\norchestrator/tests/test_floor_pair_driver.py::test_trace_self_declaration_must_be_false_but_is_not_binary_inspection\norchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order\norchestrator/tests/test_floor_pair_driver.py::test_gain_difference_uses_one_common_reference_and_registry_is_closed\norchestrator/tests/test_floor_pair_driver.py::test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks\norchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_uses_real_production_helper_for_compute_and_other\norchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_login_suspect_and_unknown[PEGASUS_LOGIN]\norchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_login_suspect_and_unknown[PEGASUS_SUSPECT]\norchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_login_suspect_and_unknown[UNKNOWN]\norchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_ambiguous_registry\norchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_LOGIN]\norchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_SUSPECT]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_17_site_detection_requires_fail_closed_evidence\norchestrator/tests/test_floor_pair_driver.py::test_live_site_must_equal_spec_site_before_output_reservation\norchestrator/tests/test_floor_pair_driver.py::test_run_window_orders_pre_measure_post_and_records_all_sessions\norchestrator/tests/test_floor_pair_driver.py::test_measure_exception_still_runs_post_probe_and_closes_remaining_plan\norchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure\norchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation\norchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement\norchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_complete_source_commit_three_way_binding\norchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags\norchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians\norchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-format-forged-format/v1]\norchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-loaded_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]\norchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-runtime_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]\norchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-randomization_algorithm-fixed-order/v1]\norchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-seed_hex-0202020202020202020202020202020202020202020202020202020202020202]\norchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]\norchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan\norchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing\norchestrator/tests/test_floor_pair_driver.py::test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan\norchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped\norchestrator/tests/test_floor_pair_driver.py::test_mutations_09_and_13_forged_production_named_high_measure_is_rejected\norchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_id_even_when_set_matches\norchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create\norchestrator/tests/test_floor_pair_driver.py::test_cli_execute_window_selects_the_named_production_adapter\norchestrator/tests/test_floor_pair_driver.py::test_validate_only_prints_plan_without_reserving_output\norchestrator/tests/test_floor_pair_driver.py::test_module_source_has_no_frozen_fallback_or_publish_bypass\n\n140 tests collected in 0.64s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+    "stdout_sha256": "f14c15ae9c95ed065e4f61591e6b8b6445c1739dfd1070d3363ca105ccf4d156"
+   },
+   "collected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_all_floor_pair_dataclass_fields_have_no_defaults",
+    "orchestrator/tests/test_floor_pair_driver.py::test_module_docstring_names_limits_and_unrecorded_env_failure_is_not_a_status",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[schema]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[randomization]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.source_commit]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration.path]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration.sha256]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[provenance.calibration.attestation_mode]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.site]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.env_tag]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.clocks_per_us]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.numactl_argv]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.use_perf]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.timeout_s]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.extra_env]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[environment.probe_timeout_s]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.artifact_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.binary_relpath]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.binary_sha256]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.build_receipt]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.trace]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.build_receipt.path]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[artifacts.0.build_receipt.sha256]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.cell_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.records]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.threads]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.extime]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.reps]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.ycsb_max_ope]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload.ycsb_zipf_skew]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload.ycsb_rratio]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[cells.0.perf_config.workload.ycsb_rmw]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.pair_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.cell_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.reference_artifact_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.sides]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.sides.0.side_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[pairs.0.sides.0.candidate_artifact_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.window_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.campaign_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.not_before]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.not_after]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.sample_count]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.pair_ids]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[windows.0.artifact_relpath]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[randomization.algorithm]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[randomization.seed_hex]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.session_reducer]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.stratum_upper]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.closed_strata]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.final_combiner]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.closed_strata.0.window_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[statistics.closed_strata.0.pair_id]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy.policy]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy.retry_count]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[failure_policy.require_all_reps]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs.window_format]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs.summary_format]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_every_schema_field_is_required[outputs.summary_relpath]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_01_unknown_key_is_rejected_only_by_exact_loader",
+    "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[execution_contract]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[protocol]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_02_valid_spec_with_wrong_expected_sha256_is_rejected",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_03_head_blob_byte_mismatch_is_rejected",
+    "orchestrator/tests/test_floor_pair_driver.py::test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only",
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_failure_is_normalized_to_driver_binding_error[head]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_git_startup_failure_is_normalized_to_driver_binding_error[show]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_and_duplicate_json_are_rejected[{\"schema\":NaN}-/u975e/u6709/u9650]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_and_duplicate_json_are_rejected[{\"schema\":\"a\",\"schema\":\"b\"}-duplicate]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path0-True]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path1-False]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path2-0]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path3-1]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path4-0]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path5-x]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_loader_rejects_symlink_and_checkout_escape",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[threads]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[workload]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[records]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_14_rejected_calibration_is_rejected_for_quality_only",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_15_calibration_records_mismatch_is_rejected_for_records_only",
+    "orchestrator/tests/test_floor_pair_driver.py::test_calibration_none_mode_rejection_is_explicit_and_intentional",
+    "orchestrator/tests/test_floor_pair_driver.py::test_build_receipt_uses_real_binary_admission_validator_and_binds_sha",
+    "orchestrator/tests/test_floor_pair_driver.py::test_build_receipt_binary_sha_and_trace_mutations_fail_closed[record-binary-sha]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_build_receipt_binary_sha_and_trace_mutations_fail_closed[receipt-trace]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_19_source_commit_must_equal_loaded_head",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[PATH]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_PRELOAD]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_LIBRARY_PATH]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_pair_owns_artifact_references_and_requires_same_candidate",
+    "orchestrator/tests/test_floor_pair_driver.py::test_trace_self_declaration_must_be_false_but_is_not_binary_inspection",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order",
+    "orchestrator/tests/test_floor_pair_driver.py::test_gain_difference_uses_one_common_reference_and_registry_is_closed",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks",
+    "orchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_uses_real_production_helper_for_compute_and_other",
+    "orchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_login_suspect_and_unknown[PEGASUS_LOGIN]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_login_suspect_and_unknown[PEGASUS_SUSPECT]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_login_suspect_and_unknown[UNKNOWN]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_machine_env_tag_derivation_rejects_ambiguous_registry",
+    "orchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_LOGIN]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_login_and_suspect_are_rejected_before_output_reservation[PEGASUS_SUSPECT]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_17_site_detection_requires_fail_closed_evidence",
+    "orchestrator/tests/test_floor_pair_driver.py::test_live_site_must_equal_spec_site_before_output_reservation",
+    "orchestrator/tests/test_floor_pair_driver.py::test_run_window_orders_pre_measure_post_and_records_all_sessions",
+    "orchestrator/tests/test_floor_pair_driver.py::test_measure_exception_still_runs_post_probe_and_closes_remaining_plan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+    "orchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_complete_source_commit_three_way_binding",
+    "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+    "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-format-forged-format/v1]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-loaded_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-runtime_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-randomization_algorithm-fixed-order/v1]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-seed_hex-0202020202020202020202020202020202020202020202020202020202020202]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing",
+    "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutations_09_and_13_forged_production_named_high_measure_is_rejected",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_id_even_when_set_matches",
+    "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create",
+    "orchestrator/tests/test_floor_pair_driver.py::test_cli_execute_window_selects_the_named_production_adapter",
+    "orchestrator/tests/test_floor_pair_driver.py::test_validate_only_prints_plan_without_reserving_output",
+    "orchestrator/tests/test_floor_pair_driver.py::test_module_source_has_no_frozen_fallback_or_publish_bypass"
+   ],
+   "duration_s": 190.93,
+   "rc": 0,
+   "repo_head": "61e906ad1f49758809a5f3395b65c451857ed49a",
+   "runner_sha256": "e02166b24390d2d8854696c89fc3cfafb64906632a5b843d302309e51cc26ac1",
+   "spec_sha256": "b0610dabc2a1ea4e8794640f438939abec73eee8791a4da5400c8cb3d86cd350",
+   "status": "PASSED",
+   "tool_sha256": "b97631587d5c1ae73a5ff499ce92863e1cbbebc6a9bf162c3f4db092475cf495"
+  },
+  "hang_timeout_seconds": 1800.0,
+  "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+  "registration_preflight": {
+   "MUT-T2166-01-UNKNOWN-KEY": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_01_unknown_key_is_rejected_only_by_exact_loader",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field",
+     "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[execution_contract]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[protocol]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path5-x]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "24b0e92e77ec9c82ff1f9e713d106b2c375075fb2ae2dbf794deb54d3336924e",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    actual = set(value)\n    if expected - actual:\n",
+      "old": "    actual = set(value)\n    if actual != expected:\n"
+     }
+    ]
+   },
+   "MUT-T2166-02-SPEC-SHA256": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_02_valid_spec_with_wrong_expected_sha256_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "4c51eaf9f5b897476cbd3ebe840fc9d7ac9ec2dea3f449c6acc57851888173c8",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n        raise FloorPairBindingError(\n",
+      "old": "    if actual_sha256 != expected_sha256:\n        raise FloorPairBindingError(\n"
+     }
+    ]
+   },
+   "MUT-T2166-03-SPEC-HEAD-BLOB": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_03_head_blob_byte_mismatch_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "0fe93b16a13172bfa9e574a5b5f0ac20b4c4d12e4f9686f7e836f4b49b0a166c",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n        raise FloorPairBindingError(\"frozen spec が HEAD tracked blob と byte 一致しない\")\n",
+      "old": "    if raw != head_raw:\n        raise FloorPairBindingError(\"frozen spec が HEAD tracked blob と byte 一致しない\")\n"
+     }
+    ]
+   },
+   "MUT-T2166-04A-CALIBRATION-THREADS": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[threads]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "f9b4e3fce96d7fbb08d587351b4fb2497637aed69ad1766d4faa235d5d8c728b",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        if False:\n",
+      "old": "        if calibration.threads != perf.threads:\n"
+     }
+    ]
+   },
+   "MUT-T2166-04B-CALIBRATION-WORKLOAD": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[workload]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "dd51305bbb75d8e16dcbca42981d2af7f36e7e4676f1390bf9efe1e86a42ac58",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        if False:\n",
+      "old": "        if calibration.workload != dict(perf.workload):\n"
+     }
+    ]
+   },
+   "MUT-T2166-04C-CALIBRATION-RECORDS": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[records]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_15_calibration_records_mismatch_is_rejected_for_records_only"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "a7c9898930858d4f35cb9ad8ab2950392f91aaf98dd3cdf0870b43740b5dae40",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        if False:\n",
+      "old": "        if perf.records != saturation_records:\n"
+     }
+    ]
+   },
+   "MUT-T2166-05-TRACE-SYMBOLS": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "eccd70e8e4926d4ebf2e11b1d8528727dca9dea540efaf88657b634b5a6120ed",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        pass\n",
+      "old": "        buildcache._assert_no_trace_symbols(str(binary))\n"
+     }
+    ]
+   },
+   "MUT-T2166-06-LIVE-ENV-TAG": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "fd2e29a4735669e63f3971790cbabb6aba44e36c64322a95dd644c27afc1dce0",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n",
+      "old": "    if live_env_tag != spec.environment.env_tag:\n"
+     }
+    ]
+   },
+   "MUT-T2166-07-NONCOMPLETE-IGNORED": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "8041b7a09c5248e1de4c8f28d845535cf607805356c139f7bae55e12b0147ea1",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        if False:\n            return \"not_generated_missing_samples\"\n",
+      "old": "        if record[\"status\"] != \"complete\":\n            return \"not_generated_missing_samples\"\n"
+     }
+    ]
+   },
+   "MUT-T2166-08-UPPER-CLAMP": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "8b97115701214ef9500348ed2ed5400ca9abc7a6fd725335b6cfcee845dbdf2a",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "            elif False:\n",
+      "old": "            elif upper >= 1.0:\n"
+     }
+    ]
+   },
+   "MUT-T2166-09-MEASURE-SEAM-RESTORED": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutations_09_and_13_forged_production_named_high_measure_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "4d496a37e0fd89b7a953dd211c4cd514c643573d0e887ec992b21a7a0edcc99f",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "def run_window(\n    spec: FloorPairSpec,\n    plan: MeasurementPlan,\n    window_id: str,\n    *,\n    probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],\n    now_fn: Callable[[], datetime],\n    measure_fn=None,\n) -> WindowRunResult:\n",
+      "old": "def run_window(\n    spec: FloorPairSpec,\n    plan: MeasurementPlan,\n    window_id: str,\n    *,\n    probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],\n    now_fn: Callable[[], datetime],\n) -> WindowRunResult:\n"
+     }
+    ]
+   },
+   "MUT-T2166-10-O-EXCL": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+     "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+     "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "81a5dd37836bc6552eeab2c14a96db9b637b5999f351ba769874067ad5ce1639",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        flags = os.O_CREAT | os.O_APPEND | os.O_WRONLY | os.O_NOFOLLOW",
+      "old": "        flags = os.O_CREAT | os.O_EXCL | os.O_APPEND | os.O_WRONLY | os.O_NOFOLLOW"
+     }
+    ]
+   },
+   "MUT-T2166-11R-HMAC-ROLE-ORDER": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "2682ce47542c8c90aead7e5251f8d953f9525cf96ce403f8c033e9bae1843768",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "            roles.sort(\n                key=lambda role: role or _hmac_rank(\n",
+      "old": "            roles.sort(\n                key=lambda role: _hmac_rank(\n"
+     }
+    ]
+   },
+   "MUT-T2166-11S-HMAC-SAMPLE-ORDER": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "59ed75719618a93c72242986959f1fd4930d01eae4d5fab3fb59a39099af29fa",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        samples.sort(\n            key=lambda item: (item[0], item[1]) or _hmac_rank(\n",
+      "old": "        samples.sort(\n            key=lambda item: _hmac_rank(\n"
+     }
+    ]
+   },
+   "MUT-T2166-12-REQUIRE-ALL-REPS": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "cfbf2f88dd7a1f917d74544bdbdfd531fb69d414fd60aaa4dea9efc52f844c44",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "        require_all_reps=False,\n",
+      "old": "        require_all_reps=True,\n"
+     }
+    ]
+   },
+   "MUT-T2166-14-QUALITY-ACCEPTED": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_14_rejected_calibration_is_rejected_for_quality_only"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "8ee2cabe25fe69cb25f6ed7cf1e4336b7126c3d0550a21c174a37c16f70d8277",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n",
+      "old": "    if getattr(quality, \"status\", None) != \"accepted\":\n"
+     }
+    ]
+   },
+   "MUT-T2166-16-PROBE-ARGV": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "65f81eda5b4489471cb473f116ed765928e05c361bc3608cbf7e6bd790184bc2",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "COMPETING_PROBE_ARGV = (\"/bin/false\",)",
+      "old": "COMPETING_PROBE_ARGV = (\"pgrep\", \"-af\", r\"ycsb_.*\\.exe\")"
+     }
+    ]
+   },
+   "MUT-T2166-17-REQUIRE-EVIDENCE": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_id_even_when_set_matches",
+     "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-format-forged-format/v1]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-loaded_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-randomization_algorithm-fixed-order/v1]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-runtime_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-seed_hex-0202020202020202020202020202020202020202020202020202020202020202]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_live_site_must_equal_spec_site_before_output_reservation",
+     "orchestrator/tests/test_floor_pair_driver.py::test_measure_exception_still_runs_post_probe_and_closes_remaining_plan",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_17_site_detection_requires_fail_closed_evidence",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan",
+     "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan",
+     "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+     "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians",
+     "orchestrator/tests/test_floor_pair_driver.py::test_run_window_orders_pre_measure_post_and_records_all_sessions",
+     "orchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_complete_source_commit_three_way_binding",
+     "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "d69d887adcbfa37c4972ba303f76e99d6b3201528f1c4b21199ea64885c91301",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    site = site_policy.current_site()\n",
+      "old": "    site = site_policy.current_site(require_evidence=True)\n"
+     }
+    ]
+   },
+   "MUT-T2166-18-RECORDED-ORDER": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "fef79859b63ce8c40a5869e035a1c7393ea7b2f1da57b9f5f3e1e8acb3fe8989",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n",
+      "old": "    if recorded_ids != planned_ids:\n"
+     }
+    ]
+   },
+   "MUT-T2166-19-SOURCE-COMMIT": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_19_source_commit_must_equal_loaded_head"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "d53bbcfa55f94290c1ace3671a846b98d89743b76d981ab875c59e1216c64e58",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n",
+      "old": "    if provenance.source_commit != loaded_head:\n"
+     }
+    ]
+   },
+   "MUT-T2166-20-EXTRA-ENV-PATH": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_LIBRARY_PATH]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_PRELOAD]",
+     "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[PATH]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "4e010162fac026805fe543049726b90cd24776a1186cf18aa1712eea0e4cdcc1",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n",
+      "old": "    if forbidden_env:\n"
+     }
+    ]
+   },
+   "MUT-T2166-21-BOUND-REF-SHA256": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_floor_pair_driver.py::test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "ad806410b87bb6d32c1180e6702f56bb3e1374f8d8bcb430d7984aa89e55bbf6",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/floor_pair_driver.py",
+      "new": "    if False:\n",
+      "old": "    if actual != reference.sha256:\n"
+     }
+    ]
+   }
+  },
+  "registration_sha256": "e5255a357dd1cf958572ad7e65a58c9e019bf4021818b8fb6be47e542e239377",
+  "restore_policy": "write fixed repo_head text then exact read_text equality",
+  "runner_mode": "dispatch",
+  "source_policy": "fixed repo_head blob plus startup/read-back equality",
+  "test_command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_floor_pair_driver.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "timeout_seconds": 1800.0
+ },
+ "repo_head": "61e906ad1f49758809a5f3395b65c451857ed49a",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_floor_pair_driver.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/worktree-dev-wave-t2166-floor-pair-driver/scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+  "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/worktree-dev-wave-t2166-floor-pair-driver/scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "e723ed27ed246a9aea8fd1804733d781d8c27ef4",
+  "runner_mode": "dispatch"
+ },
+ "runner_sha256": "e02166b24390d2d8854696c89fc3cfafb64906632a5b843d302309e51cc26ac1",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "b0610dabc2a1ea4e8794640f438939abec73eee8791a4da5400c8cb3d86cd350",
+ "summary": {
+  "KILLED": 22,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 0,
+  "TIMEOUT": 0,
+  "completed": 22,
+  "matching": 22,
+  "recorded": 22,
+  "registered": 22
+ },
+ "tool_identity": {
+  "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+  "path": "/work/1/SFC/tanab/dev-wave-jobs/worktree-dev-wave-t2166-floor-pair-driver/scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+  "repo_path": "tools/mutation_harness.py",
+  "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+ },
+ "tool_sha256": "b97631587d5c1ae73a5ff499ce92863e1cbbebc6a9bf162c3f4db092475cf495",
+ "updated_at": "2026-09-02T07:45:25.982512+00:00",
+ "mutations": [
+  {
+   "id": "MUT-T2166-01-UNKNOWN-KEY",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_01_unknown_key_is_rejected_only_by_exact_loader",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field",
+    "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[execution_contract]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[protocol]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path5-x]"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_01_unknown_key_is_rejected_only_by_exact_loader",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field",
+    "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[execution_contract]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_removed_claim_only_schema_fields_are_rejected_as_unknown[protocol]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_type_bool_range_and_nested_unknown_keys_fail_closed[path5-x]"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.296,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    actual = set(value)\n    if expected - actual:\n",
+     "old": "    actual = set(value)\n    if actual != expected:\n"
+    }
+   ],
+   "injection_diff_sha256": "24b0e92e77ec9c82ff1f9e713d106b2c375075fb2ae2dbf794deb54d3336924e",
+   "test_output_sha256": "fc7863d9d153a119b58e332ed258cb5a33809812b7d204b2c7df3beb6738994f"
+  },
+  {
+   "id": "MUT-T2166-02-SPEC-SHA256",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_02_valid_spec_with_wrong_expected_sha256_is_rejected"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_02_valid_spec_with_wrong_expected_sha256_is_rejected"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.205,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n        raise FloorPairBindingError(\n",
+     "old": "    if actual_sha256 != expected_sha256:\n        raise FloorPairBindingError(\n"
+    }
+   ],
+   "injection_diff_sha256": "4c51eaf9f5b897476cbd3ebe840fc9d7ac9ec2dea3f449c6acc57851888173c8",
+   "test_output_sha256": "60138df98be93e72198e06e1a597459f9db0452b4a54c001301f56c6c5839621"
+  },
+  {
+   "id": "MUT-T2166-03-SPEC-HEAD-BLOB",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_03_head_blob_byte_mismatch_is_rejected"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_03_head_blob_byte_mismatch_is_rejected"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.953,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n        raise FloorPairBindingError(\"frozen spec が HEAD tracked blob と byte 一致しない\")\n",
+     "old": "    if raw != head_raw:\n        raise FloorPairBindingError(\"frozen spec が HEAD tracked blob と byte 一致しない\")\n"
+    }
+   ],
+   "injection_diff_sha256": "0fe93b16a13172bfa9e574a5b5f0ac20b4c4d12e4f9686f7e836f4b49b0a166c",
+   "test_output_sha256": "981d32cd3a6e15f4f84c3c2bf222bb9164470db10da2118fc46d82401c8baa05"
+  },
+  {
+   "id": "MUT-T2166-04A-CALIBRATION-THREADS",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[threads]"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[threads]"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.062,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        if False:\n",
+     "old": "        if calibration.threads != perf.threads:\n"
+    }
+   ],
+   "injection_diff_sha256": "f9b4e3fce96d7fbb08d587351b4fb2497637aed69ad1766d4faa235d5d8c728b",
+   "test_output_sha256": "b1f93f314bb3e70767aa2da29dbdc38e346f6505bcebed3079b602d74e8dd424"
+  },
+  {
+   "id": "MUT-T2166-04B-CALIBRATION-WORKLOAD",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[workload]"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[workload]"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.301,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        if False:\n",
+     "old": "        if calibration.workload != dict(perf.workload):\n"
+    }
+   ],
+   "injection_diff_sha256": "dd51305bbb75d8e16dcbca42981d2af7f36e7e4676f1390bf9efe1e86a42ac58",
+   "test_output_sha256": "87444212b2428a5d6968b3ad1d47592d6b83e3d00b1b53203500b423782b9d61"
+  },
+  {
+   "id": "MUT-T2166-04C-CALIBRATION-RECORDS",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[records]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_15_calibration_records_mismatch_is_rejected_for_records_only"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_04_calibration_projection_gates_have_single_reason_inputs[records]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_15_calibration_records_mismatch_is_rejected_for_records_only"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.271,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        if False:\n",
+     "old": "        if perf.records != saturation_records:\n"
+    }
+   ],
+   "injection_diff_sha256": "a7c9898930858d4f35cb9ad8ab2950392f91aaf98dd3cdf0870b43740b5dae40",
+   "test_output_sha256": "13b9615ef4be5e9d577bce34a6062f3f350c56ee77b6df5ddf96b4f2daab34b0"
+  },
+  {
+   "id": "MUT-T2166-05-TRACE-SYMBOLS",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.123,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        pass\n",
+     "old": "        buildcache._assert_no_trace_symbols(str(binary))\n"
+    }
+   ],
+   "injection_diff_sha256": "eccd70e8e4926d4ebf2e11b1d8528727dca9dea540efaf88657b634b5a6120ed",
+   "test_output_sha256": "9e922c8f5e0e6ede0786100e2058dcce0989a3cc1da23dff42bc785888da037e"
+  },
+  {
+   "id": "MUT-T2166-06-LIVE-ENV-TAG",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.019,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n",
+     "old": "    if live_env_tag != spec.environment.env_tag:\n"
+    }
+   ],
+   "injection_diff_sha256": "fd2e29a4735669e63f3971790cbabb6aba44e36c64322a95dd644c27afc1dce0",
+   "test_output_sha256": "e7a92dab6a3d742c0fc44763525879b4b2bf4082ad58d530ced1ccfcf8d5eb6f"
+  },
+  {
+   "id": "MUT-T2166-07-NONCOMPLETE-IGNORED",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 191.102,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        if False:\n            return \"not_generated_missing_samples\"\n",
+     "old": "        if record[\"status\"] != \"complete\":\n            return \"not_generated_missing_samples\"\n"
+    }
+   ],
+   "injection_diff_sha256": "8041b7a09c5248e1de4c8f28d845535cf607805356c139f7bae55e12b0147ea1",
+   "test_output_sha256": "857eeb50a07b42bf89dae581fa6b76101fabb4762a24d0b523ec5262cd549cad"
+  },
+  {
+   "id": "MUT-T2166-08-UPPER-CLAMP",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.044,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "            elif False:\n",
+     "old": "            elif upper >= 1.0:\n"
+    }
+   ],
+   "injection_diff_sha256": "8b97115701214ef9500348ed2ed5400ca9abc7a6fd725335b6cfcee845dbdf2a",
+   "test_output_sha256": "5b4fedab92f6e57ba0c63755219b80e48e5a831c5bf21067c5bd75275cc632a8"
+  },
+  {
+   "id": "MUT-T2166-09-MEASURE-SEAM-RESTORED",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutations_09_and_13_forged_production_named_high_measure_is_rejected"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutations_09_and_13_forged_production_named_high_measure_is_rejected"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.049,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "def run_window(\n    spec: FloorPairSpec,\n    plan: MeasurementPlan,\n    window_id: str,\n    *,\n    probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],\n    now_fn: Callable[[], datetime],\n    measure_fn=None,\n) -> WindowRunResult:\n",
+     "old": "def run_window(\n    spec: FloorPairSpec,\n    plan: MeasurementPlan,\n    window_id: str,\n    *,\n    probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],\n    now_fn: Callable[[], datetime],\n) -> WindowRunResult:\n"
+    }
+   ],
+   "injection_diff_sha256": "4d496a37e0fd89b7a953dd211c4cd514c643573d0e887ec992b21a7a0edcc99f",
+   "test_output_sha256": "35987b7b318bfe1db6b2a346ddd92a06f9b0b03e3cb33aa427d1234a0d800600"
+  },
+  {
+   "id": "MUT-T2166-10-O-EXCL",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+    "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+    "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+    "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+    "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 26.93,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        flags = os.O_CREAT | os.O_APPEND | os.O_WRONLY | os.O_NOFOLLOW",
+     "old": "        flags = os.O_CREAT | os.O_EXCL | os.O_APPEND | os.O_WRONLY | os.O_NOFOLLOW"
+    }
+   ],
+   "injection_diff_sha256": "81a5dd37836bc6552eeab2c14a96db9b637b5999f351ba769874067ad5ce1639",
+   "test_output_sha256": "d3b54c31c93f4726706093becfb4e9ae8d9b7fe71afc87976c0c50e6daabb1cb"
+  },
+  {
+   "id": "MUT-T2166-11S-HMAC-SAMPLE-ORDER",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.013,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        samples.sort(\n            key=lambda item: (item[0], item[1]) or _hmac_rank(\n",
+     "old": "        samples.sort(\n            key=lambda item: _hmac_rank(\n"
+    }
+   ],
+   "injection_diff_sha256": "59ed75719618a93c72242986959f1fd4930d01eae4d5fab3fb59a39099af29fa",
+   "test_output_sha256": "203fc35d66d4d0bc2867d8a20224bdf0bc9628c2c7fa579d0f844a98ea2e4e5f"
+  },
+  {
+   "id": "MUT-T2166-11R-HMAC-ROLE-ORDER",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 32.038,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "            roles.sort(\n                key=lambda role: role or _hmac_rank(\n",
+     "old": "            roles.sort(\n                key=lambda role: _hmac_rank(\n"
+    }
+   ],
+   "injection_diff_sha256": "2682ce47542c8c90aead7e5251f8d953f9525cf96ce403f8c033e9bae1843768",
+   "test_output_sha256": "ea6a2c45df4be9a818a48a9589fa541eaec110790e32d441310a83fe4ad5f3ea"
+  },
+  {
+   "id": "MUT-T2166-12-REQUIRE-ALL-REPS",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_12_production_adapter_passes_all_runner_arguments_and_sinks"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.066,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "        require_all_reps=False,\n",
+     "old": "        require_all_reps=True,\n"
+    }
+   ],
+   "injection_diff_sha256": "cfbf2f88dd7a1f917d74544bdbdfd531fb69d414fd60aaa4dea9efc52f844c44",
+   "test_output_sha256": "abbdca117eed3d5d4c580cf41cc6206870dcd0115bd6a900dd9f0e6ad959191f"
+  },
+  {
+   "id": "MUT-T2166-14-QUALITY-ACCEPTED",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_14_rejected_calibration_is_rejected_for_quality_only"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_14_rejected_calibration_is_rejected_for_quality_only"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.213,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n",
+     "old": "    if getattr(quality, \"status\", None) != \"accepted\":\n"
+    }
+   ],
+   "injection_diff_sha256": "8ee2cabe25fe69cb25f6ed7cf1e4336b7126c3d0550a21c174a37c16f70d8277",
+   "test_output_sha256": "356f70a98a732b80d57f0b0ea3c026299012878e62113c8462514a96bcce2658"
+  },
+  {
+   "id": "MUT-T2166-16-PROBE-ARGV",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_16_probe_command_is_not_a_spec_field"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.076,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "COMPETING_PROBE_ARGV = (\"/bin/false\",)",
+     "old": "COMPETING_PROBE_ARGV = (\"pgrep\", \"-af\", r\"ycsb_.*\\.exe\")"
+    }
+   ],
+   "injection_diff_sha256": "65f81eda5b4489471cb473f116ed765928e05c361bc3608cbf7e6bd790184bc2",
+   "test_output_sha256": "a9b0a70d994f6ee91062d0d71799a7957f6a8f82969838b182d91fbb5deeaaf3"
+  },
+  {
+   "id": "MUT-T2166-17-REQUIRE-EVIDENCE",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_id_even_when_set_matches",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-format-forged-format/v1]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-loaded_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-randomization_algorithm-fixed-order/v1]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-runtime_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-seed_hex-0202020202020202020202020202020202020202020202020202020202020202]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_live_site_must_equal_spec_site_before_output_reservation",
+    "orchestrator/tests/test_floor_pair_driver.py::test_measure_exception_still_runs_post_probe_and_closes_remaining_plan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_17_site_detection_requires_fail_closed_evidence",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+    "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians",
+    "orchestrator/tests/test_floor_pair_driver.py::test_run_window_orders_pre_measure_post_and_records_all_sessions",
+    "orchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_complete_source_commit_three_way_binding",
+    "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_rejects_duplicate_session_id_even_when_set_matches",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-format-forged-format/v1]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-loaded_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-randomization_algorithm-fixed-order/v1]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-runtime_head-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[header-seed_hex-0202020202020202020202020202020202020202020202020202020202020202]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_finalizer_revalidates_complete_header_and_terminal_contract[terminal-status-incomplete]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_live_site_must_equal_spec_site_before_output_reservation",
+    "orchestrator/tests/test_floor_pair_driver.py::test_measure_exception_still_runs_post_probe_and_closes_remaining_plan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_05_real_trace_inspection_call_rejects_before_probe_and_measure",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_06_live_env_mismatch_rejects_before_output_reservation",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_07_one_noncomplete_session_makes_whole_floor_missing",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_08_upper_at_or_above_one_is_preserved_and_not_clamped",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_10_exclusive_create_rejects_existing_path_before_measurement",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_17_site_detection_requires_fail_closed_evidence",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_nonfinite_measurement_is_recorded_incomplete_not_serialized_as_nan",
+    "orchestrator/tests/test_floor_pair_driver.py::test_output_open_uses_all_five_required_flags",
+    "orchestrator/tests/test_floor_pair_driver.py::test_production_adapter_artifact_finalizes_from_raw_medians",
+    "orchestrator/tests/test_floor_pair_driver.py::test_run_window_orders_pre_measure_post_and_records_all_sessions",
+    "orchestrator/tests/test_floor_pair_driver.py::test_runtime_head_must_complete_source_commit_three_way_binding",
+    "orchestrator/tests/test_floor_pair_driver.py::test_summary_is_exclusive_create"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.064,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    site = site_policy.current_site()\n",
+     "old": "    site = site_policy.current_site(require_evidence=True)\n"
+    }
+   ],
+   "injection_diff_sha256": "d69d887adcbfa37c4972ba303f76e99d6b3201528f1c4b21199ea64885c91301",
+   "test_output_sha256": "93e2eaca7416ea74fb85d66eea9502d8b9126fb405437553803a9d4f68b5cfaf"
+  },
+  {
+   "id": "MUT-T2166-18-RECORDED-ORDER",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_18_recorded_multiple_pair_sample_order_must_match_plan"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.018,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n",
+     "old": "    if recorded_ids != planned_ids:\n"
+    }
+   ],
+   "injection_diff_sha256": "fef79859b63ce8c40a5869e035a1c7393ea7b2f1da57b9f5f3e1e8acb3fe8989",
+   "test_output_sha256": "cd61506a847d84936e85987df823424b6b28cd167fda409a7c3ba12ccda45518"
+  },
+  {
+   "id": "MUT-T2166-19-SOURCE-COMMIT",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_19_source_commit_must_equal_loaded_head"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_19_source_commit_must_equal_loaded_head"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 26.998,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n",
+     "old": "    if provenance.source_commit != loaded_head:\n"
+    }
+   ],
+   "injection_diff_sha256": "d53bbcfa55f94290c1ace3671a846b98d89743b76d981ab875c59e1216c64e58",
+   "test_output_sha256": "dd880ccc19697300ff0b550fcdd802e956a322acb8714a8b5e06980664f84ae0"
+  },
+  {
+   "id": "MUT-T2166-20-EXTRA-ENV-PATH",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_LIBRARY_PATH]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_PRELOAD]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[PATH]"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_LIBRARY_PATH]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[LD_PRELOAD]",
+    "orchestrator/tests/test_floor_pair_driver.py::test_mutation_20_extra_env_cannot_control_path_resolution[PATH]"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 27.049,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n",
+     "old": "    if forbidden_env:\n"
+    }
+   ],
+   "injection_diff_sha256": "4e010162fac026805fe543049726b90cd24776a1186cf18aa1712eea0e4cdcc1",
+   "test_output_sha256": "08a8bf2f515a99e0119cfe29e616609d056719276df71bda707abb9860df912f"
+  },
+  {
+   "id": "MUT-T2166-21-BOUND-REF-SHA256",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_floor_pair_driver.py::test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only"
+   ],
+   "matches_expectation": true,
+   "rc": 1,
+   "duration_s": 26.981,
+   "timed_out": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "new": "    if False:\n",
+     "old": "    if actual != reference.sha256:\n"
+    }
+   ],
+   "injection_diff_sha256": "ad806410b87bb6d32c1180e6702f56bb3e1374f8d8bcb430d7984aa89e55bbf6",
+   "test_output_sha256": "9eb10e83595551df9badfec3e4dbcac06dfd3dbadab821af2f1e2822264a54ef"
+  }
+ ]
+}
