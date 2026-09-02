@@ -105,7 +105,7 @@
     },
     "tools/pegasus/paper_story_a2_certification.sh": {
       "class": "dispatch-required",
-      "reason": "PBS paper-story A-2 certification job body",
+      "reason": "PBS paper-story A-2/A-6 policy-selected certification job body",
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
@@ -315,8 +315,8 @@
     },
     "tools/pegasus/submit_paper_story_a2_certification.sh": {
       "class": "local-ok",
-      "reason": "login-side PBS paper-story A-2 two-workload submitter and finisher",
-      "primary_gate": "ratification precheck then qsub fan-out; compute work stays in independent job bodies",
+      "reason": "login-side PBS paper-story A-2/A-6 policy-selected submitter and finisher",
+      "primary_gate": "policy-scoped precheck then qsub fan-out; compute work stays in independent job bodies",
       "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_silo_ladder_rung1.sh": {
