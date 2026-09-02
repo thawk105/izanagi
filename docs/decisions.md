@@ -46458,3 +46458,197 @@ pilot が compiler を記録する地点で fail-closed 照合する。正規化
 gcc と g++ の body は同一になりうる。したがって role 混成は検出しない。
 同じ version body を保った compiler binary の置換も検出しない。
 期待値は committed policy に置くが、submit 側の authority へは束縛していない。
+
+## D1488. certification policy の形は study ごとの exact map に閉じ、任意 N へ一般化しない (2026-09-02)
+
+**決定:** A-6 (read-heavy 1 workload) を A-2 と同じ protocol で回すために `load_policy` の
+workload 数 / cell 数の固定を外すが、**任意 N への一般化は採らない**。次の 2 層に閉じる。
+
+- `study` から shape を引く exact map を持つ。`paper-story-a2-certification` は workload 2 / cell 4、
+  `paper-story-a6-certification` は workload 1 / cell 2。未知 study と shape 不一致は現行と同じ
+  `CertificationError` で拒否する。
+- policy 選択面 (`--policy`) は repo 内 canonical な 2 path だけを受理する closed set とする。
+  任意 path を受理しない。
+
+D1259 の partial v4 境界 (exact 2 workload で成功が exact 1) は、writer 側 `finish_group` と
+consumer 最前段 `_validate_completion_receipt` の 2 箇所だけで保つ。前段に支配される
+manifest producer / loader / authority へは guard を足さない。
+
+**理由:**
+- 任意 N への一般化は、A-6 という名前を持つだけの 3 workload policy や別 rratio の policy まで
+  正式 proof chain へ通す。段 3 の独立した 2 レンズが同じ欠陥を挙げた。
+- exact map と closed set は「現行の exact 2/4 を、出荷する 2 形状ちょうどへ置き換える」ものであり、
+  受理集合は現行より広がらない。
+- policy を tracked file に限ると、job body の HEAD 一致・tracked clean 検査を通じて、
+  実行された policy bytes が `source_commit` へ git 経由で束縛される。
+- partial 境界の guard を 5 箇所へ置くと前段に支配されて発火せず、変異の単独帰属が成立しない。
+  恒真な保証を増やすだけである。
+
+**却下した選択肢:**
+- `len(workloads) >= 1` の一般化 — 上記のとおり受理集合が承認外へ広がる。
+- A-2 policy に read-heavy を足して 3 workload にする — 外側 certification は policy workload 順の
+  論理積 (D1169) なので、完了済みの A-2 判定を作り直すことになる。費用も 1 job では済まない。
+- 新しい `.sh` を複製する — `tools/pegasus/admission_registry.json` と `test_hooks.py` の
+  2 つの登録簿へ追加が要り、並行 wave と衝突する。既存 2 本へ policy 選択を足す方が安い。
+
+## D1489. A-6 の walltime は read-heavy の検査コスト実測から 12:00:00 とする (2026-09-02)
+
+**決定:** A-6 policy の `scheduler.walltime` は `12:00:00` とする。A-2 fan-out の `06:00:00` を
+転用しない。
+
+**理由:**
+- A-2 の 6 時間枠は write-heavy と balanced の実測 (rr5 Elapse 3671s / rr50 3594s) に基づく。
+- read-heavy (48 thread / zipf 0.9 / rratio 95 / extime 3) の直列性検査は 1 回 23 分の実測がある。
+  同 regime の別走行は 5 時間で 15 点中 3 点しか完了せず CPU/経過 = 1.0 だった。
+- A-6 は 2 cell x (legacy 1 + full-scale 5)。full-scale 10 回を max 23 分で見積もると 3.83 時間。
+  12:00:00 はその約 3.1 倍で、gen_S の Per-Req Elapse 上限 86400S の内側である。
+- D193 により build 後の中断 attempt は自動回復しない。walltime 超過は attempt 全損であり、
+  この非対称性が枠を広く取る理由である。
+- `scheduler` は `_protocol_preimage` に含まれないため、walltime を変えても protocol の同一性は
+  変わらない。D1263 は A-2 fan-out の据え置きを定めた裁定であり A-6 を拘束しない。
+
+**却下した選択肢:**
+- A-2 と同じ 06:00:00 を継承する — 実測 regime が違う値の転用であり、超過時の損失が大きい。
+- 24:00:00 上限いっぱいにする — 見積りの根拠を超えた枠で、queue の占有だけが増える。
+
+## D1490. 意味 witness の第二の型を、所有 TU 全体の枝選択として持つ (2026-09-02)
+
+**決定:** `condition_meaning_gate` の実行側の意味の節に、既存の有限点別 witness とは別の型として
+**compile-time の枝選択 witness** を持たせる。macro ごとに (所有 file の相対 path、開始指令の逐語)
+だけを宣言し、値と同伴 define は `DefineRequest` と `_validate_define_request` の正本を再利用する。
+
+観測は、開始指令の直後に選択 marker を、対応位置に完了 marker を挿入した**所有 TU 全体**を、
+供給側が導出した実 compile command で前処理して行う。要求値と既定値の両方で観測し、
+`(選択, 完了)` が要求値で `(1, 1)`、既定値で `(0, 1)` のときだけ green とする。
+両者が同じなら非識別として赤にする。
+
+主張の範囲は「所有 TU において、その define の値が宣言した枝の選択を決めている」ことに限る。
+動的到達性、実行時の意味、positive control が期待する異常の発火は主張しない。
+
+**理由:**
+
+- 条件指令の断片だけを切り出して単体で前処理すると、所有 TU の文脈が失われる。手前に
+  `#undef` が 1 行あるだけで、実 TU では枝が選ばれないのに witness は「選ばれた」と言う。
+  これは意味を確立していない。段 6 の敵対レビューが具体的な入力で示した。
+- 所有 TU 全体を前処理すれば、入れ子・行継続・コメント・raw string の扱いは**コンパイラ自身が
+  決める**。自前の前処理指令パーサを持つ必要がなくなり、物理行の正規表現が
+  「誤って深さ 0 と判定する」「誤って深さ非 0 と判定する」の両方の欠陥も消える。
+- 指令がコメントや文字列の中にあった場合、挿入した marker も前処理で消えるため完了 marker が
+  観測されず赤になる。fail-closed が構造的に成立する。
+- D1242 が却下したのは「BACKOFF_FIXED 以外を**同じスカラー復号器**として一般化する」ことである。
+  本決定は復号器を流用せず、macro ごとに別の型の witness を宣言する。
+
+**却下した選択肢:**
+
+- **選択された枝の本文 bytes の期待値を macro ごとに焼く** — patch の編集で常時赤になる。
+  枝の選択を確かめる目的に対して過剰である。
+- **自前の前処理指令パーサで入れ子の深さを数える** — 行継続・コメント・raw string の扱いを
+  自前で持つことになり、実測で両向きの誤判定が見つかった。
+- **断片の単体前処理を残したまま、前方に `#undef` が無いことだけ検査する** — header 側からの
+  無効化を塞げず、文脈欠落の一般形が残る。
+
+## D1491. 対応 macro 集合の拡張が旧宣言型の受理面を広げてはならない (2026-09-02)
+
+**決定:** `MEANING_SUPPORTED_MACROS` を広げるとき、既存の `MeaningWitnessDeclaration` と
+CLI の旧宣言経路は `BACKOFF_FIXED` に固定する。新しい witness は registry の factory 以外から
+発行できないようにする。
+
+**理由:**
+
+- 旧宣言型の検査は「対応 macro 集合に属するか」しか見ていなかった。集合を広げた瞬間、
+  別 macro を BACKOFF 用の数値復号器で評価して green にできる。これは D1242 が却下した形そのもの
+  である。段 3 と段 6 の敵対レビューが独立に同じ穴を指摘した。
+- 意味 witness を増やす作業は、受理集合を**狭める**方向でなければならない。集合の拡張が
+  副作用として別経路の受理を広げるなら、正味で緩めたことになる。
+
+**却下した選択肢:**
+
+- **集合の拡張だけ行い、旧経路は既存のまま置く** — 上のとおり受理集合が広がる。
+- **旧宣言型を削除する** — 既存の BACKOFF witness の呼び手を壊す。本 wave の射程外である。
+
+## D1492. 宣言の配線は、成果物の未確立一覧が実際に縮む driver だけに行う (2026-09-02)
+
+**決定:** 意味宣言の factory を配線するのは、対象 macro を実際に要求し、その admission が
+成果物へ載る driver に限る。要求しない driver、または要求しても route 不一致で admission 前に
+拒否される driver は配線しない。配線しない理由は driver 名とともに記録する。
+
+**理由:**
+
+- 汎用 pipeline は `CCBENCH_` 名前空間の cache option 経由で define を渡す。対象の positive control
+  は名前空間外の裸マクロで route が一致せず、admission 作成前に拒否される。配線しても
+  成果物の未確立一覧は 1 件も縮まない。
+- 成果物の値・受理集合・参照を変えない編集は、編集面と pin 閉包を無駄に広げるだけである。
+- 同じ macro が driver ごとに green と unestablished へ分裂する懸念は、対象 macro を要求する
+  driver をすべて配線すれば生じない。分裂が起きうるのは要求しない driver ではない。
+
+**却下した選択肢:**
+
+- **意味の節を呼ぶ生産側をすべて機械的に配線する** — 自己 hash pin を持つ面を含み、
+  成果物を変えないまま編集面と pin 閉包を広げる。
+- **配線しない理由を件数だけで残す** — 後続が内訳を復元できない。
+
+## D1493. 知識源の実在検証は producer に置き、読み出し時に再検証しないと明記する (2026-09-02)
+
+**決定:** 知識 manifest の受理判定のうち、closure 内 (`wal.py`) が持つのは manifest digest の
+自己整合性と束縛欠落の拒否と identity 形状の検査までとする。Git object の実在と blob bytes の
+一致は closure 外の producer が検証し、WAL 読み出し時に再検証しない。この限界を成果物と
+台帳に明記する。
+
+**理由:**
+
+- 段 6 の敵対レビューが「実在しない commit から自己整合した provenance を作れば束縛検査が
+  受理する」ことを静的 probe で示した。指摘は正しい。
+- 閉じるには Git 解決を `wal.py` へ移す必要があり、新しい process 起動点の追加と
+  enforcement source closure の所有範囲の変更を伴う。exact 24-path の意味を変える改訂に近い。
+- WAL を読む時点で当該 commit が到達可能である保証がない。到達不能 commit の prune は
+  repo 全体で自動的に起きる。読み出し時の Git 再解決を必須にすると正当な replay が将来落ちる。
+- 規律 7 と D387 が既に「repo 内の挙動検査は、gate と検査を同じ主体が変更できる限り
+  意図的な弱体化への完全な防壁ではない。この限界は主張せず明記する」と定めている。
+  本件はその適用であって新しい例外ではない。
+
+**却下した選択肢:**
+
+- Git 解決を closure 内へ移す — closure の所有範囲を変え、読み出し時の commit 到達可能性に
+  依存する検査を必須にする。効果が未実証のまま制約だけが増える。
+- 限界を書かずに「受理判定を closure 内へ置いた」と記録する — 実態と食い違う。
+
+## D1494. 知識受領証の候補分類は閉集合とし de novo 主張との整合を要求する (2026-09-02)
+
+**決定:** 受領証の分類欄は D1429 が定めた 3 分類に対応する 3 つの literal だけを受理し、
+de novo でない分類に de novo の主張を組み合わせられないようにする。分類と de novo 主張は
+generator の固定定数ではなく呼び手が宣言する入力とする。
+
+**理由:**
+
+- 任意の非空文字列を受理する形では、再現・選択と宣言しながら de novo を主張する受領証を作れる。
+  D1429 が閉じた受理集合から de novo と軸発見を外すという境界が、成果物側で崩れる。
+- 固定定数にすると、literal を含まない source を使った走行や既知結果に条件づけられた派生まで
+  同じ分類になり、台帳の分類値が実走と食い違う。
+
+**却下した選択肢:**
+
+- 分類を campaign identity と WAL へ束縛する — identity は入力を束縛するものであって主張を
+  束縛するものではない。同じ入力・同じ候補が分類を変えるだけで別 campaign になる。
+- 分類の整合を検査しない — 主張境界が成果物側で保たれない。
+
+## D1495. 段 4 loop のビルド系を Pegasus へ移植する作業は知識入力経路の実装から分ける (2026-09-02)
+
+**決定:** 段 4 backoff loop の評価経路を Pegasus で通す作業は、知識水準の入力経路を作る作業とは
+別のタスクとする。移植の前提 (専用 env タグ、calibration の取り直し、binding の固定、
+provenance の追跡) が未了である事実を記録し、移植せずに `linux-baremetal` を使う選択肢と
+併せて諮る。
+
+**理由:**
+
+- 実測で 8 件の阻害要因が順に現れた。1 つ外すと次が出る形であり、これは入力経路の生死確認では
+  なく移植である。段 4 loop は `linux-baremetal` 向けに作られている。
+- 環境で解けるもの (依存の事前ビルド、third-party の offline 配置、計算ノードでの実行) は
+  job script 側で解けたが、condition gate の supply arm は preprocess で止まったままである。
+- 移植を続けると、測定の意味を変える変更 (compiler の差し替え、pin の変更) へ踏み込む誘因が働く。
+  入力経路の生死確認という当初の目的からも外れる。
+
+**却下した選択肢:**
+
+- 移植を続けて 1 本を通す — 本題の実装でも 1 本の走行でもない作業に予算を移す。
+- ビルドを伴わない dry-pass で代替する — compile / identity / correctness gate へ到達せず、
+  terminal verdict を得たと誤記する経路を作る。
