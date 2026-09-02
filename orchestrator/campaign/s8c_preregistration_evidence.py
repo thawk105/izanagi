@@ -2208,7 +2208,7 @@ def _evaluate_c09(probe: _ConditionProbe) -> core.PredicateResult:
     registry = probe.python_kind("trial_registry")
     functions = _functions(registry) if registry is not None else {}
     accept = functions.get("assert_trial_registry_acceptance")
-    if accept is None or "assert_campaign_layer3_chain" not in _called_names(accept):
+    if accept is None or "assert_campaign_layer3_chain" not in _live_called_names(accept):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.FORMAL_ACCEPTANCE_LAYER3_ABSENT)
     strings = _strings(accept)
     if not {"no-build", "certifying"} <= strings:
