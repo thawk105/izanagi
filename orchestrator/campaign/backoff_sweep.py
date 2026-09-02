@@ -3,14 +3,14 @@
 
 critic が leading indicators から「BACK_OFF=1 は abort を減らせているのに ipc 崩壊で
 遅い (over-throttling)」と帰属し、新軸「中間/適応 backoff」を提案した。ソースを見ると
-CCBench の backoff は**既に Cicada 適応 backoff** で、その適応 hill-climbing 自体が
-48thread 高競合で throughput を殺す値に収束しているのが BACK_OFF=1 の正体だった
-(insight 2026-06-22_p2-3-critic-leading-indicator-attribution.md)。
+CCBench の BACK_OFF=1 は既定 3 定数 (刻み 100 µs / 上限 1000 µs / 更新間隔
+10 µs) の adaptive backoff である。この値は上流を素のまま使ったときの文脈点であり、
+調整済み adaptive を含まない本 campaign から adaptive 機構の verdict は出さない (D1506)。
 
 そこで定義済みフラグ空間 (binary BACK_OFF) の**外**へ出て、backoff の*量*を静的に
 固定する新フラグ `CCBENCH_BACKOFF_FIXED` (patches/silo-backoff-fixed.patch, default -1=
-stock 適応で inert) を導入し、量を sweep して「適応 backoff が逃した sweet spot が
-あるか」を測る。各 genome は pipeline で build→**verify (正しさゲート, 規律2)**→bench。
+CCBench 既定 3 定数の adaptive で inert) を導入し、量を sweep して静的最良と無 backoff
+の記述的な差を測る。各 genome は pipeline で build→**verify (正しさゲート, 規律2)**→bench。
 backoff は timing のみ変える (CC 論理は不変) ので serializable のはずだが**必ず検証**する。
 
   python orchestrator/campaign/backoff_sweep.py            # 全 workload
@@ -189,9 +189,12 @@ def _official_durable_root_policy(
 
 
 def genomes():
-    """L-W0 を base に: 無 backoff 参照 / stock 適応 / 静的 sweep。"""
+    """L-W0 を base に: 無 backoff / 既定 3 定数 adaptive の文脈点 / 静的 sweep。
+
+    調整済み adaptive は含まず、adaptive 機構の verdict には使わない (D1506)。
+    """
     gs = [Genome("silo", {**_BASE, "BACK_OFF": 0, "BACKOFF_FIXED": -1}),   # 無 backoff
-          Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})]   # stock 適応
+          Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})]   # 既定 3 定数 adaptive
     for n in SWEEP_US:
         gs.append(Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": n}))  # 静的 N
     return gs

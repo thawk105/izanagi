@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2187B-DEFAULT-BASELINES",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_backoff.py",
+          "old": "DEFAULT_BASELINES=(\"no-backoff\",)\n",
+          "new": "DEFAULT_BASELINES=(\"no-backoff\", \"stock-adaptive\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187B-EXPLICIT-OPT-IN",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_backoff.py",
+          "old": "    else:\n        baselines=_validated_baselines(baseline_arg.split(\",\"))\n",
+          "new": "    else:\n        baselines=tuple(b for b in _validated_baselines(baseline_arg.split(\",\")) if b!=\"stock-adaptive\") or DEFAULT_BASELINES\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187B-VERDICT-MECHANISM-CLAIM",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep_report.py",
+          "old": "    if abs(rel_vs_none) <= nf:\n        return (f\"静的最良と無 backoff の差は noise 内 \"\n                f\"({rel_vs_none*100:+.1f}%)\")\n    return f\"静的最良が無 backoff を下回る ({rel_vs_none*100:+.1f}%)\"\n",
+          "new": "    if abs(rel_vs_none) <= nf:\n        return (f\"適応が逃した sweet spot は無い \"\n                f\"({rel_vs_none*100:+.1f}%)\")\n    return f\"適応の方が静的最良より良い ({rel_vs_none*100:+.1f}%)\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187B-PROVENANCE-KEY",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep_report.py",
+          "old": "        \"adaptive_tps(CCBench既定: 刻み100us/上限1000us/更新間隔10us)\": (\n",
+          "new": "        \"adaptive_tps(stock Cicada)\": (\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187B-NOISE-FLOOR-BOUNDARY",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep_report.py",
+          "old": "    nf = BETWEEN_RUN_CV\n",
+          "new": "    nf = 0.19\n"
+        }
+      ]
+    }
+  ]
+}

@@ -127,7 +127,7 @@ MACHINE_CONTRACT_FUNCTION_EXCLUSIONS = frozenset(
         ("C06", "orchestrator/campaign/s8c_budget.py", "run_trial", "different-module-token"),
         ("C07", "orchestrator/campaign/s8b_ratified_freeze.py", "verify_floor_bytes", "different-module-token"),
         ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "report publish", "non-identifier-token"),
-        ("C09", "orchestrator/campaign/trial_registry.py", "registry append", "non-identifier-token"),
+        ("C09", "orchestrator/campaign/trial_registry.py", "acceptance receipt issuance", "non-identifier-token"),
         ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "assert_trial_registry_acceptance", "different-module-token"),
         ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "authoritative bytes reread", "non-identifier-token"),
         ("C10", "orchestrator/campaign/trial_registry.py", "registry append", "non-identifier-token"),

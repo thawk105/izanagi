@@ -378,6 +378,8 @@ def test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_w
 
 
 def test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes():
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
     d = _mk_sort_template_dir()
     path = os.path.join(d, _SRC_REL)
     from orchestrator.campaign.diff_quarantine import parse_template_file
@@ -389,12 +391,9 @@ def test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_by
     harness_indent = original_hole_line[
         :len(original_hole_line) - len(original_hole_line.lstrip())
     ]
-    implementation = (
-        "double now_backoff = 23.0;\n"
-        "  now_backoff *= 2.0;\n"
-        "\n"
-        "\tif (now_backoff > 100.0) now_backoff = 100.0;"
-    )
+    implementation = oracle.render_sort_ir(oracle.SortComparatorIr((
+        (oracle.SortIrField.KEY, oracle.SortIrDirection.ASC),
+    )))
     real_scan = L.coder_effect_gate.scan_host_effects
     real_render = L.render_hole
 
@@ -1312,7 +1311,9 @@ def test_backoff_grammar_dispatch_is_exact_marker_only():
         _mk_sort_template_dir(), "int harmless = 1;",
         marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
     )
-    assert sort_result.passed
+    assert sort_result.passed is False
+    assert sort_result.subtype is DiffRejectSubtype.SORT_SWO_ORACLE
+    assert sort_result.reason == "sort-ir.envelope.v1"
 
     predicate = emit_predicate(TriggerGateIR(20))
     trigger_result, *_ = L.quarantine(
@@ -1481,28 +1482,45 @@ def test_trigger_quarantine_materializes_all_outer_whitespace_identically():
         assert diff.encode("utf-8") == exact_diff.encode("utf-8"), name
 
 
-def test_sort_quarantine_preserves_outer_whitespace_bytes():
+def test_sort_quarantine_canonicalizes_outer_whitespace_bytes():
+    from orchestrator.campaign import sort_swo_oracle as oracle
+    from orchestrator.campaign.diff_quarantine import parse_template_file
+
     d = tempfile.mkdtemp(prefix="izanagi_sort_verbatim_")
     path = os.path.join(d, _SRC_REL)
     with open(path, "w", encoding="utf-8") as stream:
         stream.write(_TEMPLATE.replace(
             "silo-backoff-magnitude", "silo-writeset-sort",
         ))
-    comparator = "int harmless = 1;"
+    marker_id = "silo-writeset-sort"
+    marker = parse_template_file(path, marker_id)
+    assert marker is not None
+    template_lines = Path(path).read_text(encoding="utf-8").split("\n")
+    hole_line = template_lines[marker.hole_first - 1]
+    harness_indent = hole_line[:len(hole_line) - len(hole_line.lstrip())]
+    assert harness_indent
+    comparator = oracle.render_sort_ir(oracle.SortComparatorIr((
+        (oracle.SortIrField.KEY, oracle.SortIrDirection.ASC),
+    )))
     exact_result, _base, exact_edited, exact_diff = L.quarantine(
         d, comparator,
-        marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
+        marker_id=marker_id, source_rel=_SRC_REL, write=False,
     )
-    padded = f"\n  {comparator}  \n"
+    padded = " \n\t".join(oracle._sort_ir_tokens(comparator))
     padded_result, _base, padded_edited, padded_diff = L.quarantine(
         d, padded,
-        marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
+        marker_id=marker_id, source_rel=_SRC_REL, write=False,
     )
 
     assert exact_result.passed and padded_result.passed
-    assert exact_edited.encode("utf-8") != padded_edited.encode("utf-8")
-    assert exact_diff.encode("utf-8") != padded_diff.encode("utf-8")
-    assert "\n      int harmless = 1;  \n" in padded_edited
+    assert exact_edited.encode("utf-8") == padded_edited.encode("utf-8")
+    assert exact_diff.encode("utf-8") == padded_diff.encode("utf-8")
+    materialized_hole = oracle.extract_materialized_hole(
+        padded_edited, marker_id,
+    )
+    assert oracle.canonicalize_sort_implementation(materialized_hole) == comparator
+    for line in materialized_hole.splitlines():
+        assert line.startswith(harness_indent)
 
 
 def test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection():
@@ -1542,7 +1560,9 @@ def test_trigger_membership_does_not_change_sort_or_backoff_markers():
         sort_dir, "int harmless = 1;",
         marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
     )
-    assert sort_result.passed
+    assert sort_result.passed is False
+    assert sort_result.subtype is DiffRejectSubtype.SORT_SWO_ORACLE
+    assert sort_result.digest["subtype"] != "membership"
 
 
 # ==== WAL 往復 (record_diff_reject → load_diff_rejections、片肺の両端) =========
@@ -2540,6 +2560,8 @@ def test_both_auditor_drivers_route_combination_through_mandatory_veto():
 
 def test_both_real_auditor_drivers_reject_post_generation_contradiction():
     """M8 behavioral kill: old ``verdict != 'pass'`` branches return None and allow build."""
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
     sort_planner = L.PlannerProposal(
         axis=SORT_LOOP.MARKER_ID,
         direction="explore_both",
@@ -2553,7 +2575,9 @@ def test_both_real_auditor_drivers_reject_post_generation_contradiction():
         ),
         encoding="utf-8",
     )
-    sort_impl = "int harmless = 1;"
+    sort_impl = oracle.render_sort_ir(oracle.SortComparatorIr((
+        (oracle.SortIrField.KEY, oracle.SortIrDirection.ASC),
+    )))
     machine, _base, _edited, sort_diff = L.quarantine(
         sort_sub, sort_impl, marker_id=SORT_LOOP.MARKER_ID,
         source_rel=SORT_LOOP.SOURCE_REL, write=False,
