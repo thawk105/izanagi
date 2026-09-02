@@ -880,8 +880,10 @@ def test_payload_records_semantics_links_limitations_and_no_stdout_counts():
 
 def test_all_write_intent_macros_are_gated_before_stock_build():
     preflight = inspect.getsource(driver._preflight_condition_gates)
+    gate = inspect.getsource(driver._require_condition_gate)
     collect = inspect.getsource(driver._collect_payload)
     assert "for patch_name, macro in _PATCHES.values()" in preflight
+    assert "declare_define_runtime_meaning(request)" in gate
     assert collect.index("_preflight_condition_gates") < collect.index("stock_binaries = _build")
 
 

@@ -165,6 +165,37 @@ def _page(
     )
 
 
+def _openalex_filter(value: str, *, operator: Any = "has") -> dict[str, Any]:
+    return {
+        "column_id": "title_and_abstract.search",
+        "operator": operator,
+        "value": value,
+    }
+
+
+def _openalex_oqo_document(*rows: Any, get_rows: Any = "works") -> dict[str, Any]:
+    return {"get_rows": get_rows, "filter_rows": list(rows)}
+
+
+def _openalex_condition1(expected: Any, actual: Any) -> ConditionResult:
+    return _condition(
+        evaluate_page(
+            _page(
+                index="openalex",
+                total=0,
+                capacity=200,
+                actual=0,
+                occurrences=(),
+            ),
+            page_size=200,
+            expected_interpreted_structure=expected,
+            actual_interpreted_structure=actual,
+            pagination_kind="cursor",
+        ),
+        1,
+    )
+
+
 def _all_pass() -> tuple[ConditionResult, ...]:
     return tuple(ConditionResult(number, True, None, "ok") for number in range(1, 7))
 
@@ -202,26 +233,320 @@ def test_registered_text_echo_normalizations_are_narrow() -> None:
 def test_openalex_condition1_compares_structured_oqo_not_oql_text() -> None:
     page = _page(index="openalex", total=0, capacity=200, actual=0, occurrences=())
     page = ParsedPage(**{**page.__dict__, "interpreted_query": "different formatting"})
-    structure = {
+    alpha = _openalex_filter('"alpha"')
+    beta = _openalex_filter('"beta"')
+    charlie = _openalex_filter('"charlie"')
+    delta = _openalex_filter('"delta"')
+    echo = _openalex_filter('"echo"')
+    date_filter = {"column_id": "to_publication_date", "value": "2026-12-31"}
+    expected = _openalex_oqo_document(
+        date_filter,
+        {"join": "or", "filters": [alpha, alpha, beta]},
+        {
+            "join": "and",
+            "filters": [charlie, {"join": "or", "filters": [delta, echo]}],
+        },
+    )
+    actual = {
+        "filter_rows": [
+            {
+                "filters": [
+                    {"filters": [echo, delta], "join": "or"},
+                    charlie,
+                ],
+                "join": "and",
+            },
+            {"filters": [beta, alpha, alpha], "join": "or"},
+            {"value": "2026-12-31", "column_id": "to_publication_date"},
+        ],
         "get_rows": "works",
-        "filter_rows": [{"column_id": "to_publication_date", "value": "2026-12-31"}],
     }
     accepted = evaluate_page(
         page,
         page_size=200,
-        expected_interpreted_structure=structure,
-        actual_interpreted_structure=structure,
+        expected_interpreted_structure=expected,
+        actual_interpreted_structure=actual,
         pagination_kind="cursor",
     )
     assert _condition(accepted, 1).passed
-    rejected = evaluate_page(
-        page,
-        page_size=200,
-        expected_interpreted_structure=structure,
-        actual_interpreted_structure={"get_rows": "works", "filter_rows": []},
-        pagination_kind="cursor",
+
+
+@pytest.mark.parametrize(
+    ("expected", "actual"),
+    (
+        pytest.param(
+            _openalex_oqo_document(_openalex_filter('"alpha"')),
+            _openalex_oqo_document(_openalex_filter('"beta"')),
+            id="value-difference",
+        ),
+        pytest.param(
+            _openalex_oqo_document(),
+            _openalex_oqo_document(),
+            id="empty-root-filter-rows-on-both-sides",
+        ),
+        pytest.param(
+            _openalex_oqo_document({"join": "or", "filters": []}),
+            _openalex_oqo_document({"join": "or", "filters": []}),
+            id="empty-group-filters-on-both-sides",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {
+                    "join": "or",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        _openalex_filter('"alpha"'),
+                        _openalex_filter('"beta"'),
+                    ],
+                }
+            ),
+            _openalex_oqo_document(
+                {
+                    "join": "or",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        _openalex_filter('"beta"'),
+                    ],
+                }
+            ),
+            id="multiplicity-difference",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {
+                    "join": "or",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        {
+                            "join": "and",
+                            "filters": [
+                                _openalex_filter('"beta"'),
+                                _openalex_filter('"charlie"'),
+                            ],
+                        },
+                    ],
+                }
+            ),
+            _openalex_oqo_document(
+                {
+                    "join": "or",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        _openalex_filter('"beta"'),
+                        _openalex_filter('"charlie"'),
+                    ],
+                }
+            ),
+            id="nested-boundary-difference",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {
+                    "join": "or",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        {
+                            "join": "or",
+                            "filters": [
+                                _openalex_filter('"beta"'),
+                                _openalex_filter('"charlie"'),
+                            ],
+                        },
+                    ],
+                }
+            ),
+            _openalex_oqo_document(
+                {
+                    "join": "or",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        _openalex_filter('"beta"'),
+                        _openalex_filter('"charlie"'),
+                    ],
+                }
+            ),
+            id="same-join-flatten-difference",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {
+                    "join": "and",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        _openalex_filter('"beta"'),
+                    ],
+                }
+            ),
+            _openalex_oqo_document(
+                {
+                    "join": "or",
+                    "filters": [
+                        _openalex_filter('"alpha"'),
+                        _openalex_filter('"beta"'),
+                    ],
+                }
+            ),
+            id="join-difference",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {"join": "xor", "filters": [_openalex_filter('"alpha"')]}
+            ),
+            _openalex_oqo_document(
+                {"join": "xor", "filters": [_openalex_filter('"alpha"')]}
+            ),
+            id="unknown-join-on-both-sides",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {**_openalex_filter('"alpha"'), "future_option": "same"}
+            ),
+            _openalex_oqo_document(
+                {**_openalex_filter('"alpha"'), "future_option": "same"}
+            ),
+            id="unknown-key-on-both-sides",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {"column_id": "title_and_abstract.search", "value": '"alpha"'}
+            ),
+            _openalex_oqo_document(_openalex_filter('"alpha"', operator=None)),
+            id="missing-vs-null",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                {"column_id": "title_and_abstract.search", "value": '"alpha"'}
+            ),
+            _openalex_oqo_document(_openalex_filter('"alpha"', operator="")),
+            id="missing-vs-empty-string",
+        ),
+        pytest.param(
+            _openalex_oqo_document(_openalex_filter('"alpha"', operator=None)),
+            _openalex_oqo_document(_openalex_filter('"alpha"', operator="")),
+            id="null-vs-empty-string",
+        ),
+        pytest.param(
+            _openalex_oqo_document(_openalex_filter('"alpha"')),
+            _openalex_oqo_document(
+                {"column_id": "title_and_abstract.search", "operator": "has"}
+            ),
+            id="missing-required-field",
+        ),
+        pytest.param(
+            _openalex_oqo_document(_openalex_filter('"1"')),
+            _openalex_oqo_document(
+                {
+                    "column_id": "title_and_abstract.search",
+                    "operator": "has",
+                    "value": 1,
+                }
+            ),
+            id="field-type-difference",
+        ),
+        pytest.param(
+            {
+                **_openalex_oqo_document(_openalex_filter('"alpha"')),
+                "debug": False,
+            },
+            {
+                **_openalex_oqo_document(_openalex_filter('"alpha"')),
+                "debug": False,
+            },
+            id="unknown-root-key-on-both-sides",
+        ),
+        pytest.param(
+            _openalex_oqo_document(_openalex_filter('"alpha"')),
+            _openalex_oqo_document(_openalex_filter('"alpha"'), get_rows="authors"),
+            id="get-rows-difference",
+        ),
+        pytest.param(
+            _openalex_oqo_document(
+                _openalex_filter('"alpha"'), _openalex_filter('"beta"')
+            ),
+            _openalex_oqo_document(
+                _openalex_filter('"charlie"'), _openalex_filter('"alpha"')
+            ),
+            id="distinct-sort-keys-remain-distinct",
+        ),
+    ),
+)
+def test_openalex_condition1_rejects_every_non_order_difference(
+    expected: Any, actual: Any
+) -> None:
+    result = _openalex_condition1(expected, actual)
+    assert not result.passed
+    assert result.reason_code == "interpreted_query_mismatch"
+
+
+@pytest.mark.parametrize("index", ("arxiv", "dblp"))
+def test_text_condition1_remains_order_sensitive(index: str) -> None:
+    page = _page(index=index, total=0, capacity=200, actual=0, occurrences=())
+    page = ParsedPage(**{**page.__dict__, "interpreted_query": "alpha beta"})
+    result = _condition(
+        evaluate_page(
+            page,
+            page_size=200,
+            expected_interpreted_query="beta alpha",
+        ),
+        1,
     )
-    assert _condition(rejected, 1).reason_code == "interpreted_query_mismatch"
+    assert not result.passed
+    assert result.reason_code == "interpreted_query_mismatch"
+
+
+def _openalex_unique_member_response() -> bytes:
+    return (
+        b'{"meta":{"x_query":{"oqo":{"get_rows":"works","filter_rows":['
+        b'{"join":"or","filters":[{"column_id":"x","value":"v"}]}]}}}}'
+    )
+
+
+def _openalex_duplicate_member_response() -> bytes:
+    return (
+        b'{"meta":{"x_query":{"oqo":{"get_rows":"works","filter_rows":['
+        b'{"join":"xor","join":"or","filters":['
+        b'{"column_id":"x","value":"v"}]}]}}}}'
+    )
+
+
+def test_runner_openalex_oqo_accepts_unique_raw_response_members() -> None:
+    from orchestrator.axis1_search.runner import _openalex_oqo
+
+    assert _openalex_oqo(_openalex_unique_member_response()) == {
+        "get_rows": "works",
+        "filter_rows": [
+            {
+                "join": "or",
+                "filters": [{"column_id": "x", "value": "v"}],
+            }
+        ],
+    }
+
+
+def test_runner_openalex_oqo_rejects_duplicate_raw_response_members() -> None:
+    from orchestrator.axis1_search.runner import _openalex_oqo
+
+    assert _openalex_oqo(_openalex_duplicate_member_response()) is None
+
+
+def test_validator_openalex_structure_accepts_unique_raw_response_members() -> None:
+    from orchestrator.axis1_search.validator import _openalex_structure
+
+    assert _openalex_structure(_openalex_unique_member_response()) == {
+        "get_rows": "works",
+        "filter_rows": [
+            {
+                "join": "or",
+                "filters": [{"column_id": "x", "value": "v"}],
+            }
+        ],
+    }
+
+
+def test_validator_openalex_structure_rejects_duplicate_raw_response_members() -> None:
+    from orchestrator.axis1_search.validator import _openalex_structure
+
+    assert _openalex_structure(_openalex_duplicate_member_response()) is None
 
 
 def test_condition4_preserves_two_work_ids_with_one_family_key() -> None:
@@ -368,7 +693,7 @@ def test_production_status_requires_all_263_leaves_and_3_aggregates() -> None:
     from orchestrator.axis1_search.catalog import load_catalog
 
     catalog = load_catalog(
-        str(ROOT / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json")
+        str(ROOT / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json")
     )
     one_leaf = next(query.query_id for query in catalog.logical_queries if query.kind == "leaf")
     status = _production_axis_status(
@@ -384,9 +709,9 @@ def test_production_status_requires_all_263_leaves_and_3_aggregates() -> None:
 @pytest.mark.parametrize(
     ("index", "leaf_query_id"),
     (
-        ("arxiv", "AX1-20260829-E1-Q1@arxiv"),
-        ("openalex", "AX1-20260829-E1-Q1@openalex"),
-        ("dblp", "AX1-20260829-E1-T01@dblp"),
+        ("arxiv", "AX1-20260902-E1-Q1@arxiv"),
+        ("openalex", "AX1-20260902-E1-Q1@openalex"),
+        ("dblp", "AX1-20260902-E1-T01@dblp"),
     ),
 )
 def test_real_catalog_leaf_resolves_every_runner_field(
@@ -398,7 +723,7 @@ def test_real_catalog_leaf_resolves_every_runner_field(
 
     catalog_path = (
         ROOT
-        / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     schema_path = ROOT / "orchestrator/schemas/axis1_search_catalog.schema.json"
     document = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -614,7 +939,7 @@ def _checkpoint() -> dict[str, Any]:
             "bytes": 1,
             "sha256": "2" * 64,
         },
-        "registration_epoch": "AX1-20260829-E1",
+        "registration_epoch": "AX1-20260902-E1",
         "registration_commit": "0" * 40,
         "catalog_path": "catalog.json",
         "catalog_sha256": "3" * 64,
@@ -734,7 +1059,7 @@ def test_registered_control_resolves_to_catalog_leaf() -> None:
     from orchestrator.axis1_search.catalog import load_catalog
 
     catalog = load_catalog(
-        str(ROOT / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json")
+        str(ROOT / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json")
     )
     query_id = control_leaf_query_id(catalog, "C-OP-1", "arxiv")
     query = catalog.logical_query(query_id)
@@ -759,7 +1084,7 @@ def test_control_execution_fails_closed_before_http(
             "--catalog",
             str(
                 ROOT
-                / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+                / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
             ),
             "--bundle",
             str(ROOT / "unused-control-bundle"),
@@ -913,7 +1238,7 @@ def test_dblp_limiter_enforces_registered_minimum_interval(tmp_path: Path) -> No
     catalog_path = tmp_path / "catalog.json"
     catalog_path.write_text("{}", encoding="utf-8")
     catalog = Catalog(
-        "AX1-20260829-E1",
+        "AX1-20260902-E1",
         {"dblp": {"page_size": 2, "minimum_interval_s": 45, "retry_delays_s": []}},
     )
     pages = [
@@ -948,9 +1273,9 @@ def test_dblp_minimum_interval_uses_real_catalog_and_floor() -> None:
     from orchestrator.axis1_search.catalog import load_catalog
 
     real = load_catalog(
-        str(ROOT / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json")
+        str(ROOT / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json")
     )
-    low = Catalog("AX1-20260829-E1", {"dblp": {"minimum_interval_s": 0}})
+    low = Catalog("AX1-20260902-E1", {"dblp": {"minimum_interval_s": 0}})
     assert _minimum_interval(real, "dblp") == 45.0
     assert _minimum_interval(low, "dblp") == 45.0
 
@@ -971,7 +1296,7 @@ def test_dblp_restart_budget_persists_across_sessions(tmp_path: Path) -> None:
     catalog_path = tmp_path / "catalog.json"
     catalog_path.write_text("{}", encoding="utf-8")
     catalog = Catalog(
-        "AX1-20260829-E1",
+        "AX1-20260902-E1",
         {"dblp": {"page_size": 100, "minimum_interval_s": 45, "retry_delays_s": []}},
     )
     failure = Response(
@@ -1033,7 +1358,7 @@ def test_preflight_failure_causes_zero_transport_calls(tmp_path: Path) -> None:
     transport = _FakeTransport([])
     with pytest.raises(PreflightError):
         _run_leaf_for_test(
-            Catalog("AX1-20260829-E1", {}),
+            Catalog("AX1-20260902-E1", {}),
             "leaf",
             run_id="run-1",
             registration_commit="0" * 40,
@@ -1082,7 +1407,7 @@ def test_production_transport_rejects_query_not_registered_in_catalog() -> None:
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     catalog = load_catalog(
-        str(ROOT / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json")
+        str(ROOT / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json")
     )
     query = next(
         item
@@ -1133,7 +1458,7 @@ def test_quota_reserve_stops_before_exhaustion(tmp_path: Path) -> None:
     catalog_path = tmp_path / "catalog.json"
     catalog_path.write_text("{}", encoding="utf-8")
     catalog = Catalog(
-        "AX1-20260829-E1",
+        "AX1-20260902-E1",
         {"openalex": {"page_size": 2, "minimum_interval_s": 1, "retry_delays_s": []}},
         expected_oqo={"get_rows": "works"},
     )
@@ -1201,7 +1526,7 @@ def test_quota_reserve_persists_across_leaf_sessions(tmp_path: Path) -> None:
     catalog_path = tmp_path / "catalog.json"
     catalog_path.write_text("{}", encoding="utf-8")
     catalog = Catalog(
-        "AX1-20260829-E1",
+        "AX1-20260902-E1",
         {"openalex": {"page_size": 2, "minimum_interval_s": 1, "retry_delays_s": []}},
     )
     page = _page(
@@ -1263,7 +1588,7 @@ def test_resume_merges_digest_verified_prefix_with_real_openalex_parser(tmp_path
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     real = load_catalog(str(ROOT / relative_catalog))
     original = next(
@@ -1468,7 +1793,7 @@ def test_resume_prefix_marks_unregistered_content_type_response_not_ok(
         },
     }
     catalog = Catalog(
-        "AX1-20260829-E1",
+        "AX1-20260902-E1",
         {"dblp": {"content_types": ["application/json"]}},
     )
 
@@ -1495,7 +1820,7 @@ def test_429_pauses_quota_but_503_is_service_failure(tmp_path: Path) -> None:
     catalog_path = tmp_path / "catalog.json"
     catalog_path.write_text("{}", encoding="utf-8")
     catalog = Catalog(
-        "AX1-20260829-E1",
+        "AX1-20260902-E1",
         {"openalex": {"page_size": 2, "minimum_interval_s": 1, "retry_delays_s": [0]}},
     )
     response_429 = Response(
@@ -1599,7 +1924,7 @@ def test_positive_p1_real_f1_fixture_uses_page_specific_registered_echoes(tmp_pa
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     real = load_catalog(str(ROOT / relative_catalog))
     original = next(
@@ -1687,7 +2012,7 @@ def test_positive_p3_real_dblp_parser_echo_content_and_evidence(tmp_path: Path) 
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     real = load_catalog(str(ROOT / relative_catalog))
     original = next(
@@ -1765,7 +2090,7 @@ def test_positive_p4_schema_valid_empty_bundle_is_accepted(tmp_path: Path) -> No
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     real = load_catalog(str(ROOT / relative_catalog))
     original = next(
@@ -1850,7 +2175,7 @@ def test_arxiv_accepts_every_catalog_registered_content_type(
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     real = load_catalog(str(ROOT / relative_catalog))
     original = next(
@@ -1926,7 +2251,7 @@ def _build_partial_bundle(
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     catalog_path = ROOT / relative_catalog
     real = load_catalog(str(catalog_path))
@@ -2155,7 +2480,7 @@ def _build_retry_then_success_dblp_bundle(
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     catalog_path = ROOT / relative_catalog
     real = load_catalog(str(catalog_path))
@@ -2300,7 +2625,7 @@ def _build_two_page_dblp_bundle(
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     catalog_path = ROOT / relative_catalog
     real = load_catalog(str(catalog_path))
@@ -2490,7 +2815,7 @@ def test_production_path_passes_real_catalog_shard_bounds(tmp_path: Path) -> Non
     from orchestrator.axis1_search.catalog import build_request, load_catalog
 
     relative_catalog = Path(
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     real = load_catalog(str(ROOT / relative_catalog))
     original = next(
@@ -2576,8 +2901,8 @@ def test_checkpoint_rejects_not_applicable_for_unfinished_pass() -> None:
 
 
 def test_independent_pass_requirement_comes_only_from_logical_query() -> None:
-    ordinary = Catalog("AX1-20260829-E1", {}, independent_pass_required=False)
-    sharded = Catalog("AX1-20260829-E1", {}, independent_pass_required=True)
+    ordinary = Catalog("AX1-20260902-E1", {}, independent_pass_required=False)
+    sharded = Catalog("AX1-20260902-E1", {}, independent_pass_required=True)
     assert _independent_pass_required(ordinary, "leaf") is False
     assert _independent_pass_required(sharded, "leaf") is True
 
