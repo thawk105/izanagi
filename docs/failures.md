@@ -799,6 +799,13 @@
   この点を恒真な対応として扱わない。次に再発したら、消失の直前に走った worktree 操作の特定を
   先に行う。
 - **supersede: 2026-08-23** — 2026-08-01 と 2026-08-05 の再発が指摘した「dev-wave の段 9 は自分の worktree を畳むよう求めるが、その手順の正本が `/cleanup-branches` §3 にあることを指していない」は、経路の新設で閉じた。実測すると段 9 に撤去義務自体が存在しなかった。`docs/dev-wave/operations.md` の `DW-O28` と条件 dispatch 27、および `tools/dev_wave_cleanup.py` が正本である (D702)。`/cleanup-branches` §3 の撤去順と F51 由来の記述の是正は [T-1560] で別途行う。
+
+- **再発: 2026-09-02** — 削除側でなく**作成側**で、しかも一括ループでなく **1 件の
+  `git worktree add` 単独**が 2 分の command timeout に掛かって kill された。残った中途状態は
+  「branch は作成済み・checkout も進行済みだが `.git/worktrees/<name>` の admin dir が無い」形で、
+  **`git worktree list` に現れない**。既載の運用則 (1 件ずつ・timeout を延ばす) は作成側にも要る。
+  `git worktree prune` だけでは checkout 済み dir が残るので、`rm -rf` と併せて畳んでから
+  既存 branch を再利用して作り直す。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -17179,6 +17186,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   敵対レンズが実測で訂正したため下流へ伝播していない。既存の敵対相談段が想定どおり機能した
   事例であり、契約側の欠落ではないと判定して手順の変更は行わない。
 
+
+- **再発: 2026-09-02** — 2 本目の書き手が自分の `git status` ではなく、**背景で走らせていた
+  自分の `git worktree add`** および他 wave の活動だった。根本原因は「並行 `git status`」より広く、
+  対象 worktree の index を refresh または書き換える**任意の並行 git 操作**で成立する。
+  **新しいのは症状の形である。** pathspec を付けて走査したため、出力が「全 tracked file が編集中」
+  ではなく**問い合わせた特定 path だけが `D` (staged delete) + `??` (untracked)** という形になり、
+  狙い撃ちの編集面重複 hit と見分けが付かなかった。安価な判別子は再走査で、
+  **本物の重複は同じ worktree に留まり、F615 は走査ごとに別の worktree へ移る** (今回は 5 件 → 1 件 →
+  0 件と移動し、直接測り直すといずれも clean だった)。既載の恒久対応 (単独で測り直す) は有効だった。
 ### F616. 新設した関門の設計正本が、関門を経由しない直呼びを将来の呼び手へ指示していた [恒真ゲート] [手順漏れ]
 
 - 事象: 段 0 の繰越義務述語を production の前提関門 adapter へ結線する wave で、親が設計正本の
