@@ -106,6 +106,36 @@ python3 tools/plotting/plot_s1_9pair.py \
 `caption` にキャプション正文を持つ。図と入力の対応・版差・文脈セルの扱いは
 `docs/paper-story/figures/README.md` の該当節が正本。
 
+## Cicada adaptive backoff の 3 定数 (T-2187)
+
+`plot_t2187_adaptive_consts.py` は、`tools/pegasus/probes/t2187_adaptive_const_probe.py` が出す
+`izanagi-cicada-adaptive-3const-probe/v1` の結果 JSON を描く。**入力は 1 file = 1 ノード = 1 rep**
+なので、同じ段の全 rep を並べて渡す。集約は生値から計算し、集約済みの値を孫引きしない。
+
+```bash
+python3 tools/plotting/plot_t2187_adaptive_consts.py grid OUT_PREFIX \
+    /path/to/results/stage1-rep0-*.json /path/to/results/stage1-rep1-*.json ...
+
+python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX \
+    /path/to/results/stage2-rep0-*.json /path/to/results/stage2-rep1-*.json ...
+```
+
+- `grid` は刻み × 更新間隔の 2 次元 (対数×対数) を 3 workload 分並べ、**上段 throughput /
+  下段 abort 率**の縦積みで描く。2 次元図に誤差棒は描けないので、各セルの 95% CI 半幅を
+  相対値 (%) で注記する。陽性対照 (stock adaptive) のセルは枠線で明示する。
+- `threads` はスレッド数を横軸に、系列をセルにして同じ縦積みで描く。95% CI はエラーバー。
+  `no backoff` と `stock adaptive` は役割語でなくそれが何かで名指した系列として必ず描く。
+- **95% CI は t 分布** (`t_{0.975,n-1}·s/√n`)。t 分位点は正則化不完全ベータ関数から自前で求め、
+  `scipy` に依存しない。`1.96` の正規近似は小 n では使わない。n=1 のセルは CI を描かず
+  `CI n/a` と明記する。
+- 保存後にレイアウトを機械検査し、テキストの重なり・スパイン外へのはみ出し・隣パネルへの
+  被りがあれば **rc 非 0 で落ちる**。
+- provenance の schema は `izanagi-t2187-adaptive-const-figure-provenance/v1`。入力全 file の
+  絶対パスと SHA256、`ccbench_commit`、`patch_sha256`、全 `pbs_jobid`、測定条件、
+  図に出した主要数値、そして**認証されていない旨**を記録する。
+- **この図の数値は認証されていない** — trace-disabled の性能測定のみで直列性の検査を通しておらず、
+  variant 採用の根拠にしてはならない (規律 2)。図中にもその旨を出す。
+
 ## SS2PL lock study command example
 
 ```bash

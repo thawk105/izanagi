@@ -189,12 +189,12 @@ test file を足す走は file 集合列挙のメタテストも焦点走に含�
 所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 ## DW-O27 — acceptance は lease を待たない
 
-D662 により受入 lease の待ち行列は廃止し、待ち機構を実装から除去した。
-`tools/dev_wave_wait.py acceptance` は投入前 claim を 1 回だけ行い、`held` でも待たず
-wave digest の疑似 holder で投入する。待つ経路は無く flag でも戻せない。
-`--lease-optional` と `--poll-seconds` は後方互換の no-op。`stale-held`・`unavailable`
-は従来どおり fail-closed。integrity 検査と receipt の全 field は未取得でも不変。
-`--lease-dir` は省略せず専用 dir で迂回しない。未取得が確定した走行は `release` しない。
+D662 により lease 待ち行列は廃止。`acceptance`は投入前 claim を 1 回だけ行い`held`でも待たず
+wave digest の疑似 holder で投入する。待つ経路は flag でも戻らない。
+`--lease-optional`と`--poll-seconds`は no-op。`stale-held`・`unavailable`は fail-closed。
+integrity 検査と receipt 全 field は未取得でも不変。`--lease-dir`は省略せず専用 dir で迂回しない。
+未取得が確定した走行は`release`しない。`--wave`は branch 名の末尾一致を要求 (codex の wave slug
+とは別でよい)。不一致は`preflight-branch` rc=2。
 
 `tools/check_docs.py` の dispatch 契約へ新節を登録する際は、
 `orchestrator/tests/test_check_docs.py` の合成 fixture との整合性を同じ

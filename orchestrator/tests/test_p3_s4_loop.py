@@ -20,6 +20,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -37,6 +38,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import backoff_hole_grammar as BHG                    # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
     ident,
+    knowledge_manifest as KM,
     p3_kickoff as P3_KICKOFF,
     p3_b4_closed_critic as B4_CLOSED,
     p3_b4_launcher as B4_LAUNCHER,
@@ -215,6 +217,62 @@ def _seed_versioned_lock(layout: CampaignLayout) -> None:
     wal.write_lock(layout, build_v2_lock(
         ident.canonical_preimage(L.default_cfg())
     ))
+
+
+def _git_fixture(repo: Path, *args: str) -> bytes:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    ).stdout
+
+
+def _resolved_knowledge_fixture(tmp_path: Path, *, name: str = "source"):
+    repo = tmp_path / f"{name}-repo"
+    repo.mkdir()
+    _git_fixture(repo, "init", "--quiet")
+    _git_fixture(repo, "config", "user.name", "Izanagi Test")
+    _git_fixture(repo, "config", "user.email", "izanagi-test@example.invalid")
+    raw = f"{name} knowledge bytes\n".encode("utf-8")
+    (repo / "knowledge.txt").write_bytes(raw)
+    _git_fixture(repo, "add", "--", "knowledge.txt")
+    _git_fixture(repo, "commit", "--quiet", "-m", "knowledge fixture")
+    commit = _git_fixture(repo, "rev-parse", "HEAD").decode("ascii").strip()
+    value = {
+        "knowledge_level": "K2",
+        "sources": [{
+            "kind": "repo_artifact",
+            "identity": {"commit": commit, "path": "knowledge.txt"},
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }],
+    }
+    manifest_path = tmp_path / f"{name}-manifest.json"
+    manifest_path.write_text(
+        json.dumps(value, ensure_ascii=False), encoding="utf-8",
+    )
+    resolved = KM.load_and_resolve_manifest(manifest_path, repo_root=repo)
+    return repo, manifest_path, resolved
+
+
+def _seed_knowledge_campaign(
+    layout: CampaignLayout,
+    resolved: KM.ResolvedKnowledgeManifest,
+) -> None:
+    cfg = replace(L.default_cfg(), search_config={
+        **L.default_cfg().search_config,
+        wal.KNOWLEDGE_LEVEL_SEARCH_KEY: "K2",
+        wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY:
+            resolved.knowledge_manifest_sha256,
+    })
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    KM.write_receipt(
+        layout.root,
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
 
 
 def _mk_template_dir(source_rel: str = _SRC_REL):
@@ -1655,6 +1713,73 @@ def test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it():
     )
 
 
+def test_manifest_absent_production_build_start_bytes_are_exactly_pinned(
+    tmp_path, monkeypatch,
+):
+    """A5: grammar と admission を持つ production 形の挿入順まで固定する。"""
+    layout = CampaignLayout(root=str(tmp_path / "production-wal")).ensure()
+    _seed_versioned_lock(layout)
+    source_bytes_sha = hashlib.sha256(b"production-source-bytes").hexdigest()
+    src_token = hashlib.sha256(b"production-source-token").hexdigest()
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root="/var/lib/izanagi/ccbench",
+        ccbench_commit=L.PIN,
+        genome_sha256=hashlib.sha256(_G.canonical().encode("utf-8")).hexdigest(),
+        src_token=src_token,
+        source_bytes_sha256=source_bytes_sha,
+        tracked_clean=False,
+        tracked_diff_sha256=hashlib.sha256(b"production-diff").hexdigest(),
+        tracked_paths=("include/backoff.hh",),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context,
+        evidence,
+        generator_input_sha256=hashlib.sha256(b"production-input").hexdigest(),
+    )
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=capability,
+    )
+    receipt = admission.as_wal_receipt()
+    attempt_id = "12" * 16
+    variant = variant_id(_G, src_token)
+    start_payload = {
+        "genome": _G.canonical(),
+        "src_token": src_token,
+        "build_attempt_id": attempt_id,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    }
+
+    def receipt_must_not_open(_layout):
+        raise AssertionError("manifest 不在 campaign が knowledge receipt を開いた")
+
+    monkeypatch.setattr(wal, "_read_knowledge_receipt", receipt_must_not_open)
+    monkeypatch.setattr(wal.time, "time", lambda: 1234.5)
+    wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG, start_payload)
+
+    expected_payload = {
+        "genome": _G.canonical(),
+        "src_token": src_token,
+        "build_attempt_id": attempt_id,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        BHG.BACKOFF_GRAMMAR_VERSION_KEY: BHG.BACKOFF_GRAMMAR_VERSION,
+    }
+    expected = (json.dumps({
+        "variant": variant,
+        "stage": STAGE_BUILD_START,
+        "env_tag": L.ENV_TAG,
+        "ts": 1234.5,
+        "payload": expected_payload,
+    }, ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n").encode(
+        "utf-8"
+    )
+    assert Path(layout.wal_file).read_bytes() == expected
+    assert wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY not in expected_payload
+
+
 def test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version():
     implementation = "double now_backoff = 20; (void)0;"
     result, *_ = L.quarantine(
@@ -1703,6 +1828,163 @@ def test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version():
         admission_policy=policy,
         campaign_lock=wal._campaign_lock_value(legacy_layout),
     )
+
+
+def _knowledge_diff_reject_records(tmp_path: Path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "knowledge-campaign")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    implementation = "double now_backoff = 20; (void)0;"
+    result, *_ = L.quarantine(
+        _mk_template_dir(), implementation, source_rel=_SRC_REL, write=False,
+    )
+    L.record_diff_reject(
+        layout,
+        _G,
+        implementation,
+        result,
+        backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+    )
+    return layout, resolved, wal.read_records(layout)
+
+
+def test_knowledge_writer_binds_build_start_only(tmp_path):
+    layout, resolved, records = _knowledge_diff_reject_records(tmp_path)
+    start, abort = records
+    assert start.stage == STAGE_BUILD_START
+    assert abort.stage == STAGE_ABORT
+    assert wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY not in abort.payload
+    provenance = start.payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY]
+    assert provenance == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "sources": [item.source.canonical_value() for item in resolved.sources],
+    }
+    lock = wal._campaign_lock_value(layout)
+    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
+    wal._validate_attempt_topology(
+        records, admission_policy=policy, campaign_lock=lock,
+    )
+
+
+def test_knowledge_writer_rejects_missing_receipt_before_wal_effect(tmp_path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "missing-receipt")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    Path(layout.root, KM.RECEIPT_FILENAME).unlink()
+    with pytest.raises(wal.AttemptTopologyError, match="receipt"):
+        wal.log(layout, "variant", STAGE_BUILD_START, L.ENV_TAG, {
+            "genome": _G.canonical(),
+            "src_token": "",
+            "build_attempt_id": "34" * 16,
+        })
+    assert not Path(layout.wal_file).exists()
+
+
+def test_knowledge_writer_rejects_receipt_digest_tamper_before_wal_effect(tmp_path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "tampered-receipt")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    receipt_path = Path(layout.root, KM.RECEIPT_FILENAME)
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["knowledge_manifest_sha256"] = "0" * 64
+    receipt_path.write_bytes(KM.canonical_json_bytes(receipt) + b"\n")
+    with pytest.raises(wal.AttemptTopologyError, match="binding"):
+        wal.log(layout, "variant", STAGE_BUILD_START, L.ENV_TAG, {
+            "genome": _G.canonical(),
+            "src_token": "",
+            "build_attempt_id": "56" * 16,
+        })
+    assert not Path(layout.wal_file).exists()
+
+
+def test_knowledge_reader_rejects_partial_lock_binding_without_wal_dependency():
+    for partial in (
+        {wal.KNOWLEDGE_LEVEL_SEARCH_KEY: "K2"},
+        {wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY: "0" * 64},
+    ):
+        with pytest.raises(wal.AttemptTopologyError, match="片方だけ"):
+            wal.validate_knowledge_provenance_bindings(
+                [], campaign_lock={"search_config": partial},
+            )
+
+
+def test_knowledge_reader_rejects_build_start_binding_absence_as_only_failure(
+    tmp_path,
+):
+    layout, _resolved, records = _knowledge_diff_reject_records(tmp_path)
+    start_payload = dict(records[0].payload)
+    start_payload.pop(wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY)
+    changed = [replace(records[0], payload=start_payload), records[1]]
+    lock = wal._campaign_lock_value(layout)
+    wal.validate_backoff_grammar_bindings(changed, campaign_lock=lock)
+    wal.validate_commit_contract_bindings(changed, campaign_lock=lock)
+    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
+    with pytest.raises(wal.AttemptTopologyError, match="binding が欠落"):
+        wal._validate_attempt_topology(
+            changed, admission_policy=policy, campaign_lock=lock,
+        )
+
+
+def test_knowledge_reader_rederives_manifest_digest_from_wal_source_set(tmp_path):
+    layout, _resolved, records = _knowledge_diff_reject_records(tmp_path)
+    provenance = dict(records[0].payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY])
+    sources = [dict(source) for source in provenance["sources"]]
+    sources[0] = {**sources[0], "sha256": "0" * 64}
+    provenance["sources"] = sources
+    start_payload = {
+        **records[0].payload,
+        wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY: provenance,
+    }
+    changed = [replace(records[0], payload=start_payload), records[1]]
+    lock = wal._campaign_lock_value(layout)
+    wal.validate_backoff_grammar_bindings(changed, campaign_lock=lock)
+    wal.validate_commit_contract_bindings(changed, campaign_lock=lock)
+    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
+    with pytest.raises(wal.AttemptTopologyError, match="source 集合"):
+        wal._validate_attempt_topology(
+            changed, admission_policy=policy, campaign_lock=lock,
+        )
+
+
+def test_knowledge_consumer_rejects_nul_path_as_only_failure():
+    source = {
+        "kind": "repo_artifact",
+        "identity": {"commit": "1" * 40, "path": "a\x00b"},
+        "sha256": "2" * 64,
+    }
+    digest = hashlib.sha256(KM.canonical_json_bytes({
+        "knowledge_level": "K2",
+        "sources": [source],
+    })).hexdigest()
+    provenance = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": digest,
+        "sources": [source],
+    }
+    record = wal.parse_line(KM.canonical_json_bytes({
+        "variant": "nul-path",
+        "stage": STAGE_BUILD_START,
+        "env_tag": L.ENV_TAG,
+        "ts": 1.0,
+        "payload": {wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY: provenance},
+    }).decode("utf-8"))
+    assert record.payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY][
+        "sources"
+    ][0]["identity"]["path"] == "a\x00b"
+    lock = {"search_config": {
+        wal.KNOWLEDGE_LEVEL_SEARCH_KEY: "K2",
+        wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY: digest,
+    }}
+
+    with pytest.raises(wal.AttemptTopologyError, match="canonical repo-relative"):
+        wal.validate_knowledge_provenance_bindings([record], campaign_lock=lock)
+
+
+def test_nonstock_source_token_keeps_candidate_identity_distinct_from_stock():
+    nonstock = hashlib.sha256(b"knowledge-conditioned-source-bytes").hexdigest()
+    assert nonstock != source_digest.STOCK
+    assert variant_id(_G, nonstock) != variant_id(_G, source_digest.STOCK)
 
 
 def test_duplicate_snapshot_rejects_pre_version_record_under_versioned_lock():
@@ -5186,6 +5468,162 @@ def test_planner_context_payload_rejects_non_string_policy_hint(hint):
     )
     with pytest.raises(ValueError):
         L.planner_context_payload(L.LoopState(), cfg)
+
+
+@pytest.mark.parametrize(
+    ("reflux", "expected_hash"),
+    ((True, "8ee68c0c"), (False, "95a32c3e")),
+)
+def test_knowledge_manifest_absence_preserves_exact_cfg_hashes(
+    reflux, expected_hash, tmp_path, monkeypatch,
+):
+    base = L.default_cfg(reflux=reflux)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda campaign_id: CampaignLayout(root=str(tmp_path / campaign_id)),
+    )
+    prepared, _layout, projection = L._prepare_knowledge_campaign(
+        base,
+        None,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
+    assert prepared == base
+    assert projection is None
+    assert wal.KNOWLEDGE_LEVEL_SEARCH_KEY not in prepared.search_config
+    assert wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY not in prepared.search_config
+    assert hashlib.sha256(
+        ident.canonical_preimage(prepared).encode("utf-8")
+    ).hexdigest()[:8] == expected_hash
+    assert str(ident.campaign_id(prepared)) == (
+        "p3-s4-loop-s4-autonomous-" + expected_hash
+    )
+
+
+def test_knowledge_input_is_sibling_of_whiteboard_and_policy_hint(tmp_path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    hint = "caller policy declaration"
+    cfg = replace(L.default_cfg(), search_config={
+        **L.default_cfg().search_config,
+        "policy_hint": hint,
+    })
+    projection = KM.planner_projection(resolved)
+    payload = L.planner_context_payload(
+        L.LoopState(), cfg, knowledge_input=projection,
+    )
+    assert set(payload) == {"whiteboard", "policy_hint", "knowledge_input"}
+    assert payload["policy_hint"] == hint
+    assert payload["knowledge_input"] == projection
+    assert "knowledge_input" not in payload["policy_hint"]
+
+
+def test_manifest_digest_changes_campaign_identity_and_layout(
+    tmp_path, monkeypatch,
+):
+    _repo_a, _path_a, resolved_a = _resolved_knowledge_fixture(
+        tmp_path, name="alpha",
+    )
+    _repo_b, _path_b, resolved_b = _resolved_knowledge_fixture(
+        tmp_path, name="beta",
+    )
+    root = tmp_path / "campaigns"
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda campaign_id: CampaignLayout(root=str(root / campaign_id)),
+    )
+    cfg_a, layout_a, _ = L._prepare_knowledge_campaign(
+        L.default_cfg(), resolved_a,
+        classification="reproduction_or_selection", de_novo_claim=False,
+    )
+    cfg_b, layout_b, _ = L._prepare_knowledge_campaign(
+        L.default_cfg(), resolved_b,
+        classification="reproduction_or_selection", de_novo_claim=False,
+    )
+    assert resolved_a.knowledge_manifest_sha256 != resolved_b.knowledge_manifest_sha256
+    assert ident.campaign_id(cfg_a) != ident.campaign_id(cfg_b)
+    assert layout_a.root != layout_b.root
+
+
+def test_emit_context_and_run_iteration_share_manifest_campaign_identity(
+    tmp_path, monkeypatch,
+):
+    repo, manifest_path, _resolved = _resolved_knowledge_fixture(
+        tmp_path, name="shared-route",
+    )
+    layouts: dict[str, CampaignLayout] = {}
+    observed_ids: list[str] = []
+
+    def layout_for(campaign_id):
+        observed_ids.append(campaign_id)
+        return layouts.setdefault(
+            campaign_id,
+            CampaignLayout(root=str(tmp_path / "outputs" / campaign_id)),
+        )
+
+    monkeypatch.setattr(L, "_repo_root", lambda: str(repo))
+    monkeypatch.setattr(L, "exploration_campaign_layout", layout_for)
+    context_path = tmp_path / "planner-context.json"
+    common = [
+        "--knowledge-manifest", str(manifest_path),
+        "--knowledge-classification", "reproduction_or_selection",
+        "--knowledge-de-novo-claim", "false",
+        "--reflux", "on",
+    ]
+    assert L.main([
+        *common, "--emit-planner-context", str(context_path),
+    ]) == 0
+    context_ids = set(observed_ids)
+    assert len(context_ids) == 1
+    context_payload = json.loads(context_path.read_text(encoding="utf-8"))
+    assert "knowledge_input" in context_payload
+
+    from orchestrator.campaign import patchharness
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="explore_both",
+        magnitude="small",
+        justification="route fixture",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20,
+        implementation="double now_backoff = 20;",
+        justification="route fixture",
+        confidence="low",
+    )
+    monkeypatch.setattr(L, "load_proposal_file", lambda *_a, **_k: (planner, coder, None))
+
+    def fake_drive(cfg, *_args, **_kwargs):
+        campaign_id = str(ident.campaign_id(cfg))
+        layout = layouts[campaign_id]
+        L.save_loop_state(layout, L.LoopState(iteration=1, start_wall=1.0))
+        return {
+            "ran": True,
+            "outcome": "dry-pass",
+            "variant": None,
+            "iteration": 1,
+            "stop_reason": "continue",
+        }
+
+    monkeypatch.setattr(L, "drive_iteration", fake_drive)
+    observed_ids.clear()
+    assert L.main([
+        *common, "--run-iteration", str(tmp_path / "proposal.json"), "--no-build",
+    ]) == 0
+    run_ids = set(observed_ids)
+    assert run_ids == context_ids
+    campaign_id = next(iter(run_ids))
+    receipt = json.loads(
+        Path(layouts[campaign_id].root, KM.RECEIPT_FILENAME).read_bytes()
+    )
+    assert receipt["claim_boundary"] == {
+        "classification": "reproduction_or_selection",
+        "de_novo_claim": False,
+        "pilot_comparison_eligible": False,
+    }
 
 
 def test_main_emits_planner_context_from_new_state(tmp_path, monkeypatch):

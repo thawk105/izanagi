@@ -588,7 +588,7 @@ def test_fanout_match_key_preserves_real_parametrize_id_containing_at() -> None:
     node = (
         "orchestrator/tests/test_axis1_search_runner.py::"
         "test_real_catalog_leaf_resolves_every_runner_field"
-        "[arxiv-AX1-20260829-E1-Q1@arxiv]"
+        "[arxiv-AX1-20260902-E1-Q1@arxiv]"
     )
 
     assert MF._match_key(node, _REPO, "expected node") == node

@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2187-CELLS-NONPOSITIVE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-ceiling]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-update]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    value = int(text)\n    if value <= 0:\n        raise ValueError(f\"{field} must be positive: {value}\")\n    return value\n",
+          "new": "    value = int(text)\n    return value\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187-OUT-OVERWRITE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_existing_out_is_rejected_before_site_or_measurement"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "def _validate_output_path(out: Path) -> None:\n    if out.exists():\n        raise FileExistsError(f\"refusing to overwrite existing output: {out}\")\n",
+          "new": "def _validate_output_path(out: Path) -> None:\n    if False:\n        raise FileExistsError(f\"refusing to overwrite existing output: {out}\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187-CI-NORMAL-APPROX",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_grid_n7_uses_student_t_and_provenance_hashes_all_inputs"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_t2187_adaptive_consts.py",
+          "old": "    critical = student_t_critical_975(len(samples) - 1)\n",
+          "new": "    critical = 1.96\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187-PROVENANCE-INPUT-HASH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_grid_compares_stock_coordinate_with_no_backoff_reference",
+        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_grid_n7_uses_student_t_and_provenance_hashes_all_inputs",
+        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_threads_mode_writes_both_formats_and_marks_n1_ci_unavailable"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_t2187_adaptive_consts.py",
+          "old": "        inputs.append({\n            \"path\": str(path),\n            \"sha256\": _sha256(path),\n",
+          "new": "        inputs.append({\n            \"path\": str(path),\n            \"sha256\": \"0\" * 64,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2187-OVERREJECT-VALID-GRID",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_accepts_three_cells_and_normalizes_milliunits",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_existing_out_is_rejected_before_site_or_measurement"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        if len(fields) != 5 or any(not field for field in fields):\n",
+          "new": "        if len(fields) != 6 or any(not field for field in fields):\n"
+        }
+      ]
+    }
+  ]
+}

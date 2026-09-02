@@ -136,6 +136,7 @@ def _set_path(doc: dict, path: str, value) -> None:
 def test_validate_calibration_v2_positive_and_frozen_dataclasses():
     validated = sv2.validate_calibration_v2(_valid_document())
     assert validated.schema_version == "calibration/v2"
+    assert validated.genome is None
     assert validated.attestation_profile.cpu.vendor == "GenuineIntel"
     assert validated.acquisition_receipt.allocation.hostname_observed == "node-a"
     assert validated.quality == sv2.QualityVerdict(status="accepted", reasons=[])
@@ -166,6 +167,39 @@ def test_v2_rejects_missing_and_unknown_top_level_fields():
     unknown["future"] = 1
     with pytest.raises(sv2.CalibrationSchemaError, match="未知"):
         sv2.validate_calibration_v2(unknown)
+
+
+def test_v2_accepts_only_exact_genome_shape_and_returns_canonical_literal():
+    document = _valid_document()
+    document["genome"] = "silo|BACKOFF_FIXED=-1,BACK_OFF=0,WAL=0"
+
+    validated = sv2.validate_calibration_v2(document)
+
+    assert validated.genome == "silo|BACKOFF_FIXED=-1,BACK_OFF=0,WAL=0"
+
+    missing = dict(document)
+    missing.pop("quality")
+    with pytest.raises(sv2.CalibrationSchemaError, match="欠落"):
+        sv2.validate_calibration_v2(missing)
+    unknown = dict(document)
+    unknown["future"] = 1
+    with pytest.raises(sv2.CalibrationSchemaError, match="未知"):
+        sv2.validate_calibration_v2(unknown)
+
+
+@pytest.mark.parametrize("genome", [
+    pytest.param("silo|Z=1,A=0", id="unsorted"),
+    pytest.param("silo|A=1,A=2", id="duplicate"),
+    pytest.param("silo|A=x", id="non-integer"),
+    pytest.param("silo|", id="empty-body"),
+    pytest.param("silo|TRACE=0", id="reserved-trace"),
+])
+def test_v2_rejects_noncanonical_or_reserved_genome(genome):
+    document = _valid_document()
+    document["genome"] = genome
+
+    with pytest.raises(sv2.CalibrationSchemaError):
+        sv2.validate_calibration_v2(document)
 
 
 @pytest.mark.parametrize("path,bad", [
