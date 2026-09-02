@@ -1,5 +1,5 @@
 #!/bin/bash
-# Login-side exact two-job fan-out and create-only group finisher for A-2.
+# Login-side policy-sized fan-out and create-only group finisher for A-2/A-6.
 set -Eeuo pipefail
 umask 077
 
@@ -10,7 +10,7 @@ PYTHON_BIN=${PYTHON:-python3.10}
 cd "$REPO_ROOT"
 
 usage() {
-  echo "usage: submit_paper_story_a2_certification.sh [finish-group] --attempt-id ID [--ccbench-root ABS --dependency-prefix-source ABS]" >&2
+  echo "usage: submit_paper_story_a2_certification.sh [finish-group] [--policy PATH] --attempt-id ID [--ccbench-root ABS --dependency-prefix-source ABS]" >&2
 }
 
 MODE=submit
@@ -21,8 +21,14 @@ fi
 ATTEMPT_ID=""
 CCBENCH_ROOT=""
 DEPENDENCY_PREFIX_SOURCE=""
+POLICY_SELECTION=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --policy)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      POLICY_SELECTION=$2
+      shift 2
+      ;;
     --attempt-id)
       [[ $# -ge 2 ]] || { usage; exit 2; }
       ATTEMPT_ID=$2
@@ -53,6 +59,45 @@ done
   exit 2
 }
 
+readarray -t POLICY_VALUES < <(
+  "$PYTHON_BIN" -B - "$POLICY_SELECTION" <<'PY'
+import sys
+from orchestrator.campaign import paper_story_a2_certification as a2
+
+selected = sys.argv[1]
+policy = (a2.load_policy(a2.canonical_policy_path(selected))
+          if selected else a2.load_policy())
+scheduler = policy.document["scheduler"]
+print(policy.path)
+print(policy.study)
+print(a2._qsub_job_name(policy))
+print(scheduler["project"])
+print(scheduler["queue"])
+print(scheduler["nodes"])
+print(scheduler["walltime"])
+print(scheduler["job_body"])
+for workload in a2.workload_ids(policy):
+    print(workload)
+PY
+)
+[[ ${#POLICY_VALUES[@]} -ge 9 ]] || {
+  echo "selected certification policy is incomplete" >&2
+  exit 2
+}
+POLICY_PATH=${POLICY_VALUES[0]}
+STUDY=${POLICY_VALUES[1]}
+JOB_NAME=${POLICY_VALUES[2]}
+SCHEDULER_PROJECT=${POLICY_VALUES[3]}
+SCHEDULER_QUEUE=${POLICY_VALUES[4]}
+SCHEDULER_NODES=${POLICY_VALUES[5]}
+SCHEDULER_WALLTIME=${POLICY_VALUES[6]}
+JOB_BODY_RELATIVE=${POLICY_VALUES[7]}
+WORKLOADS=("${POLICY_VALUES[@]:8}")
+POLICY_ARGS=()
+if [[ -n "$POLICY_SELECTION" ]]; then
+  POLICY_ARGS=(--policy "$POLICY_PATH")
+fi
+
 host=$(hostname 2>/dev/null || true)
 if [[ ! "$host" =~ ^pegasus0[0-9]+([.].*)?$ ]]; then
   echo "A-2 submitter is login-side only" >&2
@@ -64,10 +109,11 @@ command -v -- qstat >/dev/null 2>&1 || {
 }
 
 if [[ "$MODE" == finish-group ]]; then
-  ATTEMPT_ROOT=$("$PYTHON_BIN" -B - "$ATTEMPT_ID" <<'PY'
+  ATTEMPT_ROOT=$("$PYTHON_BIN" -B - "$ATTEMPT_ID" "$POLICY_PATH" <<'PY'
 import json, pathlib, sys
 from orchestrator.campaign import paper_story_a2_certification as a2
-root = a2.load_policy().durable_base / sys.argv[1]
+policy = a2.load_policy(sys.argv[2])
+root = policy.durable_base / sys.argv[1]
 value = json.loads((root / "preregistration.json").read_text(encoding="utf-8"))
 if value.get("attempt_root") != str(root):
     raise SystemExit("preregistration attempt root differs")
@@ -81,7 +127,7 @@ PY
     exit 2
   }
   "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
-    finish-group --attempt-root "${FINISH_VALUES[0]}" \
+    "${POLICY_ARGS[@]}" finish-group --attempt-root "${FINISH_VALUES[0]}" \
     --current-pin "${FINISH_VALUES[1]}"
   exit 0
 fi
@@ -97,11 +143,12 @@ QUEUE_STATE=$(qstat -Q)
 printf '%s\n' "$QUEUE_STATE" | "$PYTHON_BIN" -I -B -c '
 import re, sys
 text = sys.stdin.read()
-raise SystemExit(0 if "gen_S" in text
+queue = sys.argv[1]
+raise SystemExit(0 if queue in text
                  and re.search(r"(?i)\b(ENA|ENABLE(?:D)?)\b", text)
                  and re.search(r"(?i)\b(ACT|ACTIVE)\b", text) else 1)
-' || {
-  echo "gen_S is not ENA/ACT" >&2
+' "$SCHEDULER_QUEUE" || {
+  echo "$SCHEDULER_QUEUE is not ENA/ACT" >&2
   exit 2
 }
 
@@ -159,22 +206,21 @@ inventory_rc=0
 qstat >"$TMP_ROOT/request-inventory.stdout" \
   2>"$TMP_ROOT/request-inventory.stderr" || inventory_rc=$?
 if [[ "$inventory_rc" -ne 0 || -s "$TMP_ROOT/request-inventory.stderr" ]]; then
-  echo "cannot inventory existing A-2 certification requests" >&2
+  echo "cannot inventory existing certification requests" >&2
   exit 2
 fi
 REQUEST_INVENTORY=$(<"$TMP_ROOT/request-inventory.stdout")
-if [[ "$REQUEST_INVENTORY" == *paper-a2-cert* ]]; then
-  echo "an A-2 certification request is already visible" >&2
+if [[ "$REQUEST_INVENTORY" == *"$JOB_NAME"* ]]; then
+  echo "a same-study certification request is already visible" >&2
   exit 2
 fi
 
 ATTEMPT_ROOT=$("$PYTHON_BIN" -B -m \
-  orchestrator.campaign.paper_story_a2_certification preregister \
+  orchestrator.campaign.paper_story_a2_certification "${POLICY_ARGS[@]}" preregister \
   --attempt-id "$ATTEMPT_ID" --current-pin "$CURRENT_PIN")
-JOB_BODY="$REPO_ROOT/tools/pegasus/paper_story_a2_certification.sh"
+JOB_BODY="$REPO_ROOT/$JOB_BODY_RELATIVE"
 JOB_BODY_SHA256=$(sha256sum -- "$JOB_BODY")
 JOB_BODY_SHA256=${JOB_BODY_SHA256%% *}
-WORKLOADS=(rr5 rr50)
 
 for workload in "${WORKLOADS[@]}"; do
   job_root="$ATTEMPT_ROOT/jobs/$workload"
@@ -183,6 +229,9 @@ for workload in "${WORKLOADS[@]}"; do
   qsub_stdout_path="$job_root/scheduler/qsub.stdout"
   qsub_stderr_path="$job_root/scheduler/qsub.stderr"
   variable_arg="IZANAGI_A2_ATTEMPT_ROOT=$ATTEMPT_ROOT,IZANAGI_A2_WORKLOAD=$workload,IZANAGI_A2_EXPECTED_HEAD=$SOURCE_COMMIT,IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN,IZANAGI_A2_CCBENCH_ROOT=$CCBENCH_ROOT,IZANAGI_A2_REPO_ROOT=$REPO_ROOT,IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE=$DEPENDENCY_PREFIX_SOURCE"
+  if [[ "$STUDY" == paper-story-a6-certification ]]; then
+    variable_arg+=",IZANAGI_A2_POLICY_PATH=$POLICY_PATH"
+  fi
   [[ ! -e "$qsub_stdout_path" && ! -L "$qsub_stdout_path" \
       && ! -e "$qsub_stderr_path" && ! -L "$qsub_stderr_path" ]] || {
     echo "qsub diagnostics already exist for $workload" >&2
@@ -194,14 +243,16 @@ for workload in "${WORKLOADS[@]}"; do
   set +o noclobber
   qsub_rc=0
   "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
-    exact-qsub -- qsub -A SFC -q gen_S -b 1 -l elapstim_req=06:00:00 \
-    -N paper-a2-cert -v "$variable_arg" -o "$stdout_path" -e "$stderr_path" \
+    "${POLICY_ARGS[@]}" exact-qsub -- qsub -A "$SCHEDULER_PROJECT" \
+    -q "$SCHEDULER_QUEUE" -b "$SCHEDULER_NODES" \
+    -l "elapstim_req=$SCHEDULER_WALLTIME" -N "$JOB_NAME" \
+    -v "$variable_arg" -o "$stdout_path" -e "$stderr_path" \
     "$JOB_BODY" >&"$qsub_stdout_fd" 2>&"$qsub_stderr_fd" || qsub_rc=$?
   exec {qsub_stdout_fd}>&-
   exec {qsub_stderr_fd}>&-
   unset qsub_stdout_fd qsub_stderr_fd
   "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
-    durabilize-qsub-diagnostics --attempt-root "$ATTEMPT_ROOT" \
+    "${POLICY_ARGS[@]}" durabilize-qsub-diagnostics --attempt-root "$ATTEMPT_ROOT" \
     --workload "$workload"
   if [[ "$qsub_rc" -ne 0 ]]; then
     echo "qsub failed for $workload; no group submission receipt was created" >&2
@@ -225,7 +276,7 @@ print(value)
 PY
   )
   "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
-    record-request-id --attempt-root "$ATTEMPT_ROOT" \
+    "${POLICY_ARGS[@]}" record-request-id --attempt-root "$ATTEMPT_ROOT" \
     --workload "$workload" --request-id "$request_id" >/dev/null
   printf '%s\n' "$request_id" >"$TMP_ROOT/$workload.request-id"
   qstat -f "$request_id" >"$TMP_ROOT/$workload.qstat.stdout" \
@@ -240,15 +291,17 @@ done
 "$PYTHON_BIN" -B - "$TMP_ROOT/submission.json" "$TMP_ROOT" \
   "$ATTEMPT_ROOT" "$SOURCE_COMMIT" "$CURRENT_PIN" "$host" \
   "$REPO_ROOT" "$CCBENCH_ROOT" "$DEPENDENCY_PREFIX_SOURCE" \
-  "$JOB_BODY" "$JOB_BODY_SHA256" <<'PY'
+  "$JOB_BODY" "$JOB_BODY_SHA256" "$POLICY_PATH" <<'PY'
 import json, pathlib, sys
 from orchestrator.campaign import paper_story_a2_certification as a2
 
 (destination, temporary, attempt, source, current, host, repo, ccbench,
- dependency, body, body_sha) = sys.argv[1:]
+ dependency, body, body_sha, policy_path) = sys.argv[1:]
 temporary = pathlib.Path(temporary)
+policy = a2.load_policy(policy_path)
+scheduler_policy = policy.document["scheduler"]
 jobs = []
-for workload in ("rr5", "rr50"):
+for workload in a2.workload_ids(policy):
     request = (temporary / f"{workload}.request-id").read_text().strip()
     scheduler = pathlib.Path(attempt) / "jobs" / workload / "scheduler"
     qsub_stdout = (scheduler / "qsub.stdout").read_text()
@@ -266,14 +319,19 @@ for workload in ("rr5", "rr50"):
         "IZANAGI_A2_REPO_ROOT": repo,
         "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": dependency,
     }
+    if policy.study == "paper-story-a6-certification":
+        environment["IZANAGI_A2_POLICY_PATH"] = str(policy.path)
     variable_arg = ",".join(f"{key}={value}" for key, value in environment.items())
     stdout_path = f"{attempt}/jobs/{workload}/scheduler/job.stdout"
     stderr_path = f"{attempt}/jobs/{workload}/scheduler/job.stderr"
     jobs.append({
         "workload": workload,
         "qsub_argv": [
-            "qsub", "-A", "SFC", "-q", "gen_S", "-b", "1", "-l",
-            "elapstim_req=06:00:00", "-N", "paper-a2-cert", "-v",
+            "qsub", "-A", scheduler_policy["project"],
+            "-q", scheduler_policy["queue"],
+            "-b", str(scheduler_policy["nodes"]), "-l",
+            f"elapstim_req={scheduler_policy['walltime']}",
+            "-N", a2._qsub_job_name(policy), "-v",
             variable_arg, "-o", stdout_path, "-e", stderr_path, body,
         ],
         "qsub_stdout": qsub_stdout,
@@ -296,8 +354,8 @@ for workload in ("rr5", "rr50"):
 payload = {
     "schema_version": a2.SUBMISSION_SCHEMA,
     "route": "direct-qsub",
-    "study": a2.load_policy().study,
-    "protocol_sha256": a2.load_policy().protocol_sha256,
+    "study": policy.study,
+    "protocol_sha256": policy.protocol_sha256,
     "attempt_id": pathlib.Path(attempt).name,
     "attempt_root": attempt,
     "source_commit": source,
@@ -314,7 +372,8 @@ pathlib.Path(destination).write_text(
 PY
 
 "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
-  record-submission --attempt-root "$ATTEMPT_ROOT" --current-pin "$CURRENT_PIN" \
+  "${POLICY_ARGS[@]}" record-submission --attempt-root "$ATTEMPT_ROOT" \
+  --current-pin "$CURRENT_PIN" \
   --payload "$TMP_ROOT/submission.json"
 for workload in "${WORKLOADS[@]}"; do
   cat "$TMP_ROOT/$workload.request-id"

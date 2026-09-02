@@ -101,6 +101,29 @@ def _policy(tmp_path):
     return A2.load_policy(path)
 
 
+def _a6_policy(tmp_path):
+    document = json.loads(A2.A6_POLICY_PATH.read_text(encoding="utf-8"))
+    document["durable_measurement_base"] = str(tmp_path / "durable-a6")
+    path = tmp_path / "a6-policy.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return A2.load_policy(path)
+
+
+def _request_ids(policy):
+    return {
+        workload_id: f"{945411 + index}.nqsv"
+        for index, workload_id in enumerate(A2.workload_ids(policy))
+    }
+
+
+def _submission_visibility(request_id):
+    return (
+        f"Request ID: {request_id}\n"
+        "    Current State = Staging\n"
+        "    Ended Request Time = (none)\n"
+    )
+
+
 def _campaign_cfg(mode):
     search = {} if mode is None else {"verify": mode}
     return CampaignConfig(
@@ -172,7 +195,8 @@ def _positive_results(
             "version_first_line": "cmake fixture",
         },
     }
-    for workload_id in ("rr5", "rr50"):
+    request_ids = _request_ids(policy)
+    for workload_id in A2.workload_ids(policy):
         lock_text = _campaign_lock_text(
             policy, workload_id, attempt_root.name)
         identity = campaign_lock.decode_campaign_lock(lock_text).identity
@@ -290,8 +314,7 @@ def _positive_results(
             "protocol_digest": hashlib.sha256(
                 ident.canonical_preimage(cfg).encode("utf-8")
             ).hexdigest(),
-            "job_id": (
-                "945411.nqsv" if workload_id == "rr5" else "945412.nqsv"),
+            "job_id": request_ids[workload_id],
             "host": "bnode001",
             "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text(
                 encoding="ascii").strip(),
@@ -358,12 +381,14 @@ def _write_receipt_bundle(
     repo_root = A2.POLICY_PATH.parents[2]
     job_body = repo_root / policy.document["scheduler"]["job_body"]
     started = int(time.time()) - 1
-    request_ids = {"rr5": "945411.nqsv", "rr50": "945412.nqsv"}
+    request_ids = _request_ids(policy)
     submission_jobs = []
     completion_jobs = []
-    driver_rcs = (
-        dict(driver_rc) if type(driver_rc) is dict
-        else {"rr5": driver_rc, "rr50": 0})
+    if type(driver_rc) is dict:
+        driver_rcs = dict(driver_rc)
+    else:
+        driver_rcs = dict.fromkeys(A2.workload_ids(policy), 0)
+        driver_rcs[A2.workload_ids(policy)[0]] = driver_rc
     assert list(driver_rcs) == list(A2.workload_ids(policy))
     for workload_id in A2.workload_ids(policy):
         request_id = request_ids[workload_id]
@@ -385,13 +410,18 @@ def _write_receipt_bundle(
             "IZANAGI_A2_REPO_ROOT": str(repo_root),
             "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": "/pinned/deps",
         }
+        if policy.study == "paper-story-a6-certification":
+            qsub_environment["IZANAGI_A2_POLICY_PATH"] = str(policy.path)
         variable_arg = ",".join(
             f"{key}={value}" for key, value in qsub_environment.items())
         submission_jobs.append({
             "workload": workload_id,
             "qsub_argv": [
-                "qsub", "-A", "SFC", "-q", "gen_S", "-b", "1",
-                "-l", "elapstim_req=06:00:00", "-N", "paper-a2-cert",
+                "qsub", "-A", policy.document["scheduler"]["project"],
+                "-q", policy.document["scheduler"]["queue"],
+                "-b", str(policy.document["scheduler"]["nodes"]),
+                "-l", f"elapstim_req={policy.document['scheduler']['walltime']}",
+                "-N", A2._qsub_job_name(policy),
                 "-v", variable_arg,
                 "-o", str(stdout_path), "-e", str(stderr_path),
                 str(job_body),
@@ -407,25 +437,33 @@ def _write_receipt_bundle(
                 "argv": ["qstat", "-f", request_id],
                 "returncode": 0,
                 "state": "QUE",
-                "stdout": QSTAT_FANOUT_VISIBILITY_FIXTURES[workload_id].read_text(
-                    encoding="utf-8"),
+                "stdout": (
+                    QSTAT_FANOUT_VISIBILITY_FIXTURES[workload_id].read_text(
+                        encoding="utf-8")
+                    if workload_id in QSTAT_FANOUT_VISIBILITY_FIXTURES
+                    else _submission_visibility(request_id)
+                ),
                 "stderr": "",
             },
             "qsub_environment": qsub_environment,
         })
         allocation_stdout = job_root / "scheduler" / "allocation-qstat.stdout"
         allocation_stderr = job_root / "scheduler" / "allocation-qstat.stderr"
+        walltime_hours, walltime_minutes, walltime_seconds = (
+            int(part) for part in policy.document["scheduler"]["walltime"].split(":"))
+        requested_seconds = (
+            walltime_hours * 3600 + walltime_minutes * 60 + walltime_seconds)
         allocation_stdout.write_text(
             f"Request ID: {request_id}\nStarted Request Time = now\n"
-            "(Per-Req) Elapse Time Limit = Max: 21600S\n",
+            f"(Per-Req) Elapse Time Limit = Max: {requested_seconds}S\n",
             encoding="utf-8",
         )
         allocation_stderr.write_text("", encoding="utf-8")
         reservation_environment = {
             "IZANAGI_RESERVATION_JOB_ID": request_id,
-            "IZANAGI_RESERVATION_REQUESTED_S": "21600",
+            "IZANAGI_RESERVATION_REQUESTED_S": str(requested_seconds),
             "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
-            "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + 21600),
+            "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested_seconds),
             "IZANAGI_RESERVATION_HOST": "bnode001",
             "IZANAGI_RESERVATION_BOOT_ID": Path(
                 "/proc/sys/kernel/random/boot_id").read_text(
@@ -499,10 +537,13 @@ def _write_receipt_bundle(
         workload for workload, value in driver_rcs.items() if value == 0]
     completion_schema = A2.COMPLETION_SCHEMA
     manifest_path = None
-    if len(successful_workloads) == 2 and claim_manifest:
+    if (len(successful_workloads) == len(A2.workload_ids(policy))
+            and claim_manifest):
         manifest_path = A2.finalize_raw_manifest(
             policy, attempt_root, CURRENT_PIN)
-    elif len(successful_workloads) == 1 and not force_legacy_v3:
+    elif (len(A2.workload_ids(policy)) == 2
+          and len(successful_workloads) == 1
+          and not force_legacy_v3):
         completion_schema = A2.PARTIAL_COMPLETION_SCHEMA
         if claim_manifest:
             manifest_path = A2._finalize_partial_raw_manifest(
@@ -745,6 +786,101 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     decorative_changed.pop("certification_composition")
     assert hashlib.sha256(A2._canonical_json(decorative_original)).hexdigest() == \
         hashlib.sha256(A2._canonical_json(decorative_changed)).hexdigest()
+
+
+def test_m7_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
+    raw = A2.POLICY_PATH.read_bytes()
+    policy = A2.load_policy()
+
+    assert hashlib.sha256(raw).hexdigest() == (
+        "42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e")
+    assert policy.bytes_sha256 == (
+        "42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e")
+    assert policy.protocol_sha256 == (
+        "136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4")
+    assert policy.raw_bytes == raw
+    assert A2.workload_ids(policy) == ("rr5", "rr50")
+    assert A2._qsub_job_name(policy) == "paper-a2-cert"
+    assert A2._qsub_environment_keys(policy) == A2._QSUB_ENV_KEYS
+
+
+def test_m3_study_shape_map_rejects_three_workload_a6_policy(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["study"] = "paper-story-a6-certification"
+    document["workloads"].append({
+        "id": "rr95", "label": "read-heavy", "rratio": "95",
+        "adopted_backoff_us": 2,
+    })
+    document["cells"].extend([
+        {
+            "id": "rr95-stock", "workload": "rr95", "role": "stock",
+            "genome": {"BACK_OFF": 0, "BACKOFF_FIXED": -1},
+        },
+        {
+            "id": "rr95-fixed2", "workload": "rr95", "role": "adopted",
+            "genome": {"BACK_OFF": 1, "BACKOFF_FIXED": 2},
+        },
+    ])
+    path = tmp_path / "three-workload-a6.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(A2.CertificationError, match="study shape"):
+        A2.load_policy(path)
+
+
+def test_policy_loader_rejects_unknown_study(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["study"] = "paper-story-unknown-certification"
+    path = tmp_path / "unknown-study.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(A2.CertificationError, match="not a shipped certification study"):
+        A2.load_policy(path)
+
+
+def test_m4_cli_policy_selection_rejects_noncanonical_path(tmp_path):
+    path = tmp_path / "valid-but-unshipped-a6.json"
+    path.write_bytes(A2.A6_POLICY_PATH.read_bytes())
+    args = type("Args", (), {"policy": str(path)})()
+
+    with pytest.raises(A2.CertificationError, match="canonical shipped policy"):
+        A2._load_selected_policy(args)
+    exact_args = type("ExactArgs", (), {
+        "policy": str(path), "qsub_argv": ["--", "qsub"],
+    })()
+    with pytest.raises(A2.CertificationError, match="canonical shipped policy"):
+        A2._exact_qsub_command(exact_args)
+
+
+def test_m5_workloads_remain_in_protocol_preimage():
+    original = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(original)
+    changed["workloads"][0]["label"] = "changed-only-in-workloads"
+
+    original_sha = hashlib.sha256(
+        A2._canonical_json(A2._protocol_preimage(original))).hexdigest()
+    changed_sha = hashlib.sha256(
+        A2._canonical_json(A2._protocol_preimage(changed))).hexdigest()
+    assert original_sha != changed_sha
+
+
+def test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime():
+    policy = A2.load_policy(A2.A6_POLICY_PATH)
+
+    assert A2.workload_ids(policy) == ("rr95",)
+    assert [(cell.cell_id, cell.role, dict(cell.genome)) for cell in policy.cells] == [
+        ("rr95-stock", "stock", {"BACK_OFF": 0, "BACKOFF_FIXED": -1}),
+        ("rr95-fixed2", "adopted", {"BACK_OFF": 1, "BACKOFF_FIXED": 2}),
+    ]
+    assert policy.document["scheduler"] == {
+        "project": "SFC", "queue": "gen_S", "nodes": 1,
+        "walltime": "12:00:00",
+        "job_body": "tools/pegasus/paper_story_a2_certification.sh",
+    }
+    assert policy.bytes_sha256 == (
+        "4ca15d071f0bc10febe3274d0523b59f0e4903bf612ff050bef7e6728a3700d4")
+    assert policy.protocol_sha256 == (
+        "a73bc3a0eabd1bcb960779c9b61b20983ef3cfb88d76d50c073e9ced4f6be445")
 
 
 def test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts(
@@ -1125,6 +1261,97 @@ def _terminal_qstat(command, **kwargs):
     return subprocess.CompletedProcess(
         command, 0,
         f"Request ID: {request_id}\nRequest State = EXT\n", "")
+
+
+def test_m1_a6_single_workload_full_success_stays_v3(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "attempt-a6-full-m1", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+
+    completion_path, acquisition_path = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    completion, _ = A2._read_json(completion_path)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition_path, current_pin=CURRENT_PIN)
+
+    assert completion["schema_version"] == A2.COMPLETION_SCHEMA
+    assert completion["raw_result_manifest"] == str(root / "raw-manifest.json")
+    assert evidence["completion_schema"] == A2.COMPLETION_SCHEMA
+    assert evidence["raw_manifest_schema"] == A2.RAW_MANIFEST_SCHEMA
+    assert evidence["raw_manifest_valid"] is True
+    assert len(evidence["raw_files"]) == 5
+
+
+def test_m2_partial_v4_completion_requires_exact_two_workloads(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "attempt-a6-forged-partial-m2", CURRENT_PIN)
+    _acquisition, submission = _write_receipt_bundle(policy, root)
+    completion, _ = A2._read_json(root / "receipts" / "completion.json")
+    completion["schema_version"] = A2.PARTIAL_COMPLETION_SCHEMA
+    completion["successful_workload"] = "rr95"
+    submission_binding = A2._validate_submission_receipt(
+        policy, submission, root.name, root, CURRENT_PIN)
+
+    with pytest.raises(
+            A2.CertificationError, match="exact two-workload policy"):
+        A2._validate_completion_receipt(
+            policy, completion, root.name, root, CURRENT_PIN,
+            submission_binding,
+        )
+
+
+def test_p2_a6_full_v3_path_collects_and_materializes(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "attempt-a6-full-p2", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    _completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2.collect_results(
+        policy, evidence["raw_results"], attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+        frozen_files=evidence["raw_files"], attempt_root=root,
+    )
+    report["source_commit"] = evidence["source_commit"]
+    repository = tmp_path / "a6-materialized-repository"
+    repository.mkdir()
+    destination = A2.materialize(
+        policy, report, evidence, repo_root=repository)
+
+    assert report["status"] == "observed-positive"
+    assert [cell["workload"] for cell in report["cells"]] == ["rr95", "rr95"]
+    assert all(cell["correctness"]["status"] == "certified"
+               for cell in report["cells"])
+    assert destination == repository / policy.tracked_destination
+    assert (destination / "certification.json").is_file()
+    assert (destination / "COMPLETE.json").is_file()
+
+
+def test_a6_anomaly_is_immediate_reject(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-a6-anomaly")
+    results = _positive_results(policy, root)
+    anomaly = results[0]
+    anomaly["correctness"][PERFORMANCE_TAG][0] = {
+        **anomaly["correctness"][PERFORMANCE_TAG][0],
+        "status": "anomaly",
+        "certified": False,
+        "verdict": "non-serializable",
+        "anomalies": [{"cycle": ["read-a", "read-b"]}],
+    }
+    anomaly["correctness"][PERFORMANCE_TAG] = [
+        anomaly["correctness"][PERFORMANCE_TAG][0]]
+    anomaly["trace0_evidence"] = None
+    anomaly["performance"] = {
+        "status": "indeterminate", "reason": "verify-reject"}
+    report = A2.collect_results(
+        policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
+        request_ids=_request_ids(policy), _test_token=A2._COLLECT_TEST_TOKEN)
+
+    assert report["status"] == "reject"
+    assert report["cells"][0]["correctness"]["status"] == "non-serializable"
+    assert A2.driver_rc(report) == 0
 
 
 def test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest(
@@ -2439,9 +2666,20 @@ def test_changed_campaign_wal_invalidates_the_manifest_bundle(tmp_path):
     assert "hash mismatch" in evidence["raw_manifest_reason"]
 
 
-def test_cli_has_no_policy_injection_surface():
-    with pytest.raises(SystemExit):
-        A2._parser().parse_args(["--policy", "/tmp/alternate.json", "preregister"])
+def test_p3_cli_selects_default_a2_and_explicit_a6_policy():
+    common = ["preregister", "--attempt-id", "cli-policy", "--current-pin", CURRENT_PIN]
+    default_args = A2._parser().parse_args(common)
+    a6_args = A2._parser().parse_args([
+        "--policy", "orchestrator/campaign/paper_story_a6_certification.v2.json",
+        *common,
+    ])
+    default = A2._load_selected_policy(default_args)
+    a6 = A2._load_selected_policy(a6_args)
+
+    assert (A2.workload_ids(default), A2._qsub_job_name(default)) == (
+        ("rr5", "rr50"), "paper-a2-cert")
+    assert (A2.workload_ids(a6), A2._qsub_job_name(a6)) == (
+        ("rr95",), "paper-a6-cert")
 
 
 @pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))

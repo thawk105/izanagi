@@ -18,13 +18,6 @@ for name in "${required_env[@]}"; do
     exit 2
   fi
 done
-case "$IZANAGI_A2_WORKLOAD" in
-  rr5|rr50) ;;
-  *)
-    echo "IZANAGI_A2_WORKLOAD must be rr5 or rr50" >&2
-    exit 2
-    ;;
-esac
 
 host=$(hostname 2>/dev/null || true)
 if [[ ! "$host" =~ ^bnode[0-9]+([.].*)?$ ]]; then
@@ -35,6 +28,54 @@ fi
 repo=$IZANAGI_A2_REPO_ROOT
 attempt=$IZANAGI_A2_ATTEMPT_ROOT
 workload=$IZANAGI_A2_WORKLOAD
+resolve_python() {
+  local candidate resolved selected=""
+  for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+    resolved=$(command -v "$candidate" 2>/dev/null || true)
+    if [[ -n "$resolved" ]] && (
+      cd "$repo" &&
+      "$resolved" -B -c \
+        'import sys; sys.version_info >= (3, 10) or sys.exit(1); import orchestrator.campaign.paper_story_a2_certification' \
+        >/dev/null 2>&1
+    ); then
+      selected=$resolved
+      break
+    fi
+  done
+  if [[ -z "$selected" ]]; then
+    echo "no Python 3.10+ interpreter can import the A-2 driver" >&2
+    return 2
+  fi
+  PY=$selected
+  export PATH="$(dirname "$selected"):$PATH"
+}
+resolve_python || exit 2
+POLICY_SELECTION=${IZANAGI_A2_POLICY_PATH:-}
+readarray -t POLICY_VALUES < <(
+  cd "$repo"
+  "$PY" -B - "$POLICY_SELECTION" "$workload" <<'PY'
+import sys
+from orchestrator.campaign import paper_story_a2_certification as a2
+
+selected, workload = sys.argv[1:]
+policy = (a2.load_policy(a2.canonical_policy_path(selected))
+          if selected else a2.load_policy())
+if a2.workload_ids(policy).count(workload) != 1:
+    raise SystemExit("IZANAGI_A2_WORKLOAD is not an exact selected-policy member")
+print(policy.path)
+print(policy.document["scheduler"]["job_body"])
+PY
+)
+[[ ${#POLICY_VALUES[@]} -eq 2 ]] || {
+  echo "selected policy or workload is invalid" >&2
+  exit 2
+}
+POLICY_PATH=${POLICY_VALUES[0]}
+JOB_BODY_RELATIVE=${POLICY_VALUES[1]}
+POLICY_ARGS=()
+if [[ -n "$POLICY_SELECTION" ]]; then
+  POLICY_ARGS=(--policy "$POLICY_PATH")
+fi
 job_root=$attempt/jobs/$workload
 raw_root=$job_root/raw
 campaign_root=$job_root/campaigns
@@ -77,29 +118,6 @@ if [[ ! -d "$dependency_source" || -L "$dependency_source" ]]; then
   echo "pinned dependency source is unavailable" >&2
   exit 2
 fi
-
-resolve_python() {
-  local candidate resolved selected=""
-  for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
-    resolved=$(command -v "$candidate" 2>/dev/null || true)
-    if [[ -n "$resolved" ]] && (
-      cd "$repo" &&
-      "$resolved" -B -c \
-        'import sys; sys.version_info >= (3, 10) or sys.exit(1); import orchestrator.campaign.paper_story_a2_certification' \
-        >/dev/null 2>&1
-    ); then
-      selected=$resolved
-      break
-    fi
-  done
-  if [[ -z "$selected" ]]; then
-    echo "no Python 3.10+ interpreter can import the A-2 driver" >&2
-    return 2
-  fi
-  PY=$selected
-  export PATH="$(dirname "$selected"):$PATH"
-}
-resolve_python || exit 2
 
 qstat_jobid=${PBS_JOBID#0:}
 allocation_qstat_stdout=$scheduler_root/allocation-qstat.stdout
@@ -150,7 +168,7 @@ scheduler_started_epoch=${reservation_observation[0]}
 requested_s=${reservation_observation[1]}
 deadline_epoch=$((scheduler_started_epoch + requested_s))
 boot_id=$(tr -d '\n' </proc/sys/kernel/random/boot_id)
-job_body=$repo/tools/pegasus/paper_story_a2_certification.sh
+job_body=$repo/$JOB_BODY_RELATIVE
 if [[ ! -f "$job_body" || -L "$job_body" || -z "$boot_id" ]]; then
   echo "reservation observation inputs are unavailable" >&2
   exit 2
@@ -273,7 +291,7 @@ cp -a "$dependency_source"/. "$dependency_prefix"/
 
 export PYTHONDONTWRITEBYTECODE=1
 "$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
-  compute-preflight \
+  "${POLICY_ARGS[@]}" compute-preflight \
   --workload "$workload" \
   --attempt-root "$attempt" \
   --raw-root "$raw_root" \
@@ -282,7 +300,7 @@ export PYTHONDONTWRITEBYTECODE=1
   --dependency-prefix "$dependency_prefix"
 
 "$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
-  run-workload \
+  "${POLICY_ARGS[@]}" run-workload \
   --workload "$workload" \
   --attempt-root "$attempt" \
   --raw-root "$raw_root" \
