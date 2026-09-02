@@ -58,6 +58,15 @@ title: [T-2136] within-run 較正へ protocol を記録し、層 3 を認定較�
 - 工数: codex 子 8 本 (plan 1、consult 2、author 1、review 3、fix 1)。いずれも
   model=gpt-5.6-sol、effort=xhigh、outcome=accepted。受入は main の進行により 3 回投入した
   (1 回目と 2 回目は main 取り込み要求で、テストの赤ではない)。
+- **段 8 の改善候補 2 件は、いずれも byte 予算に阻まれて入れられなかった。**
+  実装せず候補として残す。予算のために既存の安全義務を削る道は採らない。
+  (a) `DW-M01` へ変異 spec の `category` 語彙 (`negative` / `positive` / `both-layers` の 3 語で
+  他は起動前に rc=2) を 1 行足そうとしたが、`docs/dev-wave/**` の L1 unique footprint が
+  10737 bytes となり予算 10625 bytes を超えた。節単体には余裕がある (525/1000) が層で溢れる。
+  (b) `DW-O27` へ受入の rc=70 分類 (`merge-message-provenance` は
+  `--merge-message-file` 未指定、`merge` は wave が claimed main を含まないこと) を足そうとしたが、
+  同節が 992/1000 bytes で余地が 8 bytes しかない。どちらも tool の失敗文言が自己説明的で、
+  実害は plan-only 1 回と受入投入 2 回のやり直しに留まった。
 
 ## 次の一手差分
 
