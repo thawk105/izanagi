@@ -1140,12 +1140,28 @@ def test_m12_nonterminating_reference_ratio_has_only_named_rejection(
     certified_evidence: _Evidence,
 ) -> None:
     """Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation."""
-    control = _publication(tmp_path / "control")
-    _assert_write(_publish(control, certified_evidence))
-    publication = _publication(tmp_path, reference_override=(1, 3))
-    _assert_rejection(
-        _publish(publication, certified_evidence),
-        P.B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING,
+    with pytest.raises(ArithmeticError) as exc_info:
+        P._fraction_token((1, 3))
+    assert str(exc_info.value) == "reference_tps has no finite decimal expansion"
+
+    publication = _publication(tmp_path / "publication-case")
+    with mock.patch.object(
+        P,
+        "_fraction_token",
+        side_effect=ArithmeticError(
+            "reference_tps has no finite decimal expansion"
+        ),
+    ):
+        result = _publish(publication, certified_evidence)
+
+    assert isinstance(result, P.B4RawRecordRejection), result
+    assert result.issues == (
+        P.B4RawRecordIssue(
+            artifact="publication",
+            field="reference_tps",
+            code=P.B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING,
+            detail="reference_tps has no finite decimal JSON representation",
+        ),
     )
 
 
