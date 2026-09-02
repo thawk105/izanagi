@@ -9635,6 +9635,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   なお probe 走は `rc=125` で終わったが**変異 5 件の失敗 node は全件収集できていた**ため、
   期待 node の完全集合を得るという probe の目的は達している。事後検査の赤を理由に probe をやり直す
   必要はなく、本走だけを独立 clone で取り直せばよい。
+
+- **再発: 2026-09-02 (2 回、両 sub-type)** — 本走 attempt 1 は親が走行中に
+  `git checkout main -- docs/` を実行して落ちた (F300 本文の型)。base digest は land 先の
+  local main の現物に対して取る規則があり、この lookup は作業ツリーへ main の docs を
+  一時展開する。**base digest の取得は変異走行と排他である。**
+  attempt 2 は作業ツリーに一切触れずに落ちた (2026-08-25 再発項の型、並行 wave の land)。
+  いずれも `child_rc = 0` で harness は完走し、結果は 10/10 KILLED・期待 node 完全一致・
+  baseline PASSED だった。成果物への帰属は無い。
+- **既知の回避策を読まずに走らせた。** 2026-08-25 の再発項が
+  「対象 commit だけを持つ独立 clone を `--source-repo` へ渡すと観測点が 1 点に畳まれる」と
+  実測付きで記録していた。**変異走行の前に本台帳の当該 F を引く**のが再発検知である。
+- **回避策を `DW-M05` へ載せる 2 度目の試みも予算で止まった。** 219 bytes の 1 文に対し
+  L1.5 層の余裕は 18 bytes (実測: 追記前 9,678 / 予算 9,696)。既存記述の削減は同層の
+  安全義務文を削ることになるため採らず、D782 が委任する D730 の段階 2・3
+  (例外収容・上限引き上げ) は本 wave の scope を超える。回避策の正本は本台帳に留まる。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -21011,3 +21026,27 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   orphan hold で rc=16 になる」と既に書いており、規約の欠落ではなく遵守の失敗である。
 - 被害: 実装・成果物への影響なし。1 回だけ変異が適用されたまま止まったが、残差分が登録済み変異
   そのものであることを照合してから復元した。
+
+### F810. submodule 初期化 tool の 1 回目が必ず落ち 2 回目で通る [手順漏れ]
+
+- 事象: 新規 worktree に対する `python3 tools/dev_wave_submodule_init.py --worktree <ABS>` の
+  **1 回目の呼出しが `ERROR: runtime-io-failure:
+  detail={'label': 'submodule', 'kind': 'update-no-fetch'}` で rc=1** になり、
+  同じ command を続けて実行すると rc=0 で成功する。本 wave では実装子用 worktree 1 回、
+  fix 子用 worktree 2 回の計 3 回とも同じ挙動だった。worktree 作成時にも
+  `warning: unable to access '<path>/.gitattributes': システムコール割り込み` が出ていた。
+- 根本原因: 未特定。detail が `label` と `kind` しか出さないため、tool の出力からは
+  失敗した git command も errno も読めない。worktree 作成時の EINTR と同時に観測されており、
+  共有ファイルシステム上の一過性 I/O 中断が疑わしいが、本 wave では原因を切り分けていない。
+- 恒久対応: 未実施。**rc=1 を「初期化不能」と読んで停止しないこと**が当面の運用側の対応で、
+  `DW-C01` の submodule 行が指す tool をそのまま 1 度だけ再実行して rc=0 を確かめる。
+  検出器は `tools/check_wave_startup.py` の
+  `NG: submodule is not initialized` で、未初期化のまま子を起動する経路は既に fail-closed
+  で塞がっている (本 wave の fix 子初回投入はこれで止まった)。
+  tool 側で再試行するか detail を厚くするかは、原因を切り分けてから裁定する。
+- 再発検知: 同 tool が rc=1 を返したとき、detail が
+  `{'label': 'submodule', 'kind': 'update-no-fetch'}` だけであることを確かめ、
+  再実行で rc=0 になるなら本エントリの型である。2 回目も落ちるなら別の事象として扱い、
+  `git submodule update --init --recursive --no-fetch` を直接実行して生の git エラーを読む。
+  なお runner script 内で生の git を使うと `transport 'file' not allowed` で必ず失敗する。
+  これは本エントリの型ではなく、`DW-C01` が既に tool の使用を求めている。

@@ -1203,6 +1203,7 @@ def build_approved_manifest(raw_output: str, *, root=ROOT) -> _artifacts.Officia
     root = Path(root)
     try:
         ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+        s8b_ratified_freeze.assert_g1_floor_selection_identity(ratified, root)
     except s8b_ratified_freeze.RatifiedFreezeError as exc:
         reason = (
             "no-active-ratified-freeze"
