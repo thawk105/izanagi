@@ -1480,6 +1480,7 @@ def test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate(
         manifest.build_approved_manifest(output, root=root)
 
     assert captured.value.reason == "no-approved-spec"
+    assert isinstance(captured.value.__cause__, oracle_spec.ReviewedSpecError)
     assert not (root / output).exists()
 
 
