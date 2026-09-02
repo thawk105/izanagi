@@ -37,8 +37,10 @@ title: [T-2187] adaptive backoff の律速は刻みでなく更新間隔だっ�
   exact 形式にしていなかった。**fix 子だけが正しく fail-closed** して何も変更せず戻り、
   1 往復を失った。author 2 本は通常手順へ落ちて作業を続けたので**成功したように見えていた**。
   (2) 変異走の投入 2 分後に insight を新規作成し、`mutation_worktree.py` の
-  「source 木の観測 bytes 不変」事後検査に掛かって rc=125 で全損した。
-  **失敗は最後にしか出ない**ので、走行中は動いているように見える。
+  事後検査に掛かって rc=125 で全損した。**失敗は最後にしか出ない**ので、走行中は動いて
+  見える。ただし同検査は共有 main checkout も観測するため、走行中に main が前進していた
+  本 wave では**自分が触らなくても落ちていた**。原因を自分の編集だけに帰属させたのは
+  早すぎた ({{F:mutation-wrapper-observes-shared-main}})。
   (3) 待ち手を `nohup ... &` で背景 Bash に包み、待ち手でなく包み手の rc=0 を完了と
   誤読しかけた。生存は `pgrep -fa` で確かめ直した。
   (4) 待ち手の中で `ls <glob> | wc -l` を使い、該当 0 件のときの `ls` の rc=2 が
@@ -49,7 +51,8 @@ title: [T-2187] adaptive backoff の律速は刻みでなく更新間隔だっ�
   (b) 実寸 6x5 格子でレイアウト検査が発火した。
   **根因はどちらも合成テストの格子が 1 workload 2 セルしかなく、実寸の注記密度を
   一度も踏まないこと。** 修正で合成入力を実寸 (6x5 + 無 backoff、スレッド 8 点) へ揃えた。
-  親の brief が schema で「無 backoff セルを格子上どう扱うか」を書かなかったのが上流原因である。
+  親の brief が schema で「無 backoff セルを格子上どう扱うか」を書かなかったのが上流原因である
+  ({{F:figure-fixture-smaller-than-real-grid}})。
 - **段 5 実装子が手書きした unified diff の hunk header が本文と不整合だった** (`+18,14` に対し
   本文 12 行、`+11,35` に対し 33 行)。`patch --dry-run` が `malformed patch` で rc=2。
   子が自力で直したが、**手書き diff の行数整合はどの検査にも掛かっていない。**
