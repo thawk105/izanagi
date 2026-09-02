@@ -443,11 +443,32 @@ def _parse_registered_page(parser: Callable[..., Any], body: bytes, page_number:
             raise exc
 
 
+class _DuplicateOpenAlexJSONMember(ValueError):
+    """Raised only while extracting an OpenAlex structured query echo."""
+
+
+def _openalex_json_object(
+    pairs: list[tuple[str, Any]],
+) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, member in pairs:
+        if key in value:
+            raise _DuplicateOpenAlexJSONMember(key)
+        value[key] = member
+    return value
+
+
 def _openalex_oqo(body: bytes) -> Any:
     try:
-        value = json.loads(body)
+        value = json.loads(body, object_pairs_hook=_openalex_json_object)
         return value["meta"]["x_query"]["oqo"]
-    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, KeyError):
+    except (
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        _DuplicateOpenAlexJSONMember,
+        TypeError,
+        KeyError,
+    ):
         return None
 
 
@@ -984,7 +1005,7 @@ def _write_page_evidence(
         "schema_version": "izanagi-axis1-search-page-evidence/v1",
         "document_type": "page_evidence",
         "identity": {
-            "registration_epoch": str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+            "registration_epoch": str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
             "registration_commit": registration_commit,
             "catalog_path": catalog_path,
             "catalog_sha256": catalog_sha256,
@@ -1390,7 +1411,7 @@ def _checkpoint_payload(
         leaf,
         pass_number,
         occurrences,
-        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
         registration_commit=registration_commit,
         catalog_sha256=catalog_sha256,
         run_id=run_id,
@@ -1426,7 +1447,7 @@ def _checkpoint_payload(
     )
     return {
         "schema_version": "izanagi-axis1-search-checkpoint/v2",
-        "registration_epoch": str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+        "registration_epoch": str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
         "registration_commit": registration_commit,
         "catalog_path": catalog_path,
         "catalog_sha256": catalog_sha256,
@@ -1669,7 +1690,7 @@ def _run_leaf_impl(
             checkpoint = write_checkpoint(bundle / "checkpoints", payload)
             finalize_bundle(
                 bundle,
-                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                 registration_commit=registration_commit,
                 catalog_sha256=catalog_sha256,
             )
@@ -1715,7 +1736,7 @@ def _run_leaf_impl(
                     checkpoint = write_checkpoint(bundle / "checkpoints", payload)
                     finalize_bundle(
                         bundle,
-                        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                         registration_commit=registration_commit,
                         catalog_sha256=catalog_sha256,
                     )
@@ -1808,7 +1829,7 @@ def _run_leaf_impl(
                     leaf_query_id,
                     pass_number,
                     occurrences,
-                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                     registration_commit=registration_commit,
                     catalog_sha256=catalog_sha256,
                     run_id=run_id,
@@ -1870,7 +1891,7 @@ def _run_leaf_impl(
                     leaf_query_id,
                     pass_number,
                     occurrences,
-                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                     registration_commit=registration_commit,
                     catalog_sha256=catalog_sha256,
                     run_id=run_id,
@@ -1938,7 +1959,7 @@ def _run_leaf_impl(
             restart_dblp = index == "dblp" and _reserve_dblp_restart(runtime_state_path)
             finalize_bundle(
                 bundle,
-                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                 registration_commit=registration_commit,
                 catalog_sha256=catalog_sha256,
             )
@@ -1994,7 +2015,7 @@ def _run_leaf_impl(
                 leaf_query_id,
                 pass_number,
                 occurrences,
-                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                 registration_commit=registration_commit,
                 catalog_sha256=catalog_sha256,
                 run_id=run_id,
@@ -2024,7 +2045,7 @@ def _run_leaf_impl(
             )
             finalize_bundle(
                 bundle,
-                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                 registration_commit=registration_commit,
                 catalog_sha256=catalog_sha256,
             )
@@ -2054,7 +2075,7 @@ def _run_leaf_impl(
             leaf_query_id,
             pass_number,
             occurrences,
-            registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+            registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
             registration_commit=registration_commit,
             catalog_sha256=catalog_sha256,
             run_id=run_id,
@@ -2143,7 +2164,7 @@ def _run_leaf_impl(
             finalize_bundle(
                 bundle,
                 registration_epoch=str(
-                    _get(catalog, "registration_epoch", "AX1-20260829-E1")
+                    _get(catalog, "registration_epoch", "AX1-20260902-E1")
                 ),
                 registration_commit=registration_commit,
                 catalog_sha256=catalog_sha256,
@@ -2160,7 +2181,7 @@ def _run_leaf_impl(
         if failure_result is not None:
             finalize_bundle(
                 bundle,
-                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                 registration_commit=registration_commit,
                 catalog_sha256=catalog_sha256,
             )
@@ -2225,7 +2246,7 @@ def _run_leaf_impl(
                 checkpoint = write_checkpoint(bundle / "checkpoints", payload)
                 finalize_bundle(
                     bundle,
-                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                    registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                     registration_commit=registration_commit,
                     catalog_sha256=catalog_sha256,
                 )
@@ -2241,7 +2262,7 @@ def _run_leaf_impl(
             reason = next((item.reason_code for item in leaf_results if not item.passed), None)
             finalize_bundle(
                 bundle,
-                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+                registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
                 registration_commit=registration_commit,
                 catalog_sha256=catalog_sha256,
             )
@@ -2259,7 +2280,7 @@ def _run_leaf_impl(
     )
     finalize_bundle(
         bundle,
-        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260829-E1")),
+        registration_epoch=str(_get(catalog, "registration_epoch", "AX1-20260902-E1")),
         registration_commit=registration_commit,
         catalog_sha256=catalog_sha256,
     )
