@@ -25,6 +25,7 @@ from orchestrator.campaign import attempt_registry_core as core  # noqa: E402
 from orchestrator.campaign import s8b_attempt_profile as profile8b  # noqa: E402
 from orchestrator.campaign import s8b_attempt_registry as registry  # noqa: E402
 from orchestrator.campaign import s8b_holdout_admission as admission  # noqa: E402
+from orchestrator.campaign import s8b_scheduler_accounting as scheduler  # noqa: E402
 from orchestrator.campaign.s8b_holdout_freeze import (  # noqa: E402
     RMW_KEY,
     RRATIO_KEY,
@@ -100,6 +101,87 @@ def _slot(
             core.canonical_json_bytes(identity)
         ).hexdigest(),
     )
+
+
+def _v2_slot(
+    repetition: int,
+    measurement_ordinal: int = 0,
+    attempt_ordinal: int = 0,
+    *,
+    configuration_id: str = "configuration-a",
+) -> profile8b.S8BV2AttemptSlot:
+    identity = {
+        "freeze_holdout_key": "holdout-a",
+        "configuration_id": configuration_id,
+        "repetition": repetition,
+        "measurement_ordinal": measurement_ordinal,
+        "attempt_ordinal": attempt_ordinal,
+    }
+    return profile8b.S8BV2AttemptSlot(
+        **identity,
+        schedule_row_sha256=hashlib.sha256(
+            core.canonical_json_bytes(identity)
+        ).hexdigest(),
+    )
+
+
+def _v2_authority_profile(
+    *, budget: int = 10,
+) -> core.DomainProfile[Any, Any]:
+    return profile8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=budget,
+        recovery_authority_id=scheduler.AUTHORITY_ID,
+        recovery_authority_policy_sha256=scheduler.AUTHORITY_POLICY_SHA256,
+    )
+
+
+def _write_v2_generation(
+    repo: Path,
+    *,
+    protocol_sha256: str,
+    budget: int = 10,
+    start_count: int = 0,
+    path_protocol_sha256: str | None = None,
+    profile: core.DomainProfile[Any, Any] | None = None,
+) -> tuple[
+    Path,
+    core.DomainProfile[Any, Any],
+    profile8b.S8BAttemptBinding,
+    core.RegistryRows,
+]:
+    generation_profile = (
+        _v2_authority_profile(budget=budget) if profile is None else profile
+    )
+    binding = replace(_BINDING, protocol_sha256=protocol_sha256)
+    slots = [_v2_slot(index) for index in range(max(1, start_count))]
+    rows = core.create_attempt_registry_genesis(
+        profile=generation_profile,
+        slots=slots,
+        binding=binding,
+    )
+    for slot in slots[:start_count]:
+        rows = core.reserve_attempt_slot(
+            rows,
+            profile=generation_profile,
+            freeze_id=_FREEZE,
+            slot_id=generation_profile.slot_codec.slot_id(slot),
+            binding=binding,
+            run_start_receipt_sha256=_RUN_START,
+            process_identity=_PROCESS,
+            started_at="2026-08-25T00:00:00+00:00",
+        )
+    path = registry.registry_path(
+        repo,
+        freeze_sha256=_FREEZE,
+        protocol_sha256=(
+            protocol_sha256
+            if path_protocol_sha256 is None
+            else path_protocol_sha256
+        ),
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_bytes(rows))
+    return path, generation_profile, binding, rows
 
 
 def _bytes(rows: tuple[dict[str, Any], ...]) -> bytes:
@@ -1758,6 +1840,518 @@ def test_adapter_preserves_caller_repetition_without_derivation(
         assert set(values) == set(sentinels)
     source = Path(registry.__file__).read_text(encoding="utf-8")
     _assert_adapter_has_no_repetition_derivation(source)
+
+
+def test_registry_path_adds_optional_protocol_generation_without_changing_v1(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    root = admission.shared_admission_root(repo)
+    canonical = registry.registry_path(repo, freeze_sha256=_FREEZE)
+    generated = registry.registry_path(
+        repo,
+        freeze_sha256=_FREEZE,
+        protocol_sha256=_PROTOCOL,
+    )
+    assert canonical == (
+        root / "floor-attempt-registries" / _FREEZE / "registry.jsonl"
+    )
+    assert generated == (
+        root
+        / "floor-attempt-registries"
+        / _FREEZE
+        / _PROTOCOL
+        / "registry.jsonl"
+    )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=r"^\[s8b-attempt-registry-schema\] protocol_sha256 is not a SHA-256 digest$",
+    ):
+        registry.registry_path(
+            repo,
+            freeze_sha256=_FREEZE,
+            protocol_sha256="not-a-digest",
+        )
+    assert registry.registry_path(repo, freeze_sha256=_FREEZE) == canonical
+
+
+def test_canonical_v1_lifecycle_ignores_non_generation_sibling(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    sibling = path.parent / "consumption-catalog.jsonl"
+    sibling.write_bytes(b'{"event": "catalog"}\n')
+    root = admission.shared_admission_root(repo)
+    with admission._locked(root):
+        assert registry._registry_generation_paths_locked(root, _FREEZE) == (
+            path,
+        )
+
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(repo, slot, classified)
+    _terminal(captured)
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]["event"] == "terminal"
+
+
+@pytest.mark.parametrize(
+    "unsafe_kind",
+    ["directory-symlink", "non-directory", "missing-registry", "registry-symlink"],
+)
+def test_generation_enumerator_rejects_unsafe_hex_authority_and_accepts_real_one(
+    tmp_path: Path,
+    unsafe_kind: str,
+) -> None:
+    repo = _repo(tmp_path / unsafe_kind)
+    profile = _profile()
+    slot = _slot()
+    canonical = _create(repo, profile, [slot])
+    root = admission.shared_admission_root(repo)
+    protocol = "a" * 64
+    generation = canonical.parent / protocol
+    outside = tmp_path / f"outside-{unsafe_kind}"
+
+    if unsafe_kind == "directory-symlink":
+        outside.mkdir()
+        generation.symlink_to(outside, target_is_directory=True)
+    elif unsafe_kind == "non-directory":
+        generation.write_bytes(b"not-a-directory\n")
+    else:
+        generation.mkdir()
+        if unsafe_kind == "registry-symlink":
+            outside.write_bytes(b"not-a-registry\n")
+            (generation / "registry.jsonl").symlink_to(outside)
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=(
+            "generation directory is unsafe or incomplete"
+            if unsafe_kind != "registry-symlink"
+            else "durable path is not a regular file: registry.jsonl"
+        ),
+    ):
+        _reserve(repo, profile, slot)
+
+    if generation.is_symlink() or generation.is_file():
+        generation.unlink()
+    else:
+        registry_file = generation / "registry.jsonl"
+        if registry_file.is_symlink():
+            registry_file.unlink()
+    _write_v2_generation(repo, protocol_sha256=protocol)
+    with admission._locked(root):
+        assert registry._registry_generation_paths_locked(root, _FREEZE) == (
+            canonical,
+            generation / "registry.jsonl",
+        )
+    assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def _assert_complete_generation_symlink_rejected(
+    *,
+    root: Path,
+    generation_directory: Path,
+) -> None:
+    with admission._locked(root):
+        try:
+            registry._registry_generation_paths_locked(root, _FREEZE)
+        except registry.S8BAttemptRegistryError as exc:
+            assert str(exc) == (
+                "[s8b-attempt-registry-storage] "
+                "generation directory is unsafe or incomplete"
+            )
+        except admission.HoldoutAdmissionError as exc:
+            assert str(exc) == (
+                f"guarded writer path is symlinked: {generation_directory}"
+            )
+        else:
+            pytest.fail("complete generation directory symlink was enumerated")
+
+
+def test_complete_generation_directory_symlink_is_rejected_but_real_directory_mutates(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    canonical = _create(repo, profile, [slot])
+    protocol = "a" * 64
+    generation, _generation_profile, _binding, rows = _write_v2_generation(
+        repo,
+        protocol_sha256=protocol,
+        start_count=1,
+    )
+    generation_directory = generation.parent
+    complete_target = tmp_path / "complete-generation-target"
+    generation_directory.rename(complete_target)
+    generation_directory.symlink_to(complete_target, target_is_directory=True)
+    assert (complete_target / "registry.jsonl").read_bytes() == _bytes(rows)
+
+    root = admission.shared_admission_root(repo)
+    _assert_complete_generation_symlink_rejected(
+        root=root,
+        generation_directory=generation_directory,
+    )
+
+    generation_directory.unlink()
+    complete_target.rename(generation_directory)
+    assert generation.read_bytes() == _bytes(rows)
+    with admission._locked(root):
+        assert registry._registry_generation_paths_locked(root, _FREEZE) == (
+            canonical,
+            generation,
+        )
+    assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def test_unchecked_generation_symlink_would_double_count_one_registry_budget(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    canonical = _create(repo, profile, [_slot()])
+    real_registry, generation_profile, binding, _rows = _write_v2_generation(
+        repo,
+        protocol_sha256="a" * 64,
+        start_count=5,
+    )
+    alias_directory = canonical.parent / ("b" * 64)
+    alias_directory.symlink_to(
+        real_registry.parent,
+        target_is_directory=True,
+    )
+    alias_registry = alias_directory / "registry.jsonl"
+    root = admission.shared_admission_root(repo)
+    _assert_complete_generation_symlink_rejected(
+        root=root,
+        generation_directory=alias_directory,
+    )
+
+    original_is_symlink = Path.is_symlink
+    original_is_directory_mode = stat.S_ISDIR
+
+    def hide_generation_symlink(path: Path) -> bool:
+        if path == alias_directory:
+            return False
+        return original_is_symlink(path)
+
+    def accept_symlink_directory_mode(mode: int) -> bool:
+        return stat.S_ISLNK(mode) or original_is_directory_mode(mode)
+
+    monkeypatch.setattr(Path, "is_symlink", hide_generation_symlink)
+    monkeypatch.setattr(stat, "S_ISDIR", accept_symlink_directory_mode)
+    monkeypatch.setattr(
+        admission,
+        "_assert_no_symlink_components",
+        lambda _path: None,
+    )
+
+    with admission._locked(root):
+        generations = registry._registry_generation_paths_locked(root, _FREEZE)
+    assert generations == (canonical, real_registry, alias_registry)
+    assert os.path.samefile(real_registry, alias_registry)
+
+    budget_key_for = generation_profile.transition_policy.budget_key
+    assert budget_key_for is not None
+    budget_key = budget_key_for(_v2_slot(0))
+    counts: core.BudgetCounts = {}
+    observed_counts: list[int] = []
+    for generation_path in (real_registry, alias_registry):
+        _loaded, counts = core.load_attempt_registry_with_budget_counts(
+            generation_path.read_bytes(),
+            profile=generation_profile,
+            expected_binding=binding,
+            initial_started_budget_counts=counts,
+        )
+        observed_counts.append(counts[budget_key])
+    assert observed_counts == [5, 10]
+
+
+def test_generation_resolver_rejects_stale_recovery_policy_and_accepts_current(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    stale_profile = profile8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+    stale_path, _stale, _binding, _rows = _write_v2_generation(
+        repo,
+        protocol_sha256="a" * 64,
+        profile=stale_profile,
+    )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=(
+            "generation recovery policy differs from current authority"
+        ),
+    ):
+        _reserve(repo, profile, slot)
+
+    stale_path.unlink()
+    _write_v2_generation(repo, protocol_sha256="a" * 64)
+    assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def test_generation_resolver_rejects_protocol_path_mismatch_and_accepts_match(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    declared_protocol = "a" * 64
+    path_protocol = "b" * 64
+    mismatched, _generation_profile, _binding, rows = _write_v2_generation(
+        repo,
+        protocol_sha256=declared_protocol,
+        path_protocol_sha256=path_protocol,
+    )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="generation protocol differs from genesis",
+    ):
+        _reserve(repo, profile, slot)
+
+    mismatched.unlink()
+    mismatched.parent.rmdir()
+    matched = registry.registry_path(
+        repo,
+        freeze_sha256=_FREEZE,
+        protocol_sha256=declared_protocol,
+    )
+    matched.parent.mkdir(parents=True)
+    matched.write_bytes(_bytes(rows))
+    assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def test_generation_resolver_rejects_unknown_schema_and_accepts_known_v2(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    path, _generation_profile, _binding, rows = _write_v2_generation(
+        repo, protocol_sha256="a" * 64,
+    )
+    genesis_payload = {
+        key: value
+        for key, value in rows[0].items()
+        if key not in {
+            "event_index", "previous_event_sha256", "event_sha256",
+        }
+    }
+    genesis_payload["schema_version"] = "s8b-floor-attempt-registry/v3"
+    unknown = core.chained_event_row(
+        genesis_payload,
+        event_index=0,
+        previous_event_sha256="0" * 64,
+    )
+    path.write_bytes(_bytes((unknown,)))
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="generation profile is not reconstructible",
+    ):
+        _reserve(repo, profile, slot)
+
+    path.write_bytes(_bytes(rows))
+    assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def test_generation_resolver_accepts_canonical_v1_current_authority(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = profile8b.make_s8b_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=scheduler.AUTHORITY_ID,
+        recovery_authority_policy_sha256=scheduler.AUTHORITY_POLICY_SHA256,
+    )
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    genesis = registry._peek_registry_genesis(path.read_bytes())
+    reconstructed, binding = registry._profile_and_binding_for_generation(
+        path=path, genesis=genesis,
+    )
+    assert reconstructed.schema is profile8b.S8B_SCHEMA_PROFILE
+    assert reconstructed.layout is profile8b.S8B_REGISTRY_LAYOUT
+    assert binding == _BINDING
+    assert core.load_attempt_registry(
+        path.read_bytes(),
+        profile=reconstructed,
+        expected_binding=binding,
+    )[0] == genesis
+
+    synthetic_binding = replace(_BINDING, protocol_sha256="a" * 64)
+    synthetic_profile = replace(
+        profile, layout=profile8b.S8B_V2_REGISTRY_LAYOUT,
+    )
+    synthetic_rows = core.create_attempt_registry_genesis(
+        profile=synthetic_profile,
+        slots=[slot],
+        binding=synthetic_binding,
+    )
+    synthetic_path = registry.registry_path(
+        repo,
+        freeze_sha256=_FREEZE,
+        protocol_sha256=synthetic_binding.protocol_sha256,
+    )
+    synthetic_path.parent.mkdir(parents=True)
+    synthetic_path.write_bytes(_bytes(synthetic_rows))
+    synthetic_genesis = registry._peek_registry_genesis(
+        synthetic_path.read_bytes()
+    )
+    synthetic_reconstructed, recovered_binding = (
+        registry._profile_and_binding_for_generation(
+            path=synthetic_path,
+            genesis=synthetic_genesis,
+        )
+    )
+    assert synthetic_reconstructed.schema is profile8b.S8B_SCHEMA_PROFILE
+    assert synthetic_reconstructed.layout is profile8b.S8B_V2_REGISTRY_LAYOUT
+    assert recovered_binding == synthetic_binding
+    assert core.load_attempt_registry(
+        synthetic_path.read_bytes(),
+        profile=synthetic_reconstructed,
+        expected_binding=recovered_binding,
+    ) == synthetic_rows
+    v2_path, _v2_profile, _v2_binding, _v2_rows = _write_v2_generation(
+        repo, protocol_sha256="b" * 64,
+    )
+    root = admission.shared_admission_root(repo)
+    with admission._locked(root):
+        assert registry._registry_generation_paths_locked(root, _FREEZE) == (
+            path,
+            synthetic_path,
+            v2_path,
+        )
+
+
+def test_cross_generation_budget_accepts_tenth_and_rejects_eleventh_before_staging(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile(budget=10)
+    first = _slot(0, configuration_id="configuration-a")
+    second = _slot(1, configuration_id="configuration-a")
+    path = _create(repo, profile, [first, second])
+    generation, _v2_profile, _binding, _rows = _write_v2_generation(
+        repo,
+        protocol_sha256="a" * 64,
+        budget=10,
+        start_count=9,
+    )
+    assert generation.is_file()
+
+    assert type(_reserve(repo, profile, first)) is registry.ReservedAttempt
+    replayed = core.load_attempt_registry(path.read_bytes(), profile=profile)
+    assert sum(row.get("event") == "start" for row in replayed) == 1
+
+    def forbidden_staging(*_args: object, **_kwargs: object) -> Path:
+        raise AssertionError("budget rejection reached staging")
+
+    monkeypatch.setattr(registry, "_write_staging", forbidden_staging)
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[attempt-slot-order\] attempt consumption exceeds "
+            r"the profile budget$"
+        ),
+    ):
+        _reserve(repo, profile, second)
+    assert sum(
+        row.get("event") == "start"
+        for row in core.load_attempt_registry(path.read_bytes(), profile=profile)
+    ) == 1
+
+
+def test_locked_update_seam_does_not_reacquire_lock_or_run_prelock_hook(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    root = admission.shared_admission_root(repo)
+    snapshots: list[bytes] = []
+    monkeypatch.setattr(
+        registry, "_PRELOCK_SNAPSHOT_HOOK", snapshots.append,
+    )
+
+    with admission._locked(root) as lock:
+        rows, result = registry._atomic_update_locked(
+            lock,
+            root=root,
+            path=path,
+            profile=profile,
+            binding=_BINDING,
+            transition=lambda current: (current, "locked"),
+        )
+    assert result == "locked"
+    assert rows == core.load_attempt_registry(path.read_bytes(), profile=profile)
+    assert snapshots == []
+
+    _rows, outer_result = registry._atomic_update(
+        root=root,
+        path=path,
+        profile=profile,
+        binding=_BINDING,
+        transition=lambda current: (current, "outer"),
+    )
+    assert outer_result == "outer"
+    assert snapshots == [path.read_bytes()]
+
+
+def test_v2_profile_is_rejected_by_public_mutation_but_slot_lookup_is_five_axis(
+    tmp_path: Path,
+) -> None:
+    v2_profile = _v2_authority_profile()
+    first = _v2_slot(0, measurement_ordinal=0)
+    second = _v2_slot(0, measurement_ordinal=1)
+    rows = [
+        {
+            "schema_version": v2_profile.schema.current,
+            "event": "start",
+            **v2_profile.slot_codec.to_json(first),
+        },
+        {
+            "schema_version": v2_profile.schema.current,
+            "event": "start",
+            **v2_profile.slot_codec.to_json(second),
+        },
+    ]
+    assert registry._rows_for_event(
+        rows, slot=first, event="start", profile=v2_profile,
+    ) == [rows[0]]
+    assert registry._rows_for_event(
+        rows, slot=second, event="start", profile=v2_profile,
+    ) == [rows[1]]
+
+    repo = _repo(tmp_path / "repo")
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="domain profile differs from frozen 8b semantics",
+    ):
+        registry.create_attempt_registry(
+            repo,
+            profile=v2_profile,
+            slots=[first, second],
+            binding=_BINDING,
+        )
+    assert _create(repo, _profile(), [_slot()]).is_file()
 
 
 if __name__ == "__main__":

@@ -2063,5 +2063,166 @@ def test_facade_rebinding_guard_rejects_c03_blind_synthetic_source() -> None:
     )
 
 
+@pytest.mark.parametrize("invalid_count", [True, -1, 1.5])
+def test_seeded_budget_replay_rejects_invalid_counts_and_accepts_exact_limit(
+    invalid_count: object,
+) -> None:
+    profile = _profile(budget=10)
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    payload = _registry_bytes(rows)
+    budget_key = (slot.freeze_holdout_key, slot.configuration_id)
+
+    _assert_core_rejection(
+        "[attempt-slot-order] initial started budget count is invalid",
+        lambda: core.load_attempt_registry_with_budget_counts(
+            payload,
+            profile=profile,
+            expected_binding=_BINDING,
+            initial_started_budget_counts={budget_key: invalid_count},
+        ),
+    )
+
+    seed = {budget_key: 9}
+    replayed, counts = core.load_attempt_registry_with_budget_counts(
+        payload,
+        profile=profile,
+        expected_binding=_BINDING,
+        initial_started_budget_counts=seed,
+    )
+    assert replayed == rows
+    assert counts == {budget_key: 10}
+    assert seed == {budget_key: 9}
+
+
+def test_seeded_budget_replay_rejects_eleventh_start_and_old_apis_are_unchanged(
+) -> None:
+    profile = _profile(budget=10)
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    payload = _registry_bytes(rows)
+    budget_key = (slot.freeze_holdout_key, slot.configuration_id)
+
+    _assert_core_rejection(
+        "[attempt-slot-order] attempt consumption exceeds the profile budget",
+        lambda: core.load_attempt_registry_with_budget_counts(
+            payload,
+            profile=profile,
+            initial_started_budget_counts={budget_key: 10},
+        ),
+    )
+    assert core.assert_registry_rows(rows, profile=profile) == rows
+    assert core.load_attempt_registry(payload, profile=profile) == rows
+    assert "initial_started_budget_counts" not in inspect.signature(
+        core.assert_registry_rows
+    ).parameters
+    assert "initial_started_budget_counts" not in inspect.signature(
+        core.load_attempt_registry
+    ).parameters
+
+    _assert_core_rejection(
+        "[attempt-slot-order] initial started budget counts are not a mapping",
+        lambda: core.load_attempt_registry_with_budget_counts(
+            payload,
+            profile=profile,
+            initial_started_budget_counts=[],  # type: ignore[arg-type]
+        ),
+    )
+    empty_replay, empty_counts = core.load_attempt_registry_with_budget_counts(
+        _registry_bytes(_genesis(profile, [slot])),
+        profile=profile,
+        initial_started_budget_counts={},
+    )
+    assert empty_replay[0]["event"] == "freeze"
+    assert empty_counts == {}
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    [("measurement_ordinal", True), ("attempt_ordinal", -1)],
+)
+def test_v2_slot_codec_rejects_invalid_ordinals_and_accepts_five_axis_identity(
+    field: str,
+    invalid: object,
+) -> None:
+    value = {
+        "freeze_holdout_key": "holdout-a",
+        "configuration_id": "configuration-a",
+        "repetition": 2,
+        "measurement_ordinal": 3,
+        "attempt_ordinal": 4,
+        "schedule_row_sha256": _SCHEDULE,
+    }
+    rejected = {**value, field: invalid}
+    _assert_core_rejection(
+        f"[attempt-registry-schema] v2 slot.{field} is not a nonnegative integer",
+        lambda: s8b.S8B_V2_SLOT_CODEC.parse(rejected, label="v2 slot"),
+    )
+
+    slot = s8b.S8B_V2_SLOT_CODEC.parse(value, label="v2 slot")
+    assert s8b.S8B_V2_SLOT_CODEC.to_json(slot) == value
+    assert s8b.S8B_V2_SLOT_CODEC.slot_id(slot) == (
+        "holdout-a", "configuration-a", 2, 3, 4,
+    )
+    assert s8b.S8B_V2_SLOT_CODEC.series_key(slot) == (
+        "holdout-a", "configuration-a", 2, 3,
+    )
+
+
+def test_v2_profile_is_additive_empty_retryable_and_budgeted_by_cell() -> None:
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[attempt-registry-profile\] "
+            r"8b cell consumption budget is invalid$"
+        ),
+    ):
+        s8b.make_s8b_v2_domain_profile(
+            max_consumptions_per_budget_key=-1,
+            recovery_authority_id=_RECOVERY_AUTHORITY,
+            recovery_authority_policy_sha256=_POLICY,
+        )
+    profile = s8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+    slot = s8b.S8BV2AttemptSlot(
+        freeze_holdout_key="holdout-a",
+        configuration_id="configuration-a",
+        repetition=2,
+        measurement_ordinal=3,
+        attempt_ordinal=4,
+        schedule_row_sha256=_SCHEDULE,
+    )
+    assert profile.schema is s8b.S8B_V2_SCHEMA_PROFILE
+    assert profile.schema.current == "s8b-floor-attempt-registry/v2"
+    assert profile.layout is s8b.S8B_V2_REGISTRY_LAYOUT
+    assert profile.layout.registry_path.as_posix() == (
+        "floor-attempt-registries/{freeze_sha256}/"
+        "{protocol_sha256}/registry.jsonl"
+    )
+    assert profile.retryable_reasons == frozenset()
+    assert s8b.S8B_V2_RETRYABLE_FAILURE_REASONS == frozenset()
+    assert profile.transition_policy.budget_key is not None
+    assert profile.transition_policy.budget_key(slot) == (
+        "holdout-a", "configuration-a",
+    )
+    event_keys = profile.schema.event_keys[profile.schema.current]
+    assert all("measurement_ordinal" in keys for keys in event_keys.values())
+    assert s8b.S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION == (
+        "s8b-floor-attempt-registry/v1"
+    )
+    assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()
+
+
+def test_serialize_session_line_uses_spaced_sorted_utf8_json_and_newline() -> None:
+    with pytest.raises(ValueError, match="Out of range float values"):
+        s8b.serialize_session_line({"value": float("nan")})
+    assert s8b.serialize_session_line({"z": "雪", "a": 1}) == (
+        b'{"a": 1, "z": "\xe9\x9b\xaa"}\n'
+    )
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))

@@ -32,6 +32,7 @@ import weakref
 from . import attempt_registry_core as core
 from . import s8b_attempt_profile as profile8b
 from . import s8b_holdout_admission as admission
+from . import s8b_scheduler_accounting as scheduler_accounting
 
 
 class S8BAttemptRegistryError(RuntimeError):
@@ -448,11 +449,22 @@ def _assert_profile(
     return profile
 
 
-def _relative_registry_path(freeze_sha256: str) -> PurePosixPath:
+def _relative_registry_path(
+    freeze_sha256: str,
+    protocol_sha256: str | None = None,
+) -> PurePosixPath:
     freeze_sha256 = _sha256(freeze_sha256, label="freeze_sha256")
-    template = profile8b.S8B_REGISTRY_LAYOUT.registry_path
+    context = {"freeze_sha256": freeze_sha256}
+    if protocol_sha256 is None:
+        template = profile8b.S8B_REGISTRY_LAYOUT.registry_path
+    else:
+        protocol_sha256 = _sha256(
+            protocol_sha256, label="protocol_sha256",
+        )
+        context["protocol_sha256"] = protocol_sha256
+        template = profile8b.S8B_V2_REGISTRY_LAYOUT.registry_path
     rendered = PurePosixPath(
-        template.as_posix().format(freeze_sha256=freeze_sha256)
+        template.as_posix().format_map(context)
     )
     if rendered.is_absolute() or ".." in rendered.parts:
         _fail("s8b-attempt-registry-path", "registry layout is not relative")
@@ -463,13 +475,16 @@ def _entry_paths(
     repo_root: Path,
     *,
     freeze_sha256: str,
+    protocol_sha256: str | None = None,
     requested_registry_path: Path | None = None,
 ) -> tuple[Path, Path]:
     # Provisioning is part of every adapter entry.  In particular, it creates
     # the lock inode before the private shared lock is opened.
     root = admission.provision_shared_admission_root(Path(repo_root))
     _fsync_shared_root_chain(root)
-    relative = _relative_registry_path(freeze_sha256)
+    relative = _relative_registry_path(
+        freeze_sha256, protocol_sha256=protocol_sha256,
+    )
     registry = root.joinpath(*relative.parts)
     if requested_registry_path is not None:
         requested = Path(os.path.abspath(os.fspath(requested_registry_path)))
@@ -482,11 +497,18 @@ def _entry_paths(
     return root, registry
 
 
-def registry_path(repo_root: Path, *, freeze_sha256: str) -> Path:
-    """Return the only accepted path for one freeze-wide 8b registry."""
+def registry_path(
+    repo_root: Path,
+    *,
+    freeze_sha256: str,
+    protocol_sha256: str | None = None,
+) -> Path:
+    """Return the canonical path for one freeze and optional generation."""
 
     _root, path = _entry_paths(
-        Path(repo_root), freeze_sha256=freeze_sha256,
+        Path(repo_root),
+        freeze_sha256=freeze_sha256,
+        protocol_sha256=protocol_sha256,
     )
     return path
 
@@ -559,6 +581,189 @@ def _read_regular_bytes(path: Path, *, missing_ok: bool = False) -> bytes | None
         return b"".join(chunks)
     finally:
         os.close(fd)
+
+
+def _peek_registry_genesis(data: bytes) -> Mapping[str, Any]:
+    first_line, separator, _remainder = data.partition(b"\n")
+    if not separator or not first_line:
+        _fail(
+            "s8b-attempt-registry-canonical",
+            "attempt registry genesis is not newline terminated",
+        )
+    return _canonical_document(
+        first_line + b"\n", label="attempt registry genesis",
+    )
+
+
+def _registry_generation_paths_locked(
+    root: Path,
+    freeze_sha256: str,
+) -> tuple[Path, ...]:
+    freeze_sha256 = _sha256(freeze_sha256, label="freeze_sha256")
+    freeze_directory = root / "floor-attempt-registries" / freeze_sha256
+    admission._assert_no_symlink_components(freeze_directory.parent)
+    try:
+        freeze_stat = freeze_directory.lstat()
+    except FileNotFoundError:
+        _fail(
+            "s8b-attempt-registry-storage",
+            "freeze generation directory is absent",
+        )
+    except OSError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-storage] cannot inspect freeze generation directory"
+        ) from exc
+    if freeze_directory.is_symlink() or not stat.S_ISDIR(freeze_stat.st_mode):
+        _fail(
+            "s8b-attempt-registry-storage",
+            "freeze generation directory is unsafe",
+        )
+
+    generations: list[Path] = []
+    canonical = freeze_directory / "registry.jsonl"
+    try:
+        canonical.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-storage] cannot inspect registry.jsonl"
+        ) from exc
+    else:
+        _read_regular_bytes(canonical)
+        generations.append(canonical)
+
+    try:
+        siblings = sorted(freeze_directory.iterdir(), key=lambda item: item.name)
+    except OSError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-storage] cannot enumerate registry generations"
+        ) from exc
+    for sibling in siblings:
+        name = sibling.name
+        if len(name) != 64 or any(
+            character not in "0123456789abcdef" for character in name
+        ):
+            continue
+        try:
+            sibling_stat = sibling.lstat()
+        except OSError as exc:
+            raise S8BAttemptRegistryError(
+                "[s8b-attempt-registry-storage] cannot inspect generation directory"
+            ) from exc
+        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):
+            _fail(
+                "s8b-attempt-registry-storage",
+                "generation directory is unsafe or incomplete",
+            )
+        registry = sibling / "registry.jsonl"
+        try:
+            registry.lstat()
+        except FileNotFoundError:
+            _fail(
+                "s8b-attempt-registry-storage",
+                "generation directory is unsafe or incomplete",
+            )
+        except OSError as exc:
+            raise S8BAttemptRegistryError(
+                "[s8b-attempt-registry-storage] cannot inspect generation registry"
+            ) from exc
+        _read_regular_bytes(registry)
+        generations.append(registry)
+    return tuple(generations)
+
+
+def _profile_and_binding_for_generation(
+    *,
+    path: Path,
+    genesis: Mapping[str, Any],
+) -> tuple[
+    core.DomainProfile[Any, profile8b.S8BAttemptBinding],
+    profile8b.S8BAttemptBinding,
+]:
+    try:
+        binding = profile8b.S8B_BINDING_CODEC.parse(
+            genesis, label="attempt registry genesis",
+        )
+        budget = genesis.get("max_consumptions_per_budget_key")
+        schema_version = genesis.get("schema_version")
+        canonical_relative = _relative_registry_path(binding.freeze_sha256)
+        generation_relative = _relative_registry_path(
+            binding.freeze_sha256,
+            protocol_sha256=binding.protocol_sha256,
+        )
+        root_path = genesis.get("root_path")
+        if schema_version == profile8b.S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            candidate = profile8b.make_s8b_domain_profile(
+                max_consumptions_per_budget_key=budget,
+                recovery_authority_id=scheduler_accounting.AUTHORITY_ID,
+                recovery_authority_policy_sha256=(
+                    scheduler_accounting.AUTHORITY_POLICY_SHA256
+                ),
+            )
+            if root_path == canonical_relative.as_posix():
+                relative = canonical_relative
+            elif root_path == generation_relative.as_posix():
+                relative = generation_relative
+                candidate = replace(
+                    candidate, layout=profile8b.S8B_V2_REGISTRY_LAYOUT,
+                )
+            else:
+                _fail(
+                    "s8b-attempt-registry-profile",
+                    "generation profile is not reconstructible",
+                )
+        elif schema_version == profile8b.S8B_V2_ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            candidate = profile8b.make_s8b_v2_domain_profile(
+                max_consumptions_per_budget_key=budget,
+                recovery_authority_id=scheduler_accounting.AUTHORITY_ID,
+                recovery_authority_policy_sha256=(
+                    scheduler_accounting.AUTHORITY_POLICY_SHA256
+                ),
+            )
+            relative = generation_relative
+            if root_path != relative.as_posix():
+                _fail(
+                    "s8b-attempt-registry-profile",
+                    "generation profile is not reconstructible",
+                )
+        else:
+            _fail(
+                "s8b-attempt-registry-profile",
+                "generation profile is not reconstructible",
+            )
+    except S8BAttemptRegistryError:
+        raise
+    except core.AttemptRegistryCoreError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-profile] generation profile is not reconstructible"
+        ) from exc
+
+    if tuple(path.parts[-len(relative.parts):]) != relative.parts:
+        if relative == generation_relative:
+            _fail(
+                "s8b-attempt-registry-path",
+                "generation protocol differs from genesis",
+            )
+        _fail(
+            "s8b-attempt-registry-path",
+            "canonical generation path differs from genesis",
+        )
+    expected_recovery_digest = core._recovery_policy_sha256(candidate)
+    if genesis.get("recovery_policy_sha256") != expected_recovery_digest:
+        _fail(
+            "s8b-attempt-registry-profile",
+            "generation recovery policy differs from current authority",
+        )
+    try:
+        core.assert_registry_rows(
+            (genesis,), profile=candidate, expected_binding=binding,
+        )
+    except core.AttemptRegistryCoreError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-profile] generation profile is not reconstructible"
+        ) from exc
+    return candidate, binding
 
 
 def _canonical_line_bytes(value: Mapping[str, Any]) -> bytes:
@@ -783,28 +988,29 @@ def _slot_from_rows(
 
 
 def _row_is_for_slot(
-    row: Mapping[str, Any], slot: profile8b.S8BAttemptSlot,
+    row: Mapping[str, Any],
+    slot: Any,
+    *,
+    profile: core.DomainProfile[Any, Any],
 ) -> bool:
-    return all(
-        row.get(field) == value
-        for field, value in {
-            "freeze_holdout_key": slot.freeze_holdout_key,
-            "configuration_id": slot.configuration_id,
-            "repetition": slot.repetition,
-            "attempt_ordinal": slot.attempt_ordinal,
-        }.items()
+    return core._row_is_for_slot(
+        row,
+        slot=slot,
+        profile=profile,
     )
 
 
 def _rows_for_event(
     rows: Sequence[Mapping[str, Any]],
     *,
-    slot: profile8b.S8BAttemptSlot,
+    slot: Any,
     event: str,
+    profile: core.DomainProfile[Any, Any],
 ) -> list[Mapping[str, Any]]:
     return [
         row for row in rows
-        if row.get("event") == event and _row_is_for_slot(row, slot)
+        if row.get("event") == event
+        and _row_is_for_slot(row, slot, profile=profile)
     ]
 
 
@@ -981,6 +1187,123 @@ class _ClassificationResult:
 TransitionResultT = TypeVar("TransitionResultT")
 
 
+def _load_other_generation_budget_counts_locked(
+    *,
+    root: Path,
+    current_path: Path,
+    freeze_sha256: str,
+) -> core.BudgetCounts:
+    generations = _registry_generation_paths_locked(root, freeze_sha256)
+    if current_path not in generations:
+        _fail(
+            "s8b-attempt-registry-storage",
+            "current registry is not an enumerated generation",
+        )
+    counts: core.BudgetCounts = {}
+    for generation_path in generations:
+        if generation_path == current_path:
+            continue
+        data = _read_regular_bytes(generation_path)
+        assert data is not None
+        genesis = _peek_registry_genesis(data)
+        generation_profile, generation_binding = (
+            _profile_and_binding_for_generation(
+                path=generation_path, genesis=genesis,
+            )
+        )
+        _rows, counts = core.load_attempt_registry_with_budget_counts(
+            data,
+            profile=generation_profile,
+            expected_binding=generation_binding,
+            initial_started_budget_counts=counts,
+        )
+    return counts
+
+
+def _run_prelock_snapshot_hook(path: Path) -> None:
+    # This read is a concurrency-test rendezvous only.  The authoritative read
+    # is repeated under the root lock by _atomic_update_locked.
+    snapshot = _read_regular_bytes(path)
+    assert snapshot is not None
+    snapshot_hook = _PRELOCK_SNAPSHOT_HOOK
+    if snapshot_hook is not None:
+        snapshot_hook(snapshot)
+
+
+def _atomic_update_locked(
+    lock: admission._AdmissionRootLock,
+    *,
+    root: Path,
+    path: Path,
+    profile: core.DomainProfile[Any, Any],
+    binding: profile8b.S8BAttemptBinding,
+    transition: Callable[
+        [core.RegistryRows], tuple[core.RegistryRows, TransitionResultT]
+    ],
+    prepare: Callable[[TransitionResultT, bytes], None] | None = None,
+) -> tuple[core.RegistryRows, TransitionResultT]:
+    # ``lock`` is intentionally opaque here.  A1' only establishes the seam;
+    # the live-lock guard arrives with the marker-owned call path in A2'.
+    other_counts = _load_other_generation_budget_counts_locked(
+        root=root,
+        current_path=path,
+        freeze_sha256=binding.freeze_sha256,
+    )
+    old_bytes = _read_regular_bytes(path)
+    assert old_bytes is not None
+    _fault("after-authoritative-read")
+    rows, _old_counts = core.load_attempt_registry_with_budget_counts(
+        old_bytes,
+        profile=profile,
+        expected_binding=binding,
+        initial_started_budget_counts=other_counts,
+    )
+    _fault("after-replay")
+    candidate, result = transition(rows)
+    _fault("after-transition")
+    candidate_bytes = _registry_bytes(candidate)
+    validated, _candidate_counts = (
+        core.load_attempt_registry_with_budget_counts(
+            candidate_bytes,
+            profile=profile,
+            expected_binding=binding,
+            initial_started_budget_counts=other_counts,
+        )
+    )
+    _fault("after-candidate-validation")
+    if candidate_bytes == old_bytes:
+        return validated, result
+    if not candidate_bytes.startswith(old_bytes):
+        _fail(
+            "s8b-attempt-registry-append-only",
+            "candidate registry is not a strict extension",
+        )
+    if prepare is not None:
+        prepare(result, candidate_bytes)
+
+    staging: Path | None = None
+    try:
+        logical_name = PurePosixPath(*path.relative_to(root).parts).as_posix()
+        staging = _write_staging(
+            path, candidate_bytes, logical_name=logical_name,
+        )
+        _fault("after-staging-fsync")
+        current = _read_regular_bytes(path)
+        if current != old_bytes:
+            _fail(
+                "s8b-attempt-registry-concurrency",
+                "authoritative registry changed under the root lock",
+            )
+        os.replace(staging, path)
+        staging = None
+        _fault("after-replace")
+        _fsync_directory(path.parent)
+        _fault("after-parent-fsync")
+    finally:
+        _unlink_staging(staging)
+    return validated, result
+
+
 def _atomic_update(
     *,
     root: Path,
@@ -992,60 +1315,17 @@ def _atomic_update(
     ],
     prepare: Callable[[TransitionResultT, bytes], None] | None = None,
 ) -> tuple[core.RegistryRows, TransitionResultT]:
-    # This read is a concurrency-test rendezvous only.  The authoritative read
-    # is repeated under the root lock below.
-    snapshot = _read_regular_bytes(path)
-    assert snapshot is not None
-    snapshot_hook = _PRELOCK_SNAPSHOT_HOOK
-    if snapshot_hook is not None:
-        snapshot_hook(snapshot)
-
-    with admission._locked(root):
-        old_bytes = _read_regular_bytes(path)
-        assert old_bytes is not None
-        _fault("after-authoritative-read")
-        rows = core.load_attempt_registry(
-            old_bytes, profile=profile, expected_binding=binding,
+    _run_prelock_snapshot_hook(path)
+    with admission._locked(root) as lock:
+        return _atomic_update_locked(
+            lock,
+            root=root,
+            path=path,
+            profile=profile,
+            binding=binding,
+            transition=transition,
+            prepare=prepare,
         )
-        _fault("after-replay")
-        candidate, result = transition(rows)
-        _fault("after-transition")
-        candidate_bytes = _registry_bytes(candidate)
-        validated = core.load_attempt_registry(
-            candidate_bytes, profile=profile, expected_binding=binding,
-        )
-        _fault("after-candidate-validation")
-        if candidate_bytes == old_bytes:
-            return validated, result
-        if not candidate_bytes.startswith(old_bytes):
-            _fail(
-                "s8b-attempt-registry-append-only",
-                "candidate registry is not a strict extension",
-            )
-        if prepare is not None:
-            prepare(result, candidate_bytes)
-
-        staging: Path | None = None
-        try:
-            logical_name = PurePosixPath(*path.relative_to(root).parts).as_posix()
-            staging = _write_staging(
-                path, candidate_bytes, logical_name=logical_name,
-            )
-            _fault("after-staging-fsync")
-            current = _read_regular_bytes(path)
-            if current != old_bytes:
-                _fail(
-                    "s8b-attempt-registry-concurrency",
-                    "authoritative registry changed under the root lock",
-                )
-            os.replace(staging, path)
-            staging = None
-            _fault("after-replace")
-            _fsync_directory(path.parent)
-            _fault("after-parent-fsync")
-        finally:
-            _unlink_staging(staging)
-        return validated, result
 
 
 def create_attempt_registry(
@@ -1218,7 +1498,9 @@ def _assert_classification_artifacts(
     desired_fields: Mapping[str, Any] | None = None,
 ) -> tuple[profile8b.S8BAttemptSlot, Mapping[str, Any], bytes, Mapping[str, Any]]:
     slot = _slot_from_rows(rows, profile=profile, slot_id=slot_id)
-    classifications = _rows_for_event(rows, slot=slot, event="classification")
+    classifications = _rows_for_event(
+        rows, slot=slot, event="classification", profile=profile,
+    )
     if len(classifications) != 1:
         _fail(
             "s8b-attempt-registry-classification",
@@ -1322,10 +1604,14 @@ def classify_attempt(
             binding=state.binding,
         )
         desired_fields["capability_digest_sha256"] = capability
-        existing = _rows_for_event(rows, slot=slot, event="classification")
+        existing = _rows_for_event(
+            rows, slot=slot, event="classification", profile=state.profile,
+        )
         if existing:
             if any(
-                _rows_for_event(rows, slot=slot, event=event)
+                _rows_for_event(
+                    rows, slot=slot, event=event, profile=state.profile,
+                )
                 for event in ("observation-start", "terminal", "recovery")
             ):
                 _fail(
@@ -1599,7 +1885,9 @@ def _assert_observation_row(
     state: _AttemptState,
     slot: profile8b.S8BAttemptSlot,
 ) -> Mapping[str, Any]:
-    observations = _rows_for_event(rows, slot=slot, event="observation-start")
+    observations = _rows_for_event(
+        rows, slot=slot, event="observation-start", profile=state.profile,
+    )
     if len(observations) != 1:
         _fail(
             "s8b-attempt-registry-observation",
@@ -1839,19 +2127,27 @@ def resume_attempt(
             payload, profile=profile, expected_binding=binding,
         )
         slot = _slot_from_rows(rows, profile=profile, slot_id=slot_id)
-        if _rows_for_event(rows, slot=slot, event="terminal"):
+        if _rows_for_event(
+            rows, slot=slot, event="terminal", profile=profile,
+        ):
             _fail("s8b-attempt-registry-resume", "terminal slot cannot resume")
-        if _rows_for_event(rows, slot=slot, event="recovery"):
+        if _rows_for_event(
+            rows, slot=slot, event="recovery", profile=profile,
+        ):
             _fail("s8b-attempt-registry-resume", "recovered slot cannot resume")
-        starts = _rows_for_event(rows, slot=slot, event="start")
-        seals = _rows_for_event(rows, slot=slot, event="pre-observation-seal")
+        starts = _rows_for_event(
+            rows, slot=slot, event="start", profile=profile,
+        )
+        seals = _rows_for_event(
+            rows, slot=slot, event="pre-observation-seal", profile=profile,
+        )
         if len(starts) != 1 or len(seals) != 1:
             _fail(
                 "s8b-attempt-registry-resume",
                 "slot does not have exactly one durable start and seal",
             )
         classifications = _rows_for_event(
-            rows, slot=slot, event="classification",
+            rows, slot=slot, event="classification", profile=profile,
         )
         if len(classifications) > 1:
             _fail(
@@ -1963,7 +2259,7 @@ def resume_attempt(
                     _new_handle(ReservedAttempt, state), receipt,
                 )
             observations = _rows_for_event(
-                rows, slot=slot, event="observation-start",
+                rows, slot=slot, event="observation-start", profile=profile,
             )
             if observations:
                 _fail(
@@ -2031,7 +2327,7 @@ def resume_attempt(
                 ),
             )
             observations = _rows_for_event(
-                rows, slot=slot, event="observation-start",
+                rows, slot=slot, event="observation-start", profile=profile,
             )
             if len(observations) > 1:
                 _fail(

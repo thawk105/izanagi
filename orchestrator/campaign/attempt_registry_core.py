@@ -22,6 +22,7 @@ SlotT = TypeVar("SlotT")
 BindingT = TypeVar("BindingT")
 RegistryRow: TypeAlias = dict[str, Any]
 RegistryRows: TypeAlias = tuple[RegistryRow, ...]
+BudgetCounts: TypeAlias = dict[Hashable, int]
 SeriesKey: TypeAlias = tuple[Hashable, ...]
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
@@ -983,12 +984,37 @@ def _assert_null_matrix(
         _fail("attempt-null-matrix", f"{label} not-consumed null matrix differs")
 
 
-def assert_registry_rows(
+def _validated_budget_counts(
+    initial_started_budget_counts: Mapping[Hashable, int] | None,
+) -> BudgetCounts:
+    if initial_started_budget_counts is None:
+        return {}
+    if not isinstance(initial_started_budget_counts, Mapping):
+        _fail(
+            "attempt-slot-order",
+            "initial started budget counts are not a mapping",
+        )
+    counts: BudgetCounts = {}
+    for budget_key, count in initial_started_budget_counts.items():
+        if type(count) is not int or count < 0:
+            _fail(
+                "attempt-slot-order",
+                "initial started budget count is invalid",
+            )
+        counts[budget_key] = count
+    return counts
+
+
+def _assert_registry_rows_with_budget_counts(
     rows: Sequence[Mapping[str, Any]], *,
     profile: DomainProfile[SlotT, BindingT],
     expected_binding: BindingT | None = None,
-) -> RegistryRows:
+    initial_started_budget_counts: Mapping[Hashable, int] | None = None,
+) -> tuple[RegistryRows, BudgetCounts]:
     """Replay one genesis/lifecycle sequence under ``profile``."""
+    started_budget_counts = _validated_budget_counts(
+        initial_started_budget_counts
+    )
     if not rows or rows[0].get("event") != "freeze":
         _fail(
             "attempt-registry-genesis",
@@ -1016,7 +1042,6 @@ def assert_registry_rows(
         profile.binding_codec.identity(expected_binding)
         if expected_binding is not None else None
     )
-    started_budget_counts: dict[Hashable, int] = {}
     freeze_id = _genesis_freeze_id(genesis, profile=profile, required=False)
 
     def assert_expected_binding(parsed_binding: BindingT) -> None:
@@ -1330,7 +1355,19 @@ def assert_registry_rows(
                 f"attempt registry line {line_number}.event has no core "
                 "semantic handler",
             )
-    return tuple(dict(row) for row in rows)
+    return tuple(dict(row) for row in rows), started_budget_counts
+
+
+def assert_registry_rows(
+    rows: Sequence[Mapping[str, Any]], *,
+    profile: DomainProfile[SlotT, BindingT],
+    expected_binding: BindingT | None = None,
+) -> RegistryRows:
+    """Replay one genesis/lifecycle sequence under ``profile``."""
+    validated, _counts = _assert_registry_rows_with_budget_counts(
+        rows, profile=profile, expected_binding=expected_binding,
+    )
+    return validated
 
 
 def _reject_constant(value: str) -> None:
@@ -1360,10 +1397,11 @@ def _decode_json(data: bytes, *, label: str) -> Any:
         _fail("json", f"{label} is not strict UTF-8 JSON: {exc}")
 
 
-def _load_registry_bytes(
+def _load_registry_bytes_with_budget_counts(
     data: bytes, *, profile: DomainProfile[SlotT, BindingT], label: str,
     expected_binding: BindingT | None = None,
-) -> RegistryRows:
+    initial_started_budget_counts: Mapping[Hashable, int] | None = None,
+) -> tuple[RegistryRows, BudgetCounts]:
     if not data or not data.endswith(b"\n"):
         _fail(
             "attempt-registry-framing",
@@ -1383,9 +1421,21 @@ def _load_registry_bytes(
                 f"{label} line {lineno} is not canonical JSON",
             )
         rows.append(dict(value))
-    return assert_registry_rows(
+    return _assert_registry_rows_with_budget_counts(
         rows, profile=profile, expected_binding=expected_binding,
+        initial_started_budget_counts=initial_started_budget_counts,
     )
+
+
+def _load_registry_bytes(
+    data: bytes, *, profile: DomainProfile[SlotT, BindingT], label: str,
+    expected_binding: BindingT | None = None,
+) -> RegistryRows:
+    rows, _counts = _load_registry_bytes_with_budget_counts(
+        data, profile=profile, label=label,
+        expected_binding=expected_binding,
+    )
+    return rows
 
 
 def load_attempt_registry(
@@ -1396,6 +1446,19 @@ def load_attempt_registry(
     return _load_registry_bytes(
         data, profile=profile, label="attempt registry",
         expected_binding=expected_binding,
+    )
+
+
+def load_attempt_registry_with_budget_counts(
+    data: bytes, *, profile: DomainProfile[SlotT, BindingT],
+    expected_binding: BindingT | None = None,
+    initial_started_budget_counts: Mapping[Hashable, int] | None = None,
+) -> tuple[RegistryRows, BudgetCounts]:
+    """Parse and replay JSONL, seeded by prior generation budget counts."""
+    return _load_registry_bytes_with_budget_counts(
+        data, profile=profile, label="attempt registry",
+        expected_binding=expected_binding,
+        initial_started_budget_counts=initial_started_budget_counts,
     )
 
 
