@@ -644,6 +644,60 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
     assert requested_argv == default_argv
 
 
+def test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        owner_text=(
+            "int common_owner_bytes = 1;\n"
+            f"#if {macro}\n"
+            "#endif\n"
+        ),
+    )
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(macro)
+    cxx = _any_cxx()
+    cmake = _any_cmake()
+    configure_calls: list[Path] = []
+    real_configure = G._configure_compile_commands
+
+    def recording_configure(**kwargs):
+        configure_calls.append(kwargs["build_root"])
+        return real_configure(**kwargs)
+
+    monkeypatch.setattr(G, "_configure_compile_commands", recording_configure)
+    with G._configured_define_compile_commands(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    ) as configured_commands:
+        supply = G.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        assert len(configure_calls) == 2
+        meaning = G.evaluate_define_runtime_meaning(
+            captured,
+            request=request,
+            declaration=G.declare_define_runtime_meaning(request),
+            cxx=cxx,
+            cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        assert len(configure_calls) == 2
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "red", "preprocess-bytes-identical",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    assert supply.record_id != meaning.record_id
+    assert supply.record_digest != meaning.record_digest
+
+
 def test_compile_time_branch_selection_rejects_non_discriminating_observation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

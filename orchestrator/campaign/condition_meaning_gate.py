@@ -6,6 +6,8 @@ configures a real target and preprocesses its owner TU from the emitted compile
 command.  The meaning arm evaluates a declared witness, or records that no
 witness is established.  The older BACKOFF_FIXED assertions remain as strict
 compatibility wrappers for the F707/F718 contracts.
+The two arms may share an immutable pair of configured owner-TU commands, but
+never share a verdict, evidence record, or reason code.
 
 Claim boundary: the supply domain contains the 22 patch-derived defines.  The
 legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Eight
@@ -24,6 +26,7 @@ network, or a sandbox.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import dataclasses
 import hashlib
 import json
@@ -39,7 +42,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Iterator, Mapping, Sequence
 
 from . import source_digest
 from .evolve_block import extract_materialized_evolve_block
@@ -445,6 +448,42 @@ class DefineRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class _ConfiguredOwnerCompileCommand:
+    """One immutable owner-TU command emitted for supply evaluation."""
+
+    directory: str
+    argv: tuple[str, ...]
+    owner: str
+    source_root: str
+    build_root: str
+    define_value: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _ConfiguredDefineCompileCommands:
+    """Requested/control owner commands shared without sharing an arm verdict."""
+
+    captured: CapturedDefineInputs
+    request_digest: str
+    compiler_path: str | None
+    cmake_path: str | None
+    requested: _ConfiguredOwnerCompileCommand | None
+    control: _ConfiguredOwnerCompileCommand | None
+    failure_reason: str | None = None
+    failure_detail: str | None = None
+    failure_expected: object | None = None
+    failure_observed: object | None = None
+    failure_define_value: object | None = None
+    failure_context_index: object | None = None
+    _issuer_capability: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class MeaningWitnessDeclaration:
     """Finite runtime-meaning declaration for one meaning-supported macro."""
 
@@ -827,6 +866,7 @@ def _request_digest(
 
 
 _RECORD_ISSUER_CAPABILITY = object()
+_CONFIGURED_COMMANDS_ISSUER_CAPABILITY = object()
 
 
 def _arm_record(
@@ -1518,6 +1558,190 @@ def _select_owner_entry(
     return matches[0], owner
 
 
+def _configured_owner_command(
+    entry: Mapping[str, Any],
+    *,
+    owner: Path,
+    source_root: Path,
+    build_root: Path,
+    define_value: str | None,
+) -> _ConfiguredOwnerCompileCommand:
+    directory = entry.get("directory")
+    if type(directory) is not str or not directory:
+        raise ConditionMeaningGateError(
+            "compile-command-unavailable", "compile command lacks its directory",
+        )
+    return _ConfiguredOwnerCompileCommand(
+        directory=directory,
+        argv=_entry_argv(entry),
+        owner=os.fspath(owner),
+        source_root=os.fspath(source_root),
+        build_root=os.fspath(build_root),
+        define_value=define_value,
+    )
+
+
+def _issue_configured_commands(
+    configured: _ConfiguredDefineCompileCommands,
+) -> _ConfiguredDefineCompileCommands:
+    object.__setattr__(
+        configured, "_issuer_capability", _CONFIGURED_COMMANDS_ISSUER_CAPABILITY,
+    )
+    return configured
+
+
+@contextlib.contextmanager
+def _configured_define_compile_commands(
+    captured: CapturedDefineInputs,
+    *,
+    request: DefineRequest,
+    cxx: str,
+    cmake: str,
+) -> Iterator[_ConfiguredDefineCompileCommands | None]:
+    """Keep the supply-derived owner commands alive for both arm evaluators."""
+    if type(captured) is not CapturedDefineInputs or type(request) is not DefineRequest:
+        # The arm evaluators retain the canonical exact-type rejection.  This
+        # context only owns optional shared infrastructure, not that verdict.
+        yield None
+        return
+    _validate_captured_define_inputs(captured)
+    spec, requested, default, companions = _validate_define_request(request)
+    request_digest = _request_digest(request, companions)
+    source_root = Path(captured.source_root)
+    stock_identity = _is_inert_value(
+        spec, requested=requested, default=default,
+    )
+    control_root = Path(captured.stock_root) \
+        if stock_identity and captured.stock_root is not None else source_root
+    control_value = None if stock_identity else default
+    with tempfile.TemporaryDirectory(prefix="izanagi_condition_supply_") as temporary:
+        try:
+            if stock_identity and captured.stock_root is None:
+                raise ConditionMeaningGateError(
+                    "stock-tree-unavailable",
+                    "inert supply requires a distinct pinned-clean stock root",
+                )
+            compiler = _resolve_compiler(cxx)
+            cmake_path = _resolve_executable(cmake, "configure-failed")
+            base = Path(temporary)
+            requested_build = base / "requested"
+            shared_branch_build = (
+                not stock_identity
+                and request.macro in CONDITIONAL_BRANCH_WITNESSES
+            )
+            if shared_branch_build and request.route != ROUTE_CMAKE_CXX_FLAGS:
+                raise ConditionMeaningGateError(
+                    "compile-command-unavailable",
+                    "shared branch commands require the CMAKE_CXX_FLAGS route",
+                )
+            # These registry entries are CMAKE_CXX_FLAGS-only.  Capture the
+            # requested argv before reconfiguring the same build root so the
+            # two raw meaning argv differ only in the tested define.
+            control_build = requested_build if shared_branch_build else \
+                base / ("stock" if stock_identity else "default")
+            requested_commands = _configure_compile_commands(
+                captured=captured, request=request, source_root=source_root,
+                build_root=requested_build, value=requested,
+                companions=companions, compiler=compiler, cmake=cmake_path,
+            )
+            control_commands = _configure_compile_commands(
+                captured=captured, request=request, source_root=control_root,
+                build_root=control_build, value=control_value,
+                companions=companions, compiler=compiler, cmake=cmake_path,
+            )
+            requested_entry, requested_owner = _select_owner_entry(
+                requested_commands, source_root=source_root, request=request,
+            )
+            control_entry, control_owner = _select_owner_entry(
+                control_commands, source_root=control_root, request=request,
+            )
+            configured = _ConfiguredDefineCompileCommands(
+                captured=captured,
+                request_digest=request_digest,
+                compiler_path=os.fspath(compiler),
+                cmake_path=os.fspath(cmake_path),
+                requested=_configured_owner_command(
+                    requested_entry, owner=requested_owner,
+                    source_root=source_root, build_root=requested_build,
+                    define_value=requested,
+                ),
+                control=_configured_owner_command(
+                    control_entry, owner=control_owner,
+                    source_root=control_root, build_root=control_build,
+                    define_value=control_value,
+                ),
+            )
+        except ConditionMeaningGateError as exc:
+            configured = _ConfiguredDefineCompileCommands(
+                captured=captured,
+                request_digest=request_digest,
+                compiler_path=None,
+                cmake_path=None,
+                requested=None,
+                control=None,
+                failure_reason=exc.reason_code,
+                failure_detail=exc.detail,
+                failure_expected=exc.expected,
+                failure_observed=exc.observed,
+                failure_define_value=exc.define_value,
+                failure_context_index=exc.context_index,
+            )
+        yield _issue_configured_commands(configured)
+
+
+def _validate_configured_define_compile_commands(
+    configured: _ConfiguredDefineCompileCommands,
+    *,
+    captured: CapturedDefineInputs,
+    request: DefineRequest,
+    companions: tuple[tuple[str, str], ...],
+    cxx: str,
+    cmake: str,
+) -> tuple[Path, _ConfiguredOwnerCompileCommand, _ConfiguredOwnerCompileCommand]:
+    if type(configured) is not _ConfiguredDefineCompileCommands \
+            or configured._issuer_capability \
+            is not _CONFIGURED_COMMANDS_ISSUER_CAPABILITY:
+        raise ConditionMeaningGateError(
+            "compile-command-unavailable",
+            "configured owner commands were not issued by this evaluator",
+        )
+    if configured.captured != captured \
+            or configured.request_digest != _request_digest(request, companions):
+        raise ConditionMeaningGateError(
+            "compile-command-drift",
+            "configured owner commands do not match this capture and request",
+        )
+    if configured.failure_reason is not None:
+        raise ConditionMeaningGateError(
+            configured.failure_reason,
+            configured.failure_detail or "owner compile commands are unavailable",
+            expected=configured.failure_expected,
+            observed=configured.failure_observed,
+            define_value=configured.failure_define_value,
+            context_index=configured.failure_context_index,
+        )
+    compiler = _resolve_compiler(cxx)
+    cmake_path = _resolve_executable(cmake, "configure-failed")
+    if configured.compiler_path != os.fspath(compiler) \
+            or configured.cmake_path != os.fspath(cmake_path) \
+            or type(configured.requested) is not _ConfiguredOwnerCompileCommand \
+            or type(configured.control) is not _ConfiguredOwnerCompileCommand:
+        raise ConditionMeaningGateError(
+            "compile-command-drift",
+            "configured owner commands use a different toolchain or shape",
+        )
+    return compiler, configured.requested, configured.control
+
+
+def _configured_entry(
+    command: _ConfiguredOwnerCompileCommand,
+) -> Mapping[str, Any]:
+    return {
+        "arguments": list(command.argv),
+        "directory": command.directory,
+    }
+
+
 def _compile_defines(argv: Sequence[str]) -> dict[str, str]:
     observed: dict[str, str] = {}
     index = 1
@@ -1846,12 +2070,80 @@ def _preprocess_evidence(
     }
 
 
+def _collect_supply_preprocess_pair(
+    configured: _ConfiguredDefineCompileCommands,
+    *,
+    captured: CapturedDefineInputs,
+    request: DefineRequest,
+    spec: DefineSpec,
+    companions: tuple[tuple[str, str], ...],
+    requested_value: str,
+    control_value: str | None,
+    source_root: Path,
+    control_root: Path,
+    stock_identity: bool,
+    cxx: str,
+    cmake: str,
+) -> tuple[_PreprocessResult, _PreprocessResult]:
+    compiler, requested_command, control_command = \
+        _validate_configured_define_compile_commands(
+            configured, captured=captured, request=request,
+            companions=companions, cxx=cxx, cmake=cmake,
+        )
+    expected_requested_owner = source_root / request.owner_tu
+    expected_control_owner = control_root / request.owner_tu
+    if requested_command.source_root != os.fspath(source_root) \
+            or control_command.source_root != os.fspath(control_root) \
+            or requested_command.owner != os.fspath(expected_requested_owner) \
+            or control_command.owner != os.fspath(expected_control_owner) \
+            or requested_command.define_value != requested_value \
+            or control_command.define_value != control_value:
+        raise ConditionMeaningGateError(
+            "compile-command-drift",
+            "configured owner command pair differs from the supply request",
+        )
+    requested_build = Path(requested_command.build_root)
+    control_build = Path(control_command.build_root)
+    if requested_build == control_build \
+            and request.macro not in CONDITIONAL_BRANCH_WITNESSES:
+        raise ConditionMeaningGateError(
+            "compile-command-drift",
+            "requested and control unexpectedly share a build root",
+        )
+    requested_result = _collect_preprocess(
+        entry=_configured_entry(requested_command),
+        owner=Path(requested_command.owner),
+        source_root=source_root,
+        build_root=requested_build,
+        request=request,
+        spec=spec,
+        companions=companions,
+        expected_value=requested_value,
+        stock_identity=stock_identity,
+        compiler=compiler,
+    )
+    control_result = _collect_preprocess(
+        entry=_configured_entry(control_command),
+        owner=Path(control_command.owner),
+        source_root=control_root,
+        build_root=control_build,
+        request=request,
+        spec=spec,
+        companions=companions,
+        expected_value=None if stock_identity else control_value,
+        stock_identity=stock_identity,
+        compiler=compiler,
+    )
+    return requested_result, control_result
+
+
 def evaluate_define_supply_effectuation(
     captured: CapturedDefineInputs,
     *,
     request: DefineRequest,
     cxx: str,
     cmake: str,
+    configured_commands: _ConfiguredDefineCompileCommands | None = None,
 ) -> ConditionArmRecord:
     """Evaluate real owner-TU supply and effectuation without a hash seam."""
     _validate_captured_define_inputs(captured)
@@ -1876,43 +2168,34 @@ def evaluate_define_supply_effectuation(
     else:
         control_root = source_root
         control_value = default_value
+
+    def collect_pair(
+        configured: _ConfiguredDefineCompileCommands,
+    ) -> tuple[_PreprocessResult, _PreprocessResult]:
+        return _collect_supply_preprocess_pair(
+            configured,
+            captured=captured,
+            request=request,
+            spec=spec,
+            companions=companions,
+            requested_value=requested_value,
+            control_value=control_value,
+            source_root=source_root,
+            control_root=control_root,
+            stock_identity=stock_identity,
+            cxx=cxx,
+            cmake=cmake,
+        )
+
     try:
-        compiler = _resolve_compiler(cxx)
-        cmake_path = _resolve_executable(cmake, "configure-failed")
-        with tempfile.TemporaryDirectory(prefix="izanagi_condition_supply_") as temporary:
-            base = Path(temporary)
-            requested_build = base / "requested"
-            control_build = base / "stock" if stock_identity else base / "default"
-            requested_commands = _configure_compile_commands(
-                captured=captured, request=request, source_root=source_root,
-                build_root=requested_build, value=requested_value,
-                companions=companions, compiler=compiler, cmake=cmake_path,
-            )
-            control_commands = _configure_compile_commands(
-                captured=captured, request=request, source_root=control_root,
-                build_root=control_build, value=control_value,
-                companions=companions, compiler=compiler, cmake=cmake_path,
-            )
-            requested_entry, requested_owner = _select_owner_entry(
-                requested_commands, source_root=source_root, request=request,
-            )
-            control_entry, control_owner = _select_owner_entry(
-                control_commands, source_root=control_root, request=request,
-            )
-            requested_result = _collect_preprocess(
-                entry=requested_entry, owner=requested_owner, source_root=source_root,
-                build_root=requested_build, request=request, spec=spec,
-                companions=companions, expected_value=requested_value,
-                stock_identity=stock_identity, compiler=compiler,
-            )
-            control_result = _collect_preprocess(
-                entry=control_entry, owner=control_owner, source_root=control_root,
-                build_root=control_build, request=request, spec=spec,
-                companions=companions,
-                expected_value=None if stock_identity else control_value,
-                stock_identity=stock_identity,
-                compiler=compiler,
-            )
+        if configured_commands is None:
+            with _configured_define_compile_commands(
+                captured, request=request, cxx=cxx, cmake=cmake,
+            ) as configured:
+                requested_result, control_result = collect_pair(configured)
+        else:
+            configured = configured_commands
+            requested_result, control_result = collect_pair(configured)
     except ConditionMeaningGateError as exc:
         return _issue_arm_record(
             arm="supply-effectuation", terminal_status="red",
@@ -1945,6 +2228,9 @@ def evaluate_define_supply_effectuation(
         requested_result.root_dependent_builtin_paths
         + control_result.root_dependent_builtin_paths
     )
+    assert configured.requested is not None and configured.control is not None
+    requested_build = Path(configured.requested.build_root)
+    control_build = Path(configured.control.build_root)
     root_needles = [
         (os.fsencode(requested_build), requested_result.preprocessed_bytes),
         (os.fsencode(control_build), control_result.preprocessed_bytes),
@@ -2393,6 +2679,7 @@ def _assert_compile_time_branch_selection(
     *,
     cxx: str,
     cmake: str,
+    configured_commands: _ConfiguredDefineCompileCommands | None = None,
 ) -> CompileTimeBranchSelectionEvidence:
     """Observe requested/default selection in the complete instrumented owner TU."""
     _validate_captured_define_inputs(captured)
@@ -2410,8 +2697,32 @@ def _assert_compile_time_branch_selection(
         captured, declaration.source_rel,
     )
     instrumented_source = _instrument_declared_owner_source(source_text, declaration)
-    compiler = _resolve_compiler(cxx)
-    cmake_path = _resolve_executable(cmake, "configure-failed")
+    configured_pair: tuple[
+        _ConfiguredOwnerCompileCommand, _ConfiguredOwnerCompileCommand,
+    ] | None = None
+    if configured_commands is None:
+        compiler = _resolve_compiler(cxx)
+        cmake_path = _resolve_executable(cmake, "configure-failed")
+    else:
+        compiler, requested_command, control_command = \
+            _validate_configured_define_compile_commands(
+                configured_commands, captured=captured, request=request,
+                companions=companions, cxx=cxx, cmake=cmake,
+            )
+        source_root = Path(captured.source_root)
+        expected_owner = source_root / request.owner_tu
+        if requested_command.source_root != os.fspath(source_root) \
+                or control_command.source_root != os.fspath(source_root) \
+                or requested_command.owner != os.fspath(expected_owner) \
+                or control_command.owner != os.fspath(expected_owner) \
+                or requested_command.define_value != requested \
+                or control_command.define_value != default:
+            raise ConditionMeaningGateError(
+                "compile-command-drift",
+                "configured owner command pair differs from the meaning request",
+            )
+        configured_pair = (requested_command, control_command)
+        cmake_path = None
     identities = [_capture_compiler_identity(compiler, "before-version")]
     version_result = _run_process(
         (os.fspath(compiler), "--version"),
@@ -2441,25 +2752,35 @@ def _assert_compile_time_branch_selection(
             source_root, declaration.source_rel, instrumented_source,
             instrumented_root,
         )
-        entries: list[tuple[str, Mapping[str, Any], Path]] = []
-        for label, value in (("requested", requested), ("default", default)):
-            commands = _configure_compile_commands(
-                captured=captured, request=request, source_root=source_root,
-                build_root=build_root, value=value, companions=companions,
-                compiler=compiler, cmake=cmake_path,
-            )
-            entry, owner = _select_owner_entry(
-                commands, source_root=source_root, request=request,
-            )
-            entries.append((label, entry, owner))
+        entries: list[tuple[str, Mapping[str, Any], Path, Path]] = []
+        if configured_pair is None:
+            assert cmake_path is not None
+            for label, value in (("requested", requested), ("default", default)):
+                commands = _configure_compile_commands(
+                    captured=captured, request=request, source_root=source_root,
+                    build_root=build_root, value=value, companions=companions,
+                    compiler=compiler, cmake=cmake_path,
+                )
+                entry, owner = _select_owner_entry(
+                    commands, source_root=source_root, request=request,
+                )
+                entries.append((label, entry, owner, build_root))
+        else:
+            for label, command in zip(
+                ("requested", "default"), configured_pair, strict=True,
+            ):
+                entries.append((
+                    label, _configured_entry(command), Path(command.owner),
+                    Path(command.build_root),
+                ))
         comparables: list[tuple[str, ...]] = []
-        for (label, entry, owner), value in zip(
+        for (label, entry, owner, entry_build_root), value in zip(
             entries, (requested, default), strict=True,
         ):
             observation, comparable = _compile_time_observation(
                 entry=entry, owner=owner, instrumented_owner=instrumented_owner,
                 instrumented_root=instrumented_root,
-                source_root=source_root, build_root=build_root, request=request,
+                source_root=source_root, build_root=entry_build_root, request=request,
                 companions=companions, define_value=value, compiler=compiler,
                 dependency_path=base / "condition-meaning.d",
             )
@@ -2519,6 +2840,7 @@ def evaluate_define_runtime_meaning(
     declaration: MeaningWitnessDeclaration | ConditionalBranchMeaningDeclaration | None,
     cxx: str,
     cmake: str = "cmake",
+    configured_commands: _ConfiguredDefineCompileCommands | None = None,
 ) -> ConditionArmRecord:
     """Evaluate a declared meaning witness, preserving undeclared as a third state."""
     _validate_captured_define_inputs(captured)
@@ -2543,6 +2865,7 @@ def evaluate_define_runtime_meaning(
         try:
             compile_time_observed = _assert_compile_time_branch_selection(
                 captured, request, declaration, cxx=cxx, cmake=cmake,
+                configured_commands=configured_commands,
             )
         except ConditionMeaningGateError as exc:
             return _issue_arm_record(
