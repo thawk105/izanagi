@@ -1054,7 +1054,7 @@ def test_match_key_keeps_distinct_pytest_nodes_separate(
         (
             "orchestrator/tests/test_axis1_search_runner.py::"
             "test_real_catalog_leaf_resolves_every_runner_field"
-            "[arxiv-AX1-20260829-E1-Q1@arxiv]"
+            "[arxiv-AX1-20260902-E1-Q1@arxiv]"
         ),
         (
             "orchestrator/tests/test_acceptance_schedule_order.py::"
