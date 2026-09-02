@@ -186,12 +186,19 @@ def _require_condition_gate(
         requested_value=1,
         default_value=0,
     )
-    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+    with condition_meaning_gate._configured_define_compile_commands(
         captured, request=request, cxx=cxx, cmake=cmake,
-    )
-    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
-        captured, request=request, declaration=None, cxx=cxx,
-    )
+    ) as configured_commands:
+        supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+            captured, request=request,
+            declaration=condition_meaning_gate.declare_define_runtime_meaning(request),
+            cxx=cxx, cmake=cmake,
+            configured_commands=configured_commands,
+        )
     admission = condition_meaning_gate.require_condition_gate_family(
         [supply], [meaning], use_class="raw-measurement",
     )

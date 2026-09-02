@@ -499,6 +499,7 @@ class CalibrationV2:
     notes: List[str]
     attestation_profile: AttestationProfile
     acquisition_receipt: AcquisitionReceipt
+    genome: Union[str, None]
     quality: QualityVerdict
 
     def __post_init__(self) -> None:
@@ -565,6 +566,7 @@ _TOP_KEYS = {
     "noise_floor", "scale_sensitivity", "sweep", "workload", "host", "notes",
     "attestation_profile", "acquisition_receipt", "quality",
 }
+_TOP_KEYS_WITH_GENOME = _TOP_KEYS | {"genome"}
 _POINT_KEYS = {
     "records", "threads", "llc_load_misses", "llc_loads", "llc_miss_rate",
     "throughput_median_tps", "throughputs", "walltime_s", "notes",
@@ -737,13 +739,52 @@ def _parse_input(obj: dict) -> dict:
     _fail("calibration/v2 入力は dict または raw JSON text/bytes でなければならない")
 
 
+def _canonical_genome(value: object) -> str:
+    encoded = _text(value, field="genome")
+    if encoded.count("|") != 1:
+        _fail("genome は protocol|A=1,B=0 形でなければならない")
+    protocol, body = encoded.split("|", 1)
+    if not protocol or not body:
+        _fail("genome の protocol と body は非空でなければならない")
+    flags: Dict[str, int] = {}
+    for assignment in body.split(","):
+        if assignment.count("=") != 1:
+            _fail("genome の flag assignment が不正")
+        name, raw_value = assignment.split("=", 1)
+        if not name or name in flags:
+            _fail("genome の flag 名が空または重複している")
+        if name == "TRACE":
+            _fail("genome の TRACE は予約名である")
+        try:
+            flags[name] = int(raw_value)
+        except ValueError as exc:
+            raise CalibrationSchemaError("genome の flag 値は整数でなければならない") from exc
+    canonical = protocol + "|" + ",".join(
+        f"{name}={flags[name]}" for name in sorted(flags)
+    )
+    if canonical != encoded:
+        _fail("genome が canonical 文字列でない")
+    return encoded
+
+
 def validate_calibration_v2(obj: dict) -> CalibrationV2:
     """calibration/v2 を exact・fail-closed 検証して型付き契約を返す。
 
     duplicate key を検出可能にするため、reader は dict 化前の raw JSON text/bytes を渡す。
     signature の dict は既存の writer/fixture が直接検証する主経路を表す。
     """
-    value = _exact(_parse_input(obj), _TOP_KEYS, field="calibration/v2")
+    parsed = _parse_input(obj)
+    actual_keys = set(parsed)
+    if actual_keys == _TOP_KEYS:
+        value = _exact(parsed, _TOP_KEYS, field="calibration/v2")
+        genome = None
+    elif actual_keys == _TOP_KEYS_WITH_GENOME:
+        value = _exact(parsed, _TOP_KEYS_WITH_GENOME, field="calibration/v2")
+        genome = _canonical_genome(value["genome"])
+    else:
+        expected = _TOP_KEYS_WITH_GENOME if "genome" in actual_keys else _TOP_KEYS
+        value = _exact(parsed, expected, field="calibration/v2")
+        raise AssertionError("unreachable")
     profile = _profile(value["attestation_profile"])
     acquisition = _acquisition(value["acquisition_receipt"])
     quality_obj = _exact(value["quality"], _QUALITY_KEYS, field="quality")
@@ -769,5 +810,6 @@ def validate_calibration_v2(obj: dict) -> CalibrationV2:
         notes=notes,
         attestation_profile=profile,
         acquisition_receipt=acquisition,
+        genome=genome,
         quality=QualityVerdict(**quality_obj),
     )

@@ -320,7 +320,17 @@ def _receipt(binary_sha: str, *, job_id: str = "123.server") -> dict:
         },
         "ccbench": {
             "head_sha": "a" * 40, "pinned_clean": True,
-            "build_argv": ["cmake", "--build", "build"],
+            "build_argv": [
+                "cmake", "-S", "ccbench", "-B", "build",
+                "-DCCBENCH_BACK_OFF=0",
+                "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+                "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+                "-DCCBENCH_WAL=0",
+                "-DCCBENCH_BACKOFF_FIXED=-1",
+                "-DCCBENCH_TRACE=0",
+                "&&", "cmake", "--build", "build",
+                "--target", "ycsb_silo.exe",
+            ],
             "binary_sha256": binary_sha,
         },
         "job_script_sha256": "c" * 64,
@@ -370,7 +380,7 @@ def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
             composite=None, extra_args=None, receipt_mutator=None,
             profile_fn=None, clock_fn=None,
             calibrate_fn=None) -> tuple[int, Path, Path]:
-    binary = tmp_path / "ycsb_fixture.exe"
+    binary = tmp_path / "ycsb_silo.exe"
     binary.write_bytes(b"trace-disabled fixture")
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
     receipt_path = tmp_path / "receipt.json"
@@ -416,6 +426,138 @@ def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
     attempt = out / "env/test-env/calibration/attempts/123.server"
     registered = out / "env/test-env/calibration/registered"
     return rc, attempt, registered
+
+
+def test_receipt_genome_derivation_names_mocc_and_preserves_non_axis_define():
+    receipt = _receipt("a" * 64)
+    receipt["ccbench"]["build_argv"] = [
+        "cmake", "-S", "ccbench", "-B", "build",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_BACKOFF_FIXED=-1",
+        "-DCCBENCH_TRACE=0",
+        "&&", "cmake", "--build", "build", "--target", "ycsb_mocc.exe",
+    ]
+
+    assert cli._canonical_genome_from_receipt(
+        receipt, "/fixture/ycsb_mocc.exe",
+    ) == (
+        "mocc|BACKOFF_FIXED=-1,BACK_OFF=0,KEY_SORT=0,"
+        "NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,"
+        "TEMPERATURE_RESET_OPT=1,WAL=0"
+    )
+
+
+def _remove_receipt_define(receipt: dict, flag: str) -> None:
+    prefix = f"-DCCBENCH_{flag}="
+    receipt["ccbench"]["build_argv"] = [
+        token for token in receipt["ccbench"]["build_argv"]
+        if not token.startswith(prefix)
+    ]
+
+
+def _replace_receipt_token(receipt: dict, old: str, new: str) -> None:
+    argv = receipt["ccbench"]["build_argv"]
+    argv[argv.index(old)] = new
+
+
+@pytest.mark.parametrize("mutate", [
+    pytest.param(
+        lambda receipt: _remove_receipt_define(receipt, "WAL"),
+        id="missing-protocol-axis",
+    ),
+    pytest.param(
+        lambda receipt: _replace_receipt_token(
+            receipt, "-DCCBENCH_TRACE=0", "-DCCBENCH_TRACE=1",
+        ),
+        id="receipt-trace-enabled",
+    ),
+])
+def test_receipt_genome_invalid_is_rejected_before_benchmark(
+        tmp_path, monkeypatch, mutate):
+    calibrate_calls = []
+    rc, attempt, registered = _invoke(
+        tmp_path,
+        monkeypatch,
+        receipt_mutator=mutate,
+        calibrate_fn=lambda **kwargs: calibrate_calls.append(kwargs),
+    )
+
+    assert rc != 0
+    assert calibrate_calls == []
+    rejection = json.loads((attempt / "rejection.json").read_text(encoding="utf-8"))
+    assert any(
+        reason.startswith("receipt-genome-invalid")
+        for reason in rejection["quality"]["reasons"]
+    )
+    assert not registered.exists()
+
+
+@pytest.mark.parametrize("mutate", [
+    pytest.param(
+        lambda receipt: receipt["ccbench"]["build_argv"].insert(
+            receipt["ccbench"]["build_argv"].index("&&"),
+            "-DCCBENCH_BACK_OFF=1",
+        ),
+        id="duplicate-flag",
+    ),
+    pytest.param(
+        lambda receipt: receipt["ccbench"]["build_argv"].remove("--target"),
+        id="missing-target",
+    ),
+    pytest.param(
+        lambda receipt: receipt["ccbench"]["build_argv"].append(
+            "-DCCBENCH_WAL=1",
+        ),
+        id="define-on-build-side",
+    ),
+    pytest.param(
+        lambda receipt: _replace_receipt_token(
+            receipt, "-DCCBENCH_WAL=0", "-DCCBENCH_WAL=not-an-int",
+        ),
+        id="non-integer-define",
+    ),
+    pytest.param(
+        lambda receipt: _replace_receipt_token(
+            receipt, "-DCCBENCH_WAL=0", "-DCCBENCH_WAL=",
+        ),
+        id="missing-define-value",
+    ),
+    pytest.param(
+        lambda receipt: _remove_receipt_define(receipt, "TRACE"),
+        id="missing-trace-define",
+    ),
+    pytest.param(
+        lambda receipt: _replace_receipt_token(
+            receipt, "ycsb_silo.exe", "ycsb_mocc.exe",
+        ),
+        id="binary-target-mismatch",
+    ),
+    pytest.param(
+        lambda receipt: receipt["ccbench"]["build_argv"].insert(1, "&&"),
+        id="duplicate-separator",
+    ),
+])
+def test_receipt_genome_malformed_argv_is_rejected_before_benchmark(
+        tmp_path, monkeypatch, mutate):
+    calibrate_calls = []
+    rc, attempt, _ = _invoke(
+        tmp_path,
+        monkeypatch,
+        receipt_mutator=mutate,
+        calibrate_fn=lambda **kwargs: calibrate_calls.append(kwargs),
+    )
+    assert rc != 0
+    assert calibrate_calls == []
+    rejection = json.loads((attempt / "rejection.json").read_text(encoding="utf-8"))
+    assert any(
+        reason.startswith("receipt-genome-invalid")
+        for reason in rejection["quality"]["reasons"]
+    )
 
 
 def test_cli_rejects_certify_clock_override_before_attempt(tmp_path, monkeypatch):
@@ -477,6 +619,34 @@ def test_cli_rejects_certify_out_root_before_attempt(tmp_path, monkeypatch):
         tmp_path, monkeypatch, extra_args=["--out-root", str(tmp_path / "forbidden")])
     assert rc == 2
     assert not attempt.exists()
+
+
+def test_noncertify_output_remains_genome_absent(tmp_path):
+    binary = tmp_path / "ycsb_mocc.exe"
+    binary.write_bytes(b"trace-disabled fixture")
+
+    def subprocess_runner(argv, **_kwargs):
+        assert argv[0] == "nm"
+        return _Completed(stdout="0000 T stock_symbol\n")
+
+    rc = cli.main(
+        [
+            "--binary", str(binary),
+            "--env-tag", "test-env",
+            "--threads", "2",
+            "--clocks-per-us", "1800",
+            "--out-root", str(tmp_path / "output"),
+        ],
+        subprocess_runner=subprocess_runner,
+        calibrate_fn=lambda **_kwargs: _result(),
+    )
+
+    assert rc == 0
+    document = json.loads(
+        (tmp_path / "output/env/test-env/calibration/"
+         "calibration_t2_default.json").read_text(encoding="utf-8")
+    )
+    assert "genome" not in document
 
 
 def test_cli_rejects_binary_sha256_mismatch_before_calibration(tmp_path, monkeypatch):
@@ -1163,6 +1333,26 @@ def test_cli_artifact_injects_effective_clock_policy(tmp_path, monkeypatch):
     registered_artifact = validate_calibration_v2(published[0].read_bytes())
     registered_clock = registered_artifact.attestation_profile.effective_clock
     assert registered_clock.tolerance_pct == 2.0
+
+
+def test_cli_certified_attempt_and_published_artifact_record_receipt_genome(
+        tmp_path, monkeypatch):
+    expected = (
+        "silo|BACKOFF_FIXED=-1,BACK_OFF=0,"
+        "NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
+    )
+
+    rc, attempt, registered = _invoke(tmp_path, monkeypatch)
+
+    assert rc == 0
+    attempt_artifact = validate_calibration_v2(
+        (attempt / "calibration.json").read_bytes(),
+    )
+    published = list(registered.glob("calibration-*.json"))
+    assert len(published) == 1
+    registered_artifact = validate_calibration_v2(published[0].read_bytes())
+    assert attempt_artifact.genome == expected
+    assert registered_artifact.genome == expected
 
 
 def test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self(

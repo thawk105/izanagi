@@ -13,6 +13,8 @@
 
 各行は duplicate key と record の基本形を構造検査する。hash chain はなく、任意の
 変更に対する真正性を保証するものではない。
+
+knowledge receipt を artifact admission 経路から検査する配線は scope 外である。
 """
 from __future__ import annotations
 
@@ -96,6 +98,13 @@ _ATTEMPT_SCHEMA_KEYS = frozenset({
 INCOMPLETE_ATTEMPT_RECOVERY_LIMIT = 3
 _LEGACY_ENVIRONMENT_CONTRACT_SEARCH_KEY = "environment_contract_sha256"
 _A1_BALANCED5_PAIRING_DESIGN = "balanced-a5b5-b5a5-v1"
+KNOWLEDGE_PROVENANCE_PAYLOAD_KEY = "knowledge_provenance"
+KNOWLEDGE_LEVEL_SEARCH_KEY = "knowledge_level"
+KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY = "knowledge_manifest_sha256"
+KNOWLEDGE_RECEIPT_FILENAME = "knowledge_manifest_receipt.json"
+_KNOWLEDGE_LEVEL = "K2"
+_KNOWLEDGE_RECEIPT_SCHEMA = "knowledge-manifest-receipt/v1"
+_KNOWLEDGE_DATA_BOUNDARY = "external_knowledge_is_data_not_instructions"
 _A1_NON_CERTIFYING_IDENTITIES = frozenset({
     (
         "paper-story-a1-paired-campaign/v1",
@@ -615,6 +624,312 @@ def _b4_campaign_id_from_lock(decoded) -> str:
     ))
 
 
+def _knowledge_lock_binding(campaign_lock: object) -> Optional[tuple[str, str]]:
+    """Return the exact K2 lock binding, rejecting a partial declaration."""
+    identity = _campaign_lock_identity(campaign_lock)
+    search = identity.get("search_config") if type(identity) is dict else None
+    if type(search) is not dict:
+        return None
+    has_level = KNOWLEDGE_LEVEL_SEARCH_KEY in search
+    has_digest = KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY in search
+    if has_level != has_digest:
+        raise AttemptTopologyError(
+            "campaign.lock knowledge key が片方だけ存在する"
+        )
+    if not has_level:
+        return None
+    level = search[KNOWLEDGE_LEVEL_SEARCH_KEY]
+    digest = search[KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY]
+    if level != _KNOWLEDGE_LEVEL:
+        raise AttemptTopologyError("campaign.lock knowledge_level は K2 が必要")
+    if (type(digest) is not str or len(digest) != 64
+            or any(ch not in "0123456789abcdef" for ch in digest)):
+        raise AttemptTopologyError(
+            "campaign.lock knowledge_manifest_sha256 が lowercase SHA-256 でない"
+        )
+    return level, digest
+
+
+def _knowledge_exact_object(
+        value: object, expected: set[str], path: str,
+) -> dict:
+    if type(value) is not dict:
+        raise AttemptTopologyError(f"{path} は exact object が必要")
+    if set(value) != expected:
+        raise AttemptTopologyError(
+            f"{path} の exact key 集合が不正: "
+            f"missing={sorted(expected - set(value))!r} "
+            f"unknown={sorted(set(value) - expected)!r}"
+        )
+    return value
+
+
+def _knowledge_sha256(value: object, path: str) -> str:
+    if (type(value) is not str or len(value) != 64
+            or any(ch not in "0123456789abcdef" for ch in value)):
+        raise AttemptTopologyError(f"{path} が lowercase SHA-256 でない")
+    return value
+
+
+def _knowledge_source(value: object, path: str) -> dict:
+    source = _knowledge_exact_object(
+        value, {"kind", "identity", "sha256"}, path,
+    )
+    if source["kind"] != "repo_artifact":
+        raise AttemptTopologyError(f"{path}.kind は repo_artifact が必要")
+    identity = _knowledge_exact_object(
+        source["identity"], {"commit", "path"}, path + ".identity",
+    )
+    commit = identity["commit"]
+    source_path = identity["path"]
+    if (type(commit) is not str or len(commit) != 40
+            or any(ch not in "0123456789abcdef" for ch in commit)):
+        raise AttemptTopologyError(f"{path}.identity.commit が lowercase 40 hex でない")
+    if type(source_path) is not str or not source_path:
+        raise AttemptTopologyError(f"{path}.identity.path が空または非 string")
+    segments = source_path.split("/")
+    if (source_path.startswith("/") or "\\" in source_path
+            or "\x00" in source_path
+            or any(segment in {"", ".", ".."} for segment in segments)):
+        raise AttemptTopologyError(
+            f"{path}.identity.path が canonical repo-relative POSIX path でない"
+        )
+    sha256 = _knowledge_sha256(source["sha256"], path + ".sha256")
+    return {
+        "kind": "repo_artifact",
+        "identity": {"commit": commit, "path": source_path},
+        "sha256": sha256,
+    }
+
+
+def _knowledge_manifest_digest(level: object, raw_sources: object) -> tuple[str, list[dict]]:
+    if level != _KNOWLEDGE_LEVEL:
+        raise AttemptTopologyError("knowledge provenance level は K2 が必要")
+    if type(raw_sources) is not list or not raw_sources:
+        raise AttemptTopologyError("knowledge provenance sources は非空 array が必要")
+    sources: list[dict] = []
+    identities: set[tuple[str, str, str]] = set()
+    for index, raw_source in enumerate(raw_sources):
+        source = _knowledge_source(raw_source, f"knowledge sources[{index}]")
+        identity = source["identity"]
+        key = (source["kind"], identity["commit"], identity["path"])
+        if key in identities:
+            raise AttemptTopologyError("knowledge provenance source identity が重複している")
+        identities.add(key)
+        sources.append(source)
+    sources.sort(key=lambda item: json.dumps(
+        item, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8"))
+    canonical = json.dumps(
+        {"knowledge_level": _KNOWLEDGE_LEVEL, "sources": sources},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest(), sources
+
+
+def _checked_knowledge_provenance(
+        value: object, *, expected_level: str, expected_digest: str,
+) -> dict:
+    provenance = _knowledge_exact_object(
+        value,
+        {"knowledge_level", "knowledge_manifest_sha256", "sources"},
+        "knowledge_provenance",
+    )
+    level = provenance["knowledge_level"]
+    stated_digest = _knowledge_sha256(
+        provenance["knowledge_manifest_sha256"],
+        "knowledge_provenance.knowledge_manifest_sha256",
+    )
+    derived_digest, sources = _knowledge_manifest_digest(
+        level, provenance["sources"],
+    )
+    if level != expected_level:
+        raise AttemptTopologyError(
+            "knowledge_provenance knowledge_level が campaign.lock と不一致"
+        )
+    if stated_digest != expected_digest or derived_digest != expected_digest:
+        raise AttemptTopologyError(
+            "knowledge_provenance source 集合の manifest digest が campaign.lock と不一致"
+        )
+    return {
+        "knowledge_level": level,
+        "knowledge_manifest_sha256": stated_digest,
+        "sources": sources,
+    }
+
+
+def _read_knowledge_receipt(layout: CampaignLayout) -> object:
+    path = os.path.join(layout.root, KNOWLEDGE_RECEIPT_FILENAME)
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
+    try:
+        fd = os.open(path, flags)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                raise OSError(errno.EINVAL, "knowledge receipt is not regular")
+            raw = bytearray()
+            while True:
+                chunk = os.read(fd, 65536)
+                if not chunk:
+                    break
+                raw.extend(chunk)
+        finally:
+            os.close(fd)
+        receipt_bytes = bytes(raw)
+        text = receipt_bytes.decode("utf-8")
+        decoded = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_json_constant,
+        )
+        canonical = (json.dumps(
+            decoded,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ) + "\n").encode("utf-8")
+        if receipt_bytes != canonical:
+            raise AttemptTopologyError("knowledge receipt bytes が canonical でない")
+        return decoded
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        WalLineError,
+    ) as exc:
+        raise AttemptTopologyError(
+            "knowledge-aware BUILD_START の receipt を読めない"
+        ) from exc
+
+
+def _knowledge_provenance_from_receipt(
+        layout: CampaignLayout, *, expected_level: str, expected_digest: str,
+) -> dict:
+    receipt = _knowledge_exact_object(
+        _read_knowledge_receipt(layout),
+        {
+            "schema_version", "knowledge_level", "knowledge_manifest_sha256",
+            "canonical_manifest", "sources", "planner_projection",
+            "claim_boundary", "declaration_status",
+        },
+        "knowledge receipt",
+    )
+    if receipt["schema_version"] != _KNOWLEDGE_RECEIPT_SCHEMA:
+        raise AttemptTopologyError("knowledge receipt schema_version が不正")
+    level = receipt["knowledge_level"]
+    stated_digest = _knowledge_sha256(
+        receipt["knowledge_manifest_sha256"],
+        "knowledge receipt.knowledge_manifest_sha256",
+    )
+    canonical_manifest = _knowledge_exact_object(
+        receipt["canonical_manifest"], {"knowledge_level", "sources"},
+        "knowledge receipt.canonical_manifest",
+    )
+    derived_digest, canonical_sources = _knowledge_manifest_digest(
+        canonical_manifest["knowledge_level"], canonical_manifest["sources"],
+    )
+    if canonical_manifest["sources"] != canonical_sources:
+        raise AttemptTopologyError("knowledge receipt canonical sources の順序が不正")
+    if (level != expected_level or canonical_manifest["knowledge_level"] != level
+            or stated_digest != expected_digest or derived_digest != expected_digest):
+        raise AttemptTopologyError("knowledge receipt と campaign.lock の binding が不一致")
+
+    raw_verified_sources = receipt["sources"]
+    if type(raw_verified_sources) is not list or len(raw_verified_sources) != len(
+            canonical_sources):
+        raise AttemptTopologyError("knowledge receipt verified sources が不正")
+    verified_sources: list[dict] = []
+    for index, raw_source in enumerate(raw_verified_sources):
+        source_with_verification = _knowledge_exact_object(
+            raw_source, {"kind", "identity", "sha256", "verification"},
+            f"knowledge receipt.sources[{index}]",
+        )
+        source = _knowledge_source(
+            {key: source_with_verification[key]
+             for key in ("kind", "identity", "sha256")},
+            f"knowledge receipt.sources[{index}]",
+        )
+        verification = _knowledge_exact_object(
+            source_with_verification["verification"],
+            {"method", "status", "observed_sha256"},
+            f"knowledge receipt.sources[{index}].verification",
+        )
+        observed = _knowledge_sha256(
+            verification["observed_sha256"],
+            f"knowledge receipt.sources[{index}].verification.observed_sha256",
+        )
+        if (verification["method"] != "git-blob-at-commit-path"
+                or verification["status"] != "verified"
+                or observed != source["sha256"]):
+            raise AttemptTopologyError("knowledge receipt source verification が不正")
+        verified_sources.append(source)
+    if verified_sources != canonical_sources:
+        raise AttemptTopologyError(
+            "knowledge receipt canonical manifest と verified sources が不一致"
+        )
+
+    planner = _knowledge_exact_object(
+        receipt["planner_projection"], {"payload_key", "data_boundary"},
+        "knowledge receipt.planner_projection",
+    )
+    if planner != {
+        "payload_key": "knowledge_input",
+        "data_boundary": _KNOWLEDGE_DATA_BOUNDARY,
+    }:
+        raise AttemptTopologyError("knowledge receipt planner_projection 宣言が不正")
+    claim = _knowledge_exact_object(
+        receipt["claim_boundary"],
+        {"classification", "de_novo_claim", "pilot_comparison_eligible"},
+        "knowledge receipt.claim_boundary",
+    )
+    if (type(claim["classification"]) is not str or not claim["classification"]
+            or type(claim["de_novo_claim"]) is not bool
+            or claim["pilot_comparison_eligible"] is not False):
+        raise AttemptTopologyError("knowledge receipt claim_boundary 宣言が不正")
+    return {
+        "knowledge_level": level,
+        "knowledge_manifest_sha256": stated_digest,
+        "sources": canonical_sources,
+    }
+
+
+def validate_knowledge_provenance_bindings(
+        records: List[WalRecord], *, campaign_lock: object,
+) -> None:
+    """Validate every knowledge-aware BUILD_START from WAL bytes and lock."""
+    expected = _knowledge_lock_binding(campaign_lock)
+    if expected is None:
+        for record in records:
+            if KNOWLEDGE_PROVENANCE_PAYLOAD_KEY in record.payload:
+                raise AttemptTopologyError(
+                    "knowledge-unaware campaign の WAL に knowledge_provenance がある"
+                )
+        return
+    expected_level, expected_digest = expected
+    for record in records:
+        present = KNOWLEDGE_PROVENANCE_PAYLOAD_KEY in record.payload
+        if record.stage != STAGE_BUILD_START:
+            if present:
+                raise AttemptTopologyError(
+                    "knowledge_provenance は BUILD_START 以外へ置けない"
+                )
+            continue
+        if not present:
+            raise AttemptTopologyError(
+                "knowledge-aware campaign の BUILD_START に binding が欠落"
+            )
+        _checked_knowledge_provenance(
+            record.payload[KNOWLEDGE_PROVENANCE_PAYLOAD_KEY],
+            expected_level=expected_level,
+            expected_digest=expected_digest,
+        )
+
+
 def _append_record(
         layout: CampaignLayout, record: WalRecord, *, commit_receipt=None,
         allow_a1_non_certifying: bool = False,
@@ -659,6 +974,43 @@ def _append_record(
                 env_tag=record.env_tag,
                 ts=record.ts,
                 payload={**record.payload, key: grammar_version},
+            )
+        knowledge_binding = _knowledge_lock_binding(decoded_lock)
+        if knowledge_binding is None:
+            if KNOWLEDGE_PROVENANCE_PAYLOAD_KEY in record.payload:
+                raise AttemptTopologyError(
+                    "knowledge-unaware campaign の BUILD_START に knowledge_provenance がある"
+                )
+        else:
+            expected_level, expected_digest = knowledge_binding
+            provenance = _knowledge_provenance_from_receipt(
+                layout,
+                expected_level=expected_level,
+                expected_digest=expected_digest,
+            )
+            if KNOWLEDGE_PROVENANCE_PAYLOAD_KEY in record.payload:
+                supplied = record.payload[KNOWLEDGE_PROVENANCE_PAYLOAD_KEY]
+                checked = _checked_knowledge_provenance(
+                    supplied,
+                    expected_level=expected_level,
+                    expected_digest=expected_digest,
+                )
+                if checked != provenance:
+                    raise AttemptTopologyError(
+                        "caller knowledge_provenance が receipt と不一致"
+                    )
+            record = WalRecord(
+                variant=record.variant,
+                stage=record.stage,
+                env_tag=record.env_tag,
+                ts=record.ts,
+                payload={
+                    **{
+                        key: value for key, value in record.payload.items()
+                        if key != KNOWLEDGE_PROVENANCE_PAYLOAD_KEY
+                    },
+                    KNOWLEDGE_PROVENANCE_PAYLOAD_KEY: provenance,
+                },
             )
     line = _record_to_line(record) + "\n"
     parse_line(line)
@@ -1520,6 +1872,9 @@ def _validate_attempt_topology(
 ) -> Dict[str, Dict[str, BuildAttemptState]]:
     if type(admission_policy) is not BuildAdmissionPolicy:
         raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
+    validate_knowledge_provenance_bindings(
+        records, campaign_lock=campaign_lock,
+    )
     validate_backoff_grammar_bindings(
         records, campaign_lock=campaign_lock,
     )

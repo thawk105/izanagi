@@ -56,7 +56,7 @@ def _registered_paths(catalog: Path) -> tuple[str, ...]:
     except ValueError as exc:
         raise PreflightError("catalog must be inside the repository") from exc
     return (
-        "docs/related-work/claim-survey/2026-08-29-axis1-search-amendment.md",
+        "docs/related-work/claim-survey/2026-09-02-axis1-search-amendment.md",
         catalog_relative,
         "orchestrator/axis1_search/__init__.py",
         "orchestrator/axis1_search/catalog.py",

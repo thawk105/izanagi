@@ -1,0 +1,344 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T2166-01-UNKNOWN-KEY",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    actual = set(value)\n    if actual != expected:\n",
+     "new": "    actual = set(value)\n    if expected - actual:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-02-SPEC-SHA256",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if actual_sha256 != expected_sha256:\n        raise FloorPairBindingError(\n",
+     "new": "    if False:\n        raise FloorPairBindingError(\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-03-SPEC-HEAD-BLOB",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if raw != head_raw:\n        raise FloorPairBindingError(\"frozen spec が HEAD tracked blob と byte 一致しない\")\n",
+     "new": "    if False:\n        raise FloorPairBindingError(\"frozen spec が HEAD tracked blob と byte 一致しない\")\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-04A-CALIBRATION-THREADS",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        if calibration.threads != perf.threads:\n",
+     "new": "        if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-04B-CALIBRATION-WORKLOAD",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        if calibration.workload != dict(perf.workload):\n",
+     "new": "        if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-04C-CALIBRATION-RECORDS",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        if perf.records != saturation_records:\n",
+     "new": "        if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-05-TRACE-SYMBOLS",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        buildcache._assert_no_trace_symbols(str(binary))\n",
+     "new": "        pass\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-06-LIVE-ENV-TAG",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if live_env_tag != spec.environment.env_tag:\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-07-NONCOMPLETE-IGNORED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        if record[\"status\"] != \"complete\":\n            return \"not_generated_missing_samples\"\n",
+     "new": "        if False:\n            return \"not_generated_missing_samples\"\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-08-UPPER-CLAMP",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "            elif upper >= 1.0:\n",
+     "new": "            elif False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-09-MEASURE-SEAM-RESTORED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "def run_window(\n    spec: FloorPairSpec,\n    plan: MeasurementPlan,\n    window_id: str,\n    *,\n    probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],\n    now_fn: Callable[[], datetime],\n) -> WindowRunResult:\n",
+     "new": "def run_window(\n    spec: FloorPairSpec,\n    plan: MeasurementPlan,\n    window_id: str,\n    *,\n    probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],\n    now_fn: Callable[[], datetime],\n    measure_fn=None,\n) -> WindowRunResult:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-10-O-EXCL",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        flags = os.O_CREAT | os.O_EXCL | os.O_APPEND | os.O_WRONLY | os.O_NOFOLLOW",
+     "new": "        flags = os.O_CREAT | os.O_APPEND | os.O_WRONLY | os.O_NOFOLLOW"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-11S-HMAC-SAMPLE-ORDER",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        samples.sort(\n            key=lambda item: _hmac_rank(\n",
+     "new": "        samples.sort(\n            key=lambda item: (item[0], item[1]) or _hmac_rank(\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-11R-HMAC-ROLE-ORDER",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "            roles.sort(\n                key=lambda role: _hmac_rank(\n",
+     "new": "            roles.sort(\n                key=lambda role: role or _hmac_rank(\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-12-REQUIRE-ALL-REPS",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "        require_all_reps=True,\n",
+     "new": "        require_all_reps=False,\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-14-QUALITY-ACCEPTED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if getattr(quality, \"status\", None) != \"accepted\":\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-16-PROBE-ARGV",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "COMPETING_PROBE_ARGV = (\"pgrep\", \"-af\", r\"ycsb_.*\\.exe\")",
+     "new": "COMPETING_PROBE_ARGV = (\"/bin/false\",)"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-17-REQUIRE-EVIDENCE",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    site = site_policy.current_site(require_evidence=True)\n",
+     "new": "    site = site_policy.current_site()\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-18-RECORDED-ORDER",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if recorded_ids != planned_ids:\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-19-SOURCE-COMMIT",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if provenance.source_commit != loaded_head:\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-20-EXTRA-ENV-PATH",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if forbidden_env:\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-21-BOUND-REF-SHA256",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if actual != reference.sha256:\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-22-RECEIPT-TRACE-FALSE",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if subject[\"trace\"] is not False:\n",
+     "new": "    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2166-23-RECEIPT-BINARY-SHA",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/floor_pair_driver.py",
+     "old": "    if subject[\"binary_sha256\"] != artifact.binary_sha256:\n",
+     "new": "    if False:\n"
+    }
+   ]
+  }
+ ]
+}

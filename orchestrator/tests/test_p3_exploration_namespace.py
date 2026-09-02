@@ -409,7 +409,8 @@ _DRIVER_CONTRACTS = {
         build_spy_argv_factory=_coder_argv,
         routing_argv_factory=_coder_argv,
         # B-4 authoritative gate, preflight, and consume-time rebuild add 3 calls.
-        ast_layout_calls=9,
+        # The knowledge receipt site adds 1 call.
+        ast_layout_calls=10,
         ast_run_campaign_calls=1,
         runtime_run_campaign_calls=1,
         derive_expected_campaign_ids=_single_expected_campaign_id,

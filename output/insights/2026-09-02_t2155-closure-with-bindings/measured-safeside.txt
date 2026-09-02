@@ -1,0 +1,83 @@
+=== baseline (現行 main) ===
+totals: {'deferred': 89, 'proven-unreachable': 947, 'covered': 130}
+failures: 0
+=== 安全側の依存判定 (with 束縛 + 自己参照 + 不透明 target + callee) ===
+totals: {'deferred': 90, 'proven-unreachable': 917, 'covered': 137, 'FAILURE-unresolved': 22}
+failures: 22
+    ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('BACKOFF_NOINLINE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('BACKOFF_REQUESTED_US', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('BACKOFF_TRIGGER_GATING', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_EARLY_UNLOCK', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_HIGHKEY_VALIDATION', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_LOCK_COVERAGE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_NOREAD_VALIDATION', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_PERMUTATION', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_PERMUTATION_SWAP', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_TRIGGER_MISATTR', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_ERASE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_FORGE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_OPSWAP', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_PTRSWAP', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_SILO_LADDER_RUNG1', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_SILO_LADDER_RUNG1_REPORT', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SORT_VARIANT', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_DLR', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_LOCK_IMPL', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_LOCK_KIND', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_WFG_DIAG', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+
+=== 分類が動いた sink ===
+('orchestrator/campaign/backoff_overthrottle.py', '<module>.measure', 434, 'buildcache')
+   before: {'proven-unreachable': 22}
+   after : {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/between_run_floor.py', '<module>.main', 383, 'buildcache')
+   before: {'proven-unreachable': 22}
+   after : {'FAILURE-unresolved': 22}
+('orchestrator/campaign/paper_story_a1_paired.py', '<module>.run_measurement', 5067, 'campaign')
+   before: {'proven-unreachable': 22}
+   after : {'deferred': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/s1_direct_comparison.py', '<module>.run_role', 1215, 'campaign')
+   before: {'proven-unreachable': 22}
+   after : {'covered': 4, 'proven-unreachable': 18}
+('tools/pegasus/probes/t1683_rr5_cost_probe.py', '<module>.main', 246, 'buildcache')
+   before: {'proven-unreachable': 22}
+   after : {'covered': 2, 'proven-unreachable': 20}
+
+=== with 束縛のみ ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+failures: 0
+
+=== with + 自己参照 true ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+failures: 0
+
+=== with + 不透明 target ===
+totals: {'deferred': 90, 'proven-unreachable': 917, 'covered': 137, 'FAILURE-unresolved': 22}
+failures: 22
+    ('BACKOFF_FIXED', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('BACKOFF_NOINLINE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('BACKOFF_REQUESTED_US', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('BACKOFF_TRIGGER_GATING', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_EARLY_UNLOCK', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_HIGHKEY_VALIDATION', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_LOCK_COVERAGE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_NOREAD_VALIDATION', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_PERMUTATION', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_PERMUTATION_SWAP', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_TRIGGER_MISATTR', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_ERASE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_FORGE', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_OPSWAP', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_BREAK_WRITE_INTENT_PTRSWAP', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_SILO_LADDER_RUNG1', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('IZANAGI_SILO_LADDER_RUNG1_REPORT', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SORT_VARIANT', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_DLR', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_LOCK_IMPL', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_LOCK_KIND', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+    ('SS2PL_WFG_DIAG', _BuildSink(relative_path='orchestrator/campaign/between_run_floor.py', scope='<module>.main', lineno=383, kind='buildcache'), 'unresolved')
+
+=== with + callee 追跡 ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+failures: 0
