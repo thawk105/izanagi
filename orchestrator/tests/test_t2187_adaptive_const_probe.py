@@ -165,3 +165,11 @@ def test_pbs_rejects_legacy_semicolon_list_delimiter() -> None:
     assert "${CELLS_RAW//;/,}" not in text
     assert "${WORKLOADS_RAW//;/,}" not in text
     assert "${THREADS_RAW//;/,}" not in text
+
+
+def _run() -> int:
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

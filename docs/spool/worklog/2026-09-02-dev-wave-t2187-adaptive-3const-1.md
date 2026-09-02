@@ -60,6 +60,22 @@ title: [T-2187] adaptive backoff の律速は刻みでなく更新間隔だっ�
   壊れる (`sh: 1: <要素>: not found`)。**キュー枠を消費しない対照実験**で確定させた —
   存在しない jobscript を指定して `qsub -v FOO='a;b;c'` を投げると shell 分割が観測でき、
   `a+b+c` では観測されない。区切りを `+` へ直した。
+- **受入全走 (19,915 件) で赤 5 件。全部この wave 由来で、非帰属赤はゼロだった。**
+  5 件とも**全走でしか発火しない一覧・golden 検査**で、焦点走 23 件が緑でも捕まらない型:
+  (a) patch が足した 3 define が condition gate registry に未登録、
+  (b) 同 3 define が probe の buildcache sink から到達可能かつ未 gate、
+  (c) 新図テストの `subprocess` が bytecode guard 未充足、
+  (d) admission registry の **literal golden** に新 entry 2 件が無い、
+  (e) 新設 test file 2 本に自走 harness が無い。
+  **(d) が示唆的で、同じ `test_hooks.py` の別のインベントリ検査は緑だった** — registry の
+  consumer は 1 つではなく、片方だけ通しても残りが赤になる。
+- **(b) は親が裁定して deferred gate 台帳へ登録した。** 正攻法は `backoff_sweep.py` 型の
+  正配線だが、コンパイラを伴う実行時検査の新規配線で依頼範囲を超える。repo は稼働 wave 所有の
+  driver 用 deferred 台帳を既に持ち、既存 5 件が同じ形なので、理由付きで登録し
+  {{T:t2187-probe-condition-meaning-gate-wiring}} を立てた。**検査そのものは緩めていない。**
+- **修正が新しい赤を作った 1 件。** 自走 harness に付けた `_run()` が、同じ file の既存 helper
+  `_run(tmp_path, mode, prefix_name, inputs)` を上書きし、6 テストが `TypeError` で落ちた。
+  名前を変えて解消。**「検査を満たす最小の追加」でも既存の名前空間を壊しうる。**
 - 成果物はすべて**認証されていない**。trace-disabled の性能測定のみで直列性の検査を
   通していない。variant 採用の根拠には使えない (規律 2)。正しさは [T-2189] の担当。
 
@@ -88,6 +104,10 @@ title: [T-2187] adaptive backoff の律速は刻みでなく更新間隔だっ�
 
 ### 新規
 
+- {{T:t2187-probe-condition-meaning-gate-wiring}} **P2・新規**: `t2187_adaptive_const_probe.py` の
+  build 地点を `backoff_sweep.py` 型の condition meaning gate へ正配線する
+  (supply effectuation + runtime meaning + family admission)。本 wave では依頼範囲を超えるため
+  deferred gate 台帳へ理由付きで登録して先送りした。台帳 entry の理由文が解除条件を持つ。
 - {{T:thread-scaling-probe-into-repo}} **P3・新規**: B-10 形状格子用の thread scaling probe
   (`thread_scaling_probe.py` / `.pbs`) は repo 外
   (`izanagi-job-evidence/thread-scaling/`) のままである。再現に job evidence directory が要る。

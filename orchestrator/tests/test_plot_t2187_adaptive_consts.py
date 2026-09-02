@@ -11,6 +11,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "tools" / "plotting" / "plot_t2187_adaptive_consts.py"
@@ -146,6 +148,7 @@ def _run(
     prefix = tmp_path / prefix_name
     environment = dict(os.environ)
     environment["MPLCONFIGDIR"] = str(mpl_config)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [sys.executable, str(SCRIPT), mode, str(prefix), *map(str, inputs)],
         cwd=REPO,
@@ -397,3 +400,10 @@ def test_generator_dependency_backend_and_unicode_constraints_are_explicit():
     for path in (SCRIPT, Path(__file__)):
         assert not any("\u0300" <= character <= "\u036f"
                        for character in path.read_text(encoding="utf-8"))
+
+
+if __name__ == "__main__":
+    def _run_test_file() -> int:
+        return pytest.main([__file__, "-q"])
+
+    raise SystemExit(_run_test_file())
