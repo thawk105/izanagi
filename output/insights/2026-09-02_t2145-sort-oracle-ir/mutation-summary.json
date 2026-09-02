@@ -1,0 +1,434 @@
+{
+  "identity_churn_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_sort.py::test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_contract_manifest_hashes_and_literal_are_exact_snapshot"
+  ],
+  "runs": {
+    "probe": {
+      "summary": {
+        "KILLED": 0,
+        "MISMATCH": 11,
+        "PARSE_ERROR": 0,
+        "SURVIVED": 0,
+        "TIMEOUT": 0,
+        "completed": 11,
+        "matching": 0,
+        "recorded": 11,
+        "registered": 11
+      },
+      "baseline_status": "PASSED",
+      "baseline_rc": 0,
+      "repo_head": "6850282efcdb480a78d16a132e740f79bbf5f019",
+      "spec_sha256": "33d2b82f4777ac07451471095f18bbe922ac194eaaaf9b313f51b69daeeca1e0",
+      "mutations": {
+        "M1-ADMISSION-DUPLICATE-FIELD-DISABLED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 3,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[duplicate-field]"
+          ]
+        },
+        "M2-SORT-ADMISSION-DISPATCH-BYPASSED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 4,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_dispatch_is_exact_marker_only",
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes",
+            "orchestrator/tests/test_p3_s4_loop.py::test_trigger_membership_does_not_change_sort_or_backoff_markers",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_ir_admission_rejects_after_effect_veto_and_before_oracle"
+          ]
+        },
+        "M3-RENDERER-DIRECTION-INVERTED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 43,
+          "mechanism_specific_node_count": 41,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_both_real_auditor_drivers_reject_post_generation_contradiction",
+            "orchestrator/tests/test_p3_s4_loop.py::test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes",
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_materialized_hole_is_canonical_form",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_none_cannot_be_interpreted_as_pass",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_pass_and_unavailable_are_stored_as_separate_attempt_records",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_receives_materialized_source_and_separate_proposal",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_unavailable_stops_attempt_instead_of_rejecting_candidate",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_raises_on_digest_mismatch",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_real_sort_driver_reject_and_uncertain_use_mandatory_veto_factoring",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_driver_requires_exact_oracle_contract_id",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_compiled_relation_mismatch_is_unavailable_not_pass",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_resolution_private_and_durable_projections_do_not_share_full_path",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_authority_15_is_byte_exact_subset_of_rendered_ir_domain",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_admission_allows_only_ascii_token_whitespace_variation",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_domain_roundtrips_all_79_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_unresolved_environment_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_validate_single_sort_statement_is_renderer_postcondition_only"
+          ]
+        },
+        "M4-EVALUATOR-STORAGE-SIGNED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 3,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values"
+          ]
+        },
+        "M5-POINTER-RANK-SLOT-INVERTED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 2,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_sort_ir_grammar_and_pointer_mapping",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values"
+          ]
+        },
+        "M6-EVALUATOR-KEY-NUL-TRUNCATED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 2,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values"
+          ]
+        },
+        "M7-CONFORMANCE-MISMATCH-NOT-RAISED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 3,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_compiled_relation_mismatch_is_unavailable_not_pass"
+          ]
+        },
+        "M8-CONTRACT-POINTER-MAPPING-KEY-REMOVED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 2,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_axiom_checker_source_component",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_sort_ir_grammar_and_pointer_mapping"
+          ]
+        },
+        "M9-CANONICALIZATION-SKIPPED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 1,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes"
+          ]
+        },
+        "M10-OVER-REJECTION-SINGLE-FIELD-REFUSED": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 44,
+          "mechanism_specific_node_count": 42,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_both_real_auditor_drivers_reject_post_generation_contradiction",
+            "orchestrator/tests/test_p3_s4_loop.py::test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes",
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_materialized_hole_is_canonical_form",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_none_cannot_be_interpreted_as_pass",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_pass_and_unavailable_are_stored_as_separate_attempt_records",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_receives_materialized_source_and_separate_proposal",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_unavailable_stops_attempt_instead_of_rejecting_candidate",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_raises_on_digest_mismatch",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_real_sort_driver_reject_and_uncertain_use_mandatory_veto_factoring",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_driver_requires_exact_oracle_contract_id",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_compiled_relation_mismatch_is_unavailable_not_pass",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[additional-statement]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_resolution_private_and_durable_projections_do_not_share_full_path",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_authority_15_is_byte_exact_subset_of_rendered_ir_domain",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_admission_allows_only_ascii_token_whitespace_variation",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_domain_roundtrips_all_79_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_unresolved_environment_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_validate_single_sort_statement_is_renderer_postcondition_only"
+          ]
+        },
+        "M11-TOKENIZER-CLOSED-VOCABULARY-RAISES": {
+          "status": "MISMATCH",
+          "matches_expectation": false,
+          "observed_node_count": 11,
+          "mechanism_specific_node_count": 9,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_dispatch_is_exact_marker_only",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_ir_admission_rejects_after_effect_veto_and_before_oracle",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[additional-statement]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[body-call]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[generic-lambda]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[unknown-field]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_admission_allows_only_ascii_token_whitespace_variation",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_structure_rejects_oracle_bypass_and_multiple_statements[sort(write_set_.begin(), write_set_.end()); other();-sort-ir.envelope.v1]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_structure_rejects_oracle_bypass_and_multiple_statements[std::sort(write_set_.begin(), write_set_.end());-sort-ir.envelope.v1]"
+          ]
+        }
+      }
+    },
+    "main": {
+      "summary": {
+        "KILLED": 11,
+        "MISMATCH": 0,
+        "PARSE_ERROR": 0,
+        "SURVIVED": 0,
+        "TIMEOUT": 0,
+        "completed": 11,
+        "matching": 11,
+        "recorded": 11,
+        "registered": 11
+      },
+      "baseline_status": "PASSED",
+      "baseline_rc": 0,
+      "repo_head": "6850282efcdb480a78d16a132e740f79bbf5f019",
+      "spec_sha256": "eef204fc49b17367efa9b8896c02ad7144258a416b8de58166852191c5a12aa3",
+      "mutations": {
+        "M1-ADMISSION-DUPLICATE-FIELD-DISABLED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 3,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[duplicate-field]"
+          ]
+        },
+        "M2-SORT-ADMISSION-DISPATCH-BYPASSED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 4,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_dispatch_is_exact_marker_only",
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes",
+            "orchestrator/tests/test_p3_s4_loop.py::test_trigger_membership_does_not_change_sort_or_backoff_markers",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_ir_admission_rejects_after_effect_veto_and_before_oracle"
+          ]
+        },
+        "M3-RENDERER-DIRECTION-INVERTED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 43,
+          "mechanism_specific_node_count": 41,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_both_real_auditor_drivers_reject_post_generation_contradiction",
+            "orchestrator/tests/test_p3_s4_loop.py::test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes",
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_materialized_hole_is_canonical_form",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_none_cannot_be_interpreted_as_pass",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_pass_and_unavailable_are_stored_as_separate_attempt_records",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_receives_materialized_source_and_separate_proposal",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_unavailable_stops_attempt_instead_of_rejecting_candidate",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_raises_on_digest_mismatch",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_real_sort_driver_reject_and_uncertain_use_mandatory_veto_factoring",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_driver_requires_exact_oracle_contract_id",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_compiled_relation_mismatch_is_unavailable_not_pass",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_resolution_private_and_durable_projections_do_not_share_full_path",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_authority_15_is_byte_exact_subset_of_rendered_ir_domain",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_admission_allows_only_ascii_token_whitespace_variation",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_domain_roundtrips_all_79_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_unresolved_environment_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_validate_single_sort_statement_is_renderer_postcondition_only"
+          ]
+        },
+        "M4-EVALUATOR-STORAGE-SIGNED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 3,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values"
+          ]
+        },
+        "M5-POINTER-RANK-SLOT-INVERTED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 2,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_sort_ir_grammar_and_pointer_mapping",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values"
+          ]
+        },
+        "M6-EVALUATOR-KEY-NUL-TRUNCATED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 2,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values"
+          ]
+        },
+        "M7-CONFORMANCE-MISMATCH-NOT-RAISED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 3,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_compiled_relation_mismatch_is_unavailable_not_pass"
+          ]
+        },
+        "M8-CONTRACT-POINTER-MAPPING-KEY-REMOVED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 4,
+          "mechanism_specific_node_count": 2,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_axiom_checker_source_component",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_sort_ir_grammar_and_pointer_mapping"
+          ]
+        },
+        "M9-CANONICALIZATION-SKIPPED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 1,
+          "mechanism_specific_node_count": 1,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes"
+          ]
+        },
+        "M10-OVER-REJECTION-SINGLE-FIELD-REFUSED": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 44,
+          "mechanism_specific_node_count": 42,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_both_real_auditor_drivers_reject_post_generation_contradiction",
+            "orchestrator/tests/test_p3_s4_loop.py::test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes",
+            "orchestrator/tests/test_p3_s4_loop.py::test_sort_quarantine_canonicalizes_outer_whitespace_bytes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_materialized_hole_is_canonical_form",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_none_cannot_be_interpreted_as_pass",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_pass_and_unavailable_are_stored_as_separate_attempt_records",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_receives_materialized_source_and_separate_proposal",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_unavailable_stops_attempt_instead_of_rejecting_candidate",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_raises_on_digest_mismatch",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_real_sort_driver_reject_and_uncertain_use_mandatory_veto_factoring",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_driver_requires_exact_oracle_contract_id",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_compiled_relation_mismatch_is_unavailable_not_pass",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[additional-statement]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_resolution_private_and_durable_projections_do_not_share_full_path",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_authority_15_is_byte_exact_subset_of_rendered_ir_domain",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_admission_allows_only_ascii_token_whitespace_variation",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_domain_roundtrips_all_79_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_unresolved_environment_is_unavailable_not_candidate_reject",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_validate_single_sort_statement_is_renderer_postcondition_only"
+          ]
+        },
+        "M11-TOKENIZER-CLOSED-VOCABULARY-RAISES": {
+          "status": "KILLED",
+          "matches_expectation": true,
+          "observed_node_count": 11,
+          "mechanism_specific_node_count": 9,
+          "mechanism_specific_nodes": [
+            "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_dispatch_is_exact_marker_only",
+            "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_ir_admission_rejects_after_effect_veto_and_before_oracle",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[additional-statement]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[body-call]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[generic-lambda]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_public_oracle_rejects_non_ir_before_environment[unknown-field]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_sort_ir_admission_allows_only_ascii_token_whitespace_variation",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_structure_rejects_oracle_bypass_and_multiple_statements[sort(write_set_.begin(), write_set_.end()); other();-sort-ir.envelope.v1]",
+            "orchestrator/tests/test_sort_swo_oracle.py::test_structure_rejects_oracle_bypass_and_multiple_statements[std::sort(write_set_.begin(), write_set_.end());-sort-ir.envelope.v1]"
+          ]
+        }
+      }
+    }
+  }
+}

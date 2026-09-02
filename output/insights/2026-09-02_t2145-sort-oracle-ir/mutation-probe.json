@@ -1,0 +1,162 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "M1-ADMISSION-DUPLICATE-FIELD-DISABLED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "        if len(set(fields)) != len(fields):\n            return _sort_ir_reject(\"duplicate-field\")\n",
+          "new": "        if len(set(fields)) != len(fields) and False:\n            return _sort_ir_reject(\"duplicate-field\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M2-SORT-ADMISSION-DISPATCH-BYPASSED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if res.passed and marker_id == \"silo-writeset-sort\":\n",
+          "new": "    if res.passed and marker_id == \"silo-writeset-sort\" and False:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M3-RENDERER-DIRECTION-INVERTED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "    if direction is SortIrDirection.ASC:\n        return f\"a.{member} < b.{member}\"\n    return f\"b.{member} < a.{member}\"\n",
+          "new": "    if direction is SortIrDirection.ASC:\n        return f\"b.{member} < a.{member}\"\n    return f\"a.{member} < b.{member}\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M4-EVALUATOR-STORAGE-SIGNED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "    if field is SortIrField.STORAGE:\n        return element[0]\n",
+          "new": "    if field is SortIrField.STORAGE:\n        return element[0] - 0x100000000 if element[0] >= 0x80000000 else element[0]\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M5-POINTER-RANK-SLOT-INVERTED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "    return int(specification[\"rank_base\"]) + pointer_slot\n",
+          "new": "    return int(specification[\"rank_base\"]) - pointer_slot\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M6-EVALUATOR-KEY-NUL-TRUNCATED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "    if field is SortIrField.KEY:\n        return element[1]\n",
+          "new": "    if field is SortIrField.KEY:\n        return element[1].split(b\"\\x00\")[0]\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M7-CONFORMANCE-MISMATCH-NOT-RAISED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "            if trusted is not None and matrix != trusted:\n                raise _EvaluationUnavailable(\n                    \"real-tu-conformance\",\n                    \"compiled-relation-differs-from-trusted-evaluator\",\n                )\n",
+          "new": "            if trusted is not None and matrix != trusted and False:\n                raise _EvaluationUnavailable(\n                    \"real-tu-conformance\",\n                    \"compiled-relation-differs-from-trusted-evaluator\",\n                )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M8-CONTRACT-POINTER-MAPPING-KEY-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "    \"pointer_mapping_sha256\": POINTER_MAPPING_SHA256,\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M9-CANONICALIZATION-SKIPPED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            canonical = sort_swo_oracle.canonicalize_sort_implementation(\n                implementation\n            )\n            edited_text = render_hole(base_text, marker, canonical)\n",
+          "new": "            canonical = sort_swo_oracle.canonicalize_sort_implementation(\n                implementation\n            )\n            edited_text = render_hole(base_text, marker, implementation)\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "id": "M10-OVER-REJECTION-SINGLE-FIELD-REFUSED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "        if not 1 <= len(terms) <= 3:\n",
+          "new": "        if not 2 <= len(terms) <= 3:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M11-TOKENIZER-CLOSED-VOCABULARY-RAISES",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/sort_swo_oracle.py",
+          "old": "            token = text[cursor:end]\n            if token in _SORT_IR_ALTERNATIVE_WORD_TOKENS:\n                raise ValueError(\"alternative operator token is forbidden\")\n            tokens.append(token)\n",
+          "new": "            token = text[cursor:end]\n            if token in _SORT_IR_ALTERNATIVE_WORD_TOKENS:\n                raise ValueError(\"alternative operator token is forbidden\")\n            if token not in (set(_SORT_IR_ENVELOPE_PREFIX)\n                             | set(_SORT_IR_NAMED_PARAMETERS)\n                             | set(_SORT_IR_UNNAMED_PARAMETERS)\n                             | set(_SORT_IR_MEMBERS.values())\n                             | {\"false\", \"return\", \"bool\"}):\n                raise ValueError(\"token outside the closed grammar\")\n            tokens.append(token)\n"
+        }
+      ]
+    }
+  ]
+}
