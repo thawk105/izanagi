@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "old": "    started_budget_counts = _validated_budget_counts(\n        initial_started_budget_counts\n    )\n",
+          "new": "    _validated_budget_counts(initial_started_budget_counts)\n    started_budget_counts: BudgetCounts = {}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):\n",
+          "new": "        if not stat.S_ISDIR(sibling_stat.st_mode):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_registry.py",
+          "old": "        if sibling.is_symlink() or not stat.S_ISDIR(sibling_stat.st_mode):\n",
+          "new": "        if sibling.is_symlink():\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
