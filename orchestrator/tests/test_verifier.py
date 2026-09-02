@@ -1934,6 +1934,237 @@ def test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure():
     assert verify_trace_dir is original
 
 
+def test_parallel_production_path_matches_certified_result_and_runs_workers():
+    """The public production path uses real parse and DSG child processes."""
+    import importlib
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    sequential = verify_trace_dir(
+        os.path.join(FIX, "g3_readonly"), workers=1,
+    )
+    parallel = verify_trace_dir(
+        os.path.join(FIX, "g3_readonly"), workers=2,
+    )
+    assert result_to_dict(parallel) == result_to_dict(sequential)
+    assert parallel.certified
+    assert parse_module._LAST_PARSE_WORKER_PIDS
+    assert dsg_module._LAST_DSG_WORKER_PIDS
+    assert os.getpid() not in parse_module._LAST_PARSE_WORKER_PIDS
+    assert os.getpid() not in dsg_module._LAST_DSG_WORKER_PIDS
+
+
+def test_parallel_worker_exit_discards_partial_results_and_rereads_all_files():
+    """M1: losing the tail outcome cannot certify the surviving half."""
+    import importlib
+    import shutil
+    import time
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _tmp_trace(
+        "C 0 0 1 1 1 1\nR 0 aa 1 0\nW 0 bb U 1 1\nE 0\n",
+        "C 1 1 1 2 1 1\nR 1 bb 1 0\nW 1 aa U 1 2\nE 1\n",
+    )
+    marker = os.path.join(d, "worker-exit.pid")
+    parent_pid = os.getpid()
+    original = parse_module._parse_file_to_columns
+
+    def force_tail_worker_exit(task):
+        if task[0] == 1 and os.getpid() != parent_pid:
+            # Let path 0 become a received partial outcome before this worker dies.
+            time.sleep(0.2)
+            with open(marker, "w") as fh:
+                fh.write(str(os.getpid()))
+            os._exit(71)
+        return original(task)
+
+    parse_module._parse_file_to_columns = force_tail_worker_exit
+    try:
+        result = verify_trace_dir(d, workers=2)
+        assert not result.serializable
+        assert result.verdict == "non-serializable"
+        with open(marker) as fh:
+            worker_pid = int(fh.read())
+        assert worker_pid != parent_pid
+    finally:
+        parse_module._parse_file_to_columns = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_parallel_parse_issues_keep_sorted_path_order():
+    """M2: completion order never becomes ParseIssues/report order."""
+    import importlib
+    import shutil
+    import time
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nE 0\n",
+        "C 1 1 1 2 0 1\nE 1\n",
+    )
+    sequential = verify_trace_dir(d, workers=1)
+    original = parse_module._parse_file_to_columns
+    parent_pid = os.getpid()
+
+    def delay_first_path(task):
+        if task[0] == 0 and os.getpid() != parent_pid:
+            time.sleep(0.2)
+        return original(task)
+
+    parse_module._parse_file_to_columns = delay_first_path
+    try:
+        parallel = verify_trace_dir(d, workers=2)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        details = parallel.integrity.framing_violation_details
+        assert [detail.txid for detail in details] == [0, 1]
+    finally:
+        parse_module._parse_file_to_columns = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def _ordinal_witness_trace() -> str:
+    """Three-file trace whose source 1 edges arrive from distinct read shards."""
+    files = [[], [], []]
+    for txid in range(17):
+        target = 0 if txid < 8 else (1 if txid < 16 else 2)
+        if txid == 1:
+            files[target].append(
+                "C 1 0 1 2 2 2\n"
+                "R 1 cc 1 9\nR 1 dd 1 17\n"
+                "W 1 aa U 1 2\nW 1 bb U 1 2\nE 1\n")
+        elif txid == 8:
+            files[target].append(
+                "C 8 1 1 9 1 1\nR 8 aa 1 2\nW 8 cc U 1 9\nE 8\n")
+        elif txid == 16:
+            files[target].append(
+                "C 16 2 1 17 1 1\nR 16 bb 1 2\nW 16 dd U 1 17\nE 16\n")
+        else:
+            files[target].append(
+                f"C {txid} {target} 2 {txid + 1} 0 0\nE {txid}\n")
+    return _tmp_trace(*["".join(rows) for rows in files])
+
+
+def test_parallel_edge_replay_uses_global_logical_ordinal():
+    """M3: arrival reversal preserves the exact anomaly witness and ordering."""
+    import importlib
+    import shutil
+    import time
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    d = _ordinal_witness_trace()
+    sequential = verify_trace_dir(d, workers=1)
+    original = dsg_module._edge_candidates_for_task
+    parent_pid = os.getpid()
+
+    def delay_edge_fragment(task):
+        if (task.kind == "read" and task.start <= 8 < task.end
+                and os.getpid() != parent_pid):
+            time.sleep(0.2)
+        return original(task)
+
+    dsg_module._edge_candidates_for_task = delay_edge_fragment
+    try:
+        parallel = verify_trace_dir(d, workers=3)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        assert parallel.anomalies[0].cycle == [1, 8]
+    finally:
+        dsg_module._edge_candidates_for_task = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_parallel_parse_error_is_raised_by_parent_scanner_with_cause():
+    """M4: worker syntax failure is reparsed, not rebuilt from exception args."""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nR 0 aa not-an-int 0\nE 0\n",
+        "C 1 1 1 2 0 0\nE 1\n",
+    )
+
+    def capture(workers):
+        try:
+            verify_trace_dir(d, workers=workers)
+            assert False, "ParseError expected"
+        except ParseError as exc:
+            frames = []
+            tb = exc.__traceback__
+            while tb is not None:
+                frames.append(tb.tb_frame.f_code.co_name)
+                tb = tb.tb_next
+            return (
+                type(exc), exc.args, type(exc.__cause__), str(exc.__cause__), frames,
+            )
+
+    try:
+        sequential = capture(1)
+        parallel = capture(2)
+        assert parallel[:4] == sequential[:4]
+        assert parallel[2] is ValueError
+        assert "_parse_file" in parallel[4]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_compact_dsg_keeps_rw_edge_and_detects_g2_cycle():
+    """M5: the production compact path must retain read anti-dependencies."""
+    result = verify_trace_dir(os.path.join(FIX, "r1_write_skew"), workers=1)
+    assert result.verdict == "non-serializable"
+    assert result.anomalies[0].phenomenon == "G2"
+    assert RW in {
+        edge_type
+        for edge in result.anomalies[0].edges
+        for edge_type in edge.types
+    }
+
+
+def test_parallel_cross_file_duplicate_txid_is_parent_replayed():
+    """M6: neither worker sees this duplicate locally; the parent must."""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 0 1\nW 0 aa U 1 1\nE 0\n",
+        "C 0 1 1 2 0 1\nW 0 aa U 1 2\nE 0\n",
+    )
+    try:
+        sequential = verify_trace_dir(d, workers=1)
+        parallel = verify_trace_dir(d, workers=2)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        assert parallel.integrity.dup_txids == 1
+        assert parallel.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_sparse_huge_txid_returns_bounded_indeterminate_result():
+    """Accepted A4 difference: bounded gap scan replaces legacy MemoryError."""
+    import shutil
+    d = _tmp_trace("C 1000000000000 0 2 1 0 0\nE 1000000000000\n")
+    try:
+        result = verify_trace_dir(d, workers=1)
+        assert result.n_txns == 1
+        assert result.integrity.missing_txids == 1000000000000
+        assert result.integrity.missing_sample == [0, 1, 2, 3, 4]
+        assert result.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_parallel_capability_remains_bound_to_parent_pid():
+    from orchestrator.verifier.core import verify_trace_dir_with_capability
+    result, capability = verify_trace_dir_with_capability(
+        os.path.join(FIX, "g3_readonly"),
+        workers=2,
+        receipt_sink_kind="test",
+        receipt_lock_identity_sha256="0" * 64,
+        receipt_variant="baseline",
+        receipt_operation_identity="parallel-parent-pid",
+        receipt_workload_tag="unit",
+    )
+    assert result.certified
+    assert capability._pid == os.getpid()
+    capability._assert_matches(
+        sink_kind="test",
+        lock_identity_sha256="0" * 64,
+        variant="baseline",
+        operation_identity="parallel-parent-pid",
+        workload_tag="unit",
+    )
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():

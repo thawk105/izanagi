@@ -19,12 +19,147 @@
 """
 from __future__ import annotations
 
+import os
+from array import array
 from bisect import bisect_left, bisect_right
 from collections import defaultdict, deque
-from typing import Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
+from heapq import merge
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from .model import (GENESIS, RW, WR, WW, Anomaly, CycleEdge, EdgeReason,
                     Integrity, Txn, Version)
+from .parse import _CompactTrace, _txn_from_columns
+
+
+@dataclass(frozen=True)
+class _EdgeTask:
+    task_index: int
+    kind: str
+    start: int
+    end: int
+
+
+@dataclass(frozen=True)
+class _EdgeCandidateColumns:
+    task_index: int
+    worker_pid: int
+    ordinal: array
+    src: array
+    dst: array
+    orphan_reads: int
+
+
+_EDGE_TRACE: Optional[_CompactTrace] = None
+_EDGE_PRODUCER: Optional[Dict[Tuple[str, Version], int]] = None
+_EDGE_VERSIONS: Optional[Dict[str, List[Version]]] = None
+_EDGE_READ_PREFIX: Optional[array] = None
+_EDGE_KEYS: Optional[tuple[str, ...]] = None
+_EDGE_WW_PREFIX: Optional[array] = None
+_LAST_DSG_WORKER_PIDS: frozenset[int] = frozenset()
+
+
+def _weighted_ranges(weights: Sequence[int], parts: int) -> List[tuple[int, int]]:
+    """Split contiguous rows near equal cumulative weight without splitting rows."""
+    count = len(weights)
+    if count == 0:
+        return []
+    parts = max(1, min(parts, count))
+    prefix = [0]
+    for weight in weights:
+        prefix.append(prefix[-1] + weight)
+    if prefix[-1] == 0:
+        return [
+            (count * part // parts, count * (part + 1) // parts)
+            for part in range(parts)
+        ]
+    boundaries = [0]
+    for part in range(1, parts):
+        target = prefix[-1] * part / parts
+        boundary = bisect_left(prefix, target, lo=boundaries[-1] + 1)
+        maximum = count - (parts - part)
+        boundaries.append(min(max(boundary, boundaries[-1] + 1), maximum))
+    boundaries.append(count)
+    return list(zip(boundaries, boundaries[1:]))
+
+
+def _edge_candidates_for_task(task: _EdgeTask) -> _EdgeCandidateColumns:
+    trace = _EDGE_TRACE
+    producer = _EDGE_PRODUCER
+    versions = _EDGE_VERSIONS
+    read_prefix = _EDGE_READ_PREFIX
+    keys = _EDGE_KEYS
+    ww_prefix = _EDGE_WW_PREFIX
+    if (trace is None or producer is None or versions is None
+            or read_prefix is None or keys is None or ww_prefix is None):
+        raise RuntimeError("compact edge worker state is not initialized")
+    ordinals = array("Q")
+    sources = array("q")
+    destinations = array("q")
+    orphan_reads = 0
+
+    def add(ordinal: int, src: int, dst: int) -> None:
+        if src != dst:
+            ordinals.append(ordinal)
+            sources.append(src)
+            destinations.append(dst)
+
+    if task.kind == "read":
+        for rank in range(task.start, task.end):
+            columns = trace.files[trace.winner_path_index[rank]]
+            row = trace.winner_row[rank]
+            txid = trace.winner_txid[rank]
+            read_start = columns.txn_read_offsets[row]
+            read_end = columns.txn_read_offsets[row + 1]
+            for local_index, read_index in enumerate(range(read_start, read_end)):
+                key_start = columns.token_offsets[columns.read_key_id[read_index]]
+                key_end = columns.token_offsets[columns.read_key_id[read_index] + 1]
+                key = columns.token_blob[key_start:key_end].decode("ascii")
+                version = (
+                    columns.read_ver_epoch[read_index],
+                    columns.read_ver_tid[read_index],
+                )
+                logical = read_prefix[rank] + local_index
+                writer = producer.get((key, version))
+                if writer is not None:
+                    add(2 * logical, writer, txid)
+                elif version != GENESIS:
+                    orphan_reads += 1
+                key_versions = versions.get(key)
+                if key_versions:
+                    successor = bisect_right(key_versions, version)
+                    if successor < len(key_versions):
+                        writer = producer.get((key, key_versions[successor]))
+                        if writer is not None:
+                            add(2 * logical + 1, txid, writer)
+    elif task.kind == "ww":
+        read_ordinal_end = 2 * trace.n_reads
+        for key_index in range(task.start, task.end):
+            key = keys[key_index]
+            key_versions = versions[key]
+            for version_index in range(len(key_versions) - 1):
+                first = producer.get((key, key_versions[version_index]))
+                second = producer.get((key, key_versions[version_index + 1]))
+                if first is not None and second is not None:
+                    add(
+                        read_ordinal_end + ww_prefix[key_index] + version_index,
+                        first,
+                        second,
+                    )
+    else:
+        raise RuntimeError(f"unknown compact edge task: {task.kind}")
+    return _EdgeCandidateColumns(
+        task_index=task.task_index,
+        worker_pid=os.getpid(),
+        ordinal=ordinals,
+        src=sources,
+        dst=destinations,
+        orphan_reads=orphan_reads,
+    )
+
+
+def _edge_worker(task: _EdgeTask) -> _EdgeCandidateColumns:
+    return _edge_candidates_for_task(task)
 
 
 class DSG:
@@ -33,6 +168,7 @@ class DSG:
     するとメモリを食うため)。"""
 
     def __init__(self, txns: List[Txn]):
+        self._compact: Optional[_CompactTrace] = None
         self.txns = txns
         self.by_id: Dict[int, Txn] = {t.txid: t for t in txns}
         # (key, version) -> 産んだ trx の txid
@@ -43,6 +179,20 @@ class DSG:
         self.adj: Dict[int, Set[int]] = defaultdict(set)
         self.integrity = Integrity()
         self._build()
+
+    @classmethod
+    def from_compact(cls, trace: _CompactTrace) -> "DSG":
+        """Build from parse columns without materializing parent-side Txn objects."""
+        graph = cls.__new__(cls)
+        graph._compact = trace
+        graph.txns = []
+        graph.by_id = {}
+        graph.producer = {}
+        graph.versions = {}
+        graph.adj = {}
+        graph.integrity = Integrity()
+        graph._build_compact()
+        return graph
 
     # ---- 構築 ----
 
@@ -73,6 +223,144 @@ class DSG:
 
         self._add_read_edges()
         self._add_ww_edges()
+
+    def _build_compact(self) -> None:
+        trace = self._compact
+        if trace is None:
+            raise RuntimeError("compact DSG requested without compact trace")
+        per_key: Dict[str, List[Version]] = {}
+        for rank, txid in enumerate(trace.winner_txid):
+            columns = trace.files[trace.winner_path_index[rank]]
+            row = trace.winner_row[rank]
+            commit = (
+                columns.txn_commit_epoch[row], columns.txn_commit_tid[row],
+            )
+            if commit <= GENESIS:
+                self.integrity.genesis_commits += 1
+                self.integrity.notes.append(
+                    f"txid {txid} commits at or below genesis sentinel (1,0): "
+                    f"{commit} (non-physical)")
+            write_start = columns.txn_write_offsets[row]
+            write_end = columns.txn_write_offsets[row + 1]
+            for write_index in range(write_start, write_end):
+                token_id = columns.write_key_id[write_index]
+                token_start = columns.token_offsets[token_id]
+                token_end = columns.token_offsets[token_id + 1]
+                key = columns.token_blob[token_start:token_end].decode("ascii")
+                key_version = (key, commit)
+                if (key_version in self.producer
+                        and self.producer[key_version] != txid):
+                    self.integrity.version_dups += 1
+                    self.integrity.notes.append(
+                        f"version dup: key={key} ver={commit} "
+                        f"by txid {self.producer[key_version]} and {txid}")
+                else:
+                    self.producer[key_version] = txid
+                per_key.setdefault(key, []).append(commit)
+        for key, key_versions in per_key.items():
+            self.versions[key] = sorted(set(key_versions))
+        self._build_compact_edges(trace.worker_count)
+
+    def _build_compact_edges(self, worker_count: int) -> None:
+        global _EDGE_TRACE, _EDGE_PRODUCER, _EDGE_VERSIONS
+        global _EDGE_READ_PREFIX, _EDGE_KEYS, _EDGE_WW_PREFIX
+        global _LAST_DSG_WORKER_PIDS
+
+        trace = self._compact
+        if trace is None:
+            raise RuntimeError("compact edge build requested without compact trace")
+        read_weights: List[int] = []
+        read_prefix = array("Q", [0])
+        for rank in range(len(trace.winner_txid)):
+            columns = trace.files[trace.winner_path_index[rank]]
+            row = trace.winner_row[rank]
+            count = columns.txn_read_offsets[row + 1] - columns.txn_read_offsets[row]
+            read_weights.append(count)
+            read_prefix.append(read_prefix[-1] + count)
+        keys = tuple(self.versions)
+        ww_weights = [max(0, len(self.versions[key]) - 1) for key in keys]
+        ww_prefix = array("Q", [0])
+        for count in ww_weights:
+            ww_prefix.append(ww_prefix[-1] + count)
+
+        tasks: List[_EdgeTask] = []
+        parallelism = max(1, min(worker_count, len(trace.winner_txid) or 1))
+        for start, end in _weighted_ranges(read_weights, parallelism):
+            tasks.append(_EdgeTask(len(tasks), "read", start, end))
+        for start, end in _weighted_ranges(ww_weights, min(worker_count, len(keys) or 1)):
+            tasks.append(_EdgeTask(len(tasks), "ww", start, end))
+
+        _EDGE_TRACE = trace
+        _EDGE_PRODUCER = self.producer
+        _EDGE_VERSIONS = self.versions
+        _EDGE_READ_PREFIX = read_prefix
+        _EDGE_KEYS = keys
+        _EDGE_WW_PREFIX = ww_prefix
+        outcomes: List[_EdgeCandidateColumns] = []
+        received: List[_EdgeCandidateColumns] = []
+        try:
+            if worker_count > 1 and len(tasks) > 1:
+                try:
+                    import multiprocessing
+                    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+                    context = multiprocessing.get_context("fork")
+                    executor = ProcessPoolExecutor(
+                        max_workers=worker_count, mp_context=context,
+                    )
+                    try:
+                        futures = [executor.submit(_edge_worker, task) for task in tasks]
+                        failed = False
+                        for future in as_completed(futures):
+                            try:
+                                received.append(future.result())
+                            except Exception:
+                                failed = True
+                                break
+                        if failed:
+                            for future in futures:
+                                future.cancel()
+                    finally:
+                        executor.shutdown(wait=True, cancel_futures=True)
+                    indices = [outcome.task_index for outcome in received]
+                    if (len(indices) == len(tasks)
+                            and sorted(indices) == list(range(len(tasks)))):
+                        outcomes = received
+                except (
+                        ImportError, OSError, BlockingIOError, RuntimeError,
+                        ValueError,
+                ):
+                    outcomes = []
+            if not outcomes:
+                outcomes = [_edge_worker(task) for task in tasks]
+        finally:
+            _EDGE_TRACE = None
+            _EDGE_PRODUCER = None
+            _EDGE_VERSIONS = None
+            _EDGE_READ_PREFIX = None
+            _EDGE_KEYS = None
+            _EDGE_WW_PREFIX = None
+
+        _LAST_DSG_WORKER_PIDS = frozenset(
+            outcome.worker_pid for outcome in received or outcomes
+        )
+        self.integrity.orphan_reads += sum(
+            outcome.orphan_reads for outcome in outcomes)
+
+        # The ordinal is the legacy _add call order: txid/read row, wr then rw,
+        # followed by first-seen key order for ww.  Replay into real sets before
+        # freezing their runtime iteration order for Tarjan/BFS.
+        candidate_streams = [
+            zip(outcome.ordinal, outcome.src, outcome.dst)
+            for outcome in outcomes
+        ]
+        adjacency: Dict[int, Set[int]] = defaultdict(set)
+        for _ordinal, source, destination in merge(*candidate_streams):
+            adjacency[source].add(destination)
+        self.adj = {
+            source: tuple(destinations)
+            for source, destinations in adjacency.items()
+        }
 
     def _add(self, u: int, v: int) -> None:
         if u != v:                       # 自己ループ (RMW で自分が直後版を書く等) は辺にしない
@@ -197,8 +485,18 @@ class DSG:
 
     # ---- witness 辺の再構成 (type と key/版を取り戻す) ----
 
+    def _txn_for_id(self, txid: int) -> Txn:
+        if self._compact is None:
+            return self.by_id[txid]
+        rank = bisect_left(self._compact.winner_txid, txid)
+        if (rank >= len(self._compact.winner_txid)
+                or self._compact.winner_txid[rank] != txid):
+            raise KeyError(txid)
+        columns = self._compact.files[self._compact.winner_path_index[rank]]
+        return _txn_from_columns(columns, self._compact.winner_row[rank])
+
     def _reasons(self, u: int, v: int) -> List[EdgeReason]:
-        ut, vt = self.by_id[u], self.by_id[v]
+        ut, vt = self._txn_for_id(u), self._txn_for_id(v)
         reasons: List[EdgeReason] = []
         u_writes = {w.key: ut.commit for w in ut.writes}
         v_writes = {w.key: vt.commit for w in vt.writes}
