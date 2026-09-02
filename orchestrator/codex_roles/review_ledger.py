@@ -8,9 +8,9 @@ from __future__ import annotations
 
 
 # Claude role / Codex adapter の絶対枚数。set 等号は各 source を相互束縛するが枚数自体は固定しない
-# ため、全 source から lockstep で 1 role を削除すると 11 件でも整合してしまう。この floor を
+# ため、全 source から lockstep で 1 role を削除すると 13 件でも整合してしまう。この floor を
 # 人間レビュー ledger に置くことで、role の増減は必ずここの明示更新を伴う review checkpoint になる。
-EXPECTED_ROLE_COUNT = 13
+EXPECTED_ROLE_COUNT = 14
 
 SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
@@ -22,6 +22,8 @@ SOURCE_FILE_SHA256 = {
     "coder": "5573a39d611ac519b2a5025e73e0e5585a79292ebf20fafdb02985306031a7e0",
     # Reviewed 2026-08-26: T-1690; suffix-free literal/value一致・1文の producer 契約を追加。
     "coder-v4-autonomous": "4073ac4223eaca9c353685f116a4dfb53db5b3412011373b717c44e3b25ec10d",
+    # Reviewed 2026-09-02: T-2200; K2 宣言アーム用 sibling role 契約を追加。
+    "coder-v4-autonomous-k2": "36a3551ef23a04ca23d13d654e4368de716f3e48c904107f8b693f6a7b83cb06",
     # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
     "coder-v4-autonomous-sort": "fbabef04095f73b7fc517290afc66d4fb8779144184eaf7c078fc17d50d7ca9a",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
@@ -51,6 +53,8 @@ ROLE_MANIFEST_SHA256 = {
     "coder": "2af1a88e8f8cae73e251d067ba47ea4b1acd5457083111d3dc719914d199e136",
     # Reviewed 2026-08-26: T-1690; projection に suffix-free literal/value一致・1文制約を追加。
     "coder-v4-autonomous": "5e277d54ad7314807cd2f8c46574c6223e8a87e2b251eb29bdb53e2d02bb8bdd",
+    # Reviewed 2026-09-02: T-2200; K2 入力・自己申告出力・境界を固定。
+    "coder-v4-autonomous-k2": "78ec33ac6b41215d3f5758d01d10253dfedf2b4ffbab593de1f1fe5eb2dd85c3",
     "coder-v4-autonomous-sort": "0516335248dd542372ba4a420835c2451ea816b2aadc78cacaa1c388bd2252fa",
     # Reviewed 2026-08-04: stage5-agent-review.md and stage6-fix-ruling.md r2-7.
     "coder-v4-autonomous-trigger-gating": "c307d820022585bf9f34ffb3f70b10734c8903b5eb0f450698739aa9413d3a8c",
@@ -73,6 +77,7 @@ DESCRIPTION_SHA256 = {
     "calibrator": "89ff12f68058d1fb1f0e8fbced10b04d34909c1c903f3140d6736b0a9c0df6ed",
     "coder": "e69da61c8d99ce72ddd9888d275cba9b9a31e5c8457d68696a7e00e9e5d94602",
     "coder-v4-autonomous": "c40c7e9d9a0ef4957c02957088331377186ffd2f23443236e05c4f231f0faa1b",
+    "coder-v4-autonomous-k2": "9a804cadee14bf32f23632c4fb2ade105df66df76fa3fb7e44bc6a094b294a86",
     "coder-v4-autonomous-sort": "c0e5855da78d3f07fe24485c1e2c4324a2fb454c0d8c2748a3e86b156f13df00",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
     "coder-v4-autonomous-trigger-gating": "fdbb6a5501d78b693546b3dd78885576a0c0de558931971d87e50244ee404a2a",
@@ -109,6 +114,10 @@ SCHEMA_SHA256 = {
     "coder-v4-autonomous": {
         "input": "6412c89cf8d32b8071967cb6726791bc77e542a49b579790151136cddae5c361",
         "output": "bdede09e28ba864440cce8e055460370126ce8c230268abfbc61e976229da1ef",
+    },
+    "coder-v4-autonomous-k2": {
+        "input": "3098009c93b77f94531d57f803273a11be2e615125691f647d9c61c5e64e3d8a",
+        "output": "fb318c56fdaeeb61ebff284939d6386268c5d793e6d13210e22d5adc021ce24a",
     },
     "coder-v4-autonomous-sort": {
         "input": "7a1946e72e7b57e1888af72a0f2c30c4e204a42556dbbd4ea60b4e9053f1d510",
@@ -199,6 +208,10 @@ ROLE_IO_CONTRACTS = {
     "coder-v4-autonomous": _direct(
         ("leakproof_context", "baseline", "planner_direction", "whiteboard"),
         ("proposal",),
+    ),
+    "coder-v4-autonomous-k2": _direct(
+        ("leakproof_context", "knowledge_input", "baseline", "planner_direction", "whiteboard"),
+        ("proposal", "knowledge_use", "classification", "data_boundary_report"),
     ),
     "coder-v4-autonomous-sort": _direct(
         ("leakproof_context", "sort_spec", "baseline", "planner_direction", "whiteboard"),
