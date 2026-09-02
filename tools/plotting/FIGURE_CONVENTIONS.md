@@ -52,8 +52,15 @@ proof-chain (どのデータからどの結論か辿れる) を思想の核に�
 ## 5. 用語は図中で最小・キャプションで一度だけ展開
 
 - 図中ラベルは短く (no backoff, stock adaptive, IPC)。略語・内部語はキャプションで
-  一度だけ展開する (例: 「IPC = instructions per cycle」「stock adaptive = Cicada 標準の
-  適応 backoff」)。コードベースの内部識別子を軸ラベルに出さない。
+  一度だけ展開する (例: 「IPC = instructions per cycle」「stock adaptive = **CCBench 既定 3 定数**
+  (刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs) の適応 backoff」)。
+  コードベースの内部識別子を軸ラベルに出さない。
+- **`stock adaptive` の展開を「Cicada 標準の適応 backoff」と書かない** (2026-09-02 訂正)。
+  そう書くと、機構そのものの性質を測った線だと読めてしまう。実際に測っているのは
+  **既定定数を入れた機構**であり、同じ機構でも定数を変えれば結果は大きく動く (D1505)。
+  **既定 adaptive を単独の適応基準線に置いた比較は、機構の優劣を何も言っていないものとして扱う**
+  (D1506)。適応機構との比較を主張する図は、無 backoff と調整済み adaptive
+  (刻み 1 µs / 更新間隔 2560 µs / 上限 1000 µs) の 2 本を基準線に置く。
 
 ## 6. provenance を刻む (proof-chain を閉じる)
 

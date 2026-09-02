@@ -3,8 +3,9 @@
 
 backoff_sweep.py の WAL を読み、workload ごとに:
   - 静的 backoff の量 (us) に対する throughput / abort_rate / ipc の曲線 (.dat/.plt/.png)
-  - 無 backoff (BACK_OFF=0) と stock 適応 (BACKOFF_FIXED=-1) の参照線
-  - 「適応が逃した sweet spot」があるか (静的最良 vs 無 vs 適応) を report.md に
+  - 無 backoff (BACK_OFF=0) と CCBench 既定 3 定数の adaptive
+    (刻み 100 us / 上限 1000 us / 更新間隔 10 us) の参照線
+  - 静的最良 対 無 backoff の記述的判定を report.md に
 を campaigns/<id>/reports/ に出す。critic の帰属 (P2-3) を実 sweep で検証する材料。
 
   python orchestrator/campaign/backoff_sweep_report.py
@@ -92,7 +93,9 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         "env": "linux-baremetal", "campaign": os.path.basename(layout.root),
         "workload": f"{tag} ({wl_str})", "base": "L-W0 (no-wait-locking, WAL 無)",
         "no_backoff_tps(BACK_OFF=0)": f"{none_tp:,.0f}" if none_tp else "—",
-        "adaptive_tps(stock Cicada)": f"{adap_tp:,.0f}" if adap_tp else "—",
+        "adaptive_tps(CCBench既定: 刻み100us/上限1000us/更新間隔10us)": (
+            f"{adap_tp:,.0f}" if adap_tp else "—"
+        ),
         "best_static": f"{best_amt}us = {tp(best_g):,.0f} tps",
         "noise_floor_cv": f"between-run {BETWEEN_RUN_CV * 100:.1f}% (skew0.9, A2)",
         "read_purpose": view.read_purpose.value,
@@ -109,7 +112,8 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         repro_command="# orchestrator/campaign/backoff_sweep.py (各点の run_cmd は WAL 参照)")
     spec = PlotSpec(
         title=f"backoff sweep — {tag} (skew0.9, static vs none={none_tp:,.0f} / "
-              f"adaptive={adap_tp:,.0f})" if none_tp and adap_tp else f"backoff sweep — {tag}",
+              f"adaptive(default 100/1000/10us)={adap_tp:,.0f})"
+              if none_tp and adap_tp else f"backoff sweep — {tag}",
         xlabel="static backoff magnitude (us)", ylabel="throughput (tps)",
         y2label="abort rate (%)",
         series=[Series("1:2", "throughput (static)", "x1y1", style="linespoints"),
@@ -128,14 +132,14 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         f.write(md)
     verdict = _verdict(none_tp, adap_tp, tp(best_g))
     log(f"[{tag}] best static={best_amt}us {tp(best_g):,.0f} tps / none={none_tp:,.0f} / "
-        f"adaptive={adap_tp:,.0f} → {verdict}")
+        f"adaptive(default 100/1000/10us)={adap_tp:,.0f} → {verdict}")
     return {"tag": tag, "cid": os.path.basename(layout.root), "none": none_tp, "adaptive": adap_tp,
             "best_amt": best_amt, "best_tps": tp(best_g), "verdict": verdict,
             "report": md_path}
 
 
 def _verdict(none_tp, adap_tp, best_static) -> str:
-    """sweet spot 判定 (between-run noise floor を超えるかで, A2)。
+    """静的最良 対 無 backoff の記述的判定 (between-run noise floor 基準, A2)。
 
     注意 (洗練検査 2026-07-02): best_static は 6 静的点の argmax なので、この判定は
     選択バイアス無補正の単一閾値比較。sweep 再利用時はこの行だけを信用せず cross-run
@@ -146,10 +150,12 @@ def _verdict(none_tp, adap_tp, best_static) -> str:
         return "判定不能 (データ欠損)"
     rel_vs_none = best_static / none_tp - 1
     if rel_vs_none > nf:
-        return f"静的 backoff が無 backoff を +{rel_vs_none*100:.1f}% 上回る (sweet spot あり)"
+        return (f"静的最良が無 backoff を +{rel_vs_none*100:.1f}% 上回る "
+                "(between-run noise floor 超)")
     if abs(rel_vs_none) <= nf:
-        return f"静的最良も無 backoff と差なし ({rel_vs_none*100:+.1f}%, noise内) = backoff は不要"
-    return f"静的最良でも無 backoff に届かず ({rel_vs_none*100:+.1f}%) = backoff は純損"
+        return (f"静的最良と無 backoff の差は noise 内 "
+                f"({rel_vs_none*100:+.1f}%)")
+    return f"静的最良が無 backoff を下回る ({rel_vs_none*100:+.1f}%)"
 
 
 def _md(tag, wl_str, cid, static, none_tp, adap_tp, best_amt, best_g, tp,
@@ -165,7 +171,11 @@ def _md(tag, wl_str, cid, static, none_tp, adap_tp, best_amt, best_g, tp,
          f"![backoff sweep {tag}]({png})", "",
          "## 参照", "",
          f"- **無 backoff** (BACK_OFF=0): {none_tp:,.0f} tps" if none_tp else "- 無 backoff: —",
-         f"- **stock 適応 backoff** (Cicada hill-climb): {adap_tp:,.0f} tps" if adap_tp else "- 適応: —",
+         (f"- **CCBench 既定 3 定数の adaptive backoff** "
+          f"(刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs): "
+          f"{adap_tp:,.0f} tps" if adap_tp else
+          "- **CCBench 既定 3 定数の adaptive backoff** "
+          "(刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs): —"),
          f"- **静的最良**: {best_amt}us = {tp(best_g):,.0f} tps",
          f"- **判定**: {_verdict(none_tp, adap_tp, tp(best_g))}", "",
          "## 静的 backoff 量に対する曲線", "",
@@ -184,8 +194,10 @@ def _md(tag, wl_str, cid, static, none_tp, adap_tp, best_amt, best_g, tp,
                    "trade-off が量の関数として見える。")
     L += ["",
           "## 読み (critic 帰属の検証)", "",
-          "stock 適応 backoff が静的最良に対してどこに居るか = Cicada の hill-climbing が "
-          "sweet spot を捉えているか/逃しているかの直接証拠。", reading, ""]
+          "CCBench 既定 3 定数の adaptive backoff は、上流を素のまま使ったときの文脈値である。"
+          "この campaign は調整済み adaptive を含まないため、静的最良との差だけから Cicada "
+          "hill-climbing が sweet spot を捉えるか、機構として優れるかは判定しない (D1506)。",
+          reading, ""]
     return "\n".join(L)
 
 
@@ -198,7 +210,8 @@ def main() -> int:
     print("\n=== backoff sweep サマリ ===")
     for r in have:
         print(f"  {r['tag']}: best static {r['best_amt']}us {r['best_tps']:,.0f} / "
-              f"none {r['none']:,.0f} / adaptive {r['adaptive']:,.0f} → {r['verdict']}")
+              f"none {r['none']:,.0f} / adaptive(default 100/1000/10us) "
+              f"{r['adaptive']:,.0f} → {r['verdict']}")
     return 0
 
 
