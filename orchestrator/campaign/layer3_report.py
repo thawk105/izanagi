@@ -194,12 +194,30 @@ def _resolve_generated_from_head(
         raise
 
 
-def _artifact_refs(campaign_dir: Path) -> List[Dict[str, str]]:
+def _artifact_refs(
+        campaign_dir: Path, *,
+        knowledge_receipt_sha256: Optional[str] = None,
+) -> List[Dict[str, str]]:
     files = sorted(path for path in campaign_dir.rglob("*") if path.is_file())
     if not files:
         raise Layer3ReportError("campaign に artifact がない")
-    return [{"path": str(path.relative_to(campaign_dir)), "sha256": _sha256_file(path)}
-            for path in files]
+    refs = [
+        {
+            "path": str(path.relative_to(campaign_dir)),
+            "sha256": _sha256_file(path),
+        }
+        for path in files
+    ]
+    if knowledge_receipt_sha256 is not None and not any(
+            ref == {
+                "path": wal.KNOWLEDGE_RECEIPT_FILENAME,
+                "sha256": knowledge_receipt_sha256,
+            }
+            for ref in refs):
+        raise Layer3ReportError(
+            "knowledge receipt bytes changed after provenance validation"
+        )
+    return refs
 
 
 def _report_primary_refs(report: Mapping[str, Any]) -> Counter:
@@ -758,24 +776,33 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     ):
         raise Layer3ReportError("campaign bytes changed after admission validation")
     try:
-        knowledge_provenance = wal.knowledge_provenance_for_material_report(
-            CampaignLayout(root=str(campaign_dir)),
-            [
-                WalRecord(
-                    variant=record["variant"],
-                    stage=record["stage"],
-                    env_tag=record["env_tag"],
-                    ts=record["ts"],
-                    payload=record["payload"],
-                )
-                for record in records
-            ],
-            campaign_lock=decoded_lock,
+        checked_knowledge_provenance = (
+            wal.knowledge_provenance_and_receipt_sha256_for_material_report(
+                CampaignLayout(root=str(campaign_dir)),
+                [
+                    WalRecord(
+                        variant=record["variant"],
+                        stage=record["stage"],
+                        env_tag=record["env_tag"],
+                        ts=record["ts"],
+                        payload=record["payload"],
+                    )
+                    for record in records
+                ],
+                campaign_lock=decoded_lock,
+            )
         )
     except wal.AttemptTopologyError as exc:
         raise Layer3ReportError(
             "knowledge provenance 検証に失敗"
         ) from exc
+    if checked_knowledge_provenance is None:
+        knowledge_provenance = None
+        knowledge_receipt_sha256 = None
+    else:
+        knowledge_provenance, knowledge_receipt_sha256 = (
+            checked_knowledge_provenance
+        )
     if _contains_qualification_lineage(records):
         raise Layer3ReportError(
             "qualification lineage は formal Layer3 入力として受理しない")
@@ -826,7 +853,11 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "env_tags": sorted(env_tags),
         "whiteboard": sorted(whiteboard, key=lambda item: canonical_record_ref("wb", item)),
         "whiteboard_provenance": whiteboard_provenance,
-        "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
+        "artifact_refs": _artifact_refs(
+            campaign_dir,
+            knowledge_receipt_sha256=knowledge_receipt_sha256,
+        ),
+        "source_refs": [],
         "admission_decision": admitted_campaign.decision.as_receipt(),
         "campaign_verifier_epoch": _epoch_projection(
             admitted_campaign.campaign_verifier_epoch,

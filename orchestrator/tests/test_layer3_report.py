@@ -344,6 +344,74 @@ def _knowledge_campaign(tmp_path: Path):
     return campaign, output_root, resolved
 
 
+def _knowledge_schema_specimen() -> dict:
+    """Return a schema-valid report assembled without the report producer."""
+    source = {
+        "kind": "repo_artifact",
+        "identity": {"commit": "a" * 40, "path": "knowledge.txt"},
+        "sha256": "b" * 64,
+    }
+    absent_floor = {
+        "value": None,
+        "provenance": "no-matching-env-record",
+        "source": None,
+        "search": {},
+    }
+    return {
+        "schema_version": "layer3-material-report/v3",
+        "meta": {
+            "campaign_id": "schema-fixture",
+            "campaign_path": "output/campaigns/schema-fixture",
+            "ccbench_commit": "fixture",
+            "generated_from_head": "fixture",
+            "generator": {
+                "identity": "orchestrator.campaign.layer3_report",
+                "sha256": "c" * 64,
+            },
+        },
+        "workload": {},
+        "policy_hint": None,
+        "knowledge_provenance": {
+            "knowledge_level": "K2",
+            "knowledge_manifest_sha256": "d" * 64,
+            "declared_sources": [json.loads(json.dumps(source))],
+            "injected_sources": [json.loads(json.dumps(source))],
+        },
+        "variants": [],
+        "runs": [],
+        "verifications": [],
+        "rejects": [],
+        "aborts": [],
+        "noise_floor": {
+            "within_run": dict(absent_floor),
+            "between_run": dict(absent_floor),
+        },
+        "env_tags": [],
+        "whiteboard": [],
+        "whiteboard_provenance": "absent",
+        "artifact_refs": [],
+        "source_refs": [],
+        "admission_decision": {
+            "schema_version": "campaign-artifact-admission-decision/v1",
+            "classification": "admitted-new-schema",
+            "admission_status": "admitted",
+            "verification_status": "not-evaluated-by-overlay",
+            "campaign_id": "schema-fixture",
+            "campaign_path": "output/campaigns/schema-fixture",
+            "campaign_lock_sha256": "e" * 64,
+            "wal_sha256": "f" * 64,
+            "policy_sha256": None,
+            "attempt_receipt_sha256s": [],
+            "validator": {
+                "identity": "orchestrator.campaign.artifact_admission",
+                "sha256": "1" * 64,
+            },
+            "overlay": {"ledger_sha256": "2" * 64, "record_key": None},
+        },
+        "mechanism_hypotheses": [],
+    }
+
+
 def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
     start_record = _record("build_start", genome="g", src_token="s")
     start_record["env_tag"] = "linux-baremetal"
@@ -1712,32 +1780,61 @@ def test_knowledge_report_projects_verified_receipt_sources(tmp_path):
     }
 
 
-def test_schema_rejects_unknown_nested_knowledge_key(tmp_path):
+def test_schema_accepts_independent_knowledge_provenance_specimen():
+    """FX4/FX5 positive: the standalone exact-shape specimen is schema-valid."""
+    layer3_report._validate_schema(_knowledge_schema_specimen())
+
+
+def test_schema_rejects_unknown_nested_knowledge_key():
     """M3: fails only when the nested provenance object permits an unknown key."""
-    campaign, output_root, _resolved = _knowledge_campaign(tmp_path)
-    report = layer3_report.build_report(
-        campaign, generated_from_head="fixed", output_root=output_root,
-    )
+    report = _knowledge_schema_specimen()
+    layer3_report._validate_schema(report)
     report["knowledge_provenance"]["unexpected"] = True
 
     with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
         layer3_report._validate_schema(report)
 
 
-def test_schema_rejects_missing_injected_sources(tmp_path):
+def test_schema_rejects_missing_injected_sources():
     """M4: fails only when injected_sources is not nested-required."""
-    campaign, output_root, _resolved = _knowledge_campaign(tmp_path)
-    report = layer3_report.build_report(
-        campaign, generated_from_head="fixed", output_root=output_root,
-    )
+    report = _knowledge_schema_specimen()
+    layer3_report._validate_schema(report)
     del report["knowledge_provenance"]["injected_sources"]
 
     with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
         layer3_report._validate_schema(report)
 
 
+@pytest.mark.parametrize(
+    "case",
+    (
+        "source-unknown-key",
+        "identity-unknown-key",
+        "empty-array",
+        "duplicate-array",
+    ),
+)
+def test_schema_rejects_invalid_knowledge_source_shapes(case):
+    """FX5: each case fails only at its named existing schema constraint."""
+    report = _knowledge_schema_specimen()
+    layer3_report._validate_schema(report)
+    provenance = report["knowledge_provenance"]
+    if case == "source-unknown-key":
+        provenance["declared_sources"][0]["unexpected"] = True
+    elif case == "identity-unknown-key":
+        provenance["declared_sources"][0]["identity"]["unexpected"] = True
+    elif case == "empty-array":
+        provenance["declared_sources"] = []
+    else:
+        duplicate = json.loads(json.dumps(provenance["injected_sources"][0]))
+        provenance["injected_sources"].append(duplicate)
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
 def test_report_rejects_receipt_replaced_after_build_start(tmp_path):
-    """M7: fails only when report generation bypasses the live receipt validator."""
+    """M7: fails only if verified WAL projection replaces the live receipt read."""
     campaign, output_root, _resolved = _knowledge_campaign(tmp_path)
     receipt_path = campaign / knowledge_manifest.RECEIPT_FILENAME
     receipt = json.loads(receipt_path.read_bytes())
@@ -1752,6 +1849,62 @@ def test_report_rejects_receipt_replaced_after_build_start(tmp_path):
     ):
         layer3_report.build_report(
             campaign, generated_from_head="fixed", output_root=output_root,
+        )
+
+
+def test_artifact_refs_accept_validated_knowledge_receipt_digest(tmp_path):
+    """FX3 positive: the real artifact scan accepts the same receipt bytes."""
+    campaign, _output_root, _resolved = _knowledge_campaign(tmp_path)
+    checked = (
+        wal.knowledge_provenance_and_receipt_sha256_for_material_report(
+            CampaignLayout(root=str(campaign)),
+            wal.read_records(CampaignLayout(root=str(campaign))),
+            campaign_lock=layer3_report._read_campaign_lock(
+                campaign / "campaign.lock"
+            ),
+        )
+    )
+    assert checked is not None
+    _projection, receipt_sha256 = checked
+
+    assert {
+        "path": knowledge_manifest.RECEIPT_FILENAME,
+        "sha256": receipt_sha256,
+    } in layer3_report._artifact_refs(
+        campaign, knowledge_receipt_sha256=receipt_sha256,
+    )
+
+
+def test_artifact_refs_reject_receipt_changed_after_provenance_read(tmp_path):
+    """FX3: only the validated-read/artifact-ref digest mismatch rejects."""
+    campaign, _output_root, _resolved = _knowledge_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    records = wal.read_records(layout)
+    decoded_lock = layer3_report._read_campaign_lock(campaign / "campaign.lock")
+    checked = (
+        wal.knowledge_provenance_and_receipt_sha256_for_material_report(
+            layout, records, campaign_lock=decoded_lock,
+        )
+    )
+    assert checked is not None
+    projection, receipt_sha256 = checked
+
+    receipt_path = campaign / knowledge_manifest.RECEIPT_FILENAME
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["claim_boundary"]["classification"] = "alternate-valid-claim"
+    receipt_path.write_bytes(
+        knowledge_manifest.canonical_json_bytes(receipt) + b"\n"
+    )
+    assert wal.knowledge_provenance_for_material_report(
+        layout, records, campaign_lock=decoded_lock,
+    ) == projection
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="knowledge receipt bytes changed after provenance validation",
+    ):
+        layer3_report._artifact_refs(
+            campaign, knowledge_receipt_sha256=receipt_sha256,
         )
 
 
