@@ -159,14 +159,18 @@ def test_baseline_single_sample_draws_line_without_ci_band():
     assert axis.spans == []
 
 
-def test_baseline_cli_keeps_legacy_call_and_accepts_no_backoff_only():
+def test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in():
     plot = _load_plot_module(need_numpy=False)
-    legacy = plot._parse_cli(["plot_backoff.py", "out", "campaign"])
-    assert legacy == ("out", ["campaign"], ("no-backoff", "stock-adaptive"))
+    default = plot._parse_cli(["plot_backoff.py", "out", "campaign"])
+    assert default == ("out", ["campaign"], ("no-backoff",))
     selected = plot._parse_cli([
         "plot_backoff.py", "--baselines", "no-backoff", "out", "campaign",
     ])
     assert selected == ("out", ["campaign"], ("no-backoff",))
+    stock = plot._parse_cli([
+        "plot_backoff.py", "--baselines", "stock-adaptive", "out", "campaign",
+    ])
+    assert stock == ("out", ["campaign"], ("stock-adaptive",))
 
 
 def test_baseline_cli_rejects_unknown_name():
@@ -245,12 +249,15 @@ def _figure_campaign(name, workload, scale):
 
 
 def test_actual_panel_artists_match_serialized_baseline_records():
-    """各 panel の line y / text label と main が書く baselines[] を直接照合する。"""
+    """既定の no backoff label を fixture の既知 no-backoff 値へ固定する。"""
     plot = _load_plot_module(need_numpy=False)
     campaigns = {
         "write": _figure_campaign("write", "write-heavy", 1.0),
         "balanced": _figure_campaign("balanced", "balanced", 1.3),
     }
+    # 期待値は production の provenance や BASELINE_SPECS から導出しない。
+    # _figure_campaign が投入する none=[1.8M, 2.0M] * scale の既知平均である。
+    expected_no_backoff_y = {"write": 1.9, "balanced": 2.47}
     original_load_campaign = plot.load_campaign
     plot.load_campaign = campaigns.__getitem__
     try:
@@ -265,10 +272,13 @@ def test_actual_panel_artists_match_serialized_baseline_records():
             top_axes = figure.axes[:len(campaigns)]
             assert len(provenance["inputs"]) == len(top_axes)
             for axis, input_row in zip(top_axes, provenance["inputs"]):
+                expected_y = expected_no_backoff_y[input_row["campaign"]]
                 assert input_row["campaign_verifier_epoch"][
                     "verifier_assessment_basis"
                 ] == "recorded-at-original-verifier-epoch"
                 rows = input_row["baselines"]
+                assert [row["label"] for row in rows] == ["no backoff"]
+                assert math.isclose(rows[0]["value_tps"] / 1e6, expected_y)
                 labels = {row["label"] for row in rows}
                 baseline_texts = [text for text in axis.texts if text.get_text() in labels]
                 assert len(baseline_texts) == len(rows)
@@ -279,12 +289,50 @@ def test_actual_panel_artists_match_serialized_baseline_records():
                         horizontal_y.append(float(ydata[0]))
                 assert len(horizontal_y) == len(rows)
                 for row in rows:
-                    expected_y = row["value_tps"] / 1e6
                     matches = [text for text in baseline_texts
                                if text.get_text() == row["label"]]
                     assert len(matches) == 1
                     assert math.isclose(float(matches[0].get_position()[1]), expected_y)
                     assert sum(math.isclose(y, expected_y) for y in horizontal_y) == 1
+    finally:
+        plot.load_campaign = original_load_campaign
+        if plot.plt is not None:
+            plot.plt.close("all")
+
+
+def test_explicit_stock_adaptive_draws_legacy_baseline():
+    """stock adaptive label を fixture の既知 adaptive 値へ固定する。"""
+    plot = _load_plot_module(need_numpy=False)
+    campaign = _figure_campaign("write", "write-heavy", 1.0)
+    original_load_campaign = plot.load_campaign
+    plot.load_campaign = lambda _name: campaign
+    try:
+        with tempfile.TemporaryDirectory(prefix="backoff-stock-opt-in-") as temp:
+            out_prefix = str(Path(temp) / "figure")
+            assert plot.main([
+                "plot_backoff.py", "--baselines", "stock-adaptive",
+                out_prefix, "write",
+            ]) == 0
+            provenance = json.loads(Path(
+                out_prefix + ".provenance.json").read_text(encoding="utf-8"))
+            rows = provenance["inputs"][0]["baselines"]
+            assert [row["label"] for row in rows] == ["stock adaptive"]
+            # adapt=[1.1M, 1.3M] の既知平均。production の provenance は期待値にしない。
+            expected_y = 1.2
+            assert math.isclose(rows[0]["value_tps"] / 1e6, expected_y)
+            axis = plot.plt.gcf().axes[0]
+            matches = [text for text in axis.texts
+                       if text.get_text() == "stock adaptive"]
+            assert len(matches) == 1
+            assert math.isclose(float(matches[0].get_position()[1]), expected_y)
+            assert all(text.get_text() != "no backoff" for text in axis.texts)
+            horizontal_y = []
+            for line in axis.lines:
+                ydata = list(line.get_ydata())
+                if len(ydata) == 2 and math.isclose(float(ydata[0]), float(ydata[1])):
+                    horizontal_y.append(float(ydata[0]))
+            assert len(horizontal_y) == 1
+            assert math.isclose(horizontal_y[0], expected_y)
     finally:
         plot.load_campaign = original_load_campaign
         if plot.plt is not None:

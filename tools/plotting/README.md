@@ -12,12 +12,16 @@
 python plot_backoff.py [--baselines LIST] OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
 ```
 
-`--baselines` は `no-backoff` / `stock-adaptive` の comma 区切り部分集合。既定は
-`no-backoff,stock-adaptive` で、従来の 2 基準線を保つ。`no-backoff` だけを描くときは
-次のように明示する。未知の値はエラーになる。
+`--baselines` は `no-backoff` / `stock-adaptive` の comma 区切り部分集合。**既定は
+`no-backoff` の 1 本**である (2026-09-02 に `no-backoff,stock-adaptive` から狭めた、D1506)。
+`stock-adaptive` は **CCBench 既定 3 定数** (刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs) の
+適応 backoff であり、調整済み adaptive ではない。D1506 は既定 adaptive を測ること自体を
+禁じないので、明示すれば今も描ける。**禁じているのは、既定 adaptive を単独の適応基準線に置いた
+比較から機構の優劣を言うことである。**未知の値はエラーになる。
+既定 adaptive も併記したいときは次のように明示する。
 
 ```
-python plot_backoff.py --baselines no-backoff OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
+python plot_backoff.py --baselines no-backoff,stock-adaptive OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
 ```
 
 例 (3 workload を 1 枚に統合):
@@ -65,9 +69,18 @@ campaign を複数指定するとその順で横並び (workload 比較) にな�
 
 ## B-10 extended backoff figure
 
-`plot_b10_extended_backoff.py` は、完走済み B-10 拡張格子専用の生成器である。既存 fig2b が
-source hash を pin するため `plot_backoff.py` 自体は変更せず、その WAL admission、style、
-campaign condition 抽出を依存として再利用する。
+`plot_b10_extended_backoff.py` は、完走済み B-10 拡張格子専用の生成器である。
+B-10 対応を `plot_backoff.py` 側へ足すのではなく、その WAL admission、style、
+campaign condition 抽出を**依存として再利用する**形にした。
+
+**この分離は「`plot_backoff.py` を今後も変更してはならない」という意味ではない**
+(2026-09-02 訂正)。fig2b と fig2c の provenance が持つ `plot_backoff.py` の SHA-256 は
+**その図を生成した時点の bytes**の記録であり、現行 bytes を縛る pin ではない。
+実際、現行 bytes は記録値と既に異なり、それでも
+`orchestrator/tests/test_backoff_figure_provenance.py` と
+`test_b10_extended_figure_provenance.py` は緑である — 両テストは記録された生成時定数どうしを
+照合し、live source を再 hash しないためである。凍結図の bytes・数値・provenance は
+`plot_backoff.py` を編集しても変わらない。
 
 ```
 python3 tools/plotting/plot_b10_extended_backoff.py OUT_PREFIX MEASUREMENT_ROOT

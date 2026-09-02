@@ -153,10 +153,39 @@ def test_backoff_report_declares_certified_purpose_and_epoch(
     assert observed["purpose"] is CampaignReadPurpose.CERTIFIED_ACCEPTANCE
     assert observed["provenance"]["read_purpose"] == "CERTIFIED_ACCEPTANCE"
     assert observed["provenance"]["campaign_verifier_epoch"] == "E1:" + "a" * 64
+    adaptive_key = "adaptive_tps(CCBench既定: 刻み100us/上限1000us/更新間隔10us)"
+    assert observed["provenance"][adaptive_key] == "110"
+    assert "adaptive_tps(stock Cicada)" not in observed["provenance"]
     assert result["best_amt"] == 5
     report = Path(result["report"]).read_text(encoding="utf-8")
     assert "受理目的**: `CERTIFIED_ACCEPTANCE`" in report
     assert "campaign_verifier_epoch**: `E1:" in report
+    assert ("CCBench 既定 3 定数の adaptive backoff** "
+            "(刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs): 110 tps") in report
+    assert ("静的最良が無 backoff を +20.0% 上回る "
+            "(between-run noise floor 超)") in report
+    assert ("上流を素のまま使ったときの文脈値である。この campaign は調整済み "
+            "adaptive を含まないため") in report
+    assert ("静的最良との差だけから Cicada hill-climbing が sweet spot を捉えるか、"
+            "機構として優れるかは判定しない (D1506)。") in report
+    assert "適応が逃した sweet spot" not in report
+
+
+@pytest.mark.parametrize(
+    ("best_static", "expected"),
+    [
+        (120.0, "静的最良が無 backoff を +20.0% 上回る "
+                "(between-run noise floor 超)"),
+        (102.0, "静的最良と無 backoff の差は noise 内 (+2.0%)"),
+        (80.0, "静的最良が無 backoff を下回る (-20.0%)"),
+    ],
+    ids=("above-noise", "within-noise", "below-no-backoff"),
+)
+def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(
+        best_static, expected):
+    # 判定境界の値と、境界が分ける 3 分岐の正文をそれぞれ固定する。
+    assert backoff_sweep_report.BETWEEN_RUN_CV == 0.03
+    assert backoff_sweep_report._verdict(100.0, 110.0, best_static) == expected
 
 
 def _report_view(tmp_path):

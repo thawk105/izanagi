@@ -12,7 +12,12 @@ provenance ヘッダに「どの campaign のどの commit / ファイルから�
     CAMPAIGN_DIR    output/campaigns/<id> のパス。複数指定すると
                     その順で 1 枚の図に横並び (workload 比較) される。
     --baselines    no-backoff / stock-adaptive の comma 区切り部分集合。
-                    既定は no-backoff,stock-adaptive。
+                    既定は no-backoff のみ。
+                    stock-adaptive は CCBench 既定 3 定数 (刻み 100 µs /
+                    上限 1000 µs / 更新間隔 10 µs) の adaptive backoff。
+                    既定では描かない。明示例: --baselines stock-adaptive
+                    D1506 により、これを単独の適応基準線にした比較は機構の
+                    優劣を何も言っていないものとして扱う。
 
 出力:
     <OUT_PREFIX>.png / .pdf   図 (上段 throughput+95%CI, 下段 abort%+IPC)
@@ -66,6 +71,7 @@ def _style():
 FOCAL="#1f6fb2"; NONE="#666666"; ADAPT="#d1495b"; ABORT="#e08214"; IPC="#3a923a"
 
 BASELINE_ORDER=("no-backoff", "stock-adaptive")
+DEFAULT_BASELINES=("no-backoff",)
 BASELINE_SPECS={
     "no-backoff": {
         "label": "no backoff", "data_key": "none", "color": NONE, "linestyle": "--",
@@ -406,7 +412,7 @@ def _draw_baseline(axis, reps, spec):
         "ci95_half_tps": None if half is None else float(half),
     }
 
-def make_figure(camps, out_prefix, baselines=BASELINE_ORDER):
+def make_figure(camps, out_prefix, baselines=DEFAULT_BASELINES):
     _load_plot_deps()
     _style()
     baselines=_validated_baselines(baselines)
@@ -551,7 +557,7 @@ def _parse_cli(argv):
     if len(positional)<2:
         raise ValueError("OUT_PREFIX と 1 件以上の CAMPAIGN_DIR が必要")
     if baseline_arg is None:
-        baselines=BASELINE_ORDER
+        baselines=DEFAULT_BASELINES
     else:
         baselines=_validated_baselines(baseline_arg.split(","))
     return positional[0], positional[1:], baselines
@@ -575,7 +581,7 @@ def main(argv):
     out_prefix,cdirs,baselines=parsed
     camps=[load_campaign(d) for d in cdirs]
     # 既存 consumer は 2 引数の make_figure を差し替える。既定時はその seam を保つ。
-    if baselines==BASELINE_ORDER:
+    if baselines==DEFAULT_BASELINES:
         facts,rendered_baselines=make_figure(camps, out_prefix)
     else:
         facts,rendered_baselines=make_figure(camps, out_prefix, baselines=baselines)
