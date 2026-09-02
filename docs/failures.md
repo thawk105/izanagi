@@ -11090,6 +11090,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `nohup setsid` で detach し、死活判定は producer の pid と `.done` の mtime だけで行った。
   旧走行の `.done` (rc=1) が残っていて新走行の結果と取り違えかけたため、mtime の照合も要る。
 - **supersede: 2026-08-20** — [T-1257] で再発検知条件 (2 例目成立時に機序を特定し待ち手側の fails-closed 検査として実装する) を満たした。`tools/dev_wave_wait.py producer` へ `--check-only`/`--receipt-file` を追加し、producer 死亡+`.done`+artifact の 3 点が揃った場合だけ atomic に durable receipt を publish する一発検査を実装、完了通知・stdout・待ち手自身の rc は完了の証拠として扱わない設計にした (D594)。実 subprocess へ SIGKILL/SIGTERM を送る統合テストで F355 の症状 (producer 生存・出力ゼロで待ち手が消える) を再現し、receipt が正しく publish されないことを確認した。変異事前登録 (producer 死亡判定の除去、3 条件 gate のバイパス) は baseline 緑・2/2 KILLED。運用契約 (`DW-C00`/`DW-O01`) への結線は `docs/dev-wave/**` の L1/L1.5 byte 予算と `.claude/commands/dev-wave.md` 自体の 9500 byte 予算がいずれも実質スラック 0 だったため本 wave では実施できず、次の一手 (`[T-1439]`) へ回した。
+
+- **再発: 2026-09-02** — [T-2176] wave で 3 回観測した (変異 probe 走・変異本走 2 アームの
+  待ち手)。producer 生存・`.done` 不在のまま rc=0 で戻る点は既知のとおりだが、**3 回とも
+  標準出力の最終行が `producer: /proc/<pid>/stat を読めないため pid-only へ縮退します` だった**
+  点が新しい。`--receipt-file` へ receipt が書かれない回もあった。同じ待ち手を
+  `--max-wait-seconds 60` で前景実行すると `stage=producer-timeout rc=70` を正しく返したので、
+  待ち手そのものは機能している。縮退経路 (`/proc/<pid>/stat` が読めないときの pid-only 判定) が
+  対象 pid を生存と判定できずに完了扱いで抜けている疑いがあるが、本 wave では切り分けていない。
+  3 回とも `.done` の不在で偽完了を捕まえ、張り直した待ち手が正しい完了を拾った。
 ### F356. 過去の遷移を毎回再判定する chain に、可変な現行定数との比較を置いた [恒真ゲート] [誤前提]
 
 - 事象: 環境契約の後継判定へ「取得方式名が現行 probe 定数と一致すること」を足した。
@@ -21268,6 +21277,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 待ち手が rc=0 で戻ったのに `.done` が存在しない、または `.done` の中身が空である
   ことを確かめる。producer の生存は `pgrep -f <worktree path>` で照合する。
   生存していれば本エントリの型であり、同じ引数で待ち手を張り直せばよい。
+- **supersede: 2026-09-03** — 本エントリは F268 / F355 と同型であり、新規 F を採るべきでなかった。台帳の正本は F355 とし、2026-09-02 の観測は同エントリの再発として記録した。以後この型は F355 へ追記する。
 
 ### F818. Codex の使用枠切れが凍結境界ごと wave を止めた [手順漏れ]
 
