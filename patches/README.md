@@ -155,7 +155,11 @@ inert 軸」を「coder が #if 枝の中身を合成する編集面」へ昇格
 **フラグ空間外への最初の踏み出し** (Phase 2→3 の橋渡し)。CCBench の backoff は Cicada 由来の
 **適応 backoff** (leader が throughput 勾配で global backoff 値を hill-climbing) で、それが 48thread
 高競合で throughput を殺す値に収束しているのが `BACK_OFF=1` の正体だった (critic の帰属、
-`output/insights/2026-06-22_p2-3-critic-leading-indicator-attribution.md`)。そこで backoff の*量*を
+`output/insights/2026-06-22_p2-3-critic-leading-indicator-attribution.md`)。
+**この収束は CCBench 既定 3 定数 (刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs) の下での観測であって、
+適応 backoff という機構一般の劣位ではない** (2026-09-02 追記)。同じ機構でも更新間隔を広げれば
+最適帯へ寄り、既定との差は定数の選択だけで出る (D1505 / D1506、一次資料
+`output/insights/2026-09-02_cicada-adaptive-three-constants.md`)。そこで backoff の*量*を
 **静的固定する新フラグ `CCBENCH_BACKOFF_FIXED`** を導入し、量を単一軸として sweep する。
 
 - 変更: `cmake/Options.cmake` (cache var + `ccbench_universal_definitions` に `BACKOFF_FIXED`) と
