@@ -579,6 +579,38 @@ def test_mutation_03_head_blob_byte_mismatch_is_rejected(tmp_path, monkeypatch):
         )
 
 
+def test_tracked_calibration_declared_sha_mismatch_is_rejected_for_sha_only(
+    tmp_path, monkeypatch
+):
+    document, hashes = _document_only(tmp_path)
+    calibration_path = tmp_path / "refs/calibration.json"
+    calibration_raw = calibration_path.read_bytes()
+    assert hashlib.sha256(calibration_raw).hexdigest() == hashes[
+        "refs/calibration.json"
+    ]
+    assert hashes["refs/calibration.json"] != "0" * 64
+    document["provenance"]["calibration"]["sha256"] = "0" * 64
+    raw = _canonical(document)
+    (tmp_path / "spec.json").write_bytes(raw)
+    _install_git(
+        monkeypatch,
+        tmp_path,
+        head_overrides={"refs/calibration.json": calibration_raw},
+    )
+    monkeypatch.setattr(
+        F.calibration_verify,
+        "load_verified_calibration",
+        lambda **kwargs: _verified_calibration(),
+    )
+
+    with pytest.raises(
+        F.FloorPairBindingError, match="calibration artifact sha256 不一致"
+    ):
+        F.load_frozen_spec(
+            Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
+        )
+
+
 @pytest.mark.parametrize("operation", ("head", "show"))
 def test_git_startup_failure_is_normalized_to_driver_binding_error(
     tmp_path, monkeypatch, operation
