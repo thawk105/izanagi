@@ -15,7 +15,8 @@ EXPECTED_ROLE_COUNT = 13
 SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
     # Reviewed 2026-08-20: T-1356 fix; 型17-21の具体的な境界条件を削除し、verifier_blind_spot への事後報告へ移管。
-    "auditor": "e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e",
+    # Reviewed 2026-09-02: T-2145; verified sort IR の監査境界と残余リスクを追記。
+    "auditor": "a0912ebbc95e2f3641cfb1cbf0d609cfbe2deb7ba52d1c3057517b1bc69fab35",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
     # Reviewed 2026-08-26: T-1690 fix; backoff hole の suffix-free literal 1個・1文制約を汎用 coder に軸限定で追記。
@@ -23,7 +24,8 @@ SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-26: T-1690; suffix-free literal/value一致・1文の producer 契約を追加。
     "coder-v4-autonomous": "4073ac4223eaca9c353685f116a4dfb53db5b3412011373b717c44e3b25ec10d",
     # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
-    "coder-v4-autonomous-sort": "fbabef04095f73b7fc517290afc66d4fb8779144184eaf7c078fc17d50d7ca9a",
+    # Reviewed 2026-09-02: T-2145; raw C++ 合成を閉じた sort IR proposal へ縮小。
+    "coder-v4-autonomous-sort": "0d98a362d6cde3e77a407851aaace7444086ee6add33dbd5df2f586db5666772",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
     "coder-v4-autonomous-trigger-gating": "a03045c86027ec09e01d0727557eaa653c8f04d0929c007a4f129902742a2db0",
     "critic": "cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15",
@@ -73,7 +75,8 @@ DESCRIPTION_SHA256 = {
     "calibrator": "89ff12f68058d1fb1f0e8fbced10b04d34909c1c903f3140d6736b0a9c0df6ed",
     "coder": "e69da61c8d99ce72ddd9888d275cba9b9a31e5c8457d68696a7e00e9e5d94602",
     "coder-v4-autonomous": "c40c7e9d9a0ef4957c02957088331377186ffd2f23443236e05c4f231f0faa1b",
-    "coder-v4-autonomous-sort": "c0e5855da78d3f07fe24485c1e2c4324a2fb454c0d8c2748a3e86b156f13df00",
+    # Reviewed 2026-09-02: T-2145; verified IR producer を明記した description へ追随。
+    "coder-v4-autonomous-sort": "c65ecb4ef49ab1cf6b91aada5fcf7f401ed5f50e4540c0bdeab37cb2ab114a86",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
     "coder-v4-autonomous-trigger-gating": "fdbb6a5501d78b693546b3dd78885576a0c0de558931971d87e50244ee404a2a",
     "critic": "b029016d0d8ca4b3ccf8f1ca3ab719d611f312d9a2ad7f88a361ba6d399b3fa1",

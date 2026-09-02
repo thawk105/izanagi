@@ -201,7 +201,12 @@ def test_guarantee_boundary_is_documented_on_module_and_both_public_functions():
         doc = inspect.getdoc(target) or ""
         assert "oracle が実際に走ったことの証明ではない" in doc
         assert "private" in doc and "commitment" in doc
-        assert "真の関係であることは保証しない" in doc
+        assert "trusted 行列と実 TU の byte exact 一致" in doc
+        assert "候補の SWO 違反を動的に探す gate ではない" in doc
+        assert (
+            "報告 relation matrix が comparator の真の関係であることは保証しない"
+            not in doc
+        )
 
 
 if __name__ == "__main__":

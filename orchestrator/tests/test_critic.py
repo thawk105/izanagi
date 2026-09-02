@@ -97,9 +97,9 @@ _INVALID_ORACLE_FINDING = {
 
 # Producer 定数を参照しない独立 golden。current と v3/v2 履歴を固定する。
 _CURRENT_ORACLE_CONTRACT_ID_GOLDEN = (
-    "sort-swo-v4-corpus2-protocol3-checker3-grammar1-"
-    "x5474fdb4483a32d73d82b29908152e7f004bb2c921963d3aa5a3d5654a0c012a-"
-    "c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a0af8a35f3f9a"
+    "sort-swo-v5-corpus2-protocol3-checker4-grammar2-"
+    "xcc26c4322fe96e7e9427ace317c5b46f3c3d382b00bdbf937bbab595cbe0c60f-"
+    "c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a091abb17ccad"
 )
 _LEGACY_ORACLE_CONTRACT_ID_V3_GOLDEN = (
     "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
@@ -1581,6 +1581,68 @@ def test_oracle_finding_rejects_non_canonical_corpus_id():
         assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
 
 
+def test_oracle_finding_accepts_all_sort_ir_admission_reasons():
+    expected_rule_stages = {
+        "sort-ir.input-type.v1": "input-type",
+        "sort-ir.raw-size.v1": "raw-size",
+        "sort-ir.tokenize-resource.v1": "tokenize-resource",
+        "sort-ir.envelope.v1": "envelope",
+        "sort-ir.parameter-signature.v1": "parameter-signature",
+        "sort-ir.expression-shape.v1": "expression-shape",
+        "sort-ir.field-direction.v1": "field-direction",
+        "sort-ir.duplicate-field.v1": "duplicate-field",
+        "sort-ir.eof.v1": "eof",
+    }
+    assert critic_digest._SORT_IR_ADMISSION_RULE_STAGES == expected_rule_stages
+    assert set(expected_rule_stages) == sort_swo_oracle.SORT_IR_GRAMMAR_RULE_IDS
+    for reason in sort_swo_oracle.SORT_IR_GRAMMAR_RULE_IDS:
+        finding = {
+            "kind": "structure",
+            "reason_code": reason,
+            "corpus_id": CORPUS_ID,
+        }
+        assert _validated_oracle_finding(finding) == finding
+
+    for rule_id, admission_stage, expected in (
+        (
+            "sort-ir.expression-shape.v1",
+            "expression-shape",
+            ("sort-ir.expression-shape.v1", "expression-shape"),
+        ),
+        ("sort-ir.expression-shape.v1", "eof", ("", "")),
+        ("sort-ir.unknown.v1", "expression-shape", ("", "")),
+    ):
+        lay = _tmp_layout()
+        attempt = _start_attempt(
+            lay, _G.format(b=1, l=1, t=0, w=0), src_token="sort-ir",
+        )
+        finding = {
+            "kind": "structure",
+            "reason_code": "sort-ir.expression-shape.v1",
+            "corpus_id": CORPUS_ID,
+        }
+        _attempt_event(lay, attempt, STAGE_ABORT, {
+            "reason": "diff-quarantine",
+            "diff_quarantine": {
+                "subtype": "sort-swo-oracle",
+                "reason": "sort-ir.expression-shape.v1",
+                "rule_id": rule_id,
+                "admission_stage": admission_stage,
+                "oracle_finding": finding,
+                "oracle_contract_id": _CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
+            },
+        })
+        loaded = load_diff_rejections(_view(lay))
+        assert (loaded[0].rule_id, loaded[0].admission_stage) == expected
+        rendered = render_rejections([], [], diff_rejections=loaded)
+        if expected[0]:
+            assert f"grammar_rule_id={expected[0]}" in rendered
+            assert f"admission_stage={expected[1]}" in rendered
+        else:
+            assert "grammar_rule_id=" not in rendered
+            assert "admission_stage=" not in rendered
+
+
 def test_oracle_finding_rejects_protocol_kind():
     # Final-frame and broker handshake failures are infrastructure details,
     # not candidate observation findings.
@@ -1750,9 +1812,9 @@ def test_invalid_oracle_finding_renders_only_fixed_anomaly_code():
     ("kind", "expected", "generation", "contract_id", "corpus_id"),
     [
         pytest.param(
-            "structure", "単一・無修飾 sort 文", "current",
+            "structure", "閉じた 79 値 sort IR", "current",
             _CURRENT_ORACLE_CONTRACT_ID_GOLDEN, "sort-swo-corpus-v2/corpus-0",
-            id="structure-単一・無修飾 sort 文",
+            id="structure-閉じた 79 値 sort IR",
         ),
         pytest.param(
             "compile", "候補 TU の compile が失敗", "current",
@@ -1931,7 +1993,7 @@ def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit()
 @pytest.mark.parametrize("contract_id", [
     "sort-swo-",
     _CURRENT_ORACLE_CONTRACT_ID_GOLDEN + "-suffix",
-    _CURRENT_ORACLE_CONTRACT_ID_GOLDEN.replace("sort-swo-v4", "sort-swo-v3", 1),
+    _CURRENT_ORACLE_CONTRACT_ID_GOLDEN.replace("sort-swo-v5", "sort-swo-v4", 1),
     _LEGACY_ORACLE_CONTRACT_ID_V3_GOLDEN,
     _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN,
     "",
