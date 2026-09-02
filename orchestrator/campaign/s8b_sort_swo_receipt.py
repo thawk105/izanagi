@@ -5,8 +5,9 @@
 の durable な辺であって、oracle が実際に走ったことの証明ではない。receipt の全 field
 は公開かつ決定的で、oracle を実行せずに合成できる。``receipt_sha256`` は private
 evidence への commitment であり、raw receipt が到達可能な環境でだけ検算できる。
-``guarantee_boundary`` は、候補による corpus 変異と protocol frame write を防ぐ一方、
-報告 relation matrix が comparator の真の関係であることは保証しない、と明記する。
+``guarantee_boundary`` は admitted IR と versioned corpus、contract-bound pointer mapping
+に限り trusted 行列と実 TU の byte exact 一致を要求する。任意 C++ や全入力の SWO 証明
+ではなく、候補の SWO 違反を動的に探す gate ではない。
 """
 from __future__ import annotations
 
@@ -147,8 +148,9 @@ def project_sort_swo_pass_attempt(
     の durable な辺であって、oracle が実際に走ったことの証明ではない。receipt の全 field
     は公開かつ決定的で、oracle を実行せずに合成できる。``receipt_sha256`` は private
     evidence への commitment であり、raw receipt が到達可能な環境でだけ検算できる。
-    ``guarantee_boundary`` は、候補による corpus 変異と protocol frame write を防ぐ一方、
-    報告 relation matrix が comparator の真の関係であることは保証しない、と明記する。
+    ``guarantee_boundary`` は admitted IR と versioned corpus、contract-bound pointer mapping
+    に限り trusted 行列と実 TU の byte exact 一致を要求する。任意 C++ や全入力の SWO 証明
+    ではなく、候補の SWO 違反を動的に探す gate ではない。
     """
 
     _validate_identity(
@@ -227,8 +229,9 @@ def validate_portable_sort_swo_pass_receipt(
     の durable な辺であって、oracle が実際に走ったことの証明ではない。receipt の全 field
     は公開かつ決定的で、oracle を実行せずに合成できる。``receipt_sha256`` は private
     evidence への commitment であり、raw receipt が到達可能な環境でだけ検算できる。
-    ``guarantee_boundary`` は、候補による corpus 変異と protocol frame write を防ぐ一方、
-    報告 relation matrix が comparator の真の関係であることは保証しない、と明記する。
+    ``guarantee_boundary`` は admitted IR と versioned corpus、contract-bound pointer mapping
+    に限り trusted 行列と実 TU の byte exact 一致を要求する。任意 C++ や全入力の SWO 証明
+    ではなく、候補の SWO 違反を動的に探す gate ではない。
     """
 
     if isinstance(value, Mapping) and (

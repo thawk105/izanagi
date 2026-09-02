@@ -408,6 +408,7 @@ ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN = frozenset({
     "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
     "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
     "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+    "test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
 })
 
 # conftest の receipt consumer 正本から導出しない独立 oracle。
@@ -2534,10 +2535,10 @@ def _assert_oracle_environment_inventory(
         f"missing={sorted(set(consumers) - configured_for_exact)} "
         f"extra={sorted(configured_for_exact - set(consumers))}"
     )
-    assert len(direct) == 16
+    assert len(direct) == 17
     assert len(indirect) == 9
-    assert len(consumers) == 25
-    assert node_count == 28
+    assert len(consumers) == 26
+    assert node_count == 29
     assert not set(direct) & set(indirect)
     assert helper_getter_calls == 1, (
         "compiled oracle helper が memo getter を厳密に 1 回呼ばない: "

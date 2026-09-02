@@ -155,6 +155,48 @@ def test_batch_seal_is_permutation_invariant() -> None:
     )
 
 
+def test_registry_seal_preserves_finite_decimal_reference() -> None:
+    candidate = replace(_attempt(0), reference_tps=(1, 10))
+
+    _, registry = _seal((candidate,))
+
+    assert registry.scheduled_attempts[0].reference_tps == (1, 10)
+
+
+def test_registry_seal_preserves_optional_none_reference() -> None:
+    candidate = replace(
+        _attempt(
+            0,
+            reason=ledgers.B4ScheduledAttemptReason.GENERATION_FAILED,
+        ),
+        block_id=None,
+        reference_tps=None,
+        reference_snapshot_hash=None,
+        reference_receipt_hash=None,
+    )
+
+    _, registry = _seal((candidate,))
+
+    assert registry.scheduled_attempts[0].reference_tps is None
+
+
+@pytest.mark.parametrize(
+    "reference_tps",
+    ((1, 3), (1, 30)),
+    ids=("one-third", "one-thirtieth"),
+)
+def test_registry_hash_rejects_nonterminating_reference_ratio(
+    reference_tps: tuple[int, int],
+) -> None:
+    assert ledgers._ratio_from_payload(list(reference_tps)) == reference_tps
+    candidate = replace(_attempt(0), reference_tps=reference_tps)
+
+    with pytest.raises(ledgers.B4LedgerError) as exc_info:
+        ledgers.scheduled_attempts_sha256((candidate,))
+
+    assert str(exc_info.value) == "reference_tps has no finite decimal expansion"
+
+
 def test_registry_completeness_requires_issuer_bound_schedule_receipt() -> None:
     attempts = tuple(_attempt(index) for index in range(EXPECTED_BLOCK_COUNT)) + (
         _attempt(

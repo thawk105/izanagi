@@ -35,6 +35,16 @@ CCBench の adaptive backoff (Cicada 型 hill climbing) を支配する定数は
 **したがって 3 定数のうち律速は更新間隔であり、刻みは従属変数である。** D1475 の
 「刻み 0.5 µs」は、窓が狭すぎることの症状であって原因ではない。
 
+![刻み x 更新間隔の 2 次元。3 workload を列に、上段 throughput / 下段 abort 率の縦積み。
+各セルは値 / 95% CI 半幅 (相対) / no backoff 比の 3 行。赤枠が既定 adaptive
+(陽性対照)](2026-09-02_cicada-adaptive-three-constants-figures/t2187_stage1_step_x_interval.png)
+
+**図 1 (段 1、48 スレッド).** 縦方向に読むと本節の主張がそのまま見える。**最下段 (窓 10 µs、既定) だけが
+崖**で、write-heavy は刻み 0.5 µs の 3.538 M tps から 1 µs の 1.933 M tps へ 45% 落ちる。
+**その 1 段上 (窓 40 µs) から上は平坦**で、刻みを 0.1〜5 µs のどこに置いてもほぼ変わらない。
+右端の列が既定の刻み 100 µs で、窓を広げても回復しきらない。
+横軸・縦軸とも対数。2 次元の熱図に誤差棒は描けないので、CI は各セルの 2 行目に相対値で入れてある。
+
 ### 2. 機序 — 10 µs の窓では勾配の符号がノイズに支配される
 
 `update_backoff()` は窓ごとの commit 数から throughput を推定し、その差分の符号で
@@ -61,6 +71,7 @@ CCBench の adaptive backoff (Cicada 型 hill climbing) を支配する定数は
 **差は最大 1.2% で、いずれも 95% CI の内側である。** ただし順序は 3 負荷とも
 50 > 200 >= 1000 で一貫しているので、CI より小さい実効果の可能性は否定しない。
 **3 定数のうち上限だけは、他の 2 つを正しく設定した後では取るに足らない。**
+スレッド軸で見た形は後述の図 3 にある — 上限 3 本が CI の中で重なる。
 
 ### 4. 調整済み adaptive は、静的定数が両立できない 2 つを同時に満たす
 
@@ -76,6 +87,18 @@ write-heavy で無 backoff に対する差をスレッド数の関数として�
 
 乗り換え点は負荷ごとに違う: write-heavy が約 30 スレッド、balanced が約 42 スレッド、
 **read-heavy は 48 スレッドでも乗り換えない**。
+
+![スレッド数を横軸にした 3 workload x (throughput / abort 率) の縦積み。系列は
+no backoff、stock adaptive、調整済み 3 構成。誤差棒は t 分布の 95% CI
+(n=7)](2026-09-02_cicada-adaptive-three-constants-figures/t2187_stage2_thread_axis.png)
+
+**図 2 (段 2、スレッド 6〜48).** 交差そのものが見える。write-heavy (左列) では **no backoff が
+30 スレッド付近で崩れ**、調整済みの 3 構成は崩れずに伸びて 48 スレッドで 63% 上回る。
+一方で低コア側では 4 本がほぼ重なっており、**調整済み adaptive が no backoff をほとんど損なわない**
+ことが目で確かめられる。read-heavy (右列) では最後まで交差せず、no backoff が最良のままである。
+下段の abort 率を見ると、利得が出る領域で調整済みの abort が no backoff より低い —
+機構が再試行の到着率を下げている、という読みと整合する。
+**stock adaptive はどの列でも最下段に張り付いている。**
 
 ### 5. read-heavy の正直な答えは今も「素のまま」
 
@@ -99,6 +122,15 @@ read-heavy では無 backoff が 8 点すべてで最良で、調整済み adapt
 **端で最良のまま報告していない。** 刻みの最良 1 µs は格子 {0.1, 0.25, 0.5, 1, 5, 100} の内点。
 間隔は段 1 で上端 2560 µs が最良だったので、段 3 で 10240 / 40960 µs を足して確かめた —
 10240 でほぼ横ばい、40960 で悪化 (write -2.3% / read -2.1%) となり、**2560 は飽和平坦部の内点**である。
+
+![上限 3 値 (50 / 200 / 1000 µs) と、間隔の上端を確かめる 10240 / 40960 µs を
+スレッド軸で比較した図。系列は no backoff、stock adaptive を含む 7
+構成](2026-09-02_cicada-adaptive-three-constants-figures/t2187_stage3_ceiling_and_interval.png)
+
+**図 3 (段 3、スレッド 6〜48).** 2 つのことが同時に読める。**上限 3 本 (`c50` / `c200` / `c1000`) は
+CI の幅の中で重なって区別がつかない** — これが §3 の「上限は効かない」の見え方である。
+一方 **`u40960` だけが多コア側で下に外れる**。10240 は 2560 とほぼ重なるので、
+2560 が端ではなく飽和平坦部の内点であることがこの 1 枚で確かめられる。
 
 ## 再現条件
 
@@ -129,9 +161,25 @@ probe はこのセルがちょうど 1 つ存在することを構造的に要�
 
 - probe: `tools/pegasus/probes/t2187_adaptive_const_probe.py` / `.pbs`
 - patch: `patches/cicada-adaptive-params.patch`
-- 図: `tools/plotting/plot_t2187_adaptive_consts.py` (`grid` / `threads` の 2 モード)
-- 生成した図と provenance: `izanagi-job-evidence/t2187-adaptive-3const/figures/` (repo 外)
+- 図の生成器: `tools/plotting/plot_t2187_adaptive_consts.py` (`grid` / `threads` の 2 モード)
+- **本文へ埋め込んだ図 3 枚 (PNG / PDF / provenance):**
+  `output/insights/2026-09-02_cicada-adaptive-three-constants-figures/`
+  - `t2187_stage1_step_x_interval.*` (図 1) — 刻み x 更新間隔の 2 次元
+  - `t2187_stage2_thread_axis.*` (図 2) — スレッド軸の乗り換え
+  - `t2187_stage3_ceiling_and_interval.*` (図 3) — 上限 3 値と間隔の上端
+  各 `.provenance.json` が入力 7 file の絶対 path と SHA256、`ccbench_commit`、`patch_sha256`、
+  全 `pbs_jobid`、測定条件、図に出した主要数値、認証されていない旨を持つ。
+  **論文図の場所 (`docs/paper-story/figures/`) には置いていない** — 本測定は直列化検証を
+  通しておらず、論文図として使える段階にない。
 - 結果 JSON: `izanagi-job-evidence/t2187-adaptive-3const/results/` (repo 外、21 file)
+
+図は次で再生成できる (計測は不要、計測機の外で走らせる)。
+
+```bash
+python3 tools/plotting/plot_t2187_adaptive_consts.py grid  OUT_PREFIX <stage1 の 7 file>
+python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX <stage2 の 7 file>
+python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX <stage3 の 7 file>
+```
 
 ## 本プロジェクトの主張との関係
 

@@ -289,6 +289,7 @@ class DiffQuarantineRejection:
     diff_region: str = ""
     evidence: str = ""
     rule_id: str = ""
+    admission_stage: str = ""
     category: str = ""
     finding_count: int = 0
     oracle_finding: Dict = field(default_factory=dict)
@@ -303,6 +304,30 @@ class DiffQuarantineRejection:
 
 
 _AXES = ["BACK_OFF", "no_wait", "WAL"]
+
+_SORT_IR_ADMISSION_RULE_STAGES = {
+    "sort-ir.input-type.v1": "input-type",
+    "sort-ir.raw-size.v1": "raw-size",
+    "sort-ir.tokenize-resource.v1": "tokenize-resource",
+    "sort-ir.envelope.v1": "envelope",
+    "sort-ir.parameter-signature.v1": "parameter-signature",
+    "sort-ir.expression-shape.v1": "expression-shape",
+    "sort-ir.field-direction.v1": "field-direction",
+    "sort-ir.duplicate-field.v1": "duplicate-field",
+    "sort-ir.eof.v1": "eof",
+}
+
+
+def _validated_sort_ir_admission(
+    rule_id: object, admission_stage: object,
+) -> tuple[str, str]:
+    if (
+        type(rule_id) is str
+        and type(admission_stage) is str
+        and _SORT_IR_ADMISSION_RULE_STAGES.get(rule_id) == admission_stage
+    ):
+        return rule_id, admission_stage
+    return "", ""
 
 
 def _parse_flags(canonical: str) -> Dict[str, int]:
@@ -396,6 +421,15 @@ _CURRENT_ORACLE_FINDING_REASON_CODES = {
         "unterminated-literal",
         "unbalanced-sort-call",
         "not-a-single-sort-statement",
+        "sort-ir.input-type.v1",
+        "sort-ir.raw-size.v1",
+        "sort-ir.tokenize-resource.v1",
+        "sort-ir.envelope.v1",
+        "sort-ir.parameter-signature.v1",
+        "sort-ir.expression-shape.v1",
+        "sort-ir.field-direction.v1",
+        "sort-ir.duplicate-field.v1",
+        "sort-ir.eof.v1",
     }),
     "protocol": frozenset({
         "candidate-observation-size-invalid",
@@ -890,11 +924,17 @@ def _load_diff_rejections(
                 continue
             g = genome_of.get(r.variant, r.payload.get("genome", ""))
             rule_id = dq.get("rule_id", "")
+            admission_stage = ""
             category = dq.get("category", "")
             finding_count = dq.get("finding_count", 0)
             if subtype == "backoff-grammar":
                 if rule_id not in backoff_hole_grammar.BACKOFF_GRAMMAR_RULE_IDS:
                     rule_id = ""
+                category = ""
+            elif subtype == "sort-swo-oracle":
+                rule_id, admission_stage = _validated_sort_ir_admission(
+                    rule_id, dq.get("admission_stage", ""),
+                )
                 category = ""
             elif (
                 subtype != "host-effect"
@@ -957,6 +997,7 @@ def _load_diff_rejections(
                     if dq.get("evidence") else ""
                 ),
                 rule_id=rule_id,
+                admission_stage=admission_stage,
                 category=category,
                 finding_count=finding_count,
                 oracle_finding=oracle_finding,
@@ -1479,6 +1520,10 @@ def render_rejections(rejections: List[Rejection],
                 f"  materialized_hole_sha256={dq.materialized_hole_sha256 or '?'} "
                 f"proposal_sha256={dq.proposal_sha256 or '?'}"
             )
+            if dq.rule_id:
+                L.append(f"  grammar_rule_id={dq.rule_id}")
+            if dq.admission_stage:
+                L.append(f"  admission_stage={dq.admission_stage}")
             L.append(
                 f"  oracle_kind={kind or '?'} corpus_id={corpus_id}"
                 + (f" order_id={order_id}" if type(order_id) is int else "")
@@ -1495,7 +1540,7 @@ def render_rejections(rejections: List[Rejection],
                 L.append("  読み方: 固定 corpus relation matrix 上の SWO 公理反例。"
                          "示された pair の comparator 関係を修正する。")
             elif kind == "structure":
-                L.append("  読み方: oracle の単一・無修飾 sort 文という構造契約に不適合。")
+                L.append("  読み方: 閉じた 79 値 sort IR の token 列 admission に不適合。")
             elif kind == "compile":
                 diagnostic = finding.get("compiler_diagnostic", {})
                 diagnostic_hash = (diagnostic.get("sha256", "?")

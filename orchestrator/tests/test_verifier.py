@@ -121,6 +121,45 @@ def test_nonlatest_read_caught_via_ww_transitivity():
     assert res.anomalies[0].phenomenon == "G2"
 
 
+def test_dense_cycle4_clean_g2():
+    res = _verify("r9_dense_cycle4")
+    assert res.integrity.clean(), res.integrity.notes
+    assert res.abort_reasons == {}
+    assert res.certified is False
+    assert not res.serializable
+    assert res.verdict == "non-serializable"
+    assert (
+        res.n_txns, res.n_reads, res.n_writes, res.n_keys, res.n_edges,
+    ) == (4, 4, 4, 4, 4)
+    assert res.total_cycles == 1
+    assert len(res.anomalies) == 1
+
+    txns, _issues = parse_trace_dir(os.path.join(FIX, "r9_dense_cycle4"))
+    assert [
+        (txn.txid, txn.thid, txn.commit) for txn in txns
+    ] == [
+        (0, 0, (1, 1)),
+        (1, 0, (1, 2)),
+        (2, 0, (1, 3)),
+        (3, 1, (1, 4)),
+    ]
+
+    a = res.anomalies[0]
+    assert a.phenomenon == "G2"
+    assert set(a.cycle) == {0, 1, 2, 3}
+    assert a.length == 4
+    edge_types = {
+        (edge.src, edge.dst): set(edge.types)
+        for edge in a.edges
+    }
+    assert edge_types == {
+        (0, 1): {WR},
+        (1, 2): {WR},
+        (2, 3): {WR},
+        (3, 0): {RW},
+    }
+
+
 # ---- integrity 軸 (絶対規律2: integrity 不良なら certified しない) ----
 
 def test_orphan_read_indeterminate():
@@ -251,6 +290,8 @@ _V2_FIXTURE_FILES = (
     "r8_silo_broken_norw/trace_1.log",
     "r8_silo_broken_norw/trace_2.log",
     "r8_silo_broken_norw/trace_3.log",
+    "r9_dense_cycle4/trace_0.log",
+    "r9_dense_cycle4/trace_1.log",
 )
 
 

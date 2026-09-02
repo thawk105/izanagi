@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "M1-PATCH-APPLIED-TO-SHARED-TREE",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "                ccbench_dir=os.fspath(variant_root)), \\\n",
+          "new": "                ccbench_dir=os.fspath(source_root)), \\\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M2-PREBUILD-ON-SHARED-TREE",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "                ccbench_dir=os.fspath(variant_root.resolve()),\n",
+          "new": "                ccbench_dir=os.fspath(source_root.resolve()),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M3-FETCHCONTENT-BASE-NOT-PASSED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "                    f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}\",\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M4-REJECTION-DETAIL-DROPPED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "                        f\"detail={record.evidence.get('detail')!r}\"\n",
+          "new": "                        \"\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M5-CAMPAIGN-BUILDS-SHARED-TREE",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "            log=log, ccbench_dir=os.fspath(variant_root), env_contract=contract,\n",
+          "new": "            log=log, ccbench_dir=str(source_root), env_contract=contract,\n"
+        }
+      ]
+    }
+  ]
+}

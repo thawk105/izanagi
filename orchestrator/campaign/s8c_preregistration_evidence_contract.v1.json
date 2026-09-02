@@ -377,14 +377,14 @@
             "assert_trial_registry_acceptance.no_build.certifying"
           ],
           "reachable_from": [
-            "assert_trial_registry_acceptance -> assert_campaign_layer3_chain -> registry append"
+            "assert_trial_registry_acceptance -> assert_campaign_layer3_chain -> acceptance receipt issuance"
           ]
         }
       ],
       "consumer_requirement": {
         "path": "orchestrator/campaign/trial_registry.py",
         "entrypoints": ["assert_trial_registry_acceptance"],
-        "proof": "The formal registry authority must execute Layer 3 verification for every build report and must never certify a missing or no-build chain."
+        "proof": "The formal registry authority must execute Layer 3 verification for every build report that reaches acceptance receipt issuance and must never certify a missing or no-build chain."
       },
       "negative_control_id": "nc_c09_acceptance_skips_layer3",
       "machine_checkable": true,
