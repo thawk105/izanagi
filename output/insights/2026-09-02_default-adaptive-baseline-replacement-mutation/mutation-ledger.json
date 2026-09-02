@@ -1,0 +1,467 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/7ea8a3af0e28b12ac03f290ad71b6a40/izdw-7ea8a3af0e.o969134",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/7ea8a3af0e28b12ac03f290ad71b6a40/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................                                      [100%]\n35 passed in 5.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "317c783f4475f87df6a0f11579f710b7f429f31f6691ddbaa921f0739ae4c91e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "1311d31a8fb70b402c27e1291f560b7ea8560278315b24328228dd5e1e1c0583",
+    "duration_s": 32.326,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "2335cc8f31189b14b4af270dc042e5cb63863edeb6a837153acbdbeaf7e76fce",
+    "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+    "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+    "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+    "status": "PASSED",
+    "test_output_sha256": "317c783f4475f87df6a0f11579f710b7f429f31f6691ddbaa921f0739ae4c91e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134"
+  },
+  "date": "2026-09-02T14:37:21.816275+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/971782c1e42762cb9a35dff7bb963458/izdw-971782c1e4.o969135",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/971782c1e42762cb9a35dff7bb963458/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F........F                                      [100%]\n=================================== FAILURES ===================================\n______ test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in ______\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in():\n        plot = _load_plot_module(need_numpy=False)\n        default = plot._parse_cli([\"plot_backoff.py\", \"out\", \"campaign\"])\n>       assert default == (\"out\", [\"campaign\"], (\"no-backoff\",))\nE       AssertionError: assert ('out', ['cam...ck-adaptive')) == ('out', ['cam...no-backoff',))\nE         \nE         At index 2 diff: ('no-backoff', 'stock-adaptive') != ('no-backoff',)\nE         Use -v to get more diff\n\norchestrator/tests/test_plot_backoff_ci.py:165: AssertionError\n_________ test_actual_panel_artists_match_serialized_baseline_records __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_actual_panel_artists_match_serialized_baseline_records():\n        \"\"\"既定の no backoff label を fixture の既知 no-backoff 値へ固定する。\"\"\"\n        plot = _load_plot_module(need_numpy=False)\n        campaigns = {\n            \"write\": _figure_campaign(\"write\", \"write-heavy\", 1.0),\n            \"balanced\": _figure_campaign(\"balanced\", \"balanced\", 1.3),\n        }\n        # 期待値は production の provenance や BASELINE_SPECS から導出しない。\n        # _figure_campaign が投入する none=[1.8M, 2.0M] * scale の既知平均である。\n        expected_no_backoff_y = {\"write\": 1.9, \"balanced\": 2.47}\n        original_load_campaign = plot.load_campaign\n        plot.load_campaign = campaigns.__getitem__\n        try:\n            with tempfile.TemporaryDirectory(prefix=\"backoff-artist-\") as temp:\n                out_prefix = str(Path(temp) / \"figure\")\n                assert plot.main([\n                    \"plot_backoff.py\", out_prefix, \"write\", \"balanced\",\n                ]) == 0\n                provenance = json.loads(Path(\n                    out_prefix + \".provenance.json\").read_text(encoding=\"utf-8\"))\n                figure = plot.plt.gcf()\n                top_axes = figure.axes[:len(campaigns)]\n                assert len(provenance[\"inputs\"]) == len(top_axes)\n                for axis, input_row in zip(top_axes, provenance[\"inputs\"]):\n                    expected_y = expected_no_backoff_y[input_row[\"campaign\"]]\n                    assert input_row[\"campaign_verifier_epoch\"][\n                        \"verifier_assessment_basis\"\n                    ] == \"recorded-at-original-verifier-epoch\"\n                    rows = input_row[\"baselines\"]\n>                   assert [row[\"label\"] for row in rows] == [\"no backoff\"]\nE                   AssertionError: assert ['no backoff'...ock adaptive'] == ['no backoff']\nE                     \nE                     Left contains one more item: 'stock adaptive'\nE                     Use -v to get more diff\n\norchestrator/tests/test_plot_backoff_ci.py:280: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/backoff-artist-8mu3jxr2/figure.png / .pdf / .provenance.json\n  write-heavy: historical best 2.50M @ 4µs (epoch=E0; none=1.90M adapt=1.20M n=2)\n  balanced: historical best 3.25M @ 4µs (epoch=E0; none=2.47M adapt=1.56M n=2)\n----------------------------- Captured stderr call -----------------------------\n[warn] text overlaps: [('static backoff (µs)', '4'), ('static backoff (µs)', '4')]\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in\nFAILED orchestrator/tests/test_plot_backoff_ci.py::test_actual_panel_artists_match_serialized_baseline_records\n2 failed, 33 passed in 5.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_backoff_ci.py::test_actual_panel_artists_match_serialized_baseline_records\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=2116 retained_bytes=2116 omitted_bytes=0 rendered_excerpt_bytes=2319 sha256=bca42788710bf4f136ef96ffea7844513820df89bca4eff0b94fd2832f133d40\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_actual_panel_artists_match_serialized_baseline_records():\n>         \"\"\"\\u65e2\\u5b9a\\u306e no backoff label \\u3092 fixture \\u306e\\u65e2\\u77e5 no-backoff \\u5024\\u3078\\u56fa\\u5b9a\\u3059\\u308b\\u3002\"\"\"\n>         plot = _load_plot_module(need_numpy=False)\n>         campaigns = {\n>             \"write\": _figure_campaign(\"write\", \"write-heavy\", 1.0),\n>             \"balanced\": _figure_campaign(\"balanced\", \"balanced\", 1.3),\n>         }\n>         # \\u671f\\u5f85\\u5024\\u306f production \\u306e provenance \\u3084 BASELINE_SPECS \\u304b\\u3089\\u5c0e\\u51fa\\u3057\\u306a\\u3044\\u3002\n>         # _figure_campaign \\u304c\\u6295\\u5165\\u3059\\u308b none=[1.8M, 2.0M] * scale \\u306e\\u65e2\\u77e5\\u5e73\\u5747\\u3067\\u3042\\u308b\\u3002\n>         expected_no_backoff_y = {\"write\": 1.9, \"balanced\": 2.47}\n>         original_load_campaign = plot.load_campaign\n>         plot.load_campaign = campaigns.__getitem__\n>         try:\n>             with tempfile.TemporaryDirectory(prefix=\"backoff-artist-\") as temp:\n>                 out_prefix = str(Path(temp) / \"figure\")\n>                 assert plot.main([\n>                     \"plot_backoff.py\", out_prefix, \"write\", \"balanced\",\n>                 ]) == 0\n>                 provenance = json.loads(Path(\n>                     out_prefix + \".provenance.json\").read_text(encoding=\"utf-8\"))\n>                 figure = plot.plt.gcf()\n>                 top_axes = figure.axes[:len(campaigns)]\n>                 assert len(provenance[\"inputs\"]) == len(top_axes)\n>                 for axis, input_row in zip(top_axes, provenance[\"inputs\"]):\n>                     expected_y = expected_no_backoff_y[input_row[\"campaign\"]]\n>                     assert input_row[\"campaign_verifier_epoch\"][\n>                         \"verifier_assessment_basis\"\n>                     ] == \"recorded-at-original-verifier-epoch\"\n>                     rows = input_row[\"baselines\"]\n> >                   assert [row[\"label\"] for row in rows] == [\"no backoff\"]\n> E                   AssertionError: assert ['no backoff'...ock adaptive'] == ['no backoff']\n> E                     \n> E                     Left contains one more item: 'stock adaptive'\n> E                     Use -v to get more diff\n> \n> orchestrator/tests/test_plot_backoff_ci.py:280: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=599 retained_bytes=599 omitted_bytes=0 rendered_excerpt_bytes=624 sha256=b087dab83e2ccebed51a1d89a55a3a8ddebe79f0d1095db3aae372c17f2ec3c8\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in():\n>         plot = _load_plot_module(need_numpy=False)\n>         default = plot._parse_cli([\"plot_backoff.py\", \"out\", \"campaign\"])\n> >       assert default == (\"out\", [\"campaign\"], (\"no-backoff\",))\n> E       AssertionError: assert ('out', ['cam...ck-adaptive')) == ('out', ['cam...no-backoff',))\n> E         \n> E         At index 2 diff: ('no-backoff', 'stock-adaptive') != ('no-backoff',)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_plot_backoff_ci.py:165: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2715 retained_bytes=2715 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4122 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2d3253064818d628ebc8b80800f415c1c9964647810e939056c6b95eb7b29020"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1311d31a8fb70b402c27e1291f560b7ea8560278315b24328228dd5e1e1c0583",
+      "duration_s": 27.102,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_actual_panel_artists_match_serialized_baseline_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_actual_panel_artists_match_serialized_baseline_records"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2187B-DEFAULT-BASELINES",
+      "injection_diff_sha256": "bd6026e598ddc077c85c5694c3823cd0c6d7c599edb61b922ddf580117aad01b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b7a178ad8b1fb082164bfeed639daf0444b310fd9fc1961accd32f7095c19ea5",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_backoff.py",
+          "new": "DEFAULT_BASELINES=(\"no-backoff\", \"stock-adaptive\")\n",
+          "old": "DEFAULT_BASELINES=(\"no-backoff\",)\n"
+        }
+      ],
+      "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+      "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+      "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+      "status": "KILLED",
+      "test_output_sha256": "2d3253064818d628ebc8b80800f415c1c9964647810e939056c6b95eb7b29020",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/2f84810a6ac1acb8ce860fc77f00f6d1/izdw-2f84810a6a.o969136",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/2f84810a6ac1acb8ce860fc77f00f6d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F.......F.                                      [100%]\n=================================== FAILURES ===================================\n______ test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in ______\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in():\n        plot = _load_plot_module(need_numpy=False)\n        default = plot._parse_cli([\"plot_backoff.py\", \"out\", \"campaign\"])\n        assert default == (\"out\", [\"campaign\"], (\"no-backoff\",))\n        selected = plot._parse_cli([\n            \"plot_backoff.py\", \"--baselines\", \"no-backoff\", \"out\", \"campaign\",\n        ])\n        assert selected == (\"out\", [\"campaign\"], (\"no-backoff\",))\n        stock = plot._parse_cli([\n            \"plot_backoff.py\", \"--baselines\", \"stock-adaptive\", \"out\", \"campaign\",\n        ])\n>       assert stock == (\"out\", [\"campaign\"], (\"stock-adaptive\",))\nE       AssertionError: assert ('out', ['cam...no-backoff',)) == ('out', ['cam...k-adaptive',))\nE         \nE         At index 2 diff: ('no-backoff',) != ('stock-adaptive',)\nE         Use -v to get more diff\n\norchestrator/tests/test_plot_backoff_ci.py:173: AssertionError\n______________ test_explicit_stock_adaptive_draws_legacy_baseline ______________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_explicit_stock_adaptive_draws_legacy_baseline():\n        \"\"\"stock adaptive label を fixture の既知 adaptive 値へ固定する。\"\"\"\n        plot = _load_plot_module(need_numpy=False)\n        campaign = _figure_campaign(\"write\", \"write-heavy\", 1.0)\n        original_load_campaign = plot.load_campaign\n        plot.load_campaign = lambda _name: campaign\n        try:\n            with tempfile.TemporaryDirectory(prefix=\"backoff-stock-opt-in-\") as temp:\n                out_prefix = str(Path(temp) / \"figure\")\n                assert plot.main([\n                    \"plot_backoff.py\", \"--baselines\", \"stock-adaptive\",\n                    out_prefix, \"write\",\n                ]) == 0\n                provenance = json.loads(Path(\n                    out_prefix + \".provenance.json\").read_text(encoding=\"utf-8\"))\n                rows = provenance[\"inputs\"][0][\"baselines\"]\n>               assert [row[\"label\"] for row in rows] == [\"stock adaptive\"]\nE               AssertionError: assert ['no backoff'] == ['stock adaptive']\nE                 \nE                 At index 0 diff: 'no backoff' != 'stock adaptive'\nE                 Use -v to get more diff\n\norchestrator/tests/test_plot_backoff_ci.py:319: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/backoff-stock-opt-in-r9zfoceg/figure.png / .pdf / .provenance.json\n  write-heavy: historical best 2.50M @ 4µs (epoch=E0; none=1.90M adapt=1.20M n=2)\n----------------------------- Captured stderr call -----------------------------\n[warn] text overlaps: [('static backoff (µs)', '4'), ('IPC', '1.00')]\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in\nFAILED orchestrator/tests/test_plot_backoff_ci.py::test_explicit_stock_adaptive_draws_legacy_baseline\n2 failed, 33 passed in 5.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_backoff_ci.py::test_explicit_stock_adaptive_draws_legacy_baseline\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1277 retained_bytes=1277 omitted_bytes=0 rendered_excerpt_bytes=1361 sha256=8b28a76dc9ee22cdd81043e6a8858e490d3b0fe4a4dd7f44024d402fd4e8ddb5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_explicit_stock_adaptive_draws_legacy_baseline():\n>         \"\"\"stock adaptive label \\u3092 fixture \\u306e\\u65e2\\u77e5 adaptive \\u5024\\u3078\\u56fa\\u5b9a\\u3059\\u308b\\u3002\"\"\"\n>         plot = _load_plot_module(need_numpy=False)\n>         campaign = _figure_campaign(\"write\", \"write-heavy\", 1.0)\n>         original_load_campaign = plot.load_campaign\n>         plot.load_campaign = lambda _name: campaign\n>         try:\n>             with tempfile.TemporaryDirectory(prefix=\"backoff-stock-opt-in-\") as temp:\n>                 out_prefix = str(Path(temp) / \"figure\")\n>                 assert plot.main([\n>                     \"plot_backoff.py\", \"--baselines\", \"stock-adaptive\",\n>                     out_prefix, \"write\",\n>                 ]) == 0\n>                 provenance = json.loads(Path(\n>                     out_prefix + \".provenance.json\").read_text(encoding=\"utf-8\"))\n>                 rows = provenance[\"inputs\"][0][\"baselines\"]\n> >               assert [row[\"label\"] for row in rows] == [\"stock adaptive\"]\n> E               AssertionError: assert ['no backoff'] == ['stock adaptive']\n> E                 \n> E                 At index 0 diff: 'no backoff' != 'stock adaptive'\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_plot_backoff_ci.py:319: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=974 retained_bytes=974 omitted_bytes=0 rendered_excerpt_bytes=1015 sha256=b07547d91bc584604ee919b8d0a7621cd18a6070b3e97a9202db9fa271fa41aa\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in():\n>         plot = _load_plot_module(need_numpy=False)\n>         default = plot._parse_cli([\"plot_backoff.py\", \"out\", \"campaign\"])\n>         assert default == (\"out\", [\"campaign\"], (\"no-backoff\",))\n>         selected = plot._parse_cli([\n>             \"plot_backoff.py\", \"--baselines\", \"no-backoff\", \"out\", \"campaign\",\n>         ])\n>         assert selected == (\"out\", [\"campaign\"], (\"no-backoff\",))\n>         stock = plot._parse_cli([\n>             \"plot_backoff.py\", \"--baselines\", \"stock-adaptive\", \"out\", \"campaign\",\n>         ])\n> >       assert stock == (\"out\", [\"campaign\"], (\"stock-adaptive\",))\n> E       AssertionError: assert ('out', ['cam...no-backoff',)) == ('out', ['cam...k-adaptive',))\n> E         \n> E         At index 2 diff: ('no-backoff',) != ('stock-adaptive',)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_plot_backoff_ci.py:173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2251 retained_bytes=2251 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3546 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "82033d19c62c106103ebd583fff1a46765b4d990ef9e3d6d26ea36181015c00a"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1311d31a8fb70b402c27e1291f560b7ea8560278315b24328228dd5e1e1c0583",
+      "duration_s": 27.152,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_explicit_stock_adaptive_draws_legacy_baseline"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_explicit_stock_adaptive_draws_legacy_baseline"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2187B-EXPLICIT-OPT-IN",
+      "injection_diff_sha256": "9820fe65589a6b016460731b93c48e2b1cbdda61311ac1d3ffb176f497acae1c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0571809be5d1bfdc5f6f55bd34cd1f6081500c8287759e70c65b4c4d3f8eaa33",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_backoff.py",
+          "new": "    else:\n        baselines=tuple(b for b in _validated_baselines(baseline_arg.split(\",\")) if b!=\"stock-adaptive\") or DEFAULT_BASELINES\n",
+          "old": "    else:\n        baselines=_validated_baselines(baseline_arg.split(\",\"))\n"
+        }
+      ],
+      "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+      "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+      "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+      "status": "KILLED",
+      "test_output_sha256": "82033d19c62c106103ebd583fff1a46765b4d990ef9e3d6d26ea36181015c00a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/90fabcf29181f4a489403961f3595ac0/izdw-90fabcf291.o969137",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/90fabcf29181f4a489403961f3595ac0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................FF.........                                      [100%]\n=================================== FAILURES ===================================\n_ test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise] _\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\nbest_static = 102.0, expected = '静的最良と無 backoff の差は noise 内 (+2.0%)'\n\n    @pytest.mark.parametrize(\n        (\"best_static\", \"expected\"),\n        [\n            (120.0, \"静的最良が無 backoff を +20.0% 上回る \"\n                    \"(between-run noise floor 超)\"),\n            (105.0, \"静的最良が無 backoff を +5.0% 上回る \"\n                    \"(between-run noise floor 超)\"),\n            (102.0, \"静的最良と無 backoff の差は noise 内 (+2.0%)\"),\n            (80.0, \"静的最良が無 backoff を下回る (-20.0%)\"),\n        ],\n        ids=(\"above-noise\", \"between-thresholds\", \"within-noise\", \"below-no-backoff\"),\n    )\n    def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(\n            best_static, expected):\n        # 判定境界の値と、境界が分ける 3 分岐の正文をそれぞれ固定する。\n        assert backoff_sweep_report.BETWEEN_RUN_CV == 0.03\n>       assert backoff_sweep_report._verdict(100.0, 110.0, best_static) == expected\nE       AssertionError: assert '適応が逃した sweet...t は無い (+2.0%)' == '静的最良と無 backo...ise 内 (+2.0%)'\nE         \nE         - 静的最良と無 backoff の差は noise 内 (+2.0%)\nE         + 適応が逃した sweet spot は無い (+2.0%)\n\norchestrator/tests/test_backoff_consumers.py:190: AssertionError\n_ test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff] _\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\nbest_static = 80.0, expected = '静的最良が無 backoff を下回る (-20.0%)'\n\n    @pytest.mark.parametrize(\n        (\"best_static\", \"expected\"),\n        [\n            (120.0, \"静的最良が無 backoff を +20.0% 上回る \"\n                    \"(between-run noise floor 超)\"),\n            (105.0, \"静的最良が無 backoff を +5.0% 上回る \"\n                    \"(between-run noise floor 超)\"),\n            (102.0, \"静的最良と無 backoff の差は noise 内 (+2.0%)\"),\n            (80.0, \"静的最良が無 backoff を下回る (-20.0%)\"),\n        ],\n        ids=(\"above-noise\", \"between-thresholds\", \"within-noise\", \"below-no-backoff\"),\n    )\n    def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(\n            best_static, expected):\n        # 判定境界の値と、境界が分ける 3 分岐の正文をそれぞれ固定する。\n        assert backoff_sweep_report.BETWEEN_RUN_CV == 0.03\n>       assert backoff_sweep_report._verdict(100.0, 110.0, best_static) == expected\nE       AssertionError: assert '適応の方が静的最良より良い (-20.0%)' == '静的最良が無 backoff を下回る (-20.0%)'\nE         \nE         - 静的最良が無 backoff を下回る (-20.0%)\nE         + 適応の方が静的最良より良い (-20.0%)\n\norchestrator/tests/test_backoff_consumers.py:190: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise]\nFAILED orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff]\n2 failed, 33 passed in 5.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise]\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=1404 retained_bytes=1404 omitted_bytes=0 rendered_excerpt_bytes=1807 sha256=6a80f1f6bdce19b8c4f3449fc8384fc0ac15db229705bd5d15030249a37e442f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> best_static = 102.0, expected = '\\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backoff \\u306e\\u5dee\\u306f noise \\u5185 (+2.0%)'\n> \n>     @pytest.mark.parametrize(\n>         (\"best_static\", \"expected\"),\n>         [\n>             (120.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +20.0% \\u4e0a\\u56de\\u308b \"\n>                     \"(between-run noise floor \\u8d85)\"),\n>             (105.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +5.0% \\u4e0a\\u56de\\u308b \"\n>                     \"(between-run noise floor \\u8d85)\"),\n>             (102.0, \"\\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backoff \\u306e\\u5dee\\u306f noise \\u5185 (+2.0%)\"),\n>             (80.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092\\u4e0b\\u56de\\u308b (-20.0%)\"),\n>         ],\n>         ids=(\"above-noise\", \"between-thresholds\", \"within-noise\", \"below-no-backoff\"),\n>     )\n>     def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(\n>             best_static, expected):\n>         # \\u5224\\u5b9a\\u5883\\u754c\\u306e\\u5024\\u3068\\u3001\\u5883\\u754c\\u304c\\u5206\\u3051\\u308b 3 \\u5206\\u5c90\\u306e\\u6b63\\u6587\\u3092\\u305d\\u308c\\u305e\\u308c\\u56fa\\u5b9a\\u3059\\u308b\\u3002\n>         assert backoff_sweep_report.BETWEEN_RUN_CV == 0.03\n> >       assert backoff_sweep_report._verdict(100.0, 110.0, best_static) == expected\n> E       AssertionError: assert '\\u9069\\u5fdc\\u304c\\u9003\\u3057\\u305f sweet...t \\u306f\\u7121\\u3044 (+2.0%)' == '\\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backo...ise \\u5185 (+2.0%)'\n> E         \n> E         - \\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backoff \\u306e\\u5dee\\u306f noise \\u5185 (+2.0%)\n> E         + \\u9069\\u5fdc\\u304c\\u9003\\u3057\\u305f sweet spot \\u306f\\u7121\\u3044 (+2.0%)\n> \n> orchestrator/tests/test_backoff_consumers.py:190: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff]\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=1400 retained_bytes=1400 omitted_bytes=0 rendered_excerpt_bytes=1836 sha256=aacacf04eeda9f712c274efb70630e214e4ac2f1dc25761320035b6d97777ddd\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> best_static = 80.0, expected = '\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092\\u4e0b\\u56de\\u308b (-20.0%)'\n> \n>     @pytest.mark.parametrize(\n>         (\"best_static\", \"expected\"),\n>         [\n>             (120.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +20.0% \\u4e0a\\u56de\\u308b \"\n>                     \"(between-run noise floor \\u8d85)\"),\n>             (105.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +5.0% \\u4e0a\\u56de\\u308b \"\n>                     \"(between-run noise floor \\u8d85)\"),\n>             (102.0, \"\\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backoff \\u306e\\u5dee\\u306f noise \\u5185 (+2.0%)\"),\n>             (80.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092\\u4e0b\\u56de\\u308b (-20.0%)\"),\n>         ],\n>         ids=(\"above-noise\", \"between-thresholds\", \"within-noise\", \"below-no-backoff\"),\n>     )\n>     def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(\n>             best_static, expected):\n>         # \\u5224\\u5b9a\\u5883\\u754c\\u306e\\u5024\\u3068\\u3001\\u5883\\u754c\\u304c\\u5206\\u3051\\u308b 3 \\u5206\\u5c90\\u306e\\u6b63\\u6587\\u3092\\u305d\\u308c\\u305e\\u308c\\u56fa\\u5b9a\\u3059\\u308b\\u3002\n>         assert backoff_sweep_report.BETWEEN_RUN_CV == 0.03\n> >       assert backoff_sweep_report._verdict(100.0, 110.0, best_static) == expected\n> E       AssertionError: assert '\\u9069\\u5fdc\\u306e\\u65b9\\u304c\\u9759\\u7684\\u6700\\u826f\\u3088\\u308a\\u826f\\u3044 (-20.0%)' == '\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092\\u4e0b\\u56de\\u308b (-20.0%)'\n> E         \n> E         - \\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092\\u4e0b\\u56de\\u308b (-20.0%)\n> E         + \\u9069\\u5fdc\\u306e\\u65b9\\u304c\\u9759\\u7684\\u6700\\u826f\\u3088\\u308a\\u826f\\u3044 (-20.0%)\n> \n> orchestrator/tests/test_backoff_consumers.py:190: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2804 retained_bytes=2804 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4864 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b4f34743c40c5edccd8ab4466516c991d10c2836ca272bf0244ecd3d8abbf0ba"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1311d31a8fb70b402c27e1291f560b7ea8560278315b24328228dd5e1e1c0583",
+      "duration_s": 27.135,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise]",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise]",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2187B-VERDICT-MECHANISM-CLAIM",
+      "injection_diff_sha256": "c81f760856635bfabd428d70b8e86eea1d785a3a6187f79d76904072265a4548",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b196f292756870764e26bc449fd1c4d5dd7a63551627b78e8345bb77e145c3c5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep_report.py",
+          "new": "    if abs(rel_vs_none) <= nf:\n        return (f\"適応が逃した sweet spot は無い \"\n                f\"({rel_vs_none*100:+.1f}%)\")\n    return f\"適応の方が静的最良より良い ({rel_vs_none*100:+.1f}%)\"\n",
+          "old": "    if abs(rel_vs_none) <= nf:\n        return (f\"静的最良と無 backoff の差は noise 内 \"\n                f\"({rel_vs_none*100:+.1f}%)\")\n    return f\"静的最良が無 backoff を下回る ({rel_vs_none*100:+.1f}%)\"\n"
+        }
+      ],
+      "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+      "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+      "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+      "status": "KILLED",
+      "test_output_sha256": "b4f34743c40c5edccd8ab4466516c991d10c2836ca272bf0244ecd3d8abbf0ba",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/c29f214f4634977e9f19808f55fb9103/izdw-c29f214f46.o969139",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/c29f214f4634977e9f19808f55fb9103/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F.........                                      [100%]\n=================================== FAILURES ===================================\n___________ test_backoff_report_declares_certified_purpose_and_epoch ___________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_backoff_report_declares_c0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1533fde95960>\n\n    def test_backoff_report_declares_certified_purpose_and_epoch(\n            tmp_path, monkeypatch):\n        layout = CampaignLayout(str(tmp_path / \"certified-campaign\")).ensure()\n        epoch = SimpleNamespace(\n            campaign_verifier_epoch=\"E1:\" + \"a\" * 64,\n            identity_scope=\"fixture enforcement closure\",\n            excluded_scope=\"fixture verifier exclusion\",\n        )\n        view = SimpleNamespace(\n            layout=layout,\n            read_purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n            campaign_verifier_epoch=epoch,\n        )\n        observed = {}\n    \n        def discover(_slug, _tag, *, purpose):\n            observed[\"purpose\"] = purpose\n            return object()\n    \n        monkeypatch.setattr(\n            backoff_sweep_report, \"config_for\",\n            lambda _tag, _workload: SimpleNamespace(spec_slug=\"fixture\", search_tag=\"sweep\"),\n        )\n        monkeypatch.setattr(backoff_sweep_report, \"discover_campaign_dir\", discover)\n        monkeypatch.setattr(\n            backoff_sweep_report, \"require_certified_campaign_view\", lambda _value: view,\n        )\n        monkeypatch.setattr(backoff_sweep_report, \"load_workload\", lambda _view: [\n            SimpleNamespace(flags={\"BACK_OFF\": 0}, li={\"throughput_tps\": 100.0}),\n            SimpleNamespace(\n                flags={\"BACK_OFF\": 1, \"BACKOFF_FIXED\": -1},\n                li={\"throughput_tps\": 110.0},\n            ),\n            SimpleNamespace(\n                flags={\"BACK_OFF\": 1, \"BACKOFF_FIXED\": 5},\n                li={\"throughput_tps\": 120.0, \"abort_rate\": 0.1, \"ipc\": 1.2},\n            ),\n        ])\n    \n        def make_plot(dat, _spec, stem):\n            observed[\"provenance\"] = dat.provenance\n            return {\"png\": stem + \".png\", \"dat\": stem + \".dat\", \"plt\": stem + \".plt\"}\n    \n        monkeypatch.setattr(backoff_sweep_report, \"make_plot\", make_plot)\n        result = backoff_sweep_report.report_workload(\"fixture\", {})\n        assert observed[\"purpose\"] is CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n        assert observed[\"provenance\"][\"read_purpose\"] == \"CERTIFIED_ACCEPTANCE\"\n        assert observed[\"provenance\"][\"campaign_verifier_epoch\"] == \"E1:\" + \"a\" * 64\n        adaptive_key = \"adaptive_tps(CCBench既定: 刻み100us/上限1000us/更新間隔10us)\"\n>       assert observed[\"provenance\"][adaptive_key] == \"110\"\nE       KeyError: 'adaptive_tps(CCBench既定: 刻み100us/上限1000us/更新間隔10us)'\n\norchestrator/tests/test_backoff_consumers.py:157: KeyError\n----------------------------- Captured stdout call -----------------------------\n[fixture] best static=5us 120 tps / none=100 / adaptive(default 100/1000/10us)=110 → 静的最良が無 backoff を +20.0% 上回る (between-run noise floor 超)\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_consumers.py::test_backoff_report_declares_certified_purpose_and_epoch\n1 failed, 34 passed in 5.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_consumers.py::test_backoff_report_declares_certified_purpose_and_epoch\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2724 retained_bytes=2724 omitted_bytes=0 rendered_excerpt_bytes=2901 sha256=b3400009488a84d3011725c6ce43b606c3dfcae7105e9410634e93b18cd90b09\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_backoff_report_declares_c0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1533fde95960>\n> \n>     def test_backoff_report_declares_certified_purpose_and_epoch(\n>             tmp_path, monkeypatch):\n>         layout = CampaignLayout(str(tmp_path / \"certified-campaign\")).ensure()\n>         epoch = SimpleNamespace(\n>             campaign_verifier_epoch=\"E1:\" + \"a\" * 64,\n>             identity_scope=\"fixture enforcement closure\",\n>             excluded_scope=\"fixture verifier exclusion\",\n>         )\n>         view = SimpleNamespace(\n>             layout=layout,\n>             read_purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n>             campaign_verifier_epoch=epoch,\n>         )\n>         observed = {}\n>     \n>         def discover(_slug, _tag, *, purpose):\n>             observed[\"purpose\"] = purpose\n>             return object()\n>     \n>         monkeypatch.setattr(\n>             backoff_sweep_report, \"config_for\",\n>             lambda _tag, _workload: SimpleNamespace(spec_slug=\"fixture\", search_tag=\"sweep\"),\n>         )\n>         monkeypatch.setattr(backoff_sweep_report, \"discover_campaign_dir\", discover)\n>         monkeypatch.setattr(\n>             backoff_sweep_report, \"require_certified_campaign_view\", lambda _value: view,\n>         )\n>         monkeypatch.setattr(backoff_sweep_report, \"load_workload\", lambda _view: [\n>             SimpleNamespace(flags={\"BACK_OFF\": 0}, li={\"throughput_tps\": 100.0}),\n>             SimpleNamespace(\n>                 flags={\"BACK_OFF\": 1, \"BACKOFF_FIXED\": -1},\n>                 li={\"throughput_tps\": 110.0},\n>             ),\n>             SimpleNamespace(\n>                 flags={\"BACK_OFF\": 1, \"BACKOFF_FIXED\": 5},\n>                 li={\"throughput_tps\": 120.0, \"abort_rate\": 0.1, \"ipc\": 1.2},\n>             ),\n>         ])\n>     \n>         def make_plot(dat, _spec, stem):\n>             observed[\"provenance\"] = dat.provenance\n>             return {\"png\": stem + \".png\", \"dat\": stem + \".dat\", \"plt\": stem + \".plt\"}\n>     \n>         monkeypatch.setattr(backoff_sweep_report, \"make_plot\", make_plot)\n>         result = backoff_sweep_report.report_workload(\"fixture\", {})\n>         assert observed[\"purpose\"] is CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n>         assert observed[\"provenance\"][\"read_purpose\"] == \"CERTIFIED_ACCEPTANCE\"\n>         assert observed[\"provenance\"][\"campaign_verifier_epoch\"] == \"E1:\" + \"a\" * 64\n>         adaptive_key = \"adaptive_tps(CCBench\\u65e2\\u5b9a: \\u523b\\u307f100us/\\u4e0a\\u96501000us/\\u66f4\\u65b0\\u9593\\u969410us)\"\n> >       assert observed[\"provenance\"][adaptive_key] == \"110\"\n> E       KeyError: 'adaptive_tps(CCBench\\u65e2\\u5b9a: \\u523b\\u307f100us/\\u4e0a\\u96501000us/\\u66f4\\u65b0\\u9593\\u969410us)'\n> \n> orchestrator/tests/test_backoff_consumers.py:157: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2724 retained_bytes=2724 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3631 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "638b748dcc81201db79466b12d09c262add45b8eb33ce591827fc4568c0f87a8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1311d31a8fb70b402c27e1291f560b7ea8560278315b24328228dd5e1e1c0583",
+      "duration_s": 27.06,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_declares_certified_purpose_and_epoch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_declares_certified_purpose_and_epoch"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2187B-PROVENANCE-KEY",
+      "injection_diff_sha256": "2886a39a23566765d7aab271ddd9b7da8f21674e7890ab54d621140d96c9b080",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7d480e0189f412d2dce6b45f92e2b6159bb2c2831f6eebf66602926795b8a4b1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep_report.py",
+          "new": "        \"adaptive_tps(stock Cicada)\": (\n",
+          "old": "        \"adaptive_tps(CCBench既定: 刻み100us/上限1000us/更新間隔10us)\": (\n"
+        }
+      ],
+      "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+      "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+      "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+      "status": "KILLED",
+      "test_output_sha256": "638b748dcc81201db79466b12d09c262add45b8eb33ce591827fc4568c0f87a8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/0f1ce5b98642cbf3065a636c18c5a3b4/izdw-0f1ce5b986.o969141",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/0f1ce5b98642cbf3065a636c18c5a3b4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F.........                                      [100%]\n=================================== FAILURES ===================================\n_ test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds] _\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\nbest_static = 105.0\nexpected = '静的最良が無 backoff を +5.0% 上回る (between-run noise floor 超)'\n\n    @pytest.mark.parametrize(\n        (\"best_static\", \"expected\"),\n        [\n            (120.0, \"静的最良が無 backoff を +20.0% 上回る \"\n                    \"(between-run noise floor 超)\"),\n            (105.0, \"静的最良が無 backoff を +5.0% 上回る \"\n                    \"(between-run noise floor 超)\"),\n            (102.0, \"静的最良と無 backoff の差は noise 内 (+2.0%)\"),\n            (80.0, \"静的最良が無 backoff を下回る (-20.0%)\"),\n        ],\n        ids=(\"above-noise\", \"between-thresholds\", \"within-noise\", \"below-no-backoff\"),\n    )\n    def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(\n            best_static, expected):\n        # 判定境界の値と、境界が分ける 3 分岐の正文をそれぞれ固定する。\n        assert backoff_sweep_report.BETWEEN_RUN_CV == 0.03\n>       assert backoff_sweep_report._verdict(100.0, 110.0, best_static) == expected\nE       AssertionError: assert '静的最良と無 backo...ise 内 (+5.0%)' == '静的最良が無 backo...oise floor 超)'\nE         \nE         - 静的最良が無 backoff を +5.0% 上回る (between-run noise floor 超)\nE         + 静的最良と無 backoff の差は noise 内 (+5.0%)\n\norchestrator/tests/test_backoff_consumers.py:190: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds]\n1 failed, 34 passed in 5.68s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds]\" nodeid_bytes=130 nodeid_omitted_bytes=0 source_bytes=1450 retained_bytes=1450 omitted_bytes=0 rendered_excerpt_bytes=1858 sha256=31d1e60f5528ddb9dbd3b878d42c040f8b405195d50450fdbefd6cf4471506f7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> best_static = 105.0\n> expected = '\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +5.0% \\u4e0a\\u56de\\u308b (between-run noise floor \\u8d85)'\n> \n>     @pytest.mark.parametrize(\n>         (\"best_static\", \"expected\"),\n>         [\n>             (120.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +20.0% \\u4e0a\\u56de\\u308b \"\n>                     \"(between-run noise floor \\u8d85)\"),\n>             (105.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +5.0% \\u4e0a\\u56de\\u308b \"\n>                     \"(between-run noise floor \\u8d85)\"),\n>             (102.0, \"\\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backoff \\u306e\\u5dee\\u306f noise \\u5185 (+2.0%)\"),\n>             (80.0, \"\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092\\u4e0b\\u56de\\u308b (-20.0%)\"),\n>         ],\n>         ids=(\"above-noise\", \"between-thresholds\", \"within-noise\", \"below-no-backoff\"),\n>     )\n>     def test_backoff_report_verdict_pins_all_branches_and_noise_boundary(\n>             best_static, expected):\n>         # \\u5224\\u5b9a\\u5883\\u754c\\u306e\\u5024\\u3068\\u3001\\u5883\\u754c\\u304c\\u5206\\u3051\\u308b 3 \\u5206\\u5c90\\u306e\\u6b63\\u6587\\u3092\\u305d\\u308c\\u305e\\u308c\\u56fa\\u5b9a\\u3059\\u308b\\u3002\n>         assert backoff_sweep_report.BETWEEN_RUN_CV == 0.03\n> >       assert backoff_sweep_report._verdict(100.0, 110.0, best_static) == expected\n> E       AssertionError: assert '\\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backo...ise \\u5185 (+5.0%)' == '\\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backo...oise floor \\u8d85)'\n> E         \n> E         - \\u9759\\u7684\\u6700\\u826f\\u304c\\u7121 backoff \\u3092 +5.0% \\u4e0a\\u56de\\u308b (between-run noise floor \\u8d85)\n> E         + \\u9759\\u7684\\u6700\\u826f\\u3068\\u7121 backoff \\u306e\\u5dee\\u306f noise \\u5185 (+5.0%)\n> \n> orchestrator/tests/test_backoff_consumers.py:190: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1450 retained_bytes=1450 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2616 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7b4516f874f266e9a0c766f070e0a18a23c13533ddbcde064de9a725954a31ff"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1311d31a8fb70b402c27e1291f560b7ea8560278315b24328228dd5e1e1c0583",
+      "duration_s": 27.282,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2187B-NOISE-FLOOR-BOUNDARY",
+      "injection_diff_sha256": "464a1a9578c5a94f1e796a483d6660333443996bd3dd520835c367883646c63c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "104fb21056abe59f74961fa69cb7c9512037ff6892b615870f8e767e6f40f2cd",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_sweep_report.py",
+          "new": "    nf = 0.19\n",
+          "old": "    nf = BETWEEN_RUN_CV\n"
+        }
+      ],
+      "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+      "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+      "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+      "status": "KILLED",
+      "test_output_sha256": "7b4516f874f266e9a0c766f070e0a18a23c13533ddbcde064de9a725954a31ff",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/9673d63770d2bbc50d057917c7ab74f8/izdw-9673d63770.o969132",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/output/pegasus-dispatch/9673d63770d2bbc50d057917c7ab74f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_plot_backoff_ci.py::test_t975_table_matches_known_critical_values\norchestrator/tests/test_plot_backoff_ci.py::test_ci95_small_n_uses_t_distribution\norchestrator/tests/test_plot_backoff_ci.py::test_ci95_center_is_mean_not_median\norchestrator/tests/test_plot_backoff_ci.py::test_ci95_single_sample_ci_incalculable\norchestrator/tests/test_plot_backoff_ci.py::test_ci95_half_M_suppresses_errorbar_when_incalculable\norchestrator/tests/test_plot_backoff_ci.py::test_ci95_large_n_uses_normal_approx\norchestrator/tests/test_plot_backoff_ci.py::test_each_baseline_draws_mean_line_and_t95_band\norchestrator/tests/test_plot_backoff_ci.py::test_baseline_single_sample_draws_line_without_ci_band\norchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in\norchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_rejects_unknown_name\norchestrator/tests/test_plot_backoff_ci.py::test_boolean_condition_spellings_and_numactl_arguments_are_meaning_preserving\norchestrator/tests/test_plot_backoff_ci.py::test_empty_tps_is_rejected_instead_of_becoming_nan\norchestrator/tests/test_plot_backoff_ci.py::test_actual_panel_artists_match_serialized_baseline_records\norchestrator/tests/test_plot_backoff_ci.py::test_explicit_stock_adaptive_draws_legacy_baseline\norchestrator/tests/test_plot_backoff_ci.py::test_figure_epoch_label_keeps_exact_recorded_epochs\norchestrator/tests/test_plot_backoff_ci.py::test_load_campaign_projects_historical_verifier_assessment_basis\norchestrator/tests/test_plot_backoff_ci.py::test_production_provenance_records_current_generator_source_sha\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_declares_certified_purpose_and_epoch\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[above-noise]\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds]\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise]\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff]\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_formats_ipc_for_dat_markdown_and_reading\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_describes_all_measured_ipc\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_describes_all_static_ipc_as_unmeasured\norchestrator/tests/test_backoff_consumers.py::test_backoff_report_treats_missing_ipc_key_as_unmeasured\norchestrator/tests/test_backoff_consumers.py::test_plot_backoff_loads_nan_ipc_as_missing\norchestrator/tests/test_backoff_consumers.py::test_backoff_repro_bench_tps_requires_commit\norchestrator/tests/test_backoff_consumers.py::test_backoff_repro_condition_gate_dominates_campaign_build_and_measurement\norchestrator/tests/test_backoff_consumers.py::test_backoff_repro_requires_persisted_certification[backoff-repro]\norchestrator/tests/test_backoff_consumers.py::test_plot_backoff_excludes_and_reports_uncertified_bench_done\norchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_duplicate_tps_before_it_reaches_plot_data\norchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_blank_line_between_records\norchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_unframed_tail_without_returning_partial_data[complete-json]\norchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_unframed_tail_without_returning_partial_data[multibyte-partial]\n\n35 tests collected in 0.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "90a873809360aa80b4d003d2e151b1952466466cde0fdfe61dcd18b66987051b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plot_backoff_ci.py::test_t975_table_matches_known_critical_values",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_ci95_small_n_uses_t_distribution",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_ci95_center_is_mean_not_median",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_ci95_single_sample_ci_incalculable",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_ci95_half_M_suppresses_errorbar_when_incalculable",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_ci95_large_n_uses_normal_approx",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_each_baseline_draws_mean_line_and_t95_band",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_single_sample_draws_line_without_ci_band",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_rejects_unknown_name",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_boolean_condition_spellings_and_numactl_arguments_are_meaning_preserving",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_empty_tps_is_rejected_instead_of_becoming_nan",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_actual_panel_artists_match_serialized_baseline_records",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_explicit_stock_adaptive_draws_legacy_baseline",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_figure_epoch_label_keeps_exact_recorded_epochs",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_load_campaign_projects_historical_verifier_assessment_basis",
+        "orchestrator/tests/test_plot_backoff_ci.py::test_production_provenance_records_current_generator_source_sha",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_declares_certified_purpose_and_epoch",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[above-noise]",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds]",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise]",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff]",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_formats_ipc_for_dat_markdown_and_reading",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_describes_all_measured_ipc",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_describes_all_static_ipc_as_unmeasured",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_treats_missing_ipc_key_as_unmeasured",
+        "orchestrator/tests/test_backoff_consumers.py::test_plot_backoff_loads_nan_ipc_as_missing",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_repro_bench_tps_requires_commit",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_repro_condition_gate_dominates_campaign_build_and_measurement",
+        "orchestrator/tests/test_backoff_consumers.py::test_backoff_repro_requires_persisted_certification[backoff-repro]",
+        "orchestrator/tests/test_backoff_consumers.py::test_plot_backoff_excludes_and_reports_uncertified_bench_done",
+        "orchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_duplicate_tps_before_it_reaches_plot_data",
+        "orchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_blank_line_between_records",
+        "orchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_unframed_tail_without_returning_partial_data[complete-json]",
+        "orchestrator/tests/test_backoff_consumers.py::test_plot_backoff_rejects_unframed_tail_without_returning_partial_data[multibyte-partial]"
+      ],
+      "duration_s": 21.831,
+      "rc": 0,
+      "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+      "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+      "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+      "status": "PASSED",
+      "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2187B-DEFAULT-BASELINES": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in",
+          "orchestrator/tests/test_plot_backoff_ci.py::test_actual_panel_artists_match_serialized_baseline_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bd6026e598ddc077c85c5694c3823cd0c6d7c599edb61b922ddf580117aad01b",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_backoff.py",
+            "new": "DEFAULT_BASELINES=(\"no-backoff\", \"stock-adaptive\")\n",
+            "old": "DEFAULT_BASELINES=(\"no-backoff\",)\n"
+          }
+        ]
+      },
+      "MUT-T2187B-EXPLICIT-OPT-IN": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_backoff_ci.py::test_baseline_cli_defaults_to_no_backoff_and_keeps_explicit_opt_in",
+          "orchestrator/tests/test_plot_backoff_ci.py::test_explicit_stock_adaptive_draws_legacy_baseline"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9820fe65589a6b016460731b93c48e2b1cbdda61311ac1d3ffb176f497acae1c",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_backoff.py",
+            "new": "    else:\n        baselines=tuple(b for b in _validated_baselines(baseline_arg.split(\",\")) if b!=\"stock-adaptive\") or DEFAULT_BASELINES\n",
+            "old": "    else:\n        baselines=_validated_baselines(baseline_arg.split(\",\"))\n"
+          }
+        ]
+      },
+      "MUT-T2187B-NOISE-FLOOR-BOUNDARY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[between-thresholds]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "464a1a9578c5a94f1e796a483d6660333443996bd3dd520835c367883646c63c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_sweep_report.py",
+            "new": "    nf = 0.19\n",
+            "old": "    nf = BETWEEN_RUN_CV\n"
+          }
+        ]
+      },
+      "MUT-T2187B-PROVENANCE-KEY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_declares_certified_purpose_and_epoch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2886a39a23566765d7aab271ddd9b7da8f21674e7890ab54d621140d96c9b080",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_sweep_report.py",
+            "new": "        \"adaptive_tps(stock Cicada)\": (\n",
+            "old": "        \"adaptive_tps(CCBench既定: 刻み100us/上限1000us/更新間隔10us)\": (\n"
+          }
+        ]
+      },
+      "MUT-T2187B-VERDICT-MECHANISM-CLAIM": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[within-noise]",
+          "orchestrator/tests/test_backoff_consumers.py::test_backoff_report_verdict_pins_all_branches_and_noise_boundary[below-no-backoff]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c81f760856635bfabd428d70b8e86eea1d785a3a6187f79d76904072265a4548",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_sweep_report.py",
+            "new": "    if abs(rel_vs_none) <= nf:\n        return (f\"適応が逃した sweet spot は無い \"\n                f\"({rel_vs_none*100:+.1f}%)\")\n    return f\"適応の方が静的最良より良い ({rel_vs_none*100:+.1f}%)\"\n",
+            "old": "    if abs(rel_vs_none) <= nf:\n        return (f\"静的最良と無 backoff の差は noise 内 \"\n                f\"({rel_vs_none*100:+.1f}%)\")\n    return f\"静的最良が無 backoff を下回る ({rel_vs_none*100:+.1f}%)\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "2335cc8f31189b14b4af270dc042e5cb63863edeb6a837153acbdbeaf7e76fce",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_plot_backoff_ci.py",
+      "orchestrator/tests/test_backoff_consumers.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "aef3f725d047e5f5b078d4cb66fcf2aae985264e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_plot_backoff_ci.py",
+      "orchestrator/tests/test_backoff_consumers.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "cb326fb97c4da6236b5005f292dade70133b9840",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "fa588b368058ef99d49298f4c8bf1d40578b94b200b12e58bf692ff49278dcd9",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "38f934d600747daacee059c81e1baaa52fd52dc5b7a8369824c8c87d995f6c15",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2187-tuned-adaptive-baseline/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "c8adbc5d6bff8e15f61a105e82b038c8e7f1035cf91fec8916fcc921f518c134",
+  "updated_at": "2026-09-02T14:40:44.626499+00:00"
+}
