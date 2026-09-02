@@ -1381,6 +1381,7 @@
      hit があれば defang + erratum で凍結する** (同上)
 - 現行実体: `docs/dev-wave/core.md` の `DW-S07`。
 - 記録: worklog 2026-07-23 (2)、defang erratum = wave2 台帳 L642 (原文 = 441babc)、D80 (7)
+- **supersede: 2026-09-03** — 恒久対応 1 (「docs を含むあらゆる記録 commit の後に repo scan invariant を再走してから wave を閉じる」) は現在**発火しない**。`orchestrator/tests/test_s8b_repo_scan_invariant.py` は growth hold (`hold_axis=tracked_files`、`release_condition=explicit-user-command-only`、2026-08-12 rulings 第 3 束) の下にあり、既定では skip される。本 wave が記録 commit 後に指示どおり再走したところ `1 skipped` で、走査は 1 file も見ていない。指示は形式上満たせるが何も閉じない。**本 wave は hold を迂回していない。** 代わりに同じ権威実装 `orchestrator/campaign/s8b_holdout_freeze.search_repository` の `files` 注入 API へ、変更した 17 file と positive control が発火する既存 169 file を渡して走査し、rr80 / rr20 の conjunction hit 0 件・positive control 14 hit を確認した。これは全域走の代替として裁定されたものではなく、本 wave 限りの措置である。**恒久対応 1 をどう回復するか (記録 commit だけ hold を解除するか、走査対象を変更 file + 正例対照へ正式に狭めるか) は正しさ防壁の変更なので、`docs/skill-self-improvement.md` の段 8 契約に従い実装せずユーザー裁定へ返す。**
 
 ### F35. 完了済みの人間手番を「発行待ち」として繰り越し、依存 3 タスクを不要に blocked 扱いした [ドリフト] [手順漏れ]
 
@@ -21142,6 +21143,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「変更前 HEAD の木」を自分で作った際には**初期化そのものを落とし**、その木の baseline が
   84 件赤になって変異 harness の fail-closed (`baseline が緑でないため production write を
   開始しない`) で 1 走を捨てた。手で作った比較用の木にも `DW-O08` が適用される。
+
+- **再発: 2026-09-02** — wave worktree と fix 子 worktree の 2 回とも 1 回目が
+  `update-no-fetch` で rc=1 になった。本 wave では**根本原因の候補を特定した**。
+  `tools/dev_waves/git_state.py` の `_GIT_TIMEOUT_S` は 30 で、
+  `update_submodules_no_fetch` はその deadline を submodule config の読取・URL 解決・
+  `submodule update` の**全体**に配る。この repository の新規 worktree は checkout だけで
+  数分かかるため (`git worktree add` が 19,754 file で 2 分を超える)、初回の
+  submodule checkout が 30 秒に収まらない。同じ argv
+  (`git -c protocol.file.allow=always submodule update --init --recursive --no-fetch`) を
+  長い窓で走らせてから tool を再実行すると、work が済んでいるため即座に rc=0 になる。
+  これは「2 回目で通る」という既知の観測とも整合する。**未確定な点も書く** — 本 wave は
+  timeout を直接観測しておらず、生の errno も捕らえていない。tool の `DevWavesError` は
+  失敗種別を潰すため、observed なのは「無制限の窓なら同じ argv が rc=0 で完走する」ことと、
+  「その完走後は tool が即 rc=0 になる」ことである。恒久対応は引き続き未実施で、
+  deadline を submodule 段だけ分離するか detail を厚くするかは裁定待ちである。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
