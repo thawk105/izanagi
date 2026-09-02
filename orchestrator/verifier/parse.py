@@ -203,11 +203,13 @@ class _ParsedFileColumns:
 
 @dataclass(frozen=True)
 class _ParsedFileFailure:
-    """A worker saw invalid input; the parent reparses this exact file."""
+    """A worker saw a per-file failure; the parent preserves path ordering."""
 
     path_index: int
     path: str
     worker_pid: int
+    error: Exception
+    cause: Optional[BaseException]
 
 
 @dataclass(frozen=True)
@@ -547,8 +549,10 @@ def _parse_file_to_columns(task: tuple[int, str]) -> _ParsedFileOutcome:
     issues = ParseIssues()
     try:
         _parse_file(path, local_txns, issues, occurrences)
-    except ParseError:
-        return _ParsedFileFailure(path_index, path, os.getpid())
+    except (ParseError, OSError) as error:
+        return _ParsedFileFailure(
+            path_index, path, os.getpid(), error, error.__cause__,
+        )
 
     token_blob = bytearray()
     token_offsets = array("Q", [0])
@@ -648,7 +652,10 @@ def _parallel_file_outcomes(
                     future.cancel()
         finally:
             executor.shutdown(wait=True, cancel_futures=True)
-    except (ImportError, OSError, BlockingIOError, RuntimeError, ValueError):
+    except (
+            ImportError, OSError, BlockingIOError, RuntimeError, ValueError,
+            AssertionError,
+    ):
         return None, received
 
     indices = [outcome.path_index for outcome in received]
@@ -661,9 +668,25 @@ def _sequential_file_outcomes(paths: Sequence[str]) -> List[_ParsedFileOutcome]:
     return [_parse_file_worker((index, path)) for index, path in enumerate(paths)]
 
 
-def _raise_parent_parse_error(outcome: _ParsedFileFailure) -> None:
+def _raise_worker_reported_error(outcome: _ParsedFileFailure) -> None:
+    if outcome.cause is None:
+        raise outcome.error
+    raise outcome.error from outcome.cause
+
+
+def _raise_parent_file_error(outcome: _ParsedFileFailure) -> None:
+    if not isinstance(outcome.error, ParseError):
+        _raise_worker_reported_error(outcome)
+
     # Reusing this exact scanner preserves line, message, __cause__, and traceback.
-    _parse_file(outcome.path, {}, ParseIssues())
+    # If the file disappears or otherwise becomes unreadable after the worker's
+    # report, retain the original input failure instead of changing its priority.
+    try:
+        _parse_file(outcome.path, {}, ParseIssues())
+    except ParseError:
+        raise
+    except OSError:
+        _raise_worker_reported_error(outcome)
     raise RuntimeError(f"worker reported a non-reproducible ParseError: {outcome.path}")
 
 
@@ -774,12 +797,12 @@ def _parse_trace_dir_compact(
     else:
         outcomes = _sequential_file_outcomes(paths)
     _LAST_PARSE_WORKER_PIDS = frozenset(
-        outcome.worker_pid for outcome in received or outcomes
+        outcome.worker_pid for outcome in outcomes
     )
 
     for outcome in outcomes:
         if isinstance(outcome, _ParsedFileFailure):
-            _raise_parent_parse_error(outcome)
+            _raise_parent_file_error(outcome)
     if any(isinstance(outcome, _ParsedFileNeedsLegacy) for outcome in outcomes):
         return _finish_legacy_parse(paths)
     columns = [

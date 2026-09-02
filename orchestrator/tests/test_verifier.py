@@ -1935,7 +1935,7 @@ def test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure():
 
 
 def test_parallel_production_path_matches_certified_result_and_runs_workers():
-    """The public production path uses real parse and DSG child processes."""
+    """The certified result adopts real parse and DSG child-process outcomes."""
     import importlib
     parse_module = importlib.import_module("orchestrator.verifier.parse")
     dsg_module = importlib.import_module("orchestrator.verifier.dsg")
@@ -1947,10 +1947,186 @@ def test_parallel_production_path_matches_certified_result_and_runs_workers():
     )
     assert result_to_dict(parallel) == result_to_dict(sequential)
     assert parallel.certified
-    assert parse_module._LAST_PARSE_WORKER_PIDS
-    assert dsg_module._LAST_DSG_WORKER_PIDS
-    assert os.getpid() not in parse_module._LAST_PARSE_WORKER_PIDS
-    assert os.getpid() not in dsg_module._LAST_DSG_WORKER_PIDS
+    adopted_parse_pids = parse_module._LAST_PARSE_WORKER_PIDS
+    adopted_dsg_pids = dsg_module._LAST_DSG_WORKER_PIDS
+    assert adopted_parse_pids
+    assert adopted_dsg_pids
+    # These diagnostics are built from adopted outcomes only.  A sequential
+    # fallback records the parent PID and therefore cannot satisfy this check.
+    assert os.getpid() not in adopted_parse_pids
+    assert os.getpid() not in adopted_dsg_pids
+
+
+def test_concurrent_verifications_keep_edge_worker_inputs_isolated():
+    """Two threads cannot replace one another's cyclic/acyclic edge input."""
+    import concurrent.futures
+    import shutil
+    import threading
+
+    common = (
+        "C 0 0 1 1 1 1\n"
+        "R 0 aa 1 0\n"
+        "W 0 bb U 1 1\n"
+        "E 0\n"
+    )
+    cyclic = _tmp_trace(
+        common,
+        "C 1 1 1 2 1 1\n"
+        "R 1 bb 1 0\n"
+        "W 1 aa U 1 2\n"
+        "E 1\n",
+    )
+    acyclic = _tmp_trace(
+        common,
+        "C 1 1 1 2 1 1\n"
+        "R 1 bb 1 1\n"
+        "W 1 aa U 1 2\n"
+        "E 1\n",
+    )
+    real_process_pool = concurrent.futures.ProcessPoolExecutor
+    thread_state = threading.local()
+    both_edge_pools_ready = threading.Barrier(2)
+    both_edge_pools_forked = threading.Barrier(2)
+    forked_edge_pools = []
+    forked_edge_pools_lock = threading.Lock()
+
+    class SynchronizedProcessPool(real_process_pool):
+        """Synchronize real edge-pool forks after both verifier calls arrive."""
+
+        def __init__(self, *args, **kwargs):
+            pool_number = getattr(thread_state, "pool_number", 0) + 1
+            thread_state.pool_number = pool_number
+            self._synchronize_first_submit = pool_number == 2
+            super().__init__(*args, **kwargs)
+
+        def submit(self, *args, **kwargs):
+            if self._synchronize_first_submit:
+                self._synchronize_first_submit = False
+                both_edge_pools_ready.wait(timeout=15)
+                future = super().submit(*args, **kwargs)
+                # ProcessPoolExecutor forks all workers during the first submit.
+                with forked_edge_pools_lock:
+                    forked_edge_pools.append(id(self))
+                both_edge_pools_forked.wait(timeout=15)
+                return future
+            return super().submit(*args, **kwargs)
+
+    try:
+        cyclic_baseline = verify_trace_dir(
+            cyclic, expected_commits=2, workers=1,
+        )
+        acyclic_baseline = verify_trace_dir(
+            acyclic, expected_commits=2, workers=1,
+        )
+        assert cyclic_baseline.verdict == "non-serializable"
+        assert acyclic_baseline.verdict == "serializable"
+
+        concurrent.futures.ProcessPoolExecutor = SynchronizedProcessPool
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            cyclic_future = executor.submit(
+                verify_trace_dir, cyclic, expected_commits=2, workers=2,
+            )
+            acyclic_future = executor.submit(
+                verify_trace_dir, acyclic, expected_commits=2, workers=2,
+            )
+            cyclic_result = cyclic_future.result(timeout=30)
+            acyclic_result = acyclic_future.result(timeout=30)
+        assert len(forked_edge_pools) == 2
+        assert result_to_dict(cyclic_result) == result_to_dict(cyclic_baseline)
+        assert result_to_dict(acyclic_result) == result_to_dict(acyclic_baseline)
+    finally:
+        concurrent.futures.ProcessPoolExecutor = real_process_pool
+        shutil.rmtree(cyclic, ignore_errors=True)
+        shutil.rmtree(acyclic, ignore_errors=True)
+
+
+def test_file_failures_keep_sorted_path_priority_over_later_io_error():
+    """A later dangling symlink cannot replace the first file's ParseError."""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nR 0 aa not-an-int 0\nE 0\n",
+        "C 1 1 1 2 0 0\nE 1\n",
+    )
+    later_path = os.path.join(d, "trace_1.log")
+    os.unlink(later_path)
+    os.symlink(os.path.join(d, "missing-target.log"), later_path)
+    try:
+        for workers in (1, 2):
+            try:
+                verify_trace_dir(d, workers=workers)
+                assert False, "the first path's ParseError must win"
+            except ParseError as exc:
+                assert "trace_0.log:2" in str(exc)
+                assert type(exc.__cause__) is ValueError
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_worker_parse_error_survives_file_disappearing_before_parent_reread():
+    """The worker's ParseError remains primary if parent reread hits I/O."""
+    import importlib
+    import shutil
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nR 0 aa not-an-int 0\nE 0\n",
+        "C 1 1 1 2 0 0\nE 1\n",
+    )
+    original = parse_module._parse_file_to_columns
+    parent_pid = os.getpid()
+
+    def remove_failed_file(task):
+        outcome = original(task)
+        if (task[0] == 0 and os.getpid() != parent_pid
+                and isinstance(outcome, parse_module._ParsedFileFailure)):
+            os.unlink(task[1])
+        return outcome
+
+    parse_module._parse_file_to_columns = remove_failed_file
+    try:
+        try:
+            verify_trace_dir(d, workers=2)
+            assert False, "the worker's original ParseError must be restored"
+        except ParseError as exc:
+            assert "trace_0.log:2" in str(exc)
+            assert type(exc.__cause__) is ValueError
+            assert "not-an-int" in str(exc.__cause__)
+    finally:
+        parse_module._parse_file_to_columns = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_daemon_process_falls_back_to_sequential_verification():
+    """A daemon that cannot fork still verifies a valid multi-file trace."""
+    import multiprocessing
+    context = multiprocessing.get_context("fork")
+    parent_conn, child_conn = context.Pipe(duplex=False)
+
+    def run_in_daemon():
+        try:
+            result = verify_trace_dir(
+                os.path.join(FIX, "g3_readonly"), workers=2,
+            )
+            child_conn.send(("ok", result.certified, result.verdict))
+        except BaseException as exc:
+            child_conn.send(("error", type(exc).__name__, str(exc)))
+        finally:
+            child_conn.close()
+
+    process = context.Process(target=run_in_daemon)
+    process.daemon = True
+    process.start()
+    child_conn.close()
+    try:
+        process.join(20)
+        assert not process.is_alive(), "daemon verifier did not terminate"
+        assert parent_conn.poll(), "daemon verifier returned no result"
+        assert parent_conn.recv() == ("ok", True, "serializable")
+        assert process.exitcode == 0
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+        parent_conn.close()
 
 
 def test_parallel_worker_exit_discards_partial_results_and_rereads_all_files():
@@ -2134,10 +2310,13 @@ def test_sparse_huge_txid_returns_bounded_indeterminate_result():
     import shutil
     d = _tmp_trace("C 1000000000000 0 2 1 0 0\nE 1000000000000\n")
     try:
+        txns, issues = parse_trace_dir(d, workers=1)
+        assert [txn.txid for txn in txns] == [1000000000000]
+        assert issues.missing_txids == 1000000000000
+        assert issues.missing_sample == [0, 1, 2, 3, 4]
         result = verify_trace_dir(d, workers=1)
         assert result.n_txns == 1
         assert result.integrity.missing_txids == 1000000000000
-        assert result.integrity.missing_sample == [0, 1, 2, 3, 4]
         assert result.verdict == "indeterminate"
     finally:
         shutil.rmtree(d, ignore_errors=True)

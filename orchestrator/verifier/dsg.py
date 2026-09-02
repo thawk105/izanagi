@@ -50,12 +50,23 @@ class _EdgeCandidateColumns:
     orphan_reads: int
 
 
-_EDGE_TRACE: Optional[_CompactTrace] = None
-_EDGE_PRODUCER: Optional[Dict[Tuple[str, Version], int]] = None
-_EDGE_VERSIONS: Optional[Dict[str, List[Version]]] = None
-_EDGE_READ_PREFIX: Optional[array] = None
-_EDGE_KEYS: Optional[tuple[str, ...]] = None
-_EDGE_WW_PREFIX: Optional[array] = None
+@dataclass(frozen=True)
+class _EdgeWorkerState:
+    """One verification's immutable edge input, isolated per child process."""
+
+    trace: _CompactTrace
+    producer: Dict[Tuple[str, Version], int]
+    versions: Dict[str, List[Version]]
+    read_prefix: array
+    keys: tuple[str, ...]
+    ww_prefix: array
+
+
+# Set only by a pool initializer inside each child process.  The parent never
+# writes worker input to module globals, so concurrent verifier calls cannot
+# replace one another's fork snapshot.  Sequential fallback passes its state
+# explicitly and does not consult this slot.
+_EDGE_WORKER_STATE: Optional[_EdgeWorkerState] = None
 _LAST_DSG_WORKER_PIDS: frozenset[int] = frozenset()
 
 
@@ -83,16 +94,23 @@ def _weighted_ranges(weights: Sequence[int], parts: int) -> List[tuple[int, int]
     return list(zip(boundaries, boundaries[1:]))
 
 
-def _edge_candidates_for_task(task: _EdgeTask) -> _EdgeCandidateColumns:
-    trace = _EDGE_TRACE
-    producer = _EDGE_PRODUCER
-    versions = _EDGE_VERSIONS
-    read_prefix = _EDGE_READ_PREFIX
-    keys = _EDGE_KEYS
-    ww_prefix = _EDGE_WW_PREFIX
-    if (trace is None or producer is None or versions is None
-            or read_prefix is None or keys is None or ww_prefix is None):
+def _initialize_edge_worker(state: _EdgeWorkerState) -> None:
+    global _EDGE_WORKER_STATE
+    _EDGE_WORKER_STATE = state
+
+
+def _edge_candidates_for_task(
+        task: _EdgeTask, state: Optional[_EdgeWorkerState] = None,
+) -> _EdgeCandidateColumns:
+    worker_state = state if state is not None else _EDGE_WORKER_STATE
+    if worker_state is None:
         raise RuntimeError("compact edge worker state is not initialized")
+    trace = worker_state.trace
+    producer = worker_state.producer
+    versions = worker_state.versions
+    read_prefix = worker_state.read_prefix
+    keys = worker_state.keys
+    ww_prefix = worker_state.ww_prefix
     ordinals = array("Q")
     sources = array("q")
     destinations = array("q")
@@ -262,8 +280,6 @@ class DSG:
         self._build_compact_edges(trace.worker_count)
 
     def _build_compact_edges(self, worker_count: int) -> None:
-        global _EDGE_TRACE, _EDGE_PRODUCER, _EDGE_VERSIONS
-        global _EDGE_READ_PREFIX, _EDGE_KEYS, _EDGE_WW_PREFIX
         global _LAST_DSG_WORKER_PIDS
 
         trace = self._compact
@@ -290,59 +306,58 @@ class DSG:
         for start, end in _weighted_ranges(ww_weights, min(worker_count, len(keys) or 1)):
             tasks.append(_EdgeTask(len(tasks), "ww", start, end))
 
-        _EDGE_TRACE = trace
-        _EDGE_PRODUCER = self.producer
-        _EDGE_VERSIONS = self.versions
-        _EDGE_READ_PREFIX = read_prefix
-        _EDGE_KEYS = keys
-        _EDGE_WW_PREFIX = ww_prefix
+        state = _EdgeWorkerState(
+            trace=trace,
+            producer=self.producer,
+            versions=self.versions,
+            read_prefix=read_prefix,
+            keys=keys,
+            ww_prefix=ww_prefix,
+        )
         outcomes: List[_EdgeCandidateColumns] = []
         received: List[_EdgeCandidateColumns] = []
-        try:
-            if worker_count > 1 and len(tasks) > 1:
-                try:
-                    import multiprocessing
-                    from concurrent.futures import ProcessPoolExecutor, as_completed
+        if worker_count > 1 and len(tasks) > 1:
+            try:
+                import multiprocessing
+                from concurrent.futures import ProcessPoolExecutor, as_completed
 
-                    context = multiprocessing.get_context("fork")
-                    executor = ProcessPoolExecutor(
-                        max_workers=worker_count, mp_context=context,
-                    )
-                    try:
-                        futures = [executor.submit(_edge_worker, task) for task in tasks]
-                        failed = False
-                        for future in as_completed(futures):
-                            try:
-                                received.append(future.result())
-                            except Exception:
-                                failed = True
-                                break
-                        if failed:
-                            for future in futures:
-                                future.cancel()
-                    finally:
-                        executor.shutdown(wait=True, cancel_futures=True)
-                    indices = [outcome.task_index for outcome in received]
-                    if (len(indices) == len(tasks)
-                            and sorted(indices) == list(range(len(tasks)))):
-                        outcomes = received
-                except (
-                        ImportError, OSError, BlockingIOError, RuntimeError,
-                        ValueError,
-                ):
-                    outcomes = []
-            if not outcomes:
-                outcomes = [_edge_worker(task) for task in tasks]
-        finally:
-            _EDGE_TRACE = None
-            _EDGE_PRODUCER = None
-            _EDGE_VERSIONS = None
-            _EDGE_READ_PREFIX = None
-            _EDGE_KEYS = None
-            _EDGE_WW_PREFIX = None
+                context = multiprocessing.get_context("fork")
+                executor = ProcessPoolExecutor(
+                    max_workers=worker_count,
+                    mp_context=context,
+                    initializer=_initialize_edge_worker,
+                    initargs=(state,),
+                )
+                try:
+                    futures = [executor.submit(_edge_worker, task) for task in tasks]
+                    failed = False
+                    for future in as_completed(futures):
+                        try:
+                            received.append(future.result())
+                        except Exception:
+                            failed = True
+                            break
+                    if failed:
+                        for future in futures:
+                            future.cancel()
+                finally:
+                    executor.shutdown(wait=True, cancel_futures=True)
+                indices = [outcome.task_index for outcome in received]
+                if (len(indices) == len(tasks)
+                        and sorted(indices) == list(range(len(tasks)))):
+                    outcomes = received
+            except (
+                    ImportError, OSError, BlockingIOError, RuntimeError,
+                    ValueError, AssertionError,
+            ):
+                outcomes = []
+        if not outcomes:
+            outcomes = [
+                _edge_candidates_for_task(task, state) for task in tasks
+            ]
 
         _LAST_DSG_WORKER_PIDS = frozenset(
-            outcome.worker_pid for outcome in received or outcomes
+            outcome.worker_pid for outcome in outcomes
         )
         self.integrity.orphan_reads += sum(
             outcome.orphan_reads for outcome in outcomes)
