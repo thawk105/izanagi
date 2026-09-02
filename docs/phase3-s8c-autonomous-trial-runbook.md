@@ -68,7 +68,8 @@ opt-in を付けても `[u4-holdout-workload]` で無条件に拒否される。
 登録済み manifest、その manifest を導入した内容 commit と発効 commit の二段束縛
 (`prereg_content_commit` / `prereg_effective_commit`。正本は事前登録文書 §1) に一致する
 発効 capability、未消費の trial ID がすべて要る。**現行実装はこの二段束縛を消費しておらず、
-単一の事前登録 commit 識別子しか持たない。** 現 repository は 12 述語の SATISFIED が 0 件なので、
+単一の事前登録 commit 識別子しか持たない。** 現 repository の 12 述語は C10 だけが SATISFIED、
+C03 が UNSATISFIED、残り 10 件が EVIDENCE_UNDEFINED である。発効は 12 述語すべての充足を要求するので、
 **正式 H1/H2 起動が通ることを期待してはならない。**
 
 ### 3.1 決定論 fixture、build なし

@@ -1,0 +1,533 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/7b695ec71e88f8c4f66e0520bd298c8f/izdw-7b695ec71e.o969133",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/7b695ec71e88f8c4f66e0520bd298c8f/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................                                     [100%]\n36 passed in 8.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "07987e107e130fd499a78490c8facba02492d8efc888c46fe539beb92b08c59e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "311467d986917c62389cd99895893ca366adf9bb827a3645b741000da4f76a30",
+    "duration_s": 155.091,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a408ade180735cbe46ee6880d44c5c2554cd81560a92abe1336edcba5241427a",
+    "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+    "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+    "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+    "status": "PASSED",
+    "test_output_sha256": "07987e107e130fd499a78490c8facba02492d8efc888c46fe539beb92b08c59e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+  },
+  "date": "2026-09-02T14:36:52.939045+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/b7eb0e80edfe74d985f90e06643ed073/izdw-b7eb0e80ed.o969138",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/b7eb0e80edfe74d985f90e06643ed073/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............FF......................                                     [100%]\n=================================== FAILURES ===================================\n_____ test_registry_hash_rejects_nonterminating_reference_ratio[one-third] _____\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\nreference_tps = (1, 3)\n\n    @pytest.mark.parametrize(\n        \"reference_tps\",\n        ((1, 3), (1, 30)),\n        ids=(\"one-third\", \"one-thirtieth\"),\n    )\n    def test_registry_hash_rejects_nonterminating_reference_ratio(\n        reference_tps: tuple[int, int],\n    ) -> None:\n        assert ledgers._ratio_from_payload(list(reference_tps)) == reference_tps\n        candidate = replace(_attempt(0), reference_tps=reference_tps)\n    \n>       with pytest.raises(ledgers.B4LedgerError) as exc_info:\nE       Failed: DID NOT RAISE B4LedgerError\n\norchestrator/tests/test_p3_b4_analysis_ledgers.py:194: Failed\n___ test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth] ___\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\nreference_tps = (1, 30)\n\n    @pytest.mark.parametrize(\n        \"reference_tps\",\n        ((1, 3), (1, 30)),\n        ids=(\"one-third\", \"one-thirtieth\"),\n    )\n    def test_registry_hash_rejects_nonterminating_reference_ratio(\n        reference_tps: tuple[int, int],\n    ) -> None:\n        assert ledgers._ratio_from_payload(list(reference_tps)) == reference_tps\n        candidate = replace(_attempt(0), reference_tps=reference_tps)\n    \n>       with pytest.raises(ledgers.B4LedgerError) as exc_info:\nE       Failed: DID NOT RAISE B4LedgerError\n\norchestrator/tests/test_p3_b4_analysis_ledgers.py:194: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]\nFAILED orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]\n2 failed, 34 passed in 8.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=652 retained_bytes=652 omitted_bytes=0 rendered_excerpt_bytes=691 sha256=de9478d51ace867210e8d94cabf3b1dd77f60e936bc1a948cfc571ad00ddbe30\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> reference_tps = (1, 30)\n> \n>     @pytest.mark.parametrize(\n>         \"reference_tps\",\n>         ((1, 3), (1, 30)),\n>         ids=(\"one-third\", \"one-thirtieth\"),\n>     )\n>     def test_registry_hash_rejects_nonterminating_reference_ratio(\n>         reference_tps: tuple[int, int],\n>     ) -> None:\n>         assert ledgers._ratio_from_payload(list(reference_tps)) == reference_tps\n>         candidate = replace(_attempt(0), reference_tps=reference_tps)\n>     \n> >       with pytest.raises(ledgers.B4LedgerError) as exc_info:\n> E       Failed: DID NOT RAISE B4LedgerError\n> \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:194: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=651 retained_bytes=651 omitted_bytes=0 rendered_excerpt_bytes=690 sha256=0b8078d01971babd6dc947469b6f3ed4b5aa74092b7d888d0d528b6a7fcb3d82\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> reference_tps = (1, 3)\n> \n>     @pytest.mark.parametrize(\n>         \"reference_tps\",\n>         ((1, 3), (1, 30)),\n>         ids=(\"one-third\", \"one-thirtieth\"),\n>     )\n>     def test_registry_hash_rejects_nonterminating_reference_ratio(\n>         reference_tps: tuple[int, int],\n>     ) -> None:\n>         assert ledgers._ratio_from_payload(list(reference_tps)) == reference_tps\n>         candidate = replace(_attempt(0), reference_tps=reference_tps)\n>     \n> >       with pytest.raises(ledgers.B4LedgerError) as exc_info:\n> E       Failed: DID NOT RAISE B4LedgerError\n> \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:194: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1303 retained_bytes=1303 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2586 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "40b22a693b9118d08c1fa66a72a1cb13f3a87b3789b99035b1298051efeb9be6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "311467d986917c62389cd99895893ca366adf9bb827a3645b741000da4f76a30",
+      "duration_s": 32.397,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2102-01-PREDICATE-ALWAYS-ACCEPT",
+      "injection_diff_sha256": "46385db208e1138c778fd8370a40f91cb52a357b2d435124f06b80fa5a7fe1fe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "76d0d49b62c6cfc47f29ee61b094862e56945a0a0ddd0ff39f4daffdf36ab69c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "new": "        if False:\n            _fail(\"reference_tps has no finite decimal expansion\")\n",
+          "old": "        if denominator != 1:\n            _fail(\"reference_tps has no finite decimal expansion\")\n"
+        }
+      ],
+      "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+      "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+      "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+      "status": "KILLED",
+      "test_output_sha256": "40b22a693b9118d08c1fa66a72a1cb13f3a87b3789b99035b1298051efeb9be6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/6da81d89a44c460753225517f049584c/izdw-6da81d89a4.o969142",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/6da81d89a44c460753225517f049584c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............F......................                                     [100%]\n=================================== FAILURES ===================================\n_____________ test_registry_seal_preserves_optional_none_reference _____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registry_seal_preserves_optional_none_reference() -> None:\n        candidate = replace(\n            _attempt(\n                0,\n                reason=ledgers.B4ScheduledAttemptReason.GENERATION_FAILED,\n            ),\n            block_id=None,\n            reference_tps=None,\n            reference_snapshot_hash=None,\n            reference_receipt_hash=None,\n        )\n    \n>       _, registry = _seal((candidate,))\n\norchestrator/tests/test_p3_b4_analysis_ledgers.py:178: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_analysis_ledgers.py:72: in _seal\n    receipt = _receipt(attempts)\norchestrator/tests/test_p3_b4_analysis_ledgers.py:64: in _receipt\n    scheduled_inputs_sha256=ledgers.scheduled_attempts_sha256(attempts),\norchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n    normalized = _normalize_attempts(scheduled_inputs)\norchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n    attempt = _validate_attempt(item)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nattempt = B4ScheduledAttemptInput(schema_version='p3-b4-scheduled-attempt/v1', attempt_id='attempt-0000', registry_ordinal=0, bl...s=None, reference_snapshot_hash=None, reference_receipt_hash=None, reference_is_unique=True, arm_digest_received=False)\n\n    def _validate_attempt(attempt: object) -> B4ScheduledAttemptInput:\n        if not isinstance(attempt, B4ScheduledAttemptInput):\n            _fail(\"scheduled batch contains a non-B4ScheduledAttemptInput value\")\n        if attempt.schema_version != B4_SCHEDULED_ATTEMPT_SCHEMA_VERSION:\n            _fail(\"scheduled attempt schema version mismatch\")\n        if not _is_text(attempt.attempt_id):\n            _fail(\"attempt_id is invalid\")\n        if type(attempt.registry_ordinal) is not int or attempt.registry_ordinal < 0:\n            _fail(\"registry_ordinal is invalid\")\n        if attempt.block_id is not None and not _is_text(attempt.block_id):\n            _fail(\"block_id is invalid\")\n        if not _is_text(attempt.driver) or not _is_text(attempt.workload):\n            _fail(\"driver or workload is invalid\")\n        if not isinstance(attempt.reason, B4ScheduledAttemptReason):\n            _fail(\"scheduled attempt reason is not recognized\")\n        if not isinstance(attempt.whiteboard_result, B4WhiteboardResult):\n            _fail(\"whiteboard result is not recognized\")\n        if type(attempt.digest_red_classes) is not tuple:\n            _fail(\"digest_red_classes must be a tuple\")\n        if any(\n            not isinstance(red_class, B4DigestRedClass)\n            for red_class in attempt.digest_red_classes\n        ):\n            _fail(\"digest red class is not recognized\")\n        if len(set(attempt.digest_red_classes)) != len(attempt.digest_red_classes):\n            _fail(\"digest red classes contain duplicates\")\n        for value in (\n            attempt.calibrated_workload_member,\n            attempt.bootstrap_member,\n            attempt.reference_is_unique,\n            attempt.arm_digest_received,\n        ):\n            if type(value) is not bool:\n                _fail(\"scheduled attempt predicate is not boolean\")\n        if not _is_sha256(attempt.initial_proposal_sha256):\n            _fail(\"initial proposal hash is invalid\")\n        reference = _exact_ratio(attempt.reference_tps)\n        if attempt.reference_tps is not None and (reference is None or reference <= 0):\n            _fail(\"reference_tps is invalid\")\n        if True:\n>           denominator = reference.denominator\nE           AttributeError: 'NoneType' object has no attribute 'denominator'\n\norchestrator/campaign/p3_b4_analysis_ledgers.py:345: AttributeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference\n1 failed, 35 passed in 8.98s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=3794 retained_bytes=3794 omitted_bytes=0 rendered_excerpt_bytes=3943 sha256=f3f2a1b8ff310743f4feb046b128e41480332508e28f72716813411105f80d64\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registry_seal_preserves_optional_none_reference() -> None:\n>         candidate = replace(\n>             _attempt(\n>                 0,\n>                 reason=ledgers.B4ScheduledAttemptReason.GENERATION_FAILED,\n>             ),\n>             block_id=None,\n>             reference_tps=None,\n>             reference_snapshot_hash=None,\n>             reference_receipt_hash=None,\n>         )\n>     \n> >       _, registry = _seal((candidate,))\n> \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:178: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:72: in _seal\n>     receipt = _receipt(attempts)\n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:64: in _receipt\n>     scheduled_inputs_sha256=ledgers.scheduled_attempts_sha256(attempts),\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n>     normalized = _normalize_attempts(scheduled_inputs)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n>     attempt = _validate_attempt(item)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> attempt = B4ScheduledAttemptInput(schema_version='p3-b4-scheduled-attempt/v1', attempt_id='attempt-0000', registry_ordinal=0, bl...s=None, reference_snapshot_hash=None, reference_receipt_hash=None, reference_is_unique=True, arm_digest_received=False)\n> \n>     def _validate_attempt(attempt: object) -> B4ScheduledAttemptInput:\n>         if not isinstance(attempt, B4ScheduledAttemptInput):\n>             _fail(\"scheduled batch contains a non-B4ScheduledAttemptInput value\")\n>         if attempt.schema_version != B4_SCHEDULED_ATTEMPT_SCHEMA_VERSION:\n>             _fail(\"scheduled attempt schema version mismatch\")\n>         if not _is_text(attempt.attempt_id):\n>             _fail(\"attempt_id is invalid\")\n>         if type(attempt.registry_ordinal) is not int or attempt.registry_ordinal < 0:\n>             _fail(\"registry_ordinal is invalid\")\n>         if attempt.block_id is not None and not _is_text(attempt.block_id):\n>             _fail(\"block_id is invalid\")\n>         if not _is_text(attempt.driver) or not _is_text(attempt.workload):\n>             _fail(\"driver or workload is invalid\")\n>         if not isinstance(attempt.reason, B4ScheduledAttemptReason):\n>             _fail(\"scheduled attempt reason is not recognized\")\n>         if not isinstance(attempt.whiteboard_result, B4WhiteboardResult):\n>             _fail(\"whiteboard result is not recognized\")\n>         if type(attempt.digest_red_classes) is not tuple:\n>             _fail(\"digest_red_classes must be a tuple\")\n>         if any(\n>             not isinstance(red_class, B4DigestRedClass)\n>             for red_class in attempt.digest_red_classes\n>         ):\n>             _fail(\"digest red class is not recognized\")\n>         if len(set(attempt.digest_red_classes)) != len(attempt.digest_red_classes):\n>             _fail(\"digest red classes contain duplicates\")\n>         for value in (\n>             attempt.calibrated_workload_member,\n>             attempt.bootstrap_member,\n>             attempt.reference_is_unique,\n>             attempt.arm_digest_received,\n>         ):\n>             if type(value) is not bool:\n>                 _fail(\"scheduled attempt predicate is not boolean\")\n>         if not _is_sha256(attempt.initial_proposal_sha256):\n>             _fail(\"initial proposal hash is invalid\")\n>         reference = _exact_ratio(attempt.reference_tps)\n>         if attempt.reference_tps is not None and (reference is None or reference <= 0):\n>             _fail(\"reference_tps is invalid\")\n>         if True:\n> >           denominator = reference.denominator\n> E           AttributeError: 'NoneType' object has no attribute 'denominator'\n> \n> orchestrator/campaign/p3_b4_analysis_ledgers.py:345: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3794 retained_bytes=3794 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4674 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "81b97c5ebfd650aeea779264f2d3e6398c4b993f845781b24df83a932c9929a8"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "311467d986917c62389cd99895893ca366adf9bb827a3645b741000da4f76a30",
+      "duration_s": 32.771,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2102-02-DROP-NONE-GUARD",
+      "injection_diff_sha256": "5221a1db1e14e1ea485edd67d31b5f487a6e85fe3f95aef90224e2a7d639b1b5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "112cc73e660f2b783868d98e841bce299b7147624f15b463cc217e0969d466a3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "new": "    if True:\n        denominator = reference.denominator\n",
+          "old": "    if reference is not None:\n        denominator = reference.denominator\n"
+        }
+      ],
+      "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+      "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+      "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+      "status": "KILLED",
+      "test_output_sha256": "81b97c5ebfd650aeea779264f2d3e6398c4b993f845781b24df83a932c9929a8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/c6a96f4fc9fcf5d6fbf94556ddc8248f/izdw-c6a96f4fc9.o969143",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/c6a96f4fc9fcf5d6fbf94556ddc8248f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............F.....................F                                     [100%]\n=================================== FAILURES ===================================\n____________ test_registry_seal_preserves_finite_decimal_reference _____________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registry_seal_preserves_finite_decimal_reference() -> None:\n        candidate = replace(_attempt(0), reference_tps=(1, 10))\n    \n>       _, registry = _seal((candidate,))\n\norchestrator/tests/test_p3_b4_analysis_ledgers.py:161: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_analysis_ledgers.py:72: in _seal\n    receipt = _receipt(attempts)\norchestrator/tests/test_p3_b4_analysis_ledgers.py:64: in _receipt\n    scheduled_inputs_sha256=ledgers.scheduled_attempts_sha256(attempts),\norchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n    normalized = _normalize_attempts(scheduled_inputs)\norchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n    attempt = _validate_attempt(item)\norchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n    _fail(\"reference_tps has no finite decimal expansion\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nmessage = 'reference_tps has no finite decimal expansion'\n\n    def _fail(message: str) -> None:\n>       raise B4LedgerError(message)\nE       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n\norchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n_______ test_m12_nonterminating_reference_ratio_has_only_named_rejection _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nscheduled_inputs = (B4ScheduledAttemptInput(schema_version='p3-b4-scheduled-attempt/v1', attempt_id='attempt-0000', registry_ordinal=0, b...1831441bd7245531a84f92a4e1a7a2e2ab7b67786351f077a4fd10efea', reference_is_unique=True, arm_digest_received=False), ...)\nplanned_result_artifacts = (B4PlannedResultArtifact(attempt_id='attempt-0000', artifact_path='/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_no...path='/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0/control/results/attempt-0005.json'), ...)\npublication_root = '/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0/control/publication'\n\n    def issue_b4_prerun_publication(\n        *,\n        scheduled_inputs: Sequence[ledgers.B4ScheduledAttemptInput],\n        planned_result_artifacts: Sequence[B4PlannedResultArtifact],\n        publication_root: str,\n    ) -> B4PrerunPublication:\n        \"\"\"Issue exactly one B-4 pre-run publication under a new absolute root.\"\"\"\n    \n        root = _canonical_absolute_path(\n            publication_root,\n            reason=B4PrerunRejectionReason.PUBLICATION_ROOT_INVALID,\n            label=\"publication_root\",\n        )\n        registry_path = os.path.join(root, _REGISTRY_NAME)\n        manifest_path = os.path.join(root, _MANIFEST_NAME)\n        receipt_path = os.path.join(root, _RECEIPT_NAME)\n    \n        try:\n>           scheduled_inputs_sha256 = ledgers.scheduled_attempts_sha256(scheduled_inputs)\n\norchestrator/campaign/p3_b4_prerun_issuer.py:725: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n    normalized = _normalize_attempts(scheduled_inputs)\norchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n    attempt = _validate_attempt(item)\norchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n    _fail(\"reference_tps has no finite decimal expansion\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nmessage = 'reference_tps has no finite decimal expansion'\n\n    def _fail(message: str) -> None:\n>       raise B4LedgerError(message)\nE       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n\norchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\ncertified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-ituf1v3o'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n\n    def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n        tmp_path: Path,\n        certified_evidence: _Evidence,\n    ) -> None:\n        \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n        with pytest.raises(ArithmeticError) as exc_info:\n            P._fraction_token((1, 3))\n        assert str(exc_info.value) == \"reference_tps has no finite decimal expansion\"\n    \n>       control = _publication(tmp_path / \"control\")\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1147: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_raw_record_producer.py:126: in _publication\n    return issuer.issue_b4_prerun_publication(\norchestrator/campaign/p3_b4_prerun_issuer.py:727: in issue_b4_prerun_publication\n    _reject(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = <B4PrerunRejectionReason.SCHEDULED_INPUTS_INVALID: 'scheduled_inputs_invalid'>\ndetail = 'scheduled batch does not satisfy the B-4 ledger contract'\ncause = B4LedgerError('reference_tps has no finite decimal expansion')\n\n    def _reject(\n        reason: B4PrerunRejectionReason,\n        detail: str,\n        *,\n        cause: BaseException | None = None,\n    ) -> NoReturn:\n        error = B4PrerunIssuerError(reason, detail)\n        if cause is None:\n            raise error\n>       raise error from cause\nE       orchestrator.campaign.p3_b4_prerun_issuer.B4PrerunIssuerError: scheduled_inputs_invalid: scheduled batch does not satisfy the B-4 ledger contract\n\norchestrator/campaign/p3_b4_prerun_issuer.py:147: B4PrerunIssuerError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\n2 failed, 34 passed in 8.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=4551 retained_bytes=3933 omitted_bytes=618 rendered_excerpt_bytes=4096 sha256=5c8abc4983ebedf09008a499af6df6f6cde597ad4c60fb2b7a61fe6d28cc6507\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> test-0/popen-gw0/test_m12_nonterminating_refere0/control/publication'\n> \n>     def issue_b4_prerun_publication(\n>         *,\n>         scheduled_inputs: Sequence[ledgers.B4ScheduledAttemptInput],\n>         planned_result_artifacts: Sequence[B4PlannedResultArtifact],\n>         publication_root: str,\n>     ) -> B4PrerunPublication:\n>         \"\"\"Issue exactly one B-4 pre-run publication under a new absolute root.\"\"\"\n>     \n>         root = _canonical_absolute_path(\n>             publication_root,\n>             reason=B4PrerunRejectionReason.PUBLICATION_ROOT_INVALID,\n>             label=\"publication_root\",\n>         )\n>         registry_path = os.path.join(root, _REGISTRY_NAME)\n>         manifest_path = os.path.join(root, _MANIFEST_NAME)\n>         receipt_path = os.path.join(root, _RECEIPT_NAME)\n>     \n>         try:\n> >           scheduled_inputs_sha256 = ledgers.scheduled_attempts_sha256(scheduled_inputs)\n> \n> orchestrator/campaign/p3_b4_prerun_issuer.py:725: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n>     normalized = _normalize_attempts(scheduled_inputs)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n>     attempt = _validate_attempt(item)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n>     _fail(\"reference_tps has no finite decimal expansion\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> message = 'reference_tps has no finite decimal expansion'\n> \n>     def _fail(message: str) -> None:\n> >       raise B4LedgerError(message)\n> E       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n> \n> orchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\n> certified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-ituf1v3o'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n> \n>     def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n>         tmp_path: Path,\n>         certified_evidence: _Evidence,\n>     ) -> None:\n>         \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n>         with pytest.raises(ArithmeticError) as exc_info:\n>             P._fraction_token((1, 3))\n>         assert str(exc_info.value) == \"reference_tps has no finite decimal expansion\"\n>     \n> >       control = _publication(tmp_path / \"control\")\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1147: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:126: in _publication\n>     return issuer.issue_b4_prerun_publication(\n> orchestrator/campaign/p3_b4_prerun_issuer.py:727: in issue_b4_prerun_publication\n>     _reject(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = <B4PrerunRejectionReason.SCHEDULED_INPUTS_INVALID: 'scheduled_inputs_invalid'>\n> detail = 'scheduled batch does not satisfy the B-4 ledger contract'\n> cause = B4LedgerError('reference_tps has no finite decimal expansion')\n> \n>     def _reject(\n>         reason: B4PrerunRejectionReason,\n>         detail: str,\n>         *,\n>         cause: BaseException | None = None,\n>     ) -> NoReturn:\n>         error = B4PrerunIssuerError(reason, detail)\n>         if cause is None:\n>             raise error\n> >       raise error from cause\n> E       orchestrator.campaign.p3_b4_prerun_issuer.B4PrerunIssuerError: scheduled_inputs_invalid: scheduled batch does not satisfy the B-4 ledger contract\n> \n> orchestrator/campaign/p3_b4_prerun_issuer.py:147: B4PrerunIssuerError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=1385 retained_bytes=1385 omitted_bytes=0 rendered_excerpt_bytes=1442 sha256=9f0d8d7a094a8771935a1a0027f03221585e5834a71639d2f74e63abb573ade7\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registry_seal_preserves_finite_decimal_reference() -> None:\n>         candidate = replace(_attempt(0), reference_tps=(1, 10))\n>     \n> >       _, registry = _seal((candidate,))\n> \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:161: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:72: in _seal\n>     receipt = _receipt(attempts)\n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:64: in _receipt\n>     scheduled_inputs_sha256=ledgers.scheduled_attempts_sha256(attempts),\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n>     normalized = _normalize_attempts(scheduled_inputs)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n>     attempt = _validate_attempt(item)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n>     _fail(\"reference_tps has no finite decimal expansion\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> message = 'reference_tps has no finite decimal expansion'\n> \n>     def _fail(message: str) -> None:\n> >       raise B4LedgerError(message)\n> E       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n> \n> orchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5936 retained_bytes=5318 omitted_bytes=618 budget_bytes=49152 rendered_bytes=6733 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ad06b16de7b03af1affe2889abd47c2001f8c587beef95d28454b2782218925a"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "311467d986917c62389cd99895893ca366adf9bb827a3645b741000da4f76a30",
+      "duration_s": 32.629,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2102-03-DROP-TWO-REDUCTION",
+      "injection_diff_sha256": "d5ee7c1fbed2d4314a3d5585a900efc61819f713374a3db9013fcf12b75eabc3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fc5049fc794839b0a00b66510e1e00ec5ca05589d64128d46049bfa1f89b8146",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "new": "        while False:\n            denominator //= 2\n",
+          "old": "        while denominator % 2 == 0:\n            denominator //= 2\n"
+        }
+      ],
+      "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+      "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+      "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+      "status": "KILLED",
+      "test_output_sha256": "ad06b16de7b03af1affe2889abd47c2001f8c587beef95d28454b2782218925a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/dc45aebcd6c93468f76c158d1928e59c/izdw-dc45aebcd6.o969146",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/dc45aebcd6c93468f76c158d1928e59c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............F.....................F                                     [100%]\n=================================== FAILURES ===================================\n____________ test_registry_seal_preserves_finite_decimal_reference _____________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_registry_seal_preserves_finite_decimal_reference() -> None:\n        candidate = replace(_attempt(0), reference_tps=(1, 10))\n    \n>       _, registry = _seal((candidate,))\n\norchestrator/tests/test_p3_b4_analysis_ledgers.py:161: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_analysis_ledgers.py:72: in _seal\n    receipt = _receipt(attempts)\norchestrator/tests/test_p3_b4_analysis_ledgers.py:64: in _receipt\n    scheduled_inputs_sha256=ledgers.scheduled_attempts_sha256(attempts),\norchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n    normalized = _normalize_attempts(scheduled_inputs)\norchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n    attempt = _validate_attempt(item)\norchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n    _fail(\"reference_tps has no finite decimal expansion\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nmessage = 'reference_tps has no finite decimal expansion'\n\n    def _fail(message: str) -> None:\n>       raise B4LedgerError(message)\nE       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n\norchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n_______ test_m12_nonterminating_reference_ratio_has_only_named_rejection _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nscheduled_inputs = (B4ScheduledAttemptInput(schema_version='p3-b4-scheduled-attempt/v1', attempt_id='attempt-0000', registry_ordinal=0, b...1831441bd7245531a84f92a4e1a7a2e2ab7b67786351f077a4fd10efea', reference_is_unique=True, arm_digest_received=False), ...)\nplanned_result_artifacts = (B4PlannedResultArtifact(attempt_id='attempt-0000', artifact_path='/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_no...path='/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0/control/results/attempt-0005.json'), ...)\npublication_root = '/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0/control/publication'\n\n    def issue_b4_prerun_publication(\n        *,\n        scheduled_inputs: Sequence[ledgers.B4ScheduledAttemptInput],\n        planned_result_artifacts: Sequence[B4PlannedResultArtifact],\n        publication_root: str,\n    ) -> B4PrerunPublication:\n        \"\"\"Issue exactly one B-4 pre-run publication under a new absolute root.\"\"\"\n    \n        root = _canonical_absolute_path(\n            publication_root,\n            reason=B4PrerunRejectionReason.PUBLICATION_ROOT_INVALID,\n            label=\"publication_root\",\n        )\n        registry_path = os.path.join(root, _REGISTRY_NAME)\n        manifest_path = os.path.join(root, _MANIFEST_NAME)\n        receipt_path = os.path.join(root, _RECEIPT_NAME)\n    \n        try:\n>           scheduled_inputs_sha256 = ledgers.scheduled_attempts_sha256(scheduled_inputs)\n\norchestrator/campaign/p3_b4_prerun_issuer.py:725: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n    normalized = _normalize_attempts(scheduled_inputs)\norchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n    attempt = _validate_attempt(item)\norchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n    _fail(\"reference_tps has no finite decimal expansion\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nmessage = 'reference_tps has no finite decimal expansion'\n\n    def _fail(message: str) -> None:\n>       raise B4LedgerError(message)\nE       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n\norchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\ncertified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-ht7nsspe'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n\n    def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n        tmp_path: Path,\n        certified_evidence: _Evidence,\n    ) -> None:\n        \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n        with pytest.raises(ArithmeticError) as exc_info:\n            P._fraction_token((1, 3))\n        assert str(exc_info.value) == \"reference_tps has no finite decimal expansion\"\n    \n>       control = _publication(tmp_path / \"control\")\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1147: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_raw_record_producer.py:126: in _publication\n    return issuer.issue_b4_prerun_publication(\norchestrator/campaign/p3_b4_prerun_issuer.py:727: in issue_b4_prerun_publication\n    _reject(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = <B4PrerunRejectionReason.SCHEDULED_INPUTS_INVALID: 'scheduled_inputs_invalid'>\ndetail = 'scheduled batch does not satisfy the B-4 ledger contract'\ncause = B4LedgerError('reference_tps has no finite decimal expansion')\n\n    def _reject(\n        reason: B4PrerunRejectionReason,\n        detail: str,\n        *,\n        cause: BaseException | None = None,\n    ) -> NoReturn:\n        error = B4PrerunIssuerError(reason, detail)\n        if cause is None:\n            raise error\n>       raise error from cause\nE       orchestrator.campaign.p3_b4_prerun_issuer.B4PrerunIssuerError: scheduled_inputs_invalid: scheduled batch does not satisfy the B-4 ledger contract\n\norchestrator/campaign/p3_b4_prerun_issuer.py:147: B4PrerunIssuerError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\n2 failed, 34 passed in 8.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=4551 retained_bytes=3933 omitted_bytes=618 rendered_excerpt_bytes=4096 sha256=e8e498f643110ca8aae1ca6dd083b483459bd01d072ad1c7abc11187518d65b1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> test-0/popen-gw0/test_m12_nonterminating_refere0/control/publication'\n> \n>     def issue_b4_prerun_publication(\n>         *,\n>         scheduled_inputs: Sequence[ledgers.B4ScheduledAttemptInput],\n>         planned_result_artifacts: Sequence[B4PlannedResultArtifact],\n>         publication_root: str,\n>     ) -> B4PrerunPublication:\n>         \"\"\"Issue exactly one B-4 pre-run publication under a new absolute root.\"\"\"\n>     \n>         root = _canonical_absolute_path(\n>             publication_root,\n>             reason=B4PrerunRejectionReason.PUBLICATION_ROOT_INVALID,\n>             label=\"publication_root\",\n>         )\n>         registry_path = os.path.join(root, _REGISTRY_NAME)\n>         manifest_path = os.path.join(root, _MANIFEST_NAME)\n>         receipt_path = os.path.join(root, _RECEIPT_NAME)\n>     \n>         try:\n> >           scheduled_inputs_sha256 = ledgers.scheduled_attempts_sha256(scheduled_inputs)\n> \n> orchestrator/campaign/p3_b4_prerun_issuer.py:725: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n>     normalized = _normalize_attempts(scheduled_inputs)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n>     attempt = _validate_attempt(item)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n>     _fail(\"reference_tps has no finite decimal expansion\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> message = 'reference_tps has no finite decimal expansion'\n> \n>     def _fail(message: str) -> None:\n> >       raise B4LedgerError(message)\n> E       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n> \n> orchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\n> certified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-ht7nsspe'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n> \n>     def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n>         tmp_path: Path,\n>         certified_evidence: _Evidence,\n>     ) -> None:\n>         \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n>         with pytest.raises(ArithmeticError) as exc_info:\n>             P._fraction_token((1, 3))\n>         assert str(exc_info.value) == \"reference_tps has no finite decimal expansion\"\n>     \n> >       control = _publication(tmp_path / \"control\")\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1147: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:126: in _publication\n>     return issuer.issue_b4_prerun_publication(\n> orchestrator/campaign/p3_b4_prerun_issuer.py:727: in issue_b4_prerun_publication\n>     _reject(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = <B4PrerunRejectionReason.SCHEDULED_INPUTS_INVALID: 'scheduled_inputs_invalid'>\n> detail = 'scheduled batch does not satisfy the B-4 ledger contract'\n> cause = B4LedgerError('reference_tps has no finite decimal expansion')\n> \n>     def _reject(\n>         reason: B4PrerunRejectionReason,\n>         detail: str,\n>         *,\n>         cause: BaseException | None = None,\n>     ) -> NoReturn:\n>         error = B4PrerunIssuerError(reason, detail)\n>         if cause is None:\n>             raise error\n> >       raise error from cause\n> E       orchestrator.campaign.p3_b4_prerun_issuer.B4PrerunIssuerError: scheduled_inputs_invalid: scheduled batch does not satisfy the B-4 ledger contract\n> \n> orchestrator/campaign/p3_b4_prerun_issuer.py:147: B4PrerunIssuerError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=1385 retained_bytes=1385 omitted_bytes=0 rendered_excerpt_bytes=1442 sha256=9f0d8d7a094a8771935a1a0027f03221585e5834a71639d2f74e63abb573ade7\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_registry_seal_preserves_finite_decimal_reference() -> None:\n>         candidate = replace(_attempt(0), reference_tps=(1, 10))\n>     \n> >       _, registry = _seal((candidate,))\n> \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:161: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:72: in _seal\n>     receipt = _receipt(attempts)\n> orchestrator/tests/test_p3_b4_analysis_ledgers.py:64: in _receipt\n>     scheduled_inputs_sha256=ledgers.scheduled_attempts_sha256(attempts),\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:484: in scheduled_attempts_sha256\n>     normalized = _normalize_attempts(scheduled_inputs)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:454: in _normalize_attempts\n>     attempt = _validate_attempt(item)\n> orchestrator/campaign/p3_b4_analysis_ledgers.py:351: in _validate_attempt\n>     _fail(\"reference_tps has no finite decimal expansion\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> message = 'reference_tps has no finite decimal expansion'\n> \n>     def _fail(message: str) -> None:\n> >       raise B4LedgerError(message)\n> E       orchestrator.campaign.p3_b4_analysis_ledgers.B4LedgerError: reference_tps has no finite decimal expansion\n> \n> orchestrator/campaign/p3_b4_analysis_ledgers.py:248: B4LedgerError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5936 retained_bytes=5318 omitted_bytes=618 budget_bytes=49152 rendered_bytes=6733 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "db8651a39d9f8007d026d4d59b55c6c870923e48f3bdc56c5894da93fac46070"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "311467d986917c62389cd99895893ca366adf9bb827a3645b741000da4f76a30",
+      "duration_s": 32.626,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2102-04-DROP-FIVE-REDUCTION",
+      "injection_diff_sha256": "38b281a8c1c21abf576ee4b3c6262997ea793375ae8b3f236d60b68eabcac234",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "751a7075a31169fb348992eb24d68ad851a01fae6e49a1276eba94237f366eee",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "new": "        while False:\n            denominator //= 5\n",
+          "old": "        while denominator % 5 == 0:\n            denominator //= 5\n"
+        }
+      ],
+      "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+      "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+      "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+      "status": "KILLED",
+      "test_output_sha256": "db8651a39d9f8007d026d4d59b55c6c870923e48f3bdc56c5894da93fac46070",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/7112f855a3979344027396b1a6f3c8fc/izdw-7112f855a3.o969149",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/7112f855a3979344027396b1a6f3c8fc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................F                                     [100%]\n=================================== FAILURES ===================================\n_______ test_m12_nonterminating_reference_ratio_has_only_named_rejection _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\ncertified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-04bt589x'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n\n    def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n        tmp_path: Path,\n        certified_evidence: _Evidence,\n    ) -> None:\n        \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n>       with pytest.raises(ArithmeticError) as exc_info:\nE       Failed: DID NOT RAISE ArithmeticError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1143: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\n1 failed, 35 passed in 8.07s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=871 retained_bytes=871 omitted_bytes=0 rendered_excerpt_bytes=900 sha256=c42c35f0594cfb26881e557d8f598c529b3b07d1d8fee9f7400e128557c6060d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\n> certified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-04bt589x'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n> \n>     def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n>         tmp_path: Path,\n>         certified_evidence: _Evidence,\n>     ) -> None:\n>         \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n> >       with pytest.raises(ArithmeticError) as exc_info:\n> E       Failed: DID NOT RAISE ArithmeticError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1143: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=871 retained_bytes=871 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1641 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3d067547d4931c699c17e61d6505ab0c0220a6a6644afb32ffad591d770c0138"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "311467d986917c62389cd99895893ca366adf9bb827a3645b741000da4f76a30",
+      "duration_s": 32.194,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2102-05-PRODUCER-DROP-ARITHMETIC-RAISE",
+      "injection_diff_sha256": "9b9729434f15cf73b667d75a217fcd4c9094f3ff49340311b23ad49acde257bd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "238c1a981622db7dca0d353200952820e9c15e6a8a82d51b346b7c02f39ee052",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "new": "    if False:\n        raise ArithmeticError(\"reference_tps has no finite decimal expansion\")\n",
+          "old": "    if denominator != 1:\n        raise ArithmeticError(\"reference_tps has no finite decimal expansion\")\n"
+        }
+      ],
+      "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+      "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+      "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+      "status": "KILLED",
+      "test_output_sha256": "3d067547d4931c699c17e61d6505ab0c0220a6a6644afb32ffad591d770c0138",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/8667620f6c96e94c94987342eccfa557/izdw-8667620f6c.o969151",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/8667620f6c96e94c94987342eccfa557/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................F                                     [100%]\n=================================== FAILURES ===================================\n_______ test_m12_nonterminating_reference_ratio_has_only_named_rejection _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\ncertified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-7rujc53y'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n\n    def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n        tmp_path: Path,\n        certified_evidence: _Evidence,\n    ) -> None:\n        \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n        with pytest.raises(ArithmeticError) as exc_info:\n            P._fraction_token((1, 3))\n        assert str(exc_info.value) == \"reference_tps has no finite decimal expansion\"\n    \n        control = _publication(tmp_path / \"control\")\n        _assert_write(_publish(control, certified_evidence))\n    \n        publication = _publication(tmp_path / \"publication-case\")\n        with mock.patch.object(\n            P,\n            \"_fraction_token\",\n            side_effect=ArithmeticError(\n                \"reference_tps has no finite decimal expansion\"\n            ),\n        ) as fraction_token:\n            result = _publish(publication, certified_evidence)\n            fraction_token.assert_called_once_with(\n                publication.manifest.rows[0].reference_tps\n            )\n    \n        assert isinstance(result, P.B4RawRecordRejection), result\n>       assert result.issues == (\n            P.B4RawRecordIssue(\n                artifact=\"publication\",\n                field=\"reference_tps\",\n                code=P.B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING,\n                detail=\"reference_tps has no finite decimal JSON representation\",\n            ),\n        )\nE       AssertionError: assert (B4RawRecordI... expansion'),) == (B4RawRecordI...esentation'),)\nE         \nE         At index 0 diff: B4RawRecordIssue(artifact='producer', field='internal', code=<B4RawRecordIssueCode.IO_ERROR: 'io_error'>, detail='ArithmeticError: reference_tps has no finite decimal expansion') != B4RawRecordIssue(artifact='publication', field='reference_tps', code=<B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING: 'decimal_not_terminating'>, detail='reference_tps has no finite decimal JSON representation')\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1164: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\n1 failed, 35 passed in 8.82s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=2514 retained_bytes=2514 omitted_bytes=0 rendered_excerpt_bytes=2605 sha256=e04626f53e7281f86f12a3c45bf3bc9d6f44e00c2c38cc4793d915436165d0ad\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_m12_nonterminating_refere0')\n> certified_evidence = _Evidence(admission=_SharedAdmission(repository=PosixPath('/tmp/izanagi-b4-closed-admission-7rujc53y'), role_file=Posi...e/critic-pair/off/receipt_producer-off-1_terminal.json'), iteration=1, on_commit_receipt=None, off_commit_receipt=None)\n> \n>     def test_m12_nonterminating_reference_ratio_has_only_named_rejection(\n>         tmp_path: Path,\n>         certified_evidence: _Evidence,\n>     ) -> None:\n>         \"\"\"Acceptance would round the one-third reference into raw JSON. Rejection names only the unavailable finite decimal representation.\"\"\"\n>         with pytest.raises(ArithmeticError) as exc_info:\n>             P._fraction_token((1, 3))\n>         assert str(exc_info.value) == \"reference_tps has no finite decimal expansion\"\n>     \n>         control = _publication(tmp_path / \"control\")\n>         _assert_write(_publish(control, certified_evidence))\n>     \n>         publication = _publication(tmp_path / \"publication-case\")\n>         with mock.patch.object(\n>             P,\n>             \"_fraction_token\",\n>             side_effect=ArithmeticError(\n>                 \"reference_tps has no finite decimal expansion\"\n>             ),\n>         ) as fraction_token:\n>             result = _publish(publication, certified_evidence)\n>             fraction_token.assert_called_once_with(\n>                 publication.manifest.rows[0].reference_tps\n>             )\n>     \n>         assert isinstance(result, P.B4RawRecordRejection), result\n> >       assert result.issues == (\n>             P.B4RawRecordIssue(\n>                 artifact=\"publication\",\n>                 field=\"reference_tps\",\n>                 code=P.B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING,\n>                 detail=\"reference_tps has no finite decimal JSON representation\",\n>             ),\n>         )\n> E       AssertionError: assert (B4RawRecordI... expansion'),) == (B4RawRecordI...esentation'),)\n> E         \n> E         At index 0 diff: B4RawRecordIssue(artifact='producer', field='internal', code=<B4RawRecordIssueCode.IO_ERROR: 'io_error'>, detail='ArithmeticError: reference_tps has no finite decimal expansion') != B4RawRecordIssue(artifact='publication', field='reference_tps', code=<B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING: 'decimal_not_terminating'>, detail='reference_tps has no finite decimal JSON representation')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1164: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2514 retained_bytes=2514 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3351 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "864e45c5897eabb02c6cdf82caedb4d28e5c2e85611205ba406e8c11bb6746ab"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "311467d986917c62389cd99895893ca366adf9bb827a3645b741000da4f76a30",
+      "duration_s": 32.491,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2102-06-PRODUCER-DROP-REJECTION-MAPPING",
+      "injection_diff_sha256": "3717680bec5d6cf2257643bd45fb46964721c8b81e9a157da364ada1bb8a0bd0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e6a9407d3427c9298a8b2bfc8c045ef30f8b43c705a34033e08d20e914f7860b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "new": "    except ValueError as exc:\n",
+          "old": "    except ArithmeticError:\n        _issue(\n            \"publication\",\n            \"reference_tps\",\n            B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING,\n            \"reference_tps has no finite decimal JSON representation\",\n        )\n    except ValueError as exc:\n"
+        }
+      ],
+      "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+      "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+      "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+      "status": "KILLED",
+      "test_output_sha256": "864e45c5897eabb02c6cdf82caedb4d28e5c2e85611205ba406e8c11bb6746ab",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/65b2f6f386c9fa0ef763232d767e1cfc/izdw-65b2f6f386.o969130",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/output/pegasus-dispatch/65b2f6f386c9fa0ef763232d767e1cfc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_batch_seal_is_permutation_invariant\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_completeness_requires_issuer_bound_schedule_receipt\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_derive_assignment_requires_seed_receipt\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_is_deterministic_from_seed_and_block_id\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-000-a01f7a7996964382afcf68d750d61cc7a30d27e558e3d969e418509e6a39e6e5-on-first]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-003-4b8917fb898ef2bb49873d8cec329af13d957987de57567be496e2482efedf83-off-first]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-007-057f8b8cf83b4ec702be45e6d88f96458ecf85f6a096ecb282add7fa1a8649fa-off-first]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_fixed_assignment_vectors_are_concretely_nonconstant\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_preserves_failed_duplicate_corrupt_and_screening_rows\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_selects_first_201_eligible_rows_only\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[scheduled_reason]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[rejected_whiteboard]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[eligible_red_class]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[calibrated_workload]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[bootstrap_membership]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[unique_reference]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[uncontaminated_precursor]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[block_id]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[reference_tps]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[reference_snapshot_hash]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[reference_receipt_hash]\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_fewer_than_201_eligible_rows_is_design_not_feasible\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_added_deleted_reordered_or_driver_swapped_is_rejected\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_hash_without_row_equality_is_not_completeness\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_violation_count_is_derived_before_eligibility_filter\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_append_is_strict_prefix_and_hash_chained\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_observation_is_compared_with_frozen_row\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_regeneration_rejects_a_changed_schedule\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_completeness_rejects_a_changed_schedule\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_postfreeze_byte_gate_rejects_distinct_valid_canonical_manifest\norchestrator/tests/test_p3_b4_analysis_ledgers.py::test_ledgers_have_no_random_time_or_environment_import\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection\n\n36 tests collected in 0.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ac1b8df2d4586b61a73fdbe85164b36519c90dad46558da96d479023150c07aa"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_batch_seal_is_permutation_invariant",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_completeness_requires_issuer_bound_schedule_receipt",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_derive_assignment_requires_seed_receipt",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_is_deterministic_from_seed_and_block_id",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-000-a01f7a7996964382afcf68d750d61cc7a30d27e558e3d969e418509e6a39e6e5-on-first]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-003-4b8917fb898ef2bb49873d8cec329af13d957987de57567be496e2482efedf83-off-first]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-007-057f8b8cf83b4ec702be45e6d88f96458ecf85f6a096ecb282add7fa1a8649fa-off-first]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_fixed_assignment_vectors_are_concretely_nonconstant",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_preserves_failed_duplicate_corrupt_and_screening_rows",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_selects_first_201_eligible_rows_only",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[scheduled_reason]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[rejected_whiteboard]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[eligible_red_class]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[calibrated_workload]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[bootstrap_membership]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[unique_reference]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[uncontaminated_precursor]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[block_id]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[reference_tps]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[reference_snapshot_hash]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_structural_eligibility_predicate_is_independently_pinned[reference_receipt_hash]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_fewer_than_201_eligible_rows_is_design_not_feasible",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_added_deleted_reordered_or_driver_swapped_is_rejected",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_hash_without_row_equality_is_not_completeness",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_violation_count_is_derived_before_eligibility_filter",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_append_is_strict_prefix_and_hash_chained",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_observation_is_compared_with_frozen_row",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_regeneration_rejects_a_changed_schedule",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_completeness_rejects_a_changed_schedule",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_postfreeze_byte_gate_rejects_distinct_valid_canonical_manifest",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_ledgers_have_no_random_time_or_environment_import",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "duration_s": 27.078,
+      "rc": 0,
+      "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+      "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+      "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+      "status": "PASSED",
+      "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2102-01-PREDICATE-ALWAYS-ACCEPT": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]",
+          "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "46385db208e1138c778fd8370a40f91cb52a357b2d435124f06b80fa5a7fe1fe",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+            "new": "        if False:\n            _fail(\"reference_tps has no finite decimal expansion\")\n",
+            "old": "        if denominator != 1:\n            _fail(\"reference_tps has no finite decimal expansion\")\n"
+          }
+        ]
+      },
+      "MUT-T2102-02-DROP-NONE-GUARD": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5221a1db1e14e1ea485edd67d31b5f487a6e85fe3f95aef90224e2a7d639b1b5",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+            "new": "    if True:\n        denominator = reference.denominator\n",
+            "old": "    if reference is not None:\n        denominator = reference.denominator\n"
+          }
+        ]
+      },
+      "MUT-T2102-03-DROP-TWO-REDUCTION": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d5ee7c1fbed2d4314a3d5585a900efc61819f713374a3db9013fcf12b75eabc3",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+            "new": "        while False:\n            denominator //= 2\n",
+            "old": "        while denominator % 2 == 0:\n            denominator //= 2\n"
+          }
+        ]
+      },
+      "MUT-T2102-04-DROP-FIVE-REDUCTION": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "38b281a8c1c21abf576ee4b3c6262997ea793375ae8b3f236d60b68eabcac234",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+            "new": "        while False:\n            denominator //= 5\n",
+            "old": "        while denominator % 5 == 0:\n            denominator //= 5\n"
+          }
+        ]
+      },
+      "MUT-T2102-05-PRODUCER-DROP-ARITHMETIC-RAISE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9b9729434f15cf73b667d75a217fcd4c9094f3ff49340311b23ad49acde257bd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+            "new": "    if False:\n        raise ArithmeticError(\"reference_tps has no finite decimal expansion\")\n",
+            "old": "    if denominator != 1:\n        raise ArithmeticError(\"reference_tps has no finite decimal expansion\")\n"
+          }
+        ]
+      },
+      "MUT-T2102-06-PRODUCER-DROP-REJECTION-MAPPING": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3717680bec5d6cf2257643bd45fb46964721c8b81e9a157da364ada1bb8a0bd0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+            "new": "    except ValueError as exc:\n",
+            "old": "    except ArithmeticError:\n        _issue(\n            \"publication\",\n            \"reference_tps\",\n            B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING,\n            \"reference_tps has no finite decimal JSON representation\",\n        )\n    except ValueError as exc:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a408ade180735cbe46ee6880d44c5c2554cd81560a92abe1336edcba5241427a",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_analysis_ledgers.py",
+      "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection",
+      "-p",
+      "no:randomly",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "5a3c0d45737239a2bb8557e5c380395ea8885404",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_analysis_ledgers.py",
+      "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection",
+      "-p",
+      "no:randomly",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ddaab5511fa456b1e5b3e5d409b2ce5997792932",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "56e97e6fcde46e29ec988dd2bfa3ffc5f95e27b8dcade1381d9eefac634cb65e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "147dfee2c863d10ca2577b2909deb8a7f19039a6eb78d036c67ccb73a7768f43",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2102-b4-reference-tps-domain/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "02d06c276b4f9548fa050d1a607c50b76d8581b59a21cad9b864aab456bcdf18",
+  "updated_at": "2026-09-02T14:43:32.441312+00:00"
+}

@@ -341,6 +341,14 @@ def _validate_attempt(attempt: object) -> B4ScheduledAttemptInput:
     reference = _exact_ratio(attempt.reference_tps)
     if attempt.reference_tps is not None and (reference is None or reference <= 0):
         _fail("reference_tps is invalid")
+    if reference is not None:
+        denominator = reference.denominator
+        while denominator % 2 == 0:
+            denominator //= 2
+        while denominator % 5 == 0:
+            denominator //= 5
+        if denominator != 1:
+            _fail("reference_tps has no finite decimal expansion")
     for value in (
         attempt.reference_snapshot_hash,
         attempt.reference_receipt_hash,

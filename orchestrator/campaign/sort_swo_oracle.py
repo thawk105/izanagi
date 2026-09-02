@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Finite, independent strict-weak-order oracle for synthesized sort holes.
+"""Finite conformance oracle for the closed sort-comparator IR.
 
-The candidate's materialized ``sort(...)`` statement is compiled unchanged in
-a hardened worker translation unit using the real CCBench
-``WriteElement<Tuple>``.  The worker can emit only comparator booleans to a
-fixed broker process.  Only that broker, after fully reaping the worker, owns
-and writes the final protocol pipe.  Python checks the four strict-weak-order
-axioms.
+Admission accepts only token sequences denoting one of 79 typed comparator IR
+values, canonicalizes the value, and materializes that canonical rendering.
+The trusted evaluator generates the authoritative relation matrix.  The same
+canonical statement is compiled in a hardened worker translation unit using
+the real CCBench ``WriteElement<Tuple>``; every observed cell must match the
+trusted matrix byte for byte before PASS.
 
-This is a counterexample finder over finite, versioned corpora.  It is not a
-proof that arbitrary C++ is a strict weak ordering on every possible input.
-It makes corpus mutation and candidate protocol writes impossible under the
-sandbox boundary; it does not prove that candidate-controlled relation cells
-represent the comparator's true return values.
+This is constructive SWO membership plus real-TU conformance over finite,
+versioned corpora and a contract-bound pointer mapping.  It is not a proof for
+arbitrary C++ or every possible input, and it is no longer a dynamic gate that
+searches candidate programs for SWO counterexamples.  Existing supply-chain,
+corpus-mutation, and protocol-frame protections remain in force.
 """
 from __future__ import annotations
 
 import hashlib
 import inspect
+import itertools
 import json
 import os
 import re
@@ -46,9 +47,10 @@ else:  # Direct broker subprocess executes this file by absolute path.
 
 CORPUS_VERSION = 2
 PROTOCOL_VERSION = 3
-AXIOM_CHECKER_VERSION = 3
-GRAMMAR_VERSION = 1
-CONTRACT_VERSION = 4
+AXIOM_CHECKER_VERSION = 4
+GRAMMAR_VERSION = 2
+CONTRACT_VERSION = 5
+SORT_IR_GRAMMAR_VERSION = 1
 
 _MAGIC = b"IZSWO3\0\0"
 _N = 18
@@ -87,9 +89,11 @@ DEPENDENCY_MANIFEST_SHA256 = (
     "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
 )
 SORT_SWO_GUARANTEE_BOUNDARY = (
-    "guarantees[candidate-corpus-mutation-is-impossible,"
-    "candidate-protocol-frame-write-is-impossible];"
-    "does-not-guarantee[reported-relation-matrix-is-comparator-true-relation]"
+    "guarantees[admitted-ir-trusted-matrix,versioned-corpus-real-tu-byte-exact-"
+    "conformance,contract-bound-pointer-mapping,candidate-corpus-mutation-is-"
+    "impossible,candidate-protocol-frame-write-is-impossible];"
+    "does-not-guarantee[arbitrary-cpp-or-all-input-swo];"
+    "mode[constructive-swo-membership-not-dynamic-candidate-swo-search]"
 )
 _DEPENDENCY_MANIFEST_NAME = "SHA256SUMS"
 _DEPENDENCY_MANIFEST_LINE = re.compile(r"([0-9a-f]{64})  ([^\r\n]+)")
@@ -493,6 +497,501 @@ class _EvaluationUnavailable(RuntimeError):
 
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+class SortIrField(str, Enum):
+    STORAGE = "storage"
+    KEY = "key"
+    POINTER = "pointer"
+
+
+class SortIrDirection(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+@dataclass(frozen=True)
+class SortComparatorIr:
+    """A lexicographic comparator over zero to three distinct fields."""
+
+    terms: tuple[tuple[SortIrField, SortIrDirection], ...]
+
+    def __post_init__(self) -> None:
+        if type(self.terms) is not tuple or len(self.terms) > 3:
+            raise ValueError("sort IR terms are outside the closed domain")
+        fields: list[SortIrField] = []
+        for term in self.terms:
+            if (
+                type(term) is not tuple
+                or len(term) != 2
+                or type(term[0]) is not SortIrField
+                or type(term[1]) is not SortIrDirection
+            ):
+                raise TypeError("sort IR term has an invalid exact type")
+            fields.append(term[0])
+        if len(set(fields)) != len(fields):
+            raise ValueError("sort IR fields must be distinct")
+
+
+@dataclass(frozen=True)
+class SortIrAdmissionDecision:
+    accepted: bool
+    ir: Optional[SortComparatorIr] = None
+    stage: Optional[str] = None
+    rule_id: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class SortIrGrammarViolation(ValueError):
+    """Disclosure-free rejection from the closed sort IR admission."""
+
+    def __init__(self, decision: SortIrAdmissionDecision) -> None:
+        if (
+            decision.accepted
+            or decision.ir is not None
+            or decision.stage is None
+            or decision.rule_id is None
+            or decision.reason is None
+        ):
+            raise ValueError("sort IR violation requires a fixed rejection")
+        self.stage = decision.stage
+        self.rule_id = decision.rule_id
+        self.reason = decision.reason
+        super().__init__(decision.reason)
+
+
+_SORT_IR_MAX_BYTES = 64 * 1024
+_SORT_IR_MAX_TOKENS = 256
+_SORT_IR_REJECTIONS = {
+    stage: (f"sort-ir.{stage}.v1", f"sort-ir.{stage}.v1")
+    for stage in (
+        "input-type",
+        "raw-size",
+        "tokenize-resource",
+        "envelope",
+        "parameter-signature",
+        "expression-shape",
+        "field-direction",
+        "duplicate-field",
+        "eof",
+    )
+}
+SORT_IR_GRAMMAR_RULE_IDS = frozenset(
+    rule_id for rule_id, _reason in _SORT_IR_REJECTIONS.values()
+)
+_SORT_IR_MEMBERS = {
+    SortIrField.STORAGE: "storage_",
+    SortIrField.KEY: "key_",
+    SortIrField.POINTER: "rcdptr_",
+}
+_SORT_IR_MEMBER_FIELDS = {value: key for key, value in _SORT_IR_MEMBERS.items()}
+_SORT_IR_ASCENDING = ("a", "b")
+_SORT_IR_DESCENDING = ("b", "a")
+_SORT_IR_PUNCTUATORS = ("->", "!=", "[", "]", "(", ")", "{", "}",
+                        ".", ",", ";", "<", ">", "&", "?", ":")
+_SORT_IR_ALTERNATIVE_WORD_TOKENS = frozenset({
+    "and", "and_eq", "bitand", "bitor", "compl", "not", "not_eq",
+    "or", "or_eq", "xor", "xor_eq",
+})
+_SORT_IR_ALTERNATIVE_PUNCTUATORS = ("%:%:", "<:", ":>", "<%", "%>", "%:")
+_SORT_IR_RAW_STRING_PREFIXES = ("u8R\"", "uR\"", "UR\"", "LR\"", "R\"")
+_SORT_IR_QUOTED_PREFIXES = (
+    "u8\"", "u8'", "u\"", "u'", "U\"", "U'", "L\"", "L'", "\"", "'",
+)
+_CPP_PUNCTUATORS = tuple(sorted({
+    "{", "}", "[", "]", "(", ")", "<=>", "::", ".*", "->*", "->",
+    "++", "--", "&&", "||", "<=", ">=", "==", "!=", "*=", "/=",
+    "%=", "+=", "-=", "<<=", ">>=", "&=", "^=", "|=", "<<", ">>",
+    "##", ";", ":", "...", "?", ".", "+", "-", "*", "/", "%", "^",
+    "&", "|", "~", "!", "=", "<", ">", ",", "#",
+}, key=lambda value: (-len(value), value)))
+_SORT_IR_ENVELOPE_PREFIX = (
+    "sort", "(", "write_set_", ".", "begin", "(", ")", ",",
+    "write_set_", ".", "end", "(", ")", ",", "[", "]", "(",
+)
+_SORT_IR_NAMED_PARAMETERS = (
+    "const", "WriteElement", "<", "Tuple", ">", "&", "a", ",",
+    "const", "WriteElement", "<", "Tuple", ">", "&", "b", ")",
+    "->", "bool",
+)
+_SORT_IR_UNNAMED_PARAMETERS = (
+    "const", "WriteElement", "<", "Tuple", ">", "&", ",",
+    "const", "WriteElement", "<", "Tuple", ">", "&", ")",
+    "->", "bool",
+)
+_SORT_IR_BODY_PREFIX = ("{", "return")
+_SORT_IR_ENVELOPE_SUFFIX = (";", "}", ")", ";")
+
+
+def _sort_ir_reject(stage: str) -> SortIrAdmissionDecision:
+    rule_id, reason = _SORT_IR_REJECTIONS[stage]
+    return SortIrAdmissionDecision(False, stage=stage, rule_id=rule_id,
+                                   reason=reason)
+
+
+def _sort_ir_quoted_token_end(text: str, cursor: int, prefix: str) -> int:
+    quote = prefix[-1]
+    end = cursor + len(prefix)
+    while end < len(text):
+        char = text[end]
+        if char in "\r\n":
+            raise ValueError("unterminated quoted literal")
+        if char == quote:
+            end += 1
+            while end < len(text) and (
+                text[end].isascii()
+                and (text[end].isalnum() or text[end] == "_")
+            ):
+                end += 1
+            return end
+        if char == "\\":
+            if end + 1 >= len(text):
+                raise ValueError("unterminated quoted literal")
+            if text[end + 1] in "uU":
+                raise ValueError("universal character name is forbidden")
+            end += 2
+            continue
+        if ord(char) > 0x7F:
+            raise ValueError("non-ASCII spelling")
+        end += 1
+    raise ValueError("unterminated quoted literal")
+
+
+def _sort_ir_tokens(text: str) -> tuple[str, ...]:
+    """Tokenize ASCII C++ spellings; closed-language matching happens later."""
+
+    if "\\\n" in text or "\\\r\n" in text:
+        raise ValueError("line continuation is forbidden")
+    tokens: list[str] = []
+    cursor = 0
+    while cursor < len(text):
+        char = text[cursor]
+        if char in " \t\r\n\v\f":
+            cursor += 1
+            continue
+        if ord(char) > 0x7F:
+            raise ValueError("non-ASCII spelling")
+        if text.startswith(("//", "/*", "*/"), cursor):
+            raise ValueError("comment spelling is forbidden")
+        if text.startswith(("\\u", "\\U"), cursor):
+            raise ValueError("universal character name is forbidden")
+        if any(text.startswith(prefix, cursor)
+               for prefix in _SORT_IR_RAW_STRING_PREFIXES):
+            raise ValueError("raw string literal is forbidden")
+        alternative = next(
+            (value for value in _SORT_IR_ALTERNATIVE_PUNCTUATORS
+             if text.startswith(value, cursor)),
+            None,
+        )
+        if alternative is not None:
+            raise ValueError("alternative punctuator is forbidden")
+        quoted_prefix = next(
+            (prefix for prefix in _SORT_IR_QUOTED_PREFIXES
+             if text.startswith(prefix, cursor)),
+            None,
+        )
+        if quoted_prefix is not None:
+            end = _sort_ir_quoted_token_end(text, cursor, quoted_prefix)
+            tokens.append(text[cursor:end])
+            cursor = end
+            continue
+        if char.isalpha() or char == "_":
+            end = cursor + 1
+            while end < len(text) and (
+                text[end].isascii()
+                and (text[end].isalnum() or text[end] == "_")
+            ):
+                end += 1
+            token = text[cursor:end]
+            if token in _SORT_IR_ALTERNATIVE_WORD_TOKENS:
+                raise ValueError("alternative operator token is forbidden")
+            tokens.append(token)
+            cursor = end
+            continue
+        if char.isdigit():
+            end = cursor + 1
+            while end < len(text) and (
+                text[end].isascii()
+                and (text[end].isalnum() or text[end] in "_.'")
+            ):
+                end += 1
+            tokens.append(text[cursor:end])
+            cursor = end
+            continue
+        punctuator = next(
+            (value for value in _CPP_PUNCTUATORS
+             if text.startswith(value, cursor)),
+            None,
+        )
+        if punctuator is None:
+            raise ValueError("invalid C++ token spelling")
+        tokens.append(punctuator)
+        cursor += len(punctuator)
+    return tuple(tokens)
+
+
+class _SortIrParseError(Exception):
+    def __init__(self, stage: str) -> None:
+        super().__init__(stage)
+        self.stage = stage
+
+
+def _sort_ir_comparison(
+    tokens: tuple[str, ...], cursor: int,
+) -> tuple[tuple[SortIrField, SortIrDirection], int]:
+    if cursor + 7 > len(tokens):
+        raise _SortIrParseError("expression-shape")
+    lhs, dot1, member1, less, rhs, dot2, member2 = tokens[cursor:cursor + 7]
+    if dot1 != "." or less != "<" or dot2 != "." or lhs == rhs:
+        raise _SortIrParseError("expression-shape")
+    if {lhs, rhs} != {"a", "b"}:
+        raise _SortIrParseError("expression-shape")
+    if member1 != member2 or member1 not in _SORT_IR_MEMBER_FIELDS:
+        raise _SortIrParseError("field-direction")
+    if (lhs, rhs) == _SORT_IR_ASCENDING:
+        direction = SortIrDirection.ASC
+    elif (lhs, rhs) == _SORT_IR_DESCENDING:
+        direction = SortIrDirection.DESC
+    else:  # pragma: no cover - the exact pair set above is exhaustive
+        raise _SortIrParseError("field-direction")
+    return (_SORT_IR_MEMBER_FIELDS[member1], direction), cursor + 7
+
+
+def _sort_ir_expression(
+    tokens: tuple[str, ...], cursor: int = 0,
+) -> tuple[tuple[tuple[SortIrField, SortIrDirection], ...], int]:
+    conditional = (
+        cursor + 7 <= len(tokens)
+        and tokens[cursor] == "a"
+        and tokens[cursor + 1] == "."
+        and tokens[cursor + 3:cursor + 6] == ("!=", "b", ".")
+    )
+    if not conditional:
+        term, cursor = _sort_ir_comparison(tokens, cursor)
+        return (term,), cursor
+    member = tokens[cursor + 2]
+    if tokens[cursor + 6] != member:
+        raise _SortIrParseError("field-direction")
+    if member not in _SORT_IR_MEMBER_FIELDS:
+        raise _SortIrParseError("field-direction")
+    cursor += 7
+    if cursor >= len(tokens) or tokens[cursor] != "?":
+        raise _SortIrParseError("expression-shape")
+    first, cursor = _sort_ir_comparison(tokens, cursor + 1)
+    if first[0] is not _SORT_IR_MEMBER_FIELDS[member]:
+        raise _SortIrParseError("field-direction")
+    if cursor >= len(tokens) or tokens[cursor] != ":":
+        raise _SortIrParseError("expression-shape")
+    remainder, cursor = _sort_ir_expression(tokens, cursor + 1)
+    return (first,) + remainder, cursor
+
+
+def validate_sort_implementation(implementation: object) -> SortIrAdmissionDecision:
+    """Admit exactly one of the 79 canonical token sequences, modulo whitespace."""
+
+    if type(implementation) is not str:
+        return _sort_ir_reject("input-type")
+    try:
+        if len(implementation.encode("utf-8")) > _SORT_IR_MAX_BYTES:
+            return _sort_ir_reject("raw-size")
+    except (UnicodeEncodeError, ValueError):
+        return _sort_ir_reject("tokenize-resource")
+    try:
+        tokens = _sort_ir_tokens(implementation)
+    except ValueError:
+        return _sort_ir_reject("tokenize-resource")
+    if len(tokens) > _SORT_IR_MAX_TOKENS:
+        return _sort_ir_reject("tokenize-resource")
+    prefix_length = len(_SORT_IR_ENVELOPE_PREFIX)
+    if tokens[:prefix_length] != _SORT_IR_ENVELOPE_PREFIX:
+        return _sort_ir_reject("envelope")
+    remainder = tokens[prefix_length:]
+    if remainder[:len(_SORT_IR_NAMED_PARAMETERS)] == _SORT_IR_NAMED_PARAMETERS:
+        named = True
+        remainder = remainder[len(_SORT_IR_NAMED_PARAMETERS):]
+    elif remainder[:len(_SORT_IR_UNNAMED_PARAMETERS)] == _SORT_IR_UNNAMED_PARAMETERS:
+        named = False
+        remainder = remainder[len(_SORT_IR_UNNAMED_PARAMETERS):]
+    else:
+        return _sort_ir_reject("parameter-signature")
+    if remainder[:len(_SORT_IR_BODY_PREFIX)] != _SORT_IR_BODY_PREFIX:
+        return _sort_ir_reject("expression-shape")
+    remainder = remainder[len(_SORT_IR_BODY_PREFIX):]
+    if len(remainder) < len(_SORT_IR_ENVELOPE_SUFFIX):
+        return _sort_ir_reject("eof")
+    expression = remainder[:-len(_SORT_IR_ENVELOPE_SUFFIX)]
+    if remainder[-len(_SORT_IR_ENVELOPE_SUFFIX):] != _SORT_IR_ENVELOPE_SUFFIX:
+        return _sort_ir_reject("eof")
+    if not named:
+        if expression != ("false",):
+            return _sort_ir_reject("expression-shape")
+        ir = SortComparatorIr(())
+    else:
+        if expression == ("false",):
+            return _sort_ir_reject("parameter-signature")
+        try:
+            terms, cursor = _sort_ir_expression(expression)
+        except _SortIrParseError as exc:
+            return _sort_ir_reject(exc.stage)
+        if not 1 <= len(terms) <= 3:
+            return _sort_ir_reject("expression-shape")
+        fields = tuple(field for field, _direction in terms)
+        if len(set(fields)) != len(fields):
+            return _sort_ir_reject("duplicate-field")
+        if cursor != len(expression):
+            return _sort_ir_reject("eof")
+        ir = SortComparatorIr(terms)
+    if _sort_ir_tokens(render_sort_ir(ir)) != tokens:
+        return _sort_ir_reject("expression-shape")
+    return SortIrAdmissionDecision(True, ir=ir)
+
+
+def admit_sort_implementation(implementation: object) -> SortComparatorIr:
+    decision = validate_sort_implementation(implementation)
+    if not decision.accepted:
+        raise SortIrGrammarViolation(decision)
+    assert decision.ir is not None
+    return decision.ir
+
+
+def _sort_ir_one(field: SortIrField, direction: SortIrDirection) -> str:
+    member = _SORT_IR_MEMBERS[field]
+    if direction is SortIrDirection.ASC:
+        return f"a.{member} < b.{member}"
+    return f"b.{member} < a.{member}"
+
+
+def render_sort_ir(ir: SortComparatorIr) -> str:
+    if type(ir) is not SortComparatorIr:
+        raise TypeError("sort IR renderer requires an exact SortComparatorIr")
+    if not ir.terms:
+        return (
+            "  sort(write_set_.begin(), write_set_.end(),\n"
+            "       [](const WriteElement<Tuple>&, const WriteElement<Tuple>&)"
+            " -> bool {\n"
+            "         return false;\n"
+            "       });"
+        )
+    body_lines: list[str]
+    if len(ir.terms) == 1:
+        body_lines = [f"return {_sort_ir_one(*ir.terms[0])};"]
+    elif len(ir.terms) == 2:
+        member = _SORT_IR_MEMBERS[ir.terms[0][0]]
+        padding = " " * (16 + 2 * len(member))
+        body_lines = [
+            f"return a.{member} != b.{member} ? {_sort_ir_one(*ir.terms[0])}",
+            f"{padding}: {_sort_ir_one(*ir.terms[1])};",
+        ]
+    else:
+        member1 = _SORT_IR_MEMBERS[ir.terms[0][0]]
+        member2 = _SORT_IR_MEMBERS[ir.terms[1][0]]
+        body_lines = [
+            f"return a.{member1} != b.{member1} ? {_sort_ir_one(*ir.terms[0])}",
+            f"     : a.{member2} != b.{member2} ? {_sort_ir_one(*ir.terms[1])}",
+            f"     : {_sort_ir_one(*ir.terms[2])};",
+        ]
+    body = "\n".join("         " + line for line in body_lines)
+    return (
+        "  sort(write_set_.begin(), write_set_.end(),\n"
+        "       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b)"
+        " -> bool {\n" + body + "\n"
+        "       });"
+    )
+
+
+def canonicalize_sort_implementation(implementation: object) -> str:
+    return render_sort_ir(admit_sort_implementation(implementation))
+
+
+def sort_ir_domain() -> tuple[SortComparatorIr, ...]:
+    fields = tuple(SortIrField)
+    directions = tuple(SortIrDirection)
+    values = [SortComparatorIr(())]
+    for depth in (1, 2, 3):
+        for selected in itertools.permutations(fields, depth):
+            for selected_directions in itertools.product(directions, repeat=depth):
+                values.append(SortComparatorIr(tuple(zip(selected, selected_directions))))
+    return tuple(values)
+
+
+_POINTER_MAPPING = {
+    "allocation_sequence": [
+        "aliases[0]", "aliases[1]", "aliases[2]", "aliases[3]",
+        "separate[0]", "separate[1]", "separate[2]", "separate[3]",
+        "separate[4]", "separate[5]",
+    ],
+    "kinds": {
+        "0": {"name": "null", "rank": 0, "slots": [0]},
+        "1": {"name": "aliases", "rank_base": 1, "slots": [0, 1, 2, 3]},
+        "2": {"name": "separate", "rank_base": 5,
+              "slots": [0, 1, 2, 3, 4, 5]},
+    },
+}
+
+
+def pointer_rank(pointer_kind: int, pointer_slot: int) -> int:
+    if type(pointer_kind) is not int or type(pointer_slot) is not int:
+        raise TypeError("pointer topology requires exact integers")
+    specification = _POINTER_MAPPING["kinds"].get(str(pointer_kind))
+    if specification is None or pointer_slot not in specification["slots"]:
+        raise ValueError("pointer topology is outside the contract-bound mapping")
+    if "rank" in specification:
+        return int(specification["rank"])
+    return int(specification["rank_base"]) + pointer_slot
+
+
+def _sort_ir_value(element: tuple[int, bytes, int, int], field: SortIrField):
+    if field is SortIrField.STORAGE:
+        return element[0]
+    if field is SortIrField.KEY:
+        return element[1]
+    return pointer_rank(element[2], element[3])
+
+
+def trusted_relation_matrix(ir: SortComparatorIr, corpus: int) -> bytes:
+    if type(ir) is not SortComparatorIr:
+        raise TypeError("trusted evaluator requires an exact SortComparatorIr")
+    if type(corpus) is not int or corpus not in _CORPORA:
+        raise ValueError("trusted evaluator corpus is outside the contract")
+
+    def compare(lhs, rhs) -> bool:
+        for field, direction in ir.terms:
+            lhs_value = _sort_ir_value(lhs, field)
+            rhs_value = _sort_ir_value(rhs, field)
+            if lhs_value != rhs_value:
+                if direction is SortIrDirection.ASC:
+                    return lhs_value < rhs_value
+                return rhs_value < lhs_value
+        return False
+
+    elements = _CORPUS_TOPOLOGY[corpus]
+    return bytes(compare(lhs, rhs) for lhs in elements for rhs in elements)
+
+
+def _canonical_sort_ir_grammar_serialization() -> bytes:
+    return json.dumps(
+        {
+            "admission": {
+                "free_between_tokens": "ascii-cpp-whitespace",
+                "match": "complete-token-sequence",
+                "max_bytes": _SORT_IR_MAX_BYTES,
+                "max_tokens": _SORT_IR_MAX_TOKENS,
+                "translation_phase_aliases": "rejected",
+            },
+            "domain": [render_sort_ir(ir) for ir in sort_ir_domain()],
+            "rejections": _SORT_IR_REJECTIONS,
+            "version": SORT_IR_GRAMMAR_VERSION,
+        },
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("ascii")
+
+
+SORT_IR_GRAMMAR_SHA256 = hashlib.sha256(
+    _canonical_sort_ir_grammar_serialization()
+).hexdigest()
+POINTER_MAPPING_SHA256 = hashlib.sha256(json.dumps(
+    _POINTER_MAPPING, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+).encode("ascii")).hexdigest()
 
 
 def extract_materialized_hole(materialized_source: str, marker_id: str) -> str:
@@ -1245,6 +1744,26 @@ _STATEMENT_PLACEHOLDER = "/*__IZANAGI_SORT_STATEMENT__*/"
 
 def _translation_unit(statement: str) -> str:
     return _TU_PREFIX + statement + _TU_SUFFIX
+
+
+def _batch_translation_unit(statements: Sequence[str]) -> str:
+    """Render one test-only TU that selects one canonical comparator by mode."""
+
+    if type(statements) not in {tuple, list} or not statements:
+        raise TypeError("batch TU requires a non-empty exact sequence")
+    cases = []
+    for index, statement in enumerate(statements):
+        ir = admit_sort_implementation(statement)
+        canonical = render_sort_ir(ir)
+        if statement != canonical:
+            raise ValueError("batch TU accepts canonical renderer bytes only")
+        cases.append(f"  case {index}: {{\n{canonical}\n    break;\n  }}")
+    dispatch = (
+        "  switch (oracle_test_mode) {\n"
+        + "\n".join(cases)
+        + "\n  default: std::_Exit(65);\n  }\n"
+    )
+    return _TU_PREFIX + dispatch + _TU_SUFFIX
 
 
 _BROKER_OUTCOME_OK = 0
@@ -2441,8 +2960,16 @@ def resolve_oracle_environment(
 
 def _evaluate_executable(
     executable: Path, *, test_mode: Optional[int] = None,
+    ir: Optional[SortComparatorIr] = None,
 ) -> Optional[SortSwoFinding]:
+    if ir is not None and type(ir) is not SortComparatorIr:
+        raise TypeError("executable conformance requires an exact SortComparatorIr")
     for corpus in _CORPORA:
+        trusted = None if ir is None else trusted_relation_matrix(ir, corpus)
+        if trusted is not None and check_relation_matrix(trusted, _N) is not None:
+            raise _EvaluationUnavailable(
+                "trusted-evaluator", "trusted-relation-violates-swo-invariant",
+            )
         matrices = []
         for order in _ORDERS:
             matrix, finding = _run_matrix(
@@ -2451,7 +2978,14 @@ def _evaluate_executable(
             if finding is not None:
                 return finding
             assert matrix is not None
+            if trusted is not None and matrix != trusted:
+                raise _EvaluationUnavailable(
+                    "real-tu-conformance",
+                    "compiled-relation-differs-from-trusted-evaluator",
+                )
             matrices.append(matrix)
+        if trusted is not None:
+            continue
         if matrices[1:] != matrices[:-1]:
             first = next(
                 index for index, values in enumerate(zip(*matrices))
@@ -2484,6 +3018,21 @@ def _evaluate_executable(
 
 
 _AXIOM_CHECKER_SOURCE_FUNCTIONS = (
+    SortComparatorIr.__post_init__,
+    SortIrGrammarViolation.__init__,
+    _sort_ir_reject,
+    _sort_ir_tokens,
+    _sort_ir_comparison,
+    _sort_ir_expression,
+    validate_sort_implementation,
+    admit_sort_implementation,
+    _sort_ir_one,
+    render_sort_ir,
+    canonicalize_sort_implementation,
+    sort_ir_domain,
+    pointer_rank,
+    _sort_ir_value,
+    trusted_relation_matrix,
     check_relation_matrix,
     _evaluate_executable,
     _run_matrix,
@@ -2543,7 +3092,7 @@ AXIOM_CHECKER_IMPLEMENTATION_SHA256 = _source_bundle_sha256(
     orders=_ORDERS,
     corpora=_CORPORA,
 )
-_ORACLE_CONTRACT_COMPONENTS_SCHEMA = "sort-swo-contract-components-v2"
+_ORACLE_CONTRACT_COMPONENTS_SCHEMA = "sort-swo-contract-components-v3"
 _ORACLE_CONTRACT_COMPONENTS = {
     "axiom_checker_implementation_sha256": AXIOM_CHECKER_IMPLEMENTATION_SHA256,
     "compile_flags_sha256": COMPILE_FLAGS_SHA256,
@@ -2552,6 +3101,9 @@ _ORACLE_CONTRACT_COMPONENTS = {
     "guarantee_boundary_sha256": hashlib.sha256(
         SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
     ).hexdigest(),
+    "pointer_mapping_sha256": POINTER_MAPPING_SHA256,
+    "sort_ir_grammar_sha256": SORT_IR_GRAMMAR_SHA256,
+    "sort_ir_grammar_version": str(SORT_IR_GRAMMAR_VERSION),
     "tu_template_sha256": TU_TEMPLATE_SHA256,
 }
 
@@ -2675,12 +3227,12 @@ def check_materialized_sort_swo(
     """Check the exact post-materialization sort hole with a closed result.
 
     A postflight failure establishes only that the trusted control also failed
-    after the candidate compile.  Candidate compile artifact removal is
+    after the canonical TU compile.  Canonical TU artifact removal is
     attempted before postflight.  Cleanup failure does not skip postflight: it
     runs in a fresh temporary directory, and classification proceeds from the
-    postflight and candidate compile results.  Filesystem quota, cgroup
+    postflight and canonical TU compile results.  Filesystem quota, cgroup
     resources, and host state remain shared; this is correlation, not a
-    candidate-independent environment diagnosis.
+    failure attributable to the admitted candidate.
     """
     proposal_hash = _sha256(proposal_source)
     try:
@@ -2692,11 +3244,20 @@ def check_materialized_sort_swo(
             SortSwoFinding(OracleRejectKind.STRUCTURE, "materialized-marker-invalid"),
         )
     materialized_hash = _sha256(statement)
-    structural_reason = _validate_single_sort_statement(statement)
-    if structural_reason is not None:
+    try:
+        ir = admit_sort_implementation(statement)
+    except SortIrGrammarViolation as exc:
         return SortSwoOracleResult(
             OracleStatus.REJECT, materialized_hash, proposal_hash,
-            SortSwoFinding(OracleRejectKind.STRUCTURE, structural_reason),
+            SortSwoFinding(OracleRejectKind.STRUCTURE, exc.reason),
+        )
+    canonical_statement = render_sort_ir(ir)
+    structural_reason = _validate_single_sort_statement(canonical_statement)
+    if structural_reason is not None:
+        return _unavailable_result(
+            materialized_hash, proposal_hash,
+            phase="trusted-renderer-postcondition",
+            detail_code="canonical-renderer-violates-single-statement-postcondition",
         )
 
     if type(environment) is OracleEnvironmentResolutionFailure:
@@ -2784,7 +3345,7 @@ def check_materialized_sort_swo(
                 )
 
             executable = temp / "oracle"
-            candidate_source = _translation_unit(statement)
+            candidate_source = _translation_unit(canonical_statement)
             receipt = _receipt(
                 environment=environment, compiler_version=compiler_version,
                 dependency=dependency,
@@ -2865,15 +3426,18 @@ def check_materialized_sort_swo(
                             None if postflight_finding is None
                             else postflight_finding.compiler_diagnostic
                         ),
-                        candidate_compile_finding=finding,
                         environment=environment,
                     )
-            if unavailable:
                 return _unavailable_result(
                     materialized_hash, proposal_hash,
-                    phase="candidate-compile", detail_code=(
-                        "candidate-compile-infrastructure-unavailable"
-                        if finding is None else finding.reason_code
+                    phase="canonical-tu-compile", detail_code=(
+                        finding.reason_code
+                        if unavailable and finding is not None
+                        else "canonical-tu-compile-infrastructure-unavailable"
+                        if unavailable
+                        else "canonical-tu-compile-timeout"
+                        if finding.kind is OracleRejectKind.TIMEOUT
+                        else "canonical-tu-compile-failed"
                     ), receipt=receipt,
                     diagnostic=(None if finding is None
                                 else finding.compiler_diagnostic),
@@ -2881,7 +3445,7 @@ def check_materialized_sort_swo(
                 )
             if finding is None:
                 try:
-                    finding = _evaluate_executable(executable)
+                    finding = _evaluate_executable(executable, ir=ir)
                 except _EvaluationUnavailable as exc:
                     return _unavailable_result(
                         materialized_hash, proposal_hash,
@@ -2902,9 +3466,12 @@ def check_materialized_sort_swo(
             environment=environment,
         )
     if finding is not None:
-        return SortSwoOracleResult(
-            OracleStatus.REJECT, materialized_hash, proposal_hash, finding,
+        return _unavailable_result(
+            materialized_hash, proposal_hash,
+            phase="canonical-tu-run", detail_code=finding.reason_code,
             receipt=receipt,
+            diagnostic=finding.compiler_diagnostic,
+            environment=environment,
         )
     return SortSwoOracleResult(
         OracleStatus.PASS, materialized_hash, proposal_hash,
@@ -3002,15 +3569,22 @@ __all__ = [
     "GRAMMAR_VERSION", "N", "ORDERS",
     "INFRASTRUCTURE_REASON_CODE", "ORACLE_COMPONENTS_SHA256",
     "ORACLE_CONTRACT_ID", "PROTOCOL_VERSION",
+    "POINTER_MAPPING_SHA256", "SORT_IR_GRAMMAR_RULE_IDS",
+    "SORT_IR_GRAMMAR_SHA256", "SORT_IR_GRAMMAR_VERSION",
     "SORT_SWO_GUARANTEE_BOUNDARY",
     "TU_TEMPLATE_SHA256", "CompilerDiagnostic", "OracleEnvironment",
     "OracleEnvironmentCandidate", "OracleEnvironmentResolutionFailure",
     "OracleInfrastructureFailure", "OracleReceipt", "OracleRejectKind",
     "OracleStatus", "SortSwoFinding", "SortSwoOracleResult",
+    "SortComparatorIr", "SortIrAdmissionDecision", "SortIrDirection",
+    "SortIrField", "SortIrGrammarViolation",
     "SortSwoOracleUnavailable", "SwoAxiom", "SwoCounterexample",
+    "admit_sort_implementation", "canonicalize_sort_implementation",
     "attempt_record", "private_attempt_record", "check_materialized_sort_swo",
     "check_relation_matrix",
-    "extract_materialized_hole", "rejection_digest",
+    "extract_materialized_hole", "pointer_rank", "rejection_digest",
+    "render_sort_ir", "sort_ir_domain", "trusted_relation_matrix",
+    "validate_sort_implementation",
     "resolve_oracle_environment",
 ]
 

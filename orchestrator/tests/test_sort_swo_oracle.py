@@ -15,6 +15,8 @@ import sys
 import pytest
 
 from orchestrator.campaign import evolve_block as EB
+from orchestrator.campaign import coder_effect_gate
+from orchestrator.campaign import s6_sort_sweep
 from orchestrator.campaign import sort_swo_oracle as O
 from orchestrator.tests import sort_swo_masstree_fixture as masstree_fixture
 from orchestrator.tests import sort_swo_oracle_receipt_memo as oracle_environment_memo
@@ -35,8 +37,11 @@ def _get_oracle_environment():
 
 
 _CLEAN_IMPL = (
-    "    sort(write_set_.begin(), write_set_.end(),\n"
-    "         [](const auto& a, const auto& b) { return a.key_ < b.key_; });"
+    "  sort(write_set_.begin(), write_set_.end(),\n"
+    "       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b)"
+    " -> bool {\n"
+    "         return a.key_ < b.key_;\n"
+    "       });"
 )
 _BODY_IMPL = (
     "    sort(write_set_.begin(), write_set_.end(),\n"
@@ -287,35 +292,257 @@ def test_matrix_checker_accepts_strict_weak_order():
     assert O.check_relation_matrix(_matrix(4, relation), 4) is None
 
 
+def test_sort_ir_domain_roundtrips_all_79_values():
+    domain = O.sort_ir_domain()
+    rendered = tuple(O.render_sort_ir(ir) for ir in domain)
+    assert len(domain) == len(set(domain)) == 79
+    assert len(rendered) == len(set(rendered)) == 79
+    assert tuple(O.admit_sort_implementation(text) for text in rendered) == domain
+
+
+def test_all_79_rendered_ir_values_remain_inside_preexisting_gates():
+    for ir in O.sort_ir_domain():
+        rendered = O.render_sort_ir(ir)
+        assert O._validate_single_sort_statement(rendered) is None
+        assert coder_effect_gate.scan_host_effects(rendered) == ()
+
+
+def test_sort_authority_15_is_byte_exact_subset_of_rendered_ir_domain():
+    rendered = {O.render_sort_ir(ir) for ir in O.sort_ir_domain()}
+    authority = {implementation for _name, _category, implementation
+                 in s6_sort_sweep.CANDIDATES}
+    assert len(s6_sort_sweep.CANDIDATES) == len(authority) == 15
+    assert authority < rendered
+    for implementation in authority:
+        decision = O.validate_sort_implementation(implementation)
+        assert decision.accepted is True
+        assert decision.ir is not None
+
+
+def test_sort_ir_admission_allows_only_ascii_token_whitespace_variation():
+    ir = O.SortComparatorIr(((O.SortIrField.KEY, O.SortIrDirection.ASC),))
+    canonical = O.render_sort_ir(ir)
+    spaced = " \n\t".join(O._sort_ir_tokens(canonical))
+    assert spaced != canonical
+    assert O.admit_sort_implementation(spaced) == ir
+    assert O.canonicalize_sort_implementation(spaced) == canonical
+    body_statement = canonical.replace(
+        "return a.key_ < b.key_;",
+        "while (false) {} return a.key_ < b.key_;",
+    )
+    body_decision = O.validate_sort_implementation(body_statement)
+    assert body_decision.accepted is False
+    assert body_decision.rule_id == "sort-ir.expression-shape.v1"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda text: text.replace("return", "/*hidden*/ return", 1),
+        lambda text: text.replace("return", "return\\\n", 1),
+        lambda text: text.replace("return", 'R\"tag(return)tag\"', 1),
+        lambda text: text.replace("return", "ret\\u0075rn", 1),
+        lambda text: text.replace("!=" , "not_eq", 1),
+    ],
+    ids=["comment", "line-continuation", "raw-string", "ucn", "alternative-token"],
+)
+def test_sort_ir_admission_rejects_translation_phase_aliases(mutation):
+    ir = O.SortComparatorIr((
+        (O.SortIrField.STORAGE, O.SortIrDirection.ASC),
+        (O.SortIrField.KEY, O.SortIrDirection.ASC),
+    ))
+    decision = O.validate_sort_implementation(mutation(O.render_sort_ir(ir)))
+    assert decision.accepted is False
+
+
+_NON_IR_CASES = {
+    "generic-lambda": (
+        "sort(write_set_.begin(), write_set_.end(), "
+        "[](const auto& a, const auto& b) { return a.key_ < b.key_; });",
+        "sort-ir.parameter-signature.v1",
+    ),
+    "body-call": (
+        _CLEAN_IMPL.replace(
+            "a.key_ < b.key_", "a.body_.get_val() < b.body_.get_val()",
+        ),
+        "sort-ir.expression-shape.v1",
+    ),
+    "unknown-field": (
+        _CLEAN_IMPL.replace("key_", "unknown_"),
+        "sort-ir.field-direction.v1",
+    ),
+    "duplicate-field": (
+        O.render_sort_ir(O.SortComparatorIr((
+            (O.SortIrField.KEY, O.SortIrDirection.ASC),
+            (O.SortIrField.POINTER, O.SortIrDirection.ASC),
+        ))).replace("rcdptr_", "key_"),
+        "sort-ir.duplicate-field.v1",
+    ),
+    "additional-statement": (
+        _CLEAN_IMPL.replace(
+            "return a.key_ < b.key_;",
+            "return a.key_ < b.key_; helper();",
+        ),
+        "sort-ir.eof.v1",
+    ),
+    "json-string": ('[\"single\",\"key\",\"asc\"]',
+                    "sort-ir.envelope.v1"),
+}
+
+
+@pytest.mark.parametrize(
+    ("statement", "reason"),
+    list(_NON_IR_CASES.values()),
+    ids=list(_NON_IR_CASES),
+)
+def test_public_oracle_rejects_non_ir_before_environment(
+        monkeypatch, statement, reason):
+    monkeypatch.setattr(
+        O, "_validate_single_sort_statement",
+        lambda _statement: pytest.fail("non-IR reached renderer postcondition"),
+    )
+    result = O.check_materialized_sort_swo(
+        _materialized(statement), marker_id="silo-writeset-sort",
+        proposal_source=statement, environment=None,
+    )
+    assert result.status is O.OracleStatus.REJECT
+    assert result.finding is not None
+    assert result.finding.kind is O.OracleRejectKind.STRUCTURE
+    assert result.finding.reason_code == reason
+
+
+def test_validate_single_sort_statement_is_renderer_postcondition_only(
+        monkeypatch):
+    canonical = _CLEAN_IMPL
+    raw = " \n\t".join(O._sort_ir_tokens(canonical))
+    observed = []
+
+    def validate(statement):
+        observed.append(statement)
+        return None
+
+    monkeypatch.setattr(O, "_validate_single_sort_statement", validate)
+    result = O.check_materialized_sort_swo(
+        _materialized(raw), marker_id="silo-writeset-sort",
+        proposal_source=raw, environment=None,
+    )
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert raw != canonical
+    assert observed == [canonical]
+
+
+def test_compiled_relation_mismatch_is_unavailable_not_pass(
+        monkeypatch, tmp_path):
+    ir = O.SortComparatorIr(((O.SortIrField.KEY, O.SortIrDirection.ASC),))
+    ccbench = tmp_path / "ccbench"
+    for relative in (
+        "include/masstree_wrapper.hh",
+        "include/tuple_body.hh",
+        "cc/silo/include/tuple.hh",
+        "cc/silo/include/silo_op_element.hh",
+    ):
+        header = ccbench / relative
+        header.parent.mkdir(parents=True, exist_ok=True)
+        header.write_text("fixture\n", encoding="ascii")
+    environment = O.OracleEnvironment(
+        Path("/fixture/cxx"), ccbench, Path("/fixture/dependency"),
+    )
+    dependency = O._VerifiedDependencyRoot(
+        environment.dependency_root,
+        O.DEPENDENCY_MANIFEST_SHA256,
+        b"fixture",
+        (),
+        "d" * 64,
+    )
+
+    def run_matrix(executable, corpus, order, *, test_mode=None):
+        if executable.name == "trusted-control":
+            return bytes(O.N * O.N), None
+        matrix = bytearray(O.trusted_relation_matrix(ir, corpus))
+        if corpus == O.CORPORA[0] and order == O.ORDERS[0]:
+            matrix[1] ^= 1
+        return bytes(matrix), None
+
+    monkeypatch.setattr(O, "_run_matrix", run_matrix)
+    monkeypatch.setattr(O, "_compiler_version", lambda _compiler: "fixture-cxx 1")
+    monkeypatch.setattr(O, "_prepare_verified_dependency", lambda *_args: dependency)
+    monkeypatch.setattr(O, "_compile_verified", lambda *_args, **_kwargs: (None, False))
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=environment,
+        scratch_root=tmp_path,
+    )
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.finding is None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "real-tu-conformance"
+    assert result.infrastructure.detail_code == (
+        "compiled-relation-differs-from-trusted-evaluator"
+    )
+
+
 def test_cpp_e2e_clean_generic_lambda_positive(tmp_path_factory):
-    """POS-1/POS-2: clean key and real-body comparators are exact PASS."""
+    """POS-1/POS-2: admitted key passes publicly; body stays low-level only."""
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(compiled_oracle_artifacts["positive"]) is None
     assert O._evaluate_executable(compiled_oracle_artifacts["body"]) is None
     environment = compiled_oracle_artifacts["environment"]
-    for statement in (_CLEAN_IMPL, _BODY_IMPL):
-        result = O.check_materialized_sort_swo(
-            _materialized(statement), marker_id="silo-writeset-sort",
-            proposal_source=statement, environment=environment,
-        )
-        assert result.status is O.OracleStatus.PASS
-        assert result.finding is None
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=environment,
+    )
+    assert result.status is O.OracleStatus.PASS
+    assert result.finding is None
+
+
+def test_trusted_evaluator_matches_real_tu_for_all_79_ir_values(
+        tmp_path_factory):
+    """Compile one batch TU and compare all 153,576 cells.
+
+    This does not claim that each of the 79 values independently traverses the
+    public compile, preflight, and postflight path; existing public-boundary
+    nodes cover that path.  This node is the evaluator conformance check.
+    """
+    environment = _get_oracle_environment()
+    assert type(environment) is O.OracleEnvironment
+    scratch = tmp_path_factory.mktemp("sort-ir-batch")
+    dependency = O._prepare_verified_dependency(
+        environment.dependency_root, scratch / "verified-masstree",
+    )
+    domain = O.sort_ir_domain()
+    statements = tuple(O.render_sort_ir(ir) for ir in domain)
+    source = O._batch_translation_unit(statements)
+    executable = scratch / "sort-ir-batch"
+    finding, unavailable = O._compile_verified(
+        source, scratch / "sort-ir-batch.cpp", executable,
+        compiler=str(environment.compiler),
+        ccbench_dir=environment.ccbench_dir,
+        dependency=dependency,
+    )
+    assert unavailable is False
+    assert finding is None
+
+    checked_cells = 0
+    for mode, ir in enumerate(domain):
+        for corpus in O.CORPORA:
+            expected = O.trusted_relation_matrix(ir, corpus)
+            assert len(expected) == O.N * O.N
+            for order in O.ORDERS:
+                actual, run_finding = O._run_matrix(
+                    executable, corpus, order, test_mode=mode,
+                )
+                assert run_finding is None
+                assert actual == expected
+                checked_cells += len(expected)
+    assert checked_cells == 79 * 2 * 3 * 18 * 18 == 153_576
 
 
 def test_cpp_e2e_stable_cross_allocation_pointer_positive(tmp_path_factory):
-    """P2: std::less compares pointers from separate allocations stably and passes."""
+    """P2: the legacy low-level harness compares separate pointers stably."""
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=0,
     ) is None
-    result = O.check_materialized_sort_swo(
-        _materialized(_MULTIPLEXED_NEGATIVE_IMPL),
-        marker_id="silo-writeset-sort",
-        proposal_source=_MULTIPLEXED_NEGATIVE_IMPL,
-        environment=compiled_oracle_artifacts["environment"],
-    )
-    assert result.status is O.OracleStatus.PASS
-    assert result.finding is None
 
 
 def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
@@ -1046,7 +1273,7 @@ def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(
     observed = O.extract_materialized_hole(source, "silo-writeset-sort")
     assert observed == statement + "\n"
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: (None, False))
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     result = O.check_materialized_sort_swo(
         source,
         marker_id="silo-writeset-sort",
@@ -1063,7 +1290,7 @@ def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(
     assert result.receipt.compile_flags_sha256 == O.COMPILE_FLAGS_SHA256
     assert result.receipt.tu_template_sha256 == O.TU_TEMPLATE_SHA256
     assert result.receipt.tu_sha256 == O._translation_unit_bundle_sha256(
-        O._translation_unit(observed)
+        O._translation_unit(_CLEAN_IMPL)
     )
     attempt = O.attempt_record(result)
     assert attempt["classification"] == "pass"
@@ -1104,8 +1331,14 @@ def test_shared_evolve_block_parser_preserves_public_wrapper_rejections(source, 
 @pytest.mark.parametrize(
     ("statement", "reason"),
     [
-        ("std::sort(write_set_.begin(), write_set_.end());", "qualified-or-non-sort-callee"),
-        ("sort(write_set_.begin(), write_set_.end()); other();", "not-a-single-sort-statement"),
+        (
+            "std::sort(write_set_.begin(), write_set_.end());",
+            "sort-ir.envelope.v1",
+        ),
+        (
+            "sort(write_set_.begin(), write_set_.end()); other();",
+            "sort-ir.envelope.v1",
+        ),
     ],
 )
 def test_structure_rejects_oracle_bypass_and_multiple_statements(statement, reason):
@@ -1142,7 +1375,7 @@ def test_phase_marker_runs_immediately_before_first_oracle_subprocess(
 
     monkeypatch.setattr(O, "_compiler_version", compiler_version)
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: (None, False))
-    monkeypatch.setattr(O, "_evaluate_executable", lambda _executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda _executable, **kwargs: None)
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL),
         marker_id="silo-writeset-sort",
@@ -1296,14 +1529,17 @@ def test_candidate_compile_failure_is_reject_not_unavailable(
         return compile_finding, False
 
     monkeypatch.setattr(O, "_compile", compile_control_then_candidate)
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
         proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
-    assert result.status is O.OracleStatus.REJECT
-    assert result.finding is compile_finding
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.finding is None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "canonical-tu-compile"
+    assert result.infrastructure.detail_code == "canonical-tu-compile-failed"
     assert len(compile_calls) == 2
 
 
@@ -1322,7 +1558,7 @@ def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
         (postflight_finding, False),
     ))
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1338,6 +1574,7 @@ def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
     assert result.infrastructure.detail_code == (
         "trusted-positive-tu-postflight-compile-failed"
     )
+    assert result.candidate_compile_finding is None
 
 
 def test_postflight_unavailable_retains_candidate_finding(
@@ -1359,7 +1596,7 @@ def test_postflight_unavailable_retains_candidate_finding(
         (postflight_finding, False),
     ))
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1373,13 +1610,8 @@ def test_postflight_unavailable_retains_candidate_finding(
     assert attempt["infrastructure"]["dependency_config_sha256"] == (
         result.receipt.dependency_config_sha256
     )
-    assert result.candidate_compile_finding is candidate_finding
-    assert attempt["candidate_compile_finding"] == {
-        "kind": "compile",
-        "reason_code": "candidate-compile-failed",
-        "corpus_id": O.CORPUS_ID,
-        "compiler_diagnostic": candidate_diagnostic.metadata_dict(),
-    }
+    assert result.candidate_compile_finding is None
+    assert "candidate_compile_finding" not in attempt
     assert "candidate source must stay private" not in json.dumps(
         attempt, sort_keys=True,
     )
@@ -1412,7 +1644,7 @@ def test_candidate_compile_reject_postflight_control_success_stays_reject(
         return None, False
 
     monkeypatch.setattr(O, "_compile", compile_spy)
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1420,13 +1652,11 @@ def test_candidate_compile_reject_postflight_control_success_stays_reject(
         proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
-    assert result.status is O.OracleStatus.REJECT
-    assert result.finding is candidate_finding
-    digest = O.rejection_digest(
-        result, diff_region="fixture diff", marker_id="silo-writeset-sort",
-    )
-    assert digest["reason"] == "candidate-compile-failed"
-    assert digest["oracle_finding"]["reason_code"] == "candidate-compile-failed"
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.finding is None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "canonical-tu-compile"
+    assert result.infrastructure.detail_code == "canonical-tu-compile-failed"
     assert [call[1:] for call in calls] == [
         ("trusted-control.cpp", "trusted-control"),
         ("oracle.cpp", "oracle"),
@@ -1463,7 +1693,7 @@ def test_candidate_artifact_cleanup_failure_preserves_receipt(
 
     monkeypatch.setattr(Path, "unlink", fail_candidate_cleanup)
     monkeypatch.setattr(O, "_compile", compile_with_successful_postflight)
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1471,10 +1701,11 @@ def test_candidate_artifact_cleanup_failure_preserves_receipt(
         proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
-    assert result.status is O.OracleStatus.REJECT
+    assert result.status is O.OracleStatus.UNAVAILABLE
     assert result.receipt is not None
-    assert result.finding is candidate_finding
-    assert result.infrastructure is None
+    assert result.finding is None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "canonical-tu-compile"
     assert compile_calls == 3
 
 
@@ -1501,7 +1732,7 @@ def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
 
     monkeypatch.setattr(Path, "unlink", fail_candidate_cleanup)
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1518,7 +1749,8 @@ def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
         "trusted-positive-tu-postflight-compile-failed-"
         "after-candidate-cleanup-failed"
     )
-    assert result.candidate_compile_finding is candidate_finding
+    assert result.candidate_compile_finding is None
+    assert "candidate_compile_finding" not in attempt
     assert attempt["infrastructure"]["detail_code"] == (
         "trusted-positive-tu-postflight-compile-failed-"
         "after-candidate-cleanup-failed"
@@ -1537,7 +1769,7 @@ def test_candidate_compile_infrastructure_failure_with_successful_postflight_sta
         (None, False),
     ))
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1547,7 +1779,7 @@ def test_candidate_compile_infrastructure_failure_with_successful_postflight_sta
 
     assert result.status is O.OracleStatus.UNAVAILABLE
     assert result.infrastructure is not None
-    assert result.infrastructure.phase == "candidate-compile"
+    assert result.infrastructure.phase == "canonical-tu-compile"
     assert result.infrastructure.detail_code == "compiler-launch-unavailable"
     assert result.candidate_compile_finding is None
 
@@ -1567,7 +1799,7 @@ def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight
         (postflight_finding, False),
     ))
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1581,7 +1813,7 @@ def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight
     assert result.infrastructure.detail_code == (
         "trusted-positive-tu-postflight-compile-failed"
     )
-    assert result.candidate_compile_finding is candidate_finding
+    assert result.candidate_compile_finding is None
 
 
 def test_postflight_source_write_oserror_preserves_receipt(
@@ -1610,7 +1842,7 @@ def test_postflight_source_write_oserror_preserves_receipt(
 
     monkeypatch.setattr(Path, "write_text", fail_postflight_write)
     monkeypatch.setattr(O, "_compile", compile_with_real_postflight_write)
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1622,7 +1854,7 @@ def test_postflight_source_write_oserror_preserves_receipt(
     assert result.receipt is not None
     assert result.infrastructure is not None
     assert result.infrastructure.phase == "trusted-postflight-compile"
-    assert result.candidate_compile_finding is candidate_finding
+    assert result.candidate_compile_finding is None
 
 
 def test_postflight_cleanup_oserror_preserves_receipt(
@@ -1648,7 +1880,7 @@ def test_postflight_cleanup_oserror_preserves_receipt(
 
     monkeypatch.setattr(Path, "unlink", fail_postflight_cleanup)
     monkeypatch.setattr(O, "_compile", compile_with_successful_postflight)
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     result = O.check_materialized_sort_swo(
@@ -1660,7 +1892,7 @@ def test_postflight_cleanup_oserror_preserves_receipt(
     assert result.receipt is not None
     assert result.infrastructure is not None
     assert result.infrastructure.phase == "trusted-postflight-compile"
-    assert result.candidate_compile_finding is candidate_finding
+    assert result.candidate_compile_finding is None
 
 
 def test_postflight_programmer_error_is_not_infrastructure(
@@ -1681,7 +1913,7 @@ def test_postflight_programmer_error_is_not_infrastructure(
         return None, False
 
     monkeypatch.setattr(O, "_compile", compile_with_programmer_error)
-    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable, **kwargs: None)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
 
     with pytest.raises(AssertionError, match="programmer error"):
@@ -1720,30 +1952,39 @@ def test_trusted_positive_preflight_compile_failure_is_unavailable(
 def test_public_api_propagates_exact_evaluator_axiom_finding(
         monkeypatch):
     oracle_environment = _get_oracle_environment()
-    expected = O.SortSwoFinding(
-        O.OracleRejectKind.AXIOM,
-        "swo-asymmetric",
-        O.SwoCounterexample(O.SwoAxiom.ASYMMETRIC, ((3, 4), (4, 3))),
-        corpus_id=f"{O.CORPUS_ID}/corpus-1",
-        order_id=2,
+    findings = (
+        O.SortSwoFinding(O.OracleRejectKind.AXIOM, "swo-asymmetric"),
+        O.SortSwoFinding(
+            O.OracleRejectKind.EXECUTION, "candidate-execution-fault",
+        ),
+        O.SortSwoFinding(
+            O.OracleRejectKind.TIMEOUT, "candidate-run-wall-timeout",
+        ),
+        O.SortSwoFinding(
+            O.OracleRejectKind.NONDETERMINISTIC,
+            "relation-varies-across-process-order",
+        ),
     )
-    evaluations = []
     monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: (None, False))
-
-    def evaluate(executable):
-        evaluations.append(executable.name)
-        return None if len(evaluations) == 1 else expected
-
-    monkeypatch.setattr(O, "_evaluate_executable", evaluate)
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
-    result = O.check_materialized_sort_swo(
-        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
-    )
-    assert result.status is O.OracleStatus.REJECT
-    assert result.finding is expected
-    assert result.finding.as_dict() == expected.as_dict()
-    assert evaluations == ["trusted-control", "oracle"]
+    for expected in findings:
+        evaluations = []
+
+        def evaluate(executable, **kwargs):
+            evaluations.append(executable.name)
+            return None if len(evaluations) == 1 else expected
+
+        monkeypatch.setattr(O, "_evaluate_executable", evaluate)
+        result = O.check_materialized_sort_swo(
+            _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+            proposal_source=_CLEAN_IMPL, environment=oracle_environment,
+        )
+        assert result.status is O.OracleStatus.UNAVAILABLE
+        assert result.finding is None
+        assert result.infrastructure is not None
+        assert result.infrastructure.phase == "canonical-tu-run"
+        assert result.infrastructure.detail_code == expected.reason_code
+        assert evaluations == ["trusted-control", "oracle"]
 
 
 def test_result_contract_rejects_fail_open_combinations():
@@ -1783,8 +2024,15 @@ def test_public_oracle_domain_aliases_track_contract_inputs():
 
 
 def test_contract_digest_binds_axiom_checker_source_component():
+    assert "admitted-ir-trusted-matrix" in O.SORT_SWO_GUARANTEE_BOUNDARY
+    assert "arbitrary-cpp-or-all-input-swo" in O.SORT_SWO_GUARANTEE_BOUNDARY
+    assert "not-dynamic-candidate-swo-search" in O.SORT_SWO_GUARANTEE_BOUNDARY
+    assert (
+        "reported-relation-matrix-is-comparator-true-relation"
+        not in O.SORT_SWO_GUARANTEE_BOUNDARY
+    )
     assert O._ORACLE_CONTRACT_COMPONENTS_SCHEMA == (
-        "sort-swo-contract-components-v2"
+        "sort-swo-contract-components-v3"
     )
     assert O._ORACLE_CONTRACT_COMPONENTS == {
         "axiom_checker_implementation_sha256": (
@@ -1796,6 +2044,9 @@ def test_contract_digest_binds_axiom_checker_source_component():
         "guarantee_boundary_sha256": hashlib.sha256(
             O.SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
         ).hexdigest(),
+        "pointer_mapping_sha256": O.POINTER_MAPPING_SHA256,
+        "sort_ir_grammar_sha256": O.SORT_IR_GRAMMAR_SHA256,
+        "sort_ir_grammar_version": str(O.SORT_IR_GRAMMAR_VERSION),
         "tu_template_sha256": O.TU_TEMPLATE_SHA256,
     }
     assert O.ORACLE_COMPONENTS_SHA256 == O._contract_components_sha256(
@@ -1805,6 +2056,23 @@ def test_contract_digest_binds_axiom_checker_source_component():
     changed["axiom_checker_implementation_sha256"] = "0" * 64
     assert O._contract_components_sha256(changed) != O.ORACLE_COMPONENTS_SHA256
     assert f"-x{O.ORACLE_COMPONENTS_SHA256}-" in O.ORACLE_CONTRACT_ID
+
+
+def test_contract_digest_binds_sort_ir_grammar_and_pointer_mapping():
+    assert O.SORT_IR_GRAMMAR_VERSION == 1
+    assert O._ORACLE_CONTRACT_COMPONENTS["sort_ir_grammar_sha256"] == (
+        O.SORT_IR_GRAMMAR_SHA256
+    )
+    assert O._ORACLE_CONTRACT_COMPONENTS["pointer_mapping_sha256"] == (
+        O.POINTER_MAPPING_SHA256
+    )
+    assert tuple(O.pointer_rank(1, slot) for slot in range(4)) == (1, 2, 3, 4)
+    assert tuple(O.pointer_rank(2, slot) for slot in range(6)) == (5, 6, 7, 8, 9, 10)
+    for key in ("sort_ir_grammar_version", "sort_ir_grammar_sha256",
+                "pointer_mapping_sha256"):
+        changed = dict(O._ORACLE_CONTRACT_COMPONENTS)
+        changed[key] = "0" * 64
+        assert O._contract_components_sha256(changed) != O.ORACLE_COMPONENTS_SHA256
 
 
 def test_contract_digest_binds_corpus_and_order_selection():
@@ -1830,6 +2098,21 @@ def test_contract_digest_binds_corpus_and_order_selection():
 
 def test_axiom_checker_source_bundle_is_enumerated_and_ordered():
     assert O._AXIOM_CHECKER_SOURCE_FUNCTIONS == (
+        O.SortComparatorIr.__post_init__,
+        O.SortIrGrammarViolation.__init__,
+        O._sort_ir_reject,
+        O._sort_ir_tokens,
+        O._sort_ir_comparison,
+        O._sort_ir_expression,
+        O.validate_sort_implementation,
+        O.admit_sort_implementation,
+        O._sort_ir_one,
+        O.render_sort_ir,
+        O.canonicalize_sort_implementation,
+        O.sort_ir_domain,
+        O.pointer_rank,
+        O._sort_ir_value,
+        O.trusted_relation_matrix,
         O.check_relation_matrix,
         O._evaluate_executable,
         O._run_matrix,
@@ -1962,6 +2245,21 @@ def _independent_tu_template_sha256() -> str:
 def _independent_axiom_checker_sha256() -> str:
     digest = hashlib.sha256()
     for function in (
+        O.SortComparatorIr.__post_init__,
+        O.SortIrGrammarViolation.__init__,
+        O._sort_ir_reject,
+        O._sort_ir_tokens,
+        O._sort_ir_comparison,
+        O._sort_ir_expression,
+        O.validate_sort_implementation,
+        O.admit_sort_implementation,
+        O._sort_ir_one,
+        O.render_sort_ir,
+        O.canonicalize_sort_implementation,
+        O.sort_ir_domain,
+        O.pointer_rank,
+        O._sort_ir_value,
+        O.trusted_relation_matrix,
         O.check_relation_matrix,
         O._evaluate_executable,
         O._run_matrix,
@@ -2010,12 +2308,15 @@ def _independent_contract_id(
         "guarantee_boundary_sha256": hashlib.sha256(
             O.SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
         ).hexdigest(),
+        "pointer_mapping_sha256": O.POINTER_MAPPING_SHA256,
+        "sort_ir_grammar_sha256": O.SORT_IR_GRAMMAR_SHA256,
+        "sort_ir_grammar_version": str(O.SORT_IR_GRAMMAR_VERSION),
         "tu_template_sha256": tu_template_sha256,
     }
     canonical = json.dumps(
         {
             "components": components,
-            "schema": "sort-swo-contract-components-v2",
+            "schema": "sort-swo-contract-components-v3",
         },
         sort_keys=True, separators=(",", ":"), ensure_ascii=True,
     ).encode("utf-8")
@@ -2053,12 +2354,12 @@ def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
     assert O.TU_TEMPLATE_SHA256 == "7732f044d8ab2b657231cfeb132f59a981b761b9ac62a8d61e6b5338140083e4"
     assert O.COMPILE_FLAGS_SHA256 == "3caa77f8111ff611183eaec0acfdff11eb75d74c81a3bfec66262674921c3b25"
     assert O.ORACLE_CONTRACT_ID == (
-        "sort-swo-v4-corpus2-protocol3-checker3-grammar1-"
-        "x5474fdb4483a32d73d82b29908152e7f004bb2c921963d3aa5a3d5654a0c012a-"
-        "c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a0af8a35f3f9a"
+        "sort-swo-v5-corpus2-protocol3-checker4-grammar2-"
+        "xcc26c4322fe96e7e9427ace317c5b46f3c3d382b00bdbf937bbab595cbe0c60f-"
+        "c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a091abb17ccad"
     )
     assert (O.CONTRACT_VERSION, O.CORPUS_VERSION, O.PROTOCOL_VERSION,
-            O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (4, 2, 3, 3, 1)
+            O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (5, 2, 3, 4, 2)
 
 
 def test_legacy_v2_contract_cannot_construct_current_oracle_result():
