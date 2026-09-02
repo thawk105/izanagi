@@ -51,4 +51,4 @@ commit ID (`analysis_commit`) による再開拒否を外した。**内容ハッ
 - `verbatim/s5-author-report.md` — 段 5 実装子の報告
 - `verbatim/s6-reviewA.md` / `s6-reviewB.md` — 段 6 敵対レビュー 2 本 (所見ゼロ)
 - `ruling-package.md` — scope 外として返す 2 件
-- `mutation-ledger-final.json` — 変異走行の結果 (別 commit で追加)
+- `mutation-spec.json` / `mutation-ledger-final.json` — 変異走行の仕様と結果 (4/4 KILLED、baseline 緑)
