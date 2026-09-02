@@ -1,0 +1,73 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n",
+          "new": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_commit\": self.analysis_commit,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n"
+        }
+      ]
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "                or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n",
+          "new": "                or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                or row.get(\"analysis_commit\") != prereg.binding.analysis_commit \\\n                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n"
+        }
+      ]
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                or type(request_id) is not str or not request_id \\\n",
+          "new": "                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                or row.get(\"source_commit\") != prereg.binding.analysis_commit \\\n                or type(request_id) is not str or not request_id \\\n"
+        }
+      ]
+    },
+    {
+      "id": "M04",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n        }\n",
+          "new": "            \"formula_sha256\": self.formula_sha256,\n        }\n"
+        }
+      ]
+    }
+  ]
+}
