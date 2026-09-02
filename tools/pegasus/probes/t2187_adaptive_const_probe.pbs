@@ -5,6 +5,8 @@
 #PBS -l elapstim_req=00:40:00
 #PBS -N izanagi-t2187
 # qsub -v 'IZANAGI_T2187_CELLS=none:0:100:1000:10+stock:1:100:1000:10,IZANAGI_T2187_WORKLOADS=write-heavy+balanced+read-heavy,IZANAGI_T2187_THREADS=24+48' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
+# certify pilot example (the parent submits it and supplies shared artifact paths):
+# qsub -l elapstim_req=02:00:00 -v 'IZANAGI_T2187_MODE=certify,IZANAGI_T2187_CELLS=tuned:1:1:1000:2560,IZANAGI_T2187_WORKLOADS=read-heavy,IZANAGI_T2187_THREADS=48,IZANAGI_T2187_REP_INDEX=0,IZANAGI_T2187_OUTER_WALLTIME_S=7200,IZANAGI_T2187_VERIFIER_TIMEOUT_S=5400,IZANAGI_T2187_GROUP_RECEIPT_OUT=/shared/t2189-group.json,IZANAGI_T2187_PERFORMANCE_ARTIFACT=/shared/t2187-performance.json' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
 
 set -Eeuo pipefail
 umask 077
@@ -42,10 +44,21 @@ fi
 # List-valued variables therefore cross the qsub boundary with plus signs, which
 # are not shell metacharacters, and are restored here.
 CELLS_RAW=${IZANAGI_T2187_CELLS:-}
+MODE=${IZANAGI_T2187_MODE:-performance}
 WORKLOADS_RAW=${IZANAGI_T2187_WORKLOADS:-write-heavy+balanced+read-heavy}
 THREADS_RAW=${IZANAGI_T2187_THREADS:-48}
 REP_INDEX=${IZANAGI_T2187_REP_INDEX:-0}
 STAGE=${IZANAGI_T2187_STAGE:-1}
+VERIFIER_TIMEOUT_S=${IZANAGI_T2187_VERIFIER_TIMEOUT_S:-5400}
+OUTER_WALLTIME_S=${IZANAGI_T2187_OUTER_WALLTIME_S:-7200}
+BUILD_BUDGET_S=${IZANAGI_T2187_BUILD_BUDGET_S:-900}
+EXIT_MARGIN_S=${IZANAGI_T2187_EXIT_MARGIN_S:-300}
+GROUP_RECEIPT_OUT=${IZANAGI_T2187_GROUP_RECEIPT_OUT:-}
+PERFORMANCE_ARTIFACT=${IZANAGI_T2187_PERFORMANCE_ARTIFACT:-}
+if [[ "$MODE" != performance && "$MODE" != certify ]]; then
+  echo "IZANAGI_T2187_MODE must be performance or certify" >&2
+  exit 2
+fi
 if [[ -z "$CELLS_RAW" || "$CELLS_RAW" == *","* || "$CELLS_RAW" == *";"* || "$CELLS_RAW" == *$'\n'* ]]; then
   echo "IZANAGI_T2187_CELLS must be a nonempty plus-separated cell list" >&2
   exit 2
@@ -65,6 +78,28 @@ fi
 if [[ ! "$STAGE" =~ ^[123]$ ]]; then
   echo "IZANAGI_T2187_STAGE must be 1, 2 or 3" >&2
   exit 2
+fi
+if [[ "$MODE" == certify ]]; then
+  if [[ "$CELLS_RAW" != tuned:1:1:1000:2560 ]]; then
+    echo "certify mode requires the exact tuned adaptive cell" >&2
+    exit 2
+  fi
+  if [[ "$WORKLOADS_RAW" != write-heavy && "$WORKLOADS_RAW" != balanced && "$WORKLOADS_RAW" != read-heavy ]]; then
+    echo "certify mode requires exactly one fixed workload" >&2
+    exit 2
+  fi
+  if [[ "$THREADS_RAW" != 48 || ! "$REP_INDEX" =~ ^[0-7]$ ]]; then
+    echo "certify mode requires threads=48 and rep index 0..7" >&2
+    exit 2
+  fi
+  if [[ -z "$GROUP_RECEIPT_OUT" || -z "$PERFORMANCE_ARTIFACT" ]]; then
+    echo "certify mode requires group receipt and performance artifact paths" >&2
+    exit 2
+  fi
+  if [[ ! "$VERIFIER_TIMEOUT_S" =~ ^[0-9]+([.][0-9]+)?$ || ! "$OUTER_WALLTIME_S" =~ ^[0-9]+([.][0-9]+)?$ || ! "$BUILD_BUDGET_S" =~ ^[0-9]+([.][0-9]+)?$ || ! "$EXIT_MARGIN_S" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo "certify mode time budgets must be positive decimal seconds" >&2
+    exit 2
+  fi
 fi
 CELLS=${CELLS_RAW//+/,}
 WORKLOADS=${WORKLOADS_RAW//+/,}
@@ -174,13 +209,33 @@ fi
 
 OUT_DIR=${IZANAGI_T2187_OUT_DIR:-$DEFAULT_OUT_DIR}
 mkdir -p -m 700 -- "$OUT_DIR"
-OUT="$OUT_DIR/stage${STAGE}-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
 
 cd "$REPO_ROOT"
+if [[ "$MODE" == performance ]]; then
+OUT="$OUT_DIR/stage${STAGE}-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
 exec "$PY" -B -u "$DRIVER" \
   --cells "$CELLS" \
   --workloads "$WORKLOADS" \
   --threads "$THREADS" \
   --rep-index "$REP_INDEX" \
   --stage "$STAGE" \
+  --out "$OUT"
+fi
+
+OUT="$OUT_DIR/certify-${WORKLOADS}-slot${REP_INDEX}-${PBS_JOBID//:/_}.json"
+exec "$PY" -B -u "$DRIVER" \
+  --mode certify \
+  --cells "$CELLS" \
+  --workloads "$WORKLOADS" \
+  --threads "$THREADS" \
+  --rep-index "$REP_INDEX" \
+  --reps-per-job 1 \
+  --stage "$STAGE" \
+  --extime 3 \
+  --verifier-timeout-s "$VERIFIER_TIMEOUT_S" \
+  --build-budget-s "$BUILD_BUDGET_S" \
+  --outer-walltime-s "$OUTER_WALLTIME_S" \
+  --exit-margin-s "$EXIT_MARGIN_S" \
+  --group-receipt-out "$GROUP_RECEIPT_OUT" \
+  --performance-artifact "$PERFORMANCE_ARTIFACT" \
   --out "$OUT"

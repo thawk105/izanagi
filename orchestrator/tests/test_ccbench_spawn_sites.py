@@ -876,17 +876,26 @@ _DEFERRED_GATE_MEMBERS = (
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+        "wave t2189",
+        (
+            "明示 certify mode の tuned adaptive trace build。exact cell/workload "
+            "contract、実 verifier 陽性対照、target gate、closure identity に束縛される。"
+            "condition-gate family admission は本 wave の scope 外"
+        ),
+        "buildcache",
+        "<module>._certify_main",
+        1055,
+    ),
+    _DeferredGateMember(
+        "tools/pegasus/probes/t2187_adaptive_const_probe.py",
         "wave t2187",
         (
-            "この probe は性能測定専用で直列性検査を通さず、成果物は認証されない。"
-            "BACKOFF_INCR_MILLI、BACKOFF_MAX_US、BACKOFF_UPDATE_US の既定値は"
-            "stock と同値で inert であり、既定では build 出力を変えない。"
-            "backoff_sweep.py 型の supply effectuation、runtime meaning、"
-            "family admission の正配線は後続タスクで行う"
+            "既定 performance mode の trace-disabled build。成果物は従来どおり "
+            "performance-only / not_certified であり、認証 mode と分離される"
         ),
         "buildcache",
         "<module>.main",
-        414,
+        1314,
     ),
 )
 
@@ -2622,7 +2631,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2187", "buildcache", "<module>.main", 414,
+            "wave t2189", "buildcache", "<module>._certify_main", 1055,
+        ),
+        (
+            "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "wave t2187", "buildcache", "<module>.main", 1314,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
