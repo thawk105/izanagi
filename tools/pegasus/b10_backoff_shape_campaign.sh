@@ -2,12 +2,14 @@
 #PBS -A SFC
 #PBS -q gen_S
 #PBS -b 1
-#PBS -l elapstim_req=06:00:00
+#PBS -l elapstim_req=12:00:00
 #PBS -N izanagi-b10-shape
 #PBS --accept-sigterm=yes
 set -Eeuo pipefail
 umask 077
 unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+unset IZANAGI_OFFICIAL_OUTPUT_ROOT
+export IZANAGI_B10_BINARY_PATH_POLICY="b10-macro-prefix-map-no-rpath/v1"
 
 bootstrap_fail() {
   echo "B10 job bootstrap failed: $*" >&2
@@ -19,12 +21,12 @@ bootstrap_fail() {
 [[ "${IZANAGI_B10_NONCE:-}" =~ ^[0-9a-f]{32}$ ]] || bootstrap_fail "submission nonce missing"
 [[ "${IZANAGI_B10_SOURCE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "source commit missing"
 [[ "${IZANAGI_B10_PREREG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "prereg commit missing"
-[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe)$ ]] || bootstrap_fail "phase missing"
+[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe|verify-perf)$ ]] || bootstrap_fail "phase missing"
 if [[ "$IZANAGI_B10_PHASE" == build || "$IZANAGI_B10_PHASE" == probe ]]; then
   [[ -z "${IZANAGI_B10_WORKLOAD:-}" ]] || bootstrap_fail "build/probe phase has workload"
 else
   [[ "${IZANAGI_B10_WORKLOAD:-}" =~ ^(write-heavy|balanced|read-heavy)$ ]] \
-    || bootstrap_fail "verify/perf workload missing"
+    || bootstrap_fail "verify/perf/verify-perf workload missing"
 fi
 
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || bootstrap_fail "cannot resolve repository"
@@ -34,9 +36,13 @@ GIT_COMMON_DIR=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-comm
 [[ "$GIT_COMMON_DIR" == /* ]] || bootstrap_fail "git common dir is not absolute"
 GIT_COMMON_REPO=${GIT_COMMON_DIR%/.git}
 DURABLE_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence/b10-backoff-shape/submissions"
+OUTPUT_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence/b10-backoff-shape/official-output"
 [[ "$DURABLE_ROOT" != "$REPO_ROOT" && "$DURABLE_ROOT" != "$REPO_ROOT/"* \
     && "$DURABLE_ROOT" != "$GIT_COMMON_REPO" && "$DURABLE_ROOT" != "$GIT_COMMON_REPO/"* ]] \
   || bootstrap_fail "durable root resolves inside a repository"
+[[ "$OUTPUT_ROOT" != "$REPO_ROOT" && "$OUTPUT_ROOT" != "$REPO_ROOT/"* \
+    && "$OUTPUT_ROOT" != "$GIT_COMMON_REPO" && "$OUTPUT_ROOT" != "$GIT_COMMON_REPO/"* ]] \
+  || bootstrap_fail "official output root resolves inside a repository"
 SUBMISSION_DIR="$DURABLE_ROOT/$IZANAGI_B10_NONCE"
 SUBMIT_RECEIPT="$SUBMISSION_DIR/submit-receipt.json"
 
@@ -160,7 +166,7 @@ if type(doc["submitted_epoch"]) is not int or doc["submitted_epoch"] <= 0:
     raise SystemExit("receipt timestamp invalid")
 request = doc["request"]
 if request != {"project": "SFC", "queue": "gen_S", "nodes": 1,
-               "elapstim_req_s": 21600}:
+               "elapstim_req_s": 43200}:
     raise SystemExit("receipt PBS request mismatch")
 def normalize(value):
     return value.removeprefix("0:").rstrip(".")
@@ -251,7 +257,7 @@ readarray -t QSTAT_VALUES <<<"$qstat_values"
 SCHEDULER_STARTED_EPOCH=${QSTAT_VALUES[1]}
 SCHEDULER_ELAPSE_LIMIT_S=${QSTAT_VALUES[2]}
 SCHEDULER_REMAINING_ELAPSE_S=${QSTAT_VALUES[3]}
-[[ "$SCHEDULER_ELAPSE_LIMIT_S" -eq 21600 ]] \
+[[ "$SCHEDULER_ELAPSE_LIMIT_S" -eq 43200 ]] \
   || { write_failure 2 allocation "actual scheduler Elapse limit differs from receipt"; exit 2; }
 
 CURRENT_STAGE=reservation
@@ -323,7 +329,11 @@ PY
   export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"
 fi
 
-mkdir -p "$REPO_ROOT/output/env/pegasus/claims"
+mkdir -p -m 0700 -- \
+  "$OUTPUT_ROOT/campaigns" \
+  "$OUTPUT_ROOT/campaign-locks" \
+  "$OUTPUT_ROOT/env/pegasus/claims"
+export IZANAGI_OFFICIAL_OUTPUT_ROOT="$OUTPUT_ROOT"
 driver_argv=(
   "$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep
   --phase "$IZANAGI_B10_PHASE"

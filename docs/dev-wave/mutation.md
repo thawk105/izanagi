@@ -47,8 +47,7 @@ mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 本走は `--runner-mode dispatch` を既定とし、runner argv へ `--force-dispatch` を入れる。
 runner の実行経路を変異させる local は runner が自壊し収集段が `rc=16` になる。
 `--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペアで、片方のみ・local
-指定は起動前に中止する。`--wrapper-attempt` は整数、実走は `--detached` 必須で、欠けると変異を
-1 件も実行せず中止する。
+指定は中止する。後者は整数、実走は `--detached` 必須。再投入は両方を前回と変える（F453）。
 KILLED 期待で期待 node が空の spec も起動前に中止するため、probe は全件 SURVIVED 期待で登録して
 観測 node を集める。
 `--out` は `--scratch-root` と同一 device に置く（別 device は evidence 退避の rename が落ちる）。

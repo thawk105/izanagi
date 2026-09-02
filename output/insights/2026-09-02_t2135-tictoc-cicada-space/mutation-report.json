@@ -1,0 +1,608 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c40cd412905765b4fd2d7ee82279e544/izdw-c40cd41290.o966064",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c40cd412905765b4fd2d7ee82279e544/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n............                                                             [100%]\n============================== 12 passed in 5.36s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "9e284b7f9b00c7b6525f218ad5795e52753825c9614d121120e9fa3d5ec85eed"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+    "duration_s": 28.646,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ba2e3dc7b587a395e9f91beb2188051fb04812c480ab91ed096f12f90b79402c",
+    "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+    "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+    "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+    "status": "PASSED",
+    "test_output_sha256": "9e284b7f9b00c7b6525f218ad5795e52753825c9614d121120e9fa3d5ec85eed",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+  },
+  "date": "2026-09-01T16:38:20.310189+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a487a79cd639e14464806e6f9a2a6a4/izdw-0a487a79cd.o966066",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a487a79cd639e14464806e6f9a2a6a4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n..........FF                                                             [100%]\n=================================== FAILURES ===================================\n___ test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair ____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():\n        enumerated = genome.space_for(\"tictoc\").enumerate()\n        pairs = {\n            (\n                item.flags[\"NO_WAIT_LOCKING_IN_VALIDATION\"],\n                item.flags[\"NO_WAIT_OF_TICTOC\"],\n            )\n            for item in enumerated\n        }\n>       assert pairs == {(0, 0), (0, 1), (1, 0)}\nE       assert {(0, 0), (0, ...1, 0), (1, 1)} == {(0, 0), (0, 1), (1, 0)}\nE         \nE         Extra items in the left set:\nE         (1, 1)\nE         Use -v to get more diff\n\norchestrator/tests/test_campaign.py:279: AssertionError\n_______ test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes ________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n        gs = genome.space_for(\"tictoc\")\n        assert gs.raw_size() == 32\n        assert set(gs.axes) == {\n            \"BACK_OFF\",\n            \"NO_WAIT_LOCKING_IN_VALIDATION\",\n            \"NO_WAIT_OF_TICTOC\",\n            \"PREEMPTIVE_ABORTS\",\n            \"TIMESTAMP_HISTORY\",\n        }\n        assert all(values == [0, 1] for values in gs.axes.values())\n        enumerated = gs.enumerate()\n>       assert len(enumerated) == 24\nE       AssertionError: assert 32 == 24\nE        +  where 32 = len([Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...])\n\norchestrator/tests/test_campaign.py:265: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\n========================= 2 failed, 10 passed in 5.38s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=914 retained_bytes=914 omitted_bytes=0 rendered_excerpt_bytes=953 sha256=c23c0a12aa5890a5d83cda91dde57143a3859021179b766dab8b6ff7fcd6ebbf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n>         gs = genome.space_for(\"tictoc\")\n>         assert gs.raw_size() == 32\n>         assert set(gs.axes) == {\n>             \"BACK_OFF\",\n>             \"NO_WAIT_LOCKING_IN_VALIDATION\",\n>             \"NO_WAIT_OF_TICTOC\",\n>             \"PREEMPTIVE_ABORTS\",\n>             \"TIMESTAMP_HISTORY\",\n>         }\n>         assert all(values == [0, 1] for values in gs.axes.values())\n>         enumerated = gs.enumerate()\n> >       assert len(enumerated) == 24\n> E       AssertionError: assert 32 == 24\n> E        +  where 32 = len([Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...])\n> \n> orchestrator/tests/test_campaign.py:265: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=671 retained_bytes=671 omitted_bytes=0 rendered_excerpt_bytes=710 sha256=f265bf7c352cf3ed2ac57485957e4f08039be88d00175375140e070a2d5cfb72\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():\n>         enumerated = genome.space_for(\"tictoc\").enumerate()\n>         pairs = {\n>             (\n>                 item.flags[\"NO_WAIT_LOCKING_IN_VALIDATION\"],\n>                 item.flags[\"NO_WAIT_OF_TICTOC\"],\n>             )\n>             for item in enumerated\n>         }\n> >       assert pairs == {(0, 0), (0, 1), (1, 0)}\n> E       assert {(0, 0), (0, ...1, 0), (1, 1)} == {(0, 0), (0, 1), (1, 0)}\n> E         \n> E         Extra items in the left set:\n> E         (1, 1)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_campaign.py:279: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1585 retained_bytes=1585 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2834 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2f55cd6ee614e5c53e557b2a33395421643f2356dc4feaa8635b2f95352758cc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+      "duration_s": 27.412,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes"
+      ],
+      "hang_risk": false,
+      "id": "M1-tictoc-constraint-removed",
+      "injection_diff_sha256": "1672973fb958b7baf33960c3b3870a6d411f9289dd1bacde152aab9a8c974cea",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "91878b4458b56bc9602b8cdf434801381250e468f9ec632090016f5be7172000",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "new": "    constraints=[],",
+          "old": "    constraints=[_tictoc_no_wait_not_both],"
+        }
+      ],
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "KILLED",
+      "test_output_sha256": "2f55cd6ee614e5c53e557b2a33395421643f2356dc4feaa8635b2f95352758cc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/df1131e3307d87c54a4f4b3192322a72/izdw-df1131e330.o966068",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/df1131e3307d87c54a4f4b3192322a72/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n..........FF                                                             [100%]\n=================================== FAILURES ===================================\n___ test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair ____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():\n        enumerated = genome.space_for(\"tictoc\").enumerate()\n        pairs = {\n            (\n                item.flags[\"NO_WAIT_LOCKING_IN_VALIDATION\"],\n                item.flags[\"NO_WAIT_OF_TICTOC\"],\n            )\n            for item in enumerated\n        }\n>       assert pairs == {(0, 0), (0, 1), (1, 0)}\nE       assert {(0, 1), (1, 0)} == {(0, 0), (0, 1), (1, 0)}\nE         \nE         Extra items in the right set:\nE         (0, 0)\nE         Use -v to get more diff\n\norchestrator/tests/test_campaign.py:279: AssertionError\n_______ test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes ________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n        gs = genome.space_for(\"tictoc\")\n        assert gs.raw_size() == 32\n        assert set(gs.axes) == {\n            \"BACK_OFF\",\n            \"NO_WAIT_LOCKING_IN_VALIDATION\",\n            \"NO_WAIT_OF_TICTOC\",\n            \"PREEMPTIVE_ABORTS\",\n            \"TIMESTAMP_HISTORY\",\n        }\n        assert all(values == [0, 1] for values in gs.axes.values())\n        enumerated = gs.enumerate()\n>       assert len(enumerated) == 24\nE       AssertionError: assert 16 == 24\nE        +  where 16 = len([Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...])\n\norchestrator/tests/test_campaign.py:265: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\n========================= 2 failed, 10 passed in 5.45s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=914 retained_bytes=914 omitted_bytes=0 rendered_excerpt_bytes=953 sha256=8f129f465e6113e5fc025c06560b03fe32625f1fbea587e51cab9c6a9833b848\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n>         gs = genome.space_for(\"tictoc\")\n>         assert gs.raw_size() == 32\n>         assert set(gs.axes) == {\n>             \"BACK_OFF\",\n>             \"NO_WAIT_LOCKING_IN_VALIDATION\",\n>             \"NO_WAIT_OF_TICTOC\",\n>             \"PREEMPTIVE_ABORTS\",\n>             \"TIMESTAMP_HISTORY\",\n>         }\n>         assert all(values == [0, 1] for values in gs.axes.values())\n>         enumerated = gs.enumerate()\n> >       assert len(enumerated) == 24\n> E       AssertionError: assert 16 == 24\n> E        +  where 16 = len([Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...])\n> \n> orchestrator/tests/test_campaign.py:265: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=658 retained_bytes=658 omitted_bytes=0 rendered_excerpt_bytes=697 sha256=9b33b336241122e963fe5e5535a86f3448fa651c8fd839d8ed8b9f63fe21ea2a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():\n>         enumerated = genome.space_for(\"tictoc\").enumerate()\n>         pairs = {\n>             (\n>                 item.flags[\"NO_WAIT_LOCKING_IN_VALIDATION\"],\n>                 item.flags[\"NO_WAIT_OF_TICTOC\"],\n>             )\n>             for item in enumerated\n>         }\n> >       assert pairs == {(0, 0), (0, 1), (1, 0)}\n> E       assert {(0, 1), (1, 0)} == {(0, 0), (0, 1), (1, 0)}\n> E         \n> E         Extra items in the right set:\n> E         (0, 0)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_campaign.py:279: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1572 retained_bytes=1572 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2821 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "966366ff02727471bb66762a3edfe74c24e1597bcda9716a8137fdb81bd8afe8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+      "duration_s": 28.004,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes"
+      ],
+      "hang_risk": false,
+      "id": "M2-tictoc-constraint-replaced-by-silo-xor",
+      "injection_diff_sha256": "323273090faaab6eb8a5555b8f232ae71c1da9235fd7c613bf0e4c7d96df435f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "43b82b7b2924343f2c6699451ead5ed0202fa4ec242cbe330918dded7274a464",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "new": "    return (flags.get(\"NO_WAIT_LOCKING_IN_VALIDATION\", 0)\n            != flags.get(\"NO_WAIT_OF_TICTOC\", 0))",
+          "old": "    return not (\n        flags.get(\"NO_WAIT_LOCKING_IN_VALIDATION\", 0)\n        and flags.get(\"NO_WAIT_OF_TICTOC\", 0)\n    )"
+        }
+      ],
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "KILLED",
+      "test_output_sha256": "966366ff02727471bb66762a3edfe74c24e1597bcda9716a8137fdb81bd8afe8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f53ec3ae30ca3ae17e22e23f738c3817/izdw-f53ec3ae30.o966069",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f53ec3ae30ca3ae17e22e23f738c3817/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n..........FF                                                             [100%]\n=================================== FAILURES ===================================\n_____________ test_cicada_space_requires_inline_opt_for_promotion ______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_requires_inline_opt_for_promotion():\n        enumerated = genome.space_for(\"cicada\").enumerate()\n        pairs = {\n            (\n                item.flags[\"INLINE_VERSION_OPT\"],\n                item.flags[\"INLINE_VERSION_PROMOTION\"],\n            )\n            for item in enumerated\n        }\n>       assert pairs == {(0, 0), (1, 0), (1, 1)}\nE       assert {(0, 0), (0, ...1, 0), (1, 1)} == {(0, 0), (1, 0), (1, 1)}\nE         \nE         Extra items in the left set:\nE         (0, 1)\nE         Use -v to get more diff\n\norchestrator/tests/test_campaign.py:324: AssertionError\n_______ test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes ________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():\n        gs = genome.space_for(\"cicada\")\n        assert gs.raw_size() == 32\n        assert set(gs.axes) == {\n            \"BACK_OFF\",\n            \"INLINE_VERSION_OPT\",\n            \"INLINE_VERSION_PROMOTION\",\n            \"REUSE_VERSION\",\n            \"WRITE_LATEST_ONLY\",\n        }\n        assert all(values == [0, 1] for values in gs.axes.values())\n        enumerated = gs.enumerate()\n>       assert len(enumerated) == 24\nE       AssertionError: assert 32 == 24\nE        +  where 32 = len([Genome(protocol='cicada', flags={'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 0, 'REUSE_VERSIO...ACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 1, 'REUSE_VERSION': 0, 'WRITE_LATEST_ONLY': 1}), ...])\n\norchestrator/tests/test_campaign.py:310: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes\n========================= 2 failed, 10 passed in 5.45s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=906 retained_bytes=906 omitted_bytes=0 rendered_excerpt_bytes=945 sha256=4cba57a28725272488a0a3c9d1e6f4554f093caf6c45eb03df3cfbc01a47e987\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():\n>         gs = genome.space_for(\"cicada\")\n>         assert gs.raw_size() == 32\n>         assert set(gs.axes) == {\n>             \"BACK_OFF\",\n>             \"INLINE_VERSION_OPT\",\n>             \"INLINE_VERSION_PROMOTION\",\n>             \"REUSE_VERSION\",\n>             \"WRITE_LATEST_ONLY\",\n>         }\n>         assert all(values == [0, 1] for values in gs.axes.values())\n>         enumerated = gs.enumerate()\n> >       assert len(enumerated) == 24\n> E       AssertionError: assert 32 == 24\n> E        +  where 32 = len([Genome(protocol='cicada', flags={'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 0, 'REUSE_VERSIO...ACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 1, 'REUSE_VERSION': 0, 'WRITE_LATEST_ONLY': 1}), ...])\n> \n> orchestrator/tests/test_campaign.py:310: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=647 retained_bytes=647 omitted_bytes=0 rendered_excerpt_bytes=686 sha256=b299d9a7b2df8e002f6750964a19533dd4663e290d69a40fd8ab08469eb0f245\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_requires_inline_opt_for_promotion():\n>         enumerated = genome.space_for(\"cicada\").enumerate()\n>         pairs = {\n>             (\n>                 item.flags[\"INLINE_VERSION_OPT\"],\n>                 item.flags[\"INLINE_VERSION_PROMOTION\"],\n>             )\n>             for item in enumerated\n>         }\n> >       assert pairs == {(0, 0), (1, 0), (1, 1)}\n> E       assert {(0, 0), (0, ...1, 0), (1, 1)} == {(0, 0), (1, 0), (1, 1)}\n> E         \n> E         Extra items in the left set:\n> E         (0, 1)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_campaign.py:324: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1553 retained_bytes=1553 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2781 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "08fd2b47bdf3728159000ed6102abf194473868ec9e44cae73914edb969f972d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+      "duration_s": 29.13,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes"
+      ],
+      "hang_risk": false,
+      "id": "M3-cicada-constraint-removed",
+      "injection_diff_sha256": "8b311e240ad71ea326a60b205876e874505e27f6b7b0c6f72b19d9df113d24e1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b9dac2e310fb9f8f582f19bc881c4d06cf1b6310522bfd8056e4d6c55ebb7e1e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "new": "    constraints=[],",
+          "old": "    constraints=[_cicada_promotion_requires_inline_opt],"
+        }
+      ],
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "KILLED",
+      "test_output_sha256": "08fd2b47bdf3728159000ed6102abf194473868ec9e44cae73914edb969f972d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d0a6f215e496efca1c3cabc13da766a8/izdw-d0a6f215e4.o966074",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d0a6f215e496efca1c3cabc13da766a8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n...........F                                                             [100%]\n=================================== FAILURES ===================================\n_____________ test_cicada_space_requires_inline_opt_for_promotion ______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_requires_inline_opt_for_promotion():\n        enumerated = genome.space_for(\"cicada\").enumerate()\n        pairs = {\n            (\n                item.flags[\"INLINE_VERSION_OPT\"],\n                item.flags[\"INLINE_VERSION_PROMOTION\"],\n            )\n            for item in enumerated\n        }\n>       assert pairs == {(0, 0), (1, 0), (1, 1)}\nE       assert {(0, 0), (0, 1), (1, 1)} == {(0, 0), (1, 0), (1, 1)}\nE         \nE         Extra items in the left set:\nE         (0, 1)\nE         Extra items in the right set:\nE         (1, 0)\nE         Use -v to get more diff\n\norchestrator/tests/test_campaign.py:324: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion\n========================= 1 failed, 11 passed in 5.36s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=698 retained_bytes=698 omitted_bytes=0 rendered_excerpt_bytes=741 sha256=23bf6f0765180755749bc899bcd8075a0f1fd2adc6eb201f8464fea0d1ee3c76\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_requires_inline_opt_for_promotion():\n>         enumerated = genome.space_for(\"cicada\").enumerate()\n>         pairs = {\n>             (\n>                 item.flags[\"INLINE_VERSION_OPT\"],\n>                 item.flags[\"INLINE_VERSION_PROMOTION\"],\n>             )\n>             for item in enumerated\n>         }\n> >       assert pairs == {(0, 0), (1, 0), (1, 1)}\n> E       assert {(0, 0), (0, 1), (1, 1)} == {(0, 0), (1, 0), (1, 1)}\n> E         \n> E         Extra items in the left set:\n> E         (0, 1)\n> E         Extra items in the right set:\n> E         (1, 0)\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_campaign.py:324: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=698 retained_bytes=698 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1451 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "37bcb51c4b044a2e796a34dfc0f750fe5ed87e7a15b0d5321998889063e66890"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+      "duration_s": 58.905,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion"
+      ],
+      "hang_risk": false,
+      "id": "M4-cicada-constraint-reversed",
+      "injection_diff_sha256": "e2479188c2e3a8fcfa7b149cd1faff8486d36d3d9cd8ea1cea65b0b469213687",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7b6c5074e4dd79360cdf3c12c6ee321ffc7183de267d089c22d5a71feddba4c6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "new": "    return (\n        not flags.get(\"INLINE_VERSION_OPT\", 0)\n        or bool(flags.get(\"INLINE_VERSION_PROMOTION\", 0))\n    )",
+          "old": "    return (\n        not flags.get(\"INLINE_VERSION_PROMOTION\", 0)\n        or bool(flags.get(\"INLINE_VERSION_OPT\", 0))\n    )"
+        }
+      ],
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "KILLED",
+      "test_output_sha256": "37bcb51c4b044a2e796a34dfc0f750fe5ed87e7a15b0d5321998889063e66890",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8f756d8493a681581617d49a6ad87758/izdw-8f756d8493.o966076",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8f756d8493a681581617d49a6ad87758/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n..........FF                                                             [100%]\n=================================== FAILURES ===================================\n_______ test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes ________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():\n        gs = genome.space_for(\"cicada\")\n>       assert gs.raw_size() == 32\nE       AssertionError: assert 64 == 32\nE        +  where 64 = raw_size()\nE        +    where raw_size = GenomeSpace(protocol='cicada', axes={'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0,...RSION_OPT の外側で印字し、起動時の option 表示だけは異なる。24 通りは YCSB workload での静的導出であり実測ではない。OPTIONS に bare define はなく、導出不能として残す候補もない。').raw_size\n\norchestrator/tests/test_campaign.py:300: AssertionError\n_ test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope _\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope():\n        \"\"\"notes の語句だけを検査し、C++ 側の事実そのものは検証しない。\"\"\"\n        gs = genome.space_for(\"cicada\")\n>       assert not {\n            \"SINGLE_EXEC\",\n            \"PARTITION_TABLE\",\n            \"WORKER1_INSERT_DELAY_RPHASE\",\n            \"INSERT_READ_DELAY_MS\",\n            \"INSERT_BATCH_DELAY_MS\",\n            \"TRACE\",\n        } & set(gs.axes)\nE       AssertionError: assert not ({'INSERT_BATCH_DELAY_MS', 'INSERT_READ_DELAY_MS', 'PARTITION_TABLE', 'SINGLE_EXEC', 'TRACE', 'WORKER1_INSERT_DELAY_RPHASE'} & {'BACK_OFF', 'INLINE_VERSION_OPT', 'INLINE_VERSION_PROMOTION', 'REUSE_VERSION', 'SINGLE_EXEC', 'WRITE_LATEST_ONLY'})\nE        +  where {'BACK_OFF', 'INLINE_VERSION_OPT', 'INLINE_VERSION_PROMOTION', 'REUSE_VERSION', 'SINGLE_EXEC', 'WRITE_LATEST_ONLY'} = set({'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0, 1], 'REUSE_VERSION': [0, 1], ...})\nE        +    where {'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0, 1], 'REUSE_VERSION': [0, 1], ...} = GenomeSpace(protocol='cicada', axes={'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0,...RSION_OPT の外側で印字し、起動時の option 表示だけは異なる。24 通りは YCSB workload での静的導出であり実測ではない。OPTIONS に bare define はなく、導出不能として残す候補もない。').axes\n\norchestrator/tests/test_campaign.py:330: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope\n========================= 2 failed, 10 passed in 5.43s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1621 retained_bytes=1621 omitted_bytes=0 rendered_excerpt_bytes=1913 sha256=71f7c91db63ab54f2d8a0f438734af758e5d4be8828ac3e7e30745f5b36803d6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope():\n>         \"\"\"notes \\u306e\\u8a9e\\u53e5\\u3060\\u3051\\u3092\\u691c\\u67fb\\u3057\\u3001C++ \\u5074\\u306e\\u4e8b\\u5b9f\\u305d\\u306e\\u3082\\u306e\\u306f\\u691c\\u8a3c\\u3057\\u306a\\u3044\\u3002\"\"\"\n>         gs = genome.space_for(\"cicada\")\n> >       assert not {\n>             \"SINGLE_EXEC\",\n>             \"PARTITION_TABLE\",\n>             \"WORKER1_INSERT_DELAY_RPHASE\",\n>             \"INSERT_READ_DELAY_MS\",\n>             \"INSERT_BATCH_DELAY_MS\",\n>             \"TRACE\",\n>         } & set(gs.axes)\n> E       AssertionError: assert not ({'INSERT_BATCH_DELAY_MS', 'INSERT_READ_DELAY_MS', 'PARTITION_TABLE', 'SINGLE_EXEC', 'TRACE', 'WORKER1_INSERT_DELAY_RPHASE'} & {'BACK_OFF', 'INLINE_VERSION_OPT', 'INLINE_VERSION_PROMOTION', 'REUSE_VERSION', 'SINGLE_EXEC', 'WRITE_LATEST_ONLY'})\n> E        +  where {'BACK_OFF', 'INLINE_VERSION_OPT', 'INLINE_VERSION_PROMOTION', 'REUSE_VERSION', 'SINGLE_EXEC', 'WRITE_LATEST_ONLY'} = set({'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0, 1], 'REUSE_VERSION': [0, 1], ...})\n> E        +    where {'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0, 1], 'REUSE_VERSION': [0, 1], ...} = GenomeSpace(protocol='cicada', axes={'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0,...RSION_OPT \\u306e\\u5916\\u5074\\u3067\\u5370\\u5b57\\u3057\\u3001\\u8d77\\u52d5\\u6642\\u306e option \\u8868\\u793a\\u3060\\u3051\\u306f\\u7570\\u306a\\u308b\\u300224 \\u901a\\u308a\\u306f YCSB workload \\u3067\\u306e\\u9759\\u7684\\u5c0e\\u51fa\\u3067\\u3042\\u308a\\u5b9f\\u6e2c\\u3067\\u306f\\u306a\\u3044\\u3002OPTIONS \\u306b bare define \\u306f\\u306a\\u304f\\u3001\\u5c0e\\u51fa\\u4e0d\\u80fd\\u3068\\u3057\\u3066\\u6b8b\\u3059\\u5019\\u88dc\\u3082\\u306a\\u3044\\u3002').axes\n> \n> orchestrator/tests/test_campaign.py:330: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=728 retained_bytes=728 omitted_bytes=0 rendered_excerpt_bytes=929 sha256=2f86d5479263634d812fb25b4ce018b2189bf0c0b88c6bc6be92896375efcfa4\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():\n>         gs = genome.space_for(\"cicada\")\n> >       assert gs.raw_size() == 32\n> E       AssertionError: assert 64 == 32\n> E        +  where 64 = raw_size()\n> E        +    where raw_size = GenomeSpace(protocol='cicada', axes={'BACK_OFF': [0, 1], 'INLINE_VERSION_OPT': [0, 1], 'INLINE_VERSION_PROMOTION': [0,...RSION_OPT \\u306e\\u5916\\u5074\\u3067\\u5370\\u5b57\\u3057\\u3001\\u8d77\\u52d5\\u6642\\u306e option \\u8868\\u793a\\u3060\\u3051\\u306f\\u7570\\u306a\\u308b\\u300224 \\u901a\\u308a\\u306f YCSB workload \\u3067\\u306e\\u9759\\u7684\\u5c0e\\u51fa\\u3067\\u3042\\u308a\\u5b9f\\u6e2c\\u3067\\u306f\\u306a\\u3044\\u3002OPTIONS \\u306b bare define \\u306f\\u306a\\u304f\\u3001\\u5c0e\\u51fa\\u4e0d\\u80fd\\u3068\\u3057\\u3066\\u6b8b\\u3059\\u5019\\u88dc\\u3082\\u306a\\u3044\\u3002').raw_size\n> \n> orchestrator/tests/test_campaign.py:300: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2349 retained_bytes=2349 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4027 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fdf6b9e1a940f568ce7bf539e4acc0eb13ca8d853dd58895902bd678459d7a33"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+      "duration_s": 27.543,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope"
+      ],
+      "hang_risk": false,
+      "id": "M5-cicada-single-exec-axis-added",
+      "injection_diff_sha256": "8055d9c25a895984c0e33f1fbd3117a2d417e8dc119081f57e4aaf5d2ee0f544",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ff4e4180814f9c48d063bd206c244aeefe641cdee3c9347d03e9980c9dea9f2f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "new": "        \"WRITE_LATEST_ONLY\": [0, 1],\n        \"SINGLE_EXEC\": [0, 1],",
+          "old": "        \"WRITE_LATEST_ONLY\": [0, 1],"
+        }
+      ],
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "KILLED",
+      "test_output_sha256": "fdf6b9e1a940f568ce7bf539e4acc0eb13ca8d853dd58895902bd678459d7a33",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c31056c27f43b9a1b766f565980e8d6d/izdw-c31056c27f.o966080",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c31056c27f43b9a1b766f565980e8d6d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n..........FF                                                             [100%]\n=================================== FAILURES ===================================\n_______ test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes ________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n        gs = genome.space_for(\"tictoc\")\n>       assert gs.raw_size() == 32\nE       AssertionError: assert 64 == 32\nE        +  where 64 = raw_size()\nE        +    where raw_size = GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...の完走性・公平性・starvation は tictoc では未実測であり、24 通りは YCSB workload での静的導出であって実測ではない。OPTIONS に bare define はなく、導出不能として残す候補もない。').raw_size\n\norchestrator/tests/test_campaign.py:255: AssertionError\n__ test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope ___\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope():\n        \"\"\"notes の語句だけを検査し、C++ 側の事実そのものは検証しない。\"\"\"\n        gs = genome.space_for(\"tictoc\")\n>       assert not {\"PARTITION_TABLE\", \"SLEEP_READ_PHASE\", \"TRACE\"} & set(gs.axes)\nE       AssertionError: assert not ({'PARTITION_TABLE', 'SLEEP_READ_PHASE', 'TRACE'} & {'BACK_OFF', 'NO_WAIT_LOCKING_IN_VALIDATION', 'NO_WAIT_OF_TICTOC', 'PARTITION_TABLE', 'PREEMPTIVE_ABORTS', 'TIMESTAMP_HISTORY'})\nE        +  where {'BACK_OFF', 'NO_WAIT_LOCKING_IN_VALIDATION', 'NO_WAIT_OF_TICTOC', 'PARTITION_TABLE', 'PREEMPTIVE_ABORTS', 'TIMESTAMP_HISTORY'} = set({'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC': [0, 1], 'PREEMPTIVE_ABORTS': [0, 1], ...})\nE        +    where {'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC': [0, 1], 'PREEMPTIVE_ABORTS': [0, 1], ...} = GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...の完走性・公平性・starvation は tictoc では未実測であり、24 通りは YCSB workload での静的導出であって実測ではない。OPTIONS に bare define はなく、導出不能として残す候補もない。').axes\n\norchestrator/tests/test_campaign.py:285: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope\n========================= 2 failed, 10 passed in 5.51s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1416 retained_bytes=1416 omitted_bytes=0 rendered_excerpt_bytes=1691 sha256=f8f0f4343f474408269c65c47fccbd4582c65cf5ab12c5779f8d5e52d89a043d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope():\n>         \"\"\"notes \\u306e\\u8a9e\\u53e5\\u3060\\u3051\\u3092\\u691c\\u67fb\\u3057\\u3001C++ \\u5074\\u306e\\u4e8b\\u5b9f\\u305d\\u306e\\u3082\\u306e\\u306f\\u691c\\u8a3c\\u3057\\u306a\\u3044\\u3002\"\"\"\n>         gs = genome.space_for(\"tictoc\")\n> >       assert not {\"PARTITION_TABLE\", \"SLEEP_READ_PHASE\", \"TRACE\"} & set(gs.axes)\n> E       AssertionError: assert not ({'PARTITION_TABLE', 'SLEEP_READ_PHASE', 'TRACE'} & {'BACK_OFF', 'NO_WAIT_LOCKING_IN_VALIDATION', 'NO_WAIT_OF_TICTOC', 'PARTITION_TABLE', 'PREEMPTIVE_ABORTS', 'TIMESTAMP_HISTORY'})\n> E        +  where {'BACK_OFF', 'NO_WAIT_LOCKING_IN_VALIDATION', 'NO_WAIT_OF_TICTOC', 'PARTITION_TABLE', 'PREEMPTIVE_ABORTS', 'TIMESTAMP_HISTORY'} = set({'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC': [0, 1], 'PREEMPTIVE_ABORTS': [0, 1], ...})\n> E        +    where {'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC': [0, 1], 'PREEMPTIVE_ABORTS': [0, 1], ...} = GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...\\u306e\\u5b8c\\u8d70\\u6027\\u30fb\\u516c\\u5e73\\u6027\\u30fbstarvation \\u306f tictoc \\u3067\\u306f\\u672a\\u5b9f\\u6e2c\\u3067\\u3042\\u308a\\u300124 \\u901a\\u308a\\u306f YCSB workload \\u3067\\u306e\\u9759\\u7684\\u5c0e\\u51fa\\u3067\\u3042\\u3063\\u3066\\u5b9f\\u6e2c\\u3067\\u306f\\u306a\\u3044\\u3002OPTIONS \\u306b bare define \\u306f\\u306a\\u304f\\u3001\\u5c0e\\u51fa\\u4e0d\\u80fd\\u3068\\u3057\\u3066\\u6b8b\\u3059\\u5019\\u88dc\\u3082\\u306a\\u3044\\u3002').axes\n> \n> orchestrator/tests/test_campaign.py:285: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=726 retained_bytes=726 omitted_bytes=0 rendered_excerpt_bytes=924 sha256=d680e6444937a7608163291cf6e46faec41b5502315f1d57f9cb8980eefa2f41\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n>         gs = genome.space_for(\"tictoc\")\n> >       assert gs.raw_size() == 32\n> E       AssertionError: assert 64 == 32\n> E        +  where 64 = raw_size()\n> E        +    where raw_size = GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...\\u306e\\u5b8c\\u8d70\\u6027\\u30fb\\u516c\\u5e73\\u6027\\u30fbstarvation \\u306f tictoc \\u3067\\u306f\\u672a\\u5b9f\\u6e2c\\u3067\\u3042\\u308a\\u300124 \\u901a\\u308a\\u306f YCSB workload \\u3067\\u306e\\u9759\\u7684\\u5c0e\\u51fa\\u3067\\u3042\\u3063\\u3066\\u5b9f\\u6e2c\\u3067\\u306f\\u306a\\u3044\\u3002OPTIONS \\u306b bare define \\u306f\\u306a\\u304f\\u3001\\u5c0e\\u51fa\\u4e0d\\u80fd\\u3068\\u3057\\u3066\\u6b8b\\u3059\\u5019\\u88dc\\u3082\\u306a\\u3044\\u3002').raw_size\n> \n> orchestrator/tests/test_campaign.py:255: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2142 retained_bytes=2142 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3791 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cb523ca187924677113e1e2a5128365d44a606f304006aac5c7402ea2e522da2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+      "duration_s": 27.708,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope"
+      ],
+      "hang_risk": false,
+      "id": "M6-tictoc-partition-table-axis-added",
+      "injection_diff_sha256": "4005a1b4dd4b9e2afb888823a758153e822af9ece920db2e706da56716822871",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e1cb8c44247d75281e67dd0080f340e5719384e0a1f0d74ee7fac1bc3c1c03df",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "new": "        \"TIMESTAMP_HISTORY\": [0, 1],\n        \"PARTITION_TABLE\": [0, 1],",
+          "old": "        \"TIMESTAMP_HISTORY\": [0, 1],"
+        }
+      ],
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "KILLED",
+      "test_output_sha256": "cb523ca187924677113e1e2a5128365d44a606f304006aac5c7402ea2e522da2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/daec87019abd87d60bb80bd905bb7759/izdw-daec87019a.o966081",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/daec87019abd87d60bb80bd905bb7759/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [12 items]\n\n.....FFFFFFF                                                             [100%]\n=================================== FAILURES ===================================\n___ test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair ____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():\n>       enumerated = genome.space_for(\"tictoc\").enumerate()\n\norchestrator/tests/test_campaign.py:271: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprotocol = 'tictoc'\n\n    def space_for(protocol: str) -> GenomeSpace:\n        if protocol not in SPACES:\n>           raise KeyError(f\"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})\")\nE           KeyError: \"未登録の protocol: tictoc (登録済み: ['mocc', 'silo'])\"\n\norchestrator/campaign/genome.py:217: KeyError\n____________________ test_tictoc_and_cicada_are_registered _____________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_and_cicada_are_registered():\n>       assert genome.space_for(\"tictoc\") is genome.TICTOC_SPACE\n\norchestrator/tests/test_campaign.py:249: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprotocol = 'tictoc'\n\n    def space_for(protocol: str) -> GenomeSpace:\n        if protocol not in SPACES:\n>           raise KeyError(f\"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})\")\nE           KeyError: \"未登録の protocol: tictoc (登録済み: ['mocc', 'silo'])\"\n\norchestrator/campaign/genome.py:217: KeyError\n_______ test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes ________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n>       gs = genome.space_for(\"tictoc\")\n\norchestrator/tests/test_campaign.py:254: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprotocol = 'tictoc'\n\n    def space_for(protocol: str) -> GenomeSpace:\n        if protocol not in SPACES:\n>           raise KeyError(f\"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})\")\nE           KeyError: \"未登録の protocol: tictoc (登録済み: ['mocc', 'silo'])\"\n\norchestrator/campaign/genome.py:217: KeyError\n_ test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope _\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope():\n        \"\"\"notes の語句だけを検査し、C++ 側の事実そのものは検証しない。\"\"\"\n>       gs = genome.space_for(\"cicada\")\n\norchestrator/tests/test_campaign.py:329: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprotocol = 'cicada'\n\n    def space_for(protocol: str) -> GenomeSpace:\n        if protocol not in SPACES:\n>           raise KeyError(f\"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})\")\nE           KeyError: \"未登録の protocol: cicada (登録済み: ['mocc', 'silo'])\"\n\norchestrator/campaign/genome.py:217: KeyError\n_______ test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes ________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():\n>       gs = genome.space_for(\"cicada\")\n\norchestrator/tests/test_campaign.py:299: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprotocol = 'cicada'\n\n    def space_for(protocol: str) -> GenomeSpace:\n        if protocol not in SPACES:\n>           raise KeyError(f\"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})\")\nE           KeyError: \"未登録の protocol: cicada (登録済み: ['mocc', 'silo'])\"\n\norchestrator/campaign/genome.py:217: KeyError\n_____________ test_cicada_space_requires_inline_opt_for_promotion ______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cicada_space_requires_inline_opt_for_promotion():\n>       enumerated = genome.space_for(\"cicada\").enumerate()\n\norchestrator/tests/test_campaign.py:316: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprotocol = 'cicada'\n\n    def space_for(protocol: str) -> GenomeSpace:\n        if protocol not in SPACES:\n>           raise KeyError(f\"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})\")\nE           KeyError: \"未登録の protocol: cicada (登録済み: ['mocc', 'silo'])\"\n\norchestrator/campaign/genome.py:217: KeyError\n__ test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope ___\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope():\n        \"\"\"notes の語句だけを検査し、C++ 側の事実そのものは検証しない。\"\"\"\n>       gs = genome.space_for(\"tictoc\")\n\norchestrator/tests/test_campaign.py:284: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprotocol = 'tictoc'\n\n    def space_for(protocol: str) -> GenomeSpace:\n        if protocol not in SPACES:\n>           raise KeyError(f\"未登録の protocol: {protocol} (登録済み: {sorted(SPACES)})\")\nE           KeyError: \"未登録の protocol: tictoc (登録済み: ['mocc', 'silo'])\"\n\norchestrator/campaign/genome.py:217: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes\nFAILED orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion\nFAILED orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope\n========================= 7 failed, 5 passed in 5.46s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=743 retained_bytes=743 omitted_bytes=0 rendered_excerpt_bytes=901 sha256=f979fdc1c2580c1b04b589fb743b21806946efb9fb817a991a93d84ec36c63e1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope():\n>         \"\"\"notes \\u306e\\u8a9e\\u53e5\\u3060\\u3051\\u3092\\u691c\\u67fb\\u3057\\u3001C++ \\u5074\\u306e\\u4e8b\\u5b9f\\u305d\\u306e\\u3082\\u306e\\u306f\\u691c\\u8a3c\\u3057\\u306a\\u3044\\u3002\"\"\"\n> >       gs = genome.space_for(\"cicada\")\n> \n> orchestrator/tests/test_campaign.py:329: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> protocol = 'cicada'\n> \n>     def space_for(protocol: str) -> GenomeSpace:\n>         if protocol not in SPACES:\n> >           raise KeyError(f\"\\u672a\\u767b\\u9332\\u306e protocol: {protocol} (\\u767b\\u9332\\u6e08\\u307f: {sorted(SPACES)})\")\n> E           KeyError: \"\\u672a\\u767b\\u9332\\u306e protocol: cicada (\\u767b\\u9332\\u6e08\\u307f: ['mocc', 'silo'])\"\n> \n> orchestrator/campaign/genome.py:217: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=733 retained_bytes=733 omitted_bytes=0 rendered_excerpt_bytes=891 sha256=385bb10fd139de5539667d633c17577a688cc03978dd3c111e8bdf9ddee99a56\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope():\n>         \"\"\"notes \\u306e\\u8a9e\\u53e5\\u3060\\u3051\\u3092\\u691c\\u67fb\\u3057\\u3001C++ \\u5074\\u306e\\u4e8b\\u5b9f\\u305d\\u306e\\u3082\\u306e\\u306f\\u691c\\u8a3c\\u3057\\u306a\\u3044\\u3002\"\"\"\n> >       gs = genome.space_for(\"tictoc\")\n> \n> orchestrator/tests/test_campaign.py:284: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> protocol = 'tictoc'\n> \n>     def space_for(protocol: str) -> GenomeSpace:\n>         if protocol not in SPACES:\n> >           raise KeyError(f\"\\u672a\\u767b\\u9332\\u306e protocol: {protocol} (\\u767b\\u9332\\u6e08\\u307f: {sorted(SPACES)})\")\n> E           KeyError: \"\\u672a\\u767b\\u9332\\u306e protocol: tictoc (\\u767b\\u9332\\u6e08\\u307f: ['mocc', 'silo'])\"\n> \n> orchestrator/campaign/genome.py:217: KeyError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=651 retained_bytes=651 omitted_bytes=0 rendered_excerpt_bytes=732 sha256=250b158a99a71896a8967c1556ef4ea32d15b2ca8a956ab9600b634c1a3571e2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():\n> >       enumerated = genome.space_for(\"tictoc\").enumerate()\n> \n> orchestrator/tests/test_campaign.py:271: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> protocol = 'tictoc'\n> \n>     def space_for(protocol: str) -> GenomeSpace:\n>         if protocol not in SPACES:\n> >           raise KeyError(f\"\\u672a\\u767b\\u9332\\u306e protocol: {protocol} (\\u767b\\u9332\\u6e08\\u307f: {sorted(SPACES)})\")\n> E           KeyError: \"\\u672a\\u767b\\u9332\\u306e protocol: tictoc (\\u767b\\u9332\\u6e08\\u307f: ['mocc', 'silo'])\"\n> \n> orchestrator/campaign/genome.py:217: KeyError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=631 retained_bytes=631 omitted_bytes=0 rendered_excerpt_bytes=712 sha256=c65dacfb9d8158fdae7d46e1d60533bdbdd5c251b58157b79495756029a2432b\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_requires_inline_opt_for_promotion():\n> >       enumerated = genome.space_for(\"cicada\").enumerate()\n> \n> orchestrator/tests/test_campaign.py:316: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> protocol = 'cicada'\n> \n>     def space_for(protocol: str) -> GenomeSpace:\n>         if protocol not in SPACES:\n> >           raise KeyError(f\"\\u672a\\u767b\\u9332\\u306e protocol: {protocol} (\\u767b\\u9332\\u6e08\\u307f: {sorted(SPACES)})\")\n> E           KeyError: \"\\u672a\\u767b\\u9332\\u306e protocol: cicada (\\u767b\\u9332\\u6e08\\u307f: ['mocc', 'silo'])\"\n> \n> orchestrator/campaign/genome.py:217: KeyError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=623 retained_bytes=623 omitted_bytes=0 rendered_excerpt_bytes=704 sha256=24736bedf9dffe0ad3f54861fb9ff45e5fc8250dfd816ef25c9614486666a601\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():\n> >       gs = genome.space_for(\"cicada\")\n> \n> orchestrator/tests/test_campaign.py:299: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> protocol = 'cicada'\n> \n>     def space_for(protocol: str) -> GenomeSpace:\n>         if protocol not in SPACES:\n> >           raise KeyError(f\"\\u672a\\u767b\\u9332\\u306e protocol: {protocol} (\\u767b\\u9332\\u6e08\\u307f: {sorted(SPACES)})\")\n> E           KeyError: \"\\u672a\\u767b\\u9332\\u306e protocol: cicada (\\u767b\\u9332\\u6e08\\u307f: ['mocc', 'silo'])\"\n> \n> orchestrator/campaign/genome.py:217: KeyError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=623 retained_bytes=623 omitted_bytes=0 rendered_excerpt_bytes=704 sha256=dbcbcc3522923e5ccf55a14d8ec3c1f58c81b9c39f26a6e9c3ada408d2dcc19e\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():\n> >       gs = genome.space_for(\"tictoc\")\n> \n> orchestrator/tests/test_campaign.py:254: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> protocol = 'tictoc'\n> \n>     def space_for(protocol: str) -> GenomeSpace:\n>         if protocol not in SPACES:\n> >           raise KeyError(f\"\\u672a\\u767b\\u9332\\u306e protocol: {protocol} (\\u767b\\u9332\\u6e08\\u307f: {sorted(SPACES)})\")\n> E           KeyError: \"\\u672a\\u767b\\u9332\\u306e protocol: tictoc (\\u767b\\u9332\\u6e08\\u307f: ['mocc', 'silo'])\"\n> \n> orchestrator/campaign/genome.py:217: KeyError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=622 retained_bytes=622 omitted_bytes=0 rendered_excerpt_bytes=703 sha256=3ac33646c0056a6c62245d20800150cd1dc96ea461f6df4b993486fa510e50f3\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tictoc_and_cicada_are_registered():\n> >       assert genome.space_for(\"tictoc\") is genome.TICTOC_SPACE\n> \n> orchestrator/tests/test_campaign.py:249: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> protocol = 'tictoc'\n> \n>     def space_for(protocol: str) -> GenomeSpace:\n>         if protocol not in SPACES:\n> >           raise KeyError(f\"\\u672a\\u767b\\u9332\\u306e protocol: {protocol} (\\u767b\\u9332\\u6e08\\u307f: {sorted(SPACES)})\")\n> E           KeyError: \"\\u672a\\u767b\\u9332\\u306e protocol: tictoc (\\u767b\\u9332\\u6e08\\u307f: ['mocc', 'silo'])\"\n> \n> orchestrator/campaign/genome.py:217: KeyError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=4626 retained_bytes=4626 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8697 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e443cd6ee97c6acb91844da5e120dd1494c1049e968b2c37330ce73cbb48db05"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b691d423efd7d0f100cfd96bb9c5f62d2edf80309128165e137bf9afe9d6c919",
+      "duration_s": 28.113,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+        "orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope"
+      ],
+      "hang_risk": false,
+      "id": "M7-registration-removed",
+      "injection_diff_sha256": "3b7b91120a971797e49f3fdf01c54a00dabf9ee1e42d28427886beddfecdd69b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c8e488f53511affa5a6c76496d7c20908e60f34da801992eccee1931fbab9d99",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/genome.py",
+          "new": "",
+          "old": "    \"tictoc\": TICTOC_SPACE,\n    \"cicada\": CICADA_SPACE,\n"
+        }
+      ],
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "KILLED",
+      "test_output_sha256": "e443cd6ee97c6acb91844da5e120dd1494c1049e968b2c37330ce73cbb48db05",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5c97f41e9e5dc4752dbbee3ac7b38d8d/izdw-5c97f41e9e.o966062",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5c97f41e9e5dc4752dbbee3ac7b38d8d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_silo_space_size_and_constraint\norchestrator/tests/test_campaign.py::test_mocc_space_has_eight_operable_ycsb_boolean_genomes\norchestrator/tests/test_campaign.py::test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope\norchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered\norchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes\norchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair\norchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope\norchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes\norchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion\norchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope\norchestrator/tests/test_campaign.py::test_enumerate_deterministic_order\norchestrator/tests/test_campaign.py::test_unbound_legacy_and_guided_campaigns_remain_readable\n\n12 tests collected in 1.68s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "16f6ffe14503ab7393b6f2f1c8947cd1bd49e258fd64e65600c8794b01be9bed"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_silo_space_size_and_constraint",
+        "orchestrator/tests/test_campaign.py::test_mocc_space_has_eight_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope",
+        "orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+        "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+        "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope",
+        "orchestrator/tests/test_campaign.py::test_enumerate_deterministic_order",
+        "orchestrator/tests/test_campaign.py::test_unbound_legacy_and_guided_campaigns_remain_readable"
+      ],
+      "duration_s": 26.935,
+      "rc": 0,
+      "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+      "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+      "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+      "status": "PASSED",
+      "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-tictoc-constraint-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1672973fb958b7baf33960c3b3870a6d411f9289dd1bacde152aab9a8c974cea",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/genome.py",
+            "new": "    constraints=[],",
+            "old": "    constraints=[_tictoc_no_wait_not_both],"
+          }
+        ]
+      },
+      "M2-tictoc-constraint-replaced-by-silo-xor": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "323273090faaab6eb8a5555b8f232ae71c1da9235fd7c613bf0e4c7d96df435f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/genome.py",
+            "new": "    return (flags.get(\"NO_WAIT_LOCKING_IN_VALIDATION\", 0)\n            != flags.get(\"NO_WAIT_OF_TICTOC\", 0))",
+            "old": "    return not (\n        flags.get(\"NO_WAIT_LOCKING_IN_VALIDATION\", 0)\n        and flags.get(\"NO_WAIT_OF_TICTOC\", 0)\n    )"
+          }
+        ]
+      },
+      "M3-cicada-constraint-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+          "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8b311e240ad71ea326a60b205876e874505e27f6b7b0c6f72b19d9df113d24e1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/genome.py",
+            "new": "    constraints=[],",
+            "old": "    constraints=[_cicada_promotion_requires_inline_opt],"
+          }
+        ]
+      },
+      "M4-cicada-constraint-reversed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e2479188c2e3a8fcfa7b149cd1faff8486d36d3d9cd8ea1cea65b0b469213687",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/genome.py",
+            "new": "    return (\n        not flags.get(\"INLINE_VERSION_OPT\", 0)\n        or bool(flags.get(\"INLINE_VERSION_PROMOTION\", 0))\n    )",
+            "old": "    return (\n        not flags.get(\"INLINE_VERSION_PROMOTION\", 0)\n        or bool(flags.get(\"INLINE_VERSION_OPT\", 0))\n    )"
+          }
+        ]
+      },
+      "M5-cicada-single-exec-axis-added": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+          "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8055d9c25a895984c0e33f1fbd3117a2d417e8dc119081f57e4aaf5d2ee0f544",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/genome.py",
+            "new": "        \"WRITE_LATEST_ONLY\": [0, 1],\n        \"SINGLE_EXEC\": [0, 1],",
+            "old": "        \"WRITE_LATEST_ONLY\": [0, 1],"
+          }
+        ]
+      },
+      "M6-tictoc-partition-table-axis-added": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4005a1b4dd4b9e2afb888823a758153e822af9ece920db2e706da56716822871",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/genome.py",
+            "new": "        \"TIMESTAMP_HISTORY\": [0, 1],\n        \"PARTITION_TABLE\": [0, 1],",
+            "old": "        \"TIMESTAMP_HISTORY\": [0, 1],"
+          }
+        ]
+      },
+      "M7-registration-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered",
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+          "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope",
+          "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+          "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+          "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3b7b91120a971797e49f3fdf01c54a00dabf9ee1e42d28427886beddfecdd69b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/genome.py",
+            "new": "",
+            "old": "    \"tictoc\": TICTOC_SPACE,\n    \"cicada\": CICADA_SPACE,\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ba2e3dc7b587a395e9f91beb2188051fb04812c480ab91ed096f12f90b79402c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_campaign.py::test_silo_space_size_and_constraint",
+      "orchestrator/tests/test_campaign.py::test_mocc_space_has_eight_operable_ycsb_boolean_genomes",
+      "orchestrator/tests/test_campaign.py::test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope",
+      "orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered",
+      "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+      "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+      "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope",
+      "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+      "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+      "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope",
+      "orchestrator/tests/test_campaign.py::test_enumerate_deterministic_order",
+      "orchestrator/tests/test_campaign.py::test_unbound_legacy_and_guided_campaigns_remain_readable",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "727ca869f751f8206eba025039faafca26ca5138",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_campaign.py::test_silo_space_size_and_constraint",
+      "orchestrator/tests/test_campaign.py::test_mocc_space_has_eight_operable_ycsb_boolean_genomes",
+      "orchestrator/tests/test_campaign.py::test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope",
+      "orchestrator/tests/test_campaign.py::test_tictoc_and_cicada_are_registered",
+      "orchestrator/tests/test_campaign.py::test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes",
+      "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair",
+      "orchestrator/tests/test_campaign.py::test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope",
+      "orchestrator/tests/test_campaign.py::test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes",
+      "orchestrator/tests/test_campaign.py::test_cicada_space_requires_inline_opt_for_promotion",
+      "orchestrator/tests/test_campaign.py::test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope",
+      "orchestrator/tests/test_campaign.py::test_enumerate_deterministic_order",
+      "orchestrator/tests/test_campaign.py::test_unbound_legacy_and_guided_campaigns_remain_readable",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "47f0833640f1febaa487ae3b2dcf82f167c57f7967ab4d6e582eaa0f9897020a",
+    "dispatch_head_blob_sha256": "47f0833640f1febaa487ae3b2dcf82f167c57f7967ab4d6e582eaa0f9897020a",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b7c1dd409f054883102af16e4b805de0e1fa8ff8",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "14f3a84e9f244c058f7c4867425ff7167be44329886f8ab6ab0635af763aaed9",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "5d60c41f946be565e1fa52f15ed988e2793935b53e2f9a99bae740efa2e99e86",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "3a31bd7d5f10a0bf0d15f6f1b4b3cf846d03bc1dafd9882b7d17cdce9604a471",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t2135/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "3a31bd7d5f10a0bf0d15f6f1b4b3cf846d03bc1dafd9882b7d17cdce9604a471"
+  },
+  "tool_sha256": "76f80ed438180433cd08e74d79940d6f19152c7dd6310f1a2dd0e0db20b3b93a",
+  "updated_at": "2026-09-01T16:43:32.416308+00:00"
+}

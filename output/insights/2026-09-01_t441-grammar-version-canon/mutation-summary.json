@@ -1,0 +1,120 @@
+{
+  "final": {
+    "summary": {
+      "KILLED": 12,
+      "MISMATCH": 0,
+      "PARSE_ERROR": 0,
+      "SURVIVED": 0,
+      "TIMEOUT": 0,
+      "completed": 12,
+      "matching": 12,
+      "recorded": 12,
+      "registered": 12
+    },
+    "repo_head": "c1c9339fea63f95e5150b8b39cd6e9ce052916f5",
+    "spec_sha256": "040dd92d07bc16240a3e9707febd8b83a665059bf18fe64a8679350572453c7a",
+    "baseline_rc": 0,
+    "baseline_failed_nodes": 0,
+    "mutations": [
+      {
+        "id": "M1-version-not-in-default-cfg",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 19,
+        "failed_node_count": 19
+      },
+      {
+        "id": "M2-version-not-passed-to-run-campaign",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 1,
+        "failed_node_count": 1
+      },
+      {
+        "id": "M3-drop-cfg-module-version-gate",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 1,
+        "failed_node_count": 1
+      },
+      {
+        "id": "M4-wal-writer-omits-version",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 97,
+        "failed_node_count": 97
+      },
+      {
+        "id": "M5-wal-reader-allows-missing-version",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 97,
+        "failed_node_count": 97
+      },
+      {
+        "id": "M6-canonicalizer-not-wired-into-quarantine",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 2,
+        "failed_node_count": 2
+      },
+      {
+        "id": "M8-drop-raw-digest-from-bound-token",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 1,
+        "failed_node_count": 1
+      },
+      {
+        "id": "M9-canonicalize-before-grammar-decision",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 1,
+        "failed_node_count": 1
+      },
+      {
+        "id": "M10-version-bound-into-stock",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 1,
+        "failed_node_count": 1
+      },
+      {
+        "id": "M11-rule-id-follows-grammar-version",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 8,
+        "failed_node_count": 8
+      },
+      {
+        "id": "M13-reject-identity-version-mismatch-allowed",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 1,
+        "failed_node_count": 1
+      },
+      {
+        "id": "M14-reject-helper-default-back-to-v1",
+        "status": "KILLED",
+        "matches_expectation": true,
+        "expected_node_count": 1,
+        "failed_node_count": 1
+      }
+    ]
+  },
+  "probe": {
+    "summary": {
+      "KILLED": 0,
+      "MISMATCH": 12,
+      "PARSE_ERROR": 0,
+      "SURVIVED": 0,
+      "TIMEOUT": 0,
+      "completed": 12,
+      "matching": 0,
+      "recorded": 12,
+      "registered": 12
+    },
+    "spec_sha256": "9e33915eae0406601edb454f036fa93ee848d349c91ba39cd7c9631ee54bc27d",
+    "note": "probe は全件 SURVIVED 期待で登録し観測 node を集める段。12 件すべてが MISMATCH = 実際は赤、が期待どおりの結果である。"
+  }
+}

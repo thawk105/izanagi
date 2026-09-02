@@ -71,6 +71,38 @@ def _no_wait_xor(flags: Dict[str, int]) -> bool:
             != flags.get("NO_WAIT_OF_TICTOC", 0))
 
 
+def _tictoc_no_wait_not_both(flags: Dict[str, int]) -> bool:
+    """tictoc の no-wait 対から #if/#elif の冗長な両 1 だけを除く。
+
+    (1,1) は #if が選ばれ #elif が dead code になるため (1,0) と挙動同一で冗長。
+    silo の XOR とは異なり、tictoc は外側 retry の write-set loop
+    (transaction.cc:556-557) の内側にある spin loop (transaction.cc:561-635) で
+    lock word を再読込する (transaction.cc:626) ため、silo で実測された
+    stale-expected livelock と同じ機構ではない。
+    限界として、競合下の完走性・公平性・starvation は tictoc では未実測であり、
+    この判定は静的導出であって実測ではない。
+    """
+    return not (
+        flags.get("NO_WAIT_LOCKING_IN_VALIDATION", 0)
+        and flags.get("NO_WAIT_OF_TICTOC", 0)
+    )
+
+
+def _cicada_promotion_requires_inline_opt(flags: Dict[str, int]) -> bool:
+    """promotion の CC / data path 上の冗長組を含意制約で除く。
+
+    data path の promotion site は transaction.cc:128-135 と
+    include/transaction.hh:199-215 で、いずれも #if INLINE_VERSION_OPT の内側に
+    あるため、(OPT,PROMOTION)=(0,1) は (0,0) と CC / data path の挙動が同一である。
+    限界として util.cc:330 の起動時 option 表示は INLINE_VERSION_OPT の外側で
+    promotion 値を印字するため、起動時の表示だけは異なる。
+    """
+    return (
+        not flags.get("INLINE_VERSION_PROMOTION", 0)
+        or bool(flags.get("INLINE_VERSION_OPT", 0))
+    )
+
+
 SILO_SPACE = GenomeSpace(
     protocol="silo",
     axes={
@@ -105,10 +137,80 @@ MOCC_SPACE = GenomeSpace(
 )
 
 
-# protocol 名 → 空間。D1360 の初手 mocc までを登録し、tictoc/cicada はまだ登録しない。
+# tictoc の現行 CMake から CLI で個別指定できる cache option の YCSB 向け空間。
+# 個別指定可能であることは全組合せが異なる挙動を持つことを意味せず、no-wait の
+# #if/#elif で両 1 が (1,0) と同じになる冗長は制約で除く。silo の XOR とは異なり、
+# tictoc は内側 spin loop で lock word を再読込するため同じ livelock 機構ではない。
+# PARTITION_TABLE は protocol / workload source と共通 header の全件検索で live site が
+# 無い死にフラグ、SLEEP_READ_PHASE は計測撹乱ノブなので除外する。競合下の進行性は
+# 未実測であり、24 は YCSB workload で静的に導出した数である。
+TICTOC_SPACE = GenomeSpace(
+    protocol="tictoc",
+    axes={
+        "BACK_OFF": [0, 1],
+        "NO_WAIT_LOCKING_IN_VALIDATION": [0, 1],
+        "NO_WAIT_OF_TICTOC": [0, 1],
+        "PREEMPTIVE_ABORTS": [0, 1],
+        "TIMESTAMP_HISTORY": [0, 1],
+    },
+    constraints=[_tictoc_no_wait_not_both],
+    notes="tictoc の現行 CMake から CLI で個別指定できる cache option の YCSB 向け空間。"
+          "CLI から個別指定できることは全組合せが異なる挙動を持つことを意味せず、"
+          "後者は制約述語で扱う。PARTITION_TABLE は protocol の .cc/.hh、workload source、"
+          "共通 header の全件検索で live site が無い死にフラグ、SLEEP_READ_PHASE は "
+          "transaction.cc:68-70 の計測撹乱ノブなので除外する。no-wait の (1,1) は #if が"
+          "選ばれ #elif が dead code になるため (1,0) と挙動同一で冗長。silo の XOR とは"
+          "異なり、外側 retry は write-set loop (transaction.cc:556-557)、内側 spin loop は "
+          "transaction.cc:561-635 で、lock word を transaction.cc:626 で再読込するため、"
+          "silo で実測された "
+          "stale-expected livelock と同じ機構ではない。競合下の完走性・公平性・starvation は "
+          "tictoc では未実測であり、24 通りは YCSB workload での静的導出であって実測ではない。"
+          "OPTIONS に bare define はなく、導出不能として残す候補もない。",
+)
+
+
+# cicada の現行 CMake から CLI で個別指定できる cache option の YCSB 向け空間。
+# SINGLE_EXEC は多版から単版へ測定対象を変えるため除外し、WRITE_LATEST_ONLY は読み側の
+# 可視性を変えず保守側に余分な abort を加える最適化軸として含める。PARTITION_TABLE は
+# print 専用で README と現行コードが食い違い、3 件の delay option は計測撹乱ノブである。
+# promotion の冗長組は含意制約で除くが起動時表示は異なる。24 は YCSB workload での
+# 静的導出であり、実測値ではない。
+CICADA_SPACE = GenomeSpace(
+    protocol="cicada",
+    axes={
+        "BACK_OFF": [0, 1],
+        "INLINE_VERSION_OPT": [0, 1],
+        "INLINE_VERSION_PROMOTION": [0, 1],
+        "REUSE_VERSION": [0, 1],
+        "WRITE_LATEST_ONLY": [0, 1],
+    },
+    constraints=[_cicada_promotion_requires_inline_opt],
+    notes="cicada の現行 CMake から CLI で個別指定できる cache option の YCSB 向け多版 "
+          "MVCC 最適化空間。CLI から個別指定できることは全組合せが異なる挙動を持つことを"
+          "意味せず、後者は制約述語で扱う。SINGLE_EXEC は多版から単版へ変えて測るもの"
+          "そのものを変えるため除外する。軸から外した SINGLE_EXEC は -DCCBENCH_* に現れず、"
+          "fresh configure では Options.cmake の default 0 に落ちるが、既存の非標準 CMakeCache を"
+          "戻す主張ではない。この説明は数値 boolean の SINGLE_EXEC に限定し、delay 系の default は "
+          "0 ではなく空値 (unset) である。PARTITION_TABLE は print 専用で、README の説明と"
+          "現行コードが食い違う。"
+          "WORKER1_INSERT_DELAY_RPHASE、INSERT_READ_DELAY_MS、INSERT_BATCH_DELAY_MS は"
+          "計測撹乱ノブとして除外する。WRITE_LATEST_ONLY は読み側の可視性が不変で、保守側に"
+          "余分に abort する最適化軸として含める。作用点は transaction.cc:242-262 の blind write 側と "
+          "transaction.cc:490-529 の validation 側にある。(OPT,PROMOTION)=(0,1) は data path の "
+          "promotion site が transaction.cc:128-135 と include/transaction.hh:199-215 の"
+          "いずれも #if INLINE_VERSION_OPT の内側にあるため、(0,0) と CC / data path の挙動が"
+          "同一で冗長。ただし util.cc:330 は promotion 値を INLINE_VERSION_OPT の外側で印字し、"
+          "起動時の option 表示だけは異なる。24 通りは YCSB workload での静的導出であり"
+          "実測ではない。OPTIONS に bare define はなく、導出不能として残す候補もない。",
+)
+
+
+# protocol 名 → 空間。D1360 の初手から拡張し、silo / mocc / tictoc / cicada を登録する。
 SPACES: Dict[str, GenomeSpace] = {
     "silo": SILO_SPACE,
     "mocc": MOCC_SPACE,
+    "tictoc": TICTOC_SPACE,
+    "cicada": CICADA_SPACE,
 }
 
 

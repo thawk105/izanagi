@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1500,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "M1-LOCAL-E0-RAISE-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "old": "    if recorded.diagnostic.state == \"E0\":\n        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M2-PURPOSE-BACK-TO-CERTIFIED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "old": "        recorded, CampaignReadPurpose.HISTORICAL_RAW,\n",
+          "new": "        recorded, CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M3-CENTRAL-GATE-CALL-REMOVED",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "old": "    return artifact_admission._require_verifier_epoch_for_purpose(\n        recorded, CampaignReadPurpose.HISTORICAL_RAW,\n    )\n",
+          "new": "    return recorded.diagnostic\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M4-E0-WRONG-EXCEPTION-TYPE",
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_report.py",
+          "old": "        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n",
+          "new": "        raise ArtifactAdmissionError(\"E0 rejected\")\n"
+        }
+      ]
+    }
+  ]
+}
