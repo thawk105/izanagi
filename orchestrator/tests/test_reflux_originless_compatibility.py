@@ -880,7 +880,7 @@ def _project_t1749_receipt_v4_to_v1(
     assert type(acceptance) is dict
     assert type(reports) is list
     assert type(journals) is list
-    assert acceptance["schema_version"] == "p3-8c-trial-acceptance-receipt/v4"
+    assert acceptance["schema_version"] == "p3-8c-trial-acceptance-receipt/v5"
     assert acceptance["certifying"] is False
     assert acceptance["non_certifying_reason_codes"] == [
         "no-build",
@@ -888,6 +888,14 @@ def _project_t1749_receipt_v4_to_v1(
     ]
     aggregate = acceptance.pop("cross_binding_receipt_sha256")
     assert type(aggregate) is str and len(aggregate) == 64
+    attempt_path = acceptance.pop("attempt_registry_path")
+    attempt_prefix_bytes = acceptance.pop("attempt_registry_prefix_bytes")
+    attempt_prefix_sha256 = acceptance.pop("attempt_registry_prefix_sha256")
+    attempt_projection = acceptance.pop("attempt_slot_projection")
+    assert attempt_path == "output/s8c-preregistration/attempt-registry.jsonl"
+    assert type(attempt_prefix_bytes) is int and attempt_prefix_bytes > 0
+    assert type(attempt_prefix_sha256) is str and len(attempt_prefix_sha256) == 64
+    assert type(attempt_projection) is dict
     current_activation_digest = acceptance[
         "activation_report_digest_sha256"
     ]

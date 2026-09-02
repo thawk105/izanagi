@@ -20,16 +20,22 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from . import attempt_registry_core as _attempt_core
+
 
 LEGACY_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v1"
 PREVIOUS_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v2"
 CROSS_BINDING_V1_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v3"
-SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v4"
+CROSS_BINDING_V2_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v4"
+SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v5"
 LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION = (
     "p3-8c-cross-binding-receipt/v1"
 )
 CROSS_BINDING_RECEIPT_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v2"
 DEFAULT_RECEIPT_DIR = PurePosixPath("output/s8c-trial-registry/receipts")
+DEFAULT_ATTEMPT_REGISTRY_PATH = PurePosixPath(
+    "output/s8c-preregistration/attempt-registry.jsonl"
+)
 LEGACY_MANDATORY_NON_CERTIFYING_REASONS = frozenset({
     "c02-arm-binding-unproven",
     "t468-approval-authority-absent",
@@ -64,7 +70,13 @@ _V3_TOP_LEVEL_KEYS = _BASE_TOP_LEVEL_KEYS | {
     "cross_binding_receipt_sha256",
 }
 _V4_TOP_LEVEL_KEYS = _V3_TOP_LEVEL_KEYS
-_TOP_LEVEL_KEYS = _V4_TOP_LEVEL_KEYS
+_V5_TOP_LEVEL_KEYS = _V4_TOP_LEVEL_KEYS | {
+    "attempt_registry_path",
+    "attempt_registry_prefix_bytes",
+    "attempt_registry_prefix_sha256",
+    "attempt_slot_projection",
+}
+_TOP_LEVEL_KEYS = _V5_TOP_LEVEL_KEYS
 _V1_TRIAL_KEYS = frozenset({
     "trial_id",
     "arm",
@@ -85,6 +97,72 @@ _V3_TRIAL_KEYS_WITH_ORIGIN = (
 )
 _V4_TRIAL_KEYS = _V3_TRIAL_KEYS
 _V4_TRIAL_KEYS_WITH_ORIGIN = _V3_TRIAL_KEYS_WITH_ORIGIN
+_V5_TRIAL_KEYS = _V4_TRIAL_KEYS
+_V5_TRIAL_KEYS_WITH_ORIGIN = _V4_TRIAL_KEYS_WITH_ORIGIN
+_ATTEMPT_SLOT_PROJECTION_KEYS = frozenset({
+    "prereg_generation", "unit_count", "units",
+})
+_ATTEMPT_UNIT_KEYS = frozenset({
+    "slot_id", "trial_id", "arm", "holdout", "campaign_id",
+    "replicate_index",
+})
+_ATTEMPT_SCHEMA_VERSION = "p3-8c-attempt-registry/v3"
+_ATTEMPT_CHAIN_KEYS = frozenset({
+    "event_index", "previous_event_sha256", "event_sha256",
+})
+_ATTEMPT_GENESIS_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "manifest_path",
+    "manifest_sha256", "root_path", "retryable_failure_reasons", "slots",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_SLOT_KEYS = frozenset({
+    "slot_id", "trial_id", "arm", "holdout", "campaign_id",
+    "prereg_generation", "replicate_index", "attempt_index",
+    "schedule_row_sha256",
+})
+_ATTEMPT_START_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "run_start_receipt_sha256", "process_identity", "schedule_row_sha256",
+    "started_at",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_PRE_OBSERVATION_SEAL_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "start_event_sha256", "run_start_receipt_sha256", "process_identity",
+    "schedule_row_sha256",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_CLASSIFICATION_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "classification_receipt_sha256", "capability_digest_sha256",
+    "authority_id", "authority_policy_sha256", "external_evidence_sha256",
+    "classified_at", "pre_observation_failure_reason",
+    "pre_observation_seal_sha256",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_OBSERVATION_START_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "classification_event_sha256",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_TERMINAL_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "classification_receipt_sha256", "terminal_status", "raw_output_sha256",
+    "report_sha256", "observation_sha256", "primary_value", "failure_reason",
+    "pre_observation_failure_reason_echo", "observation_start_event_sha256",
+    "finished_at", "schedule_row_sha256", "process_identity",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_RECEIPT_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "capability_digest_sha256", "authority_id", "authority_policy_sha256",
+    "external_evidence_sha256", "classified_at",
+    "pre_observation_failure_reason", "pre_observation_seal_sha256",
+})
+_ATTEMPT_RETRYABLE_REASONS = frozenset({
+    "preempted", "wall-timeout", "node-failure", "launcher-failure",
+})
+_ATTEMPT_STATUSES = (
+    "observed", "retryable-failure", "terminal-failure", "not-consumed",
+)
+_PROCESS_IDENTITY_KEYS = frozenset({"pid", "starttime", "execution_uuid"})
 _ARM_EXECUTION_KEYS = frozenset({
     "input_schema_version",
     "content_digest_sha256",
@@ -130,6 +208,23 @@ class AcceptanceReceiptTrial:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class AcceptanceReceiptAttemptUnit:
+    slot_id: str
+    trial_id: str
+    arm: str
+    holdout: str
+    campaign_id: str
+    replicate_index: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class AcceptanceReceiptAttemptSlotProjection:
+    prereg_generation: int
+    unit_count: int
+    units: tuple[AcceptanceReceiptAttemptUnit, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class AcceptanceReceipt:
     schema_version: str
     manifest_path: str
@@ -142,6 +237,10 @@ class AcceptanceReceipt:
     lifecycle_path: str
     lifecycle_prefix_bytes: int
     lifecycle_prefix_sha256: str
+    attempt_registry_path: str | None
+    attempt_registry_prefix_bytes: int | None
+    attempt_registry_prefix_sha256: str | None
+    attempt_slot_projection: AcceptanceReceiptAttemptSlotProjection | None
     certifying: bool
     non_certifying_reason_codes: tuple[str, ...]
     cross_binding_receipt_sha256: str | None
@@ -219,7 +318,7 @@ def _cross_binding_aggregate_sha256_for_schema(
 def cross_binding_aggregate_sha256(
     trials: Sequence[Mapping[str, Any]],
 ) -> str:
-    """Hash cross-binding v2 leaves for newly issued outer receipt v4 bytes."""
+    """Hash cross-binding v2 leaves for newly issued outer receipt v5 bytes."""
     return _cross_binding_aggregate_sha256_for_schema(
         trials,
         cross_binding_schema_version=CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
@@ -291,6 +390,269 @@ def _require_posix_path(value: Any, label: str) -> str:
     ):
         _fail("receipt-path", f"{label} is not canonical: {value!r}")
     return value
+
+
+def _attempt_text(value: object, *, label: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > 256:
+        _fail(
+            "receipt-attempt-registry",
+            f"{label} is not a bounded non-empty string",
+        )
+    return value
+
+
+def _attempt_digest(value: object, *, label: str) -> str:
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+        _fail("receipt-attempt-registry", f"{label} is not a SHA-256")
+    return value
+
+
+class _ReceiptAttemptSlotCodec:
+    exact_keys = _ATTEMPT_SLOT_KEYS
+
+    def parse(self, value: object, *, label: str) -> dict[str, Any]:
+        if not isinstance(value, Mapping):
+            _fail("receipt-attempt-registry", f"{label} is not an object")
+        if frozenset(value) != self.exact_keys:
+            _fail("receipt-attempt-registry", f"{label} exact keys differ")
+        slot_id = _attempt_text(value.get("slot_id"), label=f"{label}.slot_id")
+        trial_id = value.get("trial_id")
+        if (
+            not isinstance(trial_id, str)
+            or _TRIAL_ID_RE.fullmatch(trial_id) is None
+        ):
+            _fail("receipt-attempt-registry", f"{label}.trial_id is invalid")
+        arm = value.get("arm")
+        holdout = value.get("holdout")
+        if arm not in {"on", "off", "swapped"}:
+            _fail("receipt-attempt-registry", f"{label}.arm is invalid")
+        if holdout not in {"H1", "H2"}:
+            _fail("receipt-attempt-registry", f"{label}.holdout is invalid")
+        campaign_id = _attempt_text(
+            value.get("campaign_id"), label=f"{label}.campaign_id",
+        )
+        prereg_generation = value.get("prereg_generation")
+        replicate_index = value.get("replicate_index")
+        attempt_index = value.get("attempt_index")
+        if type(prereg_generation) is not int or prereg_generation < 1:
+            _fail(
+                "receipt-attempt-registry",
+                f"{label}.prereg_generation is invalid",
+            )
+        for field, raw in (
+            ("replicate_index", replicate_index),
+            ("attempt_index", attempt_index),
+        ):
+            if type(raw) is not int or raw < 0:
+                _fail(
+                    "receipt-attempt-registry", f"{label}.{field} is invalid",
+                )
+        schedule = _attempt_digest(
+            value.get("schedule_row_sha256"),
+            label=f"{label}.schedule_row_sha256",
+        )
+        return {
+            "slot_id": slot_id,
+            "trial_id": trial_id,
+            "arm": arm,
+            "holdout": holdout,
+            "campaign_id": campaign_id,
+            "prereg_generation": prereg_generation,
+            "replicate_index": replicate_index,
+            "attempt_index": attempt_index,
+            "schedule_row_sha256": schedule,
+        }
+
+    def to_json(self, slot: Mapping[str, Any]) -> dict[str, Any]:
+        return dict(slot)
+
+    def slot_id(self, slot: Mapping[str, Any]) -> str:
+        return slot["slot_id"]
+
+    def series_key(self, slot: Mapping[str, Any]) -> tuple[object, ...]:
+        return (
+            slot["trial_id"], slot["arm"], slot["holdout"],
+            slot["campaign_id"], slot["replicate_index"],
+        )
+
+    def attempt_ordinal(self, slot: Mapping[str, Any]) -> int:
+        return slot["attempt_index"]
+
+    def schedule_sha256(self, slot: Mapping[str, Any]) -> str:
+        return slot["schedule_row_sha256"]
+
+
+class _ReceiptAttemptBindingCodec:
+    event_keys = frozenset({
+        "prereg_content_commit", "prereg_effective_commit",
+    })
+
+    def parse(
+        self, row: Mapping[str, object], *, label: str,
+    ) -> tuple[str, str]:
+        return (
+            _require_commit(
+                row.get("prereg_content_commit"),
+                f"{label}.prereg_content_commit",
+            ),
+            _require_commit(
+                row.get("prereg_effective_commit"),
+                f"{label}.prereg_effective_commit",
+            ),
+        )
+
+    def to_event_fields(self, binding: tuple[str, str]) -> dict[str, Any]:
+        return {
+            "prereg_content_commit": binding[0],
+            "prereg_effective_commit": binding[1],
+        }
+
+    def identity(self, binding: tuple[str, str]) -> tuple[str, str]:
+        return binding
+
+    def capability_payload(
+        self,
+        *,
+        slot: Mapping[str, Any],
+        binding: tuple[str, str],
+        freeze_id: str,
+    ) -> dict[str, Any]:
+        del freeze_id
+        return {
+            "slot_id": slot["slot_id"],
+            "trial_id": slot["trial_id"],
+            "arm": slot["arm"],
+            "holdout": slot["holdout"],
+            "campaign_id": slot["campaign_id"],
+            "prereg_generation": slot["prereg_generation"],
+            "replicate_index": slot["replicate_index"],
+            "attempt_index": slot["attempt_index"],
+            "schedule_row_sha256": slot["schedule_row_sha256"],
+            "prereg_content_commit": binding[0],
+            "prereg_effective_commit": binding[1],
+        }
+
+
+_RECEIPT_ATTEMPT_PROFILE = _attempt_core.DomainProfile(
+    schema=_attempt_core.SchemaProfile(
+        current=_ATTEMPT_SCHEMA_VERSION,
+        readable=frozenset({_ATTEMPT_SCHEMA_VERSION}),
+        genesis_keys={_ATTEMPT_SCHEMA_VERSION: _ATTEMPT_GENESIS_KEYS},
+        event_keys={
+            _ATTEMPT_SCHEMA_VERSION: {
+                "start": _ATTEMPT_START_KEYS,
+                "pre-observation-seal": _ATTEMPT_PRE_OBSERVATION_SEAL_KEYS,
+                "classification": _ATTEMPT_CLASSIFICATION_KEYS,
+                "observation-start": _ATTEMPT_OBSERVATION_START_KEYS,
+                "terminal": _ATTEMPT_TERMINAL_KEYS,
+            },
+        },
+        receipt_keys={_ATTEMPT_SCHEMA_VERSION: _ATTEMPT_RECEIPT_KEYS},
+    ),
+    layout=_attempt_core.RegistryLayout(
+        registry_path=DEFAULT_ATTEMPT_REGISTRY_PATH,
+        classification_receipt_dir=PurePosixPath(
+            "output/s8c-trial-registry/classification-receipts"
+        ),
+    ),
+    statuses=_ATTEMPT_STATUSES,
+    retryable_reasons=_ATTEMPT_RETRYABLE_REASONS,
+    slot_codec=_ReceiptAttemptSlotCodec(),
+    binding_codec=_ReceiptAttemptBindingCodec(),
+    transition_policy=_attempt_core.TransitionPolicy(
+        require_previous_terminal=True,
+        forbid_retry_after_observation=True,
+        allow_recovered_abandonment=False,
+        max_series_attempts=None,
+        require_terminal_reason_equals_classification=True,
+        budget_key=None,
+        max_consumptions_per_budget_key=None,
+    ),
+    process_identity_keys=_PROCESS_IDENTITY_KEYS,
+    build_genesis_fields=lambda freeze_id, manifest_path, manifest_sha256: {
+        "freeze_id": freeze_id,
+        "manifest_path": manifest_path.as_posix(),
+        "manifest_sha256": manifest_sha256,
+    },
+    freeze_id_from_genesis=lambda genesis: str(genesis["freeze_id"]),
+    binding_conflict_message="attempt rows do not share one P/C pair",
+)
+
+
+def _parse_attempt_slot_projection(
+    value: object,
+) -> AcceptanceReceiptAttemptSlotProjection:
+    if not isinstance(value, Mapping):
+        _fail("receipt-schema", "attempt_slot_projection is not an object")
+    _exact_keys(
+        value, _ATTEMPT_SLOT_PROJECTION_KEYS, "attempt_slot_projection",
+    )
+    prereg_generation = value["prereg_generation"]
+    unit_count = value["unit_count"]
+    if type(prereg_generation) is not int or prereg_generation < 1:
+        _fail(
+            "receipt-schema",
+            "attempt_slot_projection.prereg_generation is not a positive int",
+        )
+    if type(unit_count) is not int or unit_count < 1:
+        _fail(
+            "receipt-schema",
+            "attempt_slot_projection.unit_count is not a positive int",
+        )
+    raw_units = value["units"]
+    if not isinstance(raw_units, list) or len(raw_units) != unit_count:
+        _fail(
+            "receipt-schema",
+            "attempt_slot_projection units differ from unit_count",
+        )
+    units: list[AcceptanceReceiptAttemptUnit] = []
+    for index, raw in enumerate(raw_units):
+        if not isinstance(raw, Mapping):
+            _fail("receipt-schema", f"attempt units[{index}] is not an object")
+        _exact_keys(raw, _ATTEMPT_UNIT_KEYS, f"attempt units[{index}]")
+        slot_id = _attempt_text(
+            raw.get("slot_id"), label=f"attempt units[{index}].slot_id",
+        )
+        trial_id = raw.get("trial_id")
+        if (
+            not isinstance(trial_id, str)
+            or _TRIAL_ID_RE.fullmatch(trial_id) is None
+        ):
+            _fail("receipt-schema", f"attempt units[{index}].trial_id is invalid")
+        arm = raw.get("arm")
+        holdout = raw.get("holdout")
+        campaign_id = raw.get("campaign_id")
+        replicate_index = raw.get("replicate_index")
+        if arm not in {"on", "off", "swapped"}:
+            _fail("receipt-schema", f"attempt units[{index}].arm is invalid")
+        if holdout not in {"H1", "H2"}:
+            _fail("receipt-schema", f"attempt units[{index}].holdout is invalid")
+        if not isinstance(campaign_id, str) or not campaign_id:
+            _fail(
+                "receipt-schema", f"attempt units[{index}].campaign_id is invalid",
+            )
+        if type(replicate_index) is not int or replicate_index != 0:
+            _fail(
+                "receipt-attempt-projection",
+                "attempt unit replicate_index must remain zero",
+            )
+        units.append(AcceptanceReceiptAttemptUnit(
+            slot_id=slot_id,
+            trial_id=trial_id,
+            arm=arm,
+            holdout=holdout,
+            campaign_id=campaign_id,
+            replicate_index=replicate_index,
+        ))
+    if [unit.slot_id for unit in units] != sorted(unit.slot_id for unit in units):
+        _fail("receipt-schema", "attempt units are not sorted by slot_id")
+    if len({unit.slot_id for unit in units}) != len(units):
+        _fail("receipt-schema", "attempt units reuse a slot_id")
+    return AcceptanceReceiptAttemptSlotProjection(
+        prereg_generation=prereg_generation,
+        unit_count=unit_count,
+        units=tuple(units),
+    )
 
 
 def _require_nonempty_reason_codes(value: Any) -> tuple[str, ...]:
@@ -369,15 +731,19 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         _fail("receipt-schema", "receipt.schema_version is missing")
     schema_version = value["schema_version"]
     if schema_version not in {
-        LEGACY_SCHEMA_VERSION, PREVIOUS_SCHEMA_VERSION,
-        CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+        LEGACY_SCHEMA_VERSION,
+        PREVIOUS_SCHEMA_VERSION,
+        CROSS_BINDING_V1_SCHEMA_VERSION,
+        CROSS_BINDING_V2_SCHEMA_VERSION,
+        SCHEMA_VERSION,
     }:
         _fail("receipt-schema", "unsupported schema_version")
     expected_top_keys = {
         LEGACY_SCHEMA_VERSION: _V1_TOP_LEVEL_KEYS,
         PREVIOUS_SCHEMA_VERSION: _V2_TOP_LEVEL_KEYS,
         CROSS_BINDING_V1_SCHEMA_VERSION: _V3_TOP_LEVEL_KEYS,
-        SCHEMA_VERSION: _V4_TOP_LEVEL_KEYS,
+        CROSS_BINDING_V2_SCHEMA_VERSION: _V4_TOP_LEVEL_KEYS,
+        SCHEMA_VERSION: _V5_TOP_LEVEL_KEYS,
     }[schema_version]
     _exact_keys(value, expected_top_keys, "receipt")
 
@@ -409,16 +775,48 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
     cross_binding_digest = (
         None
         if schema_version not in {
-            CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+            CROSS_BINDING_V1_SCHEMA_VERSION,
+            CROSS_BINDING_V2_SCHEMA_VERSION,
+            SCHEMA_VERSION,
         }
         else _require_sha256(
             value["cross_binding_receipt_sha256"],
             "cross_binding_receipt_sha256",
         )
     )
+    if schema_version == SCHEMA_VERSION:
+        attempt_registry_path = _require_posix_path(
+            value["attempt_registry_path"], "attempt_registry_path",
+        )
+        if attempt_registry_path != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
+            _fail(
+                "receipt-attempt-registry",
+                "attempt_registry_path is not canonical",
+            )
+        attempt_registry_prefix_bytes = value["attempt_registry_prefix_bytes"]
+        if (
+            type(attempt_registry_prefix_bytes) is not int
+            or attempt_registry_prefix_bytes < 1
+        ):
+            _fail(
+                "receipt-schema",
+                "attempt_registry_prefix_bytes is not a positive int",
+            )
+        attempt_registry_prefix_sha256 = _require_sha256(
+            value["attempt_registry_prefix_sha256"],
+            "attempt_registry_prefix_sha256",
+        )
+        attempt_slot_projection = _parse_attempt_slot_projection(
+            value["attempt_slot_projection"]
+        )
+    else:
+        attempt_registry_path = None
+        attempt_registry_prefix_bytes = None
+        attempt_registry_prefix_sha256 = None
+        attempt_slot_projection = None
 
-    # Both generations structurally record unresolved approval authority.
-    # No accepted bytes can turn either generation into a certifying receipt.
+    # Every schema generation structurally records unresolved approval authority.
+    # No accepted bytes can turn any generation into a certifying receipt.
     if value["certifying"] is not False:
         _fail("receipt-certifying", "receipts are structurally non-certifying")
     reasons = _require_nonempty_reason_codes(value["non_certifying_reason_codes"])
@@ -439,11 +837,17 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             if schema_version == LEGACY_SCHEMA_VERSION
             else (
                 (
+                    _V5_TRIAL_KEYS_WITH_ORIGIN
+                    if "origin_terminal_projection" in raw
+                    else _V5_TRIAL_KEYS
+                )
+                if schema_version == SCHEMA_VERSION
+                else (
                     _V4_TRIAL_KEYS_WITH_ORIGIN
                     if "origin_terminal_projection" in raw
                     else _V4_TRIAL_KEYS
                 )
-                if schema_version == SCHEMA_VERSION
+                if schema_version == CROSS_BINDING_V2_SCHEMA_VERSION
                 else (
                     _V3_TRIAL_KEYS_WITH_ORIGIN
                     if "origin_terminal_projection" in raw
@@ -506,7 +910,9 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             cross_binding_receipt_sha256=(
                 None
                 if schema_version not in {
-                    CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+                    CROSS_BINDING_V1_SCHEMA_VERSION,
+                    CROSS_BINDING_V2_SCHEMA_VERSION,
+                    SCHEMA_VERSION,
                 }
                 else _require_sha256(
                     raw["cross_binding_receipt_sha256"],
@@ -536,7 +942,10 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             "trials do not share one measurement_head",
         )
     if schema_version in {
-        PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+        PREVIOUS_SCHEMA_VERSION,
+        CROSS_BINDING_V1_SCHEMA_VERSION,
+        CROSS_BINDING_V2_SCHEMA_VERSION,
+        SCHEMA_VERSION,
     }:
         expected_cells = {
             (holdout, arm)
@@ -570,6 +979,10 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         lifecycle_path=lifecycle_path,
         lifecycle_prefix_bytes=lifecycle_prefix_bytes,
         lifecycle_prefix_sha256=lifecycle_prefix_digest,
+        attempt_registry_path=attempt_registry_path,
+        attempt_registry_prefix_bytes=attempt_registry_prefix_bytes,
+        attempt_registry_prefix_sha256=attempt_registry_prefix_sha256,
+        attempt_slot_projection=attempt_slot_projection,
         certifying=False,
         non_certifying_reason_codes=reasons,
         cross_binding_receipt_sha256=cross_binding_digest,
@@ -1034,7 +1447,7 @@ def _assert_prefix_digest(
     prefix_bytes: int,
     expected: str,
     label: str,
-) -> None:
+) -> bytes:
     data = _read_regular_bytes(
         _resolved_reference(root, relative_path, label), label=label,
     )
@@ -1043,6 +1456,165 @@ def _assert_prefix_digest(
     prefix = data[:prefix_bytes]
     if hashlib.sha256(prefix).hexdigest() != expected:
         _fail("receipt-reference-prefix", f"{label} prefix bytes differ from receipt")
+    return prefix
+
+
+def _attempt_projection_from_rows(
+    rows: Sequence[Mapping[str, Any]],
+) -> AcceptanceReceiptAttemptSlotProjection:
+    genesis = rows[0]
+    initial_slots = [
+        slot for slot in genesis["slots"] if slot["attempt_index"] == 0
+    ]
+    if not initial_slots:
+        _fail(
+            "receipt-attempt-consumption",
+            "predeclared attempt unit set is empty",
+        )
+    generations = {slot["prereg_generation"] for slot in genesis["slots"]}
+    if len(generations) != 1:
+        _fail(
+            "receipt-attempt-registry",
+            "attempt registry does not have one prereg_generation",
+        )
+    units = tuple(sorted((
+        AcceptanceReceiptAttemptUnit(
+            slot_id=slot["slot_id"],
+            trial_id=slot["trial_id"],
+            arm=slot["arm"],
+            holdout=slot["holdout"],
+            campaign_id=slot["campaign_id"],
+            replicate_index=slot["replicate_index"],
+        )
+        for slot in initial_slots
+    ), key=lambda unit: unit.slot_id))
+    if any(unit.replicate_index != 0 for unit in units):
+        _fail(
+            "receipt-attempt-projection",
+            "attempt unit replicate_index must remain zero",
+        )
+    return AcceptanceReceiptAttemptSlotProjection(
+        prereg_generation=next(iter(generations)),
+        unit_count=len(units),
+        units=units,
+    )
+
+
+def _assert_attempt_registry_consumption(
+    root: Path,
+    receipt: AcceptanceReceipt,
+) -> None:
+    """Recheck the v5 registry projection and final consumption independently.
+
+    A non-empty projection with exactly one observed or terminal-failure row
+    per predeclared unit is accepted. A missing registry, divergent projection,
+    retryable-only unit, missing final, duplicate final, or report mismatch is
+    rejected.
+    """
+    if (
+        receipt.attempt_registry_path is None
+        or receipt.attempt_registry_prefix_bytes is None
+        or receipt.attempt_registry_prefix_sha256 is None
+        or receipt.attempt_slot_projection is None
+    ):
+        _fail("receipt-attempt-registry", "v5 attempt binding is absent")
+    if _blob_at_head(root, receipt.attempt_registry_path) is None:
+        _fail(
+            "receipt-attempt-registry",
+            "attempt registry is not tracked at Git HEAD",
+        )
+    _assert_git_history_append_only(
+        root, receipt.attempt_registry_path, label="attempt registry",
+    )
+    prefix = _assert_prefix_digest(
+        root,
+        receipt.attempt_registry_path,
+        receipt.attempt_registry_prefix_bytes,
+        receipt.attempt_registry_prefix_sha256,
+        "attempt registry",
+    )
+    try:
+        rows = _attempt_core.load_attempt_registry(
+            prefix, profile=_RECEIPT_ATTEMPT_PROFILE,
+        )
+    except _attempt_core.AttemptRegistryCoreError as exc:
+        raise AcceptanceReceiptError(
+            f"[receipt-attempt-registry] {exc}"
+        ) from exc
+    derived_projection = _attempt_projection_from_rows(rows)
+    if derived_projection != receipt.attempt_slot_projection:
+        _fail(
+            "receipt-attempt-projection",
+            "attempt registry slot projection differs from receipt",
+        )
+
+    trials_by_id = {trial.trial_id: trial for trial in receipt.trials}
+    projected_trials = {
+        (
+            unit.trial_id, unit.arm, unit.holdout, unit.campaign_id,
+        )
+        for unit in derived_projection.units
+    }
+    receipt_trials = {
+        (trial.trial_id, trial.arm, trial.holdout, trial.campaign_id)
+        for trial in receipt.trials
+    }
+    if projected_trials != receipt_trials:
+        _fail(
+            "receipt-attempt-projection",
+            "attempt units differ from receipt trials",
+        )
+
+    slots_by_id = {
+        slot["slot_id"]: slot for slot in rows[0]["slots"]
+    }
+    finals_by_unit: dict[tuple[object, ...], list[Mapping[str, Any]]] = {}
+    for row in rows:
+        if (
+            row.get("event") != "terminal"
+            or row.get("terminal_status")
+            not in {"observed", "terminal-failure"}
+        ):
+            continue
+        slot = slots_by_id[row["slot_id"]]
+        unit_key = (
+            slot["trial_id"], slot["arm"], slot["holdout"],
+            slot["campaign_id"], slot["replicate_index"],
+        )
+        finals_by_unit.setdefault(unit_key, []).append(row)
+
+    for unit in derived_projection.units:
+        unit_key = (
+            unit.trial_id, unit.arm, unit.holdout, unit.campaign_id,
+            unit.replicate_index,
+        )
+        finals = finals_by_unit.pop(unit_key, [])
+        if len(finals) != 1:
+            _fail(
+                "receipt-attempt-consumption",
+                "predeclared unit does not have exactly one final terminal",
+            )
+        terminal = finals[0]
+        trial = trials_by_id[unit.trial_id]
+        expected_terminal_status = {
+            "complete": "observed",
+            "partial": "terminal-failure",
+        }.get(trial.status)
+        if expected_terminal_status != terminal["terminal_status"]:
+            _fail(
+                "receipt-attempt-consumption",
+                "final terminal status differs from receipt trial status",
+            )
+        if terminal["report_sha256"] != trial.report_sha256:
+            _fail(
+                "receipt-attempt-consumption",
+                "final terminal report hash differs from receipt trial",
+            )
+    if finals_by_unit:
+        _fail(
+            "receipt-attempt-consumption",
+            "final terminal exists outside the predeclared unit projection",
+        )
 
 
 def _assert_git_history_append_only(
@@ -1161,6 +1733,7 @@ def verify_acceptance_receipt(
     rederive_arm_execution = receipt.schema_version in {
         PREVIOUS_SCHEMA_VERSION,
         CROSS_BINDING_V1_SCHEMA_VERSION,
+        CROSS_BINDING_V2_SCHEMA_VERSION,
         SCHEMA_VERSION,
     }
     if rederive_arm_execution:
@@ -1186,7 +1759,9 @@ def verify_acceptance_receipt(
             descriptor_proofs.append(descriptor_proven)
     if (
         receipt.schema_version in {
-            PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION,
+            PREVIOUS_SCHEMA_VERSION,
+            CROSS_BINDING_V1_SCHEMA_VERSION,
+            CROSS_BINDING_V2_SCHEMA_VERSION,
             SCHEMA_VERSION,
         }
         and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes
@@ -1197,7 +1772,9 @@ def verify_acceptance_receipt(
             "c02-arm-binding-unproven was dropped without descriptor proof",
         )
     if receipt.schema_version in {
-        CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+        CROSS_BINDING_V1_SCHEMA_VERSION,
+        CROSS_BINDING_V2_SCHEMA_VERSION,
+        SCHEMA_VERSION,
     }:
         cross_binding_schema_version = (
             LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION
@@ -1216,6 +1793,8 @@ def verify_acceptance_receipt(
                 "receipt-cross-binding",
                 "top-level cross-binding aggregate differs from trial leaves",
             )
+    if receipt.schema_version == SCHEMA_VERSION:
+        _assert_attempt_registry_consumption(root, receipt)
     return VerifiedAcceptanceReceipt(
         repository_root=root,
         path=path,
