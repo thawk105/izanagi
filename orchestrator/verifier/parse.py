@@ -35,8 +35,9 @@ from __future__ import annotations
 import glob
 import os
 import re
+from array import array
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional, Sequence, Union
 
 from .model import Read, Txn, Write
 
@@ -177,6 +178,83 @@ class ParseIssues:
     abort_reasons: Dict[str, int] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class _ParsedFileColumns:
+    """Pickle-cheap, per-file parse result used by the production fast path."""
+
+    path_index: int
+    path: str
+    worker_pid: int
+    token_blob: bytes
+    token_offsets: array
+    txn_txid: array
+    txn_thid: array
+    txn_commit_epoch: array
+    txn_commit_tid: array
+    txn_read_offsets: array
+    txn_write_offsets: array
+    read_key_id: array
+    read_ver_epoch: array
+    read_ver_tid: array
+    write_key_id: array
+    write_op_id: array
+    issues: ParseIssues
+
+
+@dataclass(frozen=True)
+class _ParsedFileFailure:
+    """A worker saw a per-file failure; the parent preserves path ordering."""
+
+    path_index: int
+    path: str
+    worker_pid: int
+    error: Exception
+    cause: Optional[BaseException]
+
+
+@dataclass(frozen=True)
+class _ParsedFileNeedsLegacy:
+    """A Python integer did not fit the compact signed 64-bit columns."""
+
+    path_index: int
+    path: str
+    worker_pid: int
+
+
+_ParsedFileOutcome = Union[
+    _ParsedFileColumns, _ParsedFileFailure, _ParsedFileNeedsLegacy,
+]
+
+
+@dataclass(frozen=True)
+class _CompactTrace:
+    """Final-winner references passed directly to the compact DSG builder."""
+
+    files: tuple[_ParsedFileColumns, ...]
+    winner_txid: array
+    winner_path_index: array
+    winner_row: array
+    issues: ParseIssues
+    worker_count: int
+    parse_worker_pids: frozenset[int]
+    n_reads: int
+    n_writes: int
+
+
+@dataclass(frozen=True)
+class _LegacyTrace:
+    txns: List[Txn]
+    issues: ParseIssues
+
+
+_TraceData = Union[_CompactTrace, _LegacyTrace]
+
+
+# Diagnostic-only observation for the behavioral worker test.  It is not part
+# of verification input, output, or any acceptance decision.
+_LAST_PARSE_WORKER_PIDS: frozenset[int] = frozenset()
+
+
 def _check_key(key: str, issues: ParseIssues) -> None:
     if not _KEY_RE.match(key):
         issues.malformed_keys += 1
@@ -215,7 +293,10 @@ def _record_missing_end(
     ))
 
 
-def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
+def _parse_file(
+        path: str, txns: Dict[int, Txn], issues: ParseIssues,
+        occurrences: Optional[List[Txn]] = None,
+) -> None:
     """1 ファイルをパースして txns に追記する。C/E で frame を管理する。"""
     current: Txn | None = None
     expected_reads = expected_writes = 0
@@ -275,6 +356,8 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                             thid=int(thid),
                             commit=(int(epoch), int(tid)),
                         )
+                        if occurrences is not None:
+                            occurrences.append(current)
                         txns[txid_i] = current
                         expected_reads = read_count_i
                         expected_writes = write_count_i
@@ -398,34 +481,352 @@ def _expect(current: Txn | None, txid: str, path: str, lineno: int) -> None:
             f"{current.txid} (C/R/W/X/I must be inside one contiguous C/E frame)")
 
 
-def parse_trace_dir(trace_dir: str) -> tuple[List[Txn], ParseIssues]:
-    """trace_*.log を全て読み、committed txn のリストを返す。
-
-    返り値: (txns, issues)。txns は txid 昇順。issues はパース段で見つけた
-    trace 健全性の問題 (framing / dup txid / W 版不一致 / key 形式違反 /
-    txid 欠番)。
-    """
+def _trace_paths(trace_dir: str) -> List[str]:
     if not os.path.isdir(trace_dir):
         raise ParseError(f"not a directory: {trace_dir}")
     paths = sorted(glob.glob(os.path.join(trace_dir, "trace_*.log")))
     if not paths:
         raise ParseError(f"no trace_*.log files under {trace_dir}")
+    return paths
+
+
+def _effective_worker_count(n_files: int, workers: Optional[int]) -> int:
+    if workers is not None:
+        if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
+            raise ValueError("workers must be a positive integer or None")
+        return min(n_files, workers, 48)
+    affinity: Optional[int] = None
+    try:
+        affinity = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        process_cpu_count = getattr(os, "process_cpu_count", None)
+        if process_cpu_count is not None:
+            affinity = process_cpu_count()
+        if affinity is None:
+            affinity = os.cpu_count()
+    if affinity is None or affinity < 1:
+        affinity = 1
+    # Cgroup measurements saturated in elapsed time at 16 workers, while
+    # charged memory kept rising beyond 16. Explicit requests retain their 48-worker cap.
+    return min(n_files, affinity, 16)
+
+
+def _token_at(columns: _ParsedFileColumns, token_id: int) -> str:
+    start = columns.token_offsets[token_id]
+    end = columns.token_offsets[token_id + 1]
+    return columns.token_blob[start:end].decode("ascii")
+
+
+def _txn_from_columns(columns: _ParsedFileColumns, row: int) -> Txn:
+    read_start = columns.txn_read_offsets[row]
+    read_end = columns.txn_read_offsets[row + 1]
+    write_start = columns.txn_write_offsets[row]
+    write_end = columns.txn_write_offsets[row + 1]
+    txn = Txn(
+        txid=columns.txn_txid[row],
+        thid=columns.txn_thid[row],
+        commit=(columns.txn_commit_epoch[row], columns.txn_commit_tid[row]),
+    )
+    txn.reads.extend(
+        Read(
+            key=_token_at(columns, columns.read_key_id[index]),
+            ver=(columns.read_ver_epoch[index], columns.read_ver_tid[index]),
+        )
+        for index in range(read_start, read_end)
+    )
+    txn.writes.extend(
+        Write(
+            key=_token_at(columns, columns.write_key_id[index]),
+            op=_token_at(columns, columns.write_op_id[index]),
+        )
+        for index in range(write_start, write_end)
+    )
+    return txn
+
+
+def _parse_file_to_columns(task: tuple[int, str]) -> _ParsedFileOutcome:
+    path_index, path = task
+    local_txns: Dict[int, Txn] = {}
+    occurrences: List[Txn] = []
+    issues = ParseIssues()
+    try:
+        _parse_file(path, local_txns, issues, occurrences)
+    except (ParseError, OSError) as error:
+        return _ParsedFileFailure(
+            path_index, path, os.getpid(), error, error.__cause__,
+        )
+
+    token_blob = bytearray()
+    token_offsets = array("Q", [0])
+    token_ids: Dict[str, int] = {}
+
+    def intern(token: str) -> int:
+        token_id = token_ids.get(token)
+        if token_id is not None:
+            return token_id
+        token_id = len(token_ids)
+        token_ids[token] = token_id
+        token_blob.extend(token.encode("ascii"))
+        token_offsets.append(len(token_blob))
+        return token_id
+
+    txn_txid = array("q")
+    txn_thid = array("q")
+    txn_commit_epoch = array("q")
+    txn_commit_tid = array("q")
+    txn_read_offsets = array("Q", [0])
+    txn_write_offsets = array("Q", [0])
+    read_key_id = array("I")
+    read_ver_epoch = array("q")
+    read_ver_tid = array("q")
+    write_key_id = array("I")
+    write_op_id = array("I")
+    try:
+        for txn in occurrences:
+            txn_txid.append(txn.txid)
+            txn_thid.append(txn.thid)
+            txn_commit_epoch.append(txn.commit[0])
+            txn_commit_tid.append(txn.commit[1])
+            for read in txn.reads:
+                read_key_id.append(intern(read.key))
+                read_ver_epoch.append(read.ver[0])
+                read_ver_tid.append(read.ver[1])
+            txn_read_offsets.append(len(read_key_id))
+            for write in txn.writes:
+                write_key_id.append(intern(write.key))
+                write_op_id.append(intern(write.op))
+            txn_write_offsets.append(len(write_key_id))
+    except OverflowError:
+        return _ParsedFileNeedsLegacy(path_index, path, os.getpid())
+
+    return _ParsedFileColumns(
+        path_index=path_index,
+        path=path,
+        worker_pid=os.getpid(),
+        token_blob=bytes(token_blob),
+        token_offsets=token_offsets,
+        txn_txid=txn_txid,
+        txn_thid=txn_thid,
+        txn_commit_epoch=txn_commit_epoch,
+        txn_commit_tid=txn_commit_tid,
+        txn_read_offsets=txn_read_offsets,
+        txn_write_offsets=txn_write_offsets,
+        read_key_id=read_key_id,
+        read_ver_epoch=read_ver_epoch,
+        read_ver_tid=read_ver_tid,
+        write_key_id=write_key_id,
+        write_op_id=write_op_id,
+        issues=issues,
+    )
+
+
+def _parse_file_worker(task: tuple[int, str]) -> _ParsedFileOutcome:
+    return _parse_file_to_columns(task)
+
+
+def _parallel_file_outcomes(
+        paths: Sequence[str], worker_count: int,
+) -> tuple[Optional[List[_ParsedFileOutcome]], List[_ParsedFileOutcome]]:
+    """Return ordered outcomes, or ``None`` unless every path arrived exactly once."""
+    received: List[_ParsedFileOutcome] = []
+    try:
+        import multiprocessing
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+
+        context = multiprocessing.get_context("fork")
+        executor = ProcessPoolExecutor(
+            max_workers=worker_count, mp_context=context,
+        )
+        try:
+            futures = [
+                executor.submit(_parse_file_worker, (index, path))
+                for index, path in enumerate(paths)
+            ]
+            infrastructure_failure = False
+            for future in as_completed(futures):
+                try:
+                    received.append(future.result())
+                except Exception:  # worker exit/transport/bootstrap failure
+                    infrastructure_failure = True
+                    break
+            if infrastructure_failure:
+                for future in futures:
+                    future.cancel()
+        finally:
+            executor.shutdown(wait=True, cancel_futures=True)
+    except (
+            ImportError, OSError, BlockingIOError, RuntimeError, ValueError,
+            AssertionError,
+    ):
+        return None, received
+
+    indices = [outcome.path_index for outcome in received]
+    if len(indices) != len(paths) or sorted(indices) != list(range(len(paths))):
+        return None, received
+    return sorted(received, key=lambda outcome: outcome.path_index), received
+
+
+def _sequential_file_outcomes(paths: Sequence[str]) -> List[_ParsedFileOutcome]:
+    return [_parse_file_worker((index, path)) for index, path in enumerate(paths)]
+
+
+def _raise_worker_reported_error(outcome: _ParsedFileFailure) -> None:
+    if outcome.cause is None:
+        raise outcome.error
+    raise outcome.error from outcome.cause
+
+
+def _raise_parent_file_error(outcome: _ParsedFileFailure) -> None:
+    if not isinstance(outcome.error, ParseError):
+        _raise_worker_reported_error(outcome)
+
+    # Reusing this exact scanner preserves line, message, __cause__, and traceback.
+    # If the file disappears or otherwise becomes unreadable after the worker's
+    # report, retain the original input failure instead of changing its priority.
+    try:
+        _parse_file(outcome.path, {}, ParseIssues())
+    except ParseError:
+        raise
+    except OSError:
+        _raise_worker_reported_error(outcome)
+    raise RuntimeError(f"worker reported a non-reproducible ParseError: {outcome.path}")
+
+
+def _merge_issues_and_winners(
+        files: Sequence[_ParsedFileColumns], worker_count: int,
+        worker_pids: frozenset[int],
+) -> _CompactTrace:
+    indexed_files = tuple(sorted(files, key=lambda columns: columns.path_index))
+    issues = ParseIssues()
+    winners: Dict[int, tuple[int, int]] = {}
+    seen: set[int] = set()
+    for columns in files:
+        local = columns.issues
+        issues.write_version_mismatches.extend(local.write_version_mismatches)
+        issues.framing_violations.extend(local.framing_violations)
+        issues.lock_coverage_violations.extend(local.lock_coverage_violations)
+        issues.write_intent_violations.extend(local.write_intent_violations)
+        issues.permutation_violations.extend(local.permutation_violations)
+        issues.permutation_violation_details.extend(
+            local.permutation_violation_details)
+        issues.malformed_keys += local.malformed_keys
+        if len(issues.malformed_key_sample) < 5:
+            remaining = 5 - len(issues.malformed_key_sample)
+            issues.malformed_key_sample.extend(local.malformed_key_sample[:remaining])
+        for reason, count in local.abort_reasons.items():
+            issues.abort_reasons[reason] = issues.abort_reasons.get(reason, 0) + count
+
+        # Replay every C occurrence in sorted-file/line order.  The local
+        # duplicate summary is intentionally ignored so cross-file duplicates
+        # and last-wins are decided once, here in the parent.
+        for row, txid in enumerate(columns.txn_txid):
+            if txid in seen:
+                issues.dup_txids.append(txid)
+            seen.add(txid)
+            winners[txid] = (columns.path_index, row)
+
+    ordered_txids = sorted(winners)
+    if ordered_txids:
+        expected = ordered_txids[-1] + 1
+        issues.missing_txids = expected - len(ordered_txids)
+        if issues.missing_txids:
+            candidate = 0
+            for txid in ordered_txids:
+                while candidate < txid and len(issues.missing_sample) < 5:
+                    issues.missing_sample.append(candidate)
+                    candidate += 1
+                if candidate <= txid:
+                    candidate = txid + 1
+
+    winner_txid = array("q", ordered_txids)
+    winner_path_index = array("I")
+    winner_row = array("Q")
+    n_reads = n_writes = 0
+    for txid in ordered_txids:
+        path_index, row = winners[txid]
+        winner_path_index.append(path_index)
+        winner_row.append(row)
+        columns = indexed_files[path_index]
+        n_reads += columns.txn_read_offsets[row + 1] - columns.txn_read_offsets[row]
+        n_writes += (
+            columns.txn_write_offsets[row + 1] - columns.txn_write_offsets[row]
+        )
+    return _CompactTrace(
+        files=indexed_files,
+        winner_txid=winner_txid,
+        winner_path_index=winner_path_index,
+        winner_row=winner_row,
+        issues=issues,
+        worker_count=worker_count,
+        parse_worker_pids=worker_pids,
+        n_reads=n_reads,
+        n_writes=n_writes,
+    )
+
+
+def _finish_legacy_parse(paths: Sequence[str]) -> _LegacyTrace:
     txns: Dict[int, Txn] = {}
     issues = ParseIssues()
-    for p in paths:
-        _parse_file(p, txns, issues)
+    for path in paths:
+        _parse_file(path, txns, issues)
+    ordered_txids = sorted(txns)
+    if ordered_txids:
+        expected = ordered_txids[-1] + 1
+        issues.missing_txids = expected - len(ordered_txids)
+        if issues.missing_txids:
+            candidate = 0
+            for txid in ordered_txids:
+                while candidate < txid and len(issues.missing_sample) < 5:
+                    issues.missing_sample.append(candidate)
+                    candidate += 1
+                if candidate <= txid:
+                    candidate = txid + 1
+    return _LegacyTrace([txns[txid] for txid in ordered_txids], issues)
 
-    # txid 密連番検査: trace-hook は txid を commit 直前の fetch_add (0 始まり) でのみ
-    # 採番・即 emit するため、committed txn の txid は 0..N-1 の密連番になる。欠番は
-    # trx 丸ごとの欠落 (thread の trace ファイル欠落・ofstream の silent drop 等) で、
-    # 欠けた辺が cycle を隠す → integrity 違反として indeterminate に倒す (絶対規律2)。
-    if txns:
-        expected = max(txns.keys()) + 1
-        missing = expected - len(txns)
-        if missing > 0:
-            issues.missing_txids = missing
-            issues.missing_sample = sorted(
-                set(range(expected)) - set(txns.keys()))[:5]
 
-    ordered = [txns[k] for k in sorted(txns.keys())]
-    return ordered, issues
+def _parse_trace_dir_compact(
+        trace_dir: str, *, workers: Optional[int] = None,
+) -> _TraceData:
+    global _LAST_PARSE_WORKER_PIDS
+    paths = _trace_paths(trace_dir)
+    worker_count = _effective_worker_count(len(paths), workers)
+    received: List[_ParsedFileOutcome] = []
+    if worker_count > 1:
+        outcomes, received = _parallel_file_outcomes(paths, worker_count)
+        if outcomes is None:
+            # Partial results are never evidence: reread all files serially.
+            outcomes = _sequential_file_outcomes(paths)
+    else:
+        outcomes = _sequential_file_outcomes(paths)
+    _LAST_PARSE_WORKER_PIDS = frozenset(
+        outcome.worker_pid for outcome in outcomes
+    )
+
+    for outcome in outcomes:
+        if isinstance(outcome, _ParsedFileFailure):
+            _raise_parent_file_error(outcome)
+    if any(isinstance(outcome, _ParsedFileNeedsLegacy) for outcome in outcomes):
+        return _finish_legacy_parse(paths)
+    columns = [
+        outcome for outcome in outcomes if isinstance(outcome, _ParsedFileColumns)
+    ]
+    return _merge_issues_and_winners(
+        columns, worker_count, _LAST_PARSE_WORKER_PIDS,
+    )
+
+
+def parse_trace_dir(
+        trace_dir: str, *, workers: Optional[int] = None,
+) -> tuple[List[Txn], ParseIssues]:
+    """Read ``trace_*.log`` and return txid-ordered committed transactions."""
+    parsed = _parse_trace_dir_compact(trace_dir, workers=workers)
+    if isinstance(parsed, _LegacyTrace):
+        return parsed.txns, parsed.issues
+    ordered = [
+        _txn_from_columns(
+            parsed.files[parsed.winner_path_index[index]],
+            parsed.winner_row[index],
+        )
+        for index in range(len(parsed.winner_txid))
+    ]
+    return ordered, parsed.issues
