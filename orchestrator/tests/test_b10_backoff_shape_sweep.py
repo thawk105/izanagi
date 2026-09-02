@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+from dataclasses import replace
 from types import SimpleNamespace
 from fractions import Fraction
 from pathlib import Path
@@ -825,6 +826,50 @@ def test_m17_and_p05_matching_bound_wal_is_resumable(tmp_path: Path, monkeypatch
     B.assert_resumable_binding(layout, binding)
 
 
+def test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not(
+    tmp_path: Path, monkeypatch,
+):
+    layout = CampaignLayout(str(tmp_path / "campaign"))
+    Path(layout.runs_dir).mkdir(parents=True)
+    Path(layout.lock_file).write_text("bound", encoding="utf-8")
+    Path(layout.wal_file).write_text("record\n", encoding="utf-8")
+    stored = _binding()
+    resumed = replace(stored, analysis_commit="c" * 40)
+
+    assert stored.analysis_commit == "f" * 40
+    assert resumed.analysis_commit == "c" * 40
+    for binding in (stored, resumed):
+        assert "analysis_commit" not in binding.core()
+        assert "analysis_commit" not in binding.as_dict()
+    assert stored.core() == resumed.core()
+    assert stored.as_dict() == resumed.as_dict()
+    assert stored.binding_sha256 == resumed.binding_sha256
+
+    monkeypatch.setattr(B.wal, "read_lock", lambda _layout: "bound")
+    monkeypatch.setattr(
+        B, "_decode_lock_search_config",
+        lambda _raw: {"preregistration_binding": stored.as_dict()},
+    )
+    record = SimpleNamespace(
+        stage=B.STAGE_BUILD_START,
+        payload={
+            B.B10_BUILD_START_BINDING_KEY: stored.as_dict(),
+            "build_admission": {"input_sha256": stored.binding_sha256},
+        },
+    )
+    monkeypatch.setattr(B.wal, "read_records_checked", lambda _layout: ([record], False))
+    B.assert_resumable_binding(layout, resumed)
+
+    code_drift = replace(resumed, analysis_code_sha256="d" * 64)
+    assert stored.core() != code_drift.core()
+    assert stored.as_dict() != code_drift.as_dict()
+    assert stored.binding_sha256 != code_drift.binding_sha256
+    _expect_code(
+        "resume-binding",
+        lambda: B.assert_resumable_binding(layout, code_drift),
+    )
+
+
 def test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted():
     spec = B.parse_preregistration(
         (ROOT / B.PREREG_REL).read_bytes(),
@@ -1189,6 +1234,50 @@ def test_prior_block_record_with_canonical_point_metadata_is_accepted(
         [row], workload="write-heavy", prereg=prereg,
     )
     assert indexed == {("block-1", "symmetric-modulo-mu2"): row}
+
+
+def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(
+    tmp_path: Path,
+):
+    stored_prereg, row = _prior_block_record(tmp_path)
+    stored_commit = stored_prereg.binding.analysis_commit
+    current_binding = replace(
+        stored_prereg.binding,
+        analysis_commit="c" * 40,
+    )
+    current_prereg = B.Preregistration(
+        current_binding, stored_prereg.path, stored_prereg.spec,
+    )
+
+    assert row["analysis_commit"] == stored_commit
+    assert row["source_commit"] == stored_commit
+    assert row["preregistration_binding"] == current_binding.as_dict()
+    assert row["analysis_code_sha256"] == current_binding.analysis_code_sha256
+    indexed = B._validate_prior_block_records(
+        [row], workload="write-heavy", prereg=current_prereg,
+    )
+    assert indexed == {("block-1", "none"): row}
+    assert indexed[("block-1", "none")]["analysis_commit"] == stored_commit
+    assert indexed[("block-1", "none")]["source_commit"] == stored_commit
+
+    code_drift_binding = replace(
+        current_binding,
+        analysis_code_sha256="d" * 64,
+    )
+    code_drift_prereg = B.Preregistration(
+        code_drift_binding, stored_prereg.path, stored_prereg.spec,
+    )
+    code_drift_row = copy.deepcopy(row)
+    code_drift_row["preregistration_binding"] = code_drift_binding.as_dict()
+    assert code_drift_row["preregistration_binding"] == code_drift_binding.as_dict()
+    assert code_drift_row["analysis_code_sha256"] \
+        != code_drift_binding.analysis_code_sha256
+    _expect_code(
+        "resume-binding",
+        lambda: B._validate_prior_block_records(
+            [code_drift_row], workload="write-heavy", prereg=code_drift_prereg,
+        ),
+    )
 
 
 def test_prior_block_record_metadata_must_match_point(tmp_path: Path):
