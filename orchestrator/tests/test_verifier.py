@@ -1998,6 +1998,18 @@ def test_parallel_production_path_matches_certified_result_and_runs_workers():
     assert os.getpid() not in adopted_dsg_pids
 
 
+def test_default_worker_cap_is_16_but_explicit_workers_remain_available():
+    import importlib
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    original_getaffinity = parse_module.os.sched_getaffinity
+    parse_module.os.sched_getaffinity = lambda _pid: set(range(64))
+    try:
+        assert parse_module._effective_worker_count(64, None) == 16
+        assert parse_module._effective_worker_count(64, 48) == 48
+    finally:
+        parse_module.os.sched_getaffinity = original_getaffinity
+
+
 def test_concurrent_verifications_keep_edge_worker_inputs_isolated():
     """Two threads cannot replace one another's cyclic/acyclic edge input."""
     import concurrent.futures

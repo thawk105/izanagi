@@ -506,7 +506,9 @@ def _effective_worker_count(n_files: int, workers: Optional[int]) -> int:
             affinity = os.cpu_count()
     if affinity is None or affinity < 1:
         affinity = 1
-    return min(n_files, affinity, 48)
+    # Cgroup measurements saturated in elapsed time at 16 workers, while
+    # charged memory kept rising beyond 16. Explicit requests retain their 48-worker cap.
+    return min(n_files, affinity, 16)
 
 
 def _token_at(columns: _ParsedFileColumns, token_id: int) -> str:
