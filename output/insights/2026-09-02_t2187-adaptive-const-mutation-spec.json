@@ -58,7 +58,9 @@
       "category": "negative",
       "expected_status": "KILLED",
       "expected_nodes": [
-        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_grid_n7_uses_student_t_and_provenance_hashes_all_inputs"
+        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_grid_compares_stock_coordinate_with_no_backoff_reference",
+        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_grid_n7_uses_student_t_and_provenance_hashes_all_inputs",
+        "orchestrator/tests/test_plot_t2187_adaptive_consts.py::test_threads_mode_writes_both_formats_and_marks_n1_ci_unavailable"
       ],
       "hang_risk": false,
       "replacements": [
