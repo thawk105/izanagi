@@ -2,6 +2,7 @@ import ast
 import json
 import re
 import shlex
+import sys
 from pathlib import Path
 
 
@@ -368,3 +369,25 @@ def test_job_body_is_registered_only_as_dispatch_required():
 
 def test_current_scripts_are_a_positive_example_of_the_complete_contract():
     _assert_current_pair_contract()
+
+
+def _run() -> int:
+    tests = [
+        value for name, value in sorted(globals().items())
+        if name.startswith("test_") and callable(value)
+    ]
+    passed = failed = 0
+    for test in tests:
+        try:
+            test()
+            print(f"PASS {test.__name__}")
+            passed += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"FAIL {test.__name__}: {type(exc).__name__}: {exc}")
+            failed += 1
+    print(f"\n{passed} passed, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
