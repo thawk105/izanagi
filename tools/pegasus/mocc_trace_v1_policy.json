@@ -12,6 +12,10 @@
   "glog_source_path": "/work/SFC/tanab/github/glog",
   "glog_expected_head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
   "third_party_cache_env": "IZANAGI_PEGASUS_THIRDPARTY_CACHE",
+  "expected_compiler_version_body_sha256": {
+    "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+    "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+  },
   "mocc_trace": {
     "base_oid": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
     "new_oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
