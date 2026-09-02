@@ -28,6 +28,7 @@ from orchestrator.campaign import (  # noqa: E402
     campaign_lock,
     contract_loader_binding,
     env_contract,
+    knowledge_manifest,
     layer3_report,
     model,
     p3_autonomous_workload_trial,
@@ -204,7 +205,7 @@ def _admission_bound_records(
 
 
 def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
-              ycsb=None, policy_hint=_UNSET,
+              ycsb=None, policy_hint=_UNSET, knowledge=None,
               protocol: str | None = None,
               authorization: env_contract.AuthorizedContract | None = None,
               records_count: int = 100000,
@@ -237,6 +238,11 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
         search_config["ycsb"] = ycsb
     if policy_hint is not _UNSET:
         search_config["policy_hint"] = policy_hint
+    if knowledge is not None:
+        search_config[wal.KNOWLEDGE_LEVEL_SEARCH_KEY] = "K2"
+        search_config[wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY] = (
+            knowledge.knowledge_manifest_sha256
+        )
     identity_preimage = campaign_lock.canonical_json({
         "ccbench_commit": CURRENT_PIN, "search_config": search_config,
         "search_tag": "test", "spec_content": "test", "trial": "trial",
@@ -254,15 +260,88 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
         ),
         encoding="utf-8",
     )
+    if knowledge is not None:
+        knowledge_manifest.write_receipt(
+            root,
+            knowledge,
+            classification="reproduction_or_selection",
+            de_novo_claim=False,
+        )
     if loop_state:
         (root / "loop_state.json").write_text(
             json.dumps({"whiteboard": whiteboard if whiteboard is not None else []}),
             encoding="utf-8")
-    (root / "runs/wal.jsonl").write_text(
-        "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+    if knowledge is None:
+        (root / "runs/wal.jsonl").write_text(
+            "".join(json.dumps(record) + "\n" for record in records),
+            encoding="utf-8",
+        )
+    else:
+        layout = CampaignLayout(root=str(root))
+        for record in records:
+            wal.log(
+                layout,
+                record["variant"],
+                record["stage"],
+                record["env_tag"],
+                record["payload"],
+                ts=record["ts"],
+            )
     if copy_contract_calibration:
         _copy_contract_calibration(output_root, effective_authorization)
     return root, output_root
+
+
+def _resolved_knowledge_fixture(tmp_path: Path):
+    repo = tmp_path / "knowledge-source-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.name", "Izanagi Test"],
+        cwd=repo,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "izanagi-test@example.invalid"],
+        cwd=repo,
+        check=True,
+    )
+    content = b"material report knowledge source\n"
+    (repo / "knowledge.txt").write_bytes(content)
+    subprocess.run(["git", "add", "--", "knowledge.txt"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "commit", "--quiet", "-m", "knowledge fixture"],
+        cwd=repo,
+        check=True,
+    )
+    commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+    ).strip()
+    manifest_path = tmp_path / "knowledge-manifest.json"
+    manifest_path.write_text(
+        json.dumps({
+            "knowledge_level": "K2",
+            "sources": [{
+                "kind": "repo_artifact",
+                "identity": {"commit": commit, "path": "knowledge.txt"},
+                "sha256": hashlib.sha256(content).hexdigest(),
+            }],
+        }),
+        encoding="utf-8",
+    )
+    return knowledge_manifest.load_and_resolve_manifest(
+        manifest_path, repo_root=repo,
+    )
+
+
+def _knowledge_campaign(tmp_path: Path):
+    resolved = _resolved_knowledge_fixture(tmp_path)
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        knowledge=resolved,
+    )
+    return campaign, output_root, resolved
 
 
 def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
@@ -1229,6 +1308,7 @@ def test_v2_and_v3_reports_with_legacy_run_without_screening_remain_valid(
     layer3_report._validate_schema(report)
 
     report["schema_version"] = "layer3-material-report/v2"
+    del report["knowledge_provenance"]
     del report["admission_decision"]
     del report["acceptance_receipt"]
     del report["certifying_input"]
@@ -1242,6 +1322,7 @@ def test_v2_report_rejects_invalid_screening_value_with_legacy_schema():
         output_root=ROOT / "output",
     )
     report["schema_version"] = "layer3-material-report/v2"
+    del report["knowledge_provenance"]
     del report["admission_decision"]
     del report["acceptance_receipt"]
     del report["certifying_input"]
@@ -1598,6 +1679,82 @@ def test_report_uses_null_for_absent_policy_hint(tmp_path):
     assert "policy_hint" not in report["workload"]
 
 
+def test_nonknowledge_report_emits_null_knowledge_provenance(tmp_path):
+    """Fails only when the producer omits or populates the nonknowledge field."""
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert "knowledge_provenance" in report
+    assert report["knowledge_provenance"] is None
+
+
+def test_knowledge_report_projects_verified_receipt_sources(tmp_path):
+    """M1: fails only when a knowledge-aware report does not expose provenance."""
+    campaign, output_root, resolved = _knowledge_campaign(tmp_path)
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    expected_sources = [
+        item.source.canonical_value() for item in resolved.sources
+    ]
+
+    assert report["knowledge_provenance"] == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_sources": expected_sources,
+        "injected_sources": expected_sources,
+    }
+
+
+def test_schema_rejects_unknown_nested_knowledge_key(tmp_path):
+    """M3: fails only when the nested provenance object permits an unknown key."""
+    campaign, output_root, _resolved = _knowledge_campaign(tmp_path)
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["knowledge_provenance"]["unexpected"] = True
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
+def test_schema_rejects_missing_injected_sources(tmp_path):
+    """M4: fails only when injected_sources is not nested-required."""
+    campaign, output_root, _resolved = _knowledge_campaign(tmp_path)
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    del report["knowledge_provenance"]["injected_sources"]
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
+def test_report_rejects_receipt_replaced_after_build_start(tmp_path):
+    """M7: fails only when report generation bypasses the live receipt validator."""
+    campaign, output_root, _resolved = _knowledge_campaign(tmp_path)
+    receipt_path = campaign / knowledge_manifest.RECEIPT_FILENAME
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["knowledge_manifest_sha256"] = "0" * 64
+    receipt_path.write_bytes(
+        knowledge_manifest.canonical_json_bytes(receipt) + b"\n"
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="knowledge provenance 検証に失敗",
+    ):
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+
+
 def test_legacy_v2_report_schema_remains_readable(tmp_path):
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
@@ -1606,6 +1763,7 @@ def test_legacy_v2_report_schema_remains_readable(tmp_path):
         campaign, generated_from_head="fixed", output_root=output_root,
     )
     legacy["schema_version"] = "layer3-material-report/v2"
+    del legacy["knowledge_provenance"]
     del legacy["admission_decision"]
     del legacy["acceptance_receipt"]
     del legacy["certifying_input"]
@@ -1629,6 +1787,7 @@ def test_saved_report_without_current_verifier_conformance_remains_readable(
     del report["current_verifier_conformance"]
     if schema_version == "layer3-material-report/v2":
         report["schema_version"] = schema_version
+        del report["knowledge_provenance"]
         del report["admission_decision"]
         del report["acceptance_receipt"]
         del report["certifying_input"]
@@ -1644,12 +1803,43 @@ def test_legacy_v2_without_policy_hint_remains_readable(tmp_path):
         campaign, generated_from_head="fixed", output_root=output_root,
     )
     legacy["schema_version"] = "layer3-material-report/v2"
+    legacy.pop("knowledge_provenance")
     legacy.pop("policy_hint", None)
     del legacy["admission_decision"]
     del legacy["acceptance_receipt"]
     del legacy["certifying_input"]
 
     layer3_report._validate_schema(legacy)
+
+
+def test_legacy_v2_rejects_forward_knowledge_provenance_property(tmp_path):
+    """Fails only when the legacy v2 schema accidentally admits the forward field."""
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    legacy = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    legacy["schema_version"] = "layer3-material-report/v2"
+    del legacy["admission_decision"]
+    del legacy["acceptance_receipt"]
+    del legacy["certifying_input"]
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(legacy)
+
+
+def test_saved_v3_without_knowledge_provenance_remains_readable(tmp_path):
+    """Fails only when the optional top-level field breaks legacy v3 reading."""
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    del report["knowledge_provenance"]
+
+    layer3_report._validate_schema(report)
 
 
 def test_report_policy_hint_rejects_non_string_top_level(tmp_path):

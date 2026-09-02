@@ -930,6 +930,47 @@ def validate_knowledge_provenance_bindings(
         )
 
 
+def knowledge_provenance_for_material_report(
+        layout: CampaignLayout, records: List[WalRecord], *,
+        campaign_lock: object,
+) -> Optional[dict]:
+    """Return the receipt-bound two-level projection for a material report."""
+    expected = _knowledge_lock_binding(campaign_lock)
+    validate_knowledge_provenance_bindings(
+        records, campaign_lock=campaign_lock,
+    )
+    if expected is None:
+        return None
+    expected_level, expected_digest = expected
+    provenance = _knowledge_provenance_from_receipt(
+        layout,
+        expected_level=expected_level,
+        expected_digest=expected_digest,
+    )
+    # The receipt reader returns canonical sources only after proving that the
+    # verified source projection is exactly equal to them.  The validated value
+    # therefore denotes both receipt origins without weakening that equality.
+    def source_projection(source: dict) -> dict:
+        return {
+            "kind": source["kind"],
+            "identity": dict(source["identity"]),
+            "sha256": source["sha256"],
+        }
+
+    return {
+        "knowledge_level": provenance["knowledge_level"],
+        "knowledge_manifest_sha256": provenance[
+            "knowledge_manifest_sha256"
+        ],
+        "declared_sources": [
+            source_projection(source) for source in provenance["sources"]
+        ],
+        "injected_sources": [
+            source_projection(source) for source in provenance["sources"]
+        ],
+    }
+
+
 def _append_record(
         layout: CampaignLayout, record: WalRecord, *, commit_receipt=None,
         allow_a1_non_certifying: bool = False,

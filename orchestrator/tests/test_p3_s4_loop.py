@@ -1867,6 +1867,41 @@ def test_knowledge_writer_binds_build_start_only(tmp_path):
     )
 
 
+def test_knowledge_material_report_reader_projects_verified_receipt_sources(
+    tmp_path,
+):
+    """Fails only when the new reader does not reuse the verified receipt path."""
+    layout, resolved, records = _knowledge_diff_reject_records(tmp_path)
+    projection = wal.knowledge_provenance_for_material_report(
+        layout,
+        records,
+        campaign_lock=wal._campaign_lock_value(layout),
+    )
+    expected_sources = [
+        item.source.canonical_value() for item in resolved.sources
+    ]
+
+    assert projection == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_sources": expected_sources,
+        "injected_sources": expected_sources,
+    }
+
+
+def test_nonknowledge_material_report_reader_does_not_read_receipt(tmp_path):
+    """Fails only when a knowledge-unaware campaign touches a receipt artifact."""
+    layout = CampaignLayout(root=str(tmp_path / "nonknowledge-campaign")).ensure()
+    _seed_legacy_lock(layout)
+    Path(layout.root, KM.RECEIPT_FILENAME).write_bytes(b"not-json\n")
+
+    assert wal.knowledge_provenance_for_material_report(
+        layout,
+        [],
+        campaign_lock=wal._campaign_lock_value(layout),
+    ) is None
+
+
 def test_knowledge_writer_rejects_missing_receipt_before_wal_effect(tmp_path):
     _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
     layout = CampaignLayout(root=str(tmp_path / "missing-receipt")).ensure()
