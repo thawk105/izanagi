@@ -188,3 +188,12 @@ python3 tools/plotting/plot_t2216_backoff_walk.py mechanism OUT_PREFIX \
   主要値、PNG/PDF hash、再現 argv を持つ。入力が作図中に変わった場合は非0で終了する。
 - 数値は認証されていない。trace-disabled の Silo 性能測定を使う純解析であり、
   直列性検査を通しておらず、variant 採用の根拠には使えない。
+
+段 6 fix 後の入力契約では、model generator の live SHA256 と、8 反復・3 秒を含む固定 config を
+loader が照合し、不一致を fail-closed にする。model 側も元測定 JSON の期待 SHA256 を literal に
+固定する。status の到達上限は write-heavy の `shape_match` であり、H1、balanced / read-heavy、
+中間量は status とは独立した整合検査または予測として出力する。
+
+現行の作図規約に合わせ、prediction 図の水平参照線は raw 反復から再計算した Student-t 95% CI 帯を
+伴う。適応機構との比較用に、no backoff と調整済み adaptive (刻み 1 µs / 更新間隔 2560 µs /
+上限 1000 µs) をともに表示し、10 µs panel は 8 点格子固有の tick も省略しない。

@@ -9,10 +9,12 @@ import json
 import math
 import os
 from pathlib import Path
+import statistics
 import subprocess
 import sys
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 
 
@@ -97,7 +99,11 @@ def _t2216_measured_document() -> dict:
     # The stored median is deliberately nonsense; raw throughputs are the only
     # admissible calibration and plotting samples.
     specs = (
-        ("zero-loop", 0, (1_900_000, 2_000_000, 2_100_000, 2_000_000), 0.80),
+        # Raw mean is 2M while the mean of the two per-rep medians is 1M.
+        # This distinguishes raw reaggregation from median-of-medians.
+        ("zero-loop", 0,
+         (1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000, 7_000_000),
+         0.80),
         ("constant-mu2", 2, (2_900_000, 3_000_000, 3_100_000, 3_000_000), 0.60),
         ("constant-mu5", 5, (3_900_000, 4_000_000, 4_100_000, 4_000_000), 0.50),
         ("constant-mu10", 10, (3_700_000, 3_800_000, 3_900_000, 3_800_000), 0.40),
@@ -301,18 +307,48 @@ def test_t2216_m7_event_time_uses_measured_leader_period_not_nominal_window():
         transition.committed_tput, 30 / 14.4 * 1_000_000.0,
         rel_tol=0.0, abs_tol=1e-9,
     )
+    measured_calibration = model.Calibration(
+        workload="write-heavy",
+        backoffs_us=model.STATIC_BACKOFFS,
+        throughput_tps=(
+            2_341_208.6666666665, 3_316_825.8333333335,
+            3_868_533.6666666665, 3_893_336.6666666665,
+            3_436_541.0, 2_910_478.0, 2_353_026.0,
+        ),
+        abort_rate=(
+            0.7918000000000001, 0.64445, 0.50485, 0.39025,
+            0.26355, 0.19105, 0.13745,
+        ),
+        raw_cells=(),
+    )
+    actual_intervals = model.effective_update_interval_us(
+        measured_calibration, np.asarray((0.0, 100.0, 500.0, 1000.0)), 10.0,
+    )
+    assert np.allclose(
+        actual_intervals,
+        (12.805693241639002, 17.595385686346006,
+         110.66477138522283, 936.5522467270928),
+        rtol=0.0, atol=1e-12,
+    )
 
 
-def test_t2216_m8_t0_is_zero_loop_raw_mean_and_none_is_reference_only():
+def test_t2216_m8_t0_is_zero_loop_raw_mean_and_unused_none_field_is_absent():
     document = _t2216_measured_document()
     calibration = model.build_calibration(document, "write-heavy")
     assert calibration.throughput_tps[0] == 2_000_000.0
-    assert calibration.none_reference["throughput_mean_tps"] == 9_000_000.0
-    assert calibration.none_reference["use"] == "normalization and reference line only"
     assert calibration.raw_cells[0]["cell"] == "zero-loop"
     assert calibration.raw_cells[0]["throughputs_tps"] == [
-        1_900_000.0, 2_000_000.0, 2_100_000.0, 2_000_000.0,
+        1_000_000.0, 1_000_000.0, 1_000_000.0,
+        1_000_000.0, 1_000_000.0, 7_000_000.0,
     ]
+    rep_medians = [
+        statistics.median(rep["throughputs"])
+        for rep in document["static_fixed_backoff"]["write-heavy|zero-loop"]["reps"]
+    ]
+    assert statistics.fmean(rep_medians) == 1_000_000.0
+    assert statistics.fmean(rep_medians) != calibration.throughput_tps[0]
+    assert not hasattr(calibration, "none_reference")
+    assert "none_reference" not in model._calibration_json(calibration)
 
 
 def test_t2216_m9_target_only_mutation_cannot_change_predictions():
@@ -327,11 +363,11 @@ def test_t2216_m9_target_only_mutation_cannot_change_predictions():
     original_cal = model.build_calibration(original, "write-heavy")
     mutated_cal = model.build_calibration(mutated, "write-heavy")
     assert original_cal == mutated_cal
-    original_run = model.simulate_condition(
+    original_run = model._simulate_condition(
         original_cal, model.EXACT, step_us=0.5, update_us=10,
         repetitions=3, duration_us=100.0,
     )
-    mutated_run = model.simulate_condition(
+    mutated_run = model._simulate_condition(
         mutated_cal, model.EXACT, step_us=0.5, update_us=10,
         repetitions=3, duration_us=100.0,
     )
@@ -342,38 +378,77 @@ def test_t2216_m9_target_only_mutation_cannot_change_predictions():
     assert tuple(inspect.signature(model.predict_all).parameters) == (
         "calibrations", "repetitions", "duration_us",
     )
+    assert set(model.predict_all.__code__.co_names).isdisjoint({
+        "strict_json", "_cells", "_observed_series", "evaluate_predictions",
+    })
 
 
-def test_t2216_vector_repetition_transition_matches_real_scalar_entity():
-    import numpy as np
-
-    scalar = model.advance_window(
-        model.WalkState(backoff_us=10.75, last_backoff=10,
-                        last_committed_txs=2, last_committed_tput=4.0,
-                        committed_txs=2),
-        committed_txs=5, time_diff_us=500_000.0, step_us=0.5,
+def test_t2216_m9_build_document_seals_predictions_before_target_scoring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    measured = _t2216_measured_document()
+    measured_path = _write_t2216_json(tmp_path / "measured.json", measured)
+    monkeypatch.setattr(
+        model, "MEASURED_INPUT_SHA256",
+        hashlib.sha256(measured_path.read_bytes()).hexdigest(),
     )
-    vector = model._advance_vector(
-        backoff=np.asarray([10.75]), last_committed=np.asarray([2], dtype=np.uint64),
-        last_tput=np.asarray([4.0]), last_backoff=np.asarray([10.0]),
-        committed=np.asarray([5], dtype=np.uint64),
-        time_diff=np.asarray([500_000.0]), step_us=0.5,
-        ceiling_us=1000.0, truncate=True,
-    )
-    assert vector[0][0] == scalar.state.backoff_us
-    assert vector[1][0] == scalar.state.last_committed_txs
-    assert vector[2][0] == scalar.state.last_committed_tput
-    assert vector[3][0] == scalar.state.last_backoff
-    assert vector[4][0] == scalar.gradient
+    sentinel_runs = [{"prediction_sentinel": [1, 2, 3]}]
+
+    def fake_predict(calibrations, *, repetitions, duration_us):
+        assert set(calibrations) == set(model.WORKLOADS)
+        assert all(
+            isinstance(value, model.Calibration)
+            for value in calibrations.values()
+        )
+        assert repetitions == model.REPETITIONS
+        assert duration_us == model.DURATION_US
+        return json.loads(json.dumps(sentinel_runs))
+
+    def fake_evaluate(document, runs, *, score_h2):
+        assert score_h2 is False
+        for section in (
+            "stage1_adaptive_step_x_interval", "d1475_adaptive_step_grid",
+        ):
+            for cell in document[section].values():
+                for rep in cell["reps"]:
+                    rep["throughputs"] = [value * 99 for value in rep["throughputs"]]
+        assert runs == sentinel_runs
+        return {"status": None, "shape": {"passed": False}}
+
+    monkeypatch.setattr(model, "predict_all", fake_predict)
+    monkeypatch.setattr(model, "evaluate_predictions", fake_evaluate)
+    built = model.build_document(measured_path, PINNED_BACKOFF)
+    assert built["predictions"] == sentinel_runs
+
+
+def test_t2216_registered_transitions_call_the_production_vector_entity():
+    adapter_source = inspect.getsource(model.advance_window)
+    vector_source = inspect.getsource(model._advance_vector)
+    assert "_advance_vector(" in adapter_source
+    for production_clause in (
+        "astype(np.uint64).astype(float)",
+        "committed & np.uint64(1)",
+        "new_backoff == ceilings",
+        "new_backoff < 0.0",
+        "new_backoff > ceilings",
+    ):
+        assert production_clause in vector_source
+    for duplicated_branch in (
+        'branch = "gradient_negative"',
+        'branch = "gradient_positive"',
+        'branch = "parity_decrease"',
+        'branch = "parity_increase"',
+    ):
+        assert duplicated_branch not in adapter_source
 
 
 def test_t2216_batched_main_path_matches_single_condition_without_count_noise():
     calibration = model.build_calibration(_t2216_measured_document(), "write-heavy")
-    single = model.simulate_condition(
+    single = model._simulate_condition(
         calibration, model.NO_COUNT_NOISE, step_us=0.5, update_us=10,
         repetitions=2, duration_us=200.0,
     )
-    batched = model.simulate_condition_batch(
+    batched = model._simulate_condition_batch(
         calibration, model.NO_COUNT_NOISE, ((0.5, 10, 1000.0),),
         repetitions=2, duration_us=200.0,
     )[0]
@@ -387,9 +462,49 @@ def test_t2216_batched_main_path_matches_single_condition_without_count_noise():
         assert actual["branch_rates"] == expected["branch_rates"]
 
 
+def test_t2216_condition_rng_is_grid_independent_and_counterfactual_common():
+    calibration = model.build_calibration(_t2216_measured_document(), "write-heavy")
+    conditions = ((0.5, 10, 1000.0), (1.0, 10, 1000.0))
+    forward = model._simulate_condition_batch(
+        calibration, model.EXACT, conditions,
+        repetitions=3, duration_us=200.0,
+    )
+    reverse = model._simulate_condition_batch(
+        calibration, model.EXACT, tuple(reversed(conditions)),
+        repetitions=3, duration_us=200.0,
+    )
+    single = model._simulate_condition_batch(
+        calibration, model.EXACT, conditions[:1],
+        repetitions=3, duration_us=200.0,
+    )
+    by_condition = {
+        tuple(run["condition"][key] for key in (
+            "step_us", "nominal_update_us", "ceiling_us",
+        )): run
+        for run in reverse
+    }
+    assert forward[0] == single[0]
+    assert all(
+        run == by_condition[(
+            run["condition"]["step_us"],
+            run["condition"]["nominal_update_us"],
+            run["condition"]["ceiling_us"],
+        )]
+        for run in forward
+    )
+    no_trunc = model._simulate_condition_batch(
+        calibration, model.NO_TRUNC, conditions[:1],
+        repetitions=3, duration_us=200.0,
+    )[0]
+    assert forward[0]["seed_sequence"] == no_trunc["seed_sequence"]
+    assert forward[0]["seed_sequence"] == [
+        model.BASE_SEED, model.WORKLOADS.index("write-heavy"), 500, 10, 1000,
+    ]
+
+
 def test_t2216_intermediate_outputs_name_residence_interval_sign_and_parity():
     calibration = model.build_calibration(_t2216_measured_document(), "write-heavy")
-    run = model.simulate_condition(
+    run = model._simulate_condition(
         calibration, model.EXACT, step_us=0.5, update_us=10,
         repetitions=2, duration_us=200.0,
     )
@@ -404,55 +519,108 @@ def test_t2216_intermediate_outputs_name_residence_interval_sign_and_parity():
         rates = repetition["gradient_sign_rates"]
         assert math.isclose(sum(rates.values()), 1.0, abs_tol=1e-12)
         branches = repetition["branch_rates"]
-        assert math.isclose(
-            branches["parity_total"],
-            branches["parity_decrease"] + branches["parity_increase"],
-            abs_tol=1e-12,
-        )
+        assert set(branches) == {
+            "gradient_negative", "gradient_positive",
+            "parity_decrease", "parity_increase",
+        }
+        assert math.isclose(sum(branches.values()), 1.0, abs_tol=1e-12)
 
 
 def test_t2216_counterfactual_matrix_contains_real_2x2_and_count_noise_entity():
-    scenarios = {
-        scenario.name: scenario
-        for scenario in (
-            model.EXACT, model.NO_TRUNC, model.NO_P4,
-            model.NO_TRUNC_NO_P4, model.NO_COUNT_NOISE,
-        )
+    calibration = model.build_calibration(_t2216_measured_document(), "write-heavy")
+    scenarios = (
+        model.EXACT, model.NO_TRUNC, model.NO_P4,
+        model.NO_TRUNC_NO_P4, model.NO_COUNT_NOISE,
+    )
+    outputs = {
+        scenario.name: model._simulate_condition_batch(
+            calibration, scenario, ((0.5, 10, 1000.0),),
+            repetitions=3, duration_us=200.0,
+        )[0]
+        for scenario in scenarios
     }
-    assert set(scenarios) == {
+    assert set(outputs) == {
         "M_exact", "M_no_trunc", "M_no_P4", "M_no_trunc_no_P4",
         "M_no_count_noise",
     }
-    assert scenarios["M_exact"].truncate_last_backoff is True
-    assert scenarios["M_exact"].event_driven is True
-    assert scenarios["M_no_trunc"].truncate_last_backoff is False
-    assert scenarios["M_no_trunc"].event_driven is True
-    assert scenarios["M_no_P4"].truncate_last_backoff is True
-    assert scenarios["M_no_P4"].event_driven is False
-    assert scenarios["M_no_trunc_no_P4"].truncate_last_backoff is False
-    assert scenarios["M_no_trunc_no_P4"].event_driven is False
-    assert scenarios["M_no_count_noise"].count_law == "deterministic"
+    assert all(run["scenario"] == name for name, run in outputs.items())
+    assert len({
+        tuple(
+            (rep["throughput_tps"], rep["final_backoff_us"], rep["update_count"])
+            for rep in run["repetitions"]
+        )
+        for run in outputs.values()
+    }) == len(outputs)
+    stochastic_seeds = {
+        tuple(outputs[name]["seed_sequence"])
+        for name in ("M_exact", "M_no_trunc", "M_no_P4", "M_no_trunc_no_P4")
+    }
+    assert len(stochastic_seeds) == 1
 
 
-def test_t2216_repetition_limit_is_literal_and_rejects_33():
+def test_t2216_library_api_rejects_every_nonfrozen_run_configuration():
     calibration = model.build_calibration(_t2216_measured_document(), "write-heavy")
     assert model.REPETITIONS == 8
-    assert model.MAX_REPETITIONS == 32
-    with pytest.raises(model.ModelError, match=r"\[1,32\]"):
+    with pytest.raises(model.ModelError, match="repetitions is frozen at 8"):
         model.simulate_condition_batch(
             calibration, model.EXACT, ((0.5, 10, 1000.0),),
             repetitions=33, duration_us=100.0,
         )
+    with pytest.raises(model.ModelError, match="repetitions is frozen at 8"):
+        model.predict_all(
+            {workload: calibration for workload in model.WORKLOADS},
+            repetitions=7,
+        )
+    with pytest.raises(model.ModelError, match=r"duration_us is frozen at 3e\+06"):
+        model.simulate_condition(
+            calibration, model.EXACT, step_us=0.5, update_us=10,
+            duration_us=100.0,
+        )
 
 
 def test_t2216_only_indirect_evidence_statuses_are_reachable():
-    assert model.derive_status(False, False) is None
-    assert model.derive_status(True, False) == "shape_match"
-    assert model.derive_status(True, True) == "mechanism_supported"
-    with pytest.raises(model.ModelError, match="requires the shape gate"):
-        model.derive_status(False, True)
-    forbidden = "mechanism_" + "confirmed"
-    assert forbidden not in MODEL_SCRIPT.read_text(encoding="utf-8")
+    assert model.derive_status(False) is None
+    assert model.derive_status(True) == "shape_match"
+    source = MODEL_SCRIPT.read_text(encoding="utf-8")
+    for forbidden in ("mechanism_" + "supported", "mechanism_" + "confirmed"):
+        assert forbidden not in source
+
+
+def test_t2216_h1_h2_and_intermediates_are_independent_of_status(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        model, "_score_workload_shape",
+        lambda _document, _runs, _workload: {"passed": True},
+    )
+
+    def fake_find(_runs, _workload, _scenario, step, _update, ceiling=1000.0):
+        value = 100.0
+        if ceiling == 50.0:
+            value = 101.0 if step == 0.5 else 206.0
+        return {"repetitions": [{"throughput_tps": value}]}
+
+    def fake_observed(
+        _document, *, dataset, workload, update_us, ceiling_us=1000.0,
+    ):
+        assert dataset == "d1475"
+        assert workload == "write-heavy"
+        assert update_us == 10
+        return {
+            0.5: [101.0 if ceiling_us == 50.0 else 100.0],
+            2.0: [206.0 if ceiling_us == 50.0 else 100.0],
+        }
+
+    monkeypatch.setattr(model, "_find_run", fake_find)
+    monkeypatch.setattr(model, "_observed_series", fake_observed)
+    evaluation = model.evaluate_predictions({}, [], score_h2=False)
+    assert evaluation["status"] == "shape_match"
+    assert set(evaluation) == {"status", "shape", "consistency_checks"}
+    checks = evaluation["consistency_checks"]
+    assert checks["H1_ceiling"]["passed"] is True
+    assert checks["H2_workloads"]["scored"] is False
+    assert "holdout remains unopened" not in checks["H2_workloads"]["reason"]
+    assert checks["intermediate_predictions"]["passed"] is None
 
 
 def _stage1_rank_fixture() -> dict[float, float]:
@@ -541,6 +709,25 @@ def test_t2216_cli_has_no_tail_fano_or_condition_seed_override(flag: str):
         model._parser().parse_args(["m.json", "b.hh", "o.json", flag, "9"])
 
 
+def test_t2216_build_document_rejects_input_and_config_overrides(tmp_path: Path):
+    assert model.MEASURED_INPUT_SHA256 == (
+        "f46cebdd2691e3012c4632d3d6e82a050bb262aa43a0e8dd3aa6ffd66d604931"
+    )
+    substituted = _write_t2216_json(
+        tmp_path / "substituted-measured.json", _t2216_measured_document(),
+    )
+    with pytest.raises(model.ModelError, match="measured JSON SHA256 differs"):
+        model.build_document(substituted, PINNED_BACKOFF)
+    with pytest.raises(model.ModelError, match="repetitions is frozen at 8"):
+        model.build_document(
+            substituted, PINNED_BACKOFF, repetitions=7,
+        )
+    with pytest.raises(model.ModelError, match=r"duration_us is frozen at 3e\+06"):
+        model.build_document(
+            substituted, PINNED_BACKOFF, duration_us=2_000_000.0,
+        )
+
+
 def _t2216_fake_run(
     *, scenario: str, step: float, update: int, ceiling: float = 1000.0,
 ) -> dict:
@@ -564,7 +751,6 @@ def _t2216_fake_run(
             "branch_rates": {
                 "gradient_negative": 0.2, "gradient_positive": 0.3,
                 "parity_decrease": 0.25, "parity_increase": 0.25,
-                "parity_total": 0.5,
             },
             "gradient_sign_rates": {"correct": 0.6, "incorrect": 0.2, "zero": 0.2},
             "update_count": 10,
@@ -578,7 +764,10 @@ def _t2216_fake_run(
             "step_us": step, "nominal_update_us": update,
             "ceiling_us": ceiling, "duration_us": 3_000_000.0,
         },
-        "seed_sequence": [model.BASE_SEED, 0, 0, int(step * 1000), update, int(ceiling)],
+        "seed_sequence": [
+            model.BASE_SEED, model.WORKLOADS.index("write-heavy"),
+            int(step * 1000), update, int(ceiling),
+        ],
         "repetitions": repetitions,
         "residence_thresholds_us": thresholds,
         "effective_update_interval_histogram": {"edges_us": [0.0, 10.0], "counts": [30]},
@@ -604,9 +793,32 @@ def _t2216_fake_model(measured_path: Path) -> dict:
         "not_certified": model.NOT_CERTIFIED,
         "protocol": "Silo",
         "configuration": {
+            "threads": model.THREADS,
+            "records": model.RECORDS,
+            "zipf_skew": model.ZIPF_SKEW,
             "duration_us": 3_000_000.0,
+            "repetitions": model.REPETITIONS,
             "base_seed": model.BASE_SEED,
+            "rng": "numpy.random.Generator(PCG64)",
             "condition_order": [list(row) for row in model.prediction_conditions()],
+            "scenario_order": [
+                scenario.name for scenario in (
+                    model.EXACT, model.NO_TRUNC, model.NO_P4,
+                    model.NO_TRUNC_NO_P4, model.NO_COUNT_NOISE,
+                    model.FLAT_TAIL, model.LINEAR_ZERO, model.LOG_INTERP,
+                    model.FANO2, model.FANO4,
+                )
+            ],
+            "fixed_rules": {
+                "stage1_max_kendall_distance": model.STAGE1_MAX_KENDALL_DISTANCE,
+                "d1475_max_kendall_distance": model.D1475_MAX_KENDALL_DISTANCE,
+                "B_strict_ratio_limit": model.B_MAX_MIN_RATIO_LIMIT,
+                "d1475_valley_tps": model.D1475_VALLEY_TPS,
+                "valley_relative_tolerance": model.D1475_VALLEY_RELATIVE_TOLERANCE,
+                "H1_step2_inclusive_min": model.H1_STEP2_MIN_CAP_RATIO,
+                "H1_step0.5_inclusive_max": model.H1_STEP05_MAX_CAP_RATIO,
+                "H1_ratio_relative_tolerance": model.H1_RATIO_RELATIVE_TOLERANCE,
+            },
         },
         "provenance": {
             "measured_input": {
@@ -617,6 +829,10 @@ def _t2216_fake_model(measured_path: Path) -> dict:
                 "path": str(PINNED_BACKOFF.resolve()),
                 "sha256": hashlib.sha256(PINNED_BACKOFF.read_bytes()).hexdigest(),
                 "source_pin": model.SOURCE_PIN,
+            },
+            "generator": {
+                "path": str(MODEL_SCRIPT.resolve()),
+                "sha256": hashlib.sha256(MODEL_SCRIPT.read_bytes()).hexdigest(),
             },
             "static_calibration_jobids": ["0:static-fixture"],
         },
@@ -692,6 +908,48 @@ def test_t2216_plot_modes_write_png_pdf_and_hash_bound_provenance(
         for path in outputs[:2]
     }
     assert "NOT CERTIFIED" in provenance["caption"]
+
+
+def test_t2216_plot_loader_rejects_generator_or_frozen_config_substitution(
+    tmp_path: Path,
+):
+    plot = _load_t2216_plot_module()
+    measured_path = _write_t2216_json(
+        tmp_path / "measured-contract.json", _t2216_measured_document(),
+    )
+    document = _t2216_fake_model(measured_path)
+    document["provenance"]["generator"]["sha256"] = "0" * 64
+    bad_generator = _write_t2216_json(tmp_path / "bad-generator.json", document)
+    with pytest.raises(plot.FigureDataError, match="generator hash differs"):
+        plot.load_inputs("prediction", bad_generator, measured_path, PINNED_BACKOFF)
+    document = _t2216_fake_model(measured_path)
+    document["configuration"]["repetitions"] = 7
+    bad_config = _write_t2216_json(tmp_path / "bad-config.json", document)
+    with pytest.raises(plot.FigureDataError, match="frozen configuration"):
+        plot.load_inputs("prediction", bad_config, measured_path, PINNED_BACKOFF)
+
+
+def test_t2216_prediction_figure_has_reference_ci_bands_tuned_line_and_full_ticks(
+    tmp_path: Path,
+):
+    plot = _load_t2216_plot_module()
+    measured_path = _write_t2216_json(
+        tmp_path / "measured-figure-contract.json", _t2216_measured_document(),
+    )
+    model_path = _write_t2216_json(
+        tmp_path / "model-figure-contract.json", _t2216_fake_model(measured_path),
+    )
+    data = plot.load_inputs(
+        "prediction", model_path, measured_path, PINNED_BACKOFF,
+    )
+    figure, axes, plotted = plot.make_figure(data)
+    try:
+        assert all(len(axis.patches) == 4 for axis in axes[0])
+        tick_values = set(axes[0, 0].get_xticks())
+        assert {2.0, 10.0, 25.0, 50.0} <= tick_values
+        assert any(row.get("dataset") == "tuned-adaptive" for row in plotted)
+    finally:
+        plot.plt.close(figure)
 
 
 def test_t2216_layout_check_rejects_real_excessive_text_entity():

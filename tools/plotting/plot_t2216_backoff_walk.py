@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 
-MODEL_SCHEMA = "izanagi-t2216-backoff-walk/v1"
+MODEL_SCHEMA = "izanagi-t2216-backoff-walk/v2"
 PROVENANCE_SCHEMA = "izanagi-t2216-backoff-walk-figure-provenance/v1"
 BACKOFF_COPY_SHA256 = "3e9f548507200532c79b14b94389abbfd4f87c7c03addde0099740f2df3d8cd7"
 NOT_CERTIFIED_FRAGMENT = "trace-disabled performance measurements only"
@@ -40,6 +40,45 @@ WORKLOAD = "write-heavy"
 UPDATES = (10, 40, 160, 640, 2560)
 RESIDENCE_STEPS = (0.5, 1.0, 5.0, 25.0, 100.0)
 GENERATOR = Path(__file__).resolve()
+MODEL_GENERATOR = GENERATOR.parent.parent / "t2216_backoff_walk_model.py"
+_STAGE1_STEPS = (0.1, 0.25, 0.5, 1.0, 5.0, 100.0)
+_D1475_STEPS = (0.5, 1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0)
+_CONDITION_ORDER = (
+    [(step, 10, 1000.0) for step in sorted(set(_STAGE1_STEPS) | set(_D1475_STEPS))]
+    + [(0.5, 10, 50.0), (2.0, 10, 50.0)]
+    + [
+        (step, update, 1000.0)
+        for update in UPDATES[1:]
+        for step in _STAGE1_STEPS
+    ]
+    + [(25.0, 2560, 1000.0)]
+)
+_SCENARIO_ORDER = (
+    "M_exact", "M_no_trunc", "M_no_P4", "M_no_trunc_no_P4",
+    "M_no_count_noise", "M_flat_tail", "M_linear_zero", "M_log_interp",
+    "M_fano2", "M_fano4",
+)
+_FIXED_CONFIGURATION = {
+    "threads": 48,
+    "records": 1_000_000,
+    "zipf_skew": 0.9,
+    "duration_us": 3_000_000.0,
+    "repetitions": 8,
+    "base_seed": 221_620_260_902,
+    "rng": "numpy.random.Generator(PCG64)",
+    "condition_order": [list(row) for row in _CONDITION_ORDER],
+    "scenario_order": list(_SCENARIO_ORDER),
+    "fixed_rules": {
+        "stage1_max_kendall_distance": 2,
+        "d1475_max_kendall_distance": 3,
+        "B_strict_ratio_limit": 1.5,
+        "d1475_valley_tps": 1_241_671.0,
+        "valley_relative_tolerance": 0.20,
+        "H1_step2_inclusive_min": 1.5,
+        "H1_step0.5_inclusive_max": 1.2,
+        "H1_ratio_relative_tolerance": 0.20,
+    },
+}
 
 # t_(0.975, df), sufficient for observed n<=7 and frozen model n<=32.
 _T975 = (
@@ -187,6 +226,15 @@ def _static_reference(
     }
 
 
+def _tuned_adaptive_reference(measured: Mapping[str, Any]) -> dict[str, Any]:
+    rows = _measurement_series(
+        measured, "stage1_adaptive_step_x_interval", 2560,
+    )
+    if 1.0 not in rows:
+        _fail("tuned adaptive reference step 1/update 2560 us is missing")
+    return rows[1.0]
+
+
 def _find_run(
     model: Mapping[str, Any], *, scenario: str, step_us: float,
     update_us: int, ceiling_us: float = 1000.0,
@@ -219,6 +267,28 @@ def _prediction_summary(run: Mapping[str, Any]) -> dict[str, Any]:
     return {"samples_tps": values, "mean_tps": center, "ci95_half_tps": half}
 
 
+def _validate_model_contract(model: Mapping[str, Any]) -> Mapping[str, Any]:
+    provenance = model.get("provenance")
+    if type(provenance) is not dict:
+        _fail("model provenance must be an object")
+    generator = provenance.get("generator")
+    if type(generator) is not dict:
+        _fail("model generator provenance is missing")
+    if generator.get("sha256") != _sha256(MODEL_GENERATOR):
+        _fail("model generator hash differs from the live frozen generator")
+    configuration = model.get("configuration")
+    if type(configuration) is not dict:
+        _fail("model configuration must be an object")
+    if configuration != _FIXED_CONFIGURATION:
+        _fail("model configuration differs from the frozen configuration")
+    evaluation = model.get("evaluation")
+    if type(evaluation) is not dict or evaluation.get("status") not in (
+        None, "shape_match",
+    ):
+        _fail("model status is outside the shape-only contract")
+    return configuration
+
+
 def load_inputs(
     mode: str, model_path: Path, measured_path: Path, backoff_path: Path,
 ) -> dict[str, Any]:
@@ -235,9 +305,8 @@ def load_inputs(
         _fail("model lacks the required non-certification boundary")
     if model.get("protocol") != "Silo":
         _fail("model protocol must be Silo")
-    provenance = model.get("provenance")
-    if type(provenance) is not dict:
-        _fail("model provenance must be an object")
+    configuration = _validate_model_contract(model)
+    provenance = model["provenance"]
     measured_provenance = provenance.get("measured_input")
     backoff_provenance = provenance.get("backoff_copy")
     if type(measured_provenance) is not dict or type(backoff_provenance) is not dict:
@@ -248,9 +317,6 @@ def load_inputs(
         _fail("backoff copy hash differs from model provenance")
     if _sha256(paths[2]) != BACKOFF_COPY_SHA256:
         _fail("backoff copy is not the pinned source copy")
-    configuration = model.get("configuration")
-    if type(configuration) is not dict:
-        _fail("model configuration must be an object")
     return {
         "mode": mode,
         "model": model,
@@ -262,6 +328,7 @@ def load_inputs(
         "none": _static_reference(measured, "none"),
         "T0": _static_reference(measured, "zero-loop"),
         "T100": _static_reference(measured, "constant-mu100"),
+        "tuned_adaptive": _tuned_adaptive_reference(measured),
     }
 
 
@@ -306,10 +373,24 @@ def _figure_text(fig, data: Mapping[str, Any], title: str) -> None:
     )
 
 
+def _reference_line(axis, reference, *, color, linestyle, label):
+    center = reference["mean_tps"] / 1e6
+    half = reference["ci95_half_tps"]
+    if half is not None:
+        axis.axhspan(
+            (reference["mean_tps"] - half) / 1e6,
+            (reference["mean_tps"] + half) / 1e6,
+            color=color, alpha=0.08, linewidth=0.0,
+        )
+    return axis.axhline(
+        center, color=color, linestyle=linestyle, linewidth=0.95, label=label,
+    )
+
+
 def _prediction_figure(data: Mapping[str, Any]):
     _style()
-    fig, axes = plt.subplots(1, 5, figsize=(16.2, 4.6), squeeze=False)
-    fig.subplots_adjust(left=0.055, right=0.992, top=0.80, bottom=0.20, wspace=0.27)
+    fig, axes = plt.subplots(1, 5, figsize=(16.2, 5.2), squeeze=False)
+    fig.subplots_adjust(left=0.055, right=0.992, top=0.70, bottom=0.20, wspace=0.27)
     model = data["model"]
     measured = data["measured"]
     plotted: list[dict[str, Any]] = [
@@ -324,6 +405,11 @@ def _prediction_figure(data: Mapping[str, Any]):
         {
             "dataset": "reference", "label": "static backoff 100 us",
             "raw": data["T100"],
+        },
+        {
+            "dataset": "tuned-adaptive",
+            "label": "tuned adaptive (step 1 us, update 2560 us, cap 1000 us)",
+            "raw": data["tuned_adaptive"],
         },
     ]
     handles = labels = None
@@ -347,7 +433,7 @@ def _prediction_figure(data: Mapping[str, Any]):
             x, [stage1[step]["mean_tps"] / 1e6 for step in x],
             yerr=[(stage1[step]["ci95_half_tps"] or 0.0) / 1e6 for step in x],
             color="#111111", marker="o", linestyle="none", capsize=2.4,
-            label="stage1 observed (n=7)",
+            label="stage 1 grid observed (n=7)",
         )
         pred = axis.errorbar(
             model_steps,
@@ -368,25 +454,30 @@ def _prediction_figure(data: Mapping[str, Any]):
                 xd, [d1475[step]["mean_tps"] / 1e6 for step in xd],
                 yerr=[(d1475[step]["ci95_half_tps"] or 0.0) / 1e6 for step in xd],
                 color="#d62728", marker="^", linestyle="none", capsize=2.4,
-                label="D1475 observed (n=3)",
+                label="independent 8-point grid observed (n=3)",
             )
             plotted.append({"dataset": "D1475", "update_us": update, "rows": d1475})
         else:
             dline = None
-        none_line = axis.axhline(
-            data["none"]["mean_tps"] / 1e6, color="#666666", linestyle="--",
-            linewidth=0.9, label="no backoff (BACK_OFF=0)",
+        none_line = _reference_line(
+            axis, data["none"], color="#666666", linestyle="--",
+            label="no backoff (compiled out)",
         )
-        t0_line = axis.axhline(
-            data["T0"]["mean_tps"] / 1e6, color="#2ca02c", linestyle="-.",
-            linewidth=0.9, label="active zero-loop T(0)",
+        t0_line = _reference_line(
+            axis, data["T0"], color="#2ca02c", linestyle="-.",
+            label="active zero-backoff path",
         )
-        t100_line = axis.axhline(
-            data["T100"]["mean_tps"] / 1e6, color="#9467bd", linestyle=":",
-            linewidth=1.0, label="static backoff 100 us",
+        t100_line = _reference_line(
+            axis, data["T100"], color="#9467bd", linestyle=":",
+            label="fixed backoff 100 us",
+        )
+        tuned_line = _reference_line(
+            axis, data["tuned_adaptive"], color="#8c564b", linestyle=(0, (3, 1, 1, 1)),
+            label="tuned adaptive (step 1, update 2560 us)",
         )
         axis.set_xscale("log")
-        axis.set_xticks(x, [f"{value:g}" for value in x])
+        tick_values = model_steps if update == 10 else x
+        axis.set_xticks(tick_values, [f"{value:g}" for value in tick_values])
         axis.minorticks_off()
         axis.set_xlabel("step (us)")
         axis.set_ylabel("throughput (M tps)" if column == 0 else "")
@@ -400,11 +491,11 @@ def _prediction_figure(data: Mapping[str, Any]):
             artists = [obs, pred]
             if dline is not None:
                 artists.append(dline)
-            artists.extend((none_line, t0_line, t100_line))
+            artists.extend((none_line, t0_line, t100_line, tuned_line))
             handles = artists
             labels = [artist.get_label() for artist in artists]
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.895),
-               ncol=6, fontsize=7.0)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.875),
+               ncol=4, fontsize=6.8)
     _figure_text(fig, data, "Adaptive backoff step response: observed and predicted")
     return fig, axes, plotted
 
@@ -526,14 +617,14 @@ def _mechanism_figure(data: Mapping[str, Any]):
     plotted += _plot_metric_series(
         axes[0, 0], data, scenarios=("M_exact", "M_no_trunc"),
         steps=diagnostic_steps, update=10, metric="throughput",
-        labels=("source-exact", "without uint64 truncation"),
+        labels=("exact source translation", "without integer-state truncation"),
     )
     axes[0, 0].set_ylabel("throughput (M tps)")
     axes[0, 0].set_title("Truncation counterfactual")
     plotted += _plot_metric_series(
         axes[0, 1], data, scenarios=("M_exact", "M_no_trunc"),
         steps=diagnostic_steps, update=10, metric="p100",
-        labels=("source-exact", "without uint64 truncation"),
+        labels=("exact source translation", "without integer-state truncation"),
     )
     axes[0, 1].set_ylabel("P(Backoff > 100 us)")
     axes[0, 1].set_title("High-backoff residence")
@@ -713,6 +804,7 @@ def build_provenance(
     jobids = sorted({
         *data["none"]["pbs_jobids"], *data["T0"]["pbs_jobids"],
         *data["T100"]["pbs_jobids"],
+        *data["tuned_adaptive"]["pbs_jobids"],
         *data["model"]["provenance"].get("static_calibration_jobids", []),
         *data["model"]["provenance"].get("evaluation_jobids", []),
         *[
@@ -752,7 +844,13 @@ def build_provenance(
             f"T-2216 {data['mode']} figure. Observed and model summaries are "
             "recomputed from raw repetitions. Silo, 48 threads, 1,000,000 "
             "records, zipf 0.9, 3 s, Pegasus. NOT CERTIFIED: trace-disabled "
-            "performance only; no serializability check."
+            "performance only; no serializability check. D1475 denotes the "
+            "independent eight-point adaptive-step dataset. BACK_OFF=0 means "
+            "the backoff path is compiled out; T(0) is the active path with "
+            "zero fixed delay. Source-exact means the exact source transition "
+            "translation; uint64 truncation means conversion of saved backoff "
+            "state to an unsigned 64-bit integer. Bands around horizontal "
+            "references are Student-t 95% confidence intervals."
         ),
         "reproduction": {"argv": [str(value) for value in argv]},
     }

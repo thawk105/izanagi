@@ -10,9 +10,9 @@ Usage:
     python3 tools/t2216_backoff_walk_model.py \
         MEASURED_JSON BACKOFF_COPY OUTPUT_JSON [--score-h2]
 
-``--score-h2`` is intentionally opt-in.  It opens the balanced/read-heavy
-adaptive holdout and is for the parent to use once, after the configuration has
-been frozen.  It cannot alter predictions or any threshold.
+``--score-h2`` is intentionally opt-in.  It scores balanced/read-heavy as a
+post-hoc, parameter-independent consistency check.  Some adaptive values were
+exposed before scoring, so this is not a blinded or preregistered holdout.
 """
 from __future__ import annotations
 
@@ -32,9 +32,10 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 
 
-SCHEMA = "izanagi-t2216-backoff-walk/v1"
+SCHEMA = "izanagi-t2216-backoff-walk/v2"
 SOURCE_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 BACKOFF_COPY_SHA256 = "3e9f548507200532c79b14b94389abbfd4f87c7c03addde0099740f2df3d8cd7"
+MEASURED_INPUT_SHA256 = "f46cebdd2691e3012c4632d3d6e82a050bb262aa43a0e8dd3aa6ffd66d604931"
 NOT_CERTIFIED = (
     "trace-disabled performance measurements only; no serializability check "
     "was run; this analysis is not a basis for variant adoption"
@@ -45,7 +46,7 @@ RECORDS = 1_000_000
 ZIPF_SKEW = 0.9
 DURATION_US = 3_000_000.0
 REPETITIONS = 8
-MAX_REPETITIONS = 32
+_MAX_INTERNAL_REPETITIONS = 32
 BASE_SEED = 221_620_260_902
 UINT64_MASK = (1 << 64) - 1
 STATIC_BACKOFFS = (0.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0)
@@ -156,7 +157,6 @@ class Calibration:
     throughput_tps: tuple[float, ...]
     abort_rate: tuple[float, ...]
     raw_cells: tuple[dict[str, Any], ...]
-    none_reference: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -167,24 +167,23 @@ class Scenario:
     count_law: str = "poisson"
     tail: str = "primary"
     interpolation: str = "linear"
-    seed_group: int = 0
 
 
-EXACT = Scenario("M_exact", seed_group=0)
-NO_TRUNC = Scenario("M_no_trunc", truncate_last_backoff=False, seed_group=0)
-NO_P4 = Scenario("M_no_P4", event_driven=False, seed_group=0)
+EXACT = Scenario("M_exact")
+NO_TRUNC = Scenario("M_no_trunc", truncate_last_backoff=False)
+NO_P4 = Scenario("M_no_P4", event_driven=False)
 NO_TRUNC_NO_P4 = Scenario(
     "M_no_trunc_no_P4", truncate_last_backoff=False,
-    event_driven=False, seed_group=0,
+    event_driven=False,
 )
 NO_COUNT_NOISE = Scenario(
-    "M_no_count_noise", count_law="deterministic", seed_group=1,
+    "M_no_count_noise", count_law="deterministic",
 )
-FLAT_TAIL = Scenario("M_flat_tail", tail="flat-tail", seed_group=2)
-LINEAR_ZERO = Scenario("M_linear_zero", tail="linear-zero", seed_group=3)
-LOG_INTERP = Scenario("M_log_interp", interpolation="log", seed_group=4)
-FANO2 = Scenario("M_fano2", count_law="fano2", seed_group=5)
-FANO4 = Scenario("M_fano4", count_law="fano4", seed_group=6)
+FLAT_TAIL = Scenario("M_flat_tail", tail="flat-tail")
+LINEAR_ZERO = Scenario("M_linear_zero", tail="linear-zero")
+LOG_INTERP = Scenario("M_log_interp", interpolation="log")
+FANO2 = Scenario("M_fano2", count_law="fano2")
+FANO4 = Scenario("M_fano4", count_law="fano4")
 
 
 def _fail(message: str) -> None:
@@ -316,27 +315,12 @@ def build_calibration(document: Mapping[str, Any], workload: str) -> Calibration
             "throughput_mean_tps": throughput_means[-1],
             "abort_rate_mean": abort_means[-1],
         })
-    none_key = f"{workload}|none"
-    none = cells.get(none_key)
-    none_tps, none_abort, none_jobs = _raw_cell(none, none_key)
-    none_meta = none.get("meta") if type(none) is dict else None
-    if type(none_meta) is not dict or "BACK_OFF=0" not in str(none_meta.get("genome")):
-        _fail("none reference must be BACK_OFF=0")
     return Calibration(
         workload=workload,
         backoffs_us=STATIC_BACKOFFS,
         throughput_tps=tuple(throughput_means),
         abort_rate=tuple(abort_means),
         raw_cells=tuple(raw_cells),
-        none_reference={
-            "cell": "none",
-            "throughputs_tps": none_tps,
-            "abort_rates": none_abort,
-            "pbs_jobids": none_jobs,
-            "throughput_mean_tps": statistics.fmean(none_tps),
-            "abort_rate_mean": statistics.fmean(none_abort),
-            "use": "normalization and reference line only",
-        },
     )
 
 
@@ -437,59 +421,53 @@ def advance_window(
     step_us: float, k_min_backoff: float = 0.0,
     k_max_backoff: float = 1000.0, truncate_last_backoff: bool = True,
 ) -> Transition:
-    """Translate the pinned ``update_backoff()`` ordering without repair."""
+    """Adapt one scalar fixture to the vector transition used by every run."""
     if not 0 <= committed_txs <= UINT64_MASK:
         _fail("committed_txs must be uint64")
     if not math.isfinite(time_diff_us) or time_diff_us <= 0.0:
         _fail("time_diff_us must be finite and positive")
     if not math.isfinite(step_us) or step_us <= 0.0:
         _fail("step_us must be finite and positive")
+    if k_min_backoff != 0.0:
+        _fail("the pinned source minimum backoff is 0")
+    if not math.isfinite(k_max_backoff) or k_max_backoff <= k_min_backoff:
+        _fail("k_max_backoff must be finite and greater than the minimum")
 
-    new_backoff = float(state.backoff_us)
-    backoff_diff = new_backoff - state.last_backoff
+    backoff = np.asarray([state.backoff_us], dtype=float)
+    last_committed = np.asarray([state.last_committed_txs], dtype=np.uint64)
+    last_tput = np.asarray([state.last_committed_tput], dtype=float)
+    last_backoff = np.asarray([state.last_backoff], dtype=float)
+    committed = np.asarray([committed_txs], dtype=np.uint64)
+    time_diff = np.asarray([time_diff_us], dtype=float)
+    (
+        next_backoff, next_last_committed, next_last_tput,
+        next_last_backoff, gradient_values, branch_codes,
+    ) = _advance_vector(
+        backoff=backoff,
+        last_committed=last_committed,
+        last_tput=last_tput,
+        last_backoff=last_backoff,
+        committed=committed,
+        time_diff=time_diff,
+        step_us=step_us,
+        ceiling_us=k_max_backoff,
+        truncate=truncate_last_backoff,
+    )
 
+    backoff_diff = float(backoff[0] - last_backoff[0])
     committed_diff = (committed_txs - state.last_committed_txs) & UINT64_MASK
     committed_tput = float(committed_diff) / time_diff_us * 1_000_000.0
     committed_tput_diff = committed_tput - state.last_committed_tput
-
-    last_committed_txs = committed_txs
-    last_committed_tput = committed_tput
-    # This assignment is before every gradient branch and before both clamps.
-    last_backoff: int | float = (
-        int(new_backoff) if truncate_last_backoff else new_backoff
+    branches = (
+        "gradient_negative", "gradient_positive",
+        "parity_decrease", "parity_increase",
     )
-
-    if backoff_diff != 0:
-        gradient = committed_tput_diff / backoff_diff
-    else:
-        gradient = 0.0
-
-    if gradient < 0:
-        new_backoff -= step_us
-        branch = "gradient_negative"
-    elif gradient > 0:
-        new_backoff += step_us
-        branch = "gradient_positive"
-    else:
-        if (committed_txs & 1) == 0 or new_backoff == k_max_backoff:
-            new_backoff -= step_us
-            branch = "parity_decrease"
-        elif (committed_txs & 1) == 1 or new_backoff == k_min_backoff:
-            new_backoff += step_us
-            branch = "parity_increase"
-        else:  # The C++ conditions are exhaustive for uint64 parity.
-            raise AssertionError("unreachable parity branch")
-
-    if new_backoff < k_min_backoff:
-        new_backoff = k_min_backoff
-    elif new_backoff > k_max_backoff:
-        new_backoff = k_max_backoff
     return Transition(
         state=WalkState(
-            backoff_us=new_backoff,
-            last_committed_txs=last_committed_txs,
-            last_committed_tput=last_committed_tput,
-            last_backoff=last_backoff,
+            backoff_us=float(next_backoff[0]),
+            last_committed_txs=int(next_last_committed[0]),
+            last_committed_tput=float(next_last_tput[0]),
+            last_backoff=float(next_last_backoff[0]),
             committed_txs=committed_txs,
         ),
         time_diff_us=time_diff_us,
@@ -497,8 +475,8 @@ def advance_window(
         committed_tput=committed_tput,
         committed_tput_diff=committed_tput_diff,
         backoff_diff=backoff_diff,
-        gradient=gradient,
-        branch=branch,
+        gradient=float(gradient_values[0]),
+        branch=branches[int(branch_codes[0])],
     )
 
 
@@ -586,12 +564,11 @@ def _weighted_quantile_from_hist(
 
 
 def _seed_for(
-    scenario: Scenario, workload: str, step_us: float,
-    update_us: int, ceiling_us: float,
+    workload: str, step_us: float, update_us: int, ceiling_us: float,
 ) -> tuple[np.random.Generator, list[int]]:
+    """Return the condition-local stream shared by all counterfactuals."""
     spawn_key = [
         BASE_SEED,
-        scenario.seed_group,
         WORKLOADS.index(workload),
         int(round(step_us * 1000.0)),
         int(update_us),
@@ -600,20 +577,23 @@ def _seed_for(
     return np.random.default_rng(np.random.SeedSequence(spawn_key)), spawn_key
 
 
-def simulate_condition(
+def _simulate_condition(
     calibration: Calibration, scenario: Scenario, *, step_us: float,
     update_us: int, ceiling_us: float = 1000.0,
     repetitions: int = REPETITIONS, duration_us: float = DURATION_US,
 ) -> dict[str, Any]:
-    """Simulate one condition with O(repetitions) live state."""
-    if isinstance(repetitions, bool) or not 1 <= repetitions <= MAX_REPETITIONS:
-        _fail(f"repetitions must be in [1,{MAX_REPETITIONS}]")
+    """Internal bounded simulator used by frozen APIs and small unit tests."""
+    if (
+        isinstance(repetitions, bool)
+        or not 1 <= repetitions <= _MAX_INTERNAL_REPETITIONS
+    ):
+        _fail(f"repetitions must be in [1,{_MAX_INTERNAL_REPETITIONS}]")
     if not math.isfinite(duration_us) or duration_us <= 0.0:
         _fail("duration_us must be finite and positive")
     if ceiling_us not in (50.0, 1000.0):
         _fail("only the source and H1 ceilings (50,1000 us) are admissible")
     rng, spawn_key = _seed_for(
-        scenario, calibration.workload, step_us, update_us, ceiling_us,
+        calibration.workload, step_us, update_us, ceiling_us,
     )
     n = repetitions
     backoff = np.zeros(n, dtype=float)
@@ -748,9 +728,6 @@ def simulate_condition(
                 "gradient_positive": float(branch_counts[rep, 1] / denominator),
                 "parity_decrease": float(branch_counts[rep, 2] / denominator),
                 "parity_increase": float(branch_counts[rep, 3] / denominator),
-                "parity_total": float(
-                    (branch_counts[rep, 2] + branch_counts[rep, 3]) / denominator
-                ),
             },
             "gradient_sign_rates": {
                 "correct": float(sign_counts[rep, 0] / denominator),
@@ -780,252 +757,67 @@ def simulate_condition(
     }
 
 
+def _require_frozen_config(repetitions: int, duration_us: float) -> None:
+    if repetitions != REPETITIONS:
+        _fail(f"repetitions is frozen at {REPETITIONS}")
+    if duration_us != DURATION_US:
+        _fail(f"duration_us is frozen at {DURATION_US:g}")
+
+
+def simulate_condition(
+    calibration: Calibration, scenario: Scenario, *, step_us: float,
+    update_us: int, ceiling_us: float = 1000.0,
+    repetitions: int = REPETITIONS, duration_us: float = DURATION_US,
+) -> dict[str, Any]:
+    """Simulate one condition under the literal, frozen run configuration."""
+    _require_frozen_config(repetitions, duration_us)
+    return _simulate_condition(
+        calibration, scenario, step_us=step_us, update_us=update_us,
+        ceiling_us=ceiling_us, repetitions=REPETITIONS,
+        duration_us=DURATION_US,
+    )
+
+
+def _simulate_condition_batch(
+    calibration: Calibration, scenario: Scenario,
+    conditions: Sequence[tuple[float, int, float]], *,
+    repetitions: int = REPETITIONS, duration_us: float = DURATION_US,
+) -> list[dict[str, Any]]:
+    """Internal condition-local batch used by frozen APIs and unit tests."""
+    if not conditions:
+        return []
+    canonical = tuple(
+        (float(step), int(update), float(ceiling))
+        for step, update, ceiling in conditions
+    )
+    if len(set(canonical)) != len(canonical):
+        _fail("batched condition coordinates must be unique")
+    if any(
+        step <= 0.0 or update <= 0 or ceiling not in (50.0, 1000.0)
+        for step, update, ceiling in canonical
+    ):
+        _fail("batched condition coordinate is outside the frozen contract")
+    return [
+        _simulate_condition(
+            calibration, scenario, step_us=step, update_us=update,
+            ceiling_us=ceiling, repetitions=repetitions,
+            duration_us=duration_us,
+        )
+        for step, update, ceiling in canonical
+    ]
+
+
 def simulate_condition_batch(
     calibration: Calibration, scenario: Scenario,
     conditions: Sequence[tuple[float, int, float]], *,
     repetitions: int = REPETITIONS, duration_us: float = DURATION_US,
 ) -> list[dict[str, Any]]:
-    """Simulate a fixed condition list in one repetition/condition array batch."""
-    if not conditions:
-        return []
-    if isinstance(repetitions, bool) or not 1 <= repetitions <= MAX_REPETITIONS:
-        _fail(f"repetitions must be in [1,{MAX_REPETITIONS}]")
-    if not math.isfinite(duration_us) or duration_us <= 0.0:
-        _fail("duration_us must be finite and positive")
-    canonical = tuple((float(step), int(update), float(ceiling))
-                      for step, update, ceiling in conditions)
-    if len(set(canonical)) != len(canonical):
-        _fail("batched condition coordinates must be unique")
-    if any(step <= 0.0 or update <= 0 or ceiling not in (50.0, 1000.0)
-           for step, update, ceiling in canonical):
-        _fail("batched condition coordinate is outside the frozen contract")
-
-    condition_count = len(canonical)
-    n = repetitions
-    shape = (condition_count, n)
-    steps = np.broadcast_to(
-        np.asarray([row[0] for row in canonical], dtype=float)[:, None], shape,
+    """Simulate a condition list under the literal, frozen configuration."""
+    _require_frozen_config(repetitions, duration_us)
+    return _simulate_condition_batch(
+        calibration, scenario, conditions, repetitions=REPETITIONS,
+        duration_us=DURATION_US,
     )
-    updates = np.broadcast_to(
-        np.asarray([row[1] for row in canonical], dtype=float)[:, None], shape,
-    )
-    ceilings = np.broadcast_to(
-        np.asarray([row[2] for row in canonical], dtype=float)[:, None], shape,
-    )
-    batch_seed = [
-        BASE_SEED, scenario.seed_group, WORKLOADS.index(calibration.workload),
-        0x2216, condition_count,
-    ]
-    rng = np.random.default_rng(np.random.SeedSequence(batch_seed))
-    backoff = np.zeros(shape, dtype=float)
-    last_committed = np.zeros(shape, dtype=np.uint64)
-    last_tput = np.zeros(shape, dtype=float)
-    last_backoff = np.zeros(shape, dtype=float)
-    last_expected_tput = np.zeros(shape, dtype=float)
-    committed = np.zeros(shape, dtype=np.uint64)
-    total_commits = np.zeros(shape, dtype=np.uint64)
-    elapsed = np.zeros(shape, dtype=float)
-    residual = np.zeros(shape, dtype=float)
-    residence_gt100 = np.zeros(shape, dtype=float)
-    survivor_time = np.zeros(
-        (condition_count, n, len(RESIDENCE_THRESHOLDS_US)), dtype=float,
-    )
-    residence_coordinates = np.arange(
-        0.0, 1000.0 + RESIDENCE_BIN_WIDTH_US, RESIDENCE_BIN_WIDTH_US,
-    )
-    residence_hist = np.zeros(
-        (condition_count, n, len(residence_coordinates)), dtype=float,
-    )
-    interval_edges = np.concatenate((
-        np.asarray([0.0]), np.geomspace(1.0, duration_us, num=128),
-    ))
-    interval_hist = np.zeros(
-        (condition_count, n, len(interval_edges) - 1), dtype=np.uint64,
-    )
-    branch_counts = np.zeros((condition_count, n, 4), dtype=np.uint64)
-    sign_counts = np.zeros((condition_count, n, 3), dtype=np.uint64)
-    update_counts = np.zeros(shape, dtype=np.uint64)
-    condition_indices = np.broadcast_to(
-        np.arange(condition_count)[:, None], shape,
-    )
-    repetition_indices = np.broadcast_to(np.arange(n)[None, :], shape)
-    threshold_array = np.asarray(RESIDENCE_THRESHOLDS_US, dtype=float)
-    maximum_iterations = int(math.ceil(
-        duration_us / min(row[1] for row in canonical)
-    )) + 2
-
-    for _iteration in range(maximum_iterations):
-        active = elapsed < duration_us
-        if not np.any(active):
-            break
-        intervals = effective_update_interval_us(
-            calibration, backoff, updates, scenario,
-        )
-        remaining = duration_us - elapsed
-        full_update = active & np.isfinite(intervals) & (intervals <= remaining)
-        spans = np.where(active, np.where(full_update, intervals, remaining), 0.0)
-        expected_tput = throughput_at(calibration, backoff, scenario)
-        sampled, residual = _sample_counts(
-            rng, expected_tput * spans / 1_000_000.0,
-            scenario.count_law, residual,
-        )
-        total_commits += sampled
-        committed += sampled
-        residence_gt100 += spans * (backoff > 100.0)
-        survivor_time += spans[:, :, None] * (
-            backoff[:, :, None] >= threshold_array[None, None, :]
-        )
-        residence_bins = np.minimum(
-            np.floor(backoff / RESIDENCE_BIN_WIDTH_US).astype(int),
-            len(residence_coordinates) - 1,
-        )
-        np.add.at(
-            residence_hist,
-            (condition_indices, repetition_indices, residence_bins), spans,
-        )
-        elapsed += spans
-
-        updating_flat = np.flatnonzero(full_update.reshape(-1))
-        if updating_flat.size == 0:
-            continue
-        updating_conditions, updating_repetitions = np.unravel_index(
-            updating_flat, shape,
-        )
-        intervals_flat = intervals.reshape(-1)[updating_flat]
-        interval_bins = np.searchsorted(
-            interval_edges, intervals_flat, side="right",
-        ) - 1
-        interval_bins = np.clip(interval_bins, 0, interval_hist.shape[2] - 1)
-        np.add.at(
-            interval_hist,
-            (updating_conditions, updating_repetitions, interval_bins), 1,
-        )
-
-        flat_backoff = backoff.reshape(-1)
-        flat_last_committed = last_committed.reshape(-1)
-        flat_last_tput = last_tput.reshape(-1)
-        flat_last_backoff = last_backoff.reshape(-1)
-        flat_committed = committed.reshape(-1)
-        flat_last_expected = last_expected_tput.reshape(-1)
-        old_backoff_diff = (
-            flat_backoff[updating_flat] - flat_last_backoff[updating_flat]
-        )
-        expected_flat = expected_tput.reshape(-1)[updating_flat]
-        expected_diff = expected_flat - flat_last_expected[updating_flat]
-        expected_gradient = np.zeros(updating_flat.size, dtype=float)
-        nonzero = old_backoff_diff != 0.0
-        expected_gradient[nonzero] = (
-            expected_diff[nonzero] / old_backoff_diff[nonzero]
-        )
-        (
-            next_backoff, next_last_committed, next_last_tput,
-            next_last_backoff, observed_gradient, branch_code,
-        ) = _advance_vector(
-            backoff=flat_backoff[updating_flat],
-            last_committed=flat_last_committed[updating_flat],
-            last_tput=flat_last_tput[updating_flat],
-            last_backoff=flat_last_backoff[updating_flat],
-            committed=flat_committed[updating_flat],
-            time_diff=intervals_flat,
-            step_us=steps.reshape(-1)[updating_flat],
-            ceiling_us=ceilings.reshape(-1)[updating_flat],
-            truncate=scenario.truncate_last_backoff,
-        )
-        flat_backoff[updating_flat] = next_backoff
-        flat_last_committed[updating_flat] = next_last_committed
-        flat_last_tput[updating_flat] = next_last_tput
-        flat_last_backoff[updating_flat] = next_last_backoff
-        flat_last_expected[updating_flat] = expected_flat
-        update_counts.reshape(-1)[updating_flat] += 1
-        np.add.at(
-            branch_counts,
-            (updating_conditions, updating_repetitions, branch_code), 1,
-        )
-        observed_sign = np.sign(observed_gradient)
-        expected_sign = np.sign(expected_gradient)
-        zero = observed_sign == 0.0
-        correct = ~zero & (observed_sign == expected_sign)
-        sign_code = np.where(zero, 2, np.where(correct, 0, 1))
-        np.add.at(
-            sign_counts,
-            (updating_conditions, updating_repetitions, sign_code), 1,
-        )
-    else:
-        _fail("batched event loop exceeded its duration-derived bound")
-
-    interval_coordinates = np.sqrt(interval_edges[:-1] * interval_edges[1:])
-    interval_coordinates[0] = interval_edges[1] / 2.0
-    results: list[dict[str, Any]] = []
-    for condition_index, (step_us, update_us, ceiling_us) in enumerate(canonical):
-        repetitions_out: list[dict[str, Any]] = []
-        for rep in range(n):
-            update_count = int(update_counts[condition_index, rep])
-            denominator = float(update_count) if update_count else 1.0
-            branch = branch_counts[condition_index, rep]
-            signs = sign_counts[condition_index, rep]
-            repetitions_out.append({
-                "rep_index": rep,
-                "throughput_tps": float(total_commits[condition_index, rep])
-                / duration_us * 1_000_000.0,
-                "total_commits": int(total_commits[condition_index, rep]),
-                "p_backoff_gt_100": float(
-                    residence_gt100[condition_index, rep] / duration_us
-                ),
-                "backoff_quantiles_us": {
-                    f"p{int(q * 100):02d}": _weighted_quantile_from_hist(
-                        residence_hist[condition_index, rep],
-                        residence_coordinates, q,
-                    )
-                    for q in (0.50, 0.90, 0.99)
-                },
-                "effective_update_interval_quantiles_us": {
-                    f"p{int(q * 100):02d}": _weighted_quantile_from_hist(
-                        interval_hist[condition_index, rep],
-                        interval_coordinates, q,
-                    )
-                    for q in (0.50, 0.90, 0.99)
-                },
-                "residence_survivor": [
-                    float(value / duration_us)
-                    for value in survivor_time[condition_index, rep]
-                ],
-                "branch_rates": {
-                    "gradient_negative": float(branch[0] / denominator),
-                    "gradient_positive": float(branch[1] / denominator),
-                    "parity_decrease": float(branch[2] / denominator),
-                    "parity_increase": float(branch[3] / denominator),
-                    "parity_total": float((branch[2] + branch[3]) / denominator),
-                },
-                "gradient_sign_rates": {
-                    "correct": float(signs[0] / denominator),
-                    "incorrect": float(signs[1] / denominator),
-                    "zero": float(signs[2] / denominator),
-                },
-                "update_count": update_count,
-                "final_backoff_us": float(backoff[condition_index, rep]),
-                "final_backoff_hex": float(backoff[condition_index, rep]).hex(),
-            })
-        results.append({
-            "workload": calibration.workload,
-            "scenario": scenario.name,
-            "condition": {
-                "step_us": step_us,
-                "nominal_update_us": update_us,
-                "ceiling_us": ceiling_us,
-                "duration_us": duration_us,
-            },
-            "seed_sequence": batch_seed,
-            "condition_index_in_batch": condition_index,
-            "repetitions": repetitions_out,
-            "residence_thresholds_us": list(RESIDENCE_THRESHOLDS_US),
-            "effective_update_interval_histogram": {
-                "edges_us": interval_edges.tolist(),
-                "counts": np.sum(
-                    interval_hist[condition_index], axis=0,
-                ).astype(int).tolist(),
-            },
-        })
-    return results
 
 
 def prediction_conditions() -> tuple[tuple[float, int, float], ...]:
@@ -1061,6 +853,7 @@ def predict_all(
     repetitions: int = REPETITIONS, duration_us: float = DURATION_US,
 ) -> list[dict[str, Any]]:
     """Predict from static calibrations; adaptive targets are not an argument."""
+    _require_frozen_config(repetitions, duration_us)
     runs: list[dict[str, Any]] = []
     for workload in WORKLOADS:
         calibration = calibrations[workload]
@@ -1270,15 +1063,9 @@ def rule_h1(
     }
 
 
-def derive_status(shape_passed: bool, support_passed: bool) -> str | None:
-    """Return only statuses supported by the available indirect evidence."""
-    if support_passed:
-        if not shape_passed:
-            _fail("support status requires the shape gate")
-        return "mechanism_supported"
-    if shape_passed:
-        return "shape_match"
-    return None
+def derive_status(shape_passed: bool) -> str | None:
+    """Return the shape-only status reachable from this indirect study."""
+    return "shape_match" if shape_passed else None
 
 
 def _mean_observed(series: Mapping[float, Sequence[float]]) -> dict[float, float]:
@@ -1364,7 +1151,12 @@ def evaluate_predictions(
     h1 = rule_h1(h1_ratios, h1_observed_ratios)
     h2: dict[str, Any] = {
         "scored": False,
-        "reason": "balanced/read-heavy adaptive holdout remains unopened",
+        "kind": "post-hoc parameter-independent consistency check",
+        "reason": (
+            "balanced/read-heavy adaptive values are not scored by default; "
+            "some were exposed before scoring, so H2 is not a blinded or "
+            "preregistered holdout"
+        ),
     }
     if score_h2:
         scores = {
@@ -1375,31 +1167,29 @@ def evaluate_predictions(
             "scored": True,
             "passed": all(item["passed"] for item in scores.values()),
             "workloads": scores,
+            "kind": "post-hoc parameter-independent consistency check",
+            "disclosure": (
+                "predictions use static measurements only, but some adaptive "
+                "values were exposed before scoring; this is not a blinded or "
+                "preregistered holdout"
+            ),
         }
-    intermediate_present = all(
-        all(
-            key in rep
-            for key in (
-                "p_backoff_gt_100", "backoff_quantiles_us",
-                "effective_update_interval_quantiles_us",
-                "gradient_sign_rates", "branch_rates",
-            )
-        )
-        for run in runs if run["scenario"] == EXACT.name
-        for rep in run["repetitions"]
-    )
     shape_passed = bool(write_shape["passed"])
-    support_passed = bool(
-        shape_passed and h1["passed"] and h2.get("passed", False)
-        and intermediate_present
-    )
     return {
-        "status": derive_status(shape_passed, support_passed),
+        "status": derive_status(shape_passed),
         "shape": write_shape,
-        "H1_ceiling": h1,
-        "H2_workloads": h2,
-        "intermediate_predictions_present": intermediate_present,
-        "support_passed": support_passed,
+        "consistency_checks": {
+            "H1_ceiling": h1,
+            "H2_workloads": h2,
+            "intermediate_predictions": {
+                "passed": None,
+                "kind": "reported prediction without direct observed counterpart",
+                "reason": (
+                    "Backoff trajectory, effective interval, and branch-rate "
+                    "observations are unavailable in this wave"
+                ),
+            },
+        },
     }
 
 
@@ -1415,7 +1205,6 @@ def _calibration_json(calibration: Calibration) -> dict[str, Any]:
             )
         ],
         "raw_cells": list(calibration.raw_cells),
-        "none_reference": calibration.none_reference,
     }
 
 
@@ -1443,6 +1232,7 @@ def build_document(
     measured_path: Path, backoff_copy: Path, *, score_h2: bool = False,
     repetitions: int = REPETITIONS, duration_us: float = DURATION_US,
 ) -> dict[str, Any]:
+    _require_frozen_config(repetitions, duration_us)
     measured_path = measured_path.resolve()
     backoff_copy = backoff_copy.resolve()
     if _sha256(backoff_copy) != BACKOFF_COPY_SHA256:
@@ -1450,6 +1240,8 @@ def build_document(
     source_text = backoff_copy.read_text(encoding="utf-8")
     if VERBATIM_UPDATE_BACKOFF not in source_text:
         _fail("verbatim update_backoff copy differs")
+    if _sha256(measured_path) != MEASURED_INPUT_SHA256:
+        _fail("measured JSON SHA256 differs from the frozen input")
     measured = strict_json(measured_path)
     calibrations = {
         workload: build_calibration(measured, workload) for workload in WORKLOADS
@@ -1477,7 +1269,6 @@ def build_document(
             "zipf_skew": ZIPF_SKEW,
             "duration_us": duration_us,
             "repetitions": repetitions,
-            "maximum_repetitions": MAX_REPETITIONS,
             "base_seed": BASE_SEED,
             "rng": "numpy.random.Generator(PCG64)",
             "condition_order": [list(row) for row in prediction_conditions()],
@@ -1494,6 +1285,8 @@ def build_document(
                 "B_strict_ratio_limit": B_MAX_MIN_RATIO_LIMIT,
                 "d1475_valley_tps": D1475_VALLEY_TPS,
                 "valley_relative_tolerance": D1475_VALLEY_RELATIVE_TOLERANCE,
+                "H1_step2_inclusive_min": H1_STEP2_MIN_CAP_RATIO,
+                "H1_step0.5_inclusive_max": H1_STEP05_MAX_CAP_RATIO,
                 "H1_ratio_relative_tolerance": H1_RATIO_RELATIVE_TOLERANCE,
             },
         },
@@ -1551,7 +1344,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("output_json", type=Path)
     parser.add_argument(
         "--score-h2", action="store_true",
-        help="open and score balanced/read-heavy adaptive holdout once",
+        help=(
+            "score balanced/read-heavy as a post-hoc, parameter-independent "
+            "consistency check"
+        ),
     )
     return parser
 
