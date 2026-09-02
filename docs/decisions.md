@@ -46381,3 +46381,132 @@ rulings は推奨を出さない。
 
 - 計装を入れる — 内訳は分かるが、効果量が既知の律速と桁で離れている。
 - D1035 を根拠に見送る — 前提が後発の実測で否定されている。
+
+## D1486. masstree archive の独立期待権威は版付きの非 debug 射影 digest として発行する (2026-09-02)
+
+**決定:** D668 決定 1 が「archive の sha256」と書いた独立期待 hash を、
+**`gnu-ar-elf-nondebug/v1` の非 debug 射影 digest** として発行する。置き場は D668 のとおり
+`tools/pegasus/policies/floor_masstree_payload_v1.json` のままとし、schema を v3 へ上げる。
+raw archive sha256 は policy へ入れず、run 内 drift と provenance 用として現行のまま残す。
+
+**理由:**
+
+- **素朴な raw bytes は到達不能である。** recipe は `CXXFLAGS=-g` で build するため、
+  DWARF の `DW_AT_comp_dir` に build directory の絶対 path が入る。計算ノードは PBS job id を
+  含む scratch で build し、生成器は毎回異なる temp directory で build するので、両者は原理的に
+  一致しない。これは 2026-08-23 の実機 run (`output/insights/2026-08-23_t1431-floor-pilot-rerun/`)
+  と本 wave の probe で、独立に 2 回実測されている。
+- **現行の代替は D1076 が却下した形である。** raw pin は 2026-08-24 の実装判断で撤去され、
+  代わりに caller が事前観測した realpath + version の toolchain manifest hash が残った。これは
+  「検証済み絶対 path への束縛」であり、D1076 が明示的に却下した選択肢に該当する。
+  D1076 は撤去より後のユーザー裁定なので、D1076 が優先する。
+- **非 debug 射影なら到達可能である。** 本 wave は 6 本の独立 build
+  (生成器の二重 build、共有 third-party cache の archive、別 path の login build 2 本) が
+  同一の射影値 `844334920db6…` を返すことを実測した。raw sha256 は 6 本すべて相異なる。
+  section 単位でも、非 debug section は 1 つも相違しなかった。
+- **射影は外部 command を新しい信頼点にしない。** `objcopy` / `strip` / `readelf` を使わず、
+  version 管理下の pure-Python parser が no-follow の 1 回読みから raw digest と併せて導出する。
+
+**却下した選択肢:**
+
+- raw archive sha256 をそのまま発行する — 到達不能が 2 回実測されており、恒常 fail-closed になる。
+- CCBench の `CXXFLAGS` へ `-ffile-prefix-map` を足して raw bytes を再現可能にする —
+  CCBench 改変を伴い、既存 binary digest への波及が広い。射影で足りることを実測した。
+- `objcopy --strip-debug` の出力を hash する — 射影が一致することは実測したが、
+  ambient に解決される外部 command を新しい信頼点として持ち込む。
+- 期待権威を置かず toolchain manifest 束縛だけで済ませる — D1076 が却下した形の維持になる。
+
+**射程の限界 (謳わず明記する):** 検出するのは承認 policy と実行時 archive の非 debug 射影の差である。
+同じ射影を出す道具の置換、debug 情報だけの差、発行環境そのものの正当性は保証しない。
+適用範囲は S8b `sort_best` の masstree prebuild であり、non-sort floor build、mocc の CCBench build、
+通常 buildcache consumer は覆わない。期待値は login node で発行しており、計算ノードで実際に
+build した archive の射影を測ったわけではない。食い違えば gate は fail-closed で発火する。
+
+## D1487. mocc trace pilot の compiler は policy の期待 version body と照合し launcher 経路を閉じる (2026-09-02)
+
+**決定:** `tools/pegasus/mocc_trace_v1_policy.json` へ
+`expected_compiler_version_body_sha256` を exact key 集合 `{"gcc", "g++"}` の mapping として追加し、
+pilot が compiler を記録する地点で fail-closed 照合する。正規化は
+`orchestrator/campaign/toolchain_binding.py` の実 `tool_version_body()` を import して再利用し、
+複製しない。あわせて policy 読み出しで duplicate key を拒否し、gflags / glog の configure から
+未照合の compiler launcher 経路 (`CMAKE_C/CXX_COMPILER_LAUNCHER`、`RULE_LAUNCH_COMPILE`、
+`CMAKE_TOOLCHAIN_FILE`) を閉じる。絶対 path は記録用に維持し、受理述語には使わない。
+
+**理由:**
+
+- 現行は CPU model が不一致で fail-closed し、gflags / glog も HEAD pin と照合するのに、
+  compiler だけは `command -v` で素の名前から解決した path と `--version` を記録するだけだった。
+  計測ノードの既定 toolchain が変われば、同じ policy・同じ source pair の観測値が黙って
+  別条件のものになる。
+- 期待値は実在し到達可能である。記録済み pilot receipt 37 件と計算ノード calibration receipt の
+  compiler version body は、いずれも digest `b713e6ab…` で 1 種類だった。
+- 床値 campaign 側の `toolchain_binding.py` (D293 / D601) は receipt と live 観測の realpath を
+  突き合わせる設計であり、policy の期待権威とは役割が違う。二度書きにはならない。
+  一方 version 正規化の規約は既存権威なので再利用する。
+- compiler の身元を照合しても、CMake が環境変数から採用する launcher を閉じなければ、
+  照合済み compiler の前に未照合の実行体を差し込める。main CCBench build は既に空 launcher を
+  渡しており、依存 library の build だけが開いていた。
+
+**却下した選択肢:**
+
+- 絶対 path で照合する — D1076 が却下した形。
+- 正規化を shell 側へ複製する — 既存権威と乖離する経路を増やす。
+- gcc と g++ の role 混成まで識別する固定 challenge を作る — 本題を越える新機構であり、
+  本 wave は限界として明記するに留める。
+
+**射程の限界 (謳わず明記する):** `tool_version_body()` は起動名の第 1 token を落とすため、
+gcc と g++ の body は同一になりうる。したがって role 混成は検出しない。
+同じ version body を保った compiler binary の置換も検出しない。
+期待値は committed policy に置くが、submit 側の authority へは束縛していない。
+
+## D1488. certification policy の形は study ごとの exact map に閉じ、任意 N へ一般化しない (2026-09-02)
+
+**決定:** A-6 (read-heavy 1 workload) を A-2 と同じ protocol で回すために `load_policy` の
+workload 数 / cell 数の固定を外すが、**任意 N への一般化は採らない**。次の 2 層に閉じる。
+
+- `study` から shape を引く exact map を持つ。`paper-story-a2-certification` は workload 2 / cell 4、
+  `paper-story-a6-certification` は workload 1 / cell 2。未知 study と shape 不一致は現行と同じ
+  `CertificationError` で拒否する。
+- policy 選択面 (`--policy`) は repo 内 canonical な 2 path だけを受理する closed set とする。
+  任意 path を受理しない。
+
+D1259 の partial v4 境界 (exact 2 workload で成功が exact 1) は、writer 側 `finish_group` と
+consumer 最前段 `_validate_completion_receipt` の 2 箇所だけで保つ。前段に支配される
+manifest producer / loader / authority へは guard を足さない。
+
+**理由:**
+- 任意 N への一般化は、A-6 という名前を持つだけの 3 workload policy や別 rratio の policy まで
+  正式 proof chain へ通す。段 3 の独立した 2 レンズが同じ欠陥を挙げた。
+- exact map と closed set は「現行の exact 2/4 を、出荷する 2 形状ちょうどへ置き換える」ものであり、
+  受理集合は現行より広がらない。
+- policy を tracked file に限ると、job body の HEAD 一致・tracked clean 検査を通じて、
+  実行された policy bytes が `source_commit` へ git 経由で束縛される。
+- partial 境界の guard を 5 箇所へ置くと前段に支配されて発火せず、変異の単独帰属が成立しない。
+  恒真な保証を増やすだけである。
+
+**却下した選択肢:**
+- `len(workloads) >= 1` の一般化 — 上記のとおり受理集合が承認外へ広がる。
+- A-2 policy に read-heavy を足して 3 workload にする — 外側 certification は policy workload 順の
+  論理積 (D1169) なので、完了済みの A-2 判定を作り直すことになる。費用も 1 job では済まない。
+- 新しい `.sh` を複製する — `tools/pegasus/admission_registry.json` と `test_hooks.py` の
+  2 つの登録簿へ追加が要り、並行 wave と衝突する。既存 2 本へ policy 選択を足す方が安い。
+
+## D1489. A-6 の walltime は read-heavy の検査コスト実測から 12:00:00 とする (2026-09-02)
+
+**決定:** A-6 policy の `scheduler.walltime` は `12:00:00` とする。A-2 fan-out の `06:00:00` を
+転用しない。
+
+**理由:**
+- A-2 の 6 時間枠は write-heavy と balanced の実測 (rr5 Elapse 3671s / rr50 3594s) に基づく。
+- read-heavy (48 thread / zipf 0.9 / rratio 95 / extime 3) の直列性検査は 1 回 23 分の実測がある。
+  同 regime の別走行は 5 時間で 15 点中 3 点しか完了せず CPU/経過 = 1.0 だった。
+- A-6 は 2 cell x (legacy 1 + full-scale 5)。full-scale 10 回を max 23 分で見積もると 3.83 時間。
+  12:00:00 はその約 3.1 倍で、gen_S の Per-Req Elapse 上限 86400S の内側である。
+- D193 により build 後の中断 attempt は自動回復しない。walltime 超過は attempt 全損であり、
+  この非対称性が枠を広く取る理由である。
+- `scheduler` は `_protocol_preimage` に含まれないため、walltime を変えても protocol の同一性は
+  変わらない。D1263 は A-2 fan-out の据え置きを定めた裁定であり A-6 を拘束しない。
+
+**却下した選択肢:**
+- A-2 と同じ 06:00:00 を継承する — 実測 regime が違う値の転用であり、超過時の損失が大きい。
+- 24:00:00 上限いっぱいにする — 見積りの根拠を超えた枠で、queue の占有だけが増える。
