@@ -3320,3 +3320,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-02","base":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621","content_sha256":"f7de31ce631e6a6819df157e8e51d0906f7004cf364312e27875f187f61f15cc","seq":1,"tested_tip":"1892dcfc24fff4cab7107599dc298d47dfd9579f","wave":"dev-wave-b10-trace-truncation-probe","wave_ref":"refs/heads/worktree-dev-wave-b10-trace-truncation-probe"}
 
 - {"allocations":{},"authored":"2026-09-02","base":"7b1a46c79702a729137bfb0adf14d3644fb9232d","content_sha256":"aa7174913ed6da0beacb94657b16e0af167111b8020192426d7fb564e2476cd1","seq":1,"tested_tip":"08f73438578327b1a4725e69a2c9e7d35c3c3d22","wave":"dev-wave-t1905-b10-multinode-design","wave_ref":"refs/heads/worktree-dev-wave-t1905-b10-multinode-design"}
+
+- {"allocations":{"T:b10-resume-binding-residual":"[T-2194]"},"authored":"2026-09-02","base":"813b4cc963eedb6c2c5915f50316e0636993347a","content_sha256":"ceb5e2cd14883dbbd5bbf50999ec8bffcce5f33e08891d6be1141bbb77feda22","seq":1,"tested_tip":"bc5fa5cf403b8b772c5d8f69c06a059a6179c43e","wave":"dev-wave-b10-analysis-commit-unbind","wave_ref":"refs/heads/worktree-dev-wave-b10-analysis-commit-unbind"}
