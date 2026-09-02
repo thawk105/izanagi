@@ -124,6 +124,8 @@ def test_paper_condition_gate_is_p_strict_and_precedes_campaign(monkeypatch):
 def _assert_condition_gate_context(monkeypatch):
     source_root = Path("/shared/ccbench")
     variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    expected_toolchain_manifest = {"fixture": "toolchain"}
     events = []
 
     @contextlib.contextmanager
@@ -147,9 +149,37 @@ def _assert_condition_gate_context(monkeypatch):
         finally:
             events.append(("applied-exit", Path(ccbench_dir)))
 
+    @contextlib.contextmanager
+    def temporary_directory(*, prefix):
+        assert prefix == "izanagi-a2-condition-gate-"
+        events.append(("fetchcontent-enter", fetchcontent_base))
+        try:
+            yield os.fspath(fetchcontent_base)
+        finally:
+            events.append(("fetchcontent-exit", fetchcontent_base))
+
+    def prepare_masstree_fetchcontent(**kwargs):
+        events.append((
+            "prebuild", Path(kwargs["ccbench_dir"]),
+            Path(kwargs["fetchcontent_base_dir"]),
+        ))
+        assert kwargs["expected_toolchain_manifest"] \
+            is expected_toolchain_manifest
+        assert kwargs == {
+            "ccbench_dir": os.fspath(variant_root),
+            "fetchcontent_base_dir": os.fspath(fetchcontent_base),
+            "expected_toolchain_manifest": expected_toolchain_manifest,
+            "configure_timeout_s": 900,
+            "target_timeout_s": 900,
+            "dependency_prefix": "/dependency",
+        }
+
     def capture(source, *, stock_root, configure_args):
         events.append(("capture", Path(source), Path(stock_root)))
-        assert configure_args == ("-DCMAKE_PREFIX_PATH=/dependency",)
+        assert configure_args == (
+            "-DCMAKE_PREFIX_PATH=/dependency",
+            f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+        )
         return object()
 
     def record(request, arm):
@@ -177,6 +207,10 @@ def _assert_condition_gate_context(monkeypatch):
 
     monkeypatch.setattr(A2.patchharness, "checkout", checkout)
     monkeypatch.setattr(A2.patchharness, "applied", applied)
+    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        prepare_masstree_fetchcontent)
     monkeypatch.setattr(
         A2.condition_meaning_gate, "capture_define_inputs", capture)
     monkeypatch.setattr(
@@ -194,6 +228,7 @@ def _assert_condition_gate_context(monkeypatch):
             source_root, [genome], cxx="g++",
             dependency_prefix=Path("/dependency"),
             current_pin="abc1234",
+            expected_toolchain_manifest=expected_toolchain_manifest,
     ) as (observed_variant, receipts):
         assert observed_variant == variant_root
         assert len(receipts) == 1
@@ -202,10 +237,13 @@ def _assert_condition_gate_context(monkeypatch):
 
     assert variant_root != source_root
     assert events.index(("applied-enter", variant_root, "abc1234")) < events.index(
+        ("prebuild", variant_root, fetchcontent_base)
+    ) < events.index(
         ("capture", variant_root, source_root)
     ) < events.index(("admit", "paper")) < events.index(
         ("campaign", variant_root)
     ) < events.index(("applied-exit", variant_root))
+    assert [event[0] for event in events].count("prebuild") == 1
     assert [event[0] for event in events].count("checkout-enter") == 1
     assert events[-2:] == [
         ("applied-exit", variant_root),
@@ -216,6 +254,8 @@ def _assert_condition_gate_context(monkeypatch):
 def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
     source_root = Path("/shared/ccbench")
     variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    expected_toolchain_manifest = {"fixture": "toolchain"}
     events = []
 
     @contextlib.contextmanager
@@ -235,9 +275,26 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
         finally:
             events.append(("applied-exit", Path(ccbench_dir)))
 
+    @contextlib.contextmanager
+    def temporary_directory(*, prefix):
+        assert prefix == "izanagi-a2-condition-gate-"
+        events.append(("fetchcontent-enter", fetchcontent_base))
+        try:
+            yield os.fspath(fetchcontent_base)
+        finally:
+            events.append(("fetchcontent-exit", fetchcontent_base))
+
+    def prepare_masstree_fetchcontent(**kwargs):
+        assert Path(kwargs["ccbench_dir"]) == variant_root
+        assert Path(kwargs["fetchcontent_base_dir"]) == fetchcontent_base
+        events.append(("prebuild", variant_root, fetchcontent_base))
+
     def capture(source, *, stock_root, configure_args):
         events.append(("capture", Path(source), Path(stock_root)))
-        assert configure_args == ("-DCMAKE_PREFIX_PATH=/dependency",)
+        assert configure_args == (
+            "-DCMAKE_PREFIX_PATH=/dependency",
+            f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+        )
         return object()
 
     def record(request, arm):
@@ -265,6 +322,10 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
 
     monkeypatch.setattr(A2.patchharness, "checkout", checkout)
     monkeypatch.setattr(A2.patchharness, "applied", applied)
+    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        prepare_masstree_fetchcontent)
     monkeypatch.setattr(
         A2.condition_meaning_gate, "capture_define_inputs", capture)
     monkeypatch.setattr(
@@ -283,6 +344,7 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
                 source_root, [genome], cxx="g++",
                 dependency_prefix=Path("/dependency"),
                 current_pin="abc1234",
+                expected_toolchain_manifest=expected_toolchain_manifest,
         ) as (observed_variant, receipts):
             assert observed_variant == variant_root
             assert len(receipts) == 1
@@ -292,12 +354,147 @@ def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
     assert events == [
         ("checkout-enter", variant_root, source_root, "abc1234"),
         ("applied-enter", variant_root, "abc1234"),
+        ("fetchcontent-enter", fetchcontent_base),
+        ("prebuild", variant_root, fetchcontent_base),
         ("capture", variant_root, source_root),
         ("admit", "paper"),
         ("campaign", variant_root),
+        ("fetchcontent-exit", fetchcontent_base),
         ("applied-exit", variant_root),
         ("checkout-exit", variant_root),
     ]
+
+
+def test_condition_gate_context_cleans_up_on_prebuild_exception(monkeypatch):
+    source_root = Path("/shared/ccbench")
+    variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    events = []
+
+    @contextlib.contextmanager
+    def checkout(_pin_commit, *, base_dir):
+        events.append(("checkout-enter", Path(base_dir)))
+        try:
+            yield os.fspath(variant_root)
+        finally:
+            events.append(("checkout-exit", variant_root))
+
+    @contextlib.contextmanager
+    def applied(_patch_path, _pin_commit, *, ccbench_dir):
+        events.append(("applied-enter", Path(ccbench_dir)))
+        try:
+            yield None
+        finally:
+            events.append(("applied-exit", Path(ccbench_dir)))
+
+    @contextlib.contextmanager
+    def temporary_directory(*, prefix):
+        assert prefix == "izanagi-a2-condition-gate-"
+        events.append(("fetchcontent-enter", fetchcontent_base))
+        try:
+            yield os.fspath(fetchcontent_base)
+        finally:
+            events.append(("fetchcontent-exit", fetchcontent_base))
+
+    def fail_prebuild(**kwargs):
+        events.append((
+            "prebuild", Path(kwargs["ccbench_dir"]),
+            Path(kwargs["fetchcontent_base_dir"]),
+        ))
+        raise RuntimeError("prebuild failed")
+
+    monkeypatch.setattr(A2.patchharness, "checkout", checkout)
+    monkeypatch.setattr(A2.patchharness, "applied", applied)
+    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent", fail_prebuild)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "capture_define_inputs",
+        lambda *_args, **_kwargs: pytest.fail(
+            "condition gate capture ran after prebuild failure"))
+
+    genome = A2.SimpleNamespace(flags={"BACKOFF_FIXED": 10})
+    with pytest.raises(RuntimeError, match="prebuild failed"):
+        with _REAL_CONDITION_GATE_FAMILY(
+                source_root, [genome], cxx="g++",
+                dependency_prefix=Path("/dependency"),
+                current_pin="abc1234",
+                expected_toolchain_manifest={"fixture": "toolchain"},
+        ):
+            pass
+
+    assert events == [
+        ("checkout-enter", source_root),
+        ("applied-enter", variant_root),
+        ("fetchcontent-enter", fetchcontent_base),
+        ("prebuild", variant_root, fetchcontent_base),
+        ("fetchcontent-exit", fetchcontent_base),
+        ("applied-exit", variant_root),
+        ("checkout-exit", variant_root),
+    ]
+
+
+def test_condition_gate_prebuild_runs_once_for_multiple_cells(monkeypatch):
+    variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    prebuild_calls = []
+
+    monkeypatch.setattr(
+        A2.patchharness, "checkout",
+        lambda *_args, **_kwargs: contextlib.nullcontext(
+            os.fspath(variant_root)))
+    monkeypatch.setattr(
+        A2.patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext())
+    monkeypatch.setattr(
+        A2.tempfile, "TemporaryDirectory",
+        lambda **_kwargs: contextlib.nullcontext(
+            os.fspath(fetchcontent_base)))
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        lambda **kwargs: prebuild_calls.append(kwargs))
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "capture_define_inputs",
+        lambda *_args, **_kwargs: object())
+
+    def green_record(_captured, *, request, **_kwargs):
+        payload = {
+            "macro": request.macro,
+            "terminal_status": "green",
+        }
+        return A2.SimpleNamespace(
+            macro=request.macro,
+            terminal_status="green",
+            canonical_json=lambda: json.dumps(payload),
+        )
+
+    monkeypatch.setattr(
+        A2.condition_meaning_gate,
+        "evaluate_define_supply_effectuation", green_record)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate,
+        "evaluate_define_runtime_meaning", green_record)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "require_condition_gate_family",
+        lambda *_args, **_kwargs: A2.SimpleNamespace(
+            admitted=True,
+            canonical_json=lambda: json.dumps({"admitted": True}),
+        ))
+
+    genomes = [
+        A2.SimpleNamespace(flags={"BACKOFF_FIXED": value})
+        for value in (-1, 5, 10, 20)
+    ]
+    with _REAL_CONDITION_GATE_FAMILY(
+            Path("/shared/ccbench"), genomes, cxx="g++",
+            dependency_prefix=Path("/dependency"),
+            current_pin="abc1234",
+            expected_toolchain_manifest={"fixture": "toolchain"},
+    ) as (observed_variant, receipts):
+        assert observed_variant == variant_root
+        assert len(receipts) == len(genomes)
+
+    assert len(prebuild_calls) == 1
 
 
 def _assert_condition_gate_rejection(monkeypatch):
@@ -309,6 +506,12 @@ def _assert_condition_gate_rejection(monkeypatch):
     monkeypatch.setattr(
         A2.patchharness, "applied",
         lambda *_args, **_kwargs: contextlib.nullcontext())
+    monkeypatch.setattr(
+        A2.tempfile, "TemporaryDirectory",
+        lambda **_kwargs: contextlib.nullcontext("/scratch/fetchcontent"))
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        lambda **_kwargs: None)
     monkeypatch.setattr(
         A2.condition_meaning_gate, "capture_define_inputs",
         lambda *_args, **_kwargs: object())
@@ -347,6 +550,7 @@ def _assert_condition_gate_rejection(monkeypatch):
                 Path("/shared/ccbench"), [genome], cxx="g++",
                 dependency_prefix=Path("/dependency"),
                 current_pin="abc1234",
+                expected_toolchain_manifest={"fixture": "toolchain"},
         ):
             pass
 
@@ -2802,6 +3006,16 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     observed = "buildcache.observed_toolchain_manifest("
     passed = "expected_toolchain_manifest=expected_toolchain_manifest"
     assert observed in source and passed in source
+    assert source.count(passed) == 2
+    condition_gate_call = source.index("with _condition_gate_family_context(")
+    condition_gate_call_end = source.index(
+        ") as (variant_root, condition_gate_receipts):", condition_gate_call)
+    condition_gate_manifest = source.index(
+        passed, condition_gate_call, condition_gate_call_end)
+    assert condition_gate_call < condition_gate_manifest < condition_gate_call_end
+    assert source.index(observed) < source.index(
+        "with _condition_gate_family_context("
+    )
     assert source.index(observed) < source.index("summary = run_campaign(")
     assert "capability_resolver=capability_resolver" in source
     loop_source = inspect.getsource(loop.run_campaign)

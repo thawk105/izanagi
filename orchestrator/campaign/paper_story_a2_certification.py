@@ -27,6 +27,7 @@ import statistics
 import struct
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -532,6 +533,7 @@ def _genome_for_cell(policy: Policy, cell: CellSpec):
 def _condition_gate_family_context(
         source_root: Path, genomes: Sequence[object], *, cxx: str,
         dependency_prefix: Path, current_pin: str,
+        expected_toolchain_manifest: Mapping[str, object],
 ) -> Iterator[tuple[Path, list[dict[str, object]]]]:
     """Yield a patched isolated tree after both paper condition arms pass."""
     defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
@@ -545,11 +547,23 @@ def _condition_gate_family_context(
         variant_root = Path(variant_worktree)
         with patchharness.applied(
                 patch_path, current_pin,
-                ccbench_dir=os.fspath(variant_root)):
+                ccbench_dir=os.fspath(variant_root)), \
+                tempfile.TemporaryDirectory(
+                    prefix="izanagi-a2-condition-gate-"
+                ) as fetchcontent_base:
+            buildcache.prepare_masstree_fetchcontent(
+                ccbench_dir=os.fspath(variant_root.resolve()),
+                fetchcontent_base_dir=fetchcontent_base,
+                expected_toolchain_manifest=expected_toolchain_manifest,
+                configure_timeout_s=900,
+                target_timeout_s=900,
+                dependency_prefix=os.fspath(dependency_prefix),
+            )
             captured = condition_meaning_gate.capture_define_inputs(
                 variant_root, stock_root=source_root,
                 configure_args=(
                     f"-DCMAKE_PREFIX_PATH={dependency_prefix}",
+                    f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
                 ),
             )
             for index, genome in enumerate(genomes):
@@ -3048,6 +3062,7 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
             source_root, genomes, cxx=resolved_cxx,
             dependency_prefix=dependency,
             current_pin=current_pin,
+            expected_toolchain_manifest=expected_toolchain_manifest,
     ) as (variant_root, condition_gate_receipts):
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
 
