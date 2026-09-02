@@ -13,6 +13,7 @@ runner 引数を閉じた専用 adapter である。
 * 成果物の削除・改名・改変を防がない。防ぐのは「同じ path が残っている間の再作成」だけ。
 * 標本の統計的独立性を判定しない。window / campaign を記録するだけ。
 * strip 済み binary の trace 混入を検出しない。
+* ``nm`` の PATH 解決先を binary identity として束縛しない。
 """
 from __future__ import annotations
 
@@ -35,7 +36,13 @@ from typing import Any, Callable, Mapping, Sequence
 
 from ..calibrator import runner
 from ..calibrator.model import ScalePoint
-from . import buildcache, calibration_verify, env_contract, site_policy
+from . import (
+    buildcache,
+    calibration_verify,
+    env_contract,
+    s8b_binary_admission,
+    site_policy,
+)
 
 
 SPEC_SCHEMA = "floor-pair-spec/v1"
@@ -49,6 +56,8 @@ FINAL_COMBINER_ID = "max_over_closed_strata/v1"
 FAILURE_POLICY_ID = "all_planned_samples_required/v1"
 WINDOW_FORMAT_ID = "floor-pair-jsonl/v1"
 SUMMARY_FORMAT_ID = "floor-pair-summary-json/v1"
+COMPETING_PROBE_ARGV = ("pgrep", "-af", r"ycsb_.*\.exe")
+_GIT_TIMEOUT_S = 10
 
 NOT_PROVEN = (
     "測定手順 spec が結果を見る前に凍結されたことを証明しない (freeze receipt は無い)。",
@@ -56,6 +65,7 @@ NOT_PROVEN = (
     "成果物の削除・改名・改変を防がない。防ぐのは「同じ path が残っている間の再作成」だけ。",
     "標本の統計的独立性を判定しない。window / campaign を記録するだけ。",
     "strip 済み binary の trace 混入を検出しない。",
+    "``nm`` の PATH 解決先を binary identity として束縛しない。",
 )
 
 _HEX64_RE = re.compile(r"[0-9a-f]{64}")
@@ -77,7 +87,6 @@ SESSION_STATUSES = frozenset(
         "binary_binding_failed",
         "outside_window",
         "not_run_after_fail_closed",
-        "environment_mismatch",
     }
 )
 
@@ -114,7 +123,6 @@ class CalibrationReference:
 @dataclass(frozen=True)
 class ProvenanceConfig:
     calibration: CalibrationReference
-    execution_contract: BoundReference
     source_commit: str
 
 
@@ -127,7 +135,6 @@ class EnvironmentConfig:
     use_perf: bool
     timeout_s: int
     extra_env: tuple[tuple[str, str], ...]
-    probe_argv: tuple[str, ...]
     probe_timeout_s: int
 
 
@@ -153,7 +160,6 @@ class FrozenPerfConfig:
 @dataclass(frozen=True)
 class CellConfig:
     cell_id: str
-    protocol: str
     perf_config: FrozenPerfConfig
 
 
@@ -267,7 +273,6 @@ class MeasurementRequest:
 @dataclass(frozen=True)
 class MeasurementResult:
     session_id: str
-    measurement_callable: str
     point_records: int
     point_threads: int
     throughputs: tuple[float, ...]
@@ -480,11 +485,17 @@ def _validate_output_path(root: Path, relpath: str, *, label: str) -> Path:
 
 
 def _git_show_head(root: Path, relpath: str) -> bytes:
-    completed = subprocess.run(
-        ["git", "-C", str(root), "show", f"HEAD:{relpath}"],
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "show", f"HEAD:{relpath}"],
+            capture_output=True,
+            check=False,
+            timeout=_GIT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise FloorPairBindingError(
+            f"git show HEAD を起動または完了できない: {relpath}: {exc}"
+        ) from exc
     if completed.returncode != 0:
         stderr = bytes(completed.stderr).decode("utf-8", errors="replace")
         raise FloorPairBindingError(
@@ -494,11 +505,17 @@ def _git_show_head(root: Path, relpath: str) -> bytes:
 
 
 def _git_head(root: Path) -> str:
-    completed = subprocess.run(
-        ["git", "-C", str(root), "rev-parse", "HEAD"],
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            capture_output=True,
+            check=False,
+            timeout=_GIT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise FloorPairBindingError(
+            f"git rev-parse HEAD を起動または完了できない: {exc}"
+        ) from exc
     if completed.returncode != 0:
         raise FloorPairBindingError("git rev-parse HEAD に失敗した")
     try:
@@ -553,7 +570,7 @@ def _parse_calibration_reference(value: object) -> CalibrationReference:
 def _parse_provenance(value: object) -> ProvenanceConfig:
     obj = _exact_object(
         value,
-        {"calibration", "execution_contract", "source_commit"},
+        {"calibration", "source_commit"},
         label="provenance",
     )
     source_commit = _exact_text(obj["source_commit"], label="provenance.source_commit")
@@ -561,9 +578,6 @@ def _parse_provenance(value: object) -> ProvenanceConfig:
         raise FloorPairSpecError("provenance.source_commit は 40 桁 lowercase hex でなければならない")
     return ProvenanceConfig(
         calibration=_parse_calibration_reference(obj["calibration"]),
-        execution_contract=_parse_bound_reference(
-            obj["execution_contract"], label="provenance.execution_contract"
-        ),
         source_commit=source_commit,
     )
 
@@ -590,7 +604,7 @@ def _parse_environment(value: object) -> EnvironmentConfig:
         value,
         {
             "site", "env_tag", "clocks_per_us", "numactl_argv", "use_perf",
-            "timeout_s", "extra_env", "probe_argv", "probe_timeout_s",
+            "timeout_s", "extra_env", "probe_timeout_s",
         },
         label="environment",
     )
@@ -605,6 +619,15 @@ def _parse_environment(value: object) -> EnvironmentConfig:
     use_perf = _exact_bool(obj["use_perf"], label="environment.use_perf")
     if use_perf is not False:
         raise FloorPairSpecError("environment.use_perf はこの driver では false でなければならない")
+    extra_env = _parse_string_map(obj["extra_env"], label="environment.extra_env")
+    forbidden_env = sorted(
+        key for key, _value in extra_env if key == "PATH" or key.startswith("LD_")
+    )
+    if forbidden_env:
+        raise FloorPairSpecError(
+            "environment.extra_env は PATH / LD_ 接頭辞を上書きできない: "
+            f"{forbidden_env}"
+        )
     return EnvironmentConfig(
         site=site,
         env_tag=_identifier(obj["env_tag"], label="environment.env_tag"),
@@ -616,10 +639,7 @@ def _parse_environment(value: object) -> EnvironmentConfig:
         ),
         use_perf=use_perf,
         timeout_s=_exact_int(obj["timeout_s"], label="environment.timeout_s", minimum=1),
-        extra_env=_parse_string_map(obj["extra_env"], label="environment.extra_env"),
-        probe_argv=_parse_string_tuple(
-            obj["probe_argv"], label="environment.probe_argv", allow_empty=False
-        ),
+        extra_env=extra_env,
         probe_timeout_s=_exact_int(
             obj["probe_timeout_s"], label="environment.probe_timeout_s", minimum=1
         ),
@@ -691,7 +711,7 @@ def _parse_cells(value: object) -> tuple[CellConfig, ...]:
     seen: set[str] = set()
     for index, item in enumerate(values):
         label = f"cells[{index}]"
-        obj = _exact_object(item, {"cell_id", "protocol", "perf_config"}, label=label)
+        obj = _exact_object(item, {"cell_id", "perf_config"}, label=label)
         cell_id = _identifier(obj["cell_id"], label=f"{label}.cell_id")
         if cell_id in seen:
             raise FloorPairSpecError(f"duplicate cell_id: {cell_id}")
@@ -699,7 +719,6 @@ def _parse_cells(value: object) -> tuple[CellConfig, ...]:
         result.append(
             CellConfig(
                 cell_id=cell_id,
-                protocol=_identifier(obj["protocol"], label=f"{label}.protocol"),
                 perf_config=_parse_perf(obj["perf_config"], label=f"{label}.perf_config"),
             )
         )
@@ -941,6 +960,37 @@ def _validate_cross_references(
         )
 
 
+def _validate_build_receipt(raw: bytes, artifact: ArtifactConfig) -> None:
+    """実 ``s8b-binary-admission/v2`` receipt を binary bytes と束縛する。"""
+    record = _load_json(
+        raw,
+        label=f"build receipt {artifact.artifact_id}",
+        error_type=FloorPairBindingError,
+    )
+    try:
+        receipt = s8b_binary_admission.validate_portable_binary_record(
+            record,
+            expected_policy=None,
+        )
+    except (TypeError, ValueError, RuntimeError) as exc:
+        raise FloorPairBindingError(
+            f"build receipt {artifact.artifact_id} の strict 検証に失敗: {exc}"
+        ) from exc
+    if record["binary_sha256"] != artifact.binary_sha256:
+        raise FloorPairBindingError(
+            f"build receipt {artifact.artifact_id} binary_sha256 が spec と不一致"
+        )
+    subject = receipt["subject"]
+    if subject["binary_sha256"] != artifact.binary_sha256:
+        raise FloorPairBindingError(
+            f"build receipt {artifact.artifact_id} subject.binary_sha256 が spec と不一致"
+        )
+    if subject["trace"] is not False:
+        raise FloorPairBindingError(
+            f"build receipt {artifact.artifact_id} subject.trace が false でない"
+        )
+
+
 def _bind_checkout_inputs(
     *,
     root: Path,
@@ -950,8 +1000,7 @@ def _bind_checkout_inputs(
     cells: tuple[CellConfig, ...],
 ) -> None:
     _read_tracked_bound(root, provenance.calibration, label="calibration artifact")
-    _read_tracked_bound(root, provenance.execution_contract, label="execution contract")
-    seen_receipts: set[BoundReference] = set()
+    receipt_raw_by_reference: dict[BoundReference, bytes] = {}
     for artifact in artifacts:
         binary = _resolve_regular(root, artifact.binary_relpath, label=f"binary {artifact.artifact_id}")
         try:
@@ -960,11 +1009,13 @@ def _bind_checkout_inputs(
             raise FloorPairBindingError(
                 f"binary {artifact.artifact_id} sha256 を検証できない: {exc}"
             ) from exc
-        if artifact.build_receipt not in seen_receipts:
-            _read_tracked_bound(
+        if artifact.build_receipt not in receipt_raw_by_reference:
+            receipt_raw_by_reference[artifact.build_receipt] = _read_tracked_bound(
                 root, artifact.build_receipt, label=f"build receipt {artifact.artifact_id}"
             )
-            seen_receipts.add(artifact.build_receipt)
+        _validate_build_receipt(
+            receipt_raw_by_reference[artifact.build_receipt], artifact
+        )
     try:
         verified = calibration_verify.load_verified_calibration(
             env_tag=environment.env_tag,
@@ -978,9 +1029,25 @@ def _bind_checkout_inputs(
         raise FloorPairBindingError(f"calibration admission に失敗: {exc}") from exc
     calibration = verified.calibration
     if calibration is None:
-        raise FloorPairBindingError("calibration から実効 field を導出できない")
+        raise FloorPairBindingError(
+            "この driver は校正済み動作点だけを測るため、"
+            "calibration=None の attestation mode は意図的に受理しない"
+        )
+    quality = getattr(calibration, "quality", None)
+    if getattr(quality, "status", None) != "accepted":
+        raise FloorPairBindingError("calibration quality.status が accepted でない")
+    saturation = getattr(calibration, "saturation", None)
+    if type(saturation) is not dict:
+        raise FloorPairBindingError("accepted calibration の saturation が非 null object でない")
+    if "records" not in saturation:
+        raise FloorPairBindingError("calibration saturation.records が欠落")
+    saturation_records = saturation["records"]
+    if type(saturation_records) is not int or saturation_records < 1:
+        raise FloorPairBindingError("calibration saturation.records が exact 正 int でない")
     for cell in cells:
         perf = cell.perf_config
+        # verifier が production 入力で同値を既に要求するため env/clocks は冗長 gate。
+        # 防御的な再照合として残すが、単独変異の証拠には数えない。
         if calibration.env_tag != environment.env_tag:
             raise FloorPairBindingError(f"cell {cell.cell_id}: calibration env_tag 不一致")
         if calibration.threads != perf.threads:
@@ -989,12 +1056,18 @@ def _bind_checkout_inputs(
             raise FloorPairBindingError(f"cell {cell.cell_id}: calibration clocks_per_us 不一致")
         if calibration.workload != dict(perf.workload):
             raise FloorPairBindingError(f"cell {cell.cell_id}: calibration workload 不一致")
+        if perf.records != saturation_records:
+            raise FloorPairBindingError(f"cell {cell.cell_id}: calibration records 不一致")
 
 
 def load_frozen_spec(
     path: Path, expected_sha256: str, *, repo_root: Path
 ) -> FloorPairSpec:
-    """HEAD tracked JSON と byte 一致する凍結 spec を strict に読み、参照を束縛する。"""
+    """HEAD tracked JSON と byte 一致する凍結 spec を strict に読み、参照を束縛する。
+
+    この専用 driver は校正済み動作点だけを測るため、正常な legacy
+    ``attestation_mode=none`` が返す ``calibration=None`` も意図的に受理しない。
+    """
     if not isinstance(path, Path) or not isinstance(repo_root, Path):
         raise FloorPairBindingError("path と repo_root は Path でなければならない")
     try:
@@ -1071,6 +1144,10 @@ def load_frozen_spec(
         cells=cells,
     )
     loaded_head = _git_head(root)
+    if provenance.source_commit != loaded_head:
+        raise FloorPairBindingError(
+            "provenance.source_commit が spec load 時の HEAD と一致しない"
+        )
     return FloorPairSpec(
         schema=schema,
         provenance=provenance,
@@ -1263,14 +1340,6 @@ def apply_upper_statistic(function_id: str, values: Sequence[float]) -> float:
     return result
 
 
-def _callable_identity(function: Callable[..., object]) -> str:
-    module = getattr(function, "__module__", None)
-    qualname = getattr(function, "__qualname__", None)
-    if type(module) is not str or module == "" or type(qualname) is not str or qualname == "":
-        raise FloorPairRunError("measurement callable の実体名を導出できない", status="measure_failed")
-    return f"{module}.{qualname}"
-
-
 def _measure_with_runner(request: MeasurementRequest) -> MeasurementResult:
     """``measure_point`` へ凍結 field と固定不変条件をすべて明示して射影する。
 
@@ -1312,7 +1381,6 @@ def _measure_with_runner(request: MeasurementRequest) -> MeasurementResult:
         raise FloorPairRunError("measure_point が ScalePoint を返さない", status="measure_failed")
     return MeasurementResult(
         session_id=request.session_id,
-        measurement_callable=_callable_identity(_measure_with_runner),
         point_records=point.records,
         point_threads=point.threads,
         throughputs=tuple(point.throughputs),
@@ -1367,7 +1435,16 @@ def _machine_env_tag_for_site(site: str) -> str:
 
 
 def _assert_live_environment(spec: FloorPairSpec) -> None:
-    site = site_policy.current_site()
+    site = site_policy.current_site(require_evidence=True)
+    if site in {site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT}:
+        raise FloorPairRunError(
+            f"測定を許可しない live site: {site!r}", status="environment_mismatch"
+        )
+    if site != spec.environment.site:
+        raise FloorPairRunError(
+            f"live site {site!r} が spec {spec.environment.site!r} と一致しない",
+            status="environment_mismatch",
+        )
     live_env_tag = _machine_env_tag_for_site(site)
     if live_env_tag != spec.environment.env_tag:
         raise FloorPairRunError(
@@ -1426,14 +1503,14 @@ def _probe_once(
     probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],
 ) -> dict[str, object]:
     try:
-        raw = probe_fn(environment.probe_argv, environment.probe_timeout_s)
+        raw = probe_fn(COMPETING_PROBE_ARGV, environment.probe_timeout_s)
         if type(raw) is not tuple or len(raw) != 3:
             raise TypeError("probe result は exact (rc, stdout, stderr) でなければならない")
         rc, stdout, stderr = raw
         if type(rc) is not int or type(stdout) is not str or type(stderr) is not str:
             raise TypeError("probe result の型が不正")
         competitors = runner.classify_competing_probe(
-            rc, stdout, stderr, environment.probe_argv
+            rc, stdout, stderr, COMPETING_PROBE_ARGV
         )
         status = "clear" if len(competitors) == 0 else "competing"
         return {
@@ -1470,14 +1547,11 @@ def _json_safe(value: object) -> object:
 def _measurement_complete(
     result: MeasurementResult,
     request: MeasurementRequest,
-    expected_callable: str,
 ) -> tuple[bool, str | None]:
     if not isinstance(result, MeasurementResult):
-        return False, "measure_fn が MeasurementResult を返さない"
+        return False, "production measurement adapter が MeasurementResult を返さない"
     if result.session_id != request.session_id:
         return False, "MeasurementResult.session_id 不一致"
-    if result.measurement_callable != expected_callable:
-        return False, "MeasurementResult.measurement_callable が callable 実体名と不一致"
     if result.point_records != request.perf_config.records:
         return False, "ScalePoint.records 不一致"
     if result.point_threads != request.perf_config.threads:
@@ -1548,7 +1622,6 @@ def _not_run_record(session: PlannedSession, now_fn: Callable[[], datetime]) -> 
     record.update(
         {
             "status": "not_run_after_fail_closed",
-            "measurement_callable": None,
             "throughputs": [],
             "rep_returncodes": [],
             "rep_observations": [],
@@ -1569,7 +1642,6 @@ def _run_planned_session(
     spec: FloorPairSpec,
     window: WindowConfig,
     session: PlannedSession,
-    measure_fn: Callable[[MeasurementRequest], MeasurementResult],
     probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],
     now_fn: Callable[[], datetime],
 ) -> dict[str, object]:
@@ -1589,7 +1661,6 @@ def _run_planned_session(
         record.update(
             {
                 "status": "outside_window",
-                "measurement_callable": None,
                 "throughputs": [],
                 "rep_returncodes": [],
                 "rep_observations": [],
@@ -1610,7 +1681,6 @@ def _run_planned_session(
         record.update(
             {
                 "status": "binary_binding_failed",
-                "measurement_callable": None,
                 "throughputs": [],
                 "rep_returncodes": [],
                 "rep_observations": [],
@@ -1627,7 +1697,6 @@ def _run_planned_session(
     pre_probe = _probe_once(spec.environment, probe_fn)
     measurement: MeasurementResult | None = None
     measurement_error: str | None = None
-    expected_callable = _callable_identity(measure_fn)
     if pre_probe["status"] == "clear":
         request = MeasurementRequest(
             session_id=session.session_id,
@@ -1640,7 +1709,7 @@ def _run_planned_session(
             extra_env=spec.environment.extra_env,
         )
         try:
-            measurement = measure_fn(request)
+            measurement = _measure_with_runner(request)
         except Exception as exc:
             measurement_error = f"{type(exc).__name__}: {str(exc)[:500]}"
     post_probe = _probe_once(spec.environment, probe_fn)
@@ -1675,18 +1744,13 @@ def _run_planned_session(
             timeout_s=spec.environment.timeout_s,
             extra_env=spec.environment.extra_env,
         )
-        complete, incomplete_reason = _measurement_complete(
-            measurement, request, expected_callable
-        )
+        complete, incomplete_reason = _measurement_complete(measurement, request)
         if not complete:
             status = "measure_incomplete"
             error = incomplete_reason
     record.update(
         {
             "status": status,
-            "measurement_callable": (
-                None if measurement is None else measurement.measurement_callable
-            ),
             "throughputs": (
                 [] if measurement is None else _json_safe(measurement.throughputs)
             ),
@@ -1715,12 +1779,13 @@ def run_window(
     plan: MeasurementPlan,
     window_id: str,
     *,
-    measure_fn: Callable[[MeasurementRequest], MeasurementResult],
     probe_fn: Callable[[Sequence[str], int], tuple[int, str, str]],
     now_fn: Callable[[], datetime],
 ) -> WindowRunResult:
     """一つの時間窓を create-only JSONL へ実行する。
 
+    権威経路の測定実体は常に :func:`_measure_with_runner` であり、高位の
+    measurement callable を caller から受け取る seam は持たない。
     live env の一致は output path を確保する前に検査する。output の確保は測定前の
     最初の副作用であり、以後は header、各 planned session、terminal を追記する。
     """
@@ -1734,6 +1799,14 @@ def run_window(
     sessions = _window_sessions(plan, window_id)
     _assert_live_environment(spec)
     runtime_head = _git_head(spec.repo_root)
+    if (
+        runtime_head != spec.loaded_head
+        or runtime_head != spec.provenance.source_commit
+    ):
+        raise FloorPairRunError(
+            "runtime HEAD が loaded HEAD / provenance.source_commit と一致しない",
+            status="source_commit_mismatch",
+        )
     output_path = _validate_output_path(
         spec.repo_root, window.artifact_relpath, label=f"window {window.window_id} output"
     )
@@ -1770,7 +1843,6 @@ def run_window(
                     spec=spec,
                     window=window,
                     session=session,
-                    measure_fn=measure_fn,
                     probe_fn=probe_fn,
                     now_fn=now_fn,
                 )
@@ -1837,20 +1909,39 @@ def _validate_window_artifact(
     terminal = records[-1]
     expected_sessions = _window_sessions(plan, window.window_id)
     expected_plans = [dataclasses.asdict(session) for session in expected_sessions]
-    if header["event"] != "header" or header["schema"] != WINDOW_SCHEMA:
+    expected_header = {
+        "event": "header",
+        "schema": WINDOW_SCHEMA,
+        "format": spec.outputs.window_format,
+        "spec_relpath": spec.spec_relpath,
+        "spec_sha256": spec.spec_sha256,
+        "loaded_head": spec.loaded_head,
+        "runtime_head": spec.provenance.source_commit,
+        "plan_sha256": plan.plan_sha256,
+        "randomization_algorithm": plan.randomization_algorithm,
+        "seed_hex": plan.seed_hex,
+        "window_id": window.window_id,
+        "campaign_id": window.campaign_id,
+        "planned_sessions": expected_plans,
+        "window_count": len(spec.windows),
+        "pair_sample_count": window.sample_count * len(window.pair_ids),
+        "session_count": len(expected_sessions),
+        "reps_per_session": {
+            cell.cell_id: cell.perf_config.reps for cell in spec.cells
+        },
+    }
+    if header != expected_header:
         raise FloorPairBindingError(f"window artifact {window.window_id} header が不正")
-    for key, expected in (
-        ("spec_sha256", spec.spec_sha256),
-        ("plan_sha256", plan.plan_sha256),
-        ("window_id", window.window_id),
-        ("campaign_id", window.campaign_id),
-        ("planned_sessions", expected_plans),
-    ):
-        if key not in header or header[key] != expected:
-            raise FloorPairBindingError(f"window artifact {window.window_id} header.{key} 不一致")
-    if terminal["event"] != "terminal" or terminal["window_id"] != window.window_id:
-        raise FloorPairBindingError(f"window artifact {window.window_id} terminal が不正")
     session_records = records[1:-1]
+    expected_terminal = {
+        "event": "terminal",
+        "status": "complete",
+        "window_id": window.window_id,
+        "planned_session_count": len(expected_sessions),
+        "recorded_session_count": len(session_records),
+    }
+    if terminal != expected_terminal:
+        raise FloorPairBindingError(f"window artifact {window.window_id} terminal が不正")
     planned_ids = [session.session_id for session in expected_sessions]
     expected_by_id = {session.session_id: session for session in expected_sessions}
     recorded_ids: list[str] = []
@@ -1870,9 +1961,9 @@ def _validate_window_artifact(
         raise FloorPairBindingError(
             f"window artifact {window.window_id} session ID/count が plan と exact 一致しない"
         )
-    if any(count != 1 for count in recorded_counts.values()):
+    if recorded_ids != planned_ids:
         raise FloorPairBindingError(
-            f"window artifact {window.window_id} の session ID が exact 1 回でない"
+            f"window artifact {window.window_id} session 順が plan と exact 一致しない"
         )
     metadata_fields = (
         "window_id", "campaign_id", "pair_id", "cell_id", "sample_index",
@@ -1890,13 +1981,6 @@ def _validate_window_artifact(
             raise FloorPairBindingError(
                 f"window artifact {window.window_id} session status が閉集合外"
             )
-    if (
-        "planned_session_count" not in terminal
-        or terminal["planned_session_count"] != len(expected_sessions)
-        or "recorded_session_count" not in terminal
-        or terminal["recorded_session_count"] != len(session_records)
-    ):
-        raise FloorPairBindingError(f"window artifact {window.window_id} terminal count 不一致")
     raw = path.read_bytes()
     return raw, tuple(session_records)
 
@@ -1913,8 +1997,6 @@ def _median(values: Sequence[float]) -> float:
 def _status_from_records(
     spec: FloorPairSpec,
     records: Sequence[dict[str, object]],
-    *,
-    production_identity: str,
 ) -> str | None:
     cells = {cell.cell_id: cell for cell in spec.cells}
     for record in records:
@@ -1967,9 +2049,6 @@ def _status_from_records(
                 return "not_generated_missing_samples"
             if started < 0 or finished < started:
                 return "not_generated_missing_samples"
-    for record in records:
-        if record["measurement_callable"] != production_identity:
-            return "not_generated_non_production_measurement"
     return None
 
 
@@ -2065,10 +2144,7 @@ def finalize_floor(
             }
         )
         all_records.extend(records)
-    production_identity = _callable_identity(_measure_with_runner)
-    status = _status_from_records(
-        spec, all_records, production_identity=production_identity
-    )
+    status = _status_from_records(spec, all_records)
     derived: list[dict[str, object]] = []
     upper: float | None = None
     candidate_floor: float | None = None
@@ -2159,7 +2235,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             spec,
             plan,
             args.execute_window,
-            measure_fn=_measure_with_runner,
             probe_fn=_run_probe,
             now_fn=_utc_now,
         )
