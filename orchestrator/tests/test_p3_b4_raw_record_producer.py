@@ -901,19 +901,21 @@ def test_unterminated_tail_is_truncated_before_the_next_single_write(
 
     assert isinstance(second, P.B4RawRecordDurableRejection), second
     assert second.rejection_history_fragment_discarded is True
-    assert b"unterminated" not in ledger.read_bytes()
+    ledger_bytes = ledger.read_bytes()
+    assert b'{"unterminated"' not in ledger_bytes
+    assert ledger_bytes.endswith(b"\n")
     history = P.load_b4_raw_record_rejection_history(publication)
     assert history.status == "readable"
     assert history.fragment_discarded is False
-    attempt_events = tuple(
-        event for event in history.events if event.attempt_id is not None
+    assert len(history.events) == 3
+    first_event, fragment_event, second_event = history.events
+    assert first_event.attempt_id == first.attempt_id
+    assert first_event.issues == first.issues
+    assert fragment_event.attempt_id is None
+    assert tuple(issue.code for issue in fragment_event.issues) == (
+        P.B4RawRecordIssueCode.IO_ERROR,
     )
-    fragment_events = tuple(
-        event for event in history.events if event.attempt_id is None
-    )
-    assert len(attempt_events) == 2
-    assert len(fragment_events) == 1
-    assert fragment_events[0].issues == (
+    assert fragment_event.issues == (
         P.B4RawRecordIssue(
             artifact=str(ledger),
             field="rejection_history",
@@ -923,11 +925,8 @@ def test_unterminated_tail_is_truncated_before_the_next_single_write(
             ),
         ),
     )
-    assert [event.attempt_id for event in history.events] == [
-        first.attempt_id,
-        None,
-        second.attempt_id,
-    ]
+    assert second_event.attempt_id == second.attempt_id
+    assert second_event.issues == second.issues
 
     report = material_report.build_material_report_document(
         publication.publication_root
