@@ -58,45 +58,47 @@ title: [T-2191] 直列性検査を並列化した — 判定は 1 bit も変わ�
   M2 は完了順に依存して赤の node 集合が走ごとに変わったため、決定的な逆順へ差し替えた。
   最終は baseline 緑・KILLED 7・SURVIVED 0・MISMATCH 0。
 
-- **Codex が利用上限に達し (復帰 2026-09-07)、既定並列度の修正が未了で残った。**
-  親が cgroup で測ったところ、所要は 16 で飽和するのに記憶量は並列度に比例して増え、
-  48 では 16 と同じ所要に 1.93 倍の記憶量を払う。B-10 全規模へ換算すると 48 並列で約 142GB、
-  計算ノードのユーザ上限 115GiB を超える。既定は `min(file 数, 割当てコア数, 48)` なので
-  48 file・48 core の正式走はちょうど 48 を選ぶ。**修正は上限を 16 に下げるだけだが、
-  実装面の代行は provenance 契約が禁じるため入れなかった。** 詳細は {{D:verifier-parallel-default}}。
+- **既定の並列度を所要でなく記憶量で決めた。** 親が cgroup で親 + 全子孫の峰値を測ったところ、
+  所要は 16 で飽和するのに記憶量は並列度に比例して増え、48 では 16 と同じ所要に 1.93 倍を払う。
+  B-10 全規模へ換算すると 48 並列で約 142GB となり、計算ノードのユーザ上限 115GiB を超える。
+  当初の既定 `min(file 数, 割当てコア数, 48)` は 48 file・48 core の正式走でちょうど 48 を選ぶ
+  ので、そのままなら落ちて認証済み成果物がゼロになった。**上限を 16 へ下げた**
+  (明示指定の 48 は維持)。詳細は {{D:verifier-parallel-default}}。
 
-- **land も塞がった。** main の 80 commit を固定 SHA で取り込んだところ、編集面の重なりは
-  `orchestrator/tests/test_verifier.py` 1 file (main 側は T-2176 の負例 fixture 追加、
-  production 差分 0) で、自動 merge は競合なしで通り、取り込み後の焦点走も 96 件緑だった。
-  しかし「両親が同じ実装面ファイルを変更した main 取り込みでは Codex role=author の
-  合成監査を行う」規則 (根拠 F481) に該当し、その Codex が起動できない。
-  **merge commit 本文にその旨を書き、tip は land していない。**
+- **Codex が途中で利用上限に達し (復帰 2026-09-07)、既定並列度の修正と main 取り込みの
+  合成監査が一度未了になった。** ユーザーから復帰の連絡を受けて両方を完了した。
+  この間、実装面の代行は provenance 契約が禁じるため親が肩代わりせず、
+  未了として記録したうえで停止する準備をしていた。
+
+- **main 取り込みの合成監査は「保たれている」判定だった。** main の 80 commit を固定 SHA で
+  取り込んだところ、両側が変更した実装面 file は `orchestrator/tests/test_verifier.py` 1 本
+  (main 側は T-2176 の負例 fixture 追加、production 差分 0)。自動 merge は競合なしで通ったが、
+  **競合なしは合成の保証にならない** (F481) ため Codex role=author の監査を別に行った。
+  子は積集合を自分で取り直し、merge の `--cc` patch body が空であること、両側の追加が
+  ともに生きていること、`orchestrator/verifier/` に main 由来の差分が 0 であることを確認した。
+
+- **main の新 fixture が並列経路で防壁として働いていることが変異で裏づけられた。**
+  既定並列度の修正と main 取り込みの後に変異を取り直したところ、M5 (rw 辺の脱落) の赤が
+  18 件から 19 件へ増え、増えた 1 件が main の `test_dense_cycle4_clean_g2` だった。
+  期待 node を 19 件へ更新して再走し、最終は baseline 緑・KILLED 7・SURVIVED 0・MISMATCH 0。
 
 - 一次資料: `output/insights/2026-09-02_t2191-verifier-parallel/README.md`。
-  変異 spec と台帳 (probe + 中間 3 走 + 最終) も同 directory。
+  変異 spec と台帳 (probe + 中間 4 走 + 最終) も同 directory。
   実測に使った使い捨て probe は repo へ入れていない。
 
 ## 次の一手差分
 
-### 更新
+### 完了
 
-- [T-2191] **P1・実装は着地済み・land 待ち**: 直列性検査の並列化は実装・レビュー・fix・
-  変異 7/7 KILLED・受入全走まで終わり branch `worktree-dev-wave-t2191-verifier-parallel` の
-  `de03367e8` にある。**land は Codex role=author の合成監査待ちで塞がっている**
-  (main 取り込みで `test_verifier.py` が両側変更、Codex 復帰は 2026-09-07)。
-  記録 commit を足したので land 前に受入を取り直す。
+- [T-2191] 直列性検査の並列化を着地させた。判定は不変 (68 万 txn で旧コードと sha256 一致)、
+  速度 2.22 倍、変異 7/7 KILLED、受入全走緑。既定並列度は記憶量を根拠に 16 を上限とし、
+  main 取り込みの合成監査も通した。**B-10 read-heavy が 12 時間枠へ入るかは別問題で、
+  親の直列部を縮める後続へ送る。**
+  remaining: none
   base: eed0124b6328ae76430667bc2593d9ceb6bd2539c50da75c1d62d83375f287d4
 
 ### 新規
 
-- {{T:verifier-parallel-default-cap}} **P1・新規**: 直列性検査の既定並列度の上限を
-  48 から 16 へ下げる。実測では所要は 16 で飽和し、48 では記憶量が 1.93 倍になるだけで、
-  B-10 全規模へ換算すると約 142GB と計算ノードのユーザ上限 115GiB を超える。
-  **この修正が入るまで B-10 read-heavy の正式走を既定値のまま起動しない。**
-  prompt は `dev-wave-jobs/dev-wave-t2191-verifier-parallel/codex/prompt-stage6-fix2.md` に用意済み。
-- {{T:verifier-parallel-merge-audit}} **P1・新規**: T-2191 の main 取り込み merge に対する
-  Codex role=author の合成監査を行い、通れば land する。対象は
-  `worktree-dev-wave-t2191-verifier-parallel` の `de03367e8`。
 - {{T:verifier-parent-merge-serial}} **P2・新規**: 直列性検査の親に残る直列部を縮める。
   実測で親の直列部が全体の 38.6% を占め、並列度 16 で飽和している。段 6 のレビューが
   鍵の大域 intern の不在と `O(E log P)` の辺結合を file:line で指した。
