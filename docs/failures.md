@@ -4668,6 +4668,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   テストを 1 件も走らせずに 1 回分を丸ごと失った。親は 1 分以内に気づいて編集を repo 外へ
   退避し木を戻したが、既に投入済みの走行には間に合わなかった。
   **変異本走と受入全走のどちらでも同じ規律が要る**という読み方を、同日 2 度踏んで確かめた。
+
+- **再発: 2026-09-02** — 受入全走の走行中に、親が段 7 の記録 (worklog / decisions fragment と
+  insight 一式) を worktree へ新規作成した。受入は preflight の `prerun-clean` で `rc=70` 停止し、
+  テストを 1 件も走らせずに 1 回分を失った。commit ではなく untracked file の作成でも同じ結果になる。
+  親は「待ち時間を記録の起草で埋める」つもりでいたが、起草先が repo 内だったことに気づいていなかった。
+  **待ち時間に進めてよい独立作業は repo 外に置くものだけである。**
+  今回の記録は最終的に受入より前へ commit し直した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -20944,3 +20951,63 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (M14 / M15 / M16) が、それぞれ対応する層のテストを赤にして 6/6 KILLED になった。
   片側にしかテストが無ければ、その層の変異は SURVIVED として台帳に現れる。
 - 近縁: F28 (実効 gate へ再照準しないと恒真になる)、F33 (期待 node と記録 node の形式不一致)。
+
+### F807. 投入器の重複検出が導入時から一度も発火していなかった [恒真ゲート] [表示値の切り詰め]
+
+- 事象: `tools/pegasus/submit_paper_story_a2_certification.sh` の
+  「同じ certification request が既に見えていたら preregister 前に止まる」検査が、
+  A-2 導入時から一度も発火していなかった。実装は `qstat` の出力に対する job 名の部分一致
+  (`*paper-a2-cert*`) だった。
+- 根本原因: `qstat` の `ReqName` 欄は **8 文字で切り詰めて表示される** (実測: 実際の request 名
+  `izdw-b51bb380a6` が `izdw-b51` と表示される)。したがって 13 文字の job 名との部分一致は
+  永久に偽である。表示用に整形された列を機械判定の入力にしていた。
+- 恒久対応: inventory を引数なし `qstat -f` へ変え、`    Request Name = <job 名>` の
+  **完全な行一致**だけを同 study の重複として拒否する。`qstat -f` は全 request について
+  切り詰めない完全名を出す (実測)。過剰拒否の正例 (別 study の request、無関係な request、
+  接頭辞衝突 `paper-a6-cert-x`) と負例 (同 study の request) を対で登録した。
+- 再発検知: 変異 M6 (exact 行照合を無効化すると赤) と、上記の正例 3 件・負例 1 件。
+  修正前は死んだ gate だったため、修正前の M6 は KILLED を主張できない。
+
+### F808. certification 経路の build が計算ノードの環境契約に従っていない [環境契約違反] [恒真でない前提]
+
+- 事象: A-6 の正式投入 (request 967525.nqsv) が Elapse 20 秒で driver_rc=2 終了した。
+  条件 gate が `BACKOFF_FIXED:supply-effectuation:configure-failed` ほかで cell-0 を拒否した。
+- 根本原因: 条件 gate の cmake configure が CCBench の
+  `cmake/ThirdParty.cmake` の `FetchContent_Populate(masstree)` を実行し、これは
+  `https://github.com/...` からの git clone を必要とする。**計算ノードは直結の外部 network 不可**で
+  DNS が解決できない (実測: `git ls-remote` が rc=128、`Could not resolve host: github.com`)。
+  同じ configure はログインノードでは成功する。`docs/pegasus-runbook.md` は 2026-08-01 の実測として
+  この事実と「依存ソースはログインノードで pinned staging し `FETCHCONTENT_SOURCE_DIR_*` で渡す
+  運用を維持する」を既に定めているが、**A-2 / A-6 の certification 経路は job body も条件 gate も
+  この契約に従っていない**。
+- 波及: 条件 gate は A-2 の実走 (2026-08-28、commit `639c1dba`) より後に driver 全体へ義務化された
+  ものであり、A-2 が当時通ったことは同じ経路が今日通ることを意味しない。永続 cache
+  `/work/1/SFC/tanab/izanagi-thirdparty-cache` と供給 helper
+  `tools/pegasus/fetch_third_party.py` は既に存在し、`mocc_trace_pilot` と `silo_ladder_rung1` は
+  使っている。certification 経路は `run_campaign` 経由でビルドするが、`run_campaign` は
+  FetchContent の source dir を受け取る引数を持たない (`buildcache` 側には既にある)。
+- 恒久対応: **未実施。** 共有 measurement pipeline (`run_campaign` → `pipeline.evaluate` →
+  `buildcache`) への横断的な引数追加になり、全 driver の測定ビルドの configure argv を変えるため、
+  ユーザー裁定へ返した。規律 2 により gate を緩めて通すことはしない。
+- 再発検知: A-6 attempt `a6-20260902a` の `certification.json` が `indeterminate` として保存され、
+  reason に driver rc が残っている。
+
+### F809. 投入の保留ファイルは 2 種類あり、片方だけ片付けると同じ理由で無限に弾かれる [手順漏れ]
+
+- 事象: 変異走行が 6 回続けて起動前に中断した。中断のたびに親が規約の復旧順序 (対象 request が
+  qstat から消えたことを確認 → dirty を復元 → clean/HEAD 確認 → 保留削除) を実行して再投入したが、
+  同じ理由で 45 秒後に弾かれ続けた。投入自体が一度も成立しなかった。
+- 根本原因: 保留ファイルは 2 系統ある。`output/pegasus-dispatch/orphan-hold.json` (harness 側) と
+  `output/pegasus-dispatch/orphan-holds/<request_id>.json` (投入 request 単位)。親は前者だけを
+  消していた。後者に終端済み request の保留が残り、harness はそれを見て起動を拒否していた。
+  中断メッセージが名指しする `hold path` は前者だけなので、メッセージに従うと後者へ到達しない。
+- 恒久対応: 復旧では両系統を列挙し、それぞれの request が qstat から消えたことを確認してから
+  削除する。片方の不在を全体の不在の根拠にしない。手動 `qdel` は使わない (F47 のラッチを武装させ、
+  解除がユーザー手番になる)。本 wave はこの手順を `verify_mutation_diff.py` と復旧ループへ実装し、
+  想定外の dirty・HEAD 不一致では何も消さずに停止する fails-closed 検査を置いた。
+- 再発検知: 中断後に `orphan-holds/` の残件数を数え、0 でなければ再投入しない。
+- 併発: 最初の中断は、親が provenance 監査と変異 harness を同じ worktree から並行投入したことが
+  原因だった。`DW-O26` が「同一 worktree からの dispatch は全種を直列にする。並行投入は
+  orphan hold で rc=16 になる」と既に書いており、規約の欠落ではなく遵守の失敗である。
+- 被害: 実装・成果物への影響なし。1 回だけ変異が適用されたまま止まったが、残差分が登録済み変異
+  そのものであることを照合してから復元した。

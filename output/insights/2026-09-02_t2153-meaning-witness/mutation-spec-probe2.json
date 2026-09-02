@@ -1,0 +1,27 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "t2153.both-layers-discrimination",
+      "category": "both-layers",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts == default_counts:\n",
+          "new": "    if False:\n"
+        },
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n",
+          "new": "    if requested_counts[0] != 1 or default_counts[1] != 1:\n"
+        }
+      ]
+    }
+  ]
+}

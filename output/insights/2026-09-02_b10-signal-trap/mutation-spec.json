@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-restore-single-local-assignment",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+          "old": "  local name=$1 number=$2\n  local rc=$((128 + number))\n",
+          "new": "  local name=$1 number=$2 rc=$((128 + number))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-shift-signal-status-base",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+          "old": "  local rc=$((128 + number))\n",
+          "new": "  local rc=$((1 + number))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
