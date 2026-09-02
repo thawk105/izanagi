@@ -44,8 +44,11 @@ title: B-10 事前登録束縛から analysis_commit による再開拒否を外
   既定上限 15 分に掛かって tool 自身が job を取り消し、1 回は `qstat` 自体が 30 秒で時間切れに
   なって orphan hold が残った。hold は job の不在を `qstat -f` で確認し HEAD と tracked tree を
   確かめてから外した (手動 qdel はしていないので F47 の submission-disabled は発火していない)。
-  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` で待ちを延ばし、4 回目に 13 秒で完走した。
-  **テスト本体は 7.59 秒である。所要のほぼ全部が scheduler の待ちだった。**
+  4 回目が 13 秒で完走した。**テスト本体は 7.59 秒で、所要のほぼ全部が scheduler の待ちだった。**
+  **3 回目と 4 回目はどちらも `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` を付けており、
+  3 回目は失敗している。したがって「待ちの上限を延ばしたから通った」とは言えない。** 4 回目は
+  投入の 7 秒後に実行が始まっており、変わったのは待ち行列の空き (待機 38→、実行 51→) である。
+  同 override が有効かどうかは、この wave の実測では判定できていない。
 
 ## 次の一手差分
 
