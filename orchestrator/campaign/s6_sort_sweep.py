@@ -25,9 +25,9 @@ YCSB 単一 storage、rcdptr_ はポインタ一意) なら後続キー到達不
 (SWO-by-construction: キー比較の辞書式合成は SWO を保存し、恒 false も valid な SWO)。
 転写ミス由来の非 SWO への機械 backstop は diff 検疫、permutation 保存 assert、
 本モジュールテストの Python 有限モデル SWO 総当たり検査 (test_s6_sort_sweep.py)。
-独立 SWO oracle (sort_swo_oracle) は versioned な有限 corpus 上の反例発見器であって
-全入力に対する strict weak ordering の証明ではなく、coder 自律ループが合成する comparator
-を対象とする経路で、s6 sweep からは呼ばれない。D42 実測では write_set_.size()>=16 の
+独立 SWO oracle (sort_swo_oracle) は閉じた sort IR への membership、trusted evaluator、
+実 TU との byte exact conformance を保証する coder 自律ループ用の経路であり、s6 sweep
+からは呼ばれない。任意 C++ の全入力に対する証明ではない。D42 実測では write_set_.size()>=16 の
 非 SWO comparator はハングしうる。
 
 auditor 段は持たない: auditor は LLM 生成物の reward hack の番人 (D38/D43) であり、
