@@ -54,6 +54,16 @@ title: [T-2145] sort SWO oracle の受理言語を検証済み IR へ縮めた �
   ない」として止まった。検査の判定が正しい。競合していない `test_p3_s4_loop.py` も指摘対象に
   含まれており、**両親と異なる実装面になった時点で著者の関与が要る**という設計だと分かった。
   迂回していない。
+- **本 branch の merge commit 3 本は message が事実と食い違う。訂正して land する。**
+  受入は claim 後に main を自動 merge し、`--merge-message-file` を全 attempt で使い回す。
+  親は内容固有の message file を渡していたため、3 commit が「24b31d2a3 を取り込んだ」
+  「import 段落の競合を Codex author が解消し合成監査した」と書いている。
+  **実際に取り込んだのは 42116cc65 / adec65e56 / 9c54acfb9 で、競合は起きておらず
+  Codex author は関与していない。** 第 2 親 (`%p`) が正である。
+  history は書き換えない (受入済み tip の祖先であり、rebase / amend は禁止)。
+  本エントリと {{F:acceptance-post-claim-merge-reuses-message-file}} を訂正の正本とする。
+  親が自分で起票した取り込みは `6850282ef` (24b31d2a3、競合 1 件を Codex author が解消) と
+  `7b8776cb3` (83cda3425、競合なし) の 2 本だけである。
 - **エージェント工数:** plan 1、consult 2 (並列)、author 1、review 2 (並列)、fix 5、
   merge 解消 2 (1 本は merge 途中の worktree で hook に弾かれ rc=2)。計 13 本。
 - **セッション異常:** merge 途中の worktree では `tools/pegasus/admission_registry.json` が

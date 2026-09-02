@@ -41,6 +41,28 @@ seq: 3
 - 再発検知: 子の投入前に対象 worktree が merge 途中でないことを確かめる
   (`.git/MERGE_HEAD` の不在、`git status --porcelain` に `UU` が無いこと)。
 
+### {{F:acceptance-post-claim-merge-reuses-message-file}}. 受入の post-claim merge が固定の message file を再利用し、事実と異なる工程記録と provenance を 3 commit 残した [捏造/幻覚] [手順漏れ]
+
+- 事象: `tools/dev_wave_wait.py acceptance` は claim 後に main を wave branch へ自動 merge する。
+  親は `--merge-message-file` へ、**自分が別途起票した 1 回限りの取り込み**の message file
+  (取り込んだ main SHA・競合の内容・解消主体・合成監査の結果を具体的に書いたもの) を渡していた。
+  受入は 3 回起動されたため、**同じ message が 3 つの別 merge commit へ再利用**された。
+  結果、その 3 commit は (1) 実際とは違う main SHA を取り込んだと書き、
+  (2) 起きていない import 段落の競合とその解消を書き、
+  (3) **行われていない Codex role=author の競合解消と合成監査を主張し、
+  `AI-Agent: ...; role=author; scope=merge-conflict-resolution` の trailer まで持った。**
+  merge の第 2 親 (`%p`) は正しいので、機械可読な事実と message の主張が食い違う状態になった。
+- 根本原因: 受入が「投入のたびに merge を作る」ことと、`--merge-message-file` が
+  **その全 attempt で使い回される**ことを親が結び付けていなかった。
+  内容固有の message を、繰り返し使われる引数へ渡した。
+- 恒久対応: `--merge-message-file` へ渡す message は**内容非固有**にする。
+  取り込んだ SHA は第 2 親を正とすると本文に書き、message へ SHA を書かない。
+  競合の有無・解消主体・合成監査の有無を message で主張しない (実際にそれらが起きたかは
+  attempt ごとに違う)。親が個別に起票する取り込みの message とは file を分ける。
+- 再発検知: land 前に `git log --format='%h parents=%p %s' <tested_main>..<tip>` を読み、
+  merge commit の第 2 親と message 本文の SHA・主張が一致することを確かめる。
+  同一 message を持つ merge commit が 2 つ以上あれば再利用を疑う。
+
 ## 再発
 
 ### F57
