@@ -33,7 +33,7 @@ CATALOG_PATH = (
     / "docs"
     / "related-work"
     / "claim-survey"
-    / "2026-08-29-axis1-search-catalog.json"
+    / "2026-09-02-axis1-search-catalog.json"
 )
 CATALOG_SCHEMA = ROOT / "orchestrator" / "schemas" / "axis1_search_catalog.schema.json"
 PAGE_SCHEMA = ROOT / "orchestrator" / "schemas" / "axis1_search_page_evidence.schema.json"

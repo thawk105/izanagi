@@ -20,7 +20,7 @@ from urllib.parse import quote_plus, urlencode
 Index: TypeAlias = Literal["arxiv", "openalex", "dblp"]
 LogicalKind: TypeAlias = Literal["aggregate", "leaf", "exclusion"]
 
-REGISTRATION_EPOCH = "AX1-20260829-E1"
+REGISTRATION_EPOCH = "AX1-20260902-E1"
 REGISTERED_CUTOFF = "2026-12-31"
 CATALOG_SCHEMA_VERSION = "izanagi-axis1-search-catalog/v1"
 
@@ -744,11 +744,11 @@ def build_catalog_document(cutoff: str = REGISTERED_CUTOFF) -> dict[str, Any]:
         "outcome_informed": True,
         "amendment_path": (
             "docs/related-work/claim-survey/"
-            "2026-08-29-axis1-search-amendment.md"
+            "2026-09-02-axis1-search-amendment.md"
         ),
         "supersedes": [
             "docs/related-work/claim-survey/"
-            "2026-08-27-axis1-search-preregistration.md"
+            "2026-08-29-axis1-search-amendment.md"
         ],
         "cutoff": cutoff,
         "proof_scope": [
