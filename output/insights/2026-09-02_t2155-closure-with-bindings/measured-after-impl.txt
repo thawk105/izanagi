@@ -1,0 +1,60 @@
+patch macros: 22 ['BACKOFF_FIXED', 'BACKOFF_NOINLINE', 'BACKOFF_REQUESTED_US', 'BACKOFF_TRIGGER_GATING', 'IZANAGI_BREAK_EARLY_UNLOCK', 'IZANAGI_BREAK_HIGHKEY_VALIDATION', 'IZANAGI_BREAK_LOCK_COVERAGE', 'IZANAGI_BREAK_NOREAD_VALIDATION', 'IZANAGI_BREAK_PERMUTATION', 'IZANAGI_BREAK_PERMUTATION_SWAP', 'IZANAGI_BREAK_TRIGGER_MISATTR', 'IZANAGI_BREAK_WRITE_INTENT_ERASE', 'IZANAGI_BREAK_WRITE_INTENT_FORGE', 'IZANAGI_BREAK_WRITE_INTENT_OPSWAP', 'IZANAGI_BREAK_WRITE_INTENT_PTRSWAP', 'IZANAGI_SILO_LADDER_RUNG1', 'IZANAGI_SILO_LADDER_RUNG1_REPORT', 'SORT_VARIANT', 'SS2PL_DLR', 'SS2PL_LOCK_IMPL', 'SS2PL_LOCK_KIND', 'SS2PL_WFG_DIAG']
+sinks: 53
+cell buckets: {'deferred': 67, 'proven-unreachable': 943, 'covered': 156}
+
+=== per-sink ===
+('orchestrator/campaign/b10_backoff_shape_sweep.py', '<module>._build_binary', 2518, 'buildcache') {'deferred': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/b10_backoff_shape_sweep.py', '<module>.run_formal', 2914, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/backoff_extended_sweep.py', '<module>._prebuild_backoff_binaries', 219, 'buildcache') {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/backoff_extended_sweep.py', '<module>.run_workload', 423, 'campaign') {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/backoff_overthrottle.py', '<module>.measure', 434, 'buildcache') {'proven-unreachable': 22}
+('orchestrator/campaign/backoff_profile.py', '<module>._build_profile_point_in_patch', 854, 'buildcache') {'covered': 2, 'proven-unreachable': 20}
+('orchestrator/campaign/backoff_repro.py', '<module>.run_workload', 167, 'campaign') {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/backoff_requested_us.py', '<module>.measure', 1112, 'buildcache') {'proven-unreachable': 21, 'covered': 1}
+('orchestrator/campaign/backoff_sweep.py', '<module>.run_workload', 387, 'campaign') {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/between_run_floor.py', '<module>.main', 383, 'buildcache') {'proven-unreachable': 22}
+('orchestrator/campaign/demo.py', '<module>.main', 57, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/demo.py', '<module>.main', 67, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/p2_2.py', '<module>.run_workload', 376, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/p3_kickoff.py', '<module>.main', 152, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/p3_kickoff.py', '<module>.main', 159, 'campaign') {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/p3_s4_loop.py', '<module>.run_one_iteration', 1368, 'campaign') {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/p3_s4_loop_sort.py', '<module>.run_one_iteration', 394, 'campaign') {'proven-unreachable': 21, 'covered': 1}
+('orchestrator/campaign/p3_s4_loop_trigger_gating.py', '<module>._run_one_iteration_resolved', 811, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/p3_s4_red.py', '<module>.main', 207, 'campaign') {'covered': 1, 'proven-unreachable': 21}
+('orchestrator/campaign/p3_s4_red.py', '<module>.main', 217, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/paper_story_a1_paired.py', '<module>.run_measurement', 5067, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/paper_story_a2_certification.py', '<module>.run_workload', 3025, 'campaign') {'covered': 2, 'proven-unreachable': 20}
+('orchestrator/campaign/pegasus_floor_scoping.py', '<module>._run_scoping', 218, 'buildcache') {'proven-unreachable': 22}
+('orchestrator/campaign/s1_direct_comparison.py', '<module>.run_role', 1146, 'injected-prepare_cell_fn') {'covered': 22}
+('orchestrator/campaign/s1_direct_comparison.py', '<module>.run_role', 1215, 'campaign') {'covered': 4, 'proven-unreachable': 18}
+('orchestrator/campaign/s1_direct_comparison.py', '<module>.run_role', 1222, 'injected-evaluate_fn') {'covered': 22}
+('orchestrator/campaign/s1_verify_extime_calibration.py', '<module>._build_target', 389, 'buildcache') {'proven-unreachable': 21, 'covered': 1}
+('orchestrator/campaign/s2_verify_calibration.py', '<module>._broken_build_and_verify', 321, 'direct-cmake-target') {'proven-unreachable': 20, 'covered': 2}
+('orchestrator/campaign/s2_verify_calibration.py', '<module>.main', 353, 'buildcache') {'proven-unreachable': 22}
+('orchestrator/campaign/s2_verify_calibration.py', '<module>.main', 354, 'buildcache') {'proven-unreachable': 22}
+('orchestrator/campaign/s3_lock_coverage.py', '<module>._build_broken', 210, 'direct-cmake-target') {'proven-unreachable': 20, 'covered': 2}
+('orchestrator/campaign/s3_lock_coverage.py', '<module>.main', 247, 'buildcache') {'proven-unreachable': 22}
+('orchestrator/campaign/s5_permutation_coverage.py', '<module>._build_broken', 243, 'direct-cmake-target') {'proven-unreachable': 20, 'covered': 2}
+('orchestrator/campaign/s5_permutation_coverage.py', '<module>.main', 282, 'buildcache') {'proven-unreachable': 22}
+('orchestrator/campaign/s6_sort_sweep.py', '<module>._eval_one', 413, 'campaign') {'proven-unreachable': 21, 'covered': 1}
+('orchestrator/campaign/s8a_trigger_coverage.py', '<module>._build', 250, 'direct-cmake-target') {'proven-unreachable': 20, 'covered': 2}
+('orchestrator/campaign/s8a_trigger_sweep.py', '<module>._eval_one', 515, 'campaign') {'proven-unreachable': 21, 'covered': 1}
+('orchestrator/campaign/s8b_floor_campaign.py', '<module>.build_cells.invoke_build', 4495, 'injected-build_fn') {'deferred': 22}
+('orchestrator/campaign/s8b_floor_campaign.py', '<module>.main', 8409, 'campaign') {'deferred': 22}
+('orchestrator/campaign/s8b_oracle_driver.py', '<module>.run_block', 1788, 'campaign') {'covered': 22}
+('orchestrator/campaign/s8b_oracle_driver.py', '<module>.run_block', 1801, 'injected-evaluate_fn') {'covered': 22}
+('orchestrator/campaign/s8b_oracle_n_pilot.py', '<module>.build_binaries', 944, 'injected-build_fn') {'deferred': 22}
+('orchestrator/campaign/sanity_silo.py', '<module>.main', 59, 'campaign') {'proven-unreachable': 22}
+('orchestrator/campaign/screening_driver.py', '<module>.evaluate_candidate', 568, 'campaign') {'covered': 22}
+('orchestrator/campaign/silo_ladder_rung1.py', '<module>._build_variant', 2294, 'direct-cmake-target') {'covered': 3, 'proven-unreachable': 19}
+('orchestrator/campaign/silo_ladder_rung1.py', '<module>._correctness_command', 3977, 'direct-cmake-target') {'covered': 3, 'proven-unreachable': 19}
+('orchestrator/campaign/t152_write_intent_coverage.py', '<module>._build', 468, 'direct-cmake-target') {'proven-unreachable': 18, 'covered': 4}
+('tools/pegasus/certify_calibration.sh', '<module>', 536, 'shell-cmake-target') {'covered': 1, 'proven-unreachable': 21}
+('tools/pegasus/probes/t139_positive_control_probe.sh', '<module>', 441, 'shell-cmake-target') {'covered': 1, 'proven-unreachable': 21}
+('tools/pegasus/probes/t139_r4_env_probe.sh', '<module>.record_one_build', 206, 'shell-cmake-target') {'covered': 1, 'proven-unreachable': 21}
+('tools/pegasus/probes/t1683_rr5_cost_probe.py', '<module>.main', 246, 'buildcache') {'proven-unreachable': 22}
+('tools/pegasus/probes/t316_sandbox_backend_probe.py', '<module>._execute_ccbench_build', 1883, 'direct-cmake-target') {'covered': 1, 'proven-unreachable': 21}
+('tools/pegasus/run_ss2pl_lock_study.py', '<module>.build_target', 2128, 'direct-cmake-target') {'proven-unreachable': 18, 'covered': 4}
+
+cross-product failures: 0
