@@ -1,0 +1,9 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "medium",
+    "justification": "current_perf (throughput 491796.5, abort 7.03%) は WAL の variant 20bbb4c1a855 と完全一致し、現行点は WAL に 2 回記録された設定の側にある。同設定の 2 回反復は 491796.5 と 487088.5 で、反復ばらつきは 1% 程度に収まる。これに対し、より小さい magnitude 側の設定 (27d1d016998e) は median_tps 525721.5 で、反復ばらつきの数倍にあたる差を示した。abort は 7.03% から 13.16% へおよそ倍増したが、その状態でも throughput は測定上は上回っており、abort の増加が throughput の低下として現れていない。3 件とも verdict は serializable / anomalies 0 で、正しさ側の差では区別されない。したがって測定値が示す勾配は magnitude を下げる向きであり、まずその方向を延長して確かめる。刻み幅は、既に測定済みの 2 設定の差と同程度を目安とする — それより細かい刻みは上記の反復ばらつきに埋もれて読めず、極端に粗い刻みは abort の増え方を追跡できないまま飛び越える。",
+    "uncertainty": "(1) 異なる設定は 2 点しかなく、この向きの改善が単調に続くのか、どこかで反転するのかは測定から言えない。abort が倍増したのに throughput が伸びたという関係が、さらに下げた先でも保たれる保証はない。反転点の観測が次の試行の主目的である。(2) leading_indicators の cache_miss 32.63% / IPC_overall 0.78 / contention high は、この軸の 2 点それぞれについての値が WAL に無く、軸の移動と対応づけられない。現状これらは未説明の分散として残る。(3) 各設定の反復回数が 2 回と 1 回で非対称であり、より良い側の点は反復が 1 回しかない。方向の判断はこの 1 点に依存している。(4) whiteboard は空で last_delta_pct も null だが、WAL には同 campaign の 3 試行がある。planner 側の履歴と campaign 側の履歴が同期していないため、過去に棄却された方向を私が見落としている可能性がある。"
+  }
+}
