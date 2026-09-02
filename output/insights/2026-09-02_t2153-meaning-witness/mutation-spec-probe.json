@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "t2153.owner-tu-context",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        directive,\n    ))\n    return \"\".join(lines)\n",
+          "new": "        directive,\n    ))\n    return \"\".join(lines[start:])\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.start-directive-unique",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if len(starts) != 1:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n",
+          "new": "    if not starts:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.exact-observation-pair",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n",
+          "new": "    if requested_counts[0] != 1:\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.completion-marker-required",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n",
+          "new": "    if requested_counts[0] != 1 or default_counts[0] != 0:\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.legacy-declaration-pinned",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        if type(self.macro) is not str or self.macro != MACRO:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n",
+          "new": "        if type(self.macro) is not str or self.macro not in MEANING_SUPPORTED_MACROS:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.factory-registry-only",
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(request.macro)\n",
+          "new": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(\n        request.macro, next(iter(CONDITIONAL_BRANCH_WITNESSES.values())))\n"
+        }
+      ]
+    }
+  ]
+}

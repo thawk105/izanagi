@@ -23,8 +23,10 @@ from orchestrator.campaign import s8b_oracle_manifest as manifest  # noqa: E402
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze as ratified_freeze  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as holdout_freeze  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
+import test_s8b_ratified_freeze  # noqa: E402
 
 
 FREEZE_PATH = _ROOT / "output/s8b-freeze/holdout_freeze.json"
@@ -1333,6 +1335,14 @@ def test_build_approved_active_without_pin_fails_before_output(
     monkeypatch.setattr(
         ratified_freeze, "load_ratified_freeze", lambda candidate: active,
     )
+    selection_calls = []
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
 
@@ -1340,6 +1350,7 @@ def test_build_approved_active_without_pin_fails_before_output(
         manifest.build_approved_manifest(output, root=root)
 
     assert captured.value.reason == "no-approved-spec"
+    assert selection_calls == [(active, root)]
     assert not (root / manifest.MANIFEST_CANDIDATE_DIR).exists()
 
 
@@ -1356,6 +1367,14 @@ def test_build_approved_valid_fixture_output_depends_only_on_spec_pin(
     monkeypatch.setattr(
         ratified_freeze, "load_ratified_freeze", lambda candidate: active,
     )
+    selection_calls = []
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/pin-behavior.json"
 
     monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
@@ -1369,6 +1388,7 @@ def test_build_approved_valid_fixture_output_depends_only_on_spec_pin(
     built = manifest.build_approved_manifest(output, root=root)
 
     assert type(built) is artifacts.OfficialManifest
+    assert selection_calls == [(active, root), (active, root)]
     assert (root / output).is_file()
 
 
@@ -1384,17 +1404,26 @@ def test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate(
     )
     active = _synthetic_ratified_freeze()
     calls = []
+    selection_calls = []
 
     def load_once(candidate):
         calls.append(Path(candidate))
         return active
 
     monkeypatch.setattr(ratified_freeze, "load_ratified_freeze", load_once)
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
 
     built = manifest.build_approved_manifest(output, root=root)
 
     assert calls == [root]
+    assert selection_calls == [(active, root)]
     output_path = root / output
     assert output_path.is_file()
     verified = manifest.verify_manifest(
@@ -1423,13 +1452,80 @@ def test_build_approved_rejects_uniform_configuration_subset_before_output(
     monkeypatch.setattr(
         ratified_freeze, "load_ratified_freeze", lambda candidate: active,
     )
+    selection_calls = []
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
 
     with pytest.raises(manifest.ManifestCliError) as captured:
         manifest.build_approved_manifest(output, root=root)
 
     assert captured.value.reason == "approved-spec-cell-product-mismatch"
+    assert selection_calls == [(active, root)]
     assert not (root / manifest.MANIFEST_CANDIDATE_DIR).exists()
+
+
+def test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate(
+        tmp_path, monkeypatch):
+    root, *_ = test_s8b_ratified_freeze.build_production_emitter_g1(tmp_path)
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest.build_approved_manifest(output, root=root)
+
+    assert captured.value.reason == "no-approved-spec"
+    assert isinstance(captured.value.__cause__, oracle_spec.ReviewedSpecError)
+    assert not (root / output).exists()
+
+
+def test_build_approved_real_g1_rule_mismatch_preserves_selection_reason(
+        tmp_path, monkeypatch):
+    root, _sha, _rel, _g1, topology = (
+        test_s8b_ratified_freeze.build_production_emitter_g1(tmp_path)
+    )
+    selected_rel = topology["paths"]["result"]
+    earlier_rel = selected_rel.replace(
+        "20260718T120000Z", "20260718T115959Z",
+    )
+    assert earlier_rel != selected_rel
+    earlier_path = root / earlier_rel
+    earlier_path.parent.mkdir(parents=True, exist_ok=True)
+    earlier_path.write_bytes((root / selected_rel).read_bytes())
+    test_s8b_ratified_freeze._commit_exact(
+        root,
+        [earlier_rel],
+        subject="earlier official result",
+        agent="fixture",
+    )
+    eligibility_calls = []
+
+    def derive_eligibility(**kwargs):
+        eligibility_calls.append(kwargs["result_rel"])
+        return kwargs["result_rel"] == earlier_rel
+
+    monkeypatch.setattr(
+        holdout_freeze,
+        "_derive_floor_selection_eligibility",
+        derive_eligibility,
+    )
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest.build_approved_manifest(output, root=root)
+
+    assert captured.value.reason == "floor-selection-rule-mismatch"
+    assert isinstance(
+        captured.value.__cause__, ratified_freeze.RatifiedFreezeError,
+    )
+    assert captured.value.__cause__.reason == "floor-selection-rule-mismatch"
+    assert eligibility_calls == [earlier_rel]
+    assert not (root / output).exists()
 
 
 def _install_projection_root(root: Path, *, alter_report=False) -> Path:
