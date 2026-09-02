@@ -85,8 +85,10 @@ source に束縛されていれば使ってよい。入力 schema が明示す�
   "whiteboard": [
     {
       "iteration": 1,
+      "direction": "increase",
+      "magnitude": "small",
       "result": "fail",
-      "delta_pct": -1.2
+      "delta_pct": null
     }
   ]
 }
@@ -121,7 +123,9 @@ source に束縛されていれば使ってよい。入力 schema が明示す�
 
 `knowledge_use` は自己申告である。各 `source_index` は `knowledge_input.sources` の有効な index とし、
 同じ index を 2 回書かない。`use` は非空とし、その source が提案へ与えた影響を書く。本当に 1 件も
-使わなかった場合だけ空配列にする。index の有効性と重複は機械検査するが、本当に使ったかどうかは検査しない。
+使わなかった場合だけ空配列にする。`validate_output_semantics` を通した場合は index の有効性と重複を
+機械検査する。現時点でこの role に自動 consumer は無く、信頼中核が手で起動するため、この検査は
+自動では発火しない。本当にその source を使ったかどうかは、通した場合でも検査しない。
 
 「参照を許した範囲」と「実際に投入した知識源」は別物であり、投入された `sources` の集合を
 「参照を許した範囲」と読み替えない。許可範囲の記録は親が manifest と受領証で持ち、role は実際に

@@ -128,7 +128,9 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 - **自己申告:** 出力に `knowledge_use` (使った source と使い方)、`classification`
   (`de_novo` / `known_result_conditioned_derivative` / `reproduction_or_selection`)、
   `data_boundary_report` (絶対規律 6 の報告) を持つ。`source_index` が実在する index か、
-  重複していないかは `orchestrator/codex_roles/policy.py` が機械検査するが、
+  重複していないかは `orchestrator/codex_roles/policy.py` の `validate_output_semantics` が
+  機械検査する。**ただし現時点でこの role に自動 consumer は無く (`consumer: null`)、
+  信頼中核が手で起動するため、この検査は自動では発火しない。** また通した場合でも、
   **本当にその source を使ったか、分類が妥当かは検査しない。** これらは role の自己申告であり、
   信頼中核が受領証へ書く分類を上書きしない
 - **主張の境界:** K2 で得た結果から言えるのは knowledge-conditioned な成立までである。

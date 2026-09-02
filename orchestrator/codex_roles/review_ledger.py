@@ -23,7 +23,7 @@ SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-26: T-1690; suffix-free literal/value一致・1文の producer 契約を追加。
     "coder-v4-autonomous": "4073ac4223eaca9c353685f116a4dfb53db5b3412011373b717c44e3b25ec10d",
     # Reviewed 2026-09-02: T-2200; K2 宣言アーム用 sibling role 契約を追加。
-    "coder-v4-autonomous-k2": "36a3551ef23a04ca23d13d654e4368de716f3e48c904107f8b693f6a7b83cb06",
+    "coder-v4-autonomous-k2": "f0b8583a00d02b2cea63d40eb8d5a450f5d015500695ec593b44c720b6fd0577",
     # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
     "coder-v4-autonomous-sort": "fbabef04095f73b7fc517290afc66d4fb8779144184eaf7c078fc17d50d7ca9a",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
