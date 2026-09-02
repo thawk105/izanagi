@@ -1,0 +1,135 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "t2153.final.owner-tu-context",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        directive,\n    ))\n    return \"\".join(lines)\n",
+          "new": "        directive,\n    ))\n    return \"\".join(lines[start:])\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.final.start-directive-unique",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if len(starts) != 1:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n",
+          "new": "    if not starts:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-start-not-unique\",\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.final.exact-observation-pair",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n",
+          "new": "    if requested_counts[0] != 1:\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.final.completion-marker-required",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n",
+          "new": "    if requested_counts[0] != 1 or default_counts[0] != 0:\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.final.legacy-declaration-pinned",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        if type(self.macro) is not str or self.macro != MACRO:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n",
+          "new": "        if type(self.macro) is not str or self.macro not in MEANING_SUPPORTED_MACROS:\n            raise ValueError(\"meaning declaration macro has no runtime witness support\")\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.final.factory-registry-only",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(request.macro)\n",
+          "new": "    registered = CONDITIONAL_BRANCH_WITNESSES.get(\n        request.macro, next(iter(CONDITIONAL_BRANCH_WITNESSES.values())))\n"
+        }
+      ]
+    },
+    {
+      "id": "t2153.final.both-layers-discrimination",
+      "category": "both-layers",
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts == default_counts:\n",
+          "new": "    if False:\n"
+        },
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts != (1, 1) or default_counts != (0, 1):\n",
+          "new": "    if requested_counts[0] != 1 or default_counts[1] != 1:\n"
+        }
+      ]
+    }
+  ]
+}

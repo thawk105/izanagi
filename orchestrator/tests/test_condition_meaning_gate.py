@@ -15,6 +15,9 @@ import pytest
 from orchestrator.campaign import b10_backoff_shape_sweep as B10
 from orchestrator.campaign import condition_meaning_gate as G
 from orchestrator.campaign.evolve_block import extract_materialized_evolve_block
+from orchestrator.tests.condition_gate_test_support import (
+    install_condition_gate_build_fixture,
+)
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -23,6 +26,16 @@ _SUPPLIED = _FIXTURES / "supplied"
 _F707 = _FIXTURES / "f707-missing-supply"
 _IGNORED = _FIXTURES / "effectuation-ignored"
 _PATCH = _ROOT / "patches" / "silo-backoff-fixed.patch"
+_COMPILE_TIME_BRANCH_MACROS = (
+    "IZANAGI_BREAK_PERMUTATION",
+    "IZANAGI_BREAK_PERMUTATION_SWAP",
+    "IZANAGI_BREAK_LOCK_COVERAGE",
+    "IZANAGI_BREAK_EARLY_UNLOCK",
+    "IZANAGI_BREAK_WRITE_INTENT_ERASE",
+    "IZANAGI_BREAK_WRITE_INTENT_FORGE",
+    "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
+    "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+)
 
 
 def _any_cxx() -> str:
@@ -141,6 +154,63 @@ def _patch_target_source() -> str:
         if line.startswith(("+", " ")):
             target.append(line[1:])
     return "".join(target)
+
+
+def _compile_time_request(
+    macro: str,
+    *,
+    requested: int | str = 1,
+    default: int | str | None = 0,
+) -> G.DefineRequest:
+    return G.make_define_request(
+        driver_id="test-compile-time-branch-selection",
+        macro=macro,
+        requested_value=requested,
+        default_value=default,
+    )
+
+
+def _compile_time_source_root(
+    tmp_path: Path,
+    macro: str,
+    *,
+    prefix: str = "",
+    duplicate: bool = False,
+    nested: bool = False,
+    close: bool = True,
+    directive: str | None = None,
+    owner_text: str | None = None,
+) -> Path:
+    root = tmp_path / "ccbench"
+    owner = root / "cc" / "silo" / "transaction.cc"
+    owner.parent.mkdir(parents=True)
+    if owner_text is None:
+        branch = (
+            (directive or f"#if {macro}") + "\n"
+            "int izanagi_compile_time_selected = 1;\n"
+            + ("#endif\n" if close else "")
+        )
+        if nested:
+            branch = "#if 1\n" + branch + "#endif\n"
+        owner_text = prefix + branch + (branch if duplicate else "")
+    owner.write_text(owner_text, encoding="utf-8")
+    return install_condition_gate_build_fixture(root)
+
+
+def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
+    """Derive the owner and exact start directive from real patch additions."""
+    patch = _ROOT / G.DEFINE_SPECS[macro].patch_rel
+    current_target: str | None = None
+    matches: list[tuple[str, str]] = []
+    for line in patch.read_text(encoding="utf-8").splitlines():
+        if line.startswith("+++ b/"):
+            current_target = line.removeprefix("+++ b/")
+        elif line.startswith("+") and not line.startswith("+++") \
+                and line[1:] == f"#if {macro}":
+            assert current_target is not None
+            matches.append((current_target, line[1:]))
+    assert len(matches) == 1
+    return matches[0]
 
 
 def test_backoff_fixed_five_matches_pointwise():
@@ -514,6 +584,422 @@ def test_cli_accepts_inert_selected_branch_meaning_case():
         f"-1:branch:{G.STOCK_ADAPTIVE_BRANCH}",
     ])
     assert cases == (_stock_branch_case(),)
+
+
+def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
+    tmp_path: Path,
+):
+    assert tuple(G.CONDITIONAL_BRANCH_WITNESSES) == _COMPILE_TIME_BRANCH_MACROS
+    for macro in _COMPILE_TIME_BRANCH_MACROS:
+        patch_declaration = _patch_added_branch_declaration(macro)
+        fixture = _compile_time_source_root(tmp_path / macro, macro)
+        fixture_directives = [
+            line for line in (
+                fixture / "cc" / "silo" / "transaction.cc"
+            ).read_text(encoding="utf-8").splitlines()
+            if line.startswith("#if ")
+        ]
+        assert fixture_directives == [f"#if {macro}"]
+        assert ("cc/silo/transaction.cc", fixture_directives[0]) \
+            == patch_declaration
+        assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == patch_declaration
+
+
+@pytest.mark.parametrize("macro", _COMPILE_TIME_BRANCH_MACROS)
+def test_compile_time_branch_selection_accepts_each_registry_macro(
+    tmp_path: Path,
+    macro: str,
+):
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    declaration = G.declare_define_runtime_meaning(request)
+
+    assert type(declaration) is G.ConditionalBranchMeaningDeclaration
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=declaration,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    assert meaning.evidence["proof_kind"] == G.COMPILE_TIME_BRANCH_SELECTION_PROOF_KIND
+    assert "compile-time" in meaning.evidence["proof_kind"]
+    assert "runtime" not in meaning.evidence["proof_kind"]
+    assert meaning.evidence["requested"].selected_count == 1
+    assert meaning.evidence["requested"].completed_count == 1
+    assert meaning.evidence["default"].selected_count == 0
+    assert meaning.evidence["default"].completed_count == 1
+    requested_argv = tuple(
+        argument.replace(f"-D{macro}=1", f"-D{macro}=<VALUE>")
+        for argument in meaning.evidence["requested"].preprocess_argv
+    )
+    default_argv = tuple(
+        argument.replace(f"-D{macro}=0", f"-D{macro}=<VALUE>")
+        for argument in meaning.evidence["default"].preprocess_argv
+    )
+    assert requested_argv == default_argv
+
+
+def test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        owner_text=(
+            "int common_owner_bytes = 1;\n"
+            f"#if {macro}\n"
+            "#endif\n"
+        ),
+    )
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(macro)
+    cxx = _any_cxx()
+    cmake = _any_cmake()
+    configure_calls: list[Path] = []
+    real_configure = G._configure_compile_commands
+
+    def recording_configure(**kwargs):
+        configure_calls.append(kwargs["build_root"])
+        return real_configure(**kwargs)
+
+    monkeypatch.setattr(G, "_configure_compile_commands", recording_configure)
+    with G._configured_define_compile_commands(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    ) as configured_commands:
+        supply = G.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        assert len(configure_calls) == 2
+        meaning = G.evaluate_define_runtime_meaning(
+            captured,
+            request=request,
+            declaration=G.declare_define_runtime_meaning(request),
+            cxx=cxx,
+            cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        assert len(configure_calls) == 2
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "red", "preprocess-bytes-identical",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    assert supply.record_id != meaning.record_id
+    assert supply.record_digest != meaning.record_digest
+
+
+def test_compile_time_branch_selection_rejects_non_discriminating_observation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    source_rel, _start_directive = G.CONDITIONAL_BRANCH_WITNESSES[macro]
+    mutated_directive = "#if 1"
+    monkeypatch.setitem(
+        G._CONDITIONAL_BRANCH_WITNESSES,
+        macro,
+        (source_rel, mutated_directive),
+    )
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        directive=mutated_directive,
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(1, 1),default=(1, 1)"
+
+
+def test_compile_time_branch_selection_accepts_active_nested_context(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_LOCK_COVERAGE"
+    root = _compile_time_source_root(tmp_path, macro, nested=True)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+
+
+def test_compile_time_branch_selection_accepts_block_comment_prefix(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_LOCK_COVERAGE"
+    root = _compile_time_source_root(
+        tmp_path, macro, prefix="/*\n#if 0\n*/\n",
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+
+
+def test_compile_time_branch_selection_rejects_duplicate_start_directive(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_ERASE"
+    root = _compile_time_source_root(tmp_path, macro, duplicate=True)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-start-not-unique",
+    )
+
+
+def test_compile_time_branch_selection_rejects_owner_prefix_undef(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_FORGE"
+    root = _compile_time_source_root(tmp_path, macro, prefix=f"#undef {macro}\n")
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(0, 1),default=(0, 1)"
+
+
+def test_compile_time_branch_selection_rejects_line_spliced_comment_endif(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_OPSWAP"
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        owner_text=(
+            "#if 0\n"
+            "// this endif is part of the comment after splicing \\\n"
+            "#endif\n"
+            f"#if {macro}\n"
+            "int guarded = 1;\n"
+            "#endif\n"
+            "#endif\n"
+        ),
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(0, 0),default=(0, 0)"
+
+
+@pytest.mark.parametrize("container", ["block-comment", "raw-string"])
+def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(
+    tmp_path: Path,
+    container: str,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP"
+    owner_text = (
+        f"/*\n#if {macro}\n#endif\n*/\n"
+        if container == "block-comment"
+        else f'const char *text = R"probe(\n#if {macro}\n)probe";\n'
+    )
+    root = _compile_time_source_root(
+        tmp_path / container, macro, owner_text=owner_text,
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(0, 0),default=(0, 0)"
+
+
+def test_compile_time_branch_selection_rejects_unobserved_completion_marker(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        prefix=(
+            f"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\n"
+            f"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\n"
+        ),
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-mismatch",
+    )
+    assert meaning.evidence["observed"] == "requested=(1, 0),default=(0, 0)"
+
+
+def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: Path):
+    request = _compile_time_request("IZANAGI_BREAK_NOREAD_VALIDATION")
+    assert G.declare_define_runtime_meaning(request) is None
+
+    root = tmp_path / "ccbench"
+    root.mkdir()
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "unestablished", "meaning-witness-undeclared",
+    )
+
+
+@pytest.mark.parametrize(
+    ("requested", "default"),
+    [(1, None), (1, 1), (0, 0), (0, 1)],
+)
+def test_compile_time_factory_rejects_nonpaired_values(
+    requested: int,
+    default: int | None,
+):
+    request = _compile_time_request(
+        "IZANAGI_BREAK_PERMUTATION",
+        requested=requested,
+        default=default,
+    )
+    assert G.declare_define_runtime_meaning(request) is None
+
+
+def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(
+    tmp_path: Path,
+):
+    assert G.MeaningWitnessDeclaration("BACKOFF_FIXED", ()) \
+        == G.MeaningWitnessDeclaration("BACKOFF_FIXED", ())
+    with pytest.raises(ValueError, match="no runtime witness support"):
+        G.MeaningWitnessDeclaration("IZANAGI_BREAK_PERMUTATION", ())
+
+    root = tmp_path / "ccbench"
+    root.mkdir()
+    with pytest.raises(SystemExit) as raised:
+        G.condition_gate_cli([
+            "--source-root", os.fspath(root),
+            "--driver-id", "test-cli-legacy-boundary",
+            "--macro", "IZANAGI_BREAK_PERMUTATION",
+            "--requested-value", "1",
+            "--default-value", "0",
+            "--meaning-case", f"1:{_bits(1)}:{_bits(1)}",
+            "--cxx", _any_cxx(),
+        ])
+    assert raised.value.code == 2
+
+
+def test_compile_time_green_schema_rejects_missing_or_mutated_observations(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION_SWAP"
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+
+    mutations: list[dict[str, object]] = []
+    missing = dict(meaning.evidence)
+    del missing["default"]
+    mutations.append(missing)
+    same_observation = dict(meaning.evidence)
+    same_observation["default"] = replace(
+        same_observation["default"], selected_count=1,
+    )
+    mutations.append(same_observation)
+    drifted_argv = dict(meaning.evidence)
+    drifted_argv["default"] = replace(
+        drifted_argv["default"],
+        preprocess_argv=(*drifted_argv["default"].preprocess_argv, "-DOTHER=1"),
+    )
+    mutations.append(drifted_argv)
+    wrong_kind = dict(meaning.evidence)
+    wrong_kind["proof_kind"] = "runtime-conditional-branch-witness"
+    mutations.append(wrong_kind)
+
+    for evidence in mutations:
+        forged = _public_arm_record(
+            arm="runtime-meaning",
+            terminal_status="green",
+            reason_code="declared-compile-time-branch-selection-observed",
+            request=request,
+            request_digest=meaning.request_digest,
+            evidence=evidence,
+        )
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G._validate_arm_record_integrity(forged, require_issuer=False)
+        assert raised.value.reason_code == "admission-contract-invalid"
 
 
 def test_backoff_fixed_minus_one_requires_stock_preprocess_identity(tmp_path: Path):
@@ -1073,7 +1559,9 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     }
     assert G.SUPPLY_DOMAIN_MACROS == supply_domain
-    assert G.MEANING_SUPPORTED_MACROS == {"BACKOFF_FIXED"}
+    assert G.MEANING_SUPPORTED_MACROS == {
+        "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
+    }
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -1082,7 +1570,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
     }
     assert G.RELATED_DEFINE_DECODE_MACROS <= G.SUPPLY_DOMAIN_MACROS
-    for macro in G.SUPPLY_DOMAIN_MACROS - G.MEANING_SUPPORTED_MACROS:
+    for macro in G.SUPPLY_DOMAIN_MACROS - {"BACKOFF_FIXED"}:
         with pytest.raises(ValueError, match="no runtime witness support"):
             G.MeaningWitnessDeclaration(macro, ())
     assert G.DEFINE_SPECS["SS2PL_LOCK_KIND"].companion_defines == (
