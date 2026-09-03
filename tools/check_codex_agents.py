@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Codex native 0件と、全13 dormant projection adapter の静的契約を検査する。
+"""Codex native 0件と、全14 dormant projection adapter の静的契約を検査する。
 
 native custom profile は現行 collaboration surface の selector/権限隔離を保証できない
 ため引き続き禁止する。一方 `.codex/role-adapters/*.json` は自動発見されない source
-adapter であり、Claude 13 role と全単射、capability lowering、I/O schema、semantic policy、
+adapter であり、Claude 14 role と全単射、capability lowering、I/O schema、semantic policy、
 consumer、renderer の期待 byte と照合する。runtime activation は全件blocked固定である。
 
 ``input.additional_tools`` inventoryと隔離の実効性はruntime launcher側の証拠が正本であり、
@@ -53,6 +53,7 @@ _SOURCE_EXAMPLE_PARITY_ROLES = frozenset({
     "axis-proposer",
     "planner-v4",
     "coder-v4-autonomous",
+    "coder-v4-autonomous-k2",
     "coder-v4-autonomous-sort",
     "coder-v4-autonomous-trigger-gating",
     "selector-8b",

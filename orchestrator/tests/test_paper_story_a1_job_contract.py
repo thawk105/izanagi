@@ -377,7 +377,7 @@ def test_v3_ccbench_five_boundary_wiring_is_exact_M10() -> None:
         'CCBENCH_TRACKED_STATUS=$(git -C "$CCBENCH_ROOT" status'
     ) == 1
     assert job_source.count("--porcelain --untracked-files=no)") == 1
-    assert job_source.count("--ignore-submodules=all") == 2
+    assert job_source.count("--ignore-submodules=all") == 3
     assert job_source.count(
         'refuse "CCBench job-preflight tracked files are dirty"'
     ) == 1
@@ -1257,14 +1257,27 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         'DEPENDENCY_PREFIX="$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"',
         '--dependency-prefix "$DEPENDENCY_PREFIX"',
     )
+    repeated_for_v3_failure_terminal = {
+        "os.O_EXCL": 2,
+        '"pbs_observation": {': 2,
+        '"attempt_identity": {': 2,
+    }
     for marker in required:
-        assert source.count(marker) == 1, marker
+        assert source.count(marker) == repeated_for_v3_failure_terminal.get(
+            marker, 1,
+        ), marker
     assert _shell_submitter_violations(source) == []
     assert "dispatch_compute.py" not in source
     assert "PBS_O_QUEUE" not in source
-    assert re.findall(r"/proc/[A-Za-z0-9_./-]+", source) == [
-        "/proc/sys/kernel/random/boot_id"
-    ]
+    proc_paths = re.findall(r"/proc/[A-Za-z0-9_./-]+", source)
+    assert proc_paths.count("/proc/sys/kernel/random/boot_id") == 1
+    assert proc_paths.count("/proc/uptime") == 2
+    assert source.count(
+        'for candidate in pathlib.Path("/proc").iterdir():'
+    ) == 2
+    assert 'print("single-tenant-same-uid-process-set/v1")' in source
+    assert 'method = "single-tenant-same-uid-process-set/v1"' in source
+    assert "created_during_job = process_identity not in baseline" in source
     assert "os.readlink" not in source
     assert 're.fullmatch(r"[A-Z]", visibility["state"])' not in source
     assert source.count("status --porcelain --untracked-files=all") == 3
@@ -1292,7 +1305,7 @@ def test_job_body_dispatches_legacy_pilot_and_future_sized_studies() -> None:
         'if v3_study_raw not in {"0", "1"}:'
     ) == 1
     assert source.count('v3_study = v3_study_raw == "1"') == 1
-    assert source.count("if v3_study:") == 2
+    assert source.count("if v3_study:") == 4
     assert 'study_id != "paper-story-a1-20260826-sized-v1"' not in source
     assert 'refuse "study ID differs"' in source
 
@@ -1833,6 +1846,53 @@ def test_driver_reuses_run_campaign_without_direct_evaluate_call() -> None:
     cfg = paired.campaign_config(policy, "write-heavy")
     assert cfg.search_config["arm_order"] == list(schedule.arm_names)
     assert cfg.ccbench_commit == paired.CANONICAL_CCBENCH_OID
+
+
+def test_v3_measurement_runs_one_selected_campaign_but_registers_exact_triple() -> None:
+    tree = ast.parse(
+        (REPO_ROOT / paired.DRIVER_RELATIVE_PATH).read_text(encoding="utf-8")
+    )
+    producer = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_run_measurement_v3"
+    )
+    calls = [
+        node for node in ast.walk(producer)
+        if isinstance(node, ast.Call)
+    ]
+    assert sum(
+        isinstance(node.func, ast.Name) and node.func.id == "run_campaign"
+        for node in calls
+    ) == 1
+    assert sum(
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "issue_a1_registered_noncertifying_projection"
+        for node in calls
+    ) == 1
+    projection_call = next(
+        node for node in calls
+        if isinstance(node.func, ast.Attribute)
+        and node.func.attr == "issue_a1_registered_noncertifying_projection"
+    )
+    keyword_values = {keyword.arg: keyword.value for keyword in projection_call.keywords}
+    assert isinstance(keyword_values["workloads"], ast.Name)
+    assert keyword_values["workloads"].id == "WORKLOAD_ORDER"
+    assert isinstance(keyword_values["campaign_ids"], ast.Name)
+    assert keyword_values["campaign_ids"].id == "campaign_ids"
+    gate_wrapper = next(
+        node for node in producer.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "gated_balanced_executor"
+    )
+    assert isinstance(gate_wrapper.body[0], ast.Expr)
+    assert isinstance(gate_wrapper.body[0].value, ast.Call)
+    assert isinstance(gate_wrapper.body[0].value.func, ast.Name)
+    assert gate_wrapper.body[0].value.func.id == "_v3_barrier_before_bench"
+    assert isinstance(gate_wrapper.body[1], ast.Return)
+    assert isinstance(gate_wrapper.body[1].value, ast.Call)
+    assert isinstance(gate_wrapper.body[1].value.func, ast.Name)
+    assert gate_wrapper.body[1].value.func.id == "original_balanced_executor"
 
 
 def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> None:
@@ -2461,6 +2521,318 @@ def test_complete_only_issues_completion_receipt_without_materialize(
             "request_id": submission["request_id"],
         },
     )]
+
+
+def _v3_submit_cli_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, str, dict]:
+    policy, policy_sha = paired.load_policy(paired.V3_PILOT_STUDY_ID)
+    repo = tmp_path / "v3-submit-repo"
+    for relative in paired.V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS:
+        active = (
+            paired.V3_PILOT_POLICY_RELATIVE_PATH
+            if relative == paired.POLICY_RELATIVE_PATH else relative
+        )
+        source = repo / active
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(f"fixture source: {active}\n", encoding="utf-8")
+    base = (tmp_path / "v3-measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    head = "a" * 40
+    monkeypatch.setattr(paired, "_repo_root", lambda: repo)
+    monkeypatch.setattr(
+        paired, "_load_policy_for_study", lambda _study_id: (policy, policy_sha),
+    )
+    monkeypatch.setattr(
+        paired, "_require_policy_ready_for_execution", lambda _policy: None,
+    )
+    monkeypatch.setattr(
+        paired, "_assert_ccbench_acceptance", lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(paired, "_durable_measurement_base", lambda _policy: base)
+
+    def run_git(_repo, *args):
+        if args == ("rev-parse", "HEAD"):
+            return head
+        if len(args) == 2 and args[0] == "rev-parse" and ":" in args[1]:
+            return "b" * 40
+        if args[-2:] == ("--porcelain", "--untracked-files=all"):
+            return ""
+        raise AssertionError(args)
+
+    monkeypatch.setattr(paired, "_run_git", run_git)
+    monkeypatch.setattr(paired.socket, "gethostname", lambda: "submit.example")
+    return repo, attempt, head, policy
+
+
+def _v3_visibility(request_id: str) -> dict:
+    return {
+        "request_id": request_id,
+        "visible": True,
+        "state": "QUE",
+        "queue": "gen_S",
+        "observed_epoch": 2,
+    }
+
+
+def test_v3_submit_fans_out_exact_workload_triple_and_publishes_group_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo, attempt, head, _policy = _v3_submit_cli_fixture(tmp_path, monkeypatch)
+    calls = []
+
+    def qsub(argv, *, cwd):
+        ordinal = len(calls)
+        calls.append(list(argv))
+        return subprocess.CompletedProcess(
+            argv, 0, f"{123 + ordinal}.server\n", "",
+        )
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
+    assert paired.run_submit(SimpleNamespace(
+        study_id=paired.V3_PILOT_STUDY_ID,
+        expected_head=head,
+        attempt_root=os.fspath(attempt),
+    )) == 0
+    assert len(calls) == 3
+    receipt_path = Path(
+        paired._v3_attempt_evidence_paths(attempt)["submission_receipt"]
+    )
+    receipt = json.loads(receipt_path.read_bytes())
+    assert receipt["schema_version"] == paired.V3_GROUP_SUBMISSION_SCHEMA
+    assert [item["workload"] for item in receipt["jobs"]] == list(
+        paired.WORKLOAD_ORDER
+    )
+    assert [
+        item["qsub_options"]["variables"]["IZANAGI_A1_WORKLOAD"]
+        for item in receipt["jobs"]
+    ] == list(paired.WORKLOAD_ORDER)
+    assert all(
+        Path(paired._v3_job_roots(attempt, workload)["request_id_path"]).is_file()
+        for workload in paired.WORKLOAD_ORDER
+    )
+
+
+def test_v3_submit_second_qsub_failure_stops_third_and_retry_before_qsub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo, attempt, head, _policy = _v3_submit_cli_fixture(tmp_path, monkeypatch)
+    calls = []
+
+    def qsub(argv, *, cwd):
+        ordinal = len(calls)
+        calls.append(list(argv))
+        if ordinal == 1:
+            return subprocess.CompletedProcess(argv, 1, "", "scheduler failed\n")
+        return subprocess.CompletedProcess(argv, 0, "123.server\n", "")
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
+    args = SimpleNamespace(
+        study_id=paired.V3_PILOT_STUDY_ID,
+        expected_head=head,
+        attempt_root=os.fspath(attempt),
+    )
+    with pytest.raises(paired.PaperStoryError, match="group submission failed"):
+        paired.run_submit(args)
+    assert len(calls) == 2
+    evidence = paired._v3_attempt_evidence_paths(attempt)
+    assert not Path(evidence["submission_receipt"]).exists()
+    failure = json.loads(Path(evidence["submission_failure"]).read_bytes())
+    assert [item["status"] for item in failure["jobs"]] == [
+        "accepted", "failed", "not-attempted",
+    ]
+    with pytest.raises(paired.PaperStoryError, match="intent exists"):
+        paired.run_submit(args)
+    assert len(calls) == 2
+
+
+def test_v3_submit_rejects_normalized_request_alias_before_group_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo, attempt, head, _policy = _v3_submit_cli_fixture(tmp_path, monkeypatch)
+    outputs = iter(("123.server\n", "0:123.server\n"))
+    calls = []
+
+    def qsub(argv, *, cwd):
+        calls.append(list(argv))
+        return subprocess.CompletedProcess(argv, 0, next(outputs), "")
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
+    with pytest.raises(paired.PaperStoryError, match="normalized request IDs"):
+        paired.run_submit(SimpleNamespace(
+            study_id=paired.V3_PILOT_STUDY_ID,
+            expected_head=head,
+            attempt_root=os.fspath(attempt),
+        ))
+    assert len(calls) == 2
+    assert not Path(
+        paired._v3_attempt_evidence_paths(attempt)["submission_receipt"]
+    ).exists()
+
+
+def test_v3_submit_rejects_prior_same_study_bench_start_before_intent_M4(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo, attempt, head, _policy = _v3_submit_cli_fixture(tmp_path, monkeypatch)
+    prior = attempt.parent / "prior-attempt"
+    start_root = prior / "barrier" / "bench-start"
+    start_root.mkdir(parents=True)
+    paired._exclusive_write(start_root / "write-heavy.json", {
+        "schema_version": paired.V3_BENCH_START_SCHEMA,
+        "study_id": paired.V3_PILOT_STUDY_ID,
+        "source_commit": "f" * 40,
+        "attempt_root": os.fspath(prior),
+        "workload": "write-heavy",
+        "ordinal": 0,
+        "request_id": "100.server",
+        "bench_go_sha256": "1" * 64,
+        "ready_sha256": "2" * 64,
+        "recorded_epoch": 1,
+    })
+    qsub_calls = []
+    monkeypatch.setattr(
+        paired, "_run_qsub",
+        lambda argv, *, cwd: qsub_calls.append((argv, cwd)),
+    )
+    with pytest.raises(paired.PaperStoryError, match="group rerun is prohibited"):
+        paired.run_submit(SimpleNamespace(
+            study_id=paired.V3_PILOT_STUDY_ID,
+            expected_head=head,
+            attempt_root=os.fspath(attempt),
+        ))
+    assert qsub_calls == []
+    assert not paired._attempt_intent_path(attempt).exists()
+
+
+def test_v3_job_body_accounting_window_and_descendant_gate_are_literal() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    required = (
+        'ACCOUNTING_STARTED_EPOCH_S=$(date +%s.%N)',
+        'LC_ALL=C times >"$ACCOUNTING_TIMES_BASELINE_PATH" 2>&1',
+        'LC_ALL=C times >"$ACCOUNTING_TIMES_FINAL_PATH" 2>&1',
+        'deltas = [end - start for start, end in zip(baseline, final)]',
+        '"method": "bash-times-delta-reaped-descendants/v1"',
+        '"unreaped_descendants": []',
+        'accounting-session-baseline.pids',
+        'if os.getsid(pid) == job_session:',
+        'if [[ -n "$survivors" ]]',
+        'exit 70',
+        '"${MEASURE_WORKLOAD_ARGS[@]}"',
+    )
+    for marker in required:
+        assert marker in source, marker
+    assert source.index('ACCOUNTING_STARTED_EPOCH_S=$(date +%s.%N)') < source.index(
+        'CCBENCH_CANONICAL_PIN=$("$PYTHON_BIN"'
+    )
+    assert source.index(
+        'LC_ALL=C times >"$ACCOUNTING_TIMES_BASELINE_PATH" 2>&1'
+    ) < source.index("for ((WAITED=0; WAITED<60; WAITED++))")
+
+
+def test_f2_job_process_set_catches_a_reparentable_setsid_process_M9(
+    tmp_path: Path,
+) -> None:
+    source = JOB.read_text(encoding="utf-8")
+
+    def heredoc_after(marker: str) -> str:
+        marker_offset = source.index(marker)
+        start = source.index("<<'PY'", marker_offset) + len("<<'PY'\n")
+        end = source.index("\nPY\n", start)
+        return source[start:end]
+
+    def process_starttime(pid: int) -> int | None:
+        try:
+            raw = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return None
+        closing = raw.rfind(")")
+        fields = raw[closing + 2:].split() if closing >= 0 else []
+        if len(fields) <= 19:
+            raise AssertionError(f"cannot parse cleanup identity for pid {pid}")
+        return int(fields[19])
+
+    baseline_program = heredoc_after(
+        '>"$ACCOUNTING_SESSION_BASELINE_PATH"'
+    )
+    audit_program = heredoc_after("audit_v3_job_process_set()")
+    baseline = tmp_path / "process-set-baseline"
+    completed = subprocess.run(
+        [os.sys.executable, "-", str(os.getpid())],
+        input=baseline_program,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    baseline.write_text(completed.stdout, encoding="utf-8")
+    escaped = subprocess.Popen(["sleep", "60"], start_new_session=True)
+    primary_error: BaseException | None = None
+    escaped_starttime: int | None = None
+    try:
+        escaped_starttime = process_starttime(escaped.pid)
+        assert escaped_starttime is not None
+        observed = subprocess.run(
+            [os.sys.executable, "-", str(os.getpid()), os.fspath(baseline)],
+            input=audit_program,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert observed.returncode == 0, observed.stderr
+        assert any(
+            row.split()[0] == str(escaped.pid)
+            for row in observed.stdout.splitlines()
+            if row.split()
+        )
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        cleanup_failures = []
+        cleanup_race: ProcessLookupError | None = None
+        try:
+            escaped.kill()
+        except ProcessLookupError as exc:
+            cleanup_race = exc
+        except OSError as exc:
+            cleanup_failures.append(f"SIGKILL failed: {exc!r}")
+        try:
+            escaped.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                current_starttime = process_starttime(escaped.pid)
+            except (OSError, ValueError, AssertionError) as exc:
+                cleanup_failures.append(
+                    f"cannot verify escaped process cleanup: {exc!r}"
+                )
+            else:
+                if current_starttime == escaped_starttime:
+                    cleanup_failures.append(
+                        "escaped process remained after SIGKILL: "
+                        f"pid={escaped.pid} starttime={escaped_starttime}"
+                    )
+        if cleanup_failures:
+            if cleanup_race is not None:
+                cleanup_failures.append(
+                    f"process disappeared before SIGKILL: {cleanup_race!r}"
+                )
+            cleanup_error = AssertionError("; ".join(cleanup_failures))
+            if primary_error is None:
+                raise cleanup_error
+            print(
+                f"cleanup failure while preserving primary error: {cleanup_error}",
+                file=os.sys.stderr,
+            )
+    assert "single-tenant-same-uid-process-set/v1" in source
+    assert "created_during_job = process_identity not in baseline" in source
+    assert "accounting-process-set-audit.error" in source
+    assert source.index("audit_v3_job_process_set || exit 70") < source.index(
+        'write_terminal "$shell_rc"'
+    )
 
 
 def _run() -> int:
