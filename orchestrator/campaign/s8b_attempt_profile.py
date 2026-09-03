@@ -553,6 +553,16 @@ def _s8b_v2_budget_key(slot: S8BV2AttemptSlot) -> S8BBudgetKey:
     return slot.freeze_holdout_key, slot.configuration_id
 
 
+def _reject_unsealed_s8b_v2_terminal(
+    _row: Mapping[str, Any],
+) -> None:
+    """Keep v2 terminal rows closed until the sealed evidence API exists."""
+
+    raise AttemptRegistryCoreError(
+        "[s8b-v2-terminal] v2 terminal requires the sealed evidence API"
+    )
+
+
 def serialize_session_line(record: Mapping[str, Any]) -> bytes:
     """Serialize the durable floor-session JSON line exactly once."""
 
@@ -659,6 +669,7 @@ def make_s8b_v2_domain_profile(
             max_consumptions_per_budget_key=(
                 max_consumptions_per_budget_key
             ),
+            retryable_terminal_opens_next_attempt=False,
         ),
         recovery_policy=RecoveryPolicy(
             receipt_schema_version=S8B_RECOVERY_RECEIPT_SCHEMA_VERSION,
@@ -669,4 +680,5 @@ def make_s8b_v2_domain_profile(
             failure_reasons=S8B_RECOVERY_FAILURE_REASONS,
         ),
         freeze_id_from_genesis=_s8b_freeze_id_from_genesis,
+        terminal_row_validator=_reject_unsealed_s8b_v2_terminal,
     )

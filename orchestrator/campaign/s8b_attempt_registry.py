@@ -51,6 +51,7 @@ _ISSUED_HANDLE_TOKENS: dict[
 _STAGING_COUNTER = itertools.count()
 _MAX_DURABLE_BYTES = 16 * 1024 * 1024
 _CLASSIFICATION_CLAIM_SCHEMA = "s8b-attempt-classification-claim/v2"
+_CLASSIFICATION_CLAIM_V3_SCHEMA = "s8b-attempt-classification-claim/v3"
 _CLASSIFICATION_CLAIM_EVENT = "classification-claim"
 _CLASSIFICATION_CLAIM_DIR = "classification-claims"
 _FLOOR_CONSUMED_MARKER_KEYS = frozenset({
@@ -163,12 +164,10 @@ def _fault(point: str) -> None:
 @dataclass(frozen=True, slots=True)
 class _AttemptState:
     repo_root: Path
-    profile: core.DomainProfile[
-        profile8b.S8BAttemptSlot, profile8b.S8BAttemptBinding
-    ]
+    profile: core.DomainProfile[Any, profile8b.S8BAttemptBinding]
     binding: profile8b.S8BAttemptBinding
     freeze_id: str
-    slot_id: profile8b.S8BSlotIdentity
+    slot_id: Hashable
     registry_path: Path
     admission_claim_digest: str
     attempt_id: str
@@ -177,6 +176,8 @@ class _AttemptState:
     run_relpath: str
     cell_id: str
     deferred_output_reader: Callable[[], bytes]
+    consumption_marker: admission.FloorAttemptConsumptionMarker | None = None
+    measurement_generation_claim_digest: str | None = None
     classification_receipt_bytes: bytes | None = None
     classification_receipt_sha256: str | None = None
     classification_event_sha256: str | None = None
@@ -244,6 +245,8 @@ def _state_fingerprint(state: _AttemptState) -> tuple[object, ...]:
         state.run_relpath,
         state.cell_id,
         id(state.deferred_output_reader),
+        id(state.consumption_marker),
+        state.measurement_generation_claim_digest,
         state.classification_receipt_bytes,
         state.classification_receipt_sha256,
         state.classification_event_sha256,
@@ -313,16 +316,12 @@ def _require_handle(value: object, expected: type[HandleT]) -> _AttemptState:
     return state
 
 
-def _assert_profile(
+def _assert_exact_profile(
     profile: core.DomainProfile[Any, Any],
-) -> core.DomainProfile[
-    profile8b.S8BAttemptSlot, profile8b.S8BAttemptBinding
-]:
-    if type(profile) is not core.DomainProfile:
-        _fail(
-            "s8b-attempt-registry-profile",
-            "domain profile type differs from the frozen 8b profile",
-        )
+    expected: core.DomainProfile[Any, Any],
+) -> None:
+    """Apply the legacy exact comparator to one schema-selected profile."""
+
     recovery = profile.recovery_policy
     transition = profile.transition_policy
     if (
@@ -336,20 +335,6 @@ def _assert_profile(
             "s8b-attempt-registry-profile",
             "domain profile policy shape differs from frozen 8b",
         )
-    try:
-        expected = profile8b.make_s8b_domain_profile(
-            max_consumptions_per_budget_key=(
-                transition.max_consumptions_per_budget_key
-            ),
-            recovery_authority_id=recovery.authority_id,
-            recovery_authority_policy_sha256=(
-                recovery.authority_policy_sha256
-            ),
-        )
-    except core.AttemptRegistryCoreError as exc:
-        raise S8BAttemptRegistryError(
-            "[s8b-attempt-registry-profile] variable profile values are invalid"
-        ) from exc
     expected_transition = expected.transition_policy
     expected_recovery = expected.recovery_policy
     assert expected_recovery is not None
@@ -422,6 +407,9 @@ def _assert_profile(
         or transition.budget_key is not expected_transition.budget_key
         or transition.max_consumptions_per_budget_key
         != expected_transition.max_consumptions_per_budget_key
+        or type(transition.retryable_terminal_opens_next_attempt) is not bool
+        or transition.retryable_terminal_opens_next_attempt
+        is not expected_transition.retryable_terminal_opens_next_attempt
         or type(recovery.receipt_schema_version) is not str
         or recovery.receipt_schema_version != expected_recovery.receipt_schema_version
         or type(recovery.receipt_event) is not str
@@ -441,12 +429,70 @@ def _assert_profile(
         or type(profile.binding_conflict_message) is not str
         or profile.binding_conflict_message != expected.binding_conflict_message
         or profile.binding_mismatch is not expected.binding_mismatch
+        or profile.terminal_row_validator is not expected.terminal_row_validator
     ):
         _fail(
             "s8b-attempt-registry-profile",
             "domain profile differs from frozen 8b semantics",
         )
+
+
+def _assert_profile(
+    profile: core.DomainProfile[Any, Any],
+) -> core.DomainProfile[Any, profile8b.S8BAttemptBinding]:
+    if type(profile) is not core.DomainProfile:
+        _fail(
+            "s8b-attempt-registry-profile",
+            "domain profile type differs from the frozen 8b profile",
+        )
+    recovery = profile.recovery_policy
+    transition = profile.transition_policy
+    if (
+        type(recovery) is not core.RecoveryPolicy
+        or type(transition) is not core.TransitionPolicy
+        or type(transition.max_consumptions_per_budget_key) is not int
+        or type(recovery.authority_id) is not str
+        or type(recovery.authority_policy_sha256) is not str
+    ):
+        _fail(
+            "s8b-attempt-registry-profile",
+            "domain profile policy shape differs from frozen 8b",
+        )
+    factory: Callable[..., core.DomainProfile[Any, Any]]
+    if profile.schema is profile8b.S8B_SCHEMA_PROFILE:
+        factory = profile8b.make_s8b_domain_profile
+    elif profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:
+        factory = profile8b.make_s8b_v2_domain_profile
+    else:
+        _fail(
+            "s8b-attempt-registry-profile",
+            "domain profile schema is not a frozen 8b schema",
+        )
+    try:
+        expected = factory(
+            max_consumptions_per_budget_key=(
+                transition.max_consumptions_per_budget_key
+            ),
+            recovery_authority_id=recovery.authority_id,
+            recovery_authority_policy_sha256=(
+                recovery.authority_policy_sha256
+            ),
+        )
+    except core.AttemptRegistryCoreError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-profile] variable profile values are invalid"
+        ) from exc
+    _assert_exact_profile(profile, expected)
     return profile
+
+
+def _profile_protocol_sha256(
+    profile: core.DomainProfile[Any, Any],
+    binding: profile8b.S8BAttemptBinding,
+) -> str | None:
+    if profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:
+        return binding.protocol_sha256
+    return None
 
 
 def _relative_registry_path(
@@ -520,7 +566,12 @@ def _assert_state_path(state: _AttemptState) -> None:
     if not state.repo_root.is_absolute() or state.repo_root != state.repo_root.resolve():
         _fail("s8b-attempt-registry-handle", "handle repo root is not canonical")
     _root, canonical = _entry_paths(
-        state.repo_root, freeze_sha256=state.freeze_id,
+        state.repo_root,
+        freeze_sha256=state.freeze_id,
+        protocol_sha256=_profile_protocol_sha256(
+            state.profile, state.binding,
+        ),
+        requested_registry_path=state.registry_path,
     )
     if state.registry_path != canonical:
         _fail("s8b-attempt-registry-handle", "handle registry path differs")
@@ -968,12 +1019,85 @@ def _publish_create_only(
         _unlink_staging(staging)
 
 
+def _publish_registry_generation_create_only(
+    *,
+    root: Path,
+    path: Path,
+    payload: bytes,
+) -> None:
+    """Publish a new protocol generation without completing stale debris."""
+
+    try:
+        relative = PurePosixPath(*path.relative_to(root).parts)
+    except ValueError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-path] generation path escapes the shared root"
+        ) from exc
+    parts = relative.parts
+    freeze = parts[1] if len(parts) == 4 else ""
+    protocol = path.parent.name
+    if (
+        len(parts) != 4
+        or parts[0] != "floor-attempt-registries"
+        or parts[-1] != "registry.jsonl"
+        or len(freeze) != 64
+        or any(character not in "0123456789abcdef" for character in freeze)
+        or len(protocol) != 64
+        or any(character not in "0123456789abcdef" for character in protocol)
+    ):
+        _fail(
+            "s8b-attempt-registry-path",
+            "generation publish path is not canonical",
+        )
+    generation = path.parent
+    freeze_directory = generation.parent
+    _ensure_durable_directory(freeze_directory)
+    admission._assert_no_symlink_components(freeze_directory)
+    try:
+        generation.mkdir(mode=0o700)
+    except FileExistsError:
+        try:
+            mode = generation.lstat().st_mode
+        except OSError as exc:
+            raise S8BAttemptRegistryError(
+                "[s8b-attempt-registry-storage] cannot inspect generation destination"
+            ) from exc
+        if generation.is_symlink() or not stat.S_ISDIR(mode):
+            _fail(
+                "s8b-attempt-registry-storage",
+                "generation directory is unsafe or incomplete",
+            )
+        if not path.is_file() or path.is_symlink():
+            _fail(
+                "s8b-attempt-registry-storage",
+                "generation directory is unsafe or incomplete",
+            )
+        _fail(
+            "s8b-attempt-registry-create-only",
+            "durable registry generation already exists",
+        )
+    except OSError as exc:
+        raise S8BAttemptRegistryError(
+            "[s8b-attempt-registry-storage] cannot create registry generation"
+        ) from exc
+    admission._assert_no_symlink_components(generation)
+    _fsync_directory(generation)
+    _fsync_directory(freeze_directory)
+    logical_name = relative.as_posix()
+    _publish_create_only(
+        path,
+        payload,
+        logical_name=logical_name,
+        allow_exact_retry=False,
+    )
+
+
 def _slot_from_rows(
     rows: Sequence[Mapping[str, Any]],
     *,
     profile: core.DomainProfile[Any, Any],
-    slot_id: profile8b.S8BSlotIdentity,
-) -> profile8b.S8BAttemptSlot:
+    slot_id: Hashable,
+) -> profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot:
     slots = rows[0].get("slots")
     if type(slots) is not list:
         _fail("s8b-attempt-registry-schema", "genesis slots are unavailable")
@@ -1028,15 +1152,42 @@ def _slot_address_payload(
     }
 
 
+def _slot_address_payload_v3(
+    *,
+    binding: profile8b.S8BAttemptBinding,
+    slot: profile8b.S8BV2AttemptSlot,
+) -> dict[str, Any]:
+    """Bind a v2 claim address to the generation and all five slot axes."""
+
+    return {
+        **profile8b.S8B_BINDING_CODEC.to_event_fields(binding),
+        **profile8b.S8B_V2_SLOT_CODEC.to_json(slot),
+    }
+
+
+def _claim_address_payload(
+    *,
+    binding: profile8b.S8BAttemptBinding,
+    slot: profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot,
+) -> dict[str, Any]:
+    if type(slot) is profile8b.S8BAttemptSlot:
+        return _slot_address_payload(
+            freeze_sha256=binding.freeze_sha256, slot=slot,
+        )
+    if type(slot) is profile8b.S8BV2AttemptSlot:
+        return _slot_address_payload_v3(binding=binding, slot=slot)
+    _fail("s8b-attempt-registry-slot", "classification claim slot type differs")
+
+
 def _classification_claim_path(
     root: Path,
     *,
-    freeze_sha256: str,
-    slot: profile8b.S8BAttemptSlot,
+    binding: profile8b.S8BAttemptBinding,
+    slot: profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot,
 ) -> Path:
     address = hashlib.sha256(
         core.canonical_json_bytes(
-            _slot_address_payload(freeze_sha256=freeze_sha256, slot=slot)
+            _claim_address_payload(binding=binding, slot=slot)
         )
     ).hexdigest()
     receipt_root = root.joinpath(
@@ -1057,8 +1208,8 @@ def _receipt_path(root: Path, receipt_sha256: str) -> Path:
 
 def _claim_document(
     *,
-    freeze_sha256: str,
-    slot: profile8b.S8BAttemptSlot,
+    binding: profile8b.S8BAttemptBinding,
+    slot: profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot,
     classification_receipt: Mapping[str, Any],
     classification_receipt_sha256: str,
     classification_event_sha256: str,
@@ -1069,10 +1220,15 @@ def _claim_document(
     run_relpath: str,
     cell_id: str,
 ) -> dict[str, Any]:
+    schema = (
+        _CLASSIFICATION_CLAIM_V3_SCHEMA
+        if type(slot) is profile8b.S8BV2AttemptSlot
+        else _CLASSIFICATION_CLAIM_SCHEMA
+    )
     return {
-        "schema_version": _CLASSIFICATION_CLAIM_SCHEMA,
+        "schema_version": schema,
         "event": _CLASSIFICATION_CLAIM_EVENT,
-        **_slot_address_payload(freeze_sha256=freeze_sha256, slot=slot),
+        **_claim_address_payload(binding=binding, slot=slot),
         "schedule_row_sha256": slot.schedule_row_sha256,
         "classification_receipt": dict(classification_receipt),
         "classification_receipt_sha256": classification_receipt_sha256,
@@ -1106,30 +1262,42 @@ _CLAIM_KEYS = frozenset({
     "cell_id",
 })
 
+_CLAIM_V3_KEYS = _CLAIM_KEYS | frozenset({
+    "protocol_sha256",
+    "schedule_sha256",
+    "measurement_ordinal",
+})
+
 
 def _classification_claim(
     *,
     root: Path,
     binding: profile8b.S8BAttemptBinding,
-    slot: profile8b.S8BAttemptSlot,
+    slot: profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot,
     missing_ok: bool = False,
 ) -> tuple[Mapping[str, Any], bytes] | None:
     claim_path = _classification_claim_path(
-        root, freeze_sha256=binding.freeze_sha256, slot=slot,
+        root, binding=binding, slot=slot,
     )
     claim_bytes = _read_regular_bytes(claim_path, missing_ok=missing_ok)
     if claim_bytes is None:
         return None
     claim = _canonical_document(claim_bytes, label="classification claim")
-    if frozenset(claim) != _CLAIM_KEYS:
+    is_v3 = type(slot) is profile8b.S8BV2AttemptSlot
+    expected_keys = _CLAIM_V3_KEYS if is_v3 else _CLAIM_KEYS
+    if frozenset(claim) != expected_keys:
         _fail(
             "s8b-attempt-registry-classification",
             "classification claim exact keys differ",
         )
     expected_identity = {
-        "schema_version": _CLASSIFICATION_CLAIM_SCHEMA,
+        "schema_version": (
+            _CLASSIFICATION_CLAIM_V3_SCHEMA
+            if is_v3
+            else _CLASSIFICATION_CLAIM_SCHEMA
+        ),
         "event": _CLASSIFICATION_CLAIM_EVENT,
-        **_slot_address_payload(freeze_sha256=binding.freeze_sha256, slot=slot),
+        **_claim_address_payload(binding=binding, slot=slot),
         "schedule_row_sha256": slot.schedule_row_sha256,
     }
     for field, expected in expected_identity.items():
@@ -1173,9 +1341,43 @@ def _classification_claim(
     return claim, receipt_bytes
 
 
+def _measurement_generation_claim_digest_from_v2_payload(
+    root: Path,
+    *,
+    claim_address: str,
+    binding: profile8b.S8BAttemptBinding,
+    slot: profile8b.S8BV2AttemptSlot,
+) -> str:
+    """Derive marker authority from the durable v2 admission claim payload."""
+
+    address = _sha256(claim_address, label="admission_claim_digest")
+    claim = admission._read_canonical_document(
+        admission._measurement_generation_claim_path(root, address)
+    )
+    derived = admission._measurement_generation_claim_identity(claim)
+    if derived != address:
+        _fail(
+            "s8b-attempt-registry-consume",
+            "v2 admission claim path differs from its payload",
+        )
+    key = claim.get("key")
+    if (
+        not isinstance(key, Mapping)
+        or key.get("freeze_sha256") != binding.freeze_sha256
+        or claim.get("protocol_sha256") != binding.protocol_sha256
+        or key.get("freeze_holdout_key") != slot.freeze_holdout_key
+        or key.get("configuration_id") != slot.configuration_id
+    ):
+        _fail(
+            "s8b-attempt-registry-consume",
+            "v2 admission claim differs from the registry generation or slot",
+        )
+    return derived
+
+
 @dataclass(frozen=True, slots=True)
 class _ClassificationResult:
-    slot: profile8b.S8BAttemptSlot
+    slot: profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot
     receipt_bytes: bytes
     receipt_sha256: str
     event_sha256: str
@@ -1242,8 +1444,7 @@ def _atomic_update_locked(
     ],
     prepare: Callable[[TransitionResultT, bytes], None] | None = None,
 ) -> tuple[core.RegistryRows, TransitionResultT]:
-    # ``lock`` is intentionally opaque here.  A1' only establishes the seam;
-    # the live-lock guard arrives with the marker-owned call path in A2'.
+    admission._assert_active_admission_root_lock(lock, root=root)
     other_counts = _load_other_generation_budget_counts_locked(
         root=root,
         current_path=path,
@@ -1328,6 +1529,56 @@ def _atomic_update(
         )
 
 
+def _atomic_update_with_consumption_marker(
+    *,
+    root: Path,
+    path: Path,
+    profile: core.DomainProfile[Any, Any],
+    binding: profile8b.S8BAttemptBinding,
+    slot: profile8b.S8BV2AttemptSlot,
+    marker: admission.FloorAttemptConsumptionMarker,
+    measurement_generation_claim_digest: str,
+    attempt_id: str,
+    campaign_run_id: str,
+    manifest_sha256: str,
+    run_relpath: str,
+    cell_id: str,
+    transition: Callable[
+        [core.RegistryRows], tuple[core.RegistryRows, TransitionResultT]
+    ],
+    prepare: Callable[[TransitionResultT, bytes], None] | None = None,
+) -> tuple[core.RegistryRows, TransitionResultT]:
+    """Update a v2 generation inside one marker-owned lock interval."""
+
+    _run_prelock_snapshot_hook(path)
+    with admission._locked(root) as lock:
+        return marker.use(
+            lock=lock,
+            root=root,
+            measurement_generation_claim_digest=(
+                measurement_generation_claim_digest
+            ),
+            attempt_id=attempt_id,
+            campaign_run_id=campaign_run_id,
+            manifest_sha256=manifest_sha256,
+            run_relpath=run_relpath,
+            cell_id=cell_id,
+            freeze_holdout_key=slot.freeze_holdout_key,
+            configuration_id=slot.configuration_id,
+            repetition=slot.repetition,
+            attempt_ordinal=slot.measurement_ordinal,
+            action=lambda active_lock: _atomic_update_locked(
+                active_lock,
+                root=root,
+                path=path,
+                profile=profile,
+                binding=binding,
+                transition=transition,
+                prepare=prepare,
+            ),
+        )
+
+
 def create_attempt_registry(
     repo_root: Path,
     *,
@@ -1346,6 +1597,7 @@ def create_attempt_registry(
     root, path = _entry_paths(
         Path(repo_root),
         freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=_profile_protocol_sha256(profile, binding),
         requested_registry_path=requested_registry_path,
     )
     rows = core.create_attempt_registry_genesis(
@@ -1355,11 +1607,21 @@ def create_attempt_registry(
     core.load_attempt_registry(
         payload, profile=profile, expected_binding=binding,
     )
-    logical_name = _relative_registry_path(binding.freeze_sha256).as_posix()
     with admission._locked(root):
-        _publish_create_only(
-            path, payload, logical_name=logical_name, allow_exact_retry=False,
-        )
+        if profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:
+            _publish_registry_generation_create_only(
+                root=root, path=path, payload=payload,
+            )
+        else:
+            logical_name = _relative_registry_path(
+                binding.freeze_sha256,
+            ).as_posix()
+            _publish_create_only(
+                path,
+                payload,
+                logical_name=logical_name,
+                allow_exact_retry=False,
+            )
     return path
 
 
@@ -1376,7 +1638,9 @@ def read_attempt_registry(
     profile = _assert_profile(profile)
     canonical_repo_root = Path(repo_root).resolve()
     root, path = _entry_paths(
-        canonical_repo_root, freeze_sha256=binding.freeze_sha256,
+        canonical_repo_root,
+        freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=_profile_protocol_sha256(profile, binding),
     )
     with admission._locked(root):
         payload = _read_regular_bytes(path)
@@ -1389,11 +1653,9 @@ def read_attempt_registry(
 def reserve_attempt_slot(
     repo_root: Path,
     *,
-    profile: core.DomainProfile[
-        profile8b.S8BAttemptSlot, profile8b.S8BAttemptBinding
-    ],
+    profile: core.DomainProfile[Any, profile8b.S8BAttemptBinding],
     binding: profile8b.S8BAttemptBinding,
-    slot_id: profile8b.S8BSlotIdentity,
+    slot_id: Hashable,
     run_start_receipt_sha256: str,
     process_identity: Mapping[str, Any],
     started_at: str,
@@ -1404,6 +1666,7 @@ def reserve_attempt_slot(
     run_relpath: str,
     cell_id: str,
     deferred_output_reader: Callable[[], bytes],
+    consumption_marker: admission.FloorAttemptConsumptionMarker | None = None,
 ) -> ReservedAttempt:
     """Persist reservation and return the only handle accepted by classify."""
 
@@ -1426,8 +1689,48 @@ def reserve_attempt_slot(
         _fail("s8b-attempt-registry-handle", "deferred output reader is not callable")
     canonical_repo_root = Path(repo_root).resolve()
     root, path = _entry_paths(
-        canonical_repo_root, freeze_sha256=binding.freeze_sha256,
+        canonical_repo_root,
+        freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=_profile_protocol_sha256(profile, binding),
     )
+
+    v2_slot: profile8b.S8BV2AttemptSlot | None = None
+    measurement_generation_claim_digest: str | None = None
+    if profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:
+        if consumption_marker is None:
+            _fail(
+                "s8b-attempt-registry-consume",
+                "v2 reservation requires a consumption marker",
+            )
+        snapshot = _read_regular_bytes(path)
+        assert snapshot is not None
+        snapshot_rows = core.load_attempt_registry(
+            snapshot, profile=profile, expected_binding=binding,
+        )
+        candidate_slot = _slot_from_rows(
+            snapshot_rows, profile=profile, slot_id=slot_id,
+        )
+        if type(candidate_slot) is not profile8b.S8BV2AttemptSlot:
+            _fail("s8b-attempt-registry-slot", "v2 reservation slot type differs")
+        if candidate_slot.attempt_ordinal != 0:
+            _fail(
+                "s8b-attempt-registry-consume",
+                "v2 reservation recovery ordinal is not capability-backed",
+            )
+        v2_slot = candidate_slot
+        measurement_generation_claim_digest = (
+            _measurement_generation_claim_digest_from_v2_payload(
+                root,
+                claim_address=admission_claim_digest,
+                binding=binding,
+                slot=candidate_slot,
+            )
+        )
+    elif consumption_marker is not None:
+        _fail(
+            "s8b-attempt-registry-consume",
+            "legacy reservation does not accept a v2 consumption marker",
+        )
 
     def transition(
         rows: core.RegistryRows,
@@ -1460,13 +1763,36 @@ def reserve_attempt_slot(
         )
         return candidate, (slot, capability)
 
-    _rows, (_slot, _capability) = _atomic_update(
-        root=root,
-        path=path,
-        profile=profile,
-        binding=binding,
-        transition=transition,
-    )
+    if v2_slot is not None:
+        assert consumption_marker is not None
+        assert measurement_generation_claim_digest is not None
+        _rows, (_slot, _capability) = (
+            _atomic_update_with_consumption_marker(
+                root=root,
+                path=path,
+                profile=profile,
+                binding=binding,
+                slot=v2_slot,
+                marker=consumption_marker,
+                measurement_generation_claim_digest=(
+                    measurement_generation_claim_digest
+                ),
+                attempt_id=attempt_id,
+                campaign_run_id=campaign_run_id,
+                manifest_sha256=manifest_sha256,
+                run_relpath=run_relpath,
+                cell_id=cell_id,
+                transition=transition,
+            )
+        )
+    else:
+        _rows, (_slot, _capability) = _atomic_update(
+            root=root,
+            path=path,
+            profile=profile,
+            binding=binding,
+            transition=transition,
+        )
     state = _AttemptState(
         repo_root=canonical_repo_root,
         profile=profile,
@@ -1481,6 +1807,10 @@ def reserve_attempt_slot(
         run_relpath=run_relpath,
         cell_id=cell_id,
         deferred_output_reader=deferred_output_reader,
+        consumption_marker=consumption_marker,
+        measurement_generation_claim_digest=(
+            measurement_generation_claim_digest
+        ),
     )
     return _new_handle(ReservedAttempt, state)
 
@@ -1491,12 +1821,17 @@ def _assert_classification_artifacts(
     rows: Sequence[Mapping[str, Any]],
     profile: core.DomainProfile[Any, Any],
     binding: profile8b.S8BAttemptBinding,
-    slot_id: profile8b.S8BSlotIdentity,
+    slot_id: Hashable,
     admission_claim_digest: str | None = None,
     attempt_id: str | None = None,
     expected_receipt_bytes: bytes | None = None,
     desired_fields: Mapping[str, Any] | None = None,
-) -> tuple[profile8b.S8BAttemptSlot, Mapping[str, Any], bytes, Mapping[str, Any]]:
+) -> tuple[
+    profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot,
+    Mapping[str, Any],
+    bytes,
+    Mapping[str, Any],
+]:
     slot = _slot_from_rows(rows, profile=profile, slot_id=slot_id)
     classifications = _rows_for_event(
         rows, slot=slot, event="classification", profile=profile,
@@ -1581,7 +1916,12 @@ def classify_attempt(
 
     state = _require_handle(reserved, ReservedAttempt)
     root, path = _entry_paths(
-        state.repo_root, freeze_sha256=state.freeze_id,
+        state.repo_root,
+        freeze_sha256=state.freeze_id,
+        protocol_sha256=_profile_protocol_sha256(
+            state.profile, state.binding,
+        ),
+        requested_registry_path=state.registry_path,
     )
     desired_fields = {
         "capability_digest_sha256": None,
@@ -1662,7 +2002,7 @@ def classify_attempt(
         receipt_sha256 = hashlib.sha256(receipt_bytes).hexdigest()
         classification = candidate[-1]
         claim = _claim_document(
-            freeze_sha256=state.freeze_id,
+            binding=state.binding,
             slot=slot,
             classification_receipt=receipt,
             classification_receipt_sha256=receipt_sha256,
@@ -1688,7 +2028,7 @@ def classify_attempt(
         if not result.publish:
             return
         claim_path = _classification_claim_path(
-            root, freeze_sha256=state.freeze_id, slot=result.slot,
+            root, binding=state.binding, slot=result.slot,
         )
         claim_bytes = _canonical_line_bytes(result.claim)
         receipt_path = _receipt_path(root, result.receipt_sha256)
@@ -1746,7 +2086,7 @@ def _marker_path(root: Path, *, claim_digest: str, attempt_id: str) -> Path:
     return root / "consumed" / f"{claim_digest}-{marker_digest}.json"
 
 
-def _assert_consumed_marker(
+def _assert_legacy_consumed_marker(
     root: Path,
     *,
     state: _AttemptState,
@@ -1806,7 +2146,12 @@ def _captured_state(state: _AttemptState, raw_output: object) -> _AttemptState:
 
 def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
     root, path = _entry_paths(
-        state.repo_root, freeze_sha256=state.freeze_id,
+        state.repo_root,
+        freeze_sha256=state.freeze_id,
+        protocol_sha256=_profile_protocol_sha256(
+            state.profile, state.binding,
+        ),
+        requested_registry_path=state.registry_path,
     )
 
     def transition(
@@ -1822,7 +2167,13 @@ def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
             attempt_id=state.attempt_id,
             expected_receipt_bytes=state.classification_receipt_bytes,
         )
-        _assert_consumed_marker(root, state=state, slot=slot)
+        if state.profile.schema is profile8b.S8B_SCHEMA_PROFILE:
+            if type(slot) is not profile8b.S8BAttemptSlot:
+                _fail(
+                    "s8b-attempt-registry-slot",
+                    "legacy observation slot type differs",
+                )
+            _assert_legacy_consumed_marker(root, state=state, slot=slot)
         candidate = core.begin_attempt_observation(
             rows,
             profile=state.profile,
@@ -1839,13 +2190,49 @@ def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
             )
         return candidate, str(observation["event_sha256"])
 
-    _rows, observation_sha256 = _atomic_update(
-        root=root,
-        path=path,
-        profile=state.profile,
-        binding=state.binding,
-        transition=transition,
-    )
+    if state.profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:
+        marker = state.consumption_marker
+        generation_claim = state.measurement_generation_claim_digest
+        snapshot = _read_regular_bytes(path)
+        assert snapshot is not None
+        snapshot_rows = core.load_attempt_registry(
+            snapshot, profile=state.profile, expected_binding=state.binding,
+        )
+        slot = _slot_from_rows(
+            snapshot_rows, profile=state.profile, slot_id=state.slot_id,
+        )
+        if (
+            marker is None
+            or generation_claim is None
+            or type(slot) is not profile8b.S8BV2AttemptSlot
+        ):
+            _fail(
+                "s8b-attempt-registry-consume",
+                "v2 observation requires a consumption marker",
+            )
+        _rows, observation_sha256 = _atomic_update_with_consumption_marker(
+            root=root,
+            path=path,
+            profile=state.profile,
+            binding=state.binding,
+            slot=slot,
+            marker=marker,
+            measurement_generation_claim_digest=generation_claim,
+            attempt_id=state.attempt_id,
+            campaign_run_id=state.campaign_run_id,
+            manifest_sha256=state.manifest_sha256,
+            run_relpath=state.run_relpath,
+            cell_id=state.cell_id,
+            transition=transition,
+        )
+    else:
+        _rows, observation_sha256 = _atomic_update(
+            root=root,
+            path=path,
+            profile=state.profile,
+            binding=state.binding,
+            transition=transition,
+        )
     observed_state = replace(
         state, observation_event_sha256=observation_sha256,
     )
@@ -1905,6 +2292,14 @@ def _assert_observation_row(
     return observation
 
 
+def _reject_legacy_v2_terminal(state: _AttemptState) -> None:
+    if state.profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE:
+        _fail(
+            "s8b-v2-terminal",
+            "v2 terminal requires the sealed evidence API",
+        )
+
+
 def record_attempt_terminal(
     observation: CapturedObservation,
     *,
@@ -1917,10 +2312,16 @@ def record_attempt_terminal(
     """Record a terminal row; the raw-output digest comes only from the handle."""
 
     state = _require_handle(observation, CapturedObservation)
+    _reject_legacy_v2_terminal(state)
     if state.raw_output_sha256 is None:
         _fail("s8b-attempt-registry-handle", "captured output digest is absent")
     root, path = _entry_paths(
-        state.repo_root, freeze_sha256=state.freeze_id,
+        state.repo_root,
+        freeze_sha256=state.freeze_id,
+        protocol_sha256=_profile_protocol_sha256(
+            state.profile, state.binding,
+        ),
+        requested_registry_path=state.registry_path,
     )
 
     def transition(rows: core.RegistryRows) -> tuple[core.RegistryRows, None]:
@@ -1970,8 +2371,14 @@ def record_classified_failure_terminal(
     """Close a classified pre-observation failure without an observation union."""
 
     state = _require_handle(failure, ClassifiedFailure)
+    _reject_legacy_v2_terminal(state)
     root, path = _entry_paths(
-        state.repo_root, freeze_sha256=state.freeze_id,
+        state.repo_root,
+        freeze_sha256=state.freeze_id,
+        protocol_sha256=_profile_protocol_sha256(
+            state.profile, state.binding,
+        ),
+        requested_registry_path=state.registry_path,
     )
 
     def transition(rows: core.RegistryRows) -> tuple[core.RegistryRows, None]:
@@ -2025,7 +2432,12 @@ def record_attempt_recovery(
         label="scheduler accounting receipt",
     )
     root, path = _entry_paths(
-        state.repo_root, freeze_sha256=state.freeze_id,
+        state.repo_root,
+        freeze_sha256=state.freeze_id,
+        protocol_sha256=_profile_protocol_sha256(
+            state.profile, state.binding,
+        ),
+        requested_registry_path=state.registry_path,
     )
 
     def transition(rows: core.RegistryRows) -> tuple[core.RegistryRows, None]:
@@ -2053,11 +2465,9 @@ def record_attempt_recovery(
 def resume_attempt(
     repo_root: Path,
     *,
-    profile: core.DomainProfile[
-        profile8b.S8BAttemptSlot, profile8b.S8BAttemptBinding
-    ],
+    profile: core.DomainProfile[Any, profile8b.S8BAttemptBinding],
     binding: profile8b.S8BAttemptBinding,
-    slot_id: profile8b.S8BSlotIdentity,
+    slot_id: Hashable,
     deferred_output_reader: Callable[[], bytes],
     admission_claim_digest: str | None = None,
     attempt_id: str | None = None,
@@ -2065,6 +2475,7 @@ def resume_attempt(
     manifest_sha256: str | None = None,
     run_relpath: str | None = None,
     cell_id: str | None = None,
+    consumption_marker: admission.FloorAttemptConsumptionMarker | None = None,
 ) -> (
     ReservedAttempt
     | ClassifiedAttempt
@@ -2080,6 +2491,17 @@ def resume_attempt(
     """
 
     profile = _assert_profile(profile)
+    is_v2 = profile.schema is profile8b.S8B_V2_SCHEMA_PROFILE
+    if is_v2 and consumption_marker is None:
+        _fail(
+            "s8b-attempt-registry-consume",
+            "v2 resume requires a consumption marker",
+        )
+    if not is_v2 and consumption_marker is not None:
+        _fail(
+            "s8b-attempt-registry-consume",
+            "legacy resume does not accept a v2 consumption marker",
+        )
     if not callable(deferred_output_reader):
         _fail("s8b-attempt-registry-handle", "deferred output reader is not callable")
     if admission_claim_digest is not None:
@@ -2113,14 +2535,16 @@ def resume_attempt(
         )
     canonical_repo_root = Path(repo_root).resolve()
     root, path = _entry_paths(
-        canonical_repo_root, freeze_sha256=binding.freeze_sha256,
+        canonical_repo_root,
+        freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=_profile_protocol_sha256(profile, binding),
     )
     pending_observation: _AttemptState | None = None
     pending_classification: tuple[ReservedAttempt, Mapping[str, Any]] | None = None
     resumed_handle: (
         ReservedAttempt | ClassifiedAttempt | ClassifiedFailure | None
     ) = None
-    with admission._locked(root):
+    with admission._locked(root) as lock:
         payload = _read_regular_bytes(path)
         assert payload is not None
         rows = core.load_attempt_registry(
@@ -2157,6 +2581,73 @@ def resume_attempt(
         claim_result = _classification_claim(
             root=root, binding=binding, slot=slot, missing_ok=True,
         )
+        marker_generation_claim: str | None = None
+        if is_v2:
+            if type(slot) is not profile8b.S8BV2AttemptSlot:
+                _fail("s8b-attempt-registry-slot", "v2 resume slot type differs")
+            if slot.attempt_ordinal != 0:
+                _fail(
+                    "s8b-attempt-registry-consume",
+                    "v2 resume recovery ordinal is not capability-backed",
+                )
+            if claim_result is not None:
+                marker_claim = claim_result[0]
+                marker_claim_address = _sha256(
+                    marker_claim.get("admission_claim_digest"),
+                    label="classification claim.admission_claim_digest",
+                )
+                marker_identity = _consumption_identity(
+                    campaign_run_id=marker_claim.get("campaign_run_id"),
+                    manifest_sha256=marker_claim.get("manifest_sha256"),
+                    run_relpath=marker_claim.get("run_relpath"),
+                    cell_id=marker_claim.get("cell_id"),
+                    attempt_id=marker_claim.get("attempt_id"),
+                    slot=slot,
+                )
+            else:
+                if (
+                    admission_claim_digest is None
+                    or requested_consumption_identity is None
+                ):
+                    _fail(
+                        "s8b-attempt-registry-resume",
+                        "v2 start-only resume requires complete marker identities",
+                    )
+                marker_claim_address = admission_claim_digest
+                marker_identity = _consumption_identity(
+                    campaign_run_id=requested_consumption_identity[0],
+                    manifest_sha256=requested_consumption_identity[1],
+                    run_relpath=requested_consumption_identity[2],
+                    cell_id=requested_consumption_identity[3],
+                    attempt_id=requested_consumption_identity[4],
+                    slot=slot,
+                )
+            marker_generation_claim = (
+                _measurement_generation_claim_digest_from_v2_payload(
+                    root,
+                    claim_address=marker_claim_address,
+                    binding=binding,
+                    slot=slot,
+                )
+            )
+            assert consumption_marker is not None
+            consumption_marker.use(
+                lock=lock,
+                root=root,
+                measurement_generation_claim_digest=marker_generation_claim,
+                attempt_id=marker_identity[4],
+                campaign_run_id=marker_identity[0],
+                manifest_sha256=marker_identity[1],
+                run_relpath=marker_identity[2],
+                cell_id=marker_identity[3],
+                freeze_holdout_key=slot.freeze_holdout_key,
+                configuration_id=slot.configuration_id,
+                repetition=slot.repetition,
+                attempt_ordinal=slot.measurement_ordinal,
+                action=lambda active_lock: admission._assert_active_admission_root_lock(
+                    active_lock, root=root,
+                ),
+            )
         if not classifications:
             if claim_result is None:
                 if (
@@ -2195,6 +2686,10 @@ def resume_attempt(
                     run_relpath=resumed_run_relpath,
                     cell_id=resumed_cell_id,
                     deferred_output_reader=deferred_output_reader,
+                    consumption_marker=consumption_marker,
+                    measurement_generation_claim_digest=(
+                        marker_generation_claim
+                    ),
                 )
                 resumed_handle = _new_handle(ReservedAttempt, state)
             else:
@@ -2254,6 +2749,10 @@ def resume_attempt(
                     run_relpath=claim_consumption_identity[2],
                     cell_id=claim_consumption_identity[3],
                     deferred_output_reader=deferred_output_reader,
+                    consumption_marker=consumption_marker,
+                    measurement_generation_claim_digest=(
+                        marker_generation_claim
+                    ),
                 )
                 pending_classification = (
                     _new_handle(ReservedAttempt, state), receipt,
@@ -2318,6 +2817,8 @@ def resume_attempt(
                 run_relpath=claim_consumption_identity[2],
                 cell_id=claim_consumption_identity[3],
                 deferred_output_reader=deferred_output_reader,
+                consumption_marker=consumption_marker,
+                measurement_generation_claim_digest=marker_generation_claim,
                 classification_receipt_bytes=receipt_bytes,
                 classification_receipt_sha256=str(
                     classification["classification_receipt_sha256"]
@@ -2335,7 +2836,15 @@ def resume_attempt(
                     "slot has multiple observation-start rows",
                 )
             if observations:
-                _assert_consumed_marker(root, state=state, slot=slot)
+                if profile.schema is profile8b.S8B_SCHEMA_PROFILE:
+                    if type(slot) is not profile8b.S8BAttemptSlot:
+                        _fail(
+                            "s8b-attempt-registry-slot",
+                            "legacy resume slot type differs",
+                        )
+                    _assert_legacy_consumed_marker(
+                        root, state=state, slot=slot,
+                    )
                 pending_observation = replace(
                     state,
                     observation_event_sha256=str(

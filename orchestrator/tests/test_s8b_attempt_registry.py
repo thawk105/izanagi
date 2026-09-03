@@ -13,7 +13,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import pytest
 
@@ -30,6 +30,9 @@ from orchestrator.campaign.s8b_holdout_freeze import (  # noqa: E402
     RMW_KEY,
     RRATIO_KEY,
     SKEW_KEY,
+)
+from orchestrator.tests import (  # noqa: E402
+    test_s8b_holdout_admission as admission_cases,
 )
 
 
@@ -234,6 +237,79 @@ def _reserve(
         run_relpath=_RUN_RELPATH,
         cell_id=f"{slot.freeze_holdout_key}::{slot.configuration_id}",
         deferred_output_reader=reader,
+    )
+
+
+def _v2_registry_capability_case(
+    tmp_path: Path,
+) -> tuple[
+    dict[str, Any],
+    core.DomainProfile[Any, Any],
+    profile8b.S8BAttemptBinding,
+    profile8b.S8BV2AttemptSlot,
+]:
+    case = admission_cases._consumed_marker_capability_case(tmp_path)
+    marker = case["marker"]
+    generation_claim = admission._read_canonical_document(  # noqa: SLF001
+        case["claim_path"]
+    )
+    generation_key = generation_claim["key"]
+    assert isinstance(generation_key, Mapping)
+    binding = profile8b.S8BAttemptBinding(
+        freeze_sha256=str(generation_key["freeze_sha256"]),
+        protocol_sha256=str(generation_claim["protocol_sha256"]),
+        schedule_sha256=_SCHEDULE,
+    )
+    identity = {
+        "freeze_holdout_key": str(marker["freeze_holdout_key"]),
+        "configuration_id": str(marker["configuration_id"]),
+        "repetition": int(case["use_kwargs"]["repetition"]),
+        "measurement_ordinal": int(
+            case["use_kwargs"]["attempt_ordinal"]
+        ),
+        "attempt_ordinal": 0,
+    }
+    slot = profile8b.S8BV2AttemptSlot(
+        **identity,
+        schedule_row_sha256=hashlib.sha256(
+            core.canonical_json_bytes(identity)
+        ).hexdigest(),
+    )
+    profile = _v2_authority_profile()
+    registry.create_attempt_registry(
+        case["repo_root"],
+        profile=profile,
+        slots=[slot],
+        binding=binding,
+    )
+    return case, profile, binding, slot
+
+
+def _reserve_v2(
+    case: dict[str, Any],
+    profile: core.DomainProfile[Any, Any],
+    binding: profile8b.S8BAttemptBinding,
+    slot: profile8b.S8BV2AttemptSlot,
+) -> registry.ReservedAttempt:
+    marker = case["marker"]
+    return registry.reserve_attempt_slot(
+        case["repo_root"],
+        profile=profile,
+        binding=binding,
+        slot_id=profile.slot_codec.slot_id(slot),
+        run_start_receipt_sha256=_RUN_START,
+        process_identity=_PROCESS,
+        started_at="2026-08-25T00:00:00+00:00",
+        admission_claim_digest=str(
+            marker["measurement_generation_claim_digest"]
+        ),
+        attempt_id=str(marker["attempt_id"]),
+        campaign_run_id=str(marker["campaign_run_id"]),
+        manifest_sha256=str(marker["manifest_sha256"]),
+        run_relpath=str(marker["run_relpath"]),
+        cell_id=str(marker["cell_id"]),
+        deferred_output_reader=lambda: b"v2-raw-output",
+        consumption_marker=case["capability"],
     )
 
 
@@ -833,6 +909,22 @@ def test_observe_rejects_claim_receipt_digest_mismatch(
                 ),
             ),
             id="budget-key-identity",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy,
+                    retryable_terminal_opens_next_attempt=False,
+                ),
+            ),
+            id="retryable-terminal-opens-next-attempt",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile, terminal_row_validator=lambda _row: None,
+            ),
+            id="terminal-row-validator-identity",
         ),
         pytest.param(
             lambda profile: replace(
@@ -2347,11 +2439,323 @@ def test_v2_profile_is_rejected_by_public_mutation_but_slot_lookup_is_five_axis(
     ):
         registry.create_attempt_registry(
             repo,
-            profile=v2_profile,
+            profile=replace(v2_profile, terminal_row_validator=None),
             slots=[first, second],
             binding=_BINDING,
         )
     assert _create(repo, _profile(), [_slot()]).is_file()
+
+
+def test_v2_profile_opens_generation_create_and_read(
+    tmp_path: Path,
+) -> None:
+    profile = _v2_authority_profile()
+    slot = _v2_slot(0)
+    repo = _repo(tmp_path / "repo")
+    path = registry.create_attempt_registry(
+        repo, profile=profile, slots=[slot], binding=_BINDING,
+    )
+    assert path == registry.registry_path(
+        repo,
+        freeze_sha256=_FREEZE,
+        protocol_sha256=_PROTOCOL,
+    )
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[0]["schema_version"] == profile8b.S8B_V2_ATTEMPT_REGISTRY_SCHEMA_VERSION
+
+
+def test_v2_profile_exact_gate_rejects_both_new_field_mutations() -> None:
+    profile = _v2_authority_profile()
+    assert registry._assert_profile(profile) is profile
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="domain profile differs from frozen 8b semantics",
+    ):
+        registry._assert_profile(
+            replace(profile, terminal_row_validator=None)
+        )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="domain profile differs from frozen 8b semantics",
+    ):
+        registry._assert_profile(
+            replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy,
+                    retryable_terminal_opens_next_attempt=True,
+                ),
+            )
+        )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="domain profile schema is not a frozen 8b schema",
+    ):
+        registry._assert_profile(
+            replace(
+                profile,
+                schema=core.SchemaProfile(
+                    current="foreign/v1",
+                    readable=frozenset({"foreign/v1"}),
+                    genesis_keys={"foreign/v1": frozenset()},
+                    event_keys={"foreign/v1": {}},
+                ),
+            )
+        )
+
+
+def test_generation_publish_direct_barriers_adapter_mapping_and_positive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = _v2_authority_profile()
+    slot = _v2_slot(0)
+    rows = core.create_attempt_registry_genesis(
+        profile=profile, slots=[slot], binding=_BINDING,
+    )
+    payload = _bytes(rows)
+
+    symlink_repo = _repo(tmp_path / "symlink")
+    symlink_path = registry.registry_path(
+        symlink_repo,
+        freeze_sha256=_FREEZE,
+        protocol_sha256=_PROTOCOL,
+    )
+    symlink_path.parent.parent.mkdir(parents=True)
+    outside = tmp_path / "generation-outside"
+    outside.mkdir()
+    symlink_path.parent.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(
+        (registry.S8BAttemptRegistryError, admission.HoldoutAdmissionError),
+        match="symlink|unsafe or incomplete",
+    ):
+        registry._publish_registry_generation_create_only(
+            root=admission.shared_admission_root(symlink_repo),
+            path=symlink_path,
+            payload=payload,
+        )
+
+    incomplete_repo = _repo(tmp_path / "incomplete")
+    incomplete_path = registry.registry_path(
+        incomplete_repo,
+        freeze_sha256=_FREEZE,
+        protocol_sha256=_PROTOCOL,
+    )
+    incomplete_path.parent.mkdir(parents=True)
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="generation directory is unsafe or incomplete",
+    ):
+        registry._publish_registry_generation_create_only(
+            root=admission.shared_admission_root(incomplete_repo),
+            path=incomplete_path,
+            payload=payload,
+        )
+
+    mapped_repo = _repo(tmp_path / "mapped")
+    calls: list[tuple[Path, Path, bytes]] = []
+    original = registry._publish_registry_generation_create_only
+
+    def reject_publish(*, root: Path, path: Path, payload: bytes) -> None:
+        calls.append((root, path, payload))
+        raise registry.S8BAttemptRegistryError(
+            "[test-generation-publish] lower publish rejected"
+        )
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            registry,
+            "_publish_registry_generation_create_only",
+            reject_publish,
+        )
+        with pytest.raises(
+            registry.S8BAttemptRegistryError,
+            match=r"^\[test-generation-publish\] lower publish rejected$",
+        ):
+            registry.create_attempt_registry(
+                mapped_repo,
+                profile=profile,
+                slots=[slot],
+                binding=_BINDING,
+            )
+    assert len(calls) == 1
+    path = registry.create_attempt_registry(
+        mapped_repo, profile=profile, slots=[slot], binding=_BINDING,
+    )
+    assert path.is_file()
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="durable registry generation already exists",
+    ):
+        original(
+            root=admission.shared_admission_root(mapped_repo),
+            path=path,
+            payload=payload,
+        )
+
+
+def test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for function in (registry.reserve_attempt_slot, registry.resume_attempt):
+        parameter = inspect.signature(function).parameters[
+            "consumption_marker"
+        ]
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameter.default is None
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    path = registry.registry_path(
+        case["repo_root"],
+        freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=binding.protocol_sha256,
+    )
+    missing_marker = dict(case)
+    missing_marker["capability"] = None
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="v2 reservation requires a consumption marker",
+    ):
+        _reserve_v2(missing_marker, profile, binding, slot)
+
+    guard_calls: list[Path] = []
+
+    def reject_lock(_lock: object, *, root: Path) -> None:
+        guard_calls.append(root)
+        raise admission.HoldoutAdmissionError(
+            "floor attempt consumption requires the live admission root lock"
+        )
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            admission, "_assert_active_admission_root_lock", reject_lock,
+        )
+        with pytest.raises(
+            admission.HoldoutAdmissionError,
+            match="requires the live admission root lock",
+        ):
+            _reserve_v2(case, profile, binding, slot)
+    assert guard_calls
+
+    snapshots: list[bytes] = []
+    monkeypatch.setattr(registry, "_PRELOCK_SNAPSHOT_HOOK", snapshots.append)
+    reserved = _reserve_v2(case, profile, binding, slot)
+    assert len(snapshots) == 1
+    assert len(core.load_attempt_registry(snapshots[0], profile=profile)) == 1
+    classified = _classify(reserved)
+    assert type(classified) is registry.ClassifiedAttempt
+    claim_path = _claim_file(case["repo_root"])
+    claim_bytes = claim_path.read_bytes()
+    claim = json.loads(claim_bytes)
+    assert frozenset(claim) == registry._CLAIM_V3_KEYS
+    assert claim["schema_version"] == registry._CLASSIFICATION_CLAIM_V3_SCHEMA
+    assert claim["protocol_sha256"] == binding.protocol_sha256
+    assert claim["schedule_sha256"] == binding.schedule_sha256
+    assert claim["measurement_ordinal"] == slot.measurement_ordinal
+    assert claim["admission_claim_digest"] == (
+        case["marker"]["measurement_generation_claim_digest"]
+    )
+    tampered_claim = dict(claim)
+    tampered_claim["protocol_sha256"] = "f" * 64
+    claim_path.write_bytes(core.canonical_json_bytes(tampered_claim) + b"\n")
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="classification claim differs: protocol_sha256",
+    ):
+        registry._classification_claim(
+            root=admission.shared_admission_root(case["repo_root"]),
+            binding=binding,
+            slot=slot,
+        )
+    claim_path.write_bytes(claim_bytes)
+
+    resumed = registry.resume_attempt(
+        case["repo_root"],
+        profile=profile,
+        binding=binding,
+        slot_id=profile.slot_codec.slot_id(slot),
+        deferred_output_reader=lambda: b"v2-raw-output",
+        consumption_marker=case["capability"],
+    )
+    assert type(resumed) is registry.ClassifiedAttempt
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="v2 resume requires a consumption marker",
+    ):
+        registry.resume_attempt(
+            case["repo_root"],
+            profile=profile,
+            binding=binding,
+            slot_id=profile.slot_codec.slot_id(slot),
+            deferred_output_reader=lambda: b"v2-raw-output",
+        )
+
+    captured = registry.begin_attempt_observation(classified)
+    assert type(captured) is registry.CapturedObservation
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            r"^\[s8b-v2-terminal\] v2 terminal requires "
+            r"the sealed evidence API$"
+        ),
+    ):
+        _terminal(captured)
+
+
+def test_v3_claim_address_separates_measurement_ordinals() -> None:
+    first = _v2_slot(0, measurement_ordinal=0)
+    second = _v2_slot(0, measurement_ordinal=1)
+    first_payload = registry._slot_address_payload_v3(
+        binding=_BINDING, slot=first,
+    )
+    second_payload = registry._slot_address_payload_v3(
+        binding=_BINDING, slot=second,
+    )
+    assert first_payload["measurement_ordinal"] == 0
+    assert second_payload["measurement_ordinal"] == 1
+    assert first_payload != second_payload
+    root = Path("/synthetic-shared-admission-root")
+    assert registry._classification_claim_path(
+        root, binding=_BINDING, slot=first,
+    ) != registry._classification_claim_path(
+        root, binding=_BINDING, slot=second,
+    )
+
+
+def test_legacy_terminal_adapter_maps_core_rejection_and_keeps_v1_positive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(repo, slot, classified)
+    calls: list[core.RegistryRows] = []
+
+    def reject_core(
+        rows: core.RegistryRows, **_kwargs: object,
+    ) -> core.RegistryRows:
+        calls.append(rows)
+        raise core.AttemptRegistryCoreError(
+            "[test-core-terminal] lower terminal rejected"
+        )
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(core, "record_attempt_terminal", reject_core)
+        with pytest.raises(
+            core.AttemptRegistryCoreError,
+            match=r"^\[test-core-terminal\] lower terminal rejected$",
+        ):
+            _terminal(captured)
+    assert len(calls) == 1
+    _terminal(captured)
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]["terminal_status"] == "observed"
 
 
 if __name__ == "__main__":

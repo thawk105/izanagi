@@ -12,7 +12,7 @@ import hashlib
 import json
 import re
 from collections.abc import Callable, Hashable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from types import MappingProxyType as _MappingProxyType
 from typing import Any, Generic, Protocol, TypeAlias, TypeVar, runtime_checkable
@@ -174,6 +174,9 @@ class TransitionPolicy(Generic[SlotT]):
     require_terminal_reason_equals_classification: bool
     budget_key: Callable[[SlotT], Hashable] | None
     max_consumptions_per_budget_key: int | None
+    retryable_terminal_opens_next_attempt: bool = field(
+        default=True, kw_only=True,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +196,9 @@ class DomainProfile(Generic[SlotT, BindingT]):
     freeze_id_from_genesis: Callable[[Mapping[str, Any]], str] | None = None
     binding_conflict_message: str = "attempt rows do not share one binding"
     binding_mismatch: Callable[[BindingT, BindingT], str | None] | None = None
+    terminal_row_validator: Callable[[Mapping[str, Any]], None] | None = field(
+        default=None, kw_only=True,
+    )
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -1127,6 +1133,11 @@ def _assert_registry_rows_with_budget_counts(
                             "attempt-slot-order",
                             "a slot after a non-retryable outcome cannot be consumed",
                         )
+                    if not policy.retryable_terminal_opens_next_attempt:
+                        _fail(
+                            "attempt-slot-order",
+                            "a retryable terminal cannot authorize the next attempt",
+                        )
                     if (
                         policy.forbid_retry_after_observation
                         and previous_terminal.get(
@@ -1312,6 +1323,8 @@ def _assert_registry_rows_with_budget_counts(
                 retryable_reasons=frozenset(genesis["retryable_failure_reasons"]),
                 label=f"attempt registry line {line_number}",
             )
+            if profile.terminal_row_validator is not None:
+                profile.terminal_row_validator(row)
             terminals[slot_id] = row
         elif event == "recovery":
             if slot_id not in starts:

@@ -2216,6 +2216,217 @@ def test_v2_profile_is_additive_empty_retryable_and_budgeted_by_cell() -> None:
     assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()
 
 
+def test_profile_extension_fields_are_keyword_only_and_preserve_legacy_defaults(
+) -> None:
+    domain_field = next(
+        field for field in fields(core.DomainProfile)
+        if field.name == "terminal_row_validator"
+    )
+    transition_field = next(
+        field for field in fields(core.TransitionPolicy)
+        if field.name == "retryable_terminal_opens_next_attempt"
+    )
+    assert domain_field.kw_only is True
+    assert domain_field.default is None
+    assert transition_field.kw_only is True
+    assert transition_field.default is True
+    legacy = _profile()
+    assert legacy.terminal_row_validator is None
+    assert legacy.transition_policy.retryable_terminal_opens_next_attempt is True
+    assert R._S8C_ATTEMPT_PROFILE.terminal_row_validator is None
+    assert (
+        R._S8C_ATTEMPT_PROFILE.transition_policy
+        .retryable_terminal_opens_next_attempt
+        is True
+    )
+    v2 = s8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+    assert v2.terminal_row_validator is not None
+    assert v2.transition_policy.retryable_terminal_opens_next_attempt is False
+
+
+def test_terminal_validator_direct_replay_and_producer_mapping_keep_v1_positive(
+) -> None:
+    v2 = s8b.make_s8b_v2_domain_profile(
+        max_consumptions_per_budget_key=10,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+    identity = {
+        "freeze_holdout_key": "holdout-a",
+        "configuration_id": "configuration-a",
+        "repetition": 0,
+        "measurement_ordinal": 0,
+        "attempt_ordinal": 0,
+    }
+    v2_slot = s8b.S8BV2AttemptSlot(
+        **identity,
+        schedule_row_sha256=hashlib.sha256(
+            core.canonical_json_bytes(identity)
+        ).hexdigest(),
+    )
+    rows = _reserve(_genesis(v2, [v2_slot]), profile=v2, slot=v2_slot)
+    rows = _classify(rows, profile=v2, slot=v2_slot, reason="sealed-later")
+    unsealed = replace(v2, terminal_row_validator=None)
+    historical = _terminal(
+        rows,
+        profile=unsealed,
+        slot=v2_slot,
+        status="terminal-failure",
+        failure_reason="sealed-later",
+    )
+    assert v2.terminal_row_validator is not None
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[s8b-v2-terminal\] v2 terminal requires "
+            r"the sealed evidence API$"
+        ),
+    ):
+        v2.terminal_row_validator(historical[-1])
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[s8b-v2-terminal\] v2 terminal requires "
+            r"the sealed evidence API$"
+        ),
+    ):
+        core.load_attempt_registry(_registry_bytes(historical), profile=v2)
+
+    legacy = _profile()
+    legacy_slot = _slot(0, 0)
+    legacy_rows = _classify(
+        _reserve(
+            _genesis(legacy, [legacy_slot]),
+            profile=legacy,
+            slot=legacy_slot,
+        ),
+        profile=legacy,
+        slot=legacy_slot,
+        reason="legacy-failure",
+    )
+    accepted = _terminal(
+        legacy_rows,
+        profile=legacy,
+        slot=legacy_slot,
+        status="terminal-failure",
+        failure_reason="legacy-failure",
+    )
+    assert accepted[-1]["terminal_status"] == "terminal-failure"
+
+    ordered_calls: list[Mapping[str, Any]] = []
+    tracking = replace(
+        legacy, terminal_row_validator=ordered_calls.append,
+    )
+    _assert_core_rejection(
+        "[attempt-classification] terminal failure reason differs from classification",
+        lambda: _terminal(
+            legacy_rows,
+            profile=tracking,
+            slot=legacy_slot,
+            status="terminal-failure",
+            failure_reason="different-failure",
+        ),
+    )
+    assert ordered_calls == []
+    _assert_core_rejection(
+        "[attempt-null-matrix] attempt registry line 5 "
+        "retryable-failure null matrix differs",
+        lambda: _terminal(
+            legacy_rows,
+            profile=tracking,
+            slot=legacy_slot,
+            status="retryable-failure",
+            failure_reason="legacy-failure",
+            report_sha256=_REPORT,
+        ),
+    )
+    assert ordered_calls == []
+    tracked = _terminal(
+        legacy_rows,
+        profile=tracking,
+        slot=legacy_slot,
+        status="terminal-failure",
+        failure_reason="legacy-failure",
+    )
+    assert ordered_calls == [tracked[-1]]
+
+    calls: list[Mapping[str, Any]] = []
+
+    def reject(row: Mapping[str, Any]) -> None:
+        calls.append(row)
+        raise core.AttemptRegistryCoreError(
+            "[test-terminal-validator] rejected by lower validator"
+        )
+
+    rejecting = replace(legacy, terminal_row_validator=reject)
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match=(
+            r"^\[test-terminal-validator\] rejected by lower validator$"
+        ),
+    ):
+        _terminal(
+            legacy_rows,
+            profile=rejecting,
+            slot=legacy_slot,
+            status="terminal-failure",
+            failure_reason="legacy-failure",
+        )
+    assert len(calls) == 1
+    assert calls[0]["event"] == "terminal"
+
+
+def test_retryable_terminal_policy_can_close_the_next_attempt_without_changing_v1(
+) -> None:
+    legacy = _profile()
+    retryable = replace(
+        legacy,
+        retryable_reasons=frozenset({"retryable-test"}),
+        transition_policy=replace(
+            legacy.transition_policy,
+            retryable_terminal_opens_next_attempt=False,
+        ),
+    )
+    first = _slot(0, 0)
+    second = _slot(0, 1)
+    rows = _classify(
+        _reserve(
+            _genesis(retryable, [first, second]),
+            profile=retryable,
+            slot=first,
+        ),
+        profile=retryable,
+        slot=first,
+        reason="retryable-test",
+    )
+    rows = _terminal(
+        rows,
+        profile=retryable,
+        slot=first,
+        status="retryable-failure",
+        failure_reason="retryable-test",
+        report_sha256=_REPORT,
+    )
+    _assert_core_rejection(
+        "[attempt-slot-order] a retryable terminal cannot authorize the next attempt",
+        lambda: _reserve(rows, profile=retryable, slot=second),
+    )
+    legacy_open = replace(
+        retryable,
+        transition_policy=replace(
+            retryable.transition_policy,
+            retryable_terminal_opens_next_attempt=True,
+        ),
+    )
+    accepted = _reserve(rows, profile=legacy_open, slot=second)
+    assert accepted[-2]["event"] == "start"
+    assert accepted[-2]["attempt_ordinal"] == 1
+
+
 def test_serialize_session_line_uses_spaced_sorted_utf8_json_and_newline() -> None:
     with pytest.raises(ValueError, match="Out of range float values"):
         s8b.serialize_session_line({"value": float("nan")})
