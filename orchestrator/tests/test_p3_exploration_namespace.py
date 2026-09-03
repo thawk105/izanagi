@@ -12,6 +12,7 @@ import inspect
 import os
 import stat
 import sys
+import unicodedata
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable, Literal, Mapping, get_args, get_type_hints
@@ -49,6 +50,7 @@ from campaign_lock_test_support import build_v2_lock                 # noqa: E40
 
 
 _CAMPAIGN_ROOT = Path(__file__).resolve().parents[1] / "campaign"
+_CAMPAIGN_DRIVER_MARKER = "exploration_campaign_layout"
 
 
 def _call_name(call):
@@ -128,11 +130,21 @@ def _campaign_driver_is_closed(tree):
     return True
 
 
-def _discover_campaign_drivers(campaign_root=None, *, import_modules=True):
+def _discover_campaign_drivers(
+        campaign_root=None, *, import_modules=True,
+        use_lexical_prefilter: bool = True):
     campaign_root = _CAMPAIGN_ROOT if campaign_root is None else Path(campaign_root)
     drivers = []
     for source in sorted(campaign_root.glob("*.py")):
-        tree = ast.parse(source.read_text(encoding="utf-8"))
+        source_text = source.read_text(encoding="utf-8")
+        if (
+                use_lexical_prefilter
+                and _CAMPAIGN_DRIVER_MARKER not in unicodedata.normalize(
+                    "NFKC", source_text,
+                )
+        ):
+            continue
+        tree = ast.parse(source_text)
         if not _is_campaign_root_creator(tree):
             continue
         module = None
@@ -497,6 +509,81 @@ def _stub_real_sort_swo_oracle(monkeypatch):
     monkeypatch.setattr(
         SWO, "check_materialized_sort_swo", lambda *_a, **_k: passed,
     )
+
+
+def test_campaign_driver_discovery_names_are_pinned():
+    assert tuple(name for name, _module, _tree in _CAMPAIGN_DRIVERS) == (
+        "p3_autonomous_workload_trial",
+        "p3_kickoff",
+        "p3_s4_loop",
+        "p3_s4_loop_sort",
+        "p3_s4_loop_trigger_gating",
+        "p3_s4_red",
+        "paper_story_a1_paired",
+    )
+
+
+def test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture(
+        tmp_path):
+    fixtures = {
+        "alias_call_negative.py": """
+from orchestrator.campaign.layout import exploration_campaign_layout as make_layout
+
+def main():
+    make_layout("fixture")
+    run_campaign()
+""",
+        "campaign_layout_positive.py": """
+def main():
+    layout.exploration_campaign_layout("fixture")
+    layout.CampaignLayout(root="fixture")
+""",
+        "comment_only_negative.py": """
+# exploration_campaign_layout is documentation, not a call.
+def main():
+    run_campaign()
+""",
+        "dynamic_lookup_negative.py": """
+def main():
+    getattr(layout, "exploration_" + "campaign_layout")("fixture")
+    run_campaign()
+""",
+        "marker_absent_negative.py": """
+def main():
+    run_campaign()
+""",
+        "nfkc_positive.py": """
+def main():
+    layout.ｅxploration_campaign_layout("fixture")
+    run_campaign()
+""",
+        "run_campaign_positive.py": """
+def main():
+    layout.exploration_campaign_layout("fixture")
+    run_campaign()
+""",
+    }
+    nfkc_source = fixtures["nfkc_positive.py"]
+    assert _CAMPAIGN_DRIVER_MARKER not in nfkc_source
+    assert _CAMPAIGN_DRIVER_MARKER in unicodedata.normalize("NFKC", nfkc_source)
+    for filename, source_text in fixtures.items():
+        (tmp_path / filename).write_text(source_text, encoding="utf-8")
+
+    filtered = _discover_campaign_drivers(
+        tmp_path, import_modules=False, use_lexical_prefilter=True,
+    )
+    unfiltered = _discover_campaign_drivers(
+        tmp_path, import_modules=False, use_lexical_prefilter=False,
+    )
+    filtered_names = tuple(name for name, _module, _tree in filtered)
+    unfiltered_names = tuple(name for name, _module, _tree in unfiltered)
+    expected_names = (
+        "campaign_layout_positive",
+        "nfkc_positive",
+        "run_campaign_positive",
+    )
+    assert filtered_names == unfiltered_names
+    assert filtered_names == expected_names
 
 
 def test_driver_contract_registry_is_exact():
