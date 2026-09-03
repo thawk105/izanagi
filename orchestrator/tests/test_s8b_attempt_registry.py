@@ -2754,9 +2754,7 @@ def test_atomic_update_with_consumption_marker_hook_precedes_root_lock(
 def test_v2_resume_rejects_recovery_ordinal_and_accepts_zero(
     tmp_path: Path,
 ) -> None:
-    case, profile, binding, slot = _v2_registry_capability_case(
-        tmp_path / "recovery-ordinal",
-    )
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
     retry_slot = replace(slot, attempt_ordinal=1, schedule_row_sha256="d" * 64)
     path = registry.registry_path(
         case["repo_root"],
