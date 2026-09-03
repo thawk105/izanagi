@@ -512,6 +512,51 @@ def test_real_cmake_wrapper_replacement_during_configure_is_rejected(
     )
 
 
+def test_configure_compile_commands_rejects_real_cmake_replacement_before_return(
+    tmp_path: Path,
+):
+    real_cmake = Path(_any_cmake()).resolve(strict=True)
+    wrapper = tmp_path / "cmake-wrapper"
+    stable = tmp_path / "cmake-wrapper.stable"
+    stable.write_text(
+        "#!/bin/sh\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    stable.chmod(0o755)
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        "cp \"$0.stable\" \"$0.next\"\n"
+        "chmod 755 \"$0.next\"\n"
+        "mv \"$0.next\" \"$0\"\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    _spec, requested, _default, companions = G._validate_define_request(request)
+    resolved_wrapper = G._resolve_executable(
+        os.fspath(wrapper), "configure-failed",
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._configure_compile_commands(
+            captured=captured,
+            request=request,
+            source_root=Path(captured.source_root),
+            build_root=tmp_path / "build",
+            value=requested,
+            companions=companions,
+            compiler=G._resolve_compiler(_any_cxx()),
+            cmake=resolved_wrapper,
+        )
+
+    assert wrapper.read_text(encoding="utf-8") == stable.read_text(encoding="utf-8")
+    assert raised.value.reason_code == "cmake-identity-drift"
+    assert raised.value.detail == "CMake path identity/content changed by after-configure"
+
+
 def test_ignored_define_has_identical_preprocessed_bytes_and_is_red():
     captured = G.capture_define_inputs(_IGNORED)
     request = _request(5)
@@ -704,7 +749,7 @@ def test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv(
 
 def test_real_compile_time_green_admits_certified_selection(tmp_path: Path):
     macro = "IZANAGI_BREAK_PERMUTATION"
-    root = _compile_time_source_root(tmp_path, macro)
+    root = _copied_fixture(tmp_path)
     captured = G.capture_define_inputs(root)
     request = _compile_time_request(macro)
     supply = G.evaluate_define_supply_effectuation(
@@ -721,8 +766,20 @@ def test_real_compile_time_green_admits_certified_selection(tmp_path: Path):
         [supply], [meaning], use_class="certified-selection",
     )
 
-    assert supply.terminal_status == "green"
-    assert meaning.terminal_status == "green"
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    G._validate_arm_record_integrity(supply)
+    G._validate_arm_record_integrity(meaning)
+    _assert_current_cmake_evidence(
+        dict(supply.evidence), ("requested", "control"),
+    )
+    _assert_current_cmake_evidence(
+        dict(meaning.evidence), ("requested", "default"),
+    )
     assert admission.admitted is True
 
 
