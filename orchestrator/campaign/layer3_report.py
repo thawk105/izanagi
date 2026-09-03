@@ -66,6 +66,8 @@ from .artifact_admission import (  # noqa: E402
     require_certified_commit_evidence,
 )
 from .genome import protocol_from_floor_genome  # noqa: E402
+from .layout import CampaignLayout  # noqa: E402
+from .model import WalRecord  # noqa: E402
 
 
 _SCHEMA_PATH = _HERE / "layer3_schema.json"
@@ -192,12 +194,30 @@ def _resolve_generated_from_head(
         raise
 
 
-def _artifact_refs(campaign_dir: Path) -> List[Dict[str, str]]:
+def _artifact_refs(
+        campaign_dir: Path, *,
+        knowledge_receipt_sha256: Optional[str] = None,
+) -> List[Dict[str, str]]:
     files = sorted(path for path in campaign_dir.rglob("*") if path.is_file())
     if not files:
         raise Layer3ReportError("campaign に artifact がない")
-    return [{"path": str(path.relative_to(campaign_dir)), "sha256": _sha256_file(path)}
-            for path in files]
+    refs = [
+        {
+            "path": str(path.relative_to(campaign_dir)),
+            "sha256": _sha256_file(path),
+        }
+        for path in files
+    ]
+    if knowledge_receipt_sha256 is not None and not any(
+            ref == {
+                "path": wal.KNOWLEDGE_RECEIPT_FILENAME,
+                "sha256": knowledge_receipt_sha256,
+            }
+            for ref in refs):
+        raise Layer3ReportError(
+            "knowledge receipt bytes changed after provenance validation"
+        )
+    return refs
 
 
 def _report_primary_refs(report: Mapping[str, Any]) -> Counter:
@@ -268,6 +288,7 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
         schema["properties"]["schema_version"] = {"const": LEGACY_SCHEMA_VERSION}
         schema["required"].remove("admission_decision")
         schema["properties"].pop("admission_decision")
+        schema["properties"].pop("knowledge_provenance")
     try:
         jsonschema.Draft7Validator(schema).validate(report)
     except jsonschema.ValidationError as exc:
@@ -754,6 +775,34 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         != admitted_campaign.decision.wal_sha256
     ):
         raise Layer3ReportError("campaign bytes changed after admission validation")
+    try:
+        checked_knowledge_provenance = (
+            wal.knowledge_provenance_and_receipt_sha256_for_material_report(
+                CampaignLayout(root=str(campaign_dir)),
+                [
+                    WalRecord(
+                        variant=record["variant"],
+                        stage=record["stage"],
+                        env_tag=record["env_tag"],
+                        ts=record["ts"],
+                        payload=record["payload"],
+                    )
+                    for record in records
+                ],
+                campaign_lock=decoded_lock,
+            )
+        )
+    except wal.AttemptTopologyError as exc:
+        raise Layer3ReportError(
+            "knowledge provenance 検証に失敗"
+        ) from exc
+    if checked_knowledge_provenance is None:
+        knowledge_provenance = None
+        knowledge_receipt_sha256 = None
+    else:
+        knowledge_provenance, knowledge_receipt_sha256 = (
+            checked_knowledge_provenance
+        )
     if _contains_qualification_lineage(records):
         raise Layer3ReportError(
             "qualification lineage は formal Layer3 入力として受理しない")
@@ -797,13 +846,18 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         },
         "workload": lock["search_config"],
         "policy_hint": lock["search_config"].get("policy_hint"),
+        "knowledge_provenance": knowledge_provenance,
         "variants": variant_rows, "runs": runs,
         "verifications": verifications, "rejects": rejects, "aborts": aborts,
         "noise_floor": noise_floor,
         "env_tags": sorted(env_tags),
         "whiteboard": sorted(whiteboard, key=lambda item: canonical_record_ref("wb", item)),
         "whiteboard_provenance": whiteboard_provenance,
-        "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
+        "artifact_refs": _artifact_refs(
+            campaign_dir,
+            knowledge_receipt_sha256=knowledge_receipt_sha256,
+        ),
+        "source_refs": [],
         "admission_decision": admitted_campaign.decision.as_receipt(),
         "campaign_verifier_epoch": _epoch_projection(
             admitted_campaign.campaign_verifier_epoch,

@@ -4702,6 +4702,7 @@ def _layer3_comparison_projection(
     normalized = dict(report)
     normalized.setdefault("acceptance_receipt", None)
     normalized.setdefault("certifying_input", False)
+    normalized.setdefault("knowledge_provenance", None)
     if not include_epoch:
         normalized.pop("campaign_verifier_epoch", None)
     elif not include_verifier_assessment_basis:
