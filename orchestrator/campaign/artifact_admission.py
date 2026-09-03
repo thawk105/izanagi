@@ -26,6 +26,7 @@ from typing import Any, Literal, Mapping, Sequence, final, overload
 from . import (
     campaign_lock,
     contract_loader_binding,
+    env_contract,
     ident,
     pipeline,
     wal,
@@ -79,6 +80,15 @@ CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
     "orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および "
     "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
     "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
+)
+PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
+    "enforcement source closure (exact 24 path; witness gate、S8C 判定器、"
+    "receipt 発行・検証面を含む)"
+)
+PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
+    "verifier package のうち orchestrator/verifier/__main__.py と "
+    "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
+    "implementation bytes は束縛しない"
 )
 
 
@@ -203,6 +213,31 @@ class CampaignVerifierEpoch:
             raise TypeError("campaign verifier epoch diagnostic が不正")
 
 
+@dataclass(frozen=True, slots=True)
+class HistoricalCampaignVerifierEpoch(CampaignVerifierEpoch):
+    """pre-T733 exact-24 grammar から再現した歴史閲覧専用 epoch。"""
+
+    identity_scope: str = PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE
+    excluded_scope: str = PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE
+
+    @property
+    def current_verifier_conformance(self) -> str:
+        return "unknown"
+
+    def __post_init__(self) -> None:
+        valid = (
+            self.campaign_verifier_epoch.startswith("E1:")
+            and _is_sha256(self.campaign_verifier_epoch[3:])
+            and self.state == "E1"
+            and self.reason_code == "recorded-closure"
+            and self.identity_scope == PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE
+            and self.excluded_scope
+            == PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE
+        )
+        if not valid:
+            raise TypeError("historical campaign verifier epoch diagnostic が不正")
+
+
 class CampaignVerifierEpochRejected(CampaignNotAdmitted):
     """Certified use cannot satisfy its recorded-epoch or closure prerequisites."""
 
@@ -226,7 +261,10 @@ class _RecordedCampaignVerifierEpoch:
     blob_sha256s: Mapping[str, str] | None
 
     def __post_init__(self) -> None:
-        if type(self.diagnostic) is not CampaignVerifierEpoch:
+        if type(self.diagnostic) not in {
+            CampaignVerifierEpoch,
+            HistoricalCampaignVerifierEpoch,
+        }:
             raise TypeError("recorded verifier epoch diagnostic が不正")
         if self.diagnostic.state == "E0":
             if self.blob_sha256s is not None:
@@ -234,8 +272,13 @@ class _RecordedCampaignVerifierEpoch:
             return
         if type(self.blob_sha256s) is not MappingProxyType:
             raise TypeError("E1 verifier epoch blob map は immutable projection が必要")
-        if set(self.blob_sha256s) != set(campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS):
-            raise TypeError("E1 verifier epoch blob map の exact path 集合が不正")
+        expected_paths = (
+            campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
+            if type(self.diagnostic) is HistoricalCampaignVerifierEpoch
+            else campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        )
+        if tuple(self.blob_sha256s) != expected_paths:
+            raise TypeError("E1 verifier epoch blob map の exact path 順序が不正")
 
 
 @dataclass(frozen=True, slots=True)
@@ -305,7 +348,10 @@ class AdmittedCampaign:
         if (
             type(self.layout) is not CampaignLayout
             or type(self.decision) is not CampaignAdmissionDecision
-            or type(self.campaign_verifier_epoch) is not CampaignVerifierEpoch
+            or type(self.campaign_verifier_epoch) not in {
+                CampaignVerifierEpoch,
+                HistoricalCampaignVerifierEpoch,
+            }
             or type(self.records) is not tuple
             or not all(type(record) is ImmutableWalRecord for record in self.records)
         ):
@@ -377,7 +423,8 @@ class CertifiedCampaignView(AdmittedCampaign):
 
     def __post_init__(self) -> None:
         AdmittedCampaign.__post_init__(self)
-        if self.campaign_verifier_epoch.state != "E1":
+        if (type(self.campaign_verifier_epoch) is not CampaignVerifierEpoch
+                or self.campaign_verifier_epoch.state != "E1"):
             raise TypeError("CertifiedCampaignView requires exact E1")
         count = self.persisted_certified_commit_count
         if type(count) is not int:
@@ -884,7 +931,10 @@ def _validate_trigger_provenance(
 
 
 def _validate_trigger_proposal_campaign_id(
-        *, decoded: campaign_lock.DecodedCampaignLock, campaign_id: str,
+        *, decoded: (
+            campaign_lock.DecodedCampaignLock
+            | campaign_lock.DecodedHistoricalCampaignLock
+        ), campaign_id: str,
 ) -> None:
     """Retain the pre-existing trigger-proposal directory identity check.
 
@@ -923,13 +973,57 @@ def _decode_campaign_lock(
         ) from exc
 
 
+def _decode_historical_campaign_lock(
+        lock_raw: bytes,
+) -> campaign_lock.DecodedHistoricalCampaignLock:
+    try:
+        return campaign_lock.decode_historical_campaign_lock_bytes(lock_raw)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise ArtifactAdmissionError(
+            f"historical campaign.lock codec validation failed: {exc}"
+        ) from exc
+
+
+def _decode_campaign_lock_for_purpose(
+        lock_raw: bytes, *, purpose: CampaignReadPurpose,
+) -> (
+    campaign_lock.DecodedCampaignLock
+    | campaign_lock.DecodedHistoricalCampaignLock
+):
+    _validate_read_purpose(purpose)
+    if purpose is CampaignReadPurpose.HISTORICAL_RAW:
+        return _decode_historical_campaign_lock(lock_raw)
+    return _decode_campaign_lock(lock_raw)
+
+
 def _verify_committed_loader_binding(
-        decoded: campaign_lock.DecodedCampaignLock,
+        decoded: (
+            campaign_lock.DecodedCampaignLock
+            | campaign_lock.DecodedHistoricalCampaignLock
+        ),
 ) -> None:
     authority = decoded.authority
     if authority is None:
         raise ArtifactAdmissionError("campaign-lock/v2 authority が存在しない")
     try:
+        if (type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
+                and authority.recorded_contract_loader_relative_paths
+                == campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS):
+            root = contract_loader_binding._validated_root()
+            contract_loader_binding._require_commit(
+                root, authority.contract_loader_commit,
+            )
+            for relative in authority.recorded_contract_loader_relative_paths:
+                blob = contract_loader_binding._blob(
+                    root, authority.contract_loader_commit, relative,
+                )
+                if (hashlib.sha256(blob).hexdigest()
+                        != authority.contract_loader_blob_sha256s[relative]):
+                    raise contract_loader_binding.ContractLoaderBindingError(
+                        "contract-loader-blob-mismatch: 記録 digest と commit blob "
+                        f"が不一致: {relative}"
+                    )
+            return
         binding = contract_loader_binding.binding_from_authority(
             authority.contract_loader_commit,
             authority.contract_loader_blob_sha256s,
@@ -942,13 +1036,15 @@ def _verify_committed_loader_binding(
 
 
 def _recorded_campaign_verifier_epoch(
-        decoded: campaign_lock.DecodedCampaignLock,
+        decoded: (
+            campaign_lock.DecodedCampaignLock
+            | campaign_lock.DecodedHistoricalCampaignLock
+        ),
 ) -> _RecordedCampaignVerifierEpoch:
     """記録値だけから enforcement closure epoch を導出する。
 
-    保証する範囲とその除外範囲の正本は、それぞれ
-    ``CAMPAIGN_VERIFIER_EPOCH_SCOPE`` と
-    ``CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE`` である。
+    現行 grammar の scope は ``CAMPAIGN_VERIFIER_EPOCH_*``、pre-T733
+    exact-24 の scope は ``PRE_T733_CAMPAIGN_VERIFIER_EPOCH_*`` に固定する。
     v2 の記録 map は記録 commit に対して真正と検証してから表示 ID を作る。
     """
     authority = decoded.authority
@@ -962,21 +1058,35 @@ def _recorded_campaign_verifier_epoch(
             blob_sha256s=None,
         )
     _verify_committed_loader_binding(decoded)
+    relative_paths = (
+        authority.recorded_contract_loader_relative_paths
+        if type(authority) is campaign_lock.HistoricalCampaignLockAuthority
+        else campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    )
     recorded_map = {
         relative: authority.contract_loader_blob_sha256s[relative]
-        for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        for relative in relative_paths
     }
     payload = _CAMPAIGN_VERIFIER_EPOCH_DOMAIN + b"".join(
         relative.encode("utf-8") + b"\0" + bytes.fromhex(recorded_map[relative])
-        for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        for relative in relative_paths
     )
     display = f"E1:{hashlib.sha256(payload).hexdigest()}"
-    return _RecordedCampaignVerifierEpoch(
-        diagnostic=CampaignVerifierEpoch(
+    diagnostic: CampaignVerifierEpoch
+    if relative_paths == campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS:
+        diagnostic = HistoricalCampaignVerifierEpoch(
             campaign_verifier_epoch=display,
             state="E1",
             reason_code="recorded-closure",
-        ),
+        )
+    else:
+        diagnostic = CampaignVerifierEpoch(
+            campaign_verifier_epoch=display,
+            state="E1",
+            reason_code="recorded-closure",
+        )
+    return _RecordedCampaignVerifierEpoch(
+        diagnostic=diagnostic,
         blob_sha256s=MappingProxyType(recorded_map),
     )
 
@@ -1007,6 +1117,8 @@ def _require_verifier_epoch_for_purpose(
     _validate_read_purpose(purpose)
     if purpose is CampaignReadPurpose.HISTORICAL_RAW:
         return recorded.diagnostic
+    if type(recorded.diagnostic) is HistoricalCampaignVerifierEpoch:
+        raise AssertionError("historical epoch cannot enter certified acceptance")
     if recorded.diagnostic.state == "E0":
         raise CampaignVerifierEpochRejected(recorded.diagnostic)
     try:
@@ -1026,9 +1138,7 @@ def require_campaign_verifier_epoch(
 ) -> CampaignVerifierEpoch:
     """WAL を読まず campaign.lock だけで中央 epoch gate を適用する。
 
-    保証する範囲とその除外範囲の正本は、それぞれ
-    ``CAMPAIGN_VERIFIER_EPOCH_SCOPE`` と
-    ``CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE`` である。
+    certified は現行 scope だけ、historical exact-24 は当時の scope を返す。
     """
     _validate_read_purpose(purpose)
     layout = _layout(campaign)
@@ -1040,28 +1150,93 @@ def require_campaign_verifier_epoch(
             f"campaign.lock cannot be read: {lock_path}"
         ) from exc
     recorded = _recorded_campaign_verifier_epoch(
-        _decode_campaign_lock(lock_raw)
+        _decode_campaign_lock_for_purpose(lock_raw, purpose=purpose)
     )
     return _require_verifier_epoch_for_purpose(recorded, purpose)
 
 
 def _validate_recorded_activation(
-        decoded: campaign_lock.DecodedCampaignLock,
+        decoded: (
+            campaign_lock.DecodedCampaignLock
+            | campaign_lock.DecodedHistoricalCampaignLock
+        ),
 ) -> None:
     """Map the shared resume/admission tuple validator onto this error surface."""
+    if type(decoded) is campaign_lock.DecodedCampaignLock:
+        try:
+            ident.verify_recorded_activation_tuple(decoded)
+        except ident.IdentityMismatch as exc:
+            raise ArtifactAdmissionError(str(exc)) from exc
+        return
+    authority = decoded.authority
+    if authority is None or not decoded.is_v2:
+        raise ArtifactAdmissionError(
+            "activation tuple 検証には exact historical v2 campaign.lock が必要"
+        )
     try:
-        ident.verify_recorded_activation_tuple(decoded)
-    except ident.IdentityMismatch as exc:
-        raise ArtifactAdmissionError(str(exc)) from exc
+        current = env_contract.verified_current_activation_state()
+        if authority.activation_serial > current.activation_serial:
+            raise env_contract.EnvContractError(
+                "記録 activation serial が current chain head を越えている"
+            )
+        recorded = env_contract.verified_historical_activation_state(
+            authority.activation_serial,
+            authority.activation_state_sha256,
+        )
+        target_rows = tuple(
+            row for row in recorded.active_contracts
+            if row.contract_sha256 == authority.environment_contract_sha256
+        )
+        if len(target_rows) != 1:
+            raise env_contract.EnvContractError(
+                "記録 activation state が対象 environment contract H を active "
+                "にしていない"
+            )
+    except env_contract.EnvContractError as exc:
+        raise ArtifactAdmissionError(
+            f"campaign-lock activation tuple is not authentic: {exc}"
+        ) from exc
+
+
+def _validate_historical_commit_contract_bindings(
+        records: Sequence[Any],
+        decoded: campaign_lock.DecodedHistoricalCampaignLock,
+) -> None:
+    authority = decoded.authority
+    if authority is None:
+        raise ArtifactAdmissionError("historical v2 authority が存在しない")
+    try:
+        resolved = env_contract.resolve_by_contract_sha256(
+            authority.environment_contract_sha256
+        )
+    except env_contract.EnvContractError as exc:
+        raise ArtifactAdmissionError(
+            "historical campaign.lock の environment contract を ever-active "
+            "契約へ解決できない"
+        ) from exc
+    for record in records:
+        if record.stage != STAGE_COMMIT:
+            continue
+        actual = record.payload.get(COMMIT_CONTRACT_SHA256_KEY)
+        if actual != authority.environment_contract_sha256:
+            raise ArtifactAdmissionError(
+                "historical commit contract_sha256 が campaign.lock と不一致"
+            )
+        if record.env_tag != resolved.contract.env_tag:
+            raise ArtifactAdmissionError(
+                "historical commit env_tag が environment contract と不一致"
+            )
 
 
 def _inspect_campaign(
-    campaign: CampaignLayout | str | Path,
+    campaign: CampaignLayout | str | Path, *,
+    purpose: CampaignReadPurpose,
 ) -> tuple[
     CampaignAdmissionDecision,
     tuple[Any, ...],
     _RecordedCampaignVerifierEpoch | None,
 ]:
+    _validate_read_purpose(purpose)
     layout = _layout(campaign)
     root = Path(layout.root).resolve()
     lock_path = root / "campaign.lock"
@@ -1138,7 +1313,7 @@ def _inspect_campaign(
             validator_sha256=validator_sha,
         ), tuple(records), None
 
-    decoded = _decode_campaign_lock(lock_raw)
+    decoded = _decode_campaign_lock_for_purpose(lock_raw, purpose=purpose)
     recorded_epoch = _recorded_campaign_verifier_epoch(decoded)
     lock = decoded.identity
     search = lock["search_config"]
@@ -1200,8 +1375,17 @@ def _inspect_campaign(
         raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
     try:
         wal._validate_attempt_topology(
-            records, admission_policy=policy, campaign_lock=decoded,
+            records,
+            admission_policy=policy,
+            campaign_lock=(
+                decoded.identity
+                if type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
+                else decoded
+            ),
         )
+        if (type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
+                and decoded.is_v2):
+            _validate_historical_commit_contract_bindings(records, decoded)
         if (wal.is_trigger_machine_campaign_lock(lock)
                 and any(
                     type(record.payload.get("build_admission")) is dict
@@ -1274,7 +1458,9 @@ def classify_campaign(
     campaign: CampaignLayout | str | Path,
 ) -> CampaignAdmissionDecision:
     """Classify exact campaign bytes without admitting a denied overlay record."""
-    decision, _records, _epoch = _inspect_campaign(campaign)
+    decision, _records, _epoch = _inspect_campaign(
+        campaign, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
     return decision
 
 
@@ -1299,7 +1485,9 @@ def _require_admitted_campaign(
 ) -> CertifiedCampaignView | HistoricalCampaignView:
     """既存 admission 後に目的別 epoch gate を適用して非互換 view を返す。"""
     _validate_read_purpose(purpose)
-    decision, records, recorded_epoch = _inspect_campaign(campaign)
+    decision, records, recorded_epoch = _inspect_campaign(
+        campaign, purpose=purpose,
+    )
     if not decision.admitted:
         raise CampaignNotAdmitted(
             f"campaign is {decision.admission_status}: {decision.campaign_id}; "

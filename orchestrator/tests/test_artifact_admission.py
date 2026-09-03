@@ -43,6 +43,32 @@ from orchestrator.tests import commit_receipt_support as receipt_support
 ROOT = Path(__file__).resolve().parents[2]
 CERTIFIED = A.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
 HISTORICAL = A.CampaignReadPurpose.HISTORICAL_RAW
+_EXPECTED_PRE_T733_CLOSURE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
+)
 _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/campaign/env_contract.py",
     "orchestrator/campaign/env_contract_activation.py",
@@ -479,6 +505,42 @@ def _expected_fixture_epoch() -> str:
         )
     )
     return f"E1:{hashlib.sha256(payload).hexdigest()}"
+
+
+def _expected_pre_t733_fixture_epoch() -> str:
+    payload = b"campaign-verifier-epoch/v1" + b"".join(
+        relative.encode("utf-8")
+        + b"\0"
+        + hashlib.sha256(
+            (
+                "epoch closure fixture "
+                f"{_EXPECTED_E1_CLOSURE_PATHS.index(relative) + 1}\n"
+            ).encode("ascii")
+        ).digest()
+        for relative in _EXPECTED_PRE_T733_CLOSURE_PATHS
+    )
+    return f"E1:{hashlib.sha256(payload).hexdigest()}"
+
+
+def _rewrite_as_pre_t733_lock(campaign: Path) -> bytes:
+    lock_path = campaign / "campaign.lock"
+    decoded = campaign_lock.decode_campaign_lock(
+        lock_path.read_text(encoding="utf-8")
+    )
+    assert decoded.is_v2 and decoded.authority is not None
+    authority = decoded.authority.as_dict()
+    blobs = authority["contract_loader_blob_sha256s"]
+    authority["contract_loader_blob_sha256s"] = {
+        relative: blobs[relative]
+        for relative in campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
+    }
+    lock_text = _canonical_json({
+        "schema_version": decoded.schema_version,
+        "identity_preimage": decoded.identity_preimage,
+        "authority": authority,
+    })
+    lock_path.write_text(lock_text, encoding="utf-8")
+    return lock_text.encode("utf-8")
 
 
 def _ordered_fixture_path_list_sha256() -> str:
@@ -1683,6 +1745,129 @@ def test_historical_view_reports_unknown_current_verifier_conformance(
     view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
 
     assert view.current_verifier_conformance == "unknown"
+
+
+def test_p3_pre_t733_exact_24_is_readable_only_as_recorded_historical_epoch(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_raw = _rewrite_as_pre_t733_lock(campaign)
+
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    assert type(view) is A.HistoricalCampaignView
+    assert type(view.campaign_verifier_epoch) is A.HistoricalCampaignVerifierEpoch
+    assert campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS == (
+        _EXPECTED_PRE_T733_CLOSURE_PATHS
+    )
+    assert view.campaign_verifier_epoch.state == "E1"
+    assert view.campaign_verifier_epoch.reason_code == "recorded-closure"
+    assert (
+        view.campaign_verifier_epoch.campaign_verifier_epoch
+        == _expected_pre_t733_fixture_epoch()
+    )
+    assert view.campaign_verifier_epoch.identity_scope == (
+        "enforcement source closure (exact 24 path; witness gate、S8C 判定器、"
+        "receipt 発行・検証面を含む)"
+    )
+    assert view.campaign_verifier_epoch.excluded_scope == (
+        "verifier package のうち orchestrator/verifier/__main__.py と "
+        "orchestrator/verifier/cli.py、および package 外の "
+        "orchestrator/verify.py の implementation bytes は束縛しない"
+    )
+    assert view.campaign_verifier_epoch.identity_scope != (
+        A.CAMPAIGN_VERIFIER_EPOCH_SCOPE
+    )
+    assert view.campaign_verifier_epoch.current_verifier_conformance == "unknown"
+    assert view.current_verifier_conformance == "unknown"
+    assert (campaign / "campaign.lock").read_bytes() == lock_raw
+
+
+def test_p4_same_pre_t733_exact_24_bytes_are_rejected_for_certified_use(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_raw = _rewrite_as_pre_t733_lock(campaign)
+    historical = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    with pytest.raises(
+        A.ArtifactAdmissionError, match="codec validation failed",
+    ):
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    with pytest.raises(
+        A.ArtifactAdmissionError, match="codec validation failed",
+    ):
+        A.classify_campaign(campaign)
+
+    assert type(historical) is A.HistoricalCampaignView
+    assert (campaign / "campaign.lock").read_bytes() == lock_raw
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["subset", "superset", "same-count-replacement", "order"],
+)
+def test_unknown_pre_t733_grammar_is_rejected_for_both_read_purposes(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    _rewrite_as_pre_t733_lock(campaign)
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    if mutation in {"subset", "same-count-replacement"}:
+        blobs.pop(campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS[-1])
+    if mutation in {"superset", "same-count-replacement"}:
+        extra = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS[24]
+        blobs[extra] = "f" * 64
+    if mutation == "order":
+        paths = tuple(blobs)
+        value["authority"]["contract_loader_blob_sha256s"] = {
+            path: blobs[path]
+            for path in (paths[1], paths[0], *paths[2:])
+        }
+        lock_text = json.dumps(
+            value, sort_keys=False, separators=(",", ":"), ensure_ascii=False,
+            allow_nan=False,
+        )
+    else:
+        lock_text = _canonical_json(value)
+    lock_path.write_text(lock_text, encoding="utf-8")
+    lock_raw = lock_path.read_bytes()
+
+    for purpose in (HISTORICAL, CERTIFIED):
+        with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+            A.require_admitted_campaign(campaign, purpose=purpose)
+
+    assert lock_path.read_bytes() == lock_raw
+
+
+def test_pre_t733_historical_decode_rejects_recorded_commit_blob_mismatch(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    _rewrite_as_pre_t733_lock(campaign)
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    first = campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS[0]
+    recorded = value["authority"]["contract_loader_blob_sha256s"][first]
+    value["authority"]["contract_loader_blob_sha256s"][first] = (
+        ("0" if recorded[0] != "0" else "1") + recorded[1:]
+    )
+    lock_path.write_text(_canonical_json(value), encoding="utf-8")
+
+    with pytest.raises(
+        A.ArtifactAdmissionError, match="contract-loader-blob-mismatch",
+    ):
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
 
 
 def test_certified_acceptance_rejects_dirty_current_closure_with_exact_diagnostic(
