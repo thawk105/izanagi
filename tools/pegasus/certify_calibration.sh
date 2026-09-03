@@ -361,11 +361,21 @@ module -t list >"$ATTEMPT_DIR/module-list.stdout" 2>"$ATTEMPT_DIR/module-list.st
 
 CC_PATH=$(command -v gcc)
 CXX_PATH=$(command -v g++)
-CMAKE_PATH=$(command -v cmake)
+CMAKE_PATH=$(realpath "$(command -v cmake)")
+if ! NM_PATH=$(realpath /usr/bin/nm); then
+  write_failure 2 toolchain "fixed nm path cannot be resolved"
+  exit 2
+fi
+if [[ ! -f "$NM_PATH" || ! -x "$NM_PATH" ]]; then
+  write_failure 2 toolchain "fixed nm path is not a regular executable"
+  exit 2
+fi
 realpath "$CC_PATH" >"$ATTEMPT_DIR/compiler.path"
 "$CC_PATH" --version >"$ATTEMPT_DIR/compiler.version" 2>&1
 "$CXX_PATH" --version >"$ATTEMPT_DIR/cxx.version" 2>&1
 "$CMAKE_PATH" --version >"$ATTEMPT_DIR/cmake.version" 2>&1
+realpath "$NM_PATH" >"$ATTEMPT_DIR/nm.path"
+"$NM_PATH" --version >"$ATTEMPT_DIR/nm.version" 2>&1
 
 run_condition_gate() {
   local -a condition_gate_argv=(python3 -m orchestrator.campaign.condition_meaning_gate
@@ -422,13 +432,13 @@ if [[ "$gflags_rc" -ne 0 ]]; then
   write_failure "$gflags_rc" gflags "cannot create gflags build directory"
   exit "$gflags_rc"
 fi
-gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
+gflags_configure_argv=("$CMAKE_PATH" -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
   -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
   -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF
   "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
-gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
-gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
+gflags_build_argv=("$CMAKE_PATH" --build "$GFLAGS_BUILD_DIR" -j 48)
+gflags_install_argv=("$CMAKE_PATH" --install "$GFLAGS_BUILD_DIR")
 timeout 60 "${gflags_configure_argv[@]}" \
   >"$ATTEMPT_DIR/gflags-configure.stdout" 2>"$ATTEMPT_DIR/gflags-configure.stderr" || gflags_rc=$?
 if [[ "$gflags_rc" -ne 0 ]]; then
@@ -486,14 +496,14 @@ if [[ "$glog_rc" -ne 0 ]]; then
   write_failure "$glog_rc" glog "cannot create glog build directory"
   exit "$glog_rc"
 fi
-glog_configure_argv=(cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
+glog_configure_argv=("$CMAKE_PATH" -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
   -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
   -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF
   -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
   "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
-glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
-glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
+glog_build_argv=("$CMAKE_PATH" --build "$GLOG_BUILD_DIR" -j 48)
+glog_install_argv=("$CMAKE_PATH" --install "$GLOG_BUILD_DIR")
 timeout 120 "${glog_configure_argv[@]}" \
   >"$ATTEMPT_DIR/glog-configure.stdout" 2>"$ATTEMPT_DIR/glog-configure.stderr" || glog_rc=$?
 if [[ "$glog_rc" -ne 0 ]]; then
@@ -524,7 +534,7 @@ BUILD_DIR="$TMPDIR/ccbench-build"
 git -C "$CCBENCH_BASE" worktree add --detach "$BUILD_SOURCE" "$CCBENCH_HEAD" \
   >"$ATTEMPT_DIR/worktree-add.stdout" 2>"$ATTEMPT_DIR/worktree-add.stderr"
 mkdir "$BUILD_DIR"
-configure_argv=(cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+configure_argv=("$CMAKE_PATH" -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
   -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0
   -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
   -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0
@@ -533,14 +543,18 @@ configure_argv=(cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Rele
   "-DIZANAGI_GLOG_SRC_HEAD=$GLOG_SOURCE_HEAD"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
 run_condition_gate
-build_argv=(cmake --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)
+build_argv=("$CMAKE_PATH" --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)
 timeout 900 "${configure_argv[@]}" >"$ATTEMPT_DIR/configure.stdout" 2>"$ATTEMPT_DIR/configure.stderr"
 timeout 900 "${build_argv[@]}" >"$ATTEMPT_DIR/build.stdout" 2>"$ATTEMPT_DIR/build.stderr"
 BINARY="$BUILD_DIR/cc/silo/ycsb_silo.exe"
 [[ -x "$BINARY" ]]
 timeout 60 sha256sum "$BINARY" >"$ATTEMPT_DIR/binary.sha256"
 BINARY_SHA=$(awk '{print $1}' "$ATTEMPT_DIR/binary.sha256")
-timeout 60 nm -C "$BINARY" >"$ATTEMPT_DIR/binary.symbols" 2>"$ATTEMPT_DIR/nm.stderr"
+timeout 60 "$NM_PATH" -C "$BINARY" >"$ATTEMPT_DIR/binary.symbols" 2>"$ATTEMPT_DIR/nm.stderr"
+if [[ ! -s "$ATTEMPT_DIR/binary.symbols" ]]; then
+  write_failure 2 trace_separation "calibration binary symbol table is empty"
+  exit 2
+fi
 if grep -qi 'izanagi_trace' "$ATTEMPT_DIR/binary.symbols"; then
   write_failure 2 trace_separation "trace symbol detected in calibration binary"
   exit 2
