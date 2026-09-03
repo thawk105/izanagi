@@ -21228,6 +21228,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   失敗種別を潰すため、observed なのは「無制限の窓なら同じ argv が rc=0 で完走する」ことと、
   「その完走後は tool が即 rc=0 になる」ことである。恒久対応は引き続き未実施で、
   deadline を submodule 段だけ分離するか detail を厚くするかは裁定待ちである。
+
+- **再発: 2026-09-03** — `tools/dev_wave_submodule_init.py` の 1 回目が
+  `runtime-io-failure: update-no-fetch` で落ちた。fix1 の worktree では 2 回目で成功し、
+  fix2 の worktree では 2 回連続で落ちて 3 回目で成功した。回数は固定ではない。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
@@ -21399,6 +21403,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 子の完了報告の `git status --porcelain` が空、かつ「実装した内容」が空である組合せ。
   親は投入先 worktree の `git status --porcelain` を実測して照合する。
 
+
+- **再発: 2026-09-03** — 段 5 実装子の投げ文に書いた作業ツリー path が親側の worktree で、
+  投入先の author worktree と食い違っていた。今回は子が sandbox の read-only を自分で検出し、
+  正しい author worktree へ書いたため実害は出ず near miss で止まった。
+  親が `DW-O02` の現行版 (「prompt の repo path は投入先 worktree のもの」) を読んだのは
+  段 5 投入後だった。
 ### F820. 変異点の内側に別の検査がネストしており、単一理由性が成り立たなかった [恒真ゲート]
 
 - 事象: [T-2200] の段 4 で登録した変異 M2 は、`policy.py` の backoff scalar 分岐の membership から
@@ -21614,3 +21624,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   不可能性主張へは使わない。
 - 再発検知: 段 9 の受入実走が junit を出す。親が段 7 で書いた分解と実走の junit を突き合わせれば、
   食い違いはその場で出る。本件は実際にそれで露見した。
+
+### F833. 変異 harness が外側から殺され、作業ツリーに変異を残したまま終わった [手順漏れ] [観測者効果]
+
+- 事象: 変異 probe の走行中に session が終了し、`tools/mutation_harness.py` の process が消えた。
+  復元されないまま `orchestrator/campaign/p3_b4_raw_record_producer.py` に最後の変異 (N10 の
+  `fsync` 失敗時の切り戻し除去) が残っていた。待ち手の通知は「停止」としか言わず、
+  台帳 `mutation-probe-ledger-2.json` は 9 件分が書かれていたため、通知だけを見ると
+  「途中まで終わった走行」に見えた。
+- 根本原因: harness の復元は signal handler で行うため、catch できない終了 (SIGKILL、
+  process group ごとの teardown) では発火しない。DW-M05 は「signal 復元を fail-closed で
+  強制する」とだけ書いており、この射程外があることを書いていなかった。
+- 恒久対応: memory `mutation-harness-kill-leaves-mutated-tree` に、中断後は次の操作の前に
+  `git status --porcelain` と `pgrep -f mutation_harness` を対で見て、変異が残っていれば
+  `DW-O19` の `git checkout --` で復元する義務を書いた。**docs への収容は byte 予算に阻まれた。**
+  D730/D782 の手順で既存記述の削減を試したが `docs/dev-wave/**` の L1.5 予算 9696 bytes に
+  対して 228 bytes 不足し、独立 3 例に達しないため例外収容もせず、上限も引き上げなかった。
+- 再発検知: 中断のたびに `git status --porcelain` と `pgrep -f mutation_harness` を対にして見る。
+  台帳の件数や待ち手の rc を走行の生死判定に使わない。
