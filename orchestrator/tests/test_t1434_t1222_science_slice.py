@@ -46,6 +46,53 @@ def _jobs_descriptors(value: dict[str, Any]) -> list[dict[str, str]]:
     return descriptors
 
 
+def _pinned_jobs_paths() -> tuple[str, ...]:
+    return tuple(sorted({
+        descriptor["jobs_relative_path"]
+        for descriptor in _jobs_descriptors(_artifact_value())
+    }))
+
+
+def _reader_output_path(reader_id: str) -> str:
+    reader = next(
+        row for row in _artifact_value()["reader_reviews"]
+        if row["reader_id"] == reader_id
+    )
+    return reader["output"]["jobs_relative_path"]
+
+
+def _missing_pinned_jobs_files(
+    jobs_root: Path,
+    relative_paths: tuple[str, ...] | None = None,
+) -> tuple[str, ...]:
+    missing = []
+    requirements = (
+        _pinned_jobs_paths()
+        if relative_paths is None
+        else relative_paths
+    )
+    for relative in requirements:
+        try:
+            os.stat(jobs_root / relative)
+        except FileNotFoundError:
+            missing.append(relative)
+    return tuple(missing)
+
+
+def _require_pinned_jobs_files(
+    jobs_root: Path,
+    relative_paths: tuple[str, ...] | None = None,
+) -> None:
+    missing = _missing_pinned_jobs_files(jobs_root, relative_paths)
+    if missing:
+        detail = ", ".join(missing)
+        pytest.skip(
+            "pinned external jobs inputs are unavailable; missing relative "
+            f"paths: {detail}; with the complete input set, all assertions "
+            "in this test would run"
+        )
+
+
 def _copy_physical_jobs_fixture(tmp_path: Path) -> Path:
     jobs = tmp_path / "jobs"
     for descriptor in _jobs_descriptors(_artifact_value()):
@@ -77,6 +124,7 @@ def test_checked_in_artifact_portable_is_not_evaluated(capsys: pytest.CaptureFix
 def test_physical_real_jobs_root_is_valid_negative_observation(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    _require_pinned_jobs_files(JOBS_ROOT)
     rc = science.main([
         "verify-physical", os.fspath(ARTIFACT),
         "--repo-root", os.fspath(REPO_ROOT),
@@ -207,6 +255,7 @@ def test_all_findings_both_stages_both_readers_and_child_green_is_accepted() -> 
 
 
 def test_ss_m4_stored_coverage_tampering_is_rejected(tmp_path: Path) -> None:
+    _require_pinned_jobs_files(JOBS_ROOT)
     value = _artifact_value()
     coverage = value["results"]["coverage"]  # type: ignore[index]
     coverage["agreed_detected"] = 3
@@ -230,6 +279,7 @@ def test_ss_m5_portable_receipt_never_exposes_physical_semantics() -> None:
 def test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _require_pinned_jobs_files(JOBS_ROOT)
     value = _artifact_value()
     jobs = _copy_physical_jobs_fixture(tmp_path)
     target_path = value["evidence"]["targets"][0]["output"]["jobs_relative_path"]
@@ -292,7 +342,9 @@ def test_artifact_scope_rejects_canonical_false_changed_to_integer_zero(
 
 @pytest.mark.parametrize("mutation", ["missing", "duplicate", "extra", "bad-verdict"])
 def test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict(mutation: str) -> None:
-    raw = (JOBS_ROOT / science.READER_PATHS["reader-A"]["output"]).read_bytes()
+    relative = _reader_output_path("reader-A")
+    _require_pinned_jobs_files(JOBS_ROOT, (relative,))
+    raw = (JOBS_ROOT / relative).read_bytes()
     text = raw.decode("utf-8")
     row = next(
         line for line in text.splitlines()
@@ -313,7 +365,9 @@ def test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict(mutation: 
 
 
 def test_reader_markdown_rejects_duplicate_blindness_attestation() -> None:
-    raw = (JOBS_ROOT / science.READER_PATHS["reader-A"]["output"]).read_bytes()
+    relative = _reader_output_path("reader-A")
+    _require_pinned_jobs_files(JOBS_ROOT, (relative,))
+    raw = (JOBS_ROOT / relative).read_bytes()
     contradictory = raw + (
         b"\n## Blindness attestation\n"
         b"reader_id=reader-A\n"
@@ -337,7 +391,9 @@ def test_reader_markdown_rejects_duplicate_blindness_attestation() -> None:
 def test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation(
     duplicate_header: str,
 ) -> None:
-    raw = (JOBS_ROOT / science.READER_PATHS["reader-A"]["output"]).read_bytes()
+    relative = _reader_output_path("reader-A")
+    _require_pinned_jobs_files(JOBS_ROOT, (relative,))
+    raw = (JOBS_ROOT / relative).read_bytes()
     contradictory = raw + (
         f"\n{duplicate_header}\n"
         "reader_id=reader-A\n"
@@ -348,6 +404,84 @@ def test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation(
         science.parse_reader_markdown(
             contradictory, expected_reader_id="reader-A", label="reader-A",
         )
+
+
+def test_pinned_jobs_requirements_are_exact() -> None:
+    assert _pinned_jobs_paths() == (
+        "T-1222-population-closure/"
+        "T-1222-population-closure-author-"
+        "6e91e61393fd97a4ea7ea5ef8783eb93cdc131692dc10259c99d97c42c444863/"
+        "receipt.json",
+        "T-1222-population-closure/"
+        "T-1222-population-closure-plan-"
+        "c7d8a2085d4bacb773d2a1a240801409d1c754541d424fffe87fbf21e1305ff3/"
+        "receipt.json",
+        "T-1222-population-closure/acceptance-receipt-2.json",
+        "T-1222-population-closure/stage2-plan-prompt.md",
+        "T-1222-population-closure/stage2-plan.md",
+        "T-1222-population-closure/stage5-author-prompt.md",
+        "T-1222-population-closure/stage5-author.md",
+        "dev-wave-t1434-science-slice/codex-artifacts/"
+        "dev-wave-t1434-science-slice/t1434-science-readerA/receipt.json",
+        "dev-wave-t1434-science-slice/codex-artifacts/"
+        "dev-wave-t1434-science-slice/t1434-science-readerB/receipt.json",
+        "dev-wave-t1434-science-slice/codex-artifacts/"
+        "dev-wave-t1434-science-slice/t1434-science-stage3-lensA/receipt.json",
+        "dev-wave-t1434-science-slice/codex-artifacts/"
+        "dev-wave-t1434-science-slice/t1434-science-stage3-lensB/receipt.json",
+        "dev-wave-t1434-science-slice/oracle-ledger-freeze-v1.json",
+        "dev-wave-t1434-science-slice/projections/oracle-source-bundle.md",
+        "dev-wave-t1434-science-slice/readerA-prompt.md",
+        "dev-wave-t1434-science-slice/readerA.md",
+        "dev-wave-t1434-science-slice/readerB-prompt.md",
+        "dev-wave-t1434-science-slice/readerB.md",
+        "dev-wave-t1434-science-slice/stage3-lensA-prompt.md",
+        "dev-wave-t1434-science-slice/stage3-lensA.md",
+        "dev-wave-t1434-science-slice/stage3-lensB-prompt.md",
+        "dev-wave-t1434-science-slice/stage3-lensB.md",
+    )
+
+
+def _write_pinned_jobs_stubs(jobs_root: Path, paths: tuple[str, ...]) -> None:
+    for relative in paths:
+        target = jobs_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"stub\n")
+
+
+def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(
+    tmp_path: Path,
+) -> None:
+    jobs_root = tmp_path / "jobs"
+    jobs_root.mkdir()
+    paths = _pinned_jobs_paths()
+    _write_pinned_jobs_stubs(jobs_root, paths[1:])
+
+    with pytest.raises(pytest.skip.Exception) as caught:
+        _require_pinned_jobs_files(jobs_root)
+    assert paths[0] in str(caught.value)
+    assert "complete input set, all assertions in this test would run" in str(
+        caught.value
+    )
+
+
+def test_pinned_jobs_guard_does_not_skip_for_complete_input_set(
+    tmp_path: Path,
+) -> None:
+    jobs_root = tmp_path / "jobs"
+    _write_pinned_jobs_stubs(jobs_root, _pinned_jobs_paths())
+
+    _require_pinned_jobs_files(jobs_root)
+
+
+def test_reader_output_guard_does_not_require_unrelated_pinned_files(
+    tmp_path: Path,
+) -> None:
+    jobs_root = tmp_path / "jobs"
+    relative = _reader_output_path("reader-A")
+    _write_pinned_jobs_stubs(jobs_root, (relative,))
+
+    _require_pinned_jobs_files(jobs_root, (relative,))
 
 
 def test_git_environment_overrides_are_isolated_and_linked_worktree_still_works(
