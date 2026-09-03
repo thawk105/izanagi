@@ -285,7 +285,7 @@ def _scratch_environment(tree: Path) -> dict[str, str]:
 
 def _subprocess_probe(tree: Path, code: str, *arguments: str) -> str:
     completed = subprocess.run(
-        [sys.executable, "-c", code, *arguments],
+        [sys.executable, "-B", "-c", code, *arguments],
         cwd=tree,
         env=_scratch_environment(tree),
         stdout=subprocess.PIPE,
@@ -1158,7 +1158,14 @@ def test_wave_mutant_kills_exactly_one_registered_node(
             for index in range(1, 9)
         ]
         completed = subprocess.run(
-            [sys.executable, "tools/run_tests.py", *node_ids, "-q", "-rf"],
+            [
+                sys.executable,
+                "-B",
+                "tools/run_tests.py",
+                *node_ids,
+                "-q",
+                "-rf",
+            ],
             cwd=tree,
             env=_scratch_environment(tree),
             stdout=subprocess.PIPE,
@@ -1606,7 +1613,7 @@ def _candidate_non_regression(
             passed = True
             for node_id in E.non_regression_node_ids(candidate):
                 completed = subprocess.run(
-                    [sys.executable, "tools/run_tests.py", node_id, "-q"],
+                    [sys.executable, "-B", "tools/run_tests.py", node_id, "-q"],
                     cwd=tree,
                     env=_scratch_environment(tree),
                     stdout=subprocess.PIPE,
