@@ -851,6 +851,144 @@ def _with_earlier_floor_result_at_head(
     ), earlier_rel
 
 
+def _install_real_earlier_official_run(
+        root: Path, topology: dict, *, resume: bool) -> tuple[str, bool]:
+    """実 admission を追記し、scan-neutral な earlier official run を設置する。"""
+    from orchestrator.campaign import s8b_holdout_admission as admission
+
+    selected_rel = topology["paths"]["result"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    earlier_run_id = f"20260718T115959Z-{proto8}"
+    assert earlier_run_id < selected_run_id
+    namespace_rel = selected_rel.rsplit("/", 2)[0]
+    run_dir_rel = f"{namespace_rel}/{earlier_run_id}"
+    earlier_rel = f"{run_dir_rel}/result.json"
+    run_dir = root / run_dir_rel
+    assert not run_dir.exists()
+
+    selected_run_dir = root / selected_rel.rsplit("/", 1)[0]
+    selected_before = {
+        path.name: path.read_bytes()
+        for path in selected_run_dir.iterdir() if path.is_file()
+    }
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    admission_before = {
+        path.relative_to(admission_root).as_posix(): path.read_bytes()
+        for path in admission_root.rglob("*") if path.is_file()
+    }
+
+    protocol = copy.deepcopy(topology["protocol"])
+    v1 = json.loads((root / protocol["freeze"]["path"]).read_bytes())
+    cells = FC.enumerate_cells(
+        v1, stock_configuration=protocol["stock_configuration"],
+    )
+    admission_cells = [
+        {
+            "cell_id": cell["cell_id"],
+            "freeze_holdout_key": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": cell["workload"],
+        }
+        for cell in cells
+    ]
+    schedule = FC.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    schedule_by_seq = {row["seq"]: row for row in schedule}
+
+    run_dir.mkdir(parents=True)
+    manifest_raw = B._json_bytes_with_escaped_strings(topology["manifest"])
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+    (run_dir / "manifest.json").write_bytes(manifest_raw)
+    journal_path = run_dir / "journal.jsonl"
+    journal_path.write_bytes(b"")
+    run_relpath = run_dir_rel.removeprefix("output/")
+    reservation = admission.reserve_floor_holdout_observations(
+        repo_root=root, protocol=protocol, verified_freeze_document=v1,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        cells=admission_cells, schedule=schedule,
+        campaign_run_id=earlier_run_id, out_root=root / "output",
+        run_dir=run_dir, run_relpath=run_relpath, mode="official",
+        resume=resume, nondefault_seams=[],
+    )
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
+
+    journal_records = []
+    for session in topology["result"]["sessions"]:
+        scheduled = schedule_by_seq[session["seq"]]
+        start = {
+            "event": "session-start", "seq": session["seq"],
+            "kind": "planned", "cell_id": session["cell_id"],
+            "round": scheduled["round"], "retry_ordinal": None,
+            "attempt_id": session["attempt_id"], "trigger": None,
+        }
+        journal_records.append(start)
+        journal_path.write_bytes(B._jsonl_bytes(journal_records))
+        competing = session["probe_before"]["competing"]
+        if competing is False:
+            admission.consume_attempt_ticket(
+                admitted[session["cell_id"]],
+                attempt_id=session["attempt_id"],
+            )
+        journal_records.append({
+            "event": "session", "cell_id": session["cell_id"],
+            "attempt_id": session["attempt_id"],
+            "probe_before": {"competing": competing},
+        })
+        journal_path.write_bytes(B._jsonl_bytes(journal_records))
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(
+        repo_root=root, protocol=protocol, verified_freeze_document=v1,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256=manifest_sha256, campaign_run_id=earlier_run_id,
+        run_relpath=run_relpath, mode="official", cells=cells,
+        schedule=schedule, sessions=journal_records,
+    )
+    claim_entry_kinds = {
+        json.loads(
+            (admission_root / "measurement-generation-claims"
+             / f"{claim_digest}.claim").read_bytes()
+        )["entry_kind"]
+        for claim_digest in inspection["claim_identities"].values()
+    }
+    assert claim_entry_kinds == ({"resume"} if resume else {"fresh"})
+    marker_name = hashlib.sha256(earlier_run_id.encode("utf-8")).hexdigest()
+    marker_path = (
+        admission_root / "refreeze-disqualifications" / f"{marker_name}.json"
+    )
+    assert marker_path.is_file() is resume
+    result = copy.deepcopy(topology["result"])
+    result["eligible_for_refreeze"] = inspection.derived_eligible_for_refreeze
+    result["manifest_sha256"] = manifest_sha256
+    result["holdout_admission"] = dict(inspection)
+    for row in result["wall_ledger"]:
+        if row.get("event") == "campaign-start":
+            row["manifest_sha256"] = manifest_sha256
+    (run_dir / "result.json").write_bytes(
+        B._json_bytes_with_escaped_strings(result)
+    )
+    assert not (run_dir / "launch_certificate.json").exists()
+
+    selected_after = {
+        path.name: path.read_bytes()
+        for path in selected_run_dir.iterdir() if path.is_file()
+    }
+    assert selected_after == selected_before
+    for relative, before in admission_before.items():
+        after = (admission_root / relative).read_bytes()
+        if relative in {"ledger.jsonl", "attempt-ledger.jsonl"}:
+            assert after.startswith(before)
+        else:
+            assert after == before
+
+    B._fixed_commit_all(root, "earlier official result", "fixture")
+    return earlier_rel, inspection.derived_eligible_for_refreeze
+
+
 def test_launch_validate_rejects_floor_selection_rule_mismatch(
         tmp_path, monkeypatch):
     root, freeze, _topology = _build_launch_repo(tmp_path)
@@ -884,6 +1022,62 @@ def test_g1_selection_helper_rejects_rule_mismatch(tmp_path, monkeypatch):
     assert caught.value.reason == "floor-selection-rule-mismatch"
     assert caught.value.cause == "earliest-eligible-official-run-id/v1"
     assert calls == [earlier_rel]
+
+
+def test_launch_validate_rejects_genuine_eligible_earlier_official_run(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=False,
+    )
+    assert derived is True
+    loaded = M.load_ratified_freeze(root)
+
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.launch_validate(loaded, root)
+    assert caught.value.reason == "floor-selection-rule-mismatch"
+    assert caught.value.cause == "earliest-eligible-official-run-id/v1"
+
+
+def test_launch_validate_accepts_genuine_ineligible_earlier_resume(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=True,
+    )
+    assert derived is False
+    loaded = M.load_ratified_freeze(root)
+
+    validated = M.launch_validate(loaded, root)
+    assert type(validated) is M.LaunchValidatedFreeze
+    assert validated.ratified is loaded
+
+
+def test_g1_selection_helper_rejects_genuine_eligible_earlier_official_run(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=False,
+    )
+    assert derived is True
+    loaded = M.load_ratified_freeze(root)
+
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.assert_g1_floor_selection_identity(loaded, root)
+    assert caught.value.reason == "floor-selection-rule-mismatch"
+    assert caught.value.cause == "earliest-eligible-official-run-id/v1"
+
+
+def test_g1_selection_helper_accepts_genuine_ineligible_earlier_resume(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=True,
+    )
+    assert derived is False
+    loaded = M.load_ratified_freeze(root)
+
+    assert M.assert_g1_floor_selection_identity(loaded, root) is None
 
 
 def test_g1_selection_helper_rejects_foreign_env_namespace(
