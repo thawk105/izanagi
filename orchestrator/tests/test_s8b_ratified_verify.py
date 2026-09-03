@@ -94,7 +94,7 @@ _NEGATIVE_REGISTRY = {
     },
     "scan-undeclared": {
         "baseline_validator": "launch_validate(emitter baseline)",
-        "mutation_stage": "worktree after A",
+        "mutation_stage": "worktree after X",
         "repaired_deps": (), "invoke_layer": "launch_validate",
         "reason": "closure-hit-mismatch", "cause": None,
     },
@@ -106,7 +106,7 @@ _NEGATIVE_REGISTRY = {
     },
     "scan-per-holdout": {
         "baseline_validator": "launch_validate(emitter baseline)",
-        "mutation_stage": "worktree after A",
+        "mutation_stage": "worktree after X",
         "repaired_deps": (), "invoke_layer": "launch_validate",
         "reason": "closure-hit-mismatch", "cause": None,
     },
@@ -118,7 +118,7 @@ _NEGATIVE_REGISTRY = {
     },
     "scan-positive": {
         "baseline_validator": "launch_validate(emitter baseline)",
-        "mutation_stage": "positive-control worktree bytes after A",
+        "mutation_stage": "positive-control worktree bytes after X",
         "repaired_deps": (), "invoke_layer": "launch_validate",
         "reason": "search-not-operational", "cause": None,
     },
@@ -477,7 +477,7 @@ def _result_document(protocol: dict, cells: list[dict], binaries: dict,
 
 def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
                                    cert_at_generation=False, executable_role=None):
-    """C(cert only)→G(run artifacts+closure+generation)→A(approval+pointer)→H(no-op)。"""
+    """C(cert only)→G(run artifacts+closure+generation)→A(approval)→X(pointer)→H。"""
     root = tmp_path / "launch-repo"
     root.mkdir()
     _lgit(root, "init", "-q")
@@ -658,27 +658,31 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
     })
     approval_sha = _lsha(approval_raw)
     _lwrite(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    a_commit = _lcommit(root, "approve generation", "none")
     pointer_raw = M._canonical_bytes({
         "generation_number": 1, "path": gen_path, "sha256": gen_sha,
         "parent_active_sha256": None, "approval_sha256": approval_sha,
     })
     pointer_sha = _lsha(pointer_raw)
     _lwrite(root, f"{M.ACTIVE_DIR}/{pointer_sha}.json", pointer_raw)
-    a_commit = _lcommit(root, "approve generation", "none")
+    x_commit = _lcommit(root, "activate generation", "none")
     (root / "validation-head.txt").write_text("H differs from A\n", encoding="utf-8")
     h_commit = _lcommit(root, "validation head", "fixture")
     ratified = M.RatifiedFreeze(
         document=M._deep_freeze(gen_doc), sha256=gen_sha, generation_number=1,
         activation_head=h_commit, generation_commit=g_commit,
     )
-    return root, ratified, {**state, "C": c_commit, "G": g_commit, "A": a_commit, "H": h_commit}
+    return root, ratified, {
+        **state, "C": c_commit, "G": g_commit, "A": a_commit,
+        "X": x_commit, "H": h_commit,
+    }
 
 
 def _build_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
                        cert_at_generation=False, executable_role=None,
                        selector_valid_cell=False, selector_extra_files=(),
                        selector_payload_hit=False):
-    """決定的観測下の production-emitter bytes を G/A に載せた launch fixture。"""
+    """決定的観測下の production-emitter bytes を G/A/X に載せた launch fixture。"""
     def combined(state):
         if cert_mutate is not None:
             cert_mutate(state["cert"])
@@ -694,7 +698,7 @@ def _build_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
     )
     ratified = M.RatifiedFreeze(
         document=M._deep_freeze(g1), sha256=gen_sha, generation_number=1,
-        activation_head=topology["A"], generation_commit=topology["G"],
+        activation_head=topology["X"], generation_commit=topology["G"],
     )
     return root, ratified, topology
 
@@ -816,8 +820,8 @@ def test_equality_chain_each_edge_coherent_island_rejected(edge):
 def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
-    assert topology["C"] != topology["G"] != topology["A"]
-    assert topology["H"] == topology["A"]
+    assert topology["C"] != topology["G"] != topology["A"] != topology["X"]
+    assert topology["H"] == topology["X"]
     assert _lgit(root, "merge-base", "--is-ancestor", topology["C"], topology["G"]) == ""
     loaded = M.load_ratified_freeze(root)
     assert loaded.sha256 == freeze.sha256
@@ -1549,7 +1553,7 @@ def test_chain_g2_env_tag_unchanged_loads(tmp_path):
     freeze, g2_topology = B.append_production_emitter_g2(
         root, g1, g1_sha, topology)
     assert freeze.generation_number == 2
-    assert g2_topology["C2"] != g2_topology["G2"] != g2_topology["A2"]
+    assert g2_topology["C2"] != g2_topology["G2"] != g2_topology["A2"] != g2_topology["X2"]
 
 
 # --------------------------------------------------------------------------
@@ -2110,7 +2114,7 @@ def test_selector_exact_exemption_accepts_declared_three_axis_evidence(tmp_path)
     assert raw_path in hits["rr80"]
     assert envelope_path in hits["rr80"]
 
-    exempt = M._selector_evidence_exempt_exact(head=topology["A"], root=root)
+    exempt = M._selector_evidence_exempt_exact(head=topology["X"], root=root)
     assert raw_path in exempt
     assert envelope_path in exempt
     assert payload_path not in exempt
@@ -2225,7 +2229,7 @@ def test_selector_parser_classification_boundary_at_ratified_launch(
     assert committed_paths == tuple(sorted(boundary_paths))
 
     ratified = M.load_ratified_freeze(root)
-    assert ratified.activation_head == topology["A"]
+    assert ratified.activation_head == topology["X"]
     # check=True の無例外完了をもって boundary commit が A の祖先であることを検査する。
     B._fixed_git(
         root, "merge-base", "--is-ancestor", boundary["commit"],
@@ -2302,7 +2306,7 @@ def test_selector_parser_classification_boundary_at_ratified_launch(
         honest_document, freeze=selector_freeze, root=root,
     ) is None
 
-    # A 後の selector evidence 書換えは、意味検証より先に H-pure 履歴検査が拒否する。
+    # X 後の selector evidence 書換えは、意味検証より先に H-pure 履歴検査が拒否する。
     (root / raw_rel).write_bytes((boundary["raw"] + " ").encode("utf-8"))
     post_a_commit = B._commit_exact(
         root,
@@ -2310,7 +2314,7 @@ def test_selector_parser_classification_boundary_at_ratified_launch(
         subject="mutate selector evidence after approval",
         agent="fixture",
     )
-    assert B._fixed_git(root, "rev-parse", f"{post_a_commit}^") == topology["A"]
+    assert B._fixed_git(root, "rev-parse", f"{post_a_commit}^") == topology["X"]
     with pytest.raises(M.RatifiedFreezeError) as post_a_error:
         M.load_ratified_freeze(root)
     assert post_a_error.value.reason == "history-mutated"

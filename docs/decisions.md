@@ -48563,3 +48563,399 @@ abort 時に `Backoff_` だけ待つため、実効の更新間隔は `Backoff_`
 **却下した選択肢:**
 - `none` を b=0 に使い続ける — 経路が違うものを同じ点として扱うことになる。
 - 新しく測る — 既に測定済みで、測り直す理由がない。
+
+## D1578. 下位 A/X topology は正本の部分適合に留め、`A^ == Q` の代替述語を発明しない (2026-09-03)
+
+**決定:** 凍結側の下位実装 `orchestrator/campaign/s8b_ratified_freeze.py` を
+`docs/freeze-permanent-design-s2.md` §S2-1.14 へ適合させる作業のうち、本 wave が閉じるのは
+**承認 A と有効 pointer X を別 commit とし、X の parent をちょうど A、各 commit を 1 record 追加のみ
+とする部分だけ**とする。正本が同時に定める `A^ == Q` は実装しない。Q の代わりに世代導入 commit G を
+A の parent として要求する代替述語も**新設しない**。gate `FREEZE-AX-TOPOLOGY` は
+`nonconforming` のまま据え置く。
+
+**理由:**
+
+- 正本の列は `H_gen <- G <- R <- L_prod <- L_manifest <- Q <- A <- X` であり、Q は検査 receipt 4 件の
+  導入 commit である。R / L_prod / L_manifest / Q はいずれも permanent freeze family の構成要素で、
+  同 family の producer・resolver・CLI・世代 artifact・receipt・report は repository に 1 件も存在しない。
+  存在しない入力を要求する述語は採用できない (D75 系の gate 入力実在要求)。
+- 「Q が無いから G を代わりに要求する」案は正本に無い規則であり、足すと正本どおりの完全列
+  `G <- R <- L_prod <- L_manifest <- Q <- A` を逆に拒否する。段 3 の敵対検査が逐語照合で構成した。
+- **A の predecessor が無制約であることは本 wave が作った穴ではない。** 親が repo 外 probe で、
+  G を別枝に置き A+X を同一 commit として merge した history が**変更前のコードで既に受理される**
+  ことを実測した (`RESULT=ACCEPTED`)。本 wave はこの受理集合を広げも狭めもしない。
+- 部分適合であることを隠さない。gate status を動かさず、`FREEZE-AX-TOPOLOGY` を `resolved` に
+  しないことで、残る schema 差 4 件と Q 列の未実装が台帳上に見え続ける。
+
+**却下した選択肢:**
+
+- **G を Q の代替として A の parent に要求する** — 正本に無い規則であり、正本どおりの完全列を
+  拒否する。順序の入れ替えを塞ぐ効果はあるが、塞ぎ方が正本と非同値である。
+- **topology だけ直して gate を `resolved` にする** — 上位権限束設計 §12.4 が明文で禁じる。
+  現行 parser は依然として正本どおりの bytes を拒否し、上位 A が参照する受理集合は旧 schema に
+  支配されたままである。
+- **approval / pointer / revocation / cancellation の schema も同時に正本へ寄せる** — 正本の
+  approval は `bundle_digest` と 7 element の `components` を要求し、その 7 component は
+  known / measurement / holdout / receipt と 3 report である。holdout 単独 family へ被せると
+  実在しない入力を literal で埋めることになる。
+
+## D1579. 派生値 pin の協調更新は owner wave の想定手順であり、テストの弱体化と数えない (2026-09-03)
+
+**決定:** `orchestrator/tests/fixtures/calibration_freeze_authority/` の case が宣言する
+invocation digest、`manifest.v1.json` の `raw_sha256` / `entries_sha256`、および
+`orchestrator/tests/calibration_freeze_authority_contract.py` の
+`_EXPECTED_RAW_SHA256_BY_FIXTURE` / `_EXPECTED_FIXTURE_ENTRIES_SHA256` は、
+**その fixture builder を所有する wave が、fixture の意味を変えないまま協調更新してよい**。
+更新してよいのは派生値だけで、`expected_decision`、`single_mutation`、`builder`、`entrypoint`、
+`binding_state`、`design_row_id`、および gate status と `_EXPECTED_REQUIRED_GATES` は変えない。
+
+**理由:**
+
+- invocation digest の原像には合成 repo の HEAD が入る (`_canonical_argument` が `Path` を
+  `{"type": "git-repository", "head": ..., "status": ...}` へ写す)。builder の commit 構成を
+  変えれば digest は**必ず**変わる。更新できないなら builder は永久に凍結される。
+- pin の目的は不変性の保証ではなく、**builder の意図しない drift を可視化すること**である。
+  contract module 側の pin は「case を変えて manifest を refresh しても pin は動かせない」ように
+  manifest から独立させてあり (同 module の comment が明記)、更新を第三の場所での明示的な編集として
+  露出させる設計である。owner wave が意味を保ったまま更新することは、その設計が想定する経路である。
+- 先例が存在する。commit `b555a2986` は同 builder を変更し、case JSON 6 件と `manifest.v1.json` を
+  同じ commit で更新したうえ、commit message に「contract 側のテストは旧値を固定しているため赤である。
+  次の commit で同期する」と明記している。
+- 凍結された design 文書側にこれらの hash の pin は無い (`docs/calibration-freeze-authority-bundle-design.md`
+  と `docs/freeze-permanent-design-s2.md` を hash 値で検索して 0 件)。束縛は test / contract 層に閉じる。
+
+**却下した選択肢:**
+
+- **builder を同一 commit のまま据え置く** — 3 fixture の positive control (いずれも
+  `expected_decision: accept`) が新しい topology 検査で拒否される。分けても分けなくても赤になり、
+  据え置きは逃げ道にならない。
+- **digest に合わせて fixture の狙いを書き換える** — テストを甘くする変更であり、絶対規律 2 に触れる。
+
+## D1580. 候補集合から恒真になる述語を正しさ防壁として新設しない (2026-09-03)
+
+**決定:** 正本が pairwise 非同一を課していても、**候補の作られ方から常に真になる述語は新設しない**。
+本 wave では `generation-pointer-same-commit` (X と世代導入 commit G の同一性拒否) を採用しない。
+既に実装されている同型の guard は削除しないが、防壁として数えず、変異事前登録にも入れない。
+
+**理由:**
+
+- X は `_assert_user_commit` により raw / parsed とも逐語 `AI-Agent: none` を要求され、G は
+  `_assert_candidate_commit` により `none` を拒否される。同一 commit が両方を満たすことはないため、
+  この述語は実 resolver から到達不能である。
+- 恒真な guard を防壁として数えると、実際には守っていないものを検査済みの保証として台帳や
+  レポートへ計上することになる。段 3 の敵対検査が独立に構成した。
+- 同じ理由で `approval-pointer-same-commit` も受理集合を狭めない。A == X なら追加 path 集合が
+  `{approval, pointer}` となり A 側の exact-diff 検査が必ず拒否するためである。この guard は
+  reason code を明瞭にする診断としてのみ置き、その旨をコード comment に明記した。
+
+**却下した選択肢:**
+
+- **正本の逐語に合わせて pairwise 非同一を全辺実装する** — 到達不能な reason code が増え、
+  変異で kill できない guard が防壁の数に混ざる。
+- **恒真な guard も「多重防御」として数える** — 実際の受理集合を守らないものを保証に計上する。
+
+## D1581. repo 外入力の guard は根 directory でなく要求 file 集合で判定する (2026-09-03)
+
+**決定:** テストが git 管理外の絶対 path を読むとき、skip 判定を次の形にする。
+
+1. **要求集合は checked-in artifact から導出する。** file 名を test 側へ手打ちした literal 表を
+   作らない。導出元がずれたら guard もずれるべきである。
+2. **欠落は `os.stat` の `FileNotFoundError` だけを skip とする。** `Path.exists()` を使わない。
+   同 API は `ENOTDIR` と `ELOOP` でも False を返すため、非 directory component や
+   symlink loop という**構造的な壊れ方を「欠落」として隠す**。それらと権限エラー、内容不正、
+   SHA 不一致は従来どおり失敗させる。
+3. **guard の粒度は「その node が読む file」に合わせる。** 1 file だけを読む node を、
+   無関係な file の不在で skip させない。
+4. **skip 理由に欠けた relative path を列挙し、「完全な入力集合なら全 assertion が走る」旨を書く。**
+   後から「テストを緩めて緑にした」と「外部入力が無いので測れなかった」を区別できるようにする。
+5. **各 module に対照を 2 本置く。** 「root は在るが要求 file が 1 件欠ける → skip する」正例と、
+   「完全な集合なら skip しない」対照。前者が root-only guard の偽実装を直接殺す。
+6. **要求集合が exact であることのテストを置く。ただし期待値を guard と同じ factory から
+   導出しない。** 導出すると恒真になる。
+
+**理由:**
+- 2026-09-01 に `~/.codex/sessions` の 2026/07 が剪定され、根 directory の有無しか見ない
+  skip 判定が発火せず **26 node が hard red** になった。同時刻の別 wave 3 本も同数で落ちた。
+  特定 wave の赤ではなく、**全 wave の land を同時に止める可用性障害**である。
+- 外部測定 root は論文図の provenance 検証にも使われている
+  (`/work/1/SFC/tanab/b10-backoff-grid-runs5` が 22 file の sha256 を支える)。
+  ここが消えても同じことが起きる。
+- `Path.exists()` を使うと、壊れた外部証拠木を「測定不能」へ再分類してしまう。
+  それは絶対規律 2 が禁じる正しさゲートの緩和に接近する。
+
+**却下した選択肢:**
+- 根 directory の有無だけを見る — まさに 2026-09-01 の事故形である。
+- guard を module 全体へ一律に掛ける — 1 file しか読まない node まで巻き込み、
+  外部資源が部分的に在る環境で不要に検出力を失う。
+- 例外を広く捕まえて skip する — 構造的な壊れ方を隠す。
+
+## D1582. AST 発見の字句 prefilter は NFKC 正規化後の source に対して行う (2026-09-03)
+
+**決定:** AST で発見した集合を字句 prefilter で絞り込むとき、判定は
+`unicodedata.normalize("NFKC", source_text)` に対して行う。生の source text に対して行わない。
+
+**理由:**
+- Python は識別子を NFKC 正規化する (PEP 3131)。したがって
+  `layout.ｅxploration_campaign_layout(x)` (先頭が全角 e、U+FF45) は、生 source に ASCII の
+  `exploration_campaign_layout` を**含まない**のに、`ast.parse` 後の `Attribute.attr` は
+  `exploration_campaign_layout` に**なる**。
+- 生 source に対する prefilter はこの file を捨てるが、AST 経路は driver として発見する。
+  **これは「族から外す条件」であり、D872 決定 1「編入は AST の発見だけで決め、除外述語・
+  `skip`・名前による分岐を作らない」に抵触する。**
+- NFKC 正規化後に判定すれば必要条件が回復する。識別子 token の境界は空白や ASCII 記号で
+  区切られるので、識別子の NFKC 結果は source 全体の NFKC にも連続部分文字列として必ず残る。
+- 費用は実測でほぼ変わらない。187 file に対して生 source 版 0.247 秒、NFKC 版 0.285 秒、
+  無 prefilter 1.718 秒 (best-of-5、ログインノード単一 process)。**83.4% 削減**、
+  正規化の追加費用は 0.038 秒、発見集合は 7 件で完全一致。
+
+**却下した選択肢:**
+- 生 source に対する部分文字列判定 — 上記のとおり必要条件を満たさない。
+- marker を `run_campaign` や `CampaignLayout` にする — どちらも単独では必要条件でない。
+  `p3_autonomous_workload_trial` は `CampaignLayout` branch で `run_campaign` を持たず、
+  `p3_kickoff` は `run_campaign` branch で `CampaignLayout` を持たない。
+- 実 repo を prefilter 有無で二重走査する既定テストを置く — 187 file を毎回 2 回 parse する
+  新しい成長比例テストになり D335 に抵触する。固定本数 fixture で production 関数を
+  両設定で呼ぶ形にする。
+- 発見を遅延化する — `_CAMPAIGN_DRIVERS` は 5 箇所の `@pytest.mark.parametrize` へ
+  `ids=` 込みで渡されており、collection 中に値が要る。遅延化できない。
+
+## D1583. repo 外束縛の全数走査 gate は新設せず、局所修復に留める (2026-09-03)
+
+**決定:** テスト source を全走査して未登録の repo 外束縛を検出する gate を新設しない。
+既知の束縛は module-local な内容 guard で個別に修復する。
+
+**理由:**
+- D335 は「repository の成長に比例して実行コストが増える構造のテストは新設しない」と定める。
+  `orchestrator/tests/*.py` の全走査はこれに当たる。字句 prefilter を付けても
+  345 file の `read_text` は残り、`O(file 数)` の構造は消えない (実測 0.610 秒、
+  345 file 中 16 file を `ast.parse`)。
+- **決定的な先例がある。** 既存の repo 全体走査 `test_campaign_import_invariant.py` は
+  まさにこの理由で `growth_test_holds.py` に 6 node 恒久保留されている。新設すれば同じ扱いになり、
+  保留されれば gate として機能しない。
+- `DW-G03` の「異なる producer/consumer で独立に 2 件」も成立しない。git 履歴では
+  dev-wave-jobs 系 2 file が同一作者・同日 (`56ae5e848` / `f24550a01`)、
+  B-10 系 2 file が**同一 commit** (`637dafa17`) である。同型欠陥の独立再現とは言えない。
+- 字句走査には原理的な限界もある。`output_snapshot_ignores.py:91-111` は
+  `git rev-parse --git-path info/exclude` と `git config --get core.excludesFile` が返す path を
+  読むが、これは string literal ではないので**どんな字句走査でも検出できない**。
+
+**却下した選択肢:**
+- 登録簿 JSON + 全走査メタ gate — 上記のとおり D335 と `DW-G03` の両方に抵触する。
+- 全走査を保留登録簿へ入れて新設する — 保留された gate は発火しないので、
+  「全数防護済み」という主張だけが残り実体が伴わない。より悪い。
+- 何もしない — 既知の 4 file は 2026-09-01 と同型の穴を持っており、放置すれば
+  外部 root の剪定で全 wave の land が同時に止まる。局所修復は行う。
+
+**申し送り:** 「全数性を機械で保証したいが、その gate 自体が成長比例になる」というジレンマは
+ユーザー裁定へ返す。0.610 秒・1 走 1 回 (collection ではないので 48 worker x 3 shard に
+掛からない) という費用で D335 の明示例外を与えるかどうかは人間の判断である。
+
+## D1584. raw-record producer の棄却台帳は完全性を主張せず、守っていない範囲を成果物へ書く (2026-09-03)
+
+**決定:** publication root 直下の固定名 leaf `raw-record-rejections.jsonl` に、
+publication の検証に成功した後の producer rejection だけを canonical JSONL で追記する。
+台帳に **hash chain を置かない。** 代わりに次を成果物へ明記する。
+
+- 台帳の削除と末尾の完全切断は検出しない。
+- absent な planned leaf の現在の理由は決定できない (未試行・deferred・記録前の棄却・記録失敗を
+  区別できない)。
+- publication の検証そのものが失敗した棄却は記録できない。
+- 件数と率は「観測できた可読な台帳前置部分の event」という母集団から出た値である。
+
+**理由:**
+
+- chain head を外部の権威へ pin しない chain は、末尾の完全切断と file 削除を検出できない。
+  守れない範囲を守れるかのように見せる恒真な保証になる。
+- D1533 は成果物の不変性を「同じ path が残っている間の再作成防止」までとし、防いでいない範囲を
+  成果物へ明記せよと定めている。改竄が正式な受理まで届く実経路が示されていない段階では、
+  bytes 級 provenance は見送り側に入る。chain はまさにその見送り側である。
+- D1529 は欠測を含む母集団から出た数値主張に、文書単位でなく主張と母集団の単位で但し書きを
+  付けよと定めている。棄却件数と棄却率がこれに当たる。
+- 非保証を単純に落とすと偽の完全性になる。棄却の後に deferred が起きた候補では、
+  「absent かつ matching rejection あり」でも現在の absent 理由は棄却とは限らない。
+  そこで非保証を 2 つに割り、記録された棄却の復元可能性だけを主張し、現在理由の不可知は残した。
+
+**却下した選択肢:**
+
+- **event に hash chain を置く** — head を pin しないため完全性を主張できず、
+  D1533 の見送り側に当たる。
+- **chain head を別権威へ pin する仕組みを新設する** — 成果物とは別の権威へ attempt を予約する
+  機構が要る。実経路が示されていない。
+- **既存の記録経路へ相乗りする** — issuer の固定 artifact は receipt が bytes を pin するため
+  後追記で publication が失効する。admission record は事前 admission の read-only verifier で
+  writer を持たない。analysis ledger の violation 事象は理由語彙が 5 値に閉じ producer の
+  issue code を保持できず、file へ書かない。campaign WAL は publication root から常に導出できず、
+  request 検証前の棄却では campaign root 自体が未確定。成功 attempt leaf への union は
+  planned path conflict と leaf の IO error という最も重要な棄却理由ほど記録できない。
+- **deferred も台帳へ書く** — deferred は再試行で解消する一時状態であり、記録しても現在の
+  absent 理由を決定できない。器を増やさず、非保証を狭める側で閉じた。
+- **非保証を全部落とす** — 記録前の棄却・記録失敗・未試行・deferred を区別できないままでは偽になる。
+
+## D1585. 棄却台帳の読み書きの失敗を、成功公開と assembly の可否へ漏らさない (2026-09-03)
+
+**決定:** 棄却台帳の追記に失敗したら、元の rejection へ IO エラーの issue を 1 件足して
+**rejection のまま返す。** 成功公開へ倒れる枝を作らない。台帳の読み取りに失敗したら、
+その状態を独立した値として運び、**raw analysis assembly の成否へ昇格させない。**
+`fsync` に失敗したときは同じ lock を保持したまま追記開始 offset へ切り戻し、
+「数えられた event は fsync が成功している」を真に保つ。
+
+**理由:**
+
+- 記録は観測であって判定ではない。観測の失敗が判定を変えると、記録を増やすほど受理集合が
+  動くことになる。絶対規律 2 が禁じる方向である。
+- 台帳の検証失敗を assembly の失敗へ昇格させると、正常な成功 leaf が揃っていても材料レポートが
+  利用不能になる。記録の失敗が後続の成果物の利用可否へ漏れる。
+- `fsync` 前に可視化された event を耐久 event と同じ顔で数えると、crash で消えうる分を
+  完全性の主張へ混ぜることになる。切り戻せば、数えた event はすべて耐久済みになる。
+
+**却下した選択肢:**
+
+- **追記失敗を無視して元の rejection をそのまま返す** — 記録の欠落が呼び手に見えない。
+- **台帳が invalid なら assembly も拒否する** — 記録の失敗が成果物の利用可否へ漏れる。
+- **`fsync` 失敗の event を残したまま IO エラーだけ返す** — 後続の loader が通常 event として
+  数え、件数・率・未解決・非保証が耐久 event と同じ値になる。
+
+## D1586. 判定器が環境から解決した実体の identity は green record へ束縛する。ただし束縛は拒否ではない (2026-09-03)
+
+**決定:** condition gate の green record は、gate が実行した CMake の実 path・内容 SHA-256・
+stat identity・実行した configure argv を保存する。supply arm と、CMake を実行する
+compile-time meaning proof の双方が対象で、schema は exact (欠落も余剰も reject) とする。
+旧形式の record を受理する後方互換経路は作らない。
+
+**同時に、この機構が何をしないかを正本として固定する。** identity を**記録すること**と、
+未承認の実体を**拒否すること**は別である。本機構は後者をしない。安定した (自分を書き換えない)
+CMake wrapper は、変更後も green を返す。拒否するには「承認済み CMake identity」の権威が要るが、
+repo 内に存在しない。この限界は主張せず明記する (規律 7、D387)。
+
+**受理集合が狭まるのは次の 4 つに限る。**
+
+1. cmake 証拠を持たない旧形式の record。
+2. 2 つの arm が異なる CMake 実体で作られた record。
+3. 1 回の configure の前後で CMake 実体が入れ替わった走行。
+4. configure argv が記録された cmake path に束縛されていない record。
+
+**保存する argv は「この gate が実行した argv」であり、wrapper の内側 argv ではない。**
+wrapper が委譲先へ渡した argv は観測していない。ただし wrapper が compile entry を
+書き換えた効果は、既存の `requested_replay_argv` (compile_commands 由来) に現れる。
+
+**理由:**
+
+- F813 の恒久対応は「gate 側に wrapper hash と configure argv を束縛する変更が要る」と書き、
+  同時に「機械的な検出器は無い」と明記していた。本決定は前者を実装し、後者の限界を保つ。
+- 判定器が環境から実体を解決する設計では、PATH・環境変数・生成された入力が受理集合の一部である。
+  実体が判定の証拠へ残らなければ、事後に certified の値がどのビルドから出たか言えない。
+- 承認済み identity の権威を新設すると、登録簿・更新手順・機体差の扱いが必要になる。
+  発火条件を満たす既存 artifact path も計測 ID も書けないため、設計メモに留める (DW-G04)。
+
+**却下した選択肢:**
+
+- **未承認の CMake を拒否する。** これが穴を実際に閉じる唯一の道だが、承認済み identity の
+  権威が repo に無い。実装すれば「承認済み」の定義を wave が自分で決めることになる。
+- **旧形式 record を受理し続ける互換経路を置く。** 受理集合を広げる。移行対象の
+  historical record は現に存在せず、必要がない。
+- **configure argv の位置を pin する** (`-S` / `-B` の添字、export flag の位置)。
+  production 経路では常に真になり、受理集合を狭めない。手組み record に対しても
+  `argv[0] == cmake_path` 以上の判別力を持たない。
+
+## D1587. condition gate の受理権威は record validator 一本とし、production 層の同型検査は診断として扱う (2026-09-03)
+
+**決定:** condition gate の CMake identity 検査は 4 箇所にあるが、**受理権威は record validator
+だけ**とする。production 層 (configure 直後の before/after 比較、supply の requested/control 比較、
+configured-command validator、compile-time meaning の requested/default 比較) は、より早く固有の
+reason code で落ちる**冗長 gate**であり、受理集合の決定はしていない。
+
+変異検査では、単独変異の KILLED 期待を record validator の行へ登録する。production 層の単独変異は
+受理集合を変えないため kill として数えず、diagnostic sensitivity pin として別枠に記録する。
+冗長性の主張は両層同時変異の KILLED 期待で裏取りする。
+
+**恒真だから消してよいという意味ではない。** fail-fast と診断の質のために残す。
+
+**理由:**
+
+- `_arm_record` は生成した record を `require_issuer=False` で validator へ通す。公開 field から
+  手組みした record にも同じ validator が適用されるため、validator は production 経路を
+  迂回した入力に対しても効く唯一の層である。
+- production 層の単独変異は 3 層に mask され、赤理由が 1 つに絞れない。DW-M01 の単一理由性を
+  満たさないまま KILLED と数えると、変異台帳が実効検出力を過大申告する。
+- 層を数えずに「検査が 4 箇所ある」と報告すると、実際には 1 箇所しか受理を決めていない事実が隠れる。
+
+**却下した選択肢:**
+
+- **production 層の単独変異も KILLED として数える。** mask されているため帰属が成立しない。
+- **production 層の同型検査を削って層を 1 つにする。** 早い段階の固有 reason code を失い、
+  診断が劣化する。受理集合は変わらないが、失敗の切り分けが遅くなる。
+- **両層同時変異だけを登録する。** どちらの層が効いたかを分離できず、単独変異の帰属も得られない。
+
+## D1588. 完走済み write-heavy の限定受理は有限な既存 45 record の内容 digest へ閉じる (2026-09-03)
+
+**決定:** B-10 の集約 (report 相) が完走済み write-heavy を受理する経路は、
+campaign `b10-backoff-shape-silo-write-heavy-formal-e3de15eb` の**現存 45 record そのもの**へ
+exact に閉じる。実装内に凍結した 45 個の内容 digest 集合と一致しない record は 1 件も通さない。
+通常の block record validator は緩めない。
+
+**理由:**
+- driver 自身の bytes が `analysis_code_sha256` として事前登録の束縛へ入り campaign 同一性まで流れる。
+  そのため §6 の修正を実装すると新しい束縛になり、完走済み分は通常経路では受理できない。
+  **この不一致は本 wave が作ったものではなく、現行 main の時点で既に成立していた** (実測)。
+- D1509 決定 3 は完走済み 45 セルを残すと定め、規則を登録内容ではなく集約側へ持たせると決めた。
+  本決定はその実行である。
+- 「歴史的な束縛と同じ形の record」を一般に受理する形は採らない。envelope は自己 hash であって
+  秘密に束縛された署名ではないため、`correctness_certified` や `median_tps` を書き換えて
+  hash を計算し直した入力が通ってしまう。これらの値は判定へ直接入るので規律 2 に反する。
+- 完走済みか否かは実測で決まった。官製 output の block record を全数読むと、
+  `e3de15eb` は 45 件すべてが性能 binary の SHA と throughput を持ち、
+  もう 1 本の write-heavy campaign は 45 件すべてが SHA 不一致で測定不能に終わっていた。
+  balanced と read-heavy の旧 campaign には block record ディレクトリ自体が無い。
+  **したがって採用する campaign に選択の余地は無い。**
+
+**却下した選択肢:**
+- 歴史 binding の形で受理する — 受理集合が有限に閉じず、改変記録が判定へ入る。
+- block record の schema 版を上げて新旧双方を受理する — schema version の union は受理集合の拡大。
+- 完走済み 45 セルを取り直す — D1509 決定 3 が却下済み。
+
+## D1589. B-10 のビルドキャッシュ置き場は workload を鍵にする (2026-09-03)
+
+**決定:** B-10 正式走のビルドキャッシュ置き場は workload ごとに分ける。
+投入ごとの識別子 (submission nonce) を鍵にしてはならない。
+
+**理由:**
+- 分散の単位は workload ごと 3 本 (D1509 決定 1) なので、workload を鍵にすれば
+  同時に走る 3 本の置き場は互いに素になり、共有による奪い合いは止まる。
+- **投入ごとの識別子で分けると再開性が壊れる。** 投げ直すと鍵が変わって冷えた置き場から
+  再ビルドになり、記録済みの認証済みバイナリと SHA が一致しない。cross-job の bytes 再現性は
+  過去に 2 巡実装して差分が 149 → 56 → 45,454 bytes と収束しなかった実測があり、
+  同一 job・同一 checkout で認証と測定を行う形が採られている。
+  セル記録は一度きりの作成で書かれるため、一致しないセルは測定不能で固定される。
+  設計文書 §7 が明記する「性能測定の途中で切られた場合は続きから取れる」を壊す。
+- SHA 一致条項が要求しているのは同一 job の中での照合であり、置き場の鍵を変えても緩まない。
+- 置き場を分けることは、正式測定の cache 同一性から source root を外すことではない (D1220 と不衝突)。
+  source root は build admission の preimage に入ったままである。
+
+**却下した選択肢:**
+- 投入ごとの識別子を鍵にする — 上記のとおり再開性を壊す。
+- 共有のまま運用規律で衝突を避ける — 3 本同時投入が前提なので機械的に分ける必要がある。
+- cross-job の bytes 再現性を先行条件にする — 否定的実測があり、条件にすると実装不能になる。
+
+## D1590. 270 枠の完全性は開示であって受理規則にしない (2026-09-03)
+
+**決定:** B-10 集約レポートの完全性 (登録格子 270 枠に対する完了記録数と未完了枠数) は
+開示だけに使う。WAL の無終端 tail、登録外の verify タグ、反復の上限超過を理由に
+レポートの発行を止めない。レポート発行を止めてよいのは、入力である 135 個の
+block record 側の検査 (自己 hash、受領証 hash、格子の過不足と重複) だけとする。
+
+反復番号の明示欄は成果物に存在しないため、完了数は選定 campaign 内の
+`(workload, 変種, タグ)` ごとの件数を登録枠へ射影して数える。出現順に依存しない。
+完了記録数を書くときは内訳の campaign を必ず名指しする。
+
+**理由:**
+- 設計文書は完全性の 3 行を「参考値であって受理規則ではない」と明記している。
+  開示のための情報が欠けたことを理由に判定と台帳が発行されなくなるのは、この境界を越える。
+- 件数法は順序に依存せず、官製 4 campaign の記録から完了記録数を現物どおり再現できる。
+  ただし観測標本に複数試行も上限超過も含まれていないため、一般に十分だとは主張しない。
+  重複 frame と別 repetition はどちらの数え方でも識別できない — これは開示すべき限界である。
+- 同じ完了記録数が別の campaign の組から偶然出るため、campaign を名指ししない開示は監査できない。
+
+**却下した選択肢:**
+- 完全性の異常でレポートを拒否する — 開示と受理規則の境界を越える。
+- 試行ごとに出現順で反復番号を振る — 試行を跨ぐ入力で完了数を過少計上する。
+- 分母に campaign ID を入れる — 登録格子は論理キーで数えると定められている。

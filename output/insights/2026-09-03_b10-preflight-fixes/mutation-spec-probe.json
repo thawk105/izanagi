@@ -1,0 +1,106 @@
+{
+ "estimated_run_seconds": 900,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "b10pf.m01",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+     "new": "               \"elapstim_req_s\": int(walltime_s) + 1}:\n",
+     "old": "               \"elapstim_req_s\": int(walltime_s)}:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "b10pf.m02",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+     "new": "[[ \"$SCHEDULER_ELAPSE_LIMIT_S\" -eq \"$B10_WALLTIME_S\" ]] || true \\\n",
+     "old": "[[ \"$SCHEDULER_ELAPSE_LIMIT_S\" -eq \"$B10_WALLTIME_S\" ]] \\\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "b10pf.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "new": "        \"elapstim_req_s\": _b10_walltime_s(repo_root) + 1,\n",
+     "old": "        \"elapstim_req_s\": _b10_walltime_s(repo_root),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "b10pf.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "new": "        ccbench_base / \"build-variants\"\n",
+     "old": "        ccbench_base / \"build-variants\" / \"b10-workloads\" / workload\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "b10pf.m05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "new": "                or False \\\n                or False \\\n",
+     "old": "                or type(row.get(\"execution_host\")) is not str \\\n                or not row.get(\"execution_host\") \\\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "b10pf.m06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "new": "    pass\n",
+     "old": "    _require_legacy_record_digests(content_digests, expected_record_digests)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "b10pf.m07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "new": "    if len(observed) != len(expected) or len(set(observed)) != len(observed):\n",
+     "old": "    if len(observed) != len(expected) or len(set(observed)) != len(observed) \\\n            or set(observed) != expected:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1500
+}

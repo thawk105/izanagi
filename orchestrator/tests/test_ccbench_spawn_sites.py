@@ -759,6 +759,9 @@ class _BenchmarkBuildSinkVisitor(ast.NodeVisitor):
 _SHELL_FUNCTION_RE = re.compile(
     r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\)\s*\{"
 )
+_SHELL_CMAKE_BUILD_RE = re.compile(
+    r'(?:\bcmake|["\']?\$(?:CMAKE_PATH|\{CMAKE_PATH\})["\']?)\s+--build\b'
+)
 
 
 def _shell_build_sinks(relative_path: str, source: str) -> set[_BuildSink]:
@@ -776,7 +779,7 @@ def _shell_build_sinks(relative_path: str, source: str) -> set[_BuildSink]:
                 scopes.pop()
                 depth = 0
         if (
-            re.search(r"\bcmake\s+--build\b", line)
+            _SHELL_CMAKE_BUILD_RE.search(line)
             and "--target" in line
             and re.search(r"\bycsb_[A-Za-z0-9_.-]+", line)
         ):
@@ -829,7 +832,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "buildcache",
         "<module>._build_binary",
-        2515,
+        2787,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
@@ -837,7 +840,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_formal",
-        2911,
+        3513,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
@@ -845,7 +848,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_measurement",
-        5067,
+        7099,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -2586,6 +2589,14 @@ def test_define_sink_cross_product_has_no_unreviewed_ungated_member():
     assert failures == []
 
 
+def test_production_build_sinks_include_certify_calibration_script():
+    sinks = _benchmark_build_sinks(_production_build_sources())
+
+    assert "tools/pegasus/certify_calibration.sh" in {
+        sink.relative_path for sink in sinks
+    }
+
+
 def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     assert {
         (
@@ -2596,15 +2607,15 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     } == {
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "buildcache", "<module>._build_binary", 2515,
+            "wave t1905", "buildcache", "<module>._build_binary", 2787,
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "campaign", "<module>.run_formal", 2911,
+            "wave t1905", "campaign", "<module>.run_formal", 3513,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
-            "wave t1819", "campaign", "<module>.run_measurement", 5067,
+            "wave t1819", "campaign", "<module>.run_measurement", 7099,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
