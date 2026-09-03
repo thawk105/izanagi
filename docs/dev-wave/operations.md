@@ -118,7 +118,7 @@ NO-GO が続く場合は fix を重ねず 3 巡を上限とし (親の実機 blo
 
 ## DW-O17 — commit trailer
 
-trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--dry-run -F`単独rc=0→`commit -F`→full監査。
+trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--message-file`検査rc=0→`commit -F`→full監査。
 mergeは`OLD_HEAD`を保存し、ffはincoming監査→`--ff-only`→full監査、非ffは`--no-ff --no-commit`→
 競合解消→同じpreflight→`commit -F`→full監査。自動message/`--no-edit`は禁止。correctionは両commitを含む
 rangeかfull監査だけが権威（`OLD_HEAD..HEAD`は補助）。検査rcをpipeへ渡さず赤で停止（F37）。複数preflightと
