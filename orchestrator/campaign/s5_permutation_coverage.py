@@ -191,7 +191,11 @@ def _oracle_cross_check(p_reasons: dict, details: dict) -> bool:
 
 def _verify(trace_dir: str) -> dict:
     """verifier を別プロセスで実走し permutation_violations 込みで構造化して返す。"""
-    cmd = [sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet"]
+    cmd = [
+        sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet",
+        "--protocol", "silo", "--ccbench-root",
+        os.path.join(_repo_root(), "external", "ccbench"),
+    ]
     proc = subprocess.run(cmd, capture_output=True, text=True,
                           timeout=VERIFIER_TIMEOUT_S,
                           cwd=os.path.join(_repo_root(), "orchestrator"))
