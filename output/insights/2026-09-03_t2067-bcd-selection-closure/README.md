@@ -158,3 +158,35 @@ X が拒否側 2 node を、Y が受理側 2 node を赤にすることを確認
 
 実装子と両レビュー子はいずれも codex sandbox の制約で pytest を開始できず、
 正しく「実装済み・未実走」と申告した。実測はすべて親が行った。
+
+## 段 8 の顛末 — reference 節への統合は見送った
+
+本 wave の運用是正 3 件のうち、最も価値のある「焦点走の集合走で出た赤は実装起因と限らない」は
+failures 台帳の fragment (恒久対応つき) へ routing 済みで、これは commit されている。
+
+**`docs/dev-wave/` の該当節 (`DW-O26` / `DW-C01`) への 1 行統合は見送った。** 実測した構造は次のとおり。
+
+- 両節とも単節 byte 予算 1000 に対して `DW-O26` が 946、`DW-C01` が 995 で、ほぼ満杯である。
+  1 行足すには既存文を縮約するしかない。
+- 節本文は **4 層で pin されている。** `tools/check_docs.py` の exact literal、
+  `orchestrator/tests/test_check_docs.py` の合成 fixture (`_SYNTHETIC_DW_O26_SECTION` /
+  `_SYNTHETIC_DW_C01_SECTION`)、同 file の **byte 数定数** (`assert len(...) == 946` 等)、
+  および positive control が依存する**本文中の特定文字列** (`"静的レビューが見落とした破れを"`)。
+- 親が docs + literal だけを直した版では `python3 tools/check_docs.py` は rc=0 になるが、
+  `orchestrator/tests/test_check_docs.py` が合成 fixture のズレで大量に赤になった。
+  fixture も直した版では 569 passed / 2 failed まで減り、残る 2 件が byte 数定数と
+  positive control の依存文字列だった。
+- **docs 1 行の追記に対して 4 file・6 箇所の協調編集が要る。** 本 wave の deliverable
+  ((b)(c)(d)) とは無関係な付随作業であり、規律「盛らない」に従って打ち切った。
+
+**この打ち切りは検査を迂回していない。** 段 8 の編集はすべて revert し、
+land する tip には docs/dev-wave/ と tools/ と orchestrator/tests/test_check_docs.py の
+変更を一切含めていない。
+
+### 途中で踏んだ計測の罠
+
+`python3 tools/run_tests.py ... 2>&1 | tail -20` の exit code を rc として読み、
+一度「meta-test は緑」と誤判定した。**パイプの rc は末尾コマンド (`tail`) の rc** であり、
+テストの rc ではない。パイプなしで測り直して初めて大量の赤が見えた。
+`docs/dev-wave/operations.md` の `DW-O17` が「検査 rc を pipe へ渡さず赤で停止 (F37)」と
+既に定めている型を、親が踏んだ。
