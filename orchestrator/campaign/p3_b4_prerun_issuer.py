@@ -41,6 +41,7 @@ B4_PRERUN_RECEIPT_SCHEMA_VERSION = "p3-b4-prerun-issuer-receipt/v1"
 B4_ISSUER_COMMITMENT_SCHEMA_VERSION = "p3-b4-issuer-commitment/v1"
 B4_SEED_SOURCE_SCHEMA_VERSION = "p3-b4-seed-source/v1"
 B4_ARTIFACT_DESCRIPTOR_SCHEMA_VERSION = "p3-b4-artifact-descriptor/v1"
+B4_RAW_RECORD_REJECTIONS_NAME = "raw-record-rejections.jsonl"
 
 _REGISTRY_NAME = "scheduled-attempt-registry.jsonl"
 _MANIFEST_NAME = "analysis-manifest.json"
@@ -427,6 +428,7 @@ def _reject_fixed_artifact_conflicts(
             _MANIFEST_NAME,
             _RECEIPT_NAME,
             _RECEIPT_TEMP_NAME,
+            B4_RAW_RECORD_REJECTIONS_NAME,
         )
     )
     for item in planned:
@@ -1180,6 +1182,7 @@ __all__ = [
     "B4_ISSUER_COMMITMENT_SCHEMA_VERSION",
     "B4_PRERUN_NON_GUARANTEES",
     "B4_PRERUN_RECEIPT_SCHEMA_VERSION",
+    "B4_RAW_RECORD_REJECTIONS_NAME",
     "B4_SEED_SOURCE_SCHEMA_VERSION",
     "B4PlannedResultArtifact",
     "B4PrerunIssuerError",

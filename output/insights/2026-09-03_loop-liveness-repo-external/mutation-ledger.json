@@ -1,0 +1,763 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/28281f5355fd71775cc372f4f2cf3fb1/izdw-28281f5355.o970944",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/28281f5355fd71775cc372f4f2cf3fb1/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 49%]\n........................................................................ [ 99%]\n.                                                                        [100%]\n145 passed in 10.02s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4adf4185d2962200a84ada51bb6393e680dcf1cf355ac86f5091c0bd485ac5b5"
+    },
+    "artifact_error": null,
+    "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+    "duration_s": 189.784,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "28a09404fadfa5ae50a97b88aec7fc412f4b63320a3b7f7be95253206ae78ba2",
+    "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+    "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+    "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+    "status": "PASSED",
+    "test_output_sha256": "4adf4185d2962200a84ada51bb6393e680dcf1cf355ac86f5091c0bd485ac5b5",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+  },
+  "date": "2026-09-03T04:29:54.803772+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/8ae000648a9cb9f32801d9f9a901da4b/izdw-8ae000648a.o971050",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/8ae000648a9cb9f32801d9f9a901da4b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................F.F.............. [ 50%]\n.........F.............................................................  [100%]\n=================================== FAILURES ===================================\n____________________ test_driver_contract_registry_is_exact ____________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_driver_contract_registry_is_exact():\n>       assert set(_DRIVER_CONTRACTS) == {\n            name for name, _module, _tree in _CAMPAIGN_DRIVERS\n        }\nE       AssertionError: assert {'p3_autonomo..._s4_red', ...} == {'p3_kickoff'...ry_a1_paired'}\nE         \nE         Extra items in the left set:\nE         'p3_autonomous_workload_trial'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_exploration_namespace.py:590: AssertionError\n__ test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture ___\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_campaign_driver_lexical_p0')\n\n    def test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture(\n            tmp_path):\n        fixtures = {\n            \"alias_call_negative.py\": \"\"\"\n    from orchestrator.campaign.layout import exploration_campaign_layout as make_layout\n    \n    def main():\n        make_layout(\"fixture\")\n        run_campaign()\n    \"\"\",\n            \"campaign_layout_positive.py\": \"\"\"\n    def main():\n        layout.exploration_campaign_layout(\"fixture\")\n        layout.CampaignLayout(root=\"fixture\")\n    \"\"\",\n            \"comment_only_negative.py\": \"\"\"\n    # exploration_campaign_layout is documentation, not a call.\n    def main():\n        run_campaign()\n    \"\"\",\n            \"dynamic_lookup_negative.py\": \"\"\"\n    def main():\n        getattr(layout, \"exploration_\" + \"campaign_layout\")(\"fixture\")\n        run_campaign()\n    \"\"\",\n            \"marker_absent_negative.py\": \"\"\"\n    def main():\n        run_campaign()\n    \"\"\",\n            \"nfkc_positive.py\": \"\"\"\n    def main():\n        layout.ｅxploration_campaign_layout(\"fixture\")\n        run_campaign()\n    \"\"\",\n            \"run_campaign_positive.py\": \"\"\"\n    def main():\n        layout.exploration_campaign_layout(\"fixture\")\n        run_campaign()\n    \"\"\",\n        }\n        nfkc_source = fixtures[\"nfkc_positive.py\"]\n>       assert _CAMPAIGN_DRIVER_MARKER not in nfkc_source\nE       assert 'run_campaign' not in '\\ndef main(...campaign()\\n'\nE         \nE         'run_campaign' is contained here:\nE           ure\")\nE               run_campaign()\n\norchestrator/tests/test_p3_exploration_namespace.py:567: AssertionError\n_______________ test_campaign_driver_discovery_names_are_pinned ________________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_campaign_driver_discovery_names_are_pinned():\n>       assert tuple(name for name, _module, _tree in _CAMPAIGN_DRIVERS) == (\n            \"p3_autonomous_workload_trial\",\n            \"p3_kickoff\",\n            \"p3_s4_loop\",\n            \"p3_s4_loop_sort\",\n            \"p3_s4_loop_trigger_gating\",\n            \"p3_s4_red\",\n            \"paper_story_a1_paired\",\n        )\nE       AssertionError: assert ('p3_kickoff'...ry_a1_paired') == ('p3_autonomo..._s4_red', ...)\nE         \nE         At index 0 diff: 'p3_kickoff' != 'p3_autonomous_workload_trial'\nE         Right contains one more item: 'paper_story_a1_paired'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_exploration_namespace.py:515: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact\nFAILED orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture\nFAILED orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned\n3 failed, 140 passed in 8.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1720 retained_bytes=1720 omitted_bytes=0 rendered_excerpt_bytes=1836 sha256=a3e03bf9ce80078ea3fee46598272c980db87373a50cc0d2c70a3193b7fcaa80\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_campaign_driver_lexical_p0')\n> \n>     def test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture(\n>             tmp_path):\n>         fixtures = {\n>             \"alias_call_negative.py\": \"\"\"\n>     from orchestrator.campaign.layout import exploration_campaign_layout as make_layout\n>     \n>     def main():\n>         make_layout(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>             \"campaign_layout_positive.py\": \"\"\"\n>     def main():\n>         layout.exploration_campaign_layout(\"fixture\")\n>         layout.CampaignLayout(root=\"fixture\")\n>     \"\"\",\n>             \"comment_only_negative.py\": \"\"\"\n>     # exploration_campaign_layout is documentation, not a call.\n>     def main():\n>         run_campaign()\n>     \"\"\",\n>             \"dynamic_lookup_negative.py\": \"\"\"\n>     def main():\n>         getattr(layout, \"exploration_\" + \"campaign_layout\")(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>             \"marker_absent_negative.py\": \"\"\"\n>     def main():\n>         run_campaign()\n>     \"\"\",\n>             \"nfkc_positive.py\": \"\"\"\n>     def main():\n>         layout.\\uff45xploration_campaign_layout(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>             \"run_campaign_positive.py\": \"\"\"\n>     def main():\n>         layout.exploration_campaign_layout(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>         }\n>         nfkc_source = fixtures[\"nfkc_positive.py\"]\n> >       assert _CAMPAIGN_DRIVER_MARKER not in nfkc_source\n> E       assert 'run_campaign' not in '\\x5cndef main(...campaign()\\x5cn'\n> E         \n> E         'run_campaign' is contained here:\n> E           ure\")\n> E               run_campaign()\n> \n> orchestrator/tests/test_p3_exploration_namespace.py:567: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=776 retained_bytes=776 omitted_bytes=0 rendered_excerpt_bytes=815 sha256=613ab5463b0563d50bc883797face049835271c5056ef84616f84165f71b2f0b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_campaign_driver_discovery_names_are_pinned():\n> >       assert tuple(name for name, _module, _tree in _CAMPAIGN_DRIVERS) == (\n>             \"p3_autonomous_workload_trial\",\n>             \"p3_kickoff\",\n>             \"p3_s4_loop\",\n>             \"p3_s4_loop_sort\",\n>             \"p3_s4_loop_trigger_gating\",\n>             \"p3_s4_red\",\n>             \"paper_story_a1_paired\",\n>         )\n> E       AssertionError: assert ('p3_kickoff'...ry_a1_paired') == ('p3_autonomo..._s4_red', ...)\n> E         \n> E         At index 0 diff: 'p3_kickoff' != 'p3_autonomous_workload_trial'\n> E         Right contains one more item: 'paper_story_a1_paired'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_exploration_namespace.py:515: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=507 retained_bytes=507 omitted_bytes=0 rendered_excerpt_bytes=534 sha256=3aa02531da84f44bff6aa65e57f70fe0aca92c0ea245a202d06bfd03080c7228\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_driver_contract_registry_is_exact():\n> >       assert set(_DRIVER_CONTRACTS) == {\n>             name for name, _module, _tree in _CAMPAIGN_DRIVERS\n>         }\n> E       AssertionError: assert {'p3_autonomo..._s4_red', ...} == {'p3_kickoff'...ry_a1_paired'}\n> E         \n> E         Extra items in the left set:\n> E         'p3_autonomous_workload_trial'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_exploration_namespace.py:590: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3003 retained_bytes=3003 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4805 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "743903856843f1119191a71b62c4ee0da65939d21f3c2c31893033c3562425bd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 85.41,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A1-MARKER-NOT-NECESSARY",
+      "injection_diff_sha256": "33b73896f9f3e9998e49b8c8fcf0d86991b5d62be9e8c653c47f71aa8fd260ef",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4396afa62b781c64ec314dbcb4f8ea3e0b048f7862037e46f0b5c8ca82a67b25",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+          "new": "_CAMPAIGN_DRIVER_MARKER = \"run_campaign\"\n",
+          "old": "_CAMPAIGN_DRIVER_MARKER = \"exploration_campaign_layout\"\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "743903856843f1119191a71b62c4ee0da65939d21f3c2c31893033c3562425bd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/f97781a4b3b27e1edb697623c4356b4f/izdw-f97781a4b3.o971055",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/f97781a4b3b27e1edb697623c4356b4f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................................................F.... [ 49%]\n........................................................................ [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n__ test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture ___\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_campaign_driver_lexical_p0')\n\n    def test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture(\n            tmp_path):\n        fixtures = {\n            \"alias_call_negative.py\": \"\"\"\n    from orchestrator.campaign.layout import exploration_campaign_layout as make_layout\n    \n    def main():\n        make_layout(\"fixture\")\n        run_campaign()\n    \"\"\",\n            \"campaign_layout_positive.py\": \"\"\"\n    def main():\n        layout.exploration_campaign_layout(\"fixture\")\n        layout.CampaignLayout(root=\"fixture\")\n    \"\"\",\n            \"comment_only_negative.py\": \"\"\"\n    # exploration_campaign_layout is documentation, not a call.\n    def main():\n        run_campaign()\n    \"\"\",\n            \"dynamic_lookup_negative.py\": \"\"\"\n    def main():\n        getattr(layout, \"exploration_\" + \"campaign_layout\")(\"fixture\")\n        run_campaign()\n    \"\"\",\n            \"marker_absent_negative.py\": \"\"\"\n    def main():\n        run_campaign()\n    \"\"\",\n            \"nfkc_positive.py\": \"\"\"\n    def main():\n        layout.ｅxploration_campaign_layout(\"fixture\")\n        run_campaign()\n    \"\"\",\n            \"run_campaign_positive.py\": \"\"\"\n    def main():\n        layout.exploration_campaign_layout(\"fixture\")\n        run_campaign()\n    \"\"\",\n        }\n        nfkc_source = fixtures[\"nfkc_positive.py\"]\n        assert _CAMPAIGN_DRIVER_MARKER not in nfkc_source\n        assert _CAMPAIGN_DRIVER_MARKER in unicodedata.normalize(\"NFKC\", nfkc_source)\n        for filename, source_text in fixtures.items():\n            (tmp_path / filename).write_text(source_text, encoding=\"utf-8\")\n    \n        filtered = _discover_campaign_drivers(\n            tmp_path, import_modules=False, use_lexical_prefilter=True,\n        )\n        unfiltered = _discover_campaign_drivers(\n            tmp_path, import_modules=False, use_lexical_prefilter=False,\n        )\n        filtered_names = tuple(name for name, _module, _tree in filtered)\n        unfiltered_names = tuple(name for name, _module, _tree in unfiltered)\n        expected_names = (\n            \"campaign_layout_positive\",\n            \"nfkc_positive\",\n            \"run_campaign_positive\",\n        )\n>       assert filtered_names == unfiltered_names\nE       AssertionError: assert ('campaign_la...ign_positive') == ('campaign_la...ign_positive')\nE         \nE         At index 1 diff: 'run_campaign_positive' != 'nfkc_positive'\nE         Right contains one more item: 'run_campaign_positive'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_exploration_namespace.py:583: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture\n1 failed, 144 passed in 7.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=2652 retained_bytes=2652 omitted_bytes=0 rendered_excerpt_bytes=2798 sha256=575e6caafcec40079865c48287b82326130feba64abf29dffea0349b3673d1a7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_campaign_driver_lexical_p0')\n> \n>     def test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture(\n>             tmp_path):\n>         fixtures = {\n>             \"alias_call_negative.py\": \"\"\"\n>     from orchestrator.campaign.layout import exploration_campaign_layout as make_layout\n>     \n>     def main():\n>         make_layout(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>             \"campaign_layout_positive.py\": \"\"\"\n>     def main():\n>         layout.exploration_campaign_layout(\"fixture\")\n>         layout.CampaignLayout(root=\"fixture\")\n>     \"\"\",\n>             \"comment_only_negative.py\": \"\"\"\n>     # exploration_campaign_layout is documentation, not a call.\n>     def main():\n>         run_campaign()\n>     \"\"\",\n>             \"dynamic_lookup_negative.py\": \"\"\"\n>     def main():\n>         getattr(layout, \"exploration_\" + \"campaign_layout\")(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>             \"marker_absent_negative.py\": \"\"\"\n>     def main():\n>         run_campaign()\n>     \"\"\",\n>             \"nfkc_positive.py\": \"\"\"\n>     def main():\n>         layout.\\uff45xploration_campaign_layout(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>             \"run_campaign_positive.py\": \"\"\"\n>     def main():\n>         layout.exploration_campaign_layout(\"fixture\")\n>         run_campaign()\n>     \"\"\",\n>         }\n>         nfkc_source = fixtures[\"nfkc_positive.py\"]\n>         assert _CAMPAIGN_DRIVER_MARKER not in nfkc_source\n>         assert _CAMPAIGN_DRIVER_MARKER in unicodedata.normalize(\"NFKC\", nfkc_source)\n>         for filename, source_text in fixtures.items():\n>             (tmp_path / filename).write_text(source_text, encoding=\"utf-8\")\n>     \n>         filtered = _discover_campaign_drivers(\n>             tmp_path, import_modules=False, use_lexical_prefilter=True,\n>         )\n>         unfiltered = _discover_campaign_drivers(\n>             tmp_path, import_modules=False, use_lexical_prefilter=False,\n>         )\n>         filtered_names = tuple(name for name, _module, _tree in filtered)\n>         unfiltered_names = tuple(name for name, _module, _tree in unfiltered)\n>         expected_names = (\n>             \"campaign_layout_positive\",\n>             \"nfkc_positive\",\n>             \"run_campaign_positive\",\n>         )\n> >       assert filtered_names == unfiltered_names\n> E       AssertionError: assert ('campaign_la...ign_positive') == ('campaign_la...ign_positive')\n> E         \n> E         At index 1 diff: 'run_campaign_positive' != 'nfkc_positive'\n> E         Right contains one more item: 'run_campaign_positive'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_exploration_namespace.py:583: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2652 retained_bytes=2652 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3552 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d93d8d598f4eae38049d48d4ec755ab65fd737f9b3d33814ffd487299cca933d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 32.691,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A2-NFKC-DROPPED",
+      "injection_diff_sha256": "6ddb449569b7207c6100ac51dd37e1b0fea36a313d524f0c06d0714e19a042d9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "efcfc259b95aa850f256fd8045108e843c3708a729c40dd7e83fddd924af0103",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+          "new": "                and _CAMPAIGN_DRIVER_MARKER not in source_text\n",
+          "old": "                and _CAMPAIGN_DRIVER_MARKER not in unicodedata.normalize(\n                    \"NFKC\", source_text,\n                )\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "d93d8d598f4eae38049d48d4ec755ab65fd737f9b3d33814ffd487299cca933d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/8451cc202e6d1b7ea20b7890b0265f49/izdw-8451cc202e.o971057",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/8451cc202e6d1b7ea20b7890b0265f49/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................................F.............. [ 49%]\n........................................................................ [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_campaign_driver_discovery_names_are_pinned ________________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_campaign_driver_discovery_names_are_pinned():\n>       assert tuple(name for name, _module, _tree in _CAMPAIGN_DRIVERS) == (\n            \"p3_autonomous_workload_trial\",\n            \"p3_kickof\",\n            \"p3_s4_loop\",\n            \"p3_s4_loop_sort\",\n            \"p3_s4_loop_trigger_gating\",\n            \"p3_s4_red\",\n            \"paper_story_a1_paired\",\n        )\nE       AssertionError: assert ('p3_autonomo..._s4_red', ...) == ('p3_autonomo..._s4_red', ...)\nE         \nE         At index 1 diff: 'p3_kickoff' != 'p3_kickof'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_exploration_namespace.py:515: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned\n1 failed, 144 passed in 8.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=692 retained_bytes=692 omitted_bytes=0 rendered_excerpt_bytes=729 sha256=f6dba9aa51b48adbdec06c5b123f8438f5c8e3c4ea4708448e9e4918b317824d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_campaign_driver_discovery_names_are_pinned():\n> >       assert tuple(name for name, _module, _tree in _CAMPAIGN_DRIVERS) == (\n>             \"p3_autonomous_workload_trial\",\n>             \"p3_kickof\",\n>             \"p3_s4_loop\",\n>             \"p3_s4_loop_sort\",\n>             \"p3_s4_loop_trigger_gating\",\n>             \"p3_s4_red\",\n>             \"paper_story_a1_paired\",\n>         )\n> E       AssertionError: assert ('p3_autonomo..._s4_red', ...) == ('p3_autonomo..._s4_red', ...)\n> E         \n> E         At index 1 diff: 'p3_kickoff' != 'p3_kickof'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_exploration_namespace.py:515: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=692 retained_bytes=692 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1452 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e6ab6bf82a7ca5e71d979a73ee7df5e91f39fe120e59cbf400f3a1a7f6eb6c72"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 32.177,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A3-NAME-PIN-TAMPERED",
+      "injection_diff_sha256": "3f90b7b0f82482434be0e51a8b3e61bb7638e762223fd4f0f62a5b78e591c4ee",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "050a67bc0d221f10d3fbe28725ea05b54814f2833248eee86df1d3316b763b6a",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+          "new": "        \"p3_kickof\",\n        \"p3_s4_loop\",\n        \"p3_s4_loop_sort\",\n",
+          "old": "        \"p3_kickoff\",\n        \"p3_s4_loop\",\n        \"p3_s4_loop_sort\",\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "e6ab6bf82a7ca5e71d979a73ee7df5e91f39fe120e59cbf400f3a1a7f6eb6c72",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/a62f2f3de2b595791bf43f4646d5a729/izdw-a62f2f3de2.o971059",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/a62f2f3de2b595791bf43f4646d5a729/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................................F... [ 49%]\n........................................................................ [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing _____\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_pinned_jobs_guard_skips_w0')\n\n    def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(\n        tmp_path: Path,\n    ) -> None:\n        jobs_root = tmp_path / \"jobs\"\n        jobs_root.mkdir()\n        paths = _pinned_jobs_paths()\n        _write_pinned_jobs_stubs(jobs_root, paths[1:])\n    \n>       with pytest.raises(pytest.skip.Exception) as caught:\nE       Failed: DID NOT RAISE Skipped\n\norchestrator/tests/test_t189_oracle_wiring_slice.py:158: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\n1 failed, 144 passed in 7.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=586 retained_bytes=586 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=e0a2d9e407f1231b4230eed233c80655d7fd28d641fe27d8494a36c07aae07ee\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_pinned_jobs_guard_skips_w0')\n> \n>     def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(\n>         tmp_path: Path,\n>     ) -> None:\n>         jobs_root = tmp_path / \"jobs\"\n>         jobs_root.mkdir()\n>         paths = _pinned_jobs_paths()\n>         _write_pinned_jobs_stubs(jobs_root, paths[1:])\n>     \n> >       with pytest.raises(pytest.skip.Exception) as caught:\n> E       Failed: DID NOT RAISE Skipped\n> \n> orchestrator/tests/test_t189_oracle_wiring_slice.py:158: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=586 retained_bytes=586 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1364 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "463ea3fee25cb26e81f7c20032cc663195962a0d5c8c6f0010dae064bd0cfd17"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 33.192,
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B1-T189-ROOT-ONLY-GUARD",
+      "injection_diff_sha256": "d930a64c8384d18757a30b5be54cf76b3d849062a098d172bf618a92e70eaf84",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "431dbee251e4a50d0b186156a3fb9362c8289eac799dc00dedf204c2e229c599",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+          "new": "def _missing_pinned_jobs_files(jobs_root: Path) -> tuple[str, ...]:\n    if not jobs_root.is_dir():\n        return _pinned_jobs_paths()\n    return ()\n",
+          "old": "def _missing_pinned_jobs_files(jobs_root: Path) -> tuple[str, ...]:\n    missing = []\n    for relative in _pinned_jobs_paths():\n        try:\n            os.stat(jobs_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "463ea3fee25cb26e81f7c20032cc663195962a0d5c8c6f0010dae064bd0cfd17",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/f1b27bc3a90b3394395a6f35d391a649/izdw-f1b27bc3a9.o971060",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/f1b27bc3a90b3394395a6f35d391a649/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 49%]\n..........F............................................................. [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing _____\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_pinned_jobs_guard_skips_w0')\n\n    def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(\n        tmp_path: Path,\n    ) -> None:\n        jobs_root = tmp_path / \"jobs\"\n        jobs_root.mkdir()\n        paths = _pinned_jobs_paths()\n        _write_pinned_jobs_stubs(jobs_root, paths[1:])\n    \n>       with pytest.raises(pytest.skip.Exception) as caught:\nE       Failed: DID NOT RAISE Skipped\n\norchestrator/tests/test_t189_oracle_wiring_slice.py:158: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\n1 failed, 144 passed in 8.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=588 retained_bytes=588 omitted_bytes=0 rendered_excerpt_bytes=621 sha256=a7dcd3b764ce84695ba65b4881e2096ad1b9aa1054b863a26b59fb96e9057c2b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_pinned_jobs_guard_skips_w0')\n> \n>     def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(\n>         tmp_path: Path,\n>     ) -> None:\n>         jobs_root = tmp_path / \"jobs\"\n>         jobs_root.mkdir()\n>         paths = _pinned_jobs_paths()\n>         _write_pinned_jobs_stubs(jobs_root, paths[1:])\n>     \n> >       with pytest.raises(pytest.skip.Exception) as caught:\n> E       Failed: DID NOT RAISE Skipped\n> \n> orchestrator/tests/test_t189_oracle_wiring_slice.py:158: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=588 retained_bytes=588 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1366 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "87522e655136a736da7ace2de2f0c7581f95394fa3232d7ab554d08fd0936d59"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 33.44,
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B2-T189-GUARD-DOES-NOT-SKIP",
+      "injection_diff_sha256": "78c7129e086d74c002b4eae6cf95b9a10c2d535afd7b3d03c47dbbbfb77e2dbf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9008eb2344b938b94011ea691576eaa32497fb9b209721eeec1f9b70f3091e1c",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+          "new": "        return\n",
+          "old": "        pytest.skip(\n            \"pinned external jobs inputs are unavailable; missing relative \"\n            f\"paths: {detail}; with the complete input set, all assertions \"\n            \"in this test would run\"\n        )\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "87522e655136a736da7ace2de2f0c7581f95394fa3232d7ab554d08fd0936d59",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/37ee2f513fb72987e0571f6a4a231c9b/izdw-37ee2f513f.o971061",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/37ee2f513fb72987e0571f6a4a231c9b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 49%]\n.............F.......................................................... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing _____\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_pinned_jobs_guard_skips_w0')\n\n    def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(\n        tmp_path: Path,\n    ) -> None:\n        jobs_root = tmp_path / \"jobs\"\n        jobs_root.mkdir()\n        paths = _pinned_jobs_paths()\n        _write_pinned_jobs_stubs(jobs_root, paths[1:])\n    \n>       with pytest.raises(pytest.skip.Exception) as caught:\nE       Failed: DID NOT RAISE Skipped\n\norchestrator/tests/test_t1434_t1222_science_slice.py:457: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\n1 failed, 144 passed in 8.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=587 retained_bytes=587 omitted_bytes=0 rendered_excerpt_bytes=620 sha256=e51d48250b5812bf3e709be7da33389232b4d7905a3372d6869eb473c13b88cb\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_pinned_jobs_guard_skips_w0')\n> \n>     def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(\n>         tmp_path: Path,\n>     ) -> None:\n>         jobs_root = tmp_path / \"jobs\"\n>         jobs_root.mkdir()\n>         paths = _pinned_jobs_paths()\n>         _write_pinned_jobs_stubs(jobs_root, paths[1:])\n>     \n> >       with pytest.raises(pytest.skip.Exception) as caught:\n> E       Failed: DID NOT RAISE Skipped\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:457: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=587 retained_bytes=587 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1366 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d23f8ae5ad61ef3a0428307747bdd06948f905f254b63ffbe6ec3661762d0433"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 48.578,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B3-T1434-ROOT-ONLY-GUARD",
+      "injection_diff_sha256": "8331ffeedd4145886db531d4afb060316ee279123138ba8e04b5fafbece4ff29",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4016ef119e147a5400e0962bbf1d5522b212cc7c79c17cc593e6622d779b97ad",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t1434_t1222_science_slice.py",
+          "new": "    if not jobs_root.is_dir():\n        return tuple(requirements)\n    return ()\n",
+          "old": "    for relative in requirements:\n        try:\n            os.stat(jobs_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "d23f8ae5ad61ef3a0428307747bdd06948f905f254b63ffbe6ec3661762d0433",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/311f1f784d092101ec9ab7decfd2018d/izdw-311f1f784d.o971065",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/311f1f784d092101ec9ab7decfd2018d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 49%]\n..............F......................................................... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n_ test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing _\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing():\n        with tempfile.TemporaryDirectory(prefix=\"b10-guard-missing-\") as temp:\n            measurement_root = Path(temp)\n            paths = _pinned_measurement_paths()\n            _write_pinned_measurement_stubs(measurement_root, paths[1:])\n            skip_exception = Skip\n            if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n                import pytest\n                skip_exception = pytest.skip.Exception\n    \n            try:\n                _require_pinned_measurements(measurement_root)\n            except skip_exception as exc:\n                assert paths[0] in str(exc)\n                assert (\n                    \"complete input set, all assertions in this test would run\"\n                    in str(exc)\n                )\n            else:\n>               raise AssertionError(\"missing pinned measurement did not skip\")\nE               AssertionError: missing pinned measurement did not skip\n\norchestrator/tests/test_b10_extended_figure_provenance.py:922: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing\n1 failed, 144 passed in 10.47s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=1124 retained_bytes=1124 omitted_bytes=0 rendered_excerpt_bytes=1175 sha256=754a0c9cc9f643ebddb7f75ea85f48b2aae45a48a3c419ca03f90b2843fb4af6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing():\n>         with tempfile.TemporaryDirectory(prefix=\"b10-guard-missing-\") as temp:\n>             measurement_root = Path(temp)\n>             paths = _pinned_measurement_paths()\n>             _write_pinned_measurement_stubs(measurement_root, paths[1:])\n>             skip_exception = Skip\n>             if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n>                 import pytest\n>                 skip_exception = pytest.skip.Exception\n>     \n>             try:\n>                 _require_pinned_measurements(measurement_root)\n>             except skip_exception as exc:\n>                 assert paths[0] in str(exc)\n>                 assert (\n>                     \"complete input set, all assertions in this test would run\"\n>                     in str(exc)\n>                 )\n>             else:\n> >               raise AssertionError(\"missing pinned measurement did not skip\")\n> E               AssertionError: missing pinned measurement did not skip\n> \n> orchestrator/tests/test_b10_extended_figure_provenance.py:922: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1124 retained_bytes=1124 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1938 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d9eb2a59f6fda52f63e2770cd656dff686fa59861af842e7ab9da523c05bd1c1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 38.255,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B4-B10-PROV-ROOT-ONLY-GUARD",
+      "injection_diff_sha256": "ca8a54011be8e96b17d7928dfbe46cfd21b6711ae8604541b2265e7848a98e58",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9d85f0e63f3e3c6cdd7e55dec1e0e9e9846d3321ec8675faba9b1e0520942b29",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_b10_extended_figure_provenance.py",
+          "new": "    if not measurement_root.is_dir():\n        return tuple(requirements)\n    return ()\n",
+          "old": "    for relative in requirements:\n        try:\n            os.stat(measurement_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "d9eb2a59f6fda52f63e2770cd656dff686fa59861af842e7ab9da523c05bd1c1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/35d76d5e690e867fdb15d456cace8297/izdw-35d76d5e69.o971066",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/35d76d5e690e867fdb15d456cace8297/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 49%]\n...........F............................................................ [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n_ test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing _\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing():\n        import tempfile\n    \n        with tempfile.TemporaryDirectory(prefix=\"b10-plot-guard-missing-\") as temp:\n            measurement_root = Path(temp)\n            paths = _pinned_measurement_paths()\n            _write_pinned_measurement_stubs(measurement_root, paths[1:])\n            skip_exception = Skip\n            if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n                import pytest\n                skip_exception = pytest.skip.Exception\n    \n            try:\n                _require_pinned_measurements(measurement_root)\n            except skip_exception as exc:\n                assert paths[0] in str(exc)\n                assert (\n                    \"complete input set, all assertions in this test would run\"\n                    in str(exc)\n                )\n            else:\n>               raise AssertionError(\"missing pinned measurement did not skip\")\nE               AssertionError: missing pinned measurement did not skip\n\norchestrator/tests/test_plot_b10_extended_backoff.py:387: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing\n1 failed, 144 passed in 8.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing\" nodeid_bytes=130 nodeid_omitted_bytes=0 source_bytes=1154 retained_bytes=1154 omitted_bytes=0 rendered_excerpt_bytes=1209 sha256=6b5dd6fa829d029337d950e3e8bf35202ab868b70184347c54fda72eeee484d8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing():\n>         import tempfile\n>     \n>         with tempfile.TemporaryDirectory(prefix=\"b10-plot-guard-missing-\") as temp:\n>             measurement_root = Path(temp)\n>             paths = _pinned_measurement_paths()\n>             _write_pinned_measurement_stubs(measurement_root, paths[1:])\n>             skip_exception = Skip\n>             if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n>                 import pytest\n>                 skip_exception = pytest.skip.Exception\n>     \n>             try:\n>                 _require_pinned_measurements(measurement_root)\n>             except skip_exception as exc:\n>                 assert paths[0] in str(exc)\n>                 assert (\n>                     \"complete input set, all assertions in this test would run\"\n>                     in str(exc)\n>                 )\n>             else:\n> >               raise AssertionError(\"missing pinned measurement did not skip\")\n> E               AssertionError: missing pinned measurement did not skip\n> \n> orchestrator/tests/test_plot_b10_extended_backoff.py:387: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1154 retained_bytes=1154 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1967 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d91e51fb9f7ae285ffa5b85ff871ff2d76c0811a4eb8299888d81296096a3e31"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "acc9b1416b64e61f8e1a03a704f195212060687841de2e3209b3f5bab405a6bf",
+      "duration_s": 32.739,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B5-B10-PLOT-ROOT-ONLY-GUARD",
+      "injection_diff_sha256": "dd1065749c7082ff98abb10a874b31916527e78e0382d77e9677118ceac06390",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b22d5b42dcab8e56a76b1a36fb55c3be49192d50e732145fa52f354fb5447960",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_plot_b10_extended_backoff.py",
+          "new": "    if not measurement_root.is_dir():\n        return tuple(requirements)\n    return ()\n",
+          "old": "    for relative in requirements:\n        try:\n            os.stat(measurement_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+        }
+      ],
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "KILLED",
+      "test_output_sha256": "d91e51fb9f7ae285ffa5b85ff871ff2d76c0811a4eb8299888d81296096a3e31",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/9e6c1defc9d336ddc5bef3d2422e3d79/izdw-9e6c1defc9.o970942",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/output/pegasus-dispatch/9e6c1defc9d336ddc5bef3d2422e3d79/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned\norchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_schema_has_only_required_fields_and_closed_cli_modes\norchestrator/tests/test_p3_exploration_namespace.py::test_missing_driver_contract_is_hard_failure\norchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_autonomous_workload_trial]\norchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_kickoff]\norchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_loop]\norchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_loop_sort]\norchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_loop_trigger_gating]\norchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_red]\norchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[paper_story_a1_paired]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_kickoff]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_loop]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_loop_sort]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_loop_trigger_gating]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_red]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[paper_story_a1_paired]\norchestrator/tests/test_p3_exploration_namespace.py::test_autonomous_coder_driver_flag_reaches_trial_with_site_bound_authority\norchestrator/tests/test_p3_exploration_namespace.py::test_iteration_public_entry_routes_runtime_layout_and_selector[p3_s4_loop]\norchestrator/tests/test_p3_exploration_namespace.py::test_iteration_public_entry_routes_runtime_layout_and_selector[p3_s4_loop_sort]\norchestrator/tests/test_p3_exploration_namespace.py::test_iteration_public_entry_routes_runtime_layout_and_selector[p3_s4_loop_trigger_gating]\norchestrator/tests/test_p3_exploration_namespace.py::test_main_public_entry_routes_runtime_layout_and_selector[p3_kickoff]\norchestrator/tests/test_p3_exploration_namespace.py::test_main_public_entry_routes_runtime_layout_and_selector[p3_s4_red]\norchestrator/tests/test_p3_exploration_namespace.py::test_main_public_entry_routes_runtime_layout_and_selector[paper_story_a1_paired]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_autonomous_workload_trial]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_kickoff]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_loop]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_loop_sort]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_loop_trigger_gating]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_red]\norchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[paper_story_a1_paired]\norchestrator/tests/test_p3_exploration_namespace.py::test_campaign_root_declaration_meta_gate_has_negative_and_positive_fixtures\norchestrator/tests/test_p3_exploration_namespace.py::test_exploration_marker_is_atomically_published_and_directory_synced\norchestrator/tests/test_p3_exploration_namespace.py::test_exploration_marker_publish_failure_removes_unique_temp\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_checked_in_slice_has_fixed_raw_pin_and_exact_canonical_bytes\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_portable_verifier_joins_checked_in_catalog_and_classification\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_optional_jobs_root_audits_pinned_prompt_and_receipt_bytes\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_requirements_are_exact\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_does_not_skip_for_complete_input_set\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-top-wiring_slice: field set mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-task-task row is closed]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[missing-profile-wiring_slice: field set mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[status-task_acceptance_status: must be unbound]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[allowlist-supported_commands: allowlist mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[pretty]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[missing-lf]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[extra-lf]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_symlink_transport\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_duplicate_key\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nan\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_infinity\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nested_float\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_invalid_utf8\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_classification_join_rejects_task_type_drift_at_join_layer\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[symlink]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[directory]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[invalid-utf8]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[line-range]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_root_rejects_lexical_ancestor_symlink\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_symlink_directory_component\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_final_path_swap_at_read_seam\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_intermediate_directory_swap_at_read_seam\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_never_reloads_classification_by_path\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_cli_failure_separates_integrity_from_task_acceptance\norchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated\norchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_real_jobs_root_is_valid_negative_observation\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_deleted_finding\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false\norchestrator/tests/test_t1434_t1222_science_slice.py::test_exact_ledger_rejects_detection_condition_tamper\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept\norchestrator/tests/test_t1434_t1222_science_slice.py::test_all_findings_both_stages_both_readers_and_child_green_is_accepted\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_noncanonical_json\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_duplicate_key\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_float\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_scope_rejects_canonical_false_changed_to_integer_zero\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[missing]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[duplicate]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[extra]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[bad-verdict]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_duplicate_blindness_attestation\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation   ]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation #]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation ####   ]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_requirements_are_exact\norchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing\norchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_does_not_skip_for_complete_input_set\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_output_guard_does_not_require_unrelated_pinned_files\norchestrator/tests/test_t1434_t1222_science_slice.py::test_git_environment_overrides_are_isolated_and_linked_worktree_still_works\norchestrator/tests/test_t1434_t1222_science_slice.py::test_git_repository_root_must_be_the_exact_top_level\norchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_rejects_symlink_component\norchestrator/tests/test_b10_extended_figure_provenance.py::test_canonical_full_hashes_are_independent_constants_and_match_inputs\norchestrator/tests/test_b10_extended_figure_provenance.py::test_frozen_plot_backoff_dependency_bytes_are_independently_pinned\norchestrator/tests/test_b10_extended_figure_provenance.py::test_external_layer_is_explicitly_skipped_only_when_root_is_omitted\norchestrator/tests/test_b10_extended_figure_provenance.py::test_canonical_external_root_and_receipt_mapping_are_admitted\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_external_root_is_admitted_by_relative_path_and_hash\norchestrator/tests/test_b10_extended_figure_provenance.py::test_specified_missing_root_is_rejected_not_skipped\norchestrator/tests/test_b10_extended_figure_provenance.py::test_specified_root_missing_input_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_input_byte_drift_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_completion_job_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_manifest_workload_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_completion_campaign_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_lock_suffix_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_reservation_nonce_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_reservation_host_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_dat_metric_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_wal_metric_edge_is_rejected_after_hash_refresh\norchestrator/tests/test_b10_extended_figure_provenance.py::test_provenance_receipt_mapping_drift_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_rootless_validation_still_requires_external_proof_structure\norchestrator/tests/test_b10_extended_figure_provenance.py::test_lexical_external_path_escape_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_symlink_external_path_escape_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_repo_closure_accepts_independently_pinned_fixture_bytes\norchestrator/tests/test_b10_extended_figure_provenance.py::test_generator_byte_drift_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_dependency_byte_drift_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_output_byte_drift_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_1000_inclusion_is_rejected_even_when_values_are_preserved\norchestrator/tests/test_b10_extended_figure_provenance.py::test_static_zero_drop_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_d1107_five_field_claim_boundary_drift_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_artist_abort_percent_forge_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_stored_measurement_statistics_are_independently_recomputed\norchestrator/tests/test_b10_extended_figure_provenance.py::test_conditions_and_f718_ruling_authority_are_semantic_requirements\norchestrator/tests/test_b10_extended_figure_provenance.py::test_real_fig2c_repo_closure_is_complete\norchestrator/tests/test_b10_extended_figure_provenance.py::test_real_fig2c_generation_time_source_hash_drift_is_rejected\norchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_requirements_are_exact\norchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing\norchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_does_not_skip_for_complete_input_set\norchestrator/tests/test_plot_b10_extended_backoff.py::test_nine_artist_series_have_exact_x_y_and_labels\norchestrator/tests/test_plot_b10_extended_backoff.py::test_throughput_ci_is_wal_t95_and_abort_has_no_ci_in_canonical_data\norchestrator/tests/test_plot_b10_extended_backoff.py::test_axes_are_symlog_sparse_and_workload_local\norchestrator/tests/test_plot_b10_extended_backoff.py::test_comparison_prohibition_is_identical_in_figure_caption_and_contract\norchestrator/tests/test_plot_b10_extended_backoff.py::test_bbox_overlap_is_a_failure_and_includes_ordinary_text_artists\norchestrator/tests/test_plot_b10_extended_backoff.py::test_bbox_overlap_failure_directly_includes_tick_labels\norchestrator/tests/test_plot_b10_extended_backoff.py::test_cli_requires_exact_out_prefix_and_measurement_root\norchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_requirements_are_exact\norchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing\norchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_does_not_skip_for_complete_input_set\n\n145 tests collected in 2.15s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3fb485d87c3c378ac63e1e59016cf8c06fe4e07e826f22bc2a0f1efc7f642a83"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_schema_has_only_required_fields_and_closed_cli_modes",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_missing_driver_contract_is_hard_failure",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_autonomous_workload_trial]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_kickoff]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_loop]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_loop_sort]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_loop_trigger_gating]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[p3_s4_red]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_cli_authority_boundary_rejects_before_build_spy[paper_story_a1_paired]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_kickoff]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_loop]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_loop_sort]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_loop_trigger_gating]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[p3_s4_red]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_build_spy_receives_exact_run_context[paper_story_a1_paired]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_autonomous_coder_driver_flag_reaches_trial_with_site_bound_authority",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_iteration_public_entry_routes_runtime_layout_and_selector[p3_s4_loop]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_iteration_public_entry_routes_runtime_layout_and_selector[p3_s4_loop_sort]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_iteration_public_entry_routes_runtime_layout_and_selector[p3_s4_loop_trigger_gating]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_main_public_entry_routes_runtime_layout_and_selector[p3_kickoff]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_main_public_entry_routes_runtime_layout_and_selector[p3_s4_red]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_main_public_entry_routes_runtime_layout_and_selector[paper_story_a1_paired]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_autonomous_workload_trial]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_kickoff]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_loop]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_loop_sort]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_loop_trigger_gating]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_red]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[paper_story_a1_paired]",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_root_declaration_meta_gate_has_negative_and_positive_fixtures",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_exploration_marker_is_atomically_published_and_directory_synced",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_exploration_marker_publish_failure_removes_unique_temp",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_checked_in_slice_has_fixed_raw_pin_and_exact_canonical_bytes",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_portable_verifier_joins_checked_in_catalog_and_classification",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_optional_jobs_root_audits_pinned_prompt_and_receipt_bytes",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_requirements_are_exact",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_does_not_skip_for_complete_input_set",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-top-wiring_slice: field set mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-task-task row is closed]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[missing-profile-wiring_slice: field set mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[status-task_acceptance_status: must be unbound]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[allowlist-supported_commands: allowlist mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[pretty]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[missing-lf]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[extra-lf]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_symlink_transport",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_duplicate_key",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nan",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_infinity",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nested_float",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_invalid_utf8",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_classification_join_rejects_task_type_drift_at_join_layer",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[symlink]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[directory]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[invalid-utf8]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[line-range]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_root_rejects_lexical_ancestor_symlink",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_symlink_directory_component",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_final_path_swap_at_read_seam",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_intermediate_directory_swap_at_read_seam",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_never_reloads_classification_by_path",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_cli_failure_separates_integrity_from_task_acceptance",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_real_jobs_root_is_valid_negative_observation",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_deleted_finding",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_exact_ledger_rejects_detection_condition_tamper",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_all_findings_both_stages_both_readers_and_child_green_is_accepted",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_noncanonical_json",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_duplicate_key",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_float",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_scope_rejects_canonical_false_changed_to_integer_zero",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[missing]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[duplicate]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[extra]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[bad-verdict]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_duplicate_blindness_attestation",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation   ]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation #]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation ####   ]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_requirements_are_exact",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_does_not_skip_for_complete_input_set",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_output_guard_does_not_require_unrelated_pinned_files",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_git_environment_overrides_are_isolated_and_linked_worktree_still_works",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_git_repository_root_must_be_the_exact_top_level",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_rejects_symlink_component",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_canonical_full_hashes_are_independent_constants_and_match_inputs",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_frozen_plot_backoff_dependency_bytes_are_independently_pinned",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_external_layer_is_explicitly_skipped_only_when_root_is_omitted",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_canonical_external_root_and_receipt_mapping_are_admitted",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_external_root_is_admitted_by_relative_path_and_hash",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_specified_missing_root_is_rejected_not_skipped",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_specified_root_missing_input_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_input_byte_drift_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_completion_job_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_manifest_workload_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_completion_campaign_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_lock_suffix_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_reservation_nonce_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_reservation_host_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_dat_metric_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_relocated_wal_metric_edge_is_rejected_after_hash_refresh",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_provenance_receipt_mapping_drift_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_rootless_validation_still_requires_external_proof_structure",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_lexical_external_path_escape_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_symlink_external_path_escape_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_repo_closure_accepts_independently_pinned_fixture_bytes",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_generator_byte_drift_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_dependency_byte_drift_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_output_byte_drift_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_1000_inclusion_is_rejected_even_when_values_are_preserved",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_static_zero_drop_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_d1107_five_field_claim_boundary_drift_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_artist_abort_percent_forge_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_stored_measurement_statistics_are_independently_recomputed",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_conditions_and_f718_ruling_authority_are_semantic_requirements",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_real_fig2c_repo_closure_is_complete",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_real_fig2c_generation_time_source_hash_drift_is_rejected",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_requirements_are_exact",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing",
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_does_not_skip_for_complete_input_set",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_nine_artist_series_have_exact_x_y_and_labels",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_throughput_ci_is_wal_t95_and_abort_has_no_ci_in_canonical_data",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_axes_are_symlog_sparse_and_workload_local",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_comparison_prohibition_is_identical_in_figure_caption_and_contract",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_bbox_overlap_is_a_failure_and_includes_ordinary_text_artists",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_bbox_overlap_failure_directly_includes_tick_labels",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_cli_requires_exact_out_prefix_and_measurement_root",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_requirements_are_exact",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing",
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_does_not_skip_for_complete_input_set"
+      ],
+      "duration_s": 27.041,
+      "rc": 0,
+      "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+      "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+      "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+      "status": "PASSED",
+      "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-A1-MARKER-NOT-NECESSARY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned",
+          "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture",
+          "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "33b73896f9f3e9998e49b8c8fcf0d86991b5d62be9e8c653c47f71aa8fd260ef",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+            "new": "_CAMPAIGN_DRIVER_MARKER = \"run_campaign\"\n",
+            "old": "_CAMPAIGN_DRIVER_MARKER = \"exploration_campaign_layout\"\n"
+          }
+        ]
+      },
+      "MUT-A2-NFKC-DROPPED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6ddb449569b7207c6100ac51dd37e1b0fea36a313d524f0c06d0714e19a042d9",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+            "new": "                and _CAMPAIGN_DRIVER_MARKER not in source_text\n",
+            "old": "                and _CAMPAIGN_DRIVER_MARKER not in unicodedata.normalize(\n                    \"NFKC\", source_text,\n                )\n"
+          }
+        ]
+      },
+      "MUT-A3-NAME-PIN-TAMPERED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3f90b7b0f82482434be0e51a8b3e61bb7638e762223fd4f0f62a5b78e591c4ee",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+            "new": "        \"p3_kickof\",\n        \"p3_s4_loop\",\n        \"p3_s4_loop_sort\",\n",
+            "old": "        \"p3_kickoff\",\n        \"p3_s4_loop\",\n        \"p3_s4_loop_sort\",\n"
+          }
+        ]
+      },
+      "MUT-B1-T189-ROOT-ONLY-GUARD": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d930a64c8384d18757a30b5be54cf76b3d849062a098d172bf618a92e70eaf84",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+            "new": "def _missing_pinned_jobs_files(jobs_root: Path) -> tuple[str, ...]:\n    if not jobs_root.is_dir():\n        return _pinned_jobs_paths()\n    return ()\n",
+            "old": "def _missing_pinned_jobs_files(jobs_root: Path) -> tuple[str, ...]:\n    missing = []\n    for relative in _pinned_jobs_paths():\n        try:\n            os.stat(jobs_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+          }
+        ]
+      },
+      "MUT-B2-T189-GUARD-DOES-NOT-SKIP": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "78c7129e086d74c002b4eae6cf95b9a10c2d535afd7b3d03c47dbbbfb77e2dbf",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+            "new": "        return\n",
+            "old": "        pytest.skip(\n            \"pinned external jobs inputs are unavailable; missing relative \"\n            f\"paths: {detail}; with the complete input set, all assertions \"\n            \"in this test would run\"\n        )\n"
+          }
+        ]
+      },
+      "MUT-B3-T1434-ROOT-ONLY-GUARD": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8331ffeedd4145886db531d4afb060316ee279123138ba8e04b5fafbece4ff29",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_t1434_t1222_science_slice.py",
+            "new": "    if not jobs_root.is_dir():\n        return tuple(requirements)\n    return ()\n",
+            "old": "    for relative in requirements:\n        try:\n            os.stat(jobs_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+          }
+        ]
+      },
+      "MUT-B4-B10-PROV-ROOT-ONLY-GUARD": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ca8a54011be8e96b17d7928dfbe46cfd21b6711ae8604541b2265e7848a98e58",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_b10_extended_figure_provenance.py",
+            "new": "    if not measurement_root.is_dir():\n        return tuple(requirements)\n    return ()\n",
+            "old": "    for relative in requirements:\n        try:\n            os.stat(measurement_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+          }
+        ]
+      },
+      "MUT-B5-B10-PLOT-ROOT-ONLY-GUARD": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dd1065749c7082ff98abb10a874b31916527e78e0382d77e9677118ceac06390",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_plot_b10_extended_backoff.py",
+            "new": "    if not measurement_root.is_dir():\n        return tuple(requirements)\n    return ()\n",
+            "old": "    for relative in requirements:\n        try:\n            os.stat(measurement_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "28a09404fadfa5ae50a97b88aec7fc412f4b63320a3b7f7be95253206ae78ba2",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_exploration_namespace.py",
+      "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+      "orchestrator/tests/test_t1434_t1222_science_slice.py",
+      "orchestrator/tests/test_b10_extended_figure_provenance.py",
+      "orchestrator/tests/test_plot_b10_extended_backoff.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "2f81522e8c51ae83ea1a0f260397f54bcbaf4487",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_exploration_namespace.py",
+      "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+      "orchestrator/tests/test_t1434_t1222_science_slice.py",
+      "orchestrator/tests/test_b10_extended_figure_provenance.py",
+      "orchestrator/tests/test_plot_b10_extended_backoff.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "9de821fae590fe097d98b22972676339e9374eb1",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b58601c3532982056dcafafa1792e178491613ab170fb3bd0ee98226f48a4260",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "74dde4260ece1bd9dcde418422ffb793af5fa81f291855912bf5c957a12c2bc4",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-loop-liveness-repo-external/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "bfc5d1753b9d23498ba8aa91e4f554bb2b9645b500b3a6a3772ada017dc6af7f",
+  "updated_at": "2026-09-03T04:40:50.519950+00:00"
+}
