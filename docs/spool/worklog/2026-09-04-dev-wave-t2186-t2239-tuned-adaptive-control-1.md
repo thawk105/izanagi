@@ -39,6 +39,14 @@ title: [T-2186] 調整済み adaptive の実対照を論文側の台帳へ結ん
   DW-S04 の実装面差分ゼロ規定により免除した。
 - **設計判断は D1505 / D1506 をそのまま適用しただけで、新しい裁定は起こしていない。**
   したがって decisions fragment は作らない。
+- **段 8 の候補は実測 1 件で、収容できず「実施しない」で閉じた。** DW-S07 は「docs commit 後に
+  repo scan invariant と影響テストを再走して閉じる」と書くが、その repo scan invariant
+  (`orchestrator/tests/test_s8b_repo_scan_invariant.py`) は成長 hold に入っており、焦点走では
+  必ず skip する。三軸走査の権威 CLI (`s8b_holdout_freeze search`) の名も DW-S07 は持たない。
+  本 wave は skip を緑と読みかけた。収容を試みたところ L1 層は 10625 bytes ちょうどで満杯で、
+  最小の追記でも 190 byte 超過した。D782 の手順を適用し、(1) DW-S07 内で削れるのは安全義務の文
+  だけで契約が禁じる、(2) 例外収容に要る独立 3 例に対し実測は 1 例、(3) 上限引き上げには至らない、
+  と判断して実施しない。**同型を今後 2 例観測したら収容の根拠が立つ。**
 
 ## 次の一手差分
 
