@@ -304,3 +304,54 @@ registered 8, completed 8, matching 8
 - 計算ノード 48 並列での wall。変異は正しさの検査であって性能の測定ではない。
 - 動的 git ignore 依存 (`output_snapshot_ignores.py`) と、`/mnt` 等の将来の prefix。
   どちらも本 wave の scope 外で、次の一手へ送った。
+
+## 受入全走の実測 — 最遅 shard 388.3 秒 = 6.47 分。上限を 29% 超えている
+
+段 9 で実走した受入全走 (`verdict=child-green`、`tested_main=ddf8cccab`、`tested_tip=d8f2a7e5b`、
+`effective_scheduler=loadgroup`、**20135 passed / 92 skipped / 赤 0**) の junit から出した実測。
+
+| shard | pytest wall | 仕事量の合計 | 最長単体 | 48 worker 完全詰め |
+|---|---:|---:|---:|---:|
+| **0** | **388.3 s = 6.47 分** | 6243.4 s | 153.1 s | 130.1 s |
+| 1 | 236.5 s = 3.94 分 | 6933.9 s | 72.6 s | 144.5 s |
+| 2 | 188.0 s = 3.13 分 | 2820.9 s | 82.3 s | 58.8 s |
+
+**上限 5 分 (300 秒) を最遅 shard が 88 秒 = 29% 超えている。**
+
+### 親の分析は 3 点で誤っていた (実測による訂正)
+
+**訂正 1: 律速は「最長単体テスト 1 個」ではない。**
+本 insight の上の節は duration ledger から「最長単体 140.0 秒が完全詰めの 83.0 秒を上回るので
+並列度では下がらない」と論じた。**実測では shard-0 の最長単体は 153.1 秒、完全詰めは 130.1 秒で、
+差は 23 秒しかない。** wall 388.3 秒との差 235 秒は最長単体では説明できない。
+
+**訂正 2: 支配的なのは file 単位の束縛である。**
+shard-0 の仕事量 6243.4 秒のうち、`test_s8b_oracle_driver` が 1881.4 秒、
+`test_s8b_floor_campaign` が 1764.9 秒で、**2 file で 58% を占める。**
+`tools/acceptance_shards.py` の割付は file 単位なので、この 2 file は分割されず同じ shard へ乗る。
+さらに shard-0 の最長 3 件はすべて `test_s8b_oracle_driver` の中にあり
+(153.1 / 148.6 / 145.0 秒、合計 446.7 秒)、**同一 file の重い node が同居している。**
+
+**訂正 3: [T-1933] が攻めた対象は「別 file」ではなく、まさにこの file だった。**
+上の節で親は「[T-1933] が攻めたのは `test_s8b_oracle_driver.py` 系の別 node で、
+現在の最長 node はその対象ではない」と書いた。**実測ではこの file が現在の律速そのものである。**
+[T-1933] の負結果 (cache 共有と process-memo grouping がどちらも効かなかった) は、
+まさに今の律速に対する 2 回の失敗であり、「未試行」ではない。
+
+**訂正 4: duration ledger の値は現況と食い違う。**
+ledger は `test_role_sink_bytes_vary_only_at_declared_declassifications` を 140.0 秒として
+最長に位置づけていたが、実測では 82.3 秒で shard-2 の最長にすぎない。
+ledger は LPT 割付の hint であって権威ある測定ではない (D104 決定 4) という但し書きは
+本 insight の上の節にも書いたが、**親はその値から「律速は何か」という構造的結論まで引いてしまった。
+これは hint の目的外使用である。**
+
+### 実測から言える、5 分へ届かせる道筋
+
+- **file 単位の割付が効いていない。** shard-1 は仕事量が最大 (6933.9 秒) なのに wall は 236.5 秒で、
+  shard-0 より 150 秒速い。仕事量ではなく**重い node の集中**が wall を決めている。
+- したがって次の一手は「最長単体 node の分割」ではなく、
+  **`test_s8b_oracle_driver` と `test_s8b_floor_campaign` の 2 file を跨いで node を再配分できるか**である。
+  現行の `_components()` は file と xdist group の二部グラフを union するため、
+  file 内の node を別 shard へ出すには割付の粒度自体を変える必要がある。
+- ただし [T-1933] が同 file に対して 2 度失敗している。3 度目を試みる前に、
+  **なぜ 145〜153 秒かかるのか**を先に測るべきである (build か、直列性検査か、外部 command か)。

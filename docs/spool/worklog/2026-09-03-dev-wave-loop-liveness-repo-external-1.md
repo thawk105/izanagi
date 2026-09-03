@@ -16,11 +16,15 @@ title: [新規] ループが止まる 3 実体を分離し、git 管理外への
   **4.96 分**で既に 5 分の線に触れている。(2) 計算ノードのキュー待ち。(3) git 管理外ファイルへの依存。
   **本 wave が実装で閉じたのは (3) だけで、(1) は解決しない。** 詳細は
   `output/insights/2026-09-03_loop-liveness-repo-external/`。
-- **(1) の律速は最長単体テスト 1 個で、並列度では下がらない。** 総仕事量 11956.5 秒を
-  48 worker x 3 shard = 144 で完全に詰めた理論値は 83.0 秒だが、最長単体は 140.0 秒である。
-  その node (`test_role_sink_bytes_vary_only_at_declared_declassifications`) は
-  32 反復の role sink 出力を相互比較する非干渉性検査なので、**素朴な parametrize は検査を消す
-  reward hack になる。** [T-1933] が 2 度失敗しているが、攻めた対象も手段も別だった。
+- **(1) は段 9 の実走で確定した。最遅 shard-0 は 388.3 秒 = 6.47 分で、上限を 29% 超えている**
+  (20135 passed / 92 skipped / 赤 0、`verdict=child-green`)。
+- **親は律速を 2 度誤った。** duration ledger から「最長単体 140.0 秒が完全詰め 83.0 秒を上回るので
+  並列度では下がらない」と論じたが、実測では shard-0 の最長単体は 153.1 秒、完全詰めは 130.1 秒で
+  差は 23 秒しかなく、wall 388.3 秒との差 235 秒を説明できない。**支配的なのは file 単位の束縛**で、
+  shard-0 の仕事量の 58% が `test_s8b_oracle_driver` (1881.4 秒) と
+  `test_s8b_floor_campaign` (1764.9 秒) の 2 file に集中し、最長 3 件はすべて前者の中にある。
+  さらに親は「[T-1933] が攻めたのは別 file」と書いたが、**攻めたのはまさにこの file だった。**
+  ledger の値 (140.0 秒) と実測 (82.3 秒) も食い違っており、**hint を構造的結論の根拠にしたのが誤りである。**
 - **(3) の全数は 5 file・3 root で、正しく防護されていたのは 1 file だけだった。**
   親は最初 `git grep` を `/home/` と `expanduser` に絞ったため `/work/` 配下の 2 系統を取り逃し、
   段 2 のプラン子と段 3 のレンズ B が独立に同じ 2 件を発見した。取り逃した 2 件は論文図
@@ -68,11 +72,14 @@ title: [新規] ループが止まる 3 実体を分離し、git 管理外への
 
 ### 新規
 
-- {{T:longest-acceptance-node-split-viability}} **P1・新規**: 受入 wall の床を決めている最長単体 node
-  (`test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications`、
-  duration ledger 上 140.0 秒) について、**32 反復の相互比較を保ったまま生成を並列化できるか**の
-  生死確認 (`DW-G01`) を 100 行以内の使い捨て driver で行う。素朴な parametrize は非干渉性検査を
-  消すので採らない。成立しなければそれも結論とし、次点 (94.0 / 79.0 / 75.0 / 72.0 秒) を見る。
+- {{T:acceptance-shard0-heavy-file-redistribution}} **P1・新規**: 受入全走の最遅 shard を 5 分以内へ入れる。
+  段 9 の実走 (20135 passed / 92 skipped / 赤 0) で最遅 shard-0 は **388.3 秒 = 6.47 分**、上限を 29% 超えた。
+  律速は最長単体 node ではない (最長 153.1 秒、48 worker 完全詰め 130.1 秒、差は 23 秒)。
+  shard-0 の仕事量 6243.4 秒のうち `test_s8b_oracle_driver` が 1881.4 秒、
+  `test_s8b_floor_campaign` が 1764.9 秒で **2 file が 58% を占め**、最長 3 件
+  (153.1 / 148.6 / 145.0 秒) はすべて前者の中にある。`tools/acceptance_shards.py` の割付は
+  file 単位なので分割されない。**3 度目を試みる前に、なぜ 145〜153 秒かかるのかを先に測る**
+  (build か直列性検査か外部 command か)。[T-1933] が同 file へ cache 共有と grouping で 2 度失敗している。
 - {{T:external-binding-census-gate-ruling}} **P2・新規**: repo 外束縛の全数走査 gate を新設してよいかの
   ユーザー裁定。字句 prefilter 付きで 345 file 中 16 file を parse し 0.610 秒、collection ではなく
   1 走 1 回なので 48 worker x 3 shard には掛からない。ただし構造は `O(file 数)` で、
