@@ -18,6 +18,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, os.fspath(HERE))
+
+from skiputil import Skip, skip  # noqa: E402
+
+
 MEASUREMENT_ROOT = Path(os.environ.get(
     "IZANAGI_B10_MEASUREMENT_ROOT",
     "/work/1/SFC/tanab/b10-backoff-grid-runs5",
@@ -110,6 +115,42 @@ HASHES = {
     f"{GROUP}-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-overthrottle-read-heavy.manifest.json": "fee1317c0ce5a6e8b384d4d51de70b7f4da62d4913bb08d8545911f485a4b482",
     f"{GROUP}-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-grid-read-heavy_verdict.json": "12fe9936fdf3743ff9be7e9252fff55f9f28aace4aee66b215db8dbf5d55bc81",
 }
+
+
+def _pinned_measurement_paths() -> tuple[str, ...]:
+    return tuple(sorted(HASHES))
+
+
+def _missing_pinned_measurements(
+    measurement_root: Path,
+    relative_paths: tuple[str, ...] | None = None,
+) -> tuple[str, ...]:
+    missing = []
+    requirements = (
+        _pinned_measurement_paths()
+        if relative_paths is None
+        else relative_paths
+    )
+    for relative in requirements:
+        try:
+            os.stat(measurement_root / relative)
+        except FileNotFoundError:
+            missing.append(relative)
+    return tuple(missing)
+
+
+def _require_pinned_measurements(
+    measurement_root: Path,
+    relative_paths: tuple[str, ...] | None = None,
+) -> None:
+    missing = _missing_pinned_measurements(measurement_root, relative_paths)
+    if missing:
+        detail = ", ".join(missing)
+        skip(
+            "pinned external measurement inputs are unavailable; missing "
+            f"relative paths: {detail}; with the complete input set, all "
+            "assertions in this test would run"
+        )
 
 
 def _load_module():
@@ -214,6 +255,7 @@ def _external_provenance() -> dict:
 
 @contextmanager
 def _relocated_root():
+    _require_pinned_measurements(MEASUREMENT_ROOT)
     provenance = _external_provenance()
     with tempfile.TemporaryDirectory(prefix="b10-relocated-") as temp:
         root = Path(temp)
@@ -280,6 +322,7 @@ def _expect_rejected(call, reason: str) -> None:
 
 
 def test_canonical_full_hashes_are_independent_constants_and_match_inputs():
+    _require_pinned_measurements(MEASUREMENT_ROOT)
     assert len(HASHES) == 22
     assert set(HASHES) == {row["path"] for row in _external_provenance()["external_inputs"]}
     for relative, expected in HASHES.items():
@@ -304,6 +347,7 @@ def test_external_layer_is_explicitly_skipped_only_when_root_is_omitted():
 
 
 def test_canonical_external_root_and_receipt_mapping_are_admitted():
+    _require_pinned_measurements(MEASUREMENT_ROOT)
     plot = _load_module()
     result = plot.validate_external_sources(_external_provenance(), MEASUREMENT_ROOT)
     assert result == {"status": "validated", "layer": "external_measurement_sources"}
@@ -837,19 +881,75 @@ def test_real_fig2c_generation_time_source_hash_drift_is_rejected():
             raise AssertionError(f"changed recorded source digest was accepted: {path}")
 
 
+def _expected_measurement_paths() -> tuple[str, ...]:
+    paths = {SUBMIT}
+    for workload, _job, _host, _rratio, campaign, _identity in SPECS:
+        paths.update(_paths(workload, campaign).values())
+    return tuple(sorted(paths))
+
+
+def test_pinned_measurement_requirements_are_exact():
+    assert len(_pinned_measurement_paths()) == 22
+    assert _pinned_measurement_paths() == _expected_measurement_paths()
+
+
+def _write_pinned_measurement_stubs(
+    measurement_root: Path,
+    paths: tuple[str, ...],
+) -> None:
+    for relative in paths:
+        target = measurement_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"stub\n")
+
+
+def test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing():
+    with tempfile.TemporaryDirectory(prefix="b10-guard-missing-") as temp:
+        measurement_root = Path(temp)
+        paths = _pinned_measurement_paths()
+        _write_pinned_measurement_stubs(measurement_root, paths[1:])
+        skip_exception = Skip
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            import pytest
+            skip_exception = pytest.skip.Exception
+
+        try:
+            _require_pinned_measurements(measurement_root)
+        except skip_exception as exc:
+            assert paths[0] in str(exc)
+            assert (
+                "complete input set, all assertions in this test would run"
+                in str(exc)
+            )
+        else:
+            raise AssertionError("missing pinned measurement did not skip")
+
+
+def test_pinned_measurement_guard_does_not_skip_for_complete_input_set():
+    with tempfile.TemporaryDirectory(prefix="b10-guard-complete-") as temp:
+        measurement_root = Path(temp)
+        _write_pinned_measurement_stubs(
+            measurement_root, _pinned_measurement_paths())
+
+        _require_pinned_measurements(measurement_root)
+
+
 def _run() -> int:
     tests = [value for name, value in sorted(globals().items())
              if name.startswith("test_") and callable(value)]
-    passed = failed = 0
+    passed = failed = skipped = 0
     for test in tests:
         try:
             test()
             print(f"PASS {test.__name__}")
             passed += 1
+        except Skip as exc:
+            print(f"SKIP {test.__name__}: {exc}")
+            skipped += 1
         except Exception as exc:  # noqa: BLE001
             print(f"FAIL {test.__name__}: {type(exc).__name__}: {exc}")
             failed += 1
-    print(f"\n{passed} passed, {failed} failed")
+    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
 
 
