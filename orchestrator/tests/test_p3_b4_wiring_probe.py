@@ -2,6 +2,7 @@
 """Acceptance and mutation-red controls for the B-4 non-sample probe."""
 from __future__ import annotations
 
+import ast
 import hashlib
 import inspect
 import json
@@ -147,6 +148,206 @@ def test_static_candidate_paths_and_driver_specific_guards(static_runtime):
             "static candidate-main path + probe direct call to the real switchpoint"
         )
         assert all("guards" in edge for edge in value["path"])
+
+
+def test_source_segment_helper_matches_stdlib_for_all_static_ifs(monkeypatch):
+    static = P._load_static_modules()
+    assert len(static) == 45
+
+    stdlib_splitter = ast._splitlines_no_ff
+    reference_cache: dict[str, list[str]] = {}
+
+    def cached_stdlib_splitter(source: str) -> list[str]:
+        if source not in reference_cache:
+            reference_cache[source] = stdlib_splitter(source)
+        return reference_cache[source]
+
+    monkeypatch.setattr(ast, "_splitlines_no_ff", cached_stdlib_splitter)
+    compared = 0
+    for module in sorted(static.values(), key=lambda value: value.relative_path):
+        lines = P._split_source_lines(module.source)
+        for node in ast.walk(module.tree):
+            if not isinstance(node, ast.If):
+                continue
+            actual = P._get_source_segment(lines, node.test)
+            expected = ast.get_source_segment(module.source, node.test)
+            assert actual == expected, (
+                f"source segment mismatch: {module.relative_path}:"
+                f"{node.test.lineno}"
+            )
+            compared += 1
+    assert compared > 0
+
+
+def test_source_segment_helper_matches_stdlib_at_boundaries():
+    def located(
+        lineno: int, col_offset: int, end_lineno: int, end_col_offset: int,
+    ) -> ast.Name:
+        node = ast.Name(id="synthetic", ctx=ast.Load())
+        node.lineno = lineno
+        node.col_offset = col_offset
+        node.end_lineno = end_lineno
+        node.end_col_offset = end_col_offset
+        return node
+
+    def assert_matches(
+        source: str, node: ast.AST, *, padded: bool = False,
+    ) -> None:
+        lines = P._split_source_lines(source)
+        try:
+            expected = ast.get_source_segment(source, node, padded=padded)
+        except Exception as expected_error:
+            with pytest.raises(type(expected_error)):
+                P._get_source_segment(lines, node, padded=padded)
+        else:
+            assert P._get_source_segment(lines, node, padded=padded) == expected
+
+    before_source = "\u03b1 target suffix"
+    assert_matches(
+        before_source,
+        located(
+            1,
+            len("\u03b1 ".encode("utf-8")),
+            1,
+            len("\u03b1 target".encode("utf-8")),
+        ),
+    )
+    inside_source = "prefix \u03b1 suffix"
+    assert_matches(
+        inside_source,
+        located(
+            1,
+            len("prefix ".encode("utf-8")),
+            1,
+            len("prefix \u03b1".encode("utf-8")),
+        ),
+    )
+
+    for newline in ("\n", "\r\n", "\r"):
+        source = f"\u03b1 prefix{newline}\u03b2 suffix"
+        assert_matches(
+            source,
+            located(
+                1,
+                len("\u03b1 ".encode("utf-8")),
+                2,
+                len("\u03b2".encode("utf-8")),
+            ),
+        )
+
+    for separator in (
+        "\f", "\x0b", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029",
+    ):
+        source = f"\u03b1 {separator}\u03b2"
+        assert_matches(
+            source,
+            located(
+                1,
+                len("\u03b1 ".encode("utf-8")),
+                1,
+                len(source.encode("utf-8")),
+            ),
+        )
+
+    padded_source = "\t\fxxfirst\nlast!"
+    padded_node = located(1, 4, 2, len("last".encode("utf-8")))
+    assert_matches(padded_source, padded_node)
+    assert_matches(padded_source, padded_node, padded=True)
+    assert_matches("first\nsecond\n", located(1, 0, 2, 0))
+    assert_matches("", located(1, 0, 1, 0))
+    assert_matches("value\n", located(2, 0, 2, 0))
+
+    missing_location = ast.Name(id="missing", ctx=ast.Load())
+    assert ast.get_source_segment("missing", missing_location) is None
+    assert P._get_source_segment(
+        P._split_source_lines("missing"), missing_location,
+    ) is None
+
+
+def test_analyze_source_preserves_guard_wiring_and_fallback(monkeypatch):
+    module_name = "orchestrator.campaign.synthetic_guard_wiring"
+    relative_path = "orchestrator/campaign/synthetic_guard_wiring.py"
+    source = textwrap.dedent("""\
+        def target():
+            pass
+        def caller(cond):
+            if cond:
+                target()
+            else:
+                target()
+    """)
+
+    analyzed = P._analyze_source(module_name, relative_path, source)
+    calls = analyzed.functions[f"{module_name}.caller"].calls
+    assert [call.guards for call in calls] == [
+        ("cond",),
+        ("not (cond)",),
+    ]
+
+    fallback = "fallback_guard"
+    monkeypatch.setattr(P.ast, "unparse", lambda _node: fallback)
+    for missing_segment in (None, ""):
+        monkeypatch.setattr(
+            P,
+            "_get_source_segment",
+            lambda _lines, _node, result=missing_segment: result,
+        )
+        analyzed = P._analyze_source(module_name, relative_path, source)
+        calls = analyzed.functions[f"{module_name}.caller"].calls
+        assert [call.guards for call in calls] == [
+            (fallback,),
+            (f"not ({fallback})",),
+        ]
+
+
+def test_analyze_source_splits_each_module_exactly_once(monkeypatch):
+    source = textwrap.dedent("""\
+        def target():
+            pass
+        def first(left, right):
+            if left:
+                target()
+            if right:
+                target()
+        def second(left, right):
+            if left:
+                target()
+            if right:
+                target()
+    """)
+    original_splitter = P._split_source_lines
+    original_get_source_segment = P._get_source_segment
+    split_calls = 0
+    split_results: list[list[str]] = []
+    segment_inputs: list[list[str]] = []
+
+    def split_spy(value: str) -> list[str]:
+        nonlocal split_calls
+        split_calls += 1
+        result = original_splitter(value)
+        split_results.append(result)
+        return result
+
+    def segment_spy(
+        lines: list[str], node: ast.AST, *, padded: bool = False,
+    ) -> str | None:
+        segment_inputs.append(lines)
+        return original_get_source_segment(lines, node, padded=padded)
+
+    monkeypatch.setattr(P, "_split_source_lines", split_spy)
+    monkeypatch.setattr(P, "_get_source_segment", segment_spy)
+    analyzed = P._analyze_source(
+        "orchestrator.campaign.synthetic_split_count",
+        "orchestrator/campaign/synthetic_split_count.py",
+        source,
+    )
+    assert len(analyzed.functions) == 3
+    assert sum(
+        isinstance(node, ast.If) for node in ast.walk(analyzed.tree)
+    ) == 4
+    assert split_calls == 1
+    assert len(segment_inputs) == 4
+    assert all(lines is split_results[0] for lines in segment_inputs)
 
 
 def test_static_preflight_mapping_matches_runtime_import_targets(static_runtime):
@@ -375,8 +576,8 @@ def test_real_producer_entry_is_interdicted_before_body(symbol):
         from orchestrator.campaign import p3_b4_wiring_probe as P
         guard = P._ProcessGuard(P._protected_campaign_roots())
         guard.install_audit()
-        runtime = P._load_runtime(guard)
         static = P._load_static_modules()
+        runtime = P._load_runtime(guard, static)
         inventory = P._build_inventory(static, runtime.modules)
         guard.seal(inventory, runtime.modules)
         function = P._runtime_function(runtime.modules, {symbol!r})
@@ -934,8 +1135,8 @@ def test_exec_compile_and_new_import_are_rejected_after_seal():
         sys.path.insert(0, str(late_root))
         guard = P._ProcessGuard(P._protected_campaign_roots())
         guard.install_audit()
-        runtime = P._load_runtime(guard)
         static = P._load_static_modules()
+        runtime = P._load_runtime(guard, static)
         guard.seal(P._build_inventory(static, runtime.modules), runtime.modules)
         rejected = []
         try:
