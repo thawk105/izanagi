@@ -4,14 +4,26 @@
 #PBS -l elapstim_req=06:00:00
 #PBS -b 1
 #
-# Compute-only job body for the D95 paper-story A-1 exploratory study.
-# A parent performs direct qsub and then create-only writes the acquisition
-# receipt consumed here. This file is not a submitter.
+# Compute-only job body for the D95 paper-story A-1 exploratory study. Legacy
+# v2 remains one job; each v3 invocation owns exactly one workload job root and
+# consumes the create-only exact-triple group receipt. This file is not a submitter.
 set -Eeuo pipefail
 umask 077
 
 EXPECTED_QUEUE="gen_S"
 SUBMISSION_SCHEMA="paper-story-a1-paired-submission/v1"
+ACCOUNTING_STARTED_EPOCH_S=""
+ACCOUNTING_STARTED_MONOTONIC_S=""
+ACCOUNTING_TIMES_BASELINE_RAW=""
+ACCOUNTING_ENDED_EPOCH_S=""
+ACCOUNTING_ENDED_MONOTONIC_S=""
+ACCOUNTING_TIMES_FINAL_RAW=""
+ACCOUNTING_TIMES_BASELINE_PATH=""
+ACCOUNTING_TIMES_FINAL_PATH=""
+ACCOUNTING_SESSION_BASELINE_PATH=""
+ACCOUNTING_PROCESS_SET_SURVIVORS_PATH=""
+ACCOUNTING_PROCESS_SET_BASELINE_ERROR_PATH=""
+ACCOUNTING_PROCESS_SET_ERROR_PATH=""
 DRIVER_RELATIVE="orchestrator/campaign/paper_story_a1_paired.py"
 PIPELINE_RELATIVE="orchestrator/campaign/pipeline.py"
 JOB_RELATIVE="tools/pegasus/paper_story_a1_paired.sh"
@@ -71,6 +83,28 @@ fi
 [[ -n "${IZANAGI_SUBMISSION_NONCE:-}" ]] || refuse "submission nonce is required"
 [[ "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || \
   refuse "submission nonce is unsafe"
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  case "${IZANAGI_A1_WORKLOAD:-}" in
+    write-heavy|balanced|read-heavy) ;;
+    *) refuse "v3 workload selector differs" ;;
+  esac
+  ACCOUNTING_STARTED_EPOCH_S=$(date +%s.%N) || refuse "cannot start accounting epoch"
+  ACCOUNTING_STARTED_MONOTONIC_S=$(cut -d' ' -f1 /proc/uptime) || \
+    refuse "cannot start accounting monotonic clock"
+  ACCOUNTING_TIMES_BASELINE_PATH="$IZANAGI_A1_ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD/accounting-times-baseline.raw"
+  ACCOUNTING_TIMES_FINAL_PATH="$IZANAGI_A1_ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD/accounting-times-final.raw"
+  ACCOUNTING_SESSION_BASELINE_PATH="$IZANAGI_A1_ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD/accounting-session-baseline.pids"
+  ACCOUNTING_PROCESS_SET_SURVIVORS_PATH="$IZANAGI_A1_ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD/accounting-process-set-survivors.pids"
+  ACCOUNTING_PROCESS_SET_BASELINE_ERROR_PATH="$IZANAGI_A1_ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD/accounting-process-set-baseline.error"
+  ACCOUNTING_PROCESS_SET_ERROR_PATH="$IZANAGI_A1_ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD/accounting-process-set-audit.error"
+  set -o noclobber
+  if ! LC_ALL=C times >"$ACCOUNTING_TIMES_BASELINE_PATH" 2>&1; then
+    set +o noclobber
+    refuse "cannot capture accounting baseline"
+  fi
+  set +o noclobber
+  ACCOUNTING_TIMES_BASELINE_RAW=$(<"$ACCOUNTING_TIMES_BASELINE_PATH")
+fi
 # The calibration job's dependency staging uses /scr. Preserve that compute
 # path, and retain the incoming TMPDIR only as the fallback when /scr is absent.
 DEPENDENCY_SCRATCH_PARENT=/scr
@@ -103,8 +137,14 @@ CURRENT_SCRIPT_SHA=$(sha256sum "$REPO_ROOT/$JOB_RELATIVE" | awk '{print $1}') ||
   refuse "cannot hash tracked job body"
 [[ "$CURRENT_SCRIPT_SHA" =~ ^[0-9a-f]{64}$ ]] || refuse "tracked job body SHA is invalid"
 ATTEMPT_CHILD=${IZANAGI_A1_ATTEMPT_ROOT##*/}
-[[ "$IZANAGI_SUBMISSION_NONCE" == "$ATTEMPT_CHILD" ]] || \
-  refuse "submission nonce differs from attempt child"
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  [[ "$IZANAGI_SUBMISSION_NONCE" == \
+    "$ATTEMPT_CHILD.$IZANAGI_A1_WORKLOAD" ]] || \
+    refuse "submission nonce differs from workload attempt child"
+else
+  [[ "$IZANAGI_SUBMISSION_NONCE" == "$ATTEMPT_CHILD" ]] || \
+    refuse "submission nonce differs from attempt child"
+fi
 
 PYTHON_BIN=""
 for candidate in python3.10 python3.11 python3.12 python3; do
@@ -116,6 +156,154 @@ for candidate in python3.10 python3.11 python3.12 python3; do
   fi
 done
 [[ -n "$PYTHON_BIN" ]] || refuse "Python 3.10 or newer is required"
+
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  set -o noclobber
+  if ! "$PYTHON_BIN" - "$$" >"$ACCOUNTING_SESSION_BASELINE_PATH" \
+    2>"$ACCOUNTING_PROCESS_SET_BASELINE_ERROR_PATH" <<'PY'
+import os
+import pathlib
+import sys
+
+root = int(sys.argv[1])
+uid = os.geteuid()
+members = []
+
+def identity(candidate):
+    info = candidate.stat(follow_symlinks=False)
+    if info.st_uid != uid:
+        return None
+    raw = (candidate / "stat").read_text()
+    closing = raw.rfind(")")
+    fields = raw[closing + 2:].split() if closing >= 0 else []
+    if len(fields) <= 19:
+        raise RuntimeError(f"cannot parse process identity: {candidate.name}")
+    return int(candidate.name), int(fields[19])
+
+for candidate in pathlib.Path("/proc").iterdir():
+    if not candidate.name.isdigit():
+        continue
+    try:
+        observed = identity(candidate)
+        if observed is not None:
+            members.append(observed)
+    except (FileNotFoundError, ProcessLookupError):
+        continue
+print("single-tenant-same-uid-process-set/v1")
+for pid, starttime in sorted(members):
+    print(pid, starttime)
+PY
+  then
+    set +o noclobber
+    refuse "cannot capture accounting session baseline"
+  fi
+  set +o noclobber
+fi
+
+audit_v3_job_process_set() {
+  local scan_rc
+  local survivors
+  set -o noclobber
+  if "$PYTHON_BIN" - "$$" "$ACCOUNTING_SESSION_BASELINE_PATH" \
+    >"$ACCOUNTING_PROCESS_SET_SURVIVORS_PATH" \
+    2>"$ACCOUNTING_PROCESS_SET_ERROR_PATH" <<'PY'
+import os
+import pathlib
+import sys
+
+root = int(sys.argv[1])
+baseline_path = pathlib.Path(sys.argv[2])
+uid = os.geteuid()
+checker = os.getpid()
+method = "single-tenant-same-uid-process-set/v1"
+lines = baseline_path.read_text().splitlines()
+if not lines or lines[0] != method:
+    raise SystemExit("job process-set baseline method is unavailable")
+try:
+    baseline = {
+        (int(row.split()[0]), int(row.split()[1]))
+        for row in lines[1:]
+        if row
+    }
+except (IndexError, ValueError) as exc:
+    raise SystemExit("job process-set baseline is corrupt") from exc
+
+def identity(candidate):
+    info = candidate.stat(follow_symlinks=False)
+    if info.st_uid != uid:
+        return None
+    raw = (candidate / "stat").read_text()
+    closing = raw.rfind(")")
+    fields = raw[closing + 2:].split() if closing >= 0 else []
+    if len(fields) <= 19:
+        raise RuntimeError(f"cannot parse process identity: {candidate.name}")
+    return int(candidate.name), int(fields[19])
+
+def parent_pid(pid):
+    raw = pathlib.Path(f"/proc/{pid}/stat").read_text()
+    closing = raw.rfind(")")
+    fields = raw[closing + 2:].split() if closing >= 0 else []
+    if len(fields) <= 1:
+        raise RuntimeError(f"cannot parse process parent: {pid}")
+    return int(fields[1])
+
+try:
+    job_session = os.getsid(root)
+except ProcessLookupError as exc:
+    raise SystemExit("job shell disappeared during process-set audit") from exc
+ancestors = set()
+cursor = root
+while cursor > 1:
+    try:
+        cursor = parent_pid(cursor)
+    except (FileNotFoundError, ProcessLookupError, ValueError, RuntimeError):
+        break
+    ancestors.add(cursor)
+
+observed = []
+for candidate in pathlib.Path("/proc").iterdir():
+    if not candidate.name.isdigit():
+        continue
+    pid = int(candidate.name)
+    if pid in {root, checker} or pid in ancestors:
+        continue
+    try:
+        process_identity = identity(candidate)
+        if process_identity is None:
+            continue
+        created_during_job = process_identity not in baseline
+        in_job_session = False
+        if os.getsid(pid) == job_session:
+            in_job_session = True
+        if created_during_job or in_job_session:
+            observed.append(process_identity)
+    except (FileNotFoundError, ProcessLookupError):
+        continue
+    except (OSError, RuntimeError) as exc:
+        raise SystemExit(
+            f"job process-set membership is unavailable for pid {pid}: {exc}"
+        ) from exc
+for pid, starttime in sorted(set(observed)):
+    print(pid, starttime)
+PY
+  then
+    scan_rc=0
+  else
+    scan_rc=$?
+  fi
+  set +o noclobber
+  if [[ "$scan_rc" -ne 0 ]]; then
+    printf 'paper-story A-1 job refused: process-set audit unavailable; see %s\n' \
+      "$ACCOUNTING_PROCESS_SET_ERROR_PATH" >&2
+    return 70
+  fi
+  survivors=$(<"$ACCOUNTING_PROCESS_SET_SURVIVORS_PATH")
+  if [[ -n "$survivors" ]]; then
+    printf 'paper-story A-1 job refused: unreaped job processes remain: %s\n' \
+      "$survivors" >&2
+    return 70
+  fi
+}
 
 "$PYTHON_BIN" - "$REPO_ROOT" <<'PY' || refuse "Pegasus compute site check failed"
 import sys
@@ -172,13 +360,210 @@ PY
     refuse "CCBench job-preflight tracked files are dirty"
 fi
 
+capture_v3_accounting_end() {
+  ACCOUNTING_ENDED_EPOCH_S=$(date +%s.%N) || return 70
+  ACCOUNTING_ENDED_MONOTONIC_S=$(cut -d' ' -f1 /proc/uptime) || return 70
+  set -o noclobber
+  if ! LC_ALL=C times >"$ACCOUNTING_TIMES_FINAL_PATH" 2>&1; then
+    set +o noclobber
+    return 70
+  fi
+  set +o noclobber
+  ACCOUNTING_TIMES_FINAL_RAW=$(<"$ACCOUNTING_TIMES_FINAL_PATH")
+}
+
+write_v3_prebench_failure_terminal() {
+  local reason=$1
+  local job_root="$IZANAGI_A1_ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD"
+  local terminal_path="$job_root/job-terminal.json"
+  wait
+  audit_v3_job_process_set || return 70
+  capture_v3_accounting_end || return 70
+  IZANAGI_A1_ACCOUNTING_STARTED_EPOCH_S="$ACCOUNTING_STARTED_EPOCH_S" \
+  IZANAGI_A1_ACCOUNTING_ENDED_EPOCH_S="$ACCOUNTING_ENDED_EPOCH_S" \
+  IZANAGI_A1_ACCOUNTING_STARTED_MONOTONIC_S="$ACCOUNTING_STARTED_MONOTONIC_S" \
+  IZANAGI_A1_ACCOUNTING_ENDED_MONOTONIC_S="$ACCOUNTING_ENDED_MONOTONIC_S" \
+  IZANAGI_A1_ACCOUNTING_TIMES_BASELINE_RAW="$ACCOUNTING_TIMES_BASELINE_RAW" \
+  IZANAGI_A1_ACCOUNTING_TIMES_FINAL_RAW="$ACCOUNTING_TIMES_FINAL_RAW" \
+  "$PYTHON_BIN" - "$terminal_path" "$REPO_ROOT" "$POLICY_RELATIVE" \
+    "$EXPECTED_STUDY_ID" \
+    "$IZANAGI_EXPECTED_HEAD" "$PBS_JOBID" "$IZANAGI_A1_WORKLOAD" \
+    "$IZANAGI_A1_ATTEMPT_ROOT" "$IZANAGI_A1_COMPLETION_RECEIPT" \
+    "$PBS_O_HOST" "$PBS_O_WORKDIR" "$reason" <<'PY'
+import hashlib
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+import time
+
+(
+    path, repo, policy_relative, study_id, expected_head, pbs_jobid, workload,
+    attempt_root, completion_path, pbs_o_host, pbs_o_workdir, reason,
+) = sys.argv[1:]
+ordinal = ("write-heavy", "balanced", "read-heavy").index(workload)
+pattern = re.compile(r"([0-9]+)m([0-9]+(?:\.[0-9]+)?)s")
+
+def values(raw):
+    found = pattern.findall(raw)
+    if len(found) != 4:
+        raise SystemExit("accounting times snapshot shape differs")
+    return [float(minutes) * 60.0 + float(seconds) for minutes, seconds in found]
+
+baseline_raw = os.environ["IZANAGI_A1_ACCOUNTING_TIMES_BASELINE_RAW"]
+final_raw = os.environ["IZANAGI_A1_ACCOUNTING_TIMES_FINAL_RAW"]
+deltas = [
+    max(0.0, end - start)
+    for start, end in zip(values(baseline_raw), values(final_raw))
+]
+started_monotonic = float(
+    os.environ["IZANAGI_A1_ACCOUNTING_STARTED_MONOTONIC_S"]
+)
+ended_monotonic = float(os.environ["IZANAGI_A1_ACCOUNTING_ENDED_MONOTONIC_S"])
+
+def git(*args):
+    completed = subprocess.run(
+        ["git", "-C", repo, *args], text=True, capture_output=True, check=False,
+    )
+    if completed.returncode != 0:
+        raise SystemExit("terminal git binding failed")
+    return completed.stdout.strip()
+
+source_paths = (
+    "orchestrator/campaign/paper_story_a1_paired.py",
+    policy_relative,
+    "orchestrator/campaign/pipeline.py",
+    "tools/pegasus/paper_story_a1_paired.sh",
+    "orchestrator/calibrator/runner.py",
+)
+files = {}
+for relative in source_paths:
+    if not relative:
+        continue
+    candidate = os.path.join(repo, relative)
+    with open(candidate, "rb") as stream:
+        digest = hashlib.sha256(stream.read()).hexdigest()
+    files[relative] = {
+        "git_blob_oid": git("rev-parse", f"{expected_head}:{relative}"),
+        "working_sha256": digest,
+    }
+attempt_info = os.stat(attempt_root, follow_symlinks=False)
+document = {
+    "schema_version": "paper-story-a1-paired-workload-job-terminal/v1",
+    "study_id": study_id,
+    "workload": workload,
+    "ordinal": ordinal,
+    "pbs_jobid": pbs_jobid,
+    "expected_head": expected_head,
+    "observed_head": git("rev-parse", "HEAD"),
+    "porcelain": git("status", "--ignore-submodules=all", "--porcelain", "--untracked-files=all"),
+    "driver_rc": 125,
+    "shell_rc": 2,
+    "status": "failed",
+    "result_sha256": None,
+    "receipt_sha256": None,
+    "submission_receipt_sha256": None,
+    "completion_receipt_path": completion_path,
+    "pbs_observation": {
+        "pbs_jobid": pbs_jobid,
+        "pbs_o_host": pbs_o_host,
+        "pbs_o_workdir": pbs_o_workdir,
+    },
+    "reservation_binding": None,
+    "accounting": {
+        "method": "bash-times-delta-reaped-descendants/v1",
+        "started_epoch_s": float(os.environ["IZANAGI_A1_ACCOUNTING_STARTED_EPOCH_S"]),
+        "ended_epoch_s": float(os.environ["IZANAGI_A1_ACCOUNTING_ENDED_EPOCH_S"]),
+        "started_monotonic_s": started_monotonic,
+        "ended_monotonic_s": ended_monotonic,
+        "elapsed_s": ended_monotonic - started_monotonic,
+        "shell_user_s": deltas[0],
+        "shell_system_s": deltas[1],
+        "reaped_descendants_user_s": deltas[2],
+        "reaped_descendants_system_s": deltas[3],
+        "cpu_total_s": sum(deltas),
+        "times_baseline_raw": baseline_raw,
+        "times_final_raw": final_raw,
+        "unreaped_descendants": [],
+    },
+    "attempt_identity": {"st_dev": attempt_info.st_dev, "st_ino": attempt_info.st_ino},
+    "terminal_source_binding": {
+        "measurement_source_commit": expected_head,
+        "files": files,
+        "evidence_level": "source-routed-trace0",
+        "artifact_standalone_proof": False,
+    },
+    "recorded_epoch": int(time.time()),
+}
+flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+fd = os.open(path, flags, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as stream:
+    json.dump(document, stream, ensure_ascii=False, sort_keys=True, indent=2)
+    stream.write("\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+PY
+}
+
 for ((WAITED=0; WAITED<60; WAITED++)); do
   [[ -e "$IZANAGI_A1_ACQUISITION_RECEIPT" ]] && break
   sleep 1
 done
-[[ -e "$IZANAGI_A1_ACQUISITION_RECEIPT" ]] || refuse "acquisition receipt did not appear within 60 seconds"
+if [[ ! -e "$IZANAGI_A1_ACQUISITION_RECEIPT" ]]; then
+  if [[ "$V3_STUDY" -eq 1 ]]; then
+    write_v3_prebench_failure_terminal "group-submission-receipt-timeout" || \
+      refuse "failed to record group receipt timeout terminal"
+  fi
+  refuse "acquisition receipt did not appear within 60 seconds"
+fi
 
-ACQUISITION_SHA=$("$PYTHON_BIN" - \
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  ACQUISITION_SHA=$("$PYTHON_BIN" - \
+    "$IZANAGI_A1_ACQUISITION_RECEIPT" "$REPO_ROOT" \
+    "$EXPECTED_STUDY_ID" "$IZANAGI_EXPECTED_HEAD" "$PBS_JOBID" \
+    "$IZANAGI_A1_WORKLOAD" "$PBS_O_HOST" "$PBS_O_WORKDIR" <<'PY'
+import hashlib
+import os
+import pathlib
+import sys
+
+(
+    path_raw, repo_raw, study_id, source_commit, request_id, workload,
+    pbs_o_host, pbs_o_workdir,
+) = sys.argv[1:]
+repo = pathlib.Path(repo_raw).resolve(strict=True)
+sys.path.insert(0, os.fspath(repo))
+from orchestrator.campaign import paper_story_a1_paired as paired
+
+path = pathlib.Path(path_raw)
+raw = paired._read_bytes_once(path)
+receipt = paired._decode_json_bytes(raw, "group acquisition receipt")
+policy, _ = paired._load_policy_for_study(study_id)
+paired.validate_acquisition_receipt(
+    receipt,
+    repo_root=repo,
+    study_id=study_id,
+    source_commit=source_commit,
+    request_id=request_id,
+    pbs_observation={
+        "pbs_jobid": request_id,
+        "pbs_o_host": pbs_o_host,
+        "pbs_o_workdir": pbs_o_workdir,
+    },
+    policy=policy,
+    workload=workload,
+)
+print(hashlib.sha256(raw).hexdigest())
+PY
+  ) || {
+    write_v3_prebench_failure_terminal "group-submission-receipt-invalid" || \
+      refuse "failed to record invalid group receipt terminal"
+    refuse "group acquisition receipt validation failed"
+  }
+else
+  ACQUISITION_SHA=$("$PYTHON_BIN" - \
   "$IZANAGI_A1_ACQUISITION_RECEIPT" "$REPO_ROOT" "$SUBMISSION_SCHEMA" \
   "$EXPECTED_STUDY_ID" "$IZANAGI_EXPECTED_HEAD" "$PBS_JOBID" \
   "$IZANAGI_A1_ATTEMPT_ROOT" "$IZANAGI_A1_COMPLETION_RECEIPT" \
@@ -371,17 +756,36 @@ if normalize_request_id(visibility["request_id"]) != normalize_request_id(
     raise SystemExit("qstat visibility request ID differs")
 print(hashlib.sha256(raw).hexdigest())
 PY
-) || refuse "acquisition receipt validation failed"
+  ) || refuse "acquisition receipt validation failed"
+fi
 [[ "$ACQUISITION_SHA" =~ ^[0-9a-f]{64}$ ]] || refuse "acquisition receipt SHA is invalid"
 
 ATTEMPT_ROOT="$IZANAGI_A1_ATTEMPT_ROOT"
-RAW_ROOT="$ATTEMPT_ROOT/raw"
-CACHE_ROOT="$ATTEMPT_ROOT/cache"
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  JOB_ROOT="$ATTEMPT_ROOT/jobs/$IZANAGI_A1_WORKLOAD"
+  RAW_ROOT="$JOB_ROOT/raw"
+  CACHE_ROOT="$JOB_ROOT/cache"
+else
+  JOB_ROOT="$ATTEMPT_ROOT"
+  RAW_ROOT="$ATTEMPT_ROOT/raw"
+  CACHE_ROOT="$ATTEMPT_ROOT/cache"
+fi
+MEASURE_WORKLOAD_ARGS=()
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  MEASURE_WORKLOAD_ARGS=(--workload "$IZANAGI_A1_WORKLOAD")
+fi
 OUTPUT_ROOT="$RAW_ROOT/campaign-output"
 RESULT_ROOT="$RAW_ROOT/results"
 TMP_ROOT="$RAW_ROOT/tmp"
-if ! mkdir -- "$ATTEMPT_ROOT"; then
-  refuse "attempt root cannot be exclusive-created"
+if [[ "$V3_STUDY" -eq 0 ]]; then
+  if ! mkdir -- "$ATTEMPT_ROOT"; then
+    refuse "attempt root cannot be exclusive-created"
+  fi
+else
+  [[ -d "$ATTEMPT_ROOT" && ! -L "$ATTEMPT_ROOT" ]] || \
+    refuse "group attempt root is unavailable"
+  [[ -d "$JOB_ROOT" && ! -L "$JOB_ROOT" ]] || \
+    refuse "workload job root is unavailable"
 fi
 if ! mkdir -- "$RAW_ROOT"; then
   refuse "raw root cannot be exclusive-created"
@@ -493,7 +897,17 @@ export IZANAGI_RESERVATION_SCRIPT_SHA256="$CURRENT_SCRIPT_SHA"
 export IZANAGI_RESERVATION_NONCE="$IZANAGI_SUBMISSION_NONCE"
 
 DRIVER_RC=125
-TERMINAL_PATH="$RAW_ROOT/job-terminal.json"
+if [[ "$V3_STUDY" -eq 1 ]]; then
+  TERMINAL_PATH="$JOB_ROOT/job-terminal.json"
+  case "$IZANAGI_A1_WORKLOAD" in
+    write-heavy) WORKLOAD_ORDINAL=0 ;;
+    balanced) WORKLOAD_ORDINAL=1 ;;
+    read-heavy) WORKLOAD_ORDINAL=2 ;;
+  esac
+else
+  TERMINAL_PATH="$RAW_ROOT/job-terminal.json"
+  WORKLOAD_ORDINAL=-1
+fi
 DEPENDENCY_ROOT=""
 DEPENDENCY_ROOT_OWNED=0
 
@@ -505,14 +919,22 @@ write_terminal() {
   IZANAGI_A1_TERMINAL_PIPELINE_RELATIVE="$PIPELINE_RELATIVE" \
   IZANAGI_A1_TERMINAL_JOB_RELATIVE="$JOB_RELATIVE" \
   IZANAGI_A1_TERMINAL_RUNNER_RELATIVE="orchestrator/calibrator/runner.py" \
+  IZANAGI_A1_ACCOUNTING_STARTED_EPOCH_S="$ACCOUNTING_STARTED_EPOCH_S" \
+  IZANAGI_A1_ACCOUNTING_ENDED_EPOCH_S="$ACCOUNTING_ENDED_EPOCH_S" \
+  IZANAGI_A1_ACCOUNTING_STARTED_MONOTONIC_S="$ACCOUNTING_STARTED_MONOTONIC_S" \
+  IZANAGI_A1_ACCOUNTING_ENDED_MONOTONIC_S="$ACCOUNTING_ENDED_MONOTONIC_S" \
+  IZANAGI_A1_ACCOUNTING_TIMES_BASELINE_RAW="$ACCOUNTING_TIMES_BASELINE_RAW" \
+  IZANAGI_A1_ACCOUNTING_TIMES_FINAL_RAW="$ACCOUNTING_TIMES_FINAL_RAW" \
   "$PYTHON_BIN" - "$TERMINAL_PATH" "$REPO_ROOT" "$EXPECTED_STUDY_ID" \
   "$V3_STUDY" "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD" "$DRIVER_RC" "$shell_rc" \
     "$RESULT_ROOT" "$IZANAGI_A1_ACQUISITION_RECEIPT" "$ACQUISITION_SHA" \
     "$IZANAGI_A1_COMPLETION_RECEIPT" "$ATTEMPT_ROOT" \
-    "$PBS_O_HOST" "$PBS_O_WORKDIR" <<'PY'
+    "$PBS_O_HOST" "$PBS_O_WORKDIR" "${IZANAGI_A1_WORKLOAD:-}" \
+    "$WORKLOAD_ORDINAL" <<'PY'
 import hashlib
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -521,7 +943,8 @@ import time
 (
     path, repo, study_id, v3_study_raw, pbs_jobid, expected_head, driver_rc_raw,
     shell_rc_raw, result_root, acquisition_path, acquisition_sha,
-    completion_path, attempt_root, pbs_o_host, pbs_o_workdir,
+    completion_path, attempt_root, pbs_o_host, pbs_o_workdir, workload,
+    workload_ordinal_raw,
 ) = sys.argv[1:]
 if v3_study_raw not in {"0", "1"}:
     raise SystemExit("terminal v3 selector differs")
@@ -540,6 +963,7 @@ if v3_study:
 source_paths = tuple(source_paths)
 driver_rc = int(driver_rc_raw)
 shell_rc = int(shell_rc_raw)
+workload_ordinal = int(workload_ordinal_raw)
 
 def digest(candidate):
     if not os.path.isfile(candidate):
@@ -595,26 +1019,74 @@ for key in ("scheduler_started_epoch", "deadline_epoch"):
     reservation_binding[key] = float(reservation_binding[key])
 result_path = os.path.join(result_root, "result.json")
 receipt_path = os.path.join(result_root, "receipt.json")
-observation_path = os.path.join(result_root, "non-certifying-observation.json")
 result_sha = digest(result_path)
 receipt_sha = digest(receipt_path)
-observation_sha = digest(observation_path)
 terminal_acquisition_sha = digest(acquisition_path)
 attempt_info = os.stat(attempt_root, follow_symlinks=False)
 if not stat.S_ISDIR(attempt_info.st_mode):
     raise SystemExit("terminal attempt root is not a real directory")
 source_ok = observed_head == expected_head and porcelain == ""
-success = all((
+success_inputs = [
     driver_rc == 0,
     shell_rc == 0,
     result_sha is not None,
     receipt_sha is not None,
-    observation_sha is not None,
     terminal_acquisition_sha == acquisition_sha,
     source_ok,
-))
+]
+if not v3_study:
+    success_inputs.append(
+        digest(os.path.join(result_root, "non-certifying-observation.json"))
+        is not None
+    )
+success = all(success_inputs)
+accounting = None
+if v3_study:
+    duration_pattern = re.compile(r"([0-9]+)m([0-9]+(?:\.[0-9]+)?)s")
+
+    def times_values(raw):
+        matches = duration_pattern.findall(raw)
+        if len(matches) != 4:
+            raise SystemExit("accounting times snapshot shape differs")
+        return [float(minutes) * 60.0 + float(seconds) for minutes, seconds in matches]
+
+    baseline_raw = os.environ["IZANAGI_A1_ACCOUNTING_TIMES_BASELINE_RAW"]
+    final_raw = os.environ["IZANAGI_A1_ACCOUNTING_TIMES_FINAL_RAW"]
+    baseline = times_values(baseline_raw)
+    final = times_values(final_raw)
+    deltas = [end - start for start, end in zip(baseline, final)]
+    if any(value < -1e-9 for value in deltas):
+        raise SystemExit("accounting times delta is negative")
+    deltas = [max(0.0, value) for value in deltas]
+    started_epoch = float(os.environ["IZANAGI_A1_ACCOUNTING_STARTED_EPOCH_S"])
+    ended_epoch = float(os.environ["IZANAGI_A1_ACCOUNTING_ENDED_EPOCH_S"])
+    started_monotonic = float(
+        os.environ["IZANAGI_A1_ACCOUNTING_STARTED_MONOTONIC_S"]
+    )
+    ended_monotonic = float(
+        os.environ["IZANAGI_A1_ACCOUNTING_ENDED_MONOTONIC_S"]
+    )
+    accounting = {
+        "method": "bash-times-delta-reaped-descendants/v1",
+        "started_epoch_s": started_epoch,
+        "ended_epoch_s": ended_epoch,
+        "started_monotonic_s": started_monotonic,
+        "ended_monotonic_s": ended_monotonic,
+        "elapsed_s": ended_monotonic - started_monotonic,
+        "shell_user_s": deltas[0],
+        "shell_system_s": deltas[1],
+        "reaped_descendants_user_s": deltas[2],
+        "reaped_descendants_system_s": deltas[3],
+        "cpu_total_s": sum(deltas),
+        "times_baseline_raw": baseline_raw,
+        "times_final_raw": final_raw,
+        "unreaped_descendants": [],
+    }
 document = {
-    "schema_version": "paper-story-a1-paired-job-terminal/v3",
+    "schema_version": (
+        "paper-story-a1-paired-workload-job-terminal/v1"
+        if v3_study else "paper-story-a1-paired-job-terminal/v3"
+    ),
     "study_id": study_id,
     "pbs_jobid": pbs_jobid,
     "expected_head": expected_head,
@@ -640,6 +1112,12 @@ document = {
     "terminal_source_binding": source_binding,
     "recorded_epoch": int(time.time()),
 }
+if v3_study:
+    if workload not in {"write-heavy", "balanced", "read-heavy"}:
+        raise SystemExit("terminal workload differs")
+    document["workload"] = workload
+    document["ordinal"] = workload_ordinal
+    document["accounting"] = accounting
 flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
 fd = os.open(path, flags, 0o600)
 with os.fdopen(fd, "w", encoding="utf-8") as stream:
@@ -668,6 +1146,11 @@ on_exit() {
   cleanup_rc=$?
   if [[ "$cleanup_rc" -ne 0 ]]; then
     shell_rc=70
+  fi
+  if [[ "$V3_STUDY" -eq 1 ]]; then
+    wait
+    audit_v3_job_process_set || exit 70
+    capture_v3_accounting_end || exit 70
   fi
   write_terminal "$shell_rc"
   writer_rc=$?
@@ -857,7 +1340,8 @@ set +e
   --output-root "$OUTPUT_ROOT" \
   --cache-root "$CACHE_ROOT" \
   --result-root "$RESULT_ROOT" \
-  --dependency-prefix "$DEPENDENCY_PREFIX"
+  --dependency-prefix "$DEPENDENCY_PREFIX" \
+  "${MEASURE_WORKLOAD_ARGS[@]}"
 DRIVER_RC=$?
 set -e
 exit "$DRIVER_RC"

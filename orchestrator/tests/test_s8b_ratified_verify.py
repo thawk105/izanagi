@@ -94,7 +94,7 @@ _NEGATIVE_REGISTRY = {
     },
     "scan-undeclared": {
         "baseline_validator": "launch_validate(emitter baseline)",
-        "mutation_stage": "worktree after A",
+        "mutation_stage": "worktree after X",
         "repaired_deps": (), "invoke_layer": "launch_validate",
         "reason": "closure-hit-mismatch", "cause": None,
     },
@@ -106,7 +106,7 @@ _NEGATIVE_REGISTRY = {
     },
     "scan-per-holdout": {
         "baseline_validator": "launch_validate(emitter baseline)",
-        "mutation_stage": "worktree after A",
+        "mutation_stage": "worktree after X",
         "repaired_deps": (), "invoke_layer": "launch_validate",
         "reason": "closure-hit-mismatch", "cause": None,
     },
@@ -118,7 +118,7 @@ _NEGATIVE_REGISTRY = {
     },
     "scan-positive": {
         "baseline_validator": "launch_validate(emitter baseline)",
-        "mutation_stage": "positive-control worktree bytes after A",
+        "mutation_stage": "positive-control worktree bytes after X",
         "repaired_deps": (), "invoke_layer": "launch_validate",
         "reason": "search-not-operational", "cause": None,
     },
@@ -477,7 +477,7 @@ def _result_document(protocol: dict, cells: list[dict], binaries: dict,
 
 def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
                                    cert_at_generation=False, executable_role=None):
-    """C(cert only)→G(run artifacts+closure+generation)→A(approval+pointer)→H(no-op)。"""
+    """C(cert only)→G(run artifacts+closure+generation)→A(approval)→X(pointer)→H。"""
     root = tmp_path / "launch-repo"
     root.mkdir()
     _lgit(root, "init", "-q")
@@ -658,27 +658,31 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
     })
     approval_sha = _lsha(approval_raw)
     _lwrite(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    a_commit = _lcommit(root, "approve generation", "none")
     pointer_raw = M._canonical_bytes({
         "generation_number": 1, "path": gen_path, "sha256": gen_sha,
         "parent_active_sha256": None, "approval_sha256": approval_sha,
     })
     pointer_sha = _lsha(pointer_raw)
     _lwrite(root, f"{M.ACTIVE_DIR}/{pointer_sha}.json", pointer_raw)
-    a_commit = _lcommit(root, "approve generation", "none")
+    x_commit = _lcommit(root, "activate generation", "none")
     (root / "validation-head.txt").write_text("H differs from A\n", encoding="utf-8")
     h_commit = _lcommit(root, "validation head", "fixture")
     ratified = M.RatifiedFreeze(
         document=M._deep_freeze(gen_doc), sha256=gen_sha, generation_number=1,
         activation_head=h_commit, generation_commit=g_commit,
     )
-    return root, ratified, {**state, "C": c_commit, "G": g_commit, "A": a_commit, "H": h_commit}
+    return root, ratified, {
+        **state, "C": c_commit, "G": g_commit, "A": a_commit,
+        "X": x_commit, "H": h_commit,
+    }
 
 
 def _build_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
                        cert_at_generation=False, executable_role=None,
                        selector_valid_cell=False, selector_extra_files=(),
                        selector_payload_hit=False):
-    """決定的観測下の production-emitter bytes を G/A に載せた launch fixture。"""
+    """決定的観測下の production-emitter bytes を G/A/X に載せた launch fixture。"""
     def combined(state):
         if cert_mutate is not None:
             cert_mutate(state["cert"])
@@ -694,7 +698,7 @@ def _build_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
     )
     ratified = M.RatifiedFreeze(
         document=M._deep_freeze(g1), sha256=gen_sha, generation_number=1,
-        activation_head=topology["A"], generation_commit=topology["G"],
+        activation_head=topology["X"], generation_commit=topology["G"],
     )
     return root, ratified, topology
 
@@ -816,8 +820,8 @@ def test_equality_chain_each_edge_coherent_island_rejected(edge):
 def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
-    assert topology["C"] != topology["G"] != topology["A"]
-    assert topology["H"] == topology["A"]
+    assert topology["C"] != topology["G"] != topology["A"] != topology["X"]
+    assert topology["H"] == topology["X"]
     assert _lgit(root, "merge-base", "--is-ancestor", topology["C"], topology["G"]) == ""
     loaded = M.load_ratified_freeze(root)
     assert loaded.sha256 == freeze.sha256
@@ -849,6 +853,144 @@ def _with_earlier_floor_result_at_head(
         activation_head=activation_head,
         generation_commit=freeze.generation_commit,
     ), earlier_rel
+
+
+def _install_real_earlier_official_run(
+        root: Path, topology: dict, *, resume: bool) -> tuple[str, bool]:
+    """実 admission を追記し、scan-neutral な earlier official run を設置する。"""
+    from orchestrator.campaign import s8b_holdout_admission as admission
+
+    selected_rel = topology["paths"]["result"]
+    selected_run_id = selected_rel.rsplit("/", 2)[-2]
+    proto8 = selected_run_id.rsplit("-", 1)[1]
+    earlier_run_id = f"20260718T115959Z-{proto8}"
+    assert earlier_run_id < selected_run_id
+    namespace_rel = selected_rel.rsplit("/", 2)[0]
+    run_dir_rel = f"{namespace_rel}/{earlier_run_id}"
+    earlier_rel = f"{run_dir_rel}/result.json"
+    run_dir = root / run_dir_rel
+    assert not run_dir.exists()
+
+    selected_run_dir = root / selected_rel.rsplit("/", 1)[0]
+    selected_before = {
+        path.name: path.read_bytes()
+        for path in selected_run_dir.iterdir() if path.is_file()
+    }
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    admission_before = {
+        path.relative_to(admission_root).as_posix(): path.read_bytes()
+        for path in admission_root.rglob("*") if path.is_file()
+    }
+
+    protocol = copy.deepcopy(topology["protocol"])
+    v1 = json.loads((root / protocol["freeze"]["path"]).read_bytes())
+    cells = FC.enumerate_cells(
+        v1, stock_configuration=protocol["stock_configuration"],
+    )
+    admission_cells = [
+        {
+            "cell_id": cell["cell_id"],
+            "freeze_holdout_key": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": cell["workload"],
+        }
+        for cell in cells
+    ]
+    schedule = FC.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    schedule_by_seq = {row["seq"]: row for row in schedule}
+
+    run_dir.mkdir(parents=True)
+    manifest_raw = B._json_bytes_with_escaped_strings(topology["manifest"])
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+    (run_dir / "manifest.json").write_bytes(manifest_raw)
+    journal_path = run_dir / "journal.jsonl"
+    journal_path.write_bytes(b"")
+    run_relpath = run_dir_rel.removeprefix("output/")
+    reservation = admission.reserve_floor_holdout_observations(
+        repo_root=root, protocol=protocol, verified_freeze_document=v1,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        cells=admission_cells, schedule=schedule,
+        campaign_run_id=earlier_run_id, out_root=root / "output",
+        run_dir=run_dir, run_relpath=run_relpath, mode="official",
+        resume=resume, nondefault_seams=[],
+    )
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
+
+    journal_records = []
+    for session in topology["result"]["sessions"]:
+        scheduled = schedule_by_seq[session["seq"]]
+        start = {
+            "event": "session-start", "seq": session["seq"],
+            "kind": "planned", "cell_id": session["cell_id"],
+            "round": scheduled["round"], "retry_ordinal": None,
+            "attempt_id": session["attempt_id"], "trigger": None,
+        }
+        journal_records.append(start)
+        journal_path.write_bytes(B._jsonl_bytes(journal_records))
+        competing = session["probe_before"]["competing"]
+        if competing is False:
+            admission.consume_attempt_ticket(
+                admitted[session["cell_id"]],
+                attempt_id=session["attempt_id"],
+            )
+        journal_records.append({
+            "event": "session", "cell_id": session["cell_id"],
+            "attempt_id": session["attempt_id"],
+            "probe_before": {"competing": competing},
+        })
+        journal_path.write_bytes(B._jsonl_bytes(journal_records))
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(
+        repo_root=root, protocol=protocol, verified_freeze_document=v1,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256=manifest_sha256, campaign_run_id=earlier_run_id,
+        run_relpath=run_relpath, mode="official", cells=cells,
+        schedule=schedule, sessions=journal_records,
+    )
+    claim_entry_kinds = {
+        json.loads(
+            (admission_root / "measurement-generation-claims"
+             / f"{claim_digest}.claim").read_bytes()
+        )["entry_kind"]
+        for claim_digest in inspection["claim_identities"].values()
+    }
+    assert claim_entry_kinds == ({"resume"} if resume else {"fresh"})
+    marker_name = hashlib.sha256(earlier_run_id.encode("utf-8")).hexdigest()
+    marker_path = (
+        admission_root / "refreeze-disqualifications" / f"{marker_name}.json"
+    )
+    assert marker_path.is_file() is resume
+    result = copy.deepcopy(topology["result"])
+    result["eligible_for_refreeze"] = inspection.derived_eligible_for_refreeze
+    result["manifest_sha256"] = manifest_sha256
+    result["holdout_admission"] = dict(inspection)
+    for row in result["wall_ledger"]:
+        if row.get("event") == "campaign-start":
+            row["manifest_sha256"] = manifest_sha256
+    (run_dir / "result.json").write_bytes(
+        B._json_bytes_with_escaped_strings(result)
+    )
+    assert not (run_dir / "launch_certificate.json").exists()
+
+    selected_after = {
+        path.name: path.read_bytes()
+        for path in selected_run_dir.iterdir() if path.is_file()
+    }
+    assert selected_after == selected_before
+    for relative, before in admission_before.items():
+        after = (admission_root / relative).read_bytes()
+        if relative in {"ledger.jsonl", "attempt-ledger.jsonl"}:
+            assert after.startswith(before)
+        else:
+            assert after == before
+
+    B._fixed_commit_all(root, "earlier official result", "fixture")
+    return earlier_rel, inspection.derived_eligible_for_refreeze
 
 
 def test_launch_validate_rejects_floor_selection_rule_mismatch(
@@ -884,6 +1026,62 @@ def test_g1_selection_helper_rejects_rule_mismatch(tmp_path, monkeypatch):
     assert caught.value.reason == "floor-selection-rule-mismatch"
     assert caught.value.cause == "earliest-eligible-official-run-id/v1"
     assert calls == [earlier_rel]
+
+
+def test_launch_validate_rejects_genuine_eligible_earlier_official_run(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=False,
+    )
+    assert derived is True
+    loaded = M.load_ratified_freeze(root)
+
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.launch_validate(loaded, root)
+    assert caught.value.reason == "floor-selection-rule-mismatch"
+    assert caught.value.cause == "earliest-eligible-official-run-id/v1"
+
+
+def test_launch_validate_accepts_genuine_ineligible_earlier_resume(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=True,
+    )
+    assert derived is False
+    loaded = M.load_ratified_freeze(root)
+
+    validated = M.launch_validate(loaded, root)
+    assert type(validated) is M.LaunchValidatedFreeze
+    assert validated.ratified is loaded
+
+
+def test_g1_selection_helper_rejects_genuine_eligible_earlier_official_run(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=False,
+    )
+    assert derived is True
+    loaded = M.load_ratified_freeze(root)
+
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.assert_g1_floor_selection_identity(loaded, root)
+    assert caught.value.reason == "floor-selection-rule-mismatch"
+    assert caught.value.cause == "earliest-eligible-official-run-id/v1"
+
+
+def test_g1_selection_helper_accepts_genuine_ineligible_earlier_resume(
+        tmp_path):
+    root, _freeze, topology = _build_launch_repo(tmp_path)
+    _earlier_rel, derived = _install_real_earlier_official_run(
+        root, topology, resume=True,
+    )
+    assert derived is False
+    loaded = M.load_ratified_freeze(root)
+
+    assert M.assert_g1_floor_selection_identity(loaded, root) is None
 
 
 def test_g1_selection_helper_rejects_foreign_env_namespace(
@@ -1355,7 +1553,7 @@ def test_chain_g2_env_tag_unchanged_loads(tmp_path):
     freeze, g2_topology = B.append_production_emitter_g2(
         root, g1, g1_sha, topology)
     assert freeze.generation_number == 2
-    assert g2_topology["C2"] != g2_topology["G2"] != g2_topology["A2"]
+    assert g2_topology["C2"] != g2_topology["G2"] != g2_topology["A2"] != g2_topology["X2"]
 
 
 # --------------------------------------------------------------------------
@@ -1916,7 +2114,7 @@ def test_selector_exact_exemption_accepts_declared_three_axis_evidence(tmp_path)
     assert raw_path in hits["rr80"]
     assert envelope_path in hits["rr80"]
 
-    exempt = M._selector_evidence_exempt_exact(head=topology["A"], root=root)
+    exempt = M._selector_evidence_exempt_exact(head=topology["X"], root=root)
     assert raw_path in exempt
     assert envelope_path in exempt
     assert payload_path not in exempt
@@ -2031,7 +2229,7 @@ def test_selector_parser_classification_boundary_at_ratified_launch(
     assert committed_paths == tuple(sorted(boundary_paths))
 
     ratified = M.load_ratified_freeze(root)
-    assert ratified.activation_head == topology["A"]
+    assert ratified.activation_head == topology["X"]
     # check=True の無例外完了をもって boundary commit が A の祖先であることを検査する。
     B._fixed_git(
         root, "merge-base", "--is-ancestor", boundary["commit"],
@@ -2108,7 +2306,7 @@ def test_selector_parser_classification_boundary_at_ratified_launch(
         honest_document, freeze=selector_freeze, root=root,
     ) is None
 
-    # A 後の selector evidence 書換えは、意味検証より先に H-pure 履歴検査が拒否する。
+    # X 後の selector evidence 書換えは、意味検証より先に H-pure 履歴検査が拒否する。
     (root / raw_rel).write_bytes((boundary["raw"] + " ").encode("utf-8"))
     post_a_commit = B._commit_exact(
         root,
@@ -2116,7 +2314,7 @@ def test_selector_parser_classification_boundary_at_ratified_launch(
         subject="mutate selector evidence after approval",
         agent="fixture",
     )
-    assert B._fixed_git(root, "rev-parse", f"{post_a_commit}^") == topology["A"]
+    assert B._fixed_git(root, "rev-parse", f"{post_a_commit}^") == topology["X"]
     with pytest.raises(M.RatifiedFreezeError) as post_a_error:
         M.load_ratified_freeze(root)
     assert post_a_error.value.reason == "history-mutated"

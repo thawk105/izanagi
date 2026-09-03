@@ -45,6 +45,41 @@ def _slice_value() -> dict[str, Any]:
     return json.loads(_SLICE.read_bytes())
 
 
+def _pinned_jobs_paths() -> tuple[str, ...]:
+    paths: set[str] = set()
+    for task in _slice_value()["tasks"].values():
+        catalog_join = task["provenance"]["catalog_join"]
+        for name in ("prompt", "receipt"):
+            descriptor = catalog_join[name]
+            if descriptor["relative_to"] == "jobs-root":
+                paths.add(descriptor["jobs_relative_path"])
+        for descriptor in task["provenance"]["evidence"]:
+            if descriptor["relative_to"] == "jobs-root":
+                paths.add(descriptor["path"])
+    return tuple(sorted(paths))
+
+
+def _missing_pinned_jobs_files(jobs_root: Path) -> tuple[str, ...]:
+    missing = []
+    for relative in _pinned_jobs_paths():
+        try:
+            os.stat(jobs_root / relative)
+        except FileNotFoundError:
+            missing.append(relative)
+    return tuple(missing)
+
+
+def _require_pinned_jobs_files(jobs_root: Path) -> None:
+    missing = _missing_pinned_jobs_files(jobs_root)
+    if missing:
+        detail = ", ".join(missing)
+        pytest.skip(
+            "pinned external jobs inputs are unavailable; missing relative "
+            f"paths: {detail}; with the complete input set, all assertions "
+            "in this test would run"
+        )
+
+
 def _all_keys(value: object):
     if isinstance(value, dict):
         for key, item in value.items():
@@ -81,8 +116,8 @@ def test_portable_verifier_joins_checked_in_catalog_and_classification() -> None
     assert not {"accepted", "success", "passed"}.intersection(_all_keys(result))
 
 
-@pytest.mark.skipif(not _JOBS_ROOT.is_dir(), reason="physical jobs tree unavailable")
 def test_optional_jobs_root_audits_pinned_prompt_and_receipt_bytes() -> None:
+    _require_pinned_jobs_files(_JOBS_ROOT)
     result = TOOL.verify_wiring_slice(
         slice_path=_SLICE,
         catalog_path=_CATALOG,
@@ -92,6 +127,53 @@ def test_optional_jobs_root_audits_pinned_prompt_and_receipt_bytes() -> None:
     )
     assert result["integrity_status"] == "verified"
     assert result["physical_jobs_audit"] == "verified"
+
+
+def test_pinned_jobs_requirements_are_exact() -> None:
+    assert _pinned_jobs_paths() == (
+        "T-1222-population-closure/"
+        "T-1222-population-closure-plan-"
+        "c7d8a2085d4bacb773d2a1a240801409d1c754541d424fffe87fbf21e1305ff3/"
+        "receipt.json",
+        "T-1222-population-closure/stage2-plan-prompt.md",
+        "dev-wave-t1393-finish-trial-indeterminate/"
+        "dev-wave-t1393-finish-trial-indeterminate-plan-"
+        "8501201db4c59d0a3d53591b3b0c373cccccf2c67159a53b4e9a2c35b2b62a3c/"
+        "receipt.json",
+        "dev-wave-t1393-finish-trial-indeterminate/stage2-prompt.md",
+    )
+
+
+def _write_pinned_jobs_stubs(jobs_root: Path, paths: tuple[str, ...]) -> None:
+    for relative in paths:
+        target = jobs_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"stub\n")
+
+
+def test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing(
+    tmp_path: Path,
+) -> None:
+    jobs_root = tmp_path / "jobs"
+    jobs_root.mkdir()
+    paths = _pinned_jobs_paths()
+    _write_pinned_jobs_stubs(jobs_root, paths[1:])
+
+    with pytest.raises(pytest.skip.Exception) as caught:
+        _require_pinned_jobs_files(jobs_root)
+    assert paths[0] in str(caught.value)
+    assert "complete input set, all assertions in this test would run" in str(
+        caught.value
+    )
+
+
+def test_pinned_jobs_guard_does_not_skip_for_complete_input_set(
+    tmp_path: Path,
+) -> None:
+    jobs_root = tmp_path / "jobs"
+    _write_pinned_jobs_stubs(jobs_root, _pinned_jobs_paths())
+
+    _require_pinned_jobs_files(jobs_root)
 
 
 @pytest.mark.parametrize(

@@ -31,6 +31,8 @@ prompt 先頭は AGENTS.md の単独段例外と同形式。
 WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
 Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
 prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
+**作る command だけでなく読む command も掛かる。** 防護 path と `$()`・プロセス置換・`<<<`・
+`eval`・`xargs` の同居は分類不能として拒否されるので、読取りは cat / grep / jq を直に使う。
 Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
 subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
 
@@ -118,7 +120,7 @@ NO-GO が続く場合は fix を重ねず 3 巡を上限とし (親の実機 blo
 
 ## DW-O17 — commit trailer
 
-trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--dry-run -F`単独rc=0→`commit -F`→full監査。
+trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--message-file`検査rc=0→`commit -F`→full監査。
 mergeは`OLD_HEAD`を保存し、ffはincoming監査→`--ff-only`→full監査、非ffは`--no-ff --no-commit`→
 競合解消→同じpreflight→`commit -F`→full監査。自動message/`--no-edit`は禁止。correctionは両commitを含む
 rangeかfull監査だけが権威（`OLD_HEAD..HEAD`は補助）。検査rcをpipeへ渡さず赤で停止（F37）。複数preflightと
