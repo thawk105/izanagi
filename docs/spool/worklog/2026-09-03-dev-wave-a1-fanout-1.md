@@ -67,28 +67,9 @@ title: A-1 pilot を workload 単位の 3 job へ割った — 分割が開く�
 
 ### carry
 
+- [T-1777]
 - [T-2224]
 - [T-2225]
-
-### 更新
-
-- [T-1777] **P2・ユーザー手番 (発効)**: A-1 の対の配置。**(1) coordinator 実装は着地済み**
-  (`08a17b3b3`)。**(1.5) 事前登録の起草は完了した** (2026-09-02)。本文は
-  `output/insights/2026-09-01_paper-story-a1-balanced5-pilot-preregistration/README.md`
-  (SHA-256 = `8f8d2ad338a7a3193aaee8433c1495cef06b9520425251dd8bef89584ca626fc`)。
-  **(1.7) workload 単位の 3 job fan-out を実装した** (本 wave、案 C)。事前登録と policy JSON の
-  bytes は変えていないので、発効手順はそのまま使える。ただし**手順書 §4.1 が名指す行 locator 4 件と
-  `docs/pegasus-runbook.md` §7.7 の「A-1 は 1 job」という記述は、本 wave の着地で古くなった**
-  ({{T:a1-fanout-docs-followup}} が所有)。**残るのは発効だけで、これは人間の手番である**
-  (D1383 / D1391)。編集は 5 箇所 — driver の事前登録 pin 2 本、policy JSON の `preregistration`、
-  policy bytes に連動する `V3_PILOT_POLICY_SHA256`、未凍結を固定している正例テスト、および
-  sized 形状 fixture の `preregistration` 戻し。手順・実行順・commit 前後に分けた検査コマンドは
-  `output/insights/2026-09-01_t1777-pilot-preregistration` §4 が正本。
-  (2) 発効後に pilot を 60 対/workload 測る (未走)。(3) pilot から対 SD とブロック実効 sigma を
-  出し、独立 seed の simulation で反復数を認証する。(4) `paper_story_a1_paired.v3-sized.json` と
-  その事前登録を凍結する (未作成)。(5) 本走を投入する。
-  凍結済みの現行 study は据え置き、bytes を変えない。
-  base: 5c1077acdce31063c381b84b4efd14b05b4651a6bfa420f9c696c28a8431c69d
 
 ### 新規
 
