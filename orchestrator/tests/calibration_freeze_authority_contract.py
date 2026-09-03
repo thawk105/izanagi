@@ -249,16 +249,16 @@ _EXPECTED_RAW_SHA256_BY_FIXTURE: Mapping[str, str] = MappingProxyType({
     "floor-seal-consistency":
         "db154c0e98d5686d9f724345f2f7eef240e60efe6f2d9386a3bc6d5adf90ff44",
     "freeze-history-immutability":
-        "170268fb92660769fc7b4b628bd727ab49c12532e336238133eebf97f86b67c4",
+        "96bbdd24ec4992fe5f51182587d52cd33f4e71343d88ad927c535f0071ae9fc3",
     "orphan-generation-no-authority":
-        "e0166f918a5302871071e84a5f38443771d849d311933e78b0798e1cb16357d4",
+        "6fdedf1ca68e8ba2445e39dd12e1f04b24b161cf53e8aeeacda4604b52a1adad",
     "post-cutoff-bundle-identity":
         "be7219a39230586bf0cde4347ba024ab746c48740eb83e2d247b50fd99a2508d",
     "unapproved-generation-no-authority":
-        "92b70ce5cd7bff0678b3a6b24bc3d5950a134108f7616cd4b37b8b0eec6a1d73",
+        "72c7785ebb5f6d4e20f619c369cef6d9baad8ddca81c2ae4557700276a96dbab",
 })
 _EXPECTED_FIXTURE_ENTRIES_SHA256 = (
-    "a8bf16889b3b83a6c22506fd2069fad16ea20b08195597ac361b905f2476a91b"
+    "e5ad9f3d4d7f0025b2378d859aa942919acc8f70084c6b4a1925c5433afe13eb"
 )
 _EXPECTED_ROW_IDS_SHA256 = (
     "facd79bcbd94c1783df767bede2a727df5db6e758bba79833deb5478d76eabfe"
