@@ -122,12 +122,9 @@ def _protocol_source_has_trace_hook_evidence_only(
     証明することではない。CMake SOURCES の欠落・読取不能も拒否する。
     前処理条件の評価、到達可能性、実際の発火、verifier が読めることは証明しない。
     """
-    try:
-        sources = compiled_protocol_source_texts(
-            protocol, ccbench_root or CCBENCH_ROOT,
-        )
-    except Exception:
-        return False
+    sources = compiled_protocol_source_texts(
+        protocol, ccbench_root or CCBENCH_ROOT,
+    )
     if sources is None:
         return False
 

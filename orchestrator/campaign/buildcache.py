@@ -3334,7 +3334,9 @@ def _recheck_source_evidence(
         if built_fresh:
             _discard_build_dir(bdir)
         raise
-    if actual != expected:
+    if (actual != expected
+            or actual.proof_source_snapshot != expected.proof_source_snapshot
+            or actual.verification_variant != expected.verification_variant):
         if built_fresh:
             _discard_build_dir(bdir)
         raise RuntimeError(

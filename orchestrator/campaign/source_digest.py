@@ -65,9 +65,13 @@ import hashlib
 import os
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Mapping, Optional
 
+from ..verifier.model import (
+    CompiledProtocolSourceSnapshot,
+    capture_compiled_protocol_source_snapshot,
+)
 from .model import Genome
 
 # ---- 対象集合 (kickoff の固定集合。動的なマーカー走査はマーカー導入後に格上げ) ----
@@ -101,6 +105,14 @@ EMPTY_TRACKED_DIFF_SHA256 = hashlib.sha256(b"").hexdigest()
 SOURCE_BINDING_DIRECTORY = "source-bindings"
 
 
+def verification_variant_id(genome: Genome, source_token: str = STOCK) -> str:
+    """SourceEvidence と verifier receipt が共有する variant identity。"""
+    suffix = "" if source_token == STOCK else f"|src={source_token}"
+    return hashlib.sha256(
+        f"{genome.canonical()}{suffix}".encode("utf-8")
+    ).hexdigest()[:12]
+
+
 def _is_sha256(value: object) -> bool:
     if type(value) is not str or len(value) != 64:
         return False
@@ -116,8 +128,9 @@ class SourceEvidence:
     """One source-root-bound evidence projection for build admission.
 
     ``source_root`` records which checkout was inspected, while ``tracked_clean``, the tracked
-    diff digest, and ``tracked_paths`` are derived from one status snapshot.  The checkout remains
-    mutable: this value does not close the ABA/mixed-snapshot window between capture and build.
+    diff digest, and ``tracked_paths`` are derived from one status snapshot.  The non-wire proof
+    snapshot freezes the compiled-source predicate input for the build/verifier path.  The checkout
+    remains mutable, so buildcache must still re-resolve and compare both projections at its exit.
     """
 
     schema_version: str
@@ -129,6 +142,13 @@ class SourceEvidence:
     tracked_clean: bool
     tracked_diff_sha256: str
     tracked_paths: tuple[str, ...]
+    # Build/verifier の同一プロセス内だけで使う非 wire 束縛。receipt key は増やさない。
+    proof_source_snapshot: Optional[CompiledProtocolSourceSnapshot] = field(
+        default=None, repr=False, compare=False,
+    )
+    verification_variant: Optional[str] = field(
+        default=None, repr=False, compare=False,
+    )
 
     _KEYS = frozenset({
         "schema", "source_root", "ccbench_commit", "genome_sha256", "src_token",
@@ -160,6 +180,17 @@ class SourceEvidence:
             raise ValueError("SourceEvidence tracked_clean と tracked_paths が不整合")
         if self.tracked_clean != (self.tracked_diff_sha256 == EMPTY_TRACKED_DIFF_SHA256):
             raise ValueError("SourceEvidence tracked_clean と tracked diff digest が不整合")
+        if (self.proof_source_snapshot is not None
+                and type(self.proof_source_snapshot)
+                is not CompiledProtocolSourceSnapshot):
+            raise ValueError("SourceEvidence proof source snapshot が不正")
+        if (self.proof_source_snapshot is not None
+                and self.proof_source_snapshot.ccbench_root != self.source_root):
+            raise ValueError("SourceEvidence proof source snapshot root が不一致")
+        if (self.verification_variant is not None
+                and (type(self.verification_variant) is not str
+                     or not self.verification_variant)):
+            raise ValueError("SourceEvidence verification variant が不正")
 
     def as_receipt(self) -> dict[str, object]:
         return {
@@ -2263,6 +2294,10 @@ def resolve_evidence(
         tracked_clean=not tracked_paths,
         tracked_diff_sha256=tracked_diff_sha256,
         tracked_paths=tracked_paths,
+        proof_source_snapshot=capture_compiled_protocol_source_snapshot(
+            genome.protocol, source_root,
+        ),
+        verification_variant=verification_variant_id(genome, token),
     )
 
 

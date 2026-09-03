@@ -197,9 +197,9 @@ def _run_once(binary: str, flags: dict, extime: int, trace: bool):
 def _verifier_run(trace_dir: str, expected_commits: int):
     """verifier を別プロセスで実走し (時間/maxrss を計測)、構造化結果を返す。"""
     cmd = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier",
-           trace_dir, "--json", "--quiet", "--expected-commits",
-           str(expected_commits), "--protocol", "silo", "--ccbench-root",
-           os.path.join(_repo_root(), "external", "ccbench")]
+           trace_dir, "--json", "--quiet", "--protocol", "silo",
+           "--ccbench-root", os.path.join(_repo_root(), "external", "ccbench"),
+           "--expected-commits", str(expected_commits)]
     t0 = time.monotonic()
     proc = subprocess.run(cmd, capture_output=True, text=True,
                           timeout=GATE2_VERIFIER_WALL_S,

@@ -321,6 +321,51 @@ def test_trace_hook_admission_accepts_listed_source():
         )
 
 
+def test_trace_hook_admission_preserves_parent_relative_cmake_source():
+    """D1373 accepted ``../`` CMake sources before the shared scanner."""
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        root = Path(raw_tmp)
+        protocol_dir = root / "cc/mocc"
+        protocol_dir.mkdir(parents=True)
+        (protocol_dir / "CMakeLists.txt").write_text(
+            "ccbench_add_protocol(mocc SOURCES ../shared.cc WORKLOADS ycsb)\n",
+            encoding="utf-8",
+        )
+        (root / "cc/shared.cc").write_text(
+            '#include "../include/trace.hh"\n'
+            "#if TRACE\n"
+            "izanagi_trace::emit_abort(1);\n"
+            "#endif\n",
+            encoding="utf-8",
+        )
+        assert between_run_floor._protocol_source_has_trace_hook_evidence_only(
+            "mocc", root,
+        )
+
+
+def test_trace_hook_admission_preserves_absolute_cmake_source():
+    """D1373 accepted absolute CMake sources before the shared scanner."""
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        root = Path(raw_tmp)
+        protocol_dir = root / "cc/mocc"
+        protocol_dir.mkdir(parents=True)
+        source = root / "absolute.cc"
+        source.write_text(
+            '#include "include/trace.hh"\n'
+            "#if TRACE\n"
+            "izanagi_trace::emit_abort(1);\n"
+            "#endif\n",
+            encoding="utf-8",
+        )
+        (protocol_dir / "CMakeLists.txt").write_text(
+            f"ccbench_add_protocol(mocc SOURCES {source} WORKLOADS ycsb)\n",
+            encoding="utf-8",
+        )
+        assert between_run_floor._protocol_source_has_trace_hook_evidence_only(
+            "mocc", root,
+        )
+
+
 def test_trace_hook_admission_rejects_commented_out_hook():
     with tempfile.TemporaryDirectory() as raw_tmp:
         root = Path(raw_tmp)

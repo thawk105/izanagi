@@ -154,6 +154,24 @@ def _source_evidence(
     )
 
 
+def _install_complete_silo_proof_source(source_root: str) -> None:
+    """Add the compiled Silo X/P fixture without replacing existing source."""
+    protocol_root = Path(source_root) / "cc/silo"
+    protocol_root.mkdir(parents=True, exist_ok=True)
+    (protocol_root / "CMakeLists.txt").write_text(
+        "ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n",
+        encoding="utf-8",
+    )
+    transaction = protocol_root / "transaction.cc"
+    with transaction.open("a", encoding="utf-8") as stream:
+        stream.write(
+            "\n#if TRACE\n"
+            "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+            "izanagi_trace::stream(0) << \"P \";\n"
+            "#endif\n"
+        )
+
+
 def _admission_for(
         genome_value: Genome, commit: str, *, src_token: str = "stock",
         source_root: str = "/tmp/izanagi-test-ccbench",
@@ -6354,6 +6372,7 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
     os.makedirs(os.path.dirname(source_path), exist_ok=True)
     predicate = emit_predicate(TriggerGateIR(20))
     hole_line = _write_materialized_trigger_source(source_path, predicate)
+    _install_complete_silo_proof_source(source_root)
     assert hole_line == "  " + predicate
     candidate = trigger_gate_binding.TriggerGateBinding(
         mask=20,
@@ -6639,10 +6658,13 @@ def test_m12_pipeline_compute_uses_gxx_for_source_digest_and_v2_builds():
     assert "site" not in inspect.signature(pipeline.evaluate).parameters
 
 
-def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds():
+def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds(
+        tmp_path,
+):
     lay = _tmp_layout()
     contract = ec.lookup("linux-baremetal")
-    prepared_tree = "/approved/prepared-cell-tree"
+    prepared_tree = str(tmp_path / "prepared-cell-tree")
+    _install_complete_silo_proof_source(prepared_tree)
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, contract.env_tag, "deadbeef",
@@ -9528,7 +9550,9 @@ def _sd_mock(src_token):
                 genome_value,
                 commit,
                 src_token=src_token,
-                source_root=ccbench_dir or "/tmp/izanagi-test-ccbench",
+                source_root=(
+                    ccbench_dir or str(commit_receipts.proof_source_root())
+                ),
             )
     return types.SimpleNamespace(STOCK="stock", resolve_evidence=_resolve)
 

@@ -9,6 +9,7 @@ isolation)。verifier の入力は trace、commit witness、protocol/source cont
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 import re
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
@@ -124,17 +125,16 @@ def compiled_protocol_source_texts(
     ``#if 0`` 除去規則を見るための唯一の実装である。CMake/source の欠落、不正、
     読取不能は ``None`` とする。
     """
-    if (type(protocol) is not str
-            or re.fullmatch(r"[a-z0-9_+-]+", protocol) is None):
+    # D1373 の wave 前 semantics を保つ。CMake が列挙する absolute path や
+    # ``..`` を裁定なしに拒否せず、protocol/root の型エラーもここで握り潰さない。
+    protocol_dir = Path(ccbench_root) / "cc" / protocol
+    if not protocol_dir.is_dir():
         return None
     try:
-        protocol_dir = Path(ccbench_root) / "cc" / protocol
-        if not protocol_dir.is_dir():
-            return None
         cmake_source = (protocol_dir / "CMakeLists.txt").read_text(
             encoding="utf-8",
         )
-    except (OSError, TypeError, UnicodeDecodeError):
+    except (OSError, UnicodeDecodeError):
         return None
 
     # CMake の行コメント内にある helper 名を invocation と誤認しない。
@@ -159,10 +159,8 @@ def compiled_protocol_source_texts(
         if not source_names:
             return None
         relative_names = tuple(Path(name) for name in source_names)
-        if (any(name.is_absolute() or ".." in name.parts
-                for name in relative_names)
-                or any(name.suffix not in _COMPILED_SOURCE_SUFFIXES
-                       for name in relative_names)):
+        if any(name.suffix not in _COMPILED_SOURCE_SUFFIXES
+               for name in relative_names):
             return None
         paths = tuple(protocol_dir / name for name in relative_names)
         if any(not path.is_file() for path in paths):
@@ -180,6 +178,27 @@ def compiled_protocol_source_texts(
     except (OSError, UnicodeDecodeError):
         return None
     return tuple(normalized)
+
+
+@dataclass(frozen=True)
+class CompiledProtocolSourceSnapshot:
+    """One immutable input snapshot for the compiled-source text predicates."""
+
+    protocol: str
+    ccbench_root: str
+    normalized_sources: Optional[Tuple[str, ...]]
+
+
+def capture_compiled_protocol_source_snapshot(
+        protocol: str, ccbench_root: Path | str,
+) -> CompiledProtocolSourceSnapshot:
+    """Capture the exact normalized source texts consumed by later assessment."""
+    root = os.path.realpath(os.path.abspath(os.fspath(ccbench_root)))
+    return CompiledProtocolSourceSnapshot(
+        protocol=protocol,
+        ccbench_root=root,
+        normalized_sources=compiled_protocol_source_texts(protocol, root),
+    )
 
 
 def _literal_trace_regions(source: str) -> str:
@@ -227,10 +246,40 @@ def assess_protocol_proof_surfaces(
     if protocol not in _PROOF_SURFACE_PROTOCOLS or ccbench_root is None:
         return unavailable
     try:
-        sources = compiled_protocol_source_texts(protocol, ccbench_root)
-        if sources is None:
-            return unavailable
-        trace_regions = tuple(_literal_trace_regions(source) for source in sources)
+        snapshot = capture_compiled_protocol_source_snapshot(
+            protocol, ccbench_root,
+        )
+        return assess_compiled_protocol_source_snapshot(snapshot)
+    except Exception:
+        # Source/scan failure is an unavailable assessment, never positive evidence.
+        return unavailable
+
+
+def assess_compiled_protocol_source_snapshot(
+        snapshot: CompiledProtocolSourceSnapshot,
+) -> ProofSurfaceAssessment:
+    """Assess X/P/I from one immutable compiled-source text snapshot.
+
+    The snapshot contains the exact lexically normalized texts scanned here; no
+    mutable source path is reopened.  This still proves only that emitter calls
+    occur in compiled-source text inside a literal ``#if TRACE`` first branch.
+    It does not evaluate preprocessing conditions, reachability, actual firing,
+    or verifier readability.
+    """
+    if type(snapshot) is not CompiledProtocolSourceSnapshot:
+        raise TypeError("compiled protocol source snapshot must be exact")
+    protocol = snapshot.protocol
+    unavailable = ProofSurfaceAssessment(
+        protocol=protocol if type(protocol) is str else None,
+    )
+    if (protocol not in _PROOF_SURFACE_PROTOCOLS
+            or snapshot.normalized_sources is None):
+        return unavailable
+    try:
+        trace_regions = tuple(
+            _literal_trace_regions(source)
+            for source in snapshot.normalized_sources
+        )
 
         def assessed(found: bool) -> str:
             return (
@@ -252,7 +301,7 @@ def assess_protocol_proof_surfaces(
             for pattern in _WRITE_INTENT_EMITTER_PATTERNS
         ))
     except Exception:
-        # Source/scan failure is an unavailable assessment, never positive evidence.
+        # Snapshot/scan failure is unavailable, never positive evidence.
         return unavailable
     return ProofSurfaceAssessment(
         protocol=protocol,

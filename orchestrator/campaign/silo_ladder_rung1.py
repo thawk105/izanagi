@@ -2985,11 +2985,18 @@ def validate_raw_bundle(
             raise DriverError("raw correctness trace count is not four")
         from orchestrator.verifier.core import verify_trace_dir
         from orchestrator.verifier.report import result_to_dict
-        recomputed_result = result_to_dict(verify_trace_dir(
-            str(trace_root),
-            protocol="silo",
-            ccbench_root=_repo_root() / "external/ccbench",
-        ))
+        repo = _repo_root()
+        base_source = repo / "external/ccbench"
+        patch = repo / patch_contract.PATCH_PATH
+        # Recreate the same immutable PIN + patch source state used by the
+        # correctness build.  Never classify frozen traces against current HEAD.
+        with patchharness.checkout(PIN, str(base_source)) as pinned_source:
+            with patchharness.applied(str(patch), PIN, pinned_source):
+                recomputed_result = result_to_dict(verify_trace_dir(
+                    str(trace_root),
+                    protocol="silo",
+                    ccbench_root=pinned_source,
+                ))
         # trace_dir is a storage location, not a verifier predicate.
         recomputed_result["trace_dir"] = verifier["results"][0]["trace_dir"]
         recomputed = {
@@ -3657,7 +3664,7 @@ def validate_raw_bundle(
             accounting.read_text(encoding="utf-8", errors="replace"),
             document["gap_leg"]["attempts"][-1]["job_id"],
         )
-    except (DriverError, OSError, KeyError, TypeError, ValueError,
+    except (DriverError, OSError, KeyError, RuntimeError, TypeError, ValueError,
             env_attestation.AttestationError) as exc:
         return (EvidenceFailure("raw_bundle", str(exc)),)
     return ()

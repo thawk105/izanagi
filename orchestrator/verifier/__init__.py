@@ -8,6 +8,8 @@ Adya の Direct Serialization Graph を作り、rw (anti-dependency) を含む c
 公開 API:
     verify_trace_dir(trace_dir, *, expected_commits=None, protocol=None,
                      ccbench_root=None) -> VerifyResult
+    verify_trace_dir_with_capability(trace_dir, *, genome, source_evidence,
+                     build_admission, receipt_...) -> (VerifyResult, capability)
     result_to_dict(res) / render_text(res)
 
 設計背景: docs/roadmap.md §3、.claude/agents/verifier.md。

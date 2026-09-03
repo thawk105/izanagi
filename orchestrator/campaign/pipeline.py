@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable, Dict, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from ..calibrator import perf_preflight as _perf_preflight                # noqa: E402
@@ -41,6 +41,9 @@ from ..verifier.commit_receipt import (                          # noqa: E402
     campaign_lock_sha256_or_absent,
 )
 from ..verifier.parse import ParseError                           # noqa: E402
+from ..verifier.model import (                                   # noqa: E402
+    capture_compiled_protocol_source_snapshot,
+)
 
 from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
                source_digest, wal)  # noqa: E402
@@ -1105,7 +1108,24 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 raise BuildAdmissionError(
                     "caller の SourceEvidence が current source と不一致"
                 )
-        evidence = current_evidence
+        # Mock/legacy in-process evidence can lack the new non-wire fields.  Bind
+        # them once before either build; production resolve_evidence() already
+        # returns the same immutable snapshot and variant identity.
+        proof_snapshot = capture_compiled_protocol_source_snapshot(
+            genome.protocol, current_evidence.source_root,
+        )
+        if (current_evidence.proof_source_snapshot is not None
+                and current_evidence.proof_source_snapshot != proof_snapshot):
+            raise BuildAdmissionError(
+                "SourceEvidence resolve 中に proof source snapshot が変化した"
+            )
+        evidence = replace(
+            current_evidence,
+            proof_source_snapshot=proof_snapshot,
+            verification_variant=variant_id(
+                genome, current_evidence.src_token,
+            ),
+        )
         if src_token is not None and src_token != evidence.src_token:
             raise BuildAdmissionError("src_token が current SourceEvidence と不一致")
         capability = capability_resolver(evidence) if capability_resolver is not None else None
@@ -1472,8 +1492,9 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 vr, verification_capability = verify_trace_dir_with_capability(
                     tdir,
                     expected_commits=trace_result.commit_count_witness,
-                    protocol=genome.protocol,
-                    ccbench_root=evidence.source_root,
+                    genome=genome,
+                    source_evidence=evidence,
+                    build_admission=admission,
                     receipt_sink_kind=receipt_sink_kind,
                     receipt_lock_identity_sha256=receipt_lock_identity,
                     receipt_variant=v,

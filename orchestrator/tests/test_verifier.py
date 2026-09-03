@@ -10,6 +10,7 @@ from collections import Counter
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from dataclasses import replace
@@ -84,35 +85,19 @@ def test_g4_has_rw_edge_but_no_cycle():
 
 def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
     """現行 pin の実 compiled source と実 verifier を通す X/P 正負対。"""
-    from orchestrator.campaign.model import Genome
     from orchestrator.campaign.pin import CURRENT_PIN
-    from orchestrator.campaign.source_digest import resolve_evidence
 
     trace_dir = os.path.join(FIX, "g1_serial")
-    silo_evidence = resolve_evidence(
-        Genome("silo", {
-            "BACK_OFF": 0,
-            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
-            "NO_WAIT_OF_TICTOC": 0,
-            "WAL": 0,
-        }),
-        CURRENT_PIN,
-        ccbench_dir=REAL_CCBENCH_ROOT,
-    )
-    mocc_evidence = resolve_evidence(
-        Genome("mocc", {
-            "BACK_OFF": 1,
-            "KEY_SORT": 0,
-            "TEMPERATURE_RESET_OPT": 1,
-        }),
-        CURRENT_PIN,
-        ccbench_dir=REAL_CCBENCH_ROOT,
-    )
+    head = subprocess.run(
+        ["git", "-C", REAL_CCBENCH_ROOT, "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert head == CURRENT_PIN
     silo = _verify_trace_dir(
-        trace_dir, protocol="silo", ccbench_root=silo_evidence.source_root,
+        trace_dir, protocol="silo", ccbench_root=REAL_CCBENCH_ROOT,
     )
     mocc = _verify_trace_dir(
-        trace_dir, protocol="mocc", ccbench_root=mocc_evidence.source_root,
+        trace_dir, protocol="mocc", ccbench_root=REAL_CCBENCH_ROOT,
     )
     assert silo.integrity.proof_surfaces.as_record() == {
         "protocol": "silo",
@@ -2539,12 +2524,17 @@ def test_sparse_huge_txid_returns_bounded_indeterminate_result():
 
 
 def test_parallel_capability_remains_bound_to_parent_pid():
+    import commit_receipt_support as receipt_support
     from orchestrator.verifier.core import verify_trace_dir_with_capability
+    genome, source_evidence, build_admission = (
+        receipt_support._proof_build_binding("baseline")
+    )
     result, capability = verify_trace_dir_with_capability(
         os.path.join(FIX, "g3_readonly"),
         workers=2,
-        protocol="silo",
-        ccbench_root=CCBENCH_ROOT,
+        genome=genome,
+        source_evidence=source_evidence,
+        build_admission=build_admission,
         receipt_sink_kind="test",
         receipt_lock_identity_sha256="0" * 64,
         receipt_variant="baseline",
