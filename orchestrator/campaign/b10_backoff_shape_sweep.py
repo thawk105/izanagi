@@ -28,7 +28,7 @@ import tempfile
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Mapping, Optional, Sequence
+from typing import Callable, Collection, Mapping, Optional, Sequence
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -2466,6 +2466,8 @@ def _validate_prior_block_records(
                 or row.get("workload") != workload \
                 or type(row.get("execution_host")) is not str \
                 or not row.get("execution_host") \
+                or type(row.get("variant_id")) is not str \
+                or re.fullmatch(r"[0-9a-f]{12}", row["variant_id"]) is None \
                 or row.get("preregistration_binding") != prereg.binding.as_dict() \
                 or row.get("spec_sha256") != prereg.spec.spec_sha256 \
                 or row.get("analysis_code_sha256") != prereg.binding.analysis_code_sha256 \
@@ -2572,9 +2574,12 @@ def _legacy_write_heavy_binding(prereg: Preregistration) -> dict[str, str]:
     }
 
 
-def _require_legacy_record_digests(digests: Sequence[str]) -> None:
-    if len(digests) != len(LEGACY_WRITE_HEAVY_RECORD_SHA256S) \
-            or set(digests) != LEGACY_WRITE_HEAVY_RECORD_SHA256S:
+def _require_legacy_record_digests(
+    digests: Sequence[str],
+    expected_digests: Collection[str] = LEGACY_WRITE_HEAVY_RECORD_SHA256S,
+) -> None:
+    if len(digests) != len(expected_digests) \
+            or set(digests) != set(expected_digests):
         raise PreflightError(
             "legacy-record", "歴史 block record の content digest 集合が不一致",
         )
@@ -2613,6 +2618,7 @@ def _validate_legacy_write_heavy_records(
     *,
     campaign_id: str,
     prereg: Preregistration,
+    expected_record_digests: Collection[str] = LEGACY_WRITE_HEAVY_RECORD_SHA256S,
 ) -> dict[tuple[str, str], Mapping[str, object]]:
     """Admit only the finite official e3de15eb record set for reporting."""
     if campaign_id != LEGACY_WRITE_HEAVY_CAMPAIGN_ID:
@@ -2686,7 +2692,7 @@ def _validate_legacy_write_heavy_records(
         projected["execution_host"] = LEGACY_EXECUTION_HOST
         indexed[key] = projected
         content_digests.append(digest)
-    _require_legacy_record_digests(content_digests)
+    _require_legacy_record_digests(content_digests, expected_record_digests)
     _require_exact_workload_cells(
         indexed, prereg=prereg, workload="write-heavy",
     )
@@ -2868,6 +2874,7 @@ def _verification_source_disclosure(
         "raw_verify_done_records": 0,
         "verify_done_records_by_tag": {"legacy": 0, "performance": 0},
         "unknown_verify_tags": {},
+        "unknown_verify_tag_values": [],
         "unmapped_variants": {},
         "wal_truncated_tail": False,
         "wal_read_error": None,
@@ -2887,15 +2894,21 @@ def _verification_source_disclosure(
     assert isinstance(tag_counts, dict)
     assert isinstance(unknown_tags, dict)
     assert isinstance(unmapped, dict)
+    unknown_value_counts: dict[str, tuple[object, int]] = {}
     for record in records:
         if record.stage != STAGE_VERIFY_DONE:
             continue
         public["raw_verify_done_records"] = int(public["raw_verify_done_records"]) + 1
         workload_payload = record.payload.get("workload")
         tag = workload_payload.get("tag") if type(workload_payload) is dict else None
-        if tag not in {"legacy", "performance"}:
-            label = tag if type(tag) is str else f"<{type(tag).__name__}>"
+        if type(tag) is not str or tag not in ("legacy", "performance"):
+            canonical_tag = _canonical_json(tag)
+            label = tag if type(tag) is str else canonical_tag
             unknown_tags[label] = int(unknown_tags.get(label, 0)) + 1
+            _previous_tag, previous_count = unknown_value_counts.get(
+                canonical_tag, (tag, 0),
+            )
+            unknown_value_counts[canonical_tag] = (tag, previous_count + 1)
             continue
         point = point_by_variant.get(record.variant)
         if point is None:
@@ -2905,6 +2918,10 @@ def _verification_source_disclosure(
         key = (point, tag)
         counts[key] = counts.get(key, 0) + 1
 
+    public["unknown_verify_tag_values"] = [
+        {"tag": unknown_value_counts[key][0], "count": unknown_value_counts[key][1]}
+        for key in sorted(unknown_value_counts)
+    ]
     limits = {"legacy": 1, "performance": 5}
     public["registered_tag_overruns"] = [
         {"variant": point, "verify_tag": tag, "observed": count, "registered": limits[tag]}
@@ -2923,22 +2940,26 @@ def _verification_completeness(
     missing_slots: list[dict[str, object]] = []
     overruns: list[dict[str, object]] = []
     observed_counts: list[dict[str, object]] = []
+    completed_by_workload: dict[str, int] = {}
     completed = 0
     # WAL has no repetition identity. Counts are order-independent, but a
     # duplicated frame and a distinct repetition cannot be distinguished.
     for workload in prereg.spec.workload_map:
         counts = counts_by_workload.get(workload, {})
+        workload_completed = 0
         for point, _genome in named_genomes():
             for tag, limit in limits.items():
                 observed = counts.get((point, tag), 0)
-                completed += min(observed, limit)
+                contribution = min(observed, limit)
+                completed += contribution
+                workload_completed += contribution
                 observed_counts.append({
                     "workload": workload,
                     "variant": point,
                     "verify_tag": tag,
                     "observed": observed,
                     "registered": limit,
-                    "completed_logical_slots": min(observed, limit),
+                    "completed_logical_slots": contribution,
                 })
                 missing_slots.extend(
                     {
@@ -2957,6 +2978,7 @@ def _verification_completeness(
                         "observed": observed,
                         "registered": limit,
                     })
+        completed_by_workload[workload] = workload_completed
     expected = len(prereg.spec.workload_map) * POINTS_PER_BLOCK * sum(limits.values())
     return {
         "expected_slots": expected,
@@ -2971,7 +2993,15 @@ def _verification_completeness(
         "observed_verify_done_records": sum(
             int(source.get("raw_verify_done_records", 0)) for source in sources
         ),
-        "source_campaigns": list(sources),
+        "source_campaigns": [
+            {
+                **source,
+                "completed_logical_slots": completed_by_workload.get(
+                    str(source.get("workload")), 0,
+                ),
+            }
+            for source in sources
+        ],
         "observed_registered_counts": observed_counts,
         "registered_tag_overruns": overruns,
         "missing_slots": missing_slots,
@@ -2985,6 +3015,7 @@ def _collect_report_inputs(
     calibration: CalibrationSelection,
     context: BuildRunContext,
     contract: env_contract.ExecutionEnvironmentContract,
+    layout_for_campaign: Callable[[str], CampaignLayout],
 ) -> tuple[list[dict[str, object]], dict[str, object], dict[str, object]]:
     all_records: list[dict[str, object]] = []
     performance_sources: list[dict[str, object]] = []
@@ -2998,7 +3029,7 @@ def _collect_report_inputs(
             cfg = config_for(workload, prereg, calibration, context, contract)
             campaign_id = str(ident.campaign_id(cfg))
             expected_binding = prereg.binding.as_dict()
-        layout = campaign_layout(campaign_id, resolved_output)
+        layout = layout_for_campaign(campaign_id)
         block_root = Path(layout.runs_dir) / "b10-backoff-shape-blocks"
         records = _read_block_records(block_root)
         if workload == "write-heavy":
@@ -3032,18 +3063,31 @@ def _collect_report_inputs(
         counts_by_workload[workload] = counts
 
     _require_exact_report_cells(all_records, prereg)
-    performance_completeness = {
-        "expected_cells": len(prereg.spec.workload_map) * len(_expected_block_cells(prereg)),
-        "observed_cells": len(all_records),
-        "logical_key": ["workload", "block_id", "point"],
-        "source_campaigns": performance_sources,
-        "proves_all_workload_jobs_terminated": False,
-        "termination_guarantee": "submission sequencing after all three workload jobs terminate",
-    }
+    performance_completeness = _performance_cell_completeness(
+        performance_sources,
+        observed_cells=len(all_records),
+        prereg=prereg,
+    )
     verification_completeness = _verification_completeness(
         verification_sources, counts_by_workload, prereg,
     )
     return all_records, performance_completeness, verification_completeness
+
+
+def _performance_cell_completeness(
+    sources: Sequence[Mapping[str, object]],
+    *,
+    observed_cells: int,
+    prereg: Preregistration,
+) -> dict[str, object]:
+    return {
+        "expected_cells": len(prereg.spec.workload_map) * len(_expected_block_cells(prereg)),
+        "observed_cells": observed_cells,
+        "logical_key": ["workload", "block_id", "point"],
+        "source_campaigns": list(sources),
+        "proves_all_workload_jobs_terminated": False,
+        "termination_guarantee": "submission sequencing after all three workload jobs terminate",
+    }
 
 
 def _write_reports(
@@ -3151,9 +3195,11 @@ def _write_reports(
         lines.append(
             f"- {source['workload']}: `{source['campaign_id']}`; "
             f"verify_done={source['raw_verify_done_records']}; "
+            f"completed_logical_slots={source['completed_logical_slots']}; "
             f"tags={source['verify_done_records_by_tag']}; "
             f"truncated_tail={source['wal_truncated_tail']}; "
             f"unknown_tags={source['unknown_verify_tags']}; "
+            f"unknown_tag_values={source['unknown_verify_tag_values']}; "
             f"overruns={source['registered_tag_overruns']}; "
             f"wal_error={source['wal_read_error']}"
         )
@@ -3326,6 +3372,14 @@ def _prepare_official_output(
     return resolved_output, durable_policy
 
 
+def _b10_workload_cache_root(ccbench_base: Path, workload: str) -> str:
+    if workload not in WORKLOADS:
+        raise PreflightError("phase", "build cache には登録済み workload が必要")
+    return os.fspath(
+        ccbench_base / "build-variants" / "b10-workloads" / workload
+    )
+
+
 def run_formal(
     *,
     phase: str,
@@ -3370,6 +3424,7 @@ def run_formal(
     _site, contract, authorization = p2_2.resolve_site_runtime()
     if contract.env_tag != ENV_TAG or contract.attestation_mode != "required":
         raise PreflightError("site", "B10 formal run は registered Pegasus compute contract 専用")
+    resolved_output, durable_policy = _prepare_official_output(contract.env_tag)
     calibration, _verified_calibration = load_calibration(contract, prereg.spec)
     validate_runtime_physical_residual(prereg.spec, calibration.clocks_per_us)
     p2_2._assert_single_tenant()
@@ -3386,25 +3441,14 @@ def run_formal(
                 patch_sha256=prereg.binding.patch_sha256,
                 cxx=resolved_cxx,
             )
-            cache_root = os.fspath(
-                ccbench_base / "build-variants" / "b10-jobs" / submission.nonce
-            )
             context = build_run_context(
                 generator_id=GeneratorId.BACKOFF_SWEEP,
             )
-            build_kwargs = {
-                "sub": sub,
-                "cache_root": cache_root,
-                "contract": contract,
-                "build_context": context,
-                "binding": prereg.binding,
-                "toolchain_manifest": toolchain_manifest,
-            }
 
             if phase == "report":
-                resolved_output, _durable_policy = _prepare_official_output(
-                    contract.env_tag,
-                )
+                def report_layout(campaign_id: str) -> CampaignLayout:
+                    return campaign_layout(campaign_id, resolved_output)
+
                 records, performance_completeness, verification_completeness = (
                     _collect_report_inputs(
                         resolved_output,
@@ -3412,6 +3456,7 @@ def run_formal(
                         calibration=calibration,
                         context=context,
                         contract=contract,
+                        layout_for_campaign=report_layout,
                     )
                 )
                 report_root = (
@@ -3431,15 +3476,32 @@ def run_formal(
                 return json_path, markdown_path, True
 
             if phase == "build":
-                for _name, genome in named_genomes():
-                    _build_binary(genome, trace=True, **build_kwargs)
-                    _build_binary(genome, trace=False, **build_kwargs)
+                for cache_workload in WORKLOADS:
+                    build_kwargs = {
+                        "sub": sub,
+                        "cache_root": _b10_workload_cache_root(
+                            ccbench_base, cache_workload,
+                        ),
+                        "contract": contract,
+                        "build_context": context,
+                        "binding": prereg.binding,
+                        "toolchain_manifest": toolchain_manifest,
+                    }
+                    for _name, genome in named_genomes():
+                        _build_binary(genome, trace=True, **build_kwargs)
+                        _build_binary(genome, trace=False, **build_kwargs)
                 return None, None, True
 
             assert workload is not None
-            resolved_output, durable_policy = _prepare_official_output(
-                contract.env_tag,
-            )
+            cache_root = _b10_workload_cache_root(ccbench_base, workload)
+            build_kwargs = {
+                "sub": sub,
+                "cache_root": cache_root,
+                "contract": contract,
+                "build_context": context,
+                "binding": prereg.binding,
+                "toolchain_manifest": toolchain_manifest,
+            }
             cfg = config_for(workload, prereg, calibration, context, contract)
             layout = campaign_layout(
                 str(ident.campaign_id(cfg)), resolved_output,

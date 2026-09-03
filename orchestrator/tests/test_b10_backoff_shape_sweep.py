@@ -374,6 +374,7 @@ def _prior_block_record(
         "mean_us": mean_us,
         "encoded": encoded,
         "genome": dict(B.named_genomes())[point].canonical(),
+        "variant_id": hashlib.sha256(point.encode("utf-8")).hexdigest()[:12],
         "source_commit": binding.analysis_commit,
         "trial": f"{request_id}-{nonce[:12]}",
         "submission_receipt": str(receipt),
@@ -387,6 +388,36 @@ def _prior_block_record(
         "analysis_code_sha256": binding.analysis_code_sha256,
     }
     return prereg, row
+
+
+def _legacy_adapter_records(
+    tmp_path: Path,
+) -> tuple[B.Preregistration, list[dict[str, object]]]:
+    prereg, template = _prior_block_record(tmp_path)
+    template.pop("execution_host")
+    template["source_commit"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT
+    template["preregistration_binding"] = B._legacy_write_heavy_binding(prereg)
+    template["analysis_commit"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT
+    template["analysis_code_sha256"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_SHA256
+    template["correctness_certified"] = True
+    template["median_tps"] = 10.0
+    records = []
+    for block_id, order in prereg.spec.block_orders:
+        for schedule_index, point in enumerate(order):
+            shape, mean_us, encoded = B._name_metadata(point)
+            content = {
+                **template,
+                "block_id": block_id,
+                "schedule_index": schedule_index,
+                "point": point,
+                "shape": shape,
+                "mean_us": mean_us,
+                "encoded": encoded,
+                "genome": dict(B.named_genomes())[point].canonical(),
+                "variant_id": hashlib.sha256(point.encode("utf-8")).hexdigest()[:12],
+            }
+            records.append({**content, "record_sha256": B._sha256_json(content)})
+    return prereg, records
 
 
 def _probe_result() -> dict[str, object]:
@@ -807,20 +838,52 @@ def test_same_job_correctness_and_performance_binary_sha_still_match(tmp_path: P
     assert B.verify_performance_binary(str(binary), built_sha, certified) == built_sha
 
 
-def test_b10_cache_root_is_scoped_by_the_exact_submission_nonce():
+def test_b10_cache_roots_are_disjoint_by_workload_and_stable_across_submissions(
+    tmp_path: Path,
+):
+    roots = {
+        workload: B._b10_workload_cache_root(tmp_path, workload)
+        for workload in B.WORKLOADS
+    }
+    assert len(set(roots.values())) == 3
+    assert all(Path(root).parent.name == "b10-workloads" for root in roots.values())
+
+    # A retry has a new submission nonce, but the production cache address has
+    # no nonce input and resolves to the same workload-owned directory.
+    retry_nonces = ("0" * 32, "f" * 32)
+    retry_roots = {
+        _nonce: B._b10_workload_cache_root(tmp_path, "balanced")
+        for _nonce in retry_nonces
+    }
+    assert len(set(retry_roots.values())) == 1
+    assert retry_roots[retry_nonces[0]] == roots["balanced"]
+
     tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
     run_formal = next(
         node for node in tree.body
         if isinstance(node, ast.FunctionDef) and node.name == "run_formal"
     )
-    assignments = [
+    production_calls = [
         node for node in ast.walk(run_formal)
-        if isinstance(node, ast.Assign)
-        and any(isinstance(target, ast.Name) and target.id == "cache_root" for target in node.targets)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_b10_workload_cache_root"
     ]
-    assert len(assignments) == 1
-    assert ast.unparse(assignments[0].value) == (
-        "os.fspath(ccbench_base / 'build-variants' / 'b10-jobs' / submission.nonce)"
+    assert len(production_calls) == 2
+    assert {
+        ast.unparse(call.args[1]) for call in production_calls
+    } == {"cache_workload", "workload"}
+    assert "submission.nonce" not in "\n".join(
+        ast.unparse(node) for node in ast.walk(run_formal)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id in {"cache_root", "build_kwargs"}
+            for target in node.targets
+        )
+    )
+
+    _expect_code(
+        "phase", lambda: B._b10_workload_cache_root(tmp_path, "unregistered"),
     )
 
 
@@ -1356,7 +1419,7 @@ def test_prior_block_record_with_canonical_point_metadata_is_accepted(
 
 def test_current_v2_block_record_requires_nonempty_execution_host(tmp_path: Path):
     prereg, row = _prior_block_record(tmp_path)
-    for invalid in (None, ""):
+    for invalid in (None, "", 1):
         candidate = copy.deepcopy(row)
         if invalid is None:
             del candidate["execution_host"]
@@ -1370,26 +1433,62 @@ def test_current_v2_block_record_requires_nonempty_execution_host(tmp_path: Path
         )
 
 
-def test_e3de15eb_legacy_adapter_uses_one_exact_finite_digest_set():
-    digests = sorted(B.LEGACY_WRITE_HEAVY_RECORD_SHA256S)
+def test_current_v2_block_record_requires_well_formed_variant_id(tmp_path: Path):
+    prereg, row = _prior_block_record(tmp_path)
+    for invalid in (None, "", 1, "not-a-hash", "A" * 12, "0" * 13):
+        candidate = copy.deepcopy(row)
+        if invalid is None:
+            del candidate["variant_id"]
+        else:
+            candidate["variant_id"] = invalid
+        _expect_code(
+            "resume-binding",
+            lambda candidate=candidate: B._validate_prior_block_records(
+                [candidate], workload="write-heavy", prereg=prereg,
+            ),
+        )
+
+
+def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
+    tmp_path: Path,
+):
+    prereg, records = _legacy_adapter_records(tmp_path)
+    expected_digests = frozenset(row["record_sha256"] for row in records)
+    frozen_digests = sorted(B.LEGACY_WRITE_HEAVY_RECORD_SHA256S)
     assert B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID \
         == "b10-backoff-shape-silo-write-heavy-formal-e3de15eb"
-    assert len(digests) == len(set(digests)) == 45
+    assert len(frozen_digests) == len(set(frozen_digests)) == 45
     assert "ceeb007ffca91a254bc261e2ff2e8b2f3255edd07d5e5409b47a2d8900496349" \
-        in digests
-    B._require_legacy_record_digests(digests)
-    original_content = {"correctness_certified": True, "median_tps": 10}
-    original = {
-        **original_content,
-        "record_sha256": B._sha256_json(original_content),
-    }
-    assert B._legacy_record_content_digest(original) == original["record_sha256"]
-    changed_content = {**original_content, "correctness_certified": False}
-    changed_digest = B._sha256_json(changed_content)
-    assert changed_digest != original["record_sha256"]
-    assert changed_digest not in digests
-    mutated = [changed_digest, *digests[1:]]
-    _expect_code("legacy-record", lambda: B._require_legacy_record_digests(mutated))
+        in frozen_digests
+    B._require_legacy_record_digests(frozen_digests)
+    assert len(records) == len(expected_digests) == 45
+    indexed = B._validate_legacy_write_heavy_records(
+        records,
+        campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+        prereg=prereg,
+        expected_record_digests=expected_digests,
+    )
+    assert len(indexed) == 45
+
+    mutated = copy.deepcopy(records)
+    changed = mutated[0]
+    changed["correctness_certified"] = False
+    content = dict(changed)
+    content.pop("record_sha256")
+    changed["record_sha256"] = B._sha256_json(content)
+    assert changed["record_sha256"] not in expected_digests
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_write_heavy_records(
+            mutated,
+            campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests=expected_digests,
+        ),
+    )
+
+
+def test_e3de15eb_legacy_adapter_rejects_other_campaign_id():
     _expect_code(
         "legacy-record",
         lambda: B._validate_legacy_write_heavy_records(
@@ -1442,10 +1541,46 @@ def test_report_admission_requires_exactly_135_registered_block_cells():
     )
 
 
+def test_report_admission_rejects_same_size_unique_nonregistered_grid():
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    records = [
+        {"workload": workload, "block_id": block_id, "point": point}
+        for workload in prereg.spec.workload_map
+        for block_id, order in prereg.spec.block_orders
+        for point in order
+    ]
+    records[-1] = {
+        "workload": "read-heavy",
+        "block_id": "block-3",
+        "point": "unregistered-point",
+    }
+    observed = [
+        (row["workload"], row["block_id"], row["point"])
+        for row in records
+    ]
+    assert len(observed) == len(set(observed)) == 135
+    _expect_code(
+        "report-completeness",
+        lambda: B._require_exact_report_cells(records, prereg),
+    )
+
+
 def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
     tmp_path: Path,
 ):
     prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    collector = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_collect_report_inputs"
+    )
+    producer_calls = [
+        node for node in ast.walk(collector)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_performance_cell_completeness"
+    ]
+    assert len(producer_calls) == 1
     calibration = B.CalibrationSelection(
         path="calibration.json", sha256="e" * 64,
         schema_version="calibration/v2", records=100,
@@ -1458,17 +1593,14 @@ def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
         source_commit="b" * 40, prereg_commit="a" * 40,
         job_script_sha256="9" * 64, phase="report", workload=None,
     )
-    performance = {
-        "expected_cells": 135,
-        "observed_cells": 135,
-        "logical_key": ["workload", "block_id", "point"],
-        "source_campaigns": [
+    performance = B._performance_cell_completeness(
+        [
             {"workload": workload, "campaign_id": f"campaign-{workload}", "observed_cells": 45}
             for workload in prereg.spec.workload_map
         ],
-        "proves_all_workload_jobs_terminated": False,
-        "termination_guarantee": "submission sequencing after all three workload jobs terminate",
-    }
+        observed_cells=135,
+        prereg=prereg,
+    )
     verification = {
         "expected_slots": 270,
         "completed_logical_slots": 197,
@@ -1483,8 +1615,10 @@ def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
             "workload": "write-heavy",
             "campaign_id": B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
             "raw_verify_done_records": 91,
+            "completed_logical_slots": 90,
             "verify_done_records_by_tag": {"legacy": 15, "performance": 75},
             "unknown_verify_tags": {"extra": 1},
+            "unknown_verify_tag_values": [{"tag": "extra", "count": 1}],
             "unmapped_variants": {},
             "wal_truncated_tail": True,
             "wal_read_error": None,
@@ -1514,6 +1648,7 @@ def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
     assert "does not prove that all three workload jobs terminated" in markdown
     assert "submission sequencing after all three workload jobs terminate" in markdown
     assert "duplicate WAL frames and distinct repetitions cannot be distinguished" in markdown
+    assert "completed_logical_slots=90" in markdown
     assert "truncated_tail=True" in markdown
     with pytest.raises(FileExistsError):
         B._write_reports(
@@ -1533,7 +1668,7 @@ def test_verification_completeness_counts_records_and_discloses_wal_anomalies(
 ):
     indexed = {("block-1", "none"): {"variant_id": "variant-none"}}
 
-    def read_source(name: str, tags: list[str]):
+    def read_source(name: str, tags: list[object]):
         layout = CampaignLayout(str(tmp_path / name))
         Path(layout.runs_dir).mkdir(parents=True)
         frames = [
@@ -1559,13 +1694,17 @@ def test_verification_completeness_counts_records_and_discloses_wal_anomalies(
             indexed=indexed,
         )
 
-    tags = ["performance"] * 6 + ["legacy", "unregistered"]
+    tags: list[object] = ["performance"] * 6 + ["legacy", "unregistered", []]
     source, counts = read_source("forward", tags)
     reverse_source, reverse_counts = read_source("reverse", list(reversed(tags)))
     assert counts == reverse_counts == {("none", "performance"): 6, ("none", "legacy"): 1}
-    assert source["raw_verify_done_records"] == reverse_source["raw_verify_done_records"] == 8
+    assert source["raw_verify_done_records"] == reverse_source["raw_verify_done_records"] == 9
     assert source["wal_truncated_tail"] is True
-    assert source["unknown_verify_tags"] == {"unregistered": 1}
+    assert source["unknown_verify_tags"] == {"unregistered": 1, "[]": 1}
+    assert source["unknown_verify_tag_values"] == [
+        {"tag": "unregistered", "count": 1},
+        {"tag": [], "count": 1},
+    ]
     assert source["registered_tag_overruns"] == [{
         "variant": "none", "verify_tag": "performance", "observed": 6, "registered": 5,
     }]
@@ -1577,11 +1716,55 @@ def test_verification_completeness_counts_records_and_discloses_wal_anomalies(
     assert completeness["expected_slots"] == 270
     assert completeness["completed_logical_slots"] == 6
     assert completeness["incomplete_slots"] == 264
+    assert completeness["source_campaigns"][0]["raw_verify_done_records"] == 9
+    assert completeness["source_campaigns"][0]["completed_logical_slots"] == 6
     assert completeness["registered_tag_overruns"] == [{
         "workload": "write-heavy", "variant": "none",
         "verify_tag": "performance", "observed": 6, "registered": 5,
     }]
     assert "cannot be distinguished" in completeness["known_limitation"]
+
+    calibration = B.CalibrationSelection(
+        path="calibration.json", sha256="e" * 64,
+        schema_version="calibration/v2", records=100,
+        threads=48, env_tag="pegasus", clocks_per_us=2100,
+        saturated=True, lower_bound_selected=False, cache_floor_warning=False,
+    )
+    submission = B.SubmissionIdentity(
+        receipt_path="submit-receipt.json", receipt_sha256="d" * 64,
+        request_id="report-request", nonce="c" * 32,
+        source_commit="b" * 40, prereg_commit="a" * 40,
+        job_script_sha256="9" * 64, phase="report", workload=None,
+    )
+    performance = B._performance_cell_completeness(
+        [{
+            "workload": workload,
+            "campaign_id": f"campaign-{workload}",
+            "observed_cells": 45,
+        } for workload in prereg.spec.workload_map],
+        observed_cells=135,
+        prereg=prereg,
+    )
+    json_path, markdown_path = B._write_reports(
+        tmp_path / "reports/final",
+        prereg=prereg,
+        calibration=calibration,
+        records=_complete_records(),
+        applied_evidence={},
+        submission=submission,
+        performance_cell_completeness=performance,
+        verification_slot_completeness=completeness,
+    )
+    report = json.loads(json_path.read_text(encoding="utf-8"))
+    report_source = report["verification_slot_completeness"]["source_campaigns"][0]
+    assert report_source["unknown_verify_tags"] == {"unregistered": 1, "[]": 1}
+    assert report_source["unknown_verify_tag_values"] == [
+        {"tag": "unregistered", "count": 1},
+        {"tag": [], "count": 1},
+    ]
+    assert report_source["raw_verify_done_records"] == 9
+    assert report_source["completed_logical_slots"] == 6
+    assert markdown_path.is_file()
 
 
 def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(
@@ -2231,7 +2414,7 @@ def test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status
     ]
 
 
-def test_verify_perf_launcher_contract_and_walltime_are_consistent():
+def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Path):
     submit_text = (
         ROOT / "tools/pegasus/submit_b10_backoff_shape.sh"
     ).read_text(encoding="utf-8")
@@ -2280,6 +2463,34 @@ def test_verify_perf_launcher_contract_and_walltime_are_consistent():
         capture_output=True, text=True,
     )
     assert compared.returncode == 0, compared.stdout + compared.stderr
+
+    scheduler_gate = re.findall(
+        r'(?m)^(\[\[ "\$SCHEDULER_ELAPSE_LIMIT_S" -eq "\$B10_WALLTIME_S" \]\] \\\n'
+        r'  \|\| \{ write_failure 2 allocation '
+        r'"actual scheduler Elapse limit differs from receipt"; exit 2; \})$',
+        job_text,
+    )
+    assert len(scheduler_gate) == 1
+    failure_args = tmp_path / "walltime-failure-args"
+    rejected = subprocess.run(
+        [
+            "bash", "-c",
+            "set -Eeuo pipefail\n"
+            "failure_args=$1\n"
+            "write_failure() { printf '%s\\n' \"$1\" \"$2\" \"$3\" >\"$failure_args\"; }\n"
+            "SCHEDULER_ELAPSE_LIMIT_S=$2\n"
+            "B10_WALLTIME_S=$3\n"
+            + scheduler_gate[0],
+            "b10-walltime-rejection-test", os.fspath(failure_args),
+            str(walltime_s + 1), str(walltime_s),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode == 2, rejected.stdout + rejected.stderr
+    assert failure_args.read_text(encoding="utf-8").splitlines() == [
+        "2", "allocation", "actual scheduler Elapse limit differs from receipt",
+    ]
 
     for text in (submit_text, job_text):
         assert "build|verify|perf|probe|verify-perf|report" in text
