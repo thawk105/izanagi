@@ -37,7 +37,9 @@ from .p3_b4_prerun_issuer import (
 )
 from .p3_b4_raw_record_producer import (
     B4RawAnalysisAssembly,
+    B4RawAnalysisRejection,
     B4RawRecordRejection,
+    B4RawRecordRejectionHistory,
     B4_RAW_RECORD_NON_GUARANTEES,
     assemble_b4_raw_analysis,
 )
@@ -53,8 +55,24 @@ _ABSENT = {"availability": "absent", "value": None}
 _HISTORICAL_REJECTION_NON_GUARANTEE = (
     "past_producer_rejections_are_not_fully_reconstructible_from_publication_root"
 )
+_CURRENT_ABSENT_REASON_NON_GUARANTEE = (
+    "current_reason_for_an_absent_planned_leaf_cannot_be_determined"
+)
+_REJECTION_LEDGER_TRUNCATION_NON_GUARANTEE = (
+    "rejection_ledger_deletion_and_complete_suffix_truncation_are_not_detected"
+)
 _OBSERVATION_TIME_NON_GUARANTEE = (
     "artifact_availability_and_assembly_rejection_are_observed_at_report_generation_time"
+)
+_RECORDED_REJECTION_COUNT_CAVEAT = (
+    "This count covers events present in the observed readable ledger prefix; "
+    "ledger deletion, complete suffix truncation, pre-validation rejection, "
+    "deferred state, and append failure can make it an undercount."
+)
+_RECORDED_REJECTION_RATE_CAVEAT = (
+    "This rate joins scheduled attempts only to events present in the observed "
+    "readable ledger prefix; the same undetected and unrecorded cases can make "
+    "the numerator an undercount."
 )
 _INITIAL_PROPOSAL_NON_GUARANTEE = B4_RAW_RECORD_NON_GUARANTEES[0]
 
@@ -670,11 +688,29 @@ def _artifact_projection(path: str, data: bytes) -> dict[str, Any]:
     }
 
 
+def _rejection_history(inputs: B4MaterialReportInputs) -> B4RawRecordRejectionHistory:
+    assembly = inputs.assembly
+    if isinstance(assembly, (B4RawAnalysisAssembly, B4RawAnalysisRejection)):
+        return assembly.rejection_history
+    _fail(
+        "assembly_contract_error",
+        "assembler result lacks an independent rejection-history snapshot",
+    )
+
+
+def _rejection_wire(rejection: B4RawRecordRejection) -> dict[str, Any]:
+    return {
+        "schema_version": rejection.schema_version,
+        "attempt_id": rejection.attempt_id,
+        "issues": _wire_value(rejection.issues),
+    }
+
+
 def _assembly_projection(inputs: B4MaterialReportInputs) -> dict[str, Any]:
     if isinstance(inputs.assembly, B4RawRecordRejection):
         return {
             "status": "rejected",
-            "reason": _wire_value(inputs.assembly),
+            "reason": _rejection_wire(inputs.assembly),
             "analysis_status": "not_evaluated",
             "analysis_reason": "assembly_rejected",
         }
@@ -688,12 +724,101 @@ def _assembly_projection(inputs: B4MaterialReportInputs) -> dict[str, Any]:
     }
 
 
+def _producer_rejections_projection(
+    inputs: B4MaterialReportInputs,
+) -> dict[str, Any]:
+    publication = inputs.publication
+    history = _rejection_history(inputs)
+    scheduled_ids = {
+        attempt.attempt_id for attempt in publication.registry.scheduled_attempts
+    }
+    manifest_ids = {row.attempt_id for row in publication.manifest.rows}
+    frame_availability = {
+        frame.manifest_row.attempt_id: frame.artifact_availability
+        for frame in inputs.planned_frames
+    }
+    event_attempt_ids = (
+        {
+            event.attempt_id
+            for event in history.events
+            if event.attempt_id is not None
+        }
+        if history.status == "readable"
+        else set()
+    )
+    unresolved = [
+        {
+            "attempt_id": planned.attempt_id,
+            "planned_result_artifact_path": planned.artifact_path,
+            "reason": "absent_without_recorded_rejection_event",
+        }
+        for planned in publication.planned_result_artifacts
+        if planned.attempt_id in manifest_ids
+        and frame_availability.get(planned.attempt_id) == "absent"
+        and planned.attempt_id not in event_attempt_ids
+    ]
+    not_selected = [
+        {
+            "attempt_id": planned.attempt_id,
+            "planned_result_artifact_path": planned.artifact_path,
+            "status": "not_selected",
+        }
+        for planned in publication.planned_result_artifacts
+        if planned.attempt_id not in manifest_ids
+    ]
+    scoped_recorded_attempts = event_attempt_ids & scheduled_ids
+    scheduled_count = len(publication.registry.scheduled_attempts)
+    return {
+        "events": _wire_value(history.events),
+        "scheduled_attempt_count": scheduled_count,
+        "planned_result_artifact_count": len(
+            publication.planned_result_artifacts
+        ),
+        "manifest_selected_block_count": len(publication.manifest.rows),
+        "not_selected": not_selected,
+        "unresolved_absent_attempts": unresolved,
+        "rejection_history_status": {
+            "path": history.path,
+            "status": history.status,
+            "readable": history.status in {"absent", "readable"},
+            "fragment_discarded": history.fragment_discarded,
+            "detail": history.detail,
+        },
+        "recorded_rejection_event_count": {
+            "value": len(history.events),
+            "population": "events_in_observed_readable_ledger_prefix",
+            "caveat": _RECORDED_REJECTION_COUNT_CAVEAT,
+        },
+        "recorded_scheduled_attempt_rejection_rate": {
+            "numerator": len(scoped_recorded_attempts),
+            "denominator": scheduled_count,
+            "population": "issuer_scheduled_attempts_joined_to_recorded_events",
+            "caveat": _RECORDED_REJECTION_RATE_CAVEAT,
+        },
+    }
+
+
+def _report_non_guarantees(
+    history: B4RawRecordRejectionHistory,
+) -> list[str]:
+    values = [
+        _CURRENT_ABSENT_REASON_NON_GUARANTEE,
+        _REJECTION_LEDGER_TRUNCATION_NON_GUARANTEE,
+        _OBSERVATION_TIME_NON_GUARANTEE,
+    ]
+    if history.status != "readable":
+        values.insert(0, _HISTORICAL_REJECTION_NON_GUARANTEE)
+    return values
+
+
 def _build_report_value(
     inputs: B4MaterialReportInputs,
     rows: Sequence[Mapping[str, Any]],
     reproduction_argv: Sequence[str],
 ) -> dict[str, Any]:
     publication = inputs.publication
+    rejection_history = _rejection_history(inputs)
+    report_non_guarantees = _report_non_guarantees(rejection_history)
     raw_projection: dict[str, Any]
     analysis_projection: dict[str, Any]
     if isinstance(inputs.assembly, B4RawAnalysisAssembly):
@@ -738,8 +863,7 @@ def _build_report_value(
                 "research_success_or_novelty",
                 "certified_selection_connection",
                 "authoritative_floor_artifact",
-                _HISTORICAL_REJECTION_NON_GUARANTEE,
-                _OBSERVATION_TIME_NON_GUARANTEE,
+                *report_non_guarantees,
             ],
         },
         "floor": {
@@ -773,10 +897,7 @@ def _build_report_value(
             },
             "issuer_non_guarantees": list(publication.non_guarantees),
             "producer_non_guarantees": list(B4_RAW_RECORD_NON_GUARANTEES),
-            "report_non_guarantees": [
-                _HISTORICAL_REJECTION_NON_GUARANTEE,
-                _OBSERVATION_TIME_NON_GUARANTEE,
-            ],
+            "report_non_guarantees": report_non_guarantees,
             "reproduction_argv": list(reproduction_argv),
         },
         "campaign_disjointness": {
@@ -789,6 +910,7 @@ def _build_report_value(
             ],
             "unresolved": list(inputs.campaign_root_discovery.unresolved),
         },
+        "producer_rejections": _producer_rejections_projection(inputs),
         "assembly": _assembly_projection(inputs),
         "analysis": analysis_projection,
         "block_count": len(publication.manifest.rows),
@@ -808,6 +930,8 @@ def _assert_report_provenance(
     )
     if report["provenance"]["contract_binding"] != expected_binding:
         _fail("provenance_mismatch", "contract binding differs")
+    if report["producer_rejections"] != _producer_rejections_projection(inputs):
+        _fail("provenance_mismatch", "producer rejection history differs")
     artifacts = report["provenance"]["artifacts"]
     expected = (
         ("registry", inputs.publication.registry.canonical_bytes),
@@ -853,6 +977,7 @@ def _render_markdown(report: Mapping[str, Any], json_sha256: str) -> bytes:
     provenance = report["provenance"]
     artifacts = provenance["artifacts"]
     assembly_reason = report["assembly"].get("reason")
+    producer_rejections = report.get("producer_rejections")
     lines = [
         "# B-4 evidence-only material report",
         "",
@@ -866,6 +991,28 @@ def _render_markdown(report: Mapping[str, Any], json_sha256: str) -> bytes:
         f"- analysis verdict: `{verdict if verdict is not None else 'not_evaluated'}`",
         f"- campaign disjointness: `{report['campaign_disjointness']['status']}`",
         f"- publication root: `{_display(provenance['publication_root'])}`",
+    ]
+    if producer_rejections is not None:
+        history_status = producer_rejections["rejection_history_status"]
+        event_count = producer_rejections["recorded_rejection_event_count"]
+        rejection_rate = producer_rejections[
+            "recorded_scheduled_attempt_rejection_rate"
+        ]
+        lines.extend([
+            f"- rejection history status: `{_display(history_status)}`",
+            f"- recorded rejection event count: `{event_count['value']}`",
+            "- recorded rejection event count caveat: "
+            f"`{_display(event_count['caveat'])}`",
+            "- recorded scheduled-attempt rejection rate: "
+            f"`{rejection_rate['numerator']}/{rejection_rate['denominator']}`",
+            "- recorded rejection rate caveat: "
+            f"`{_display(rejection_rate['caveat'])}`",
+            "- unresolved absent attempts: "
+            f"`{len(producer_rejections['unresolved_absent_attempts'])}`",
+            "- manifest-non-selected scheduled attempts: "
+            f"`{len(producer_rejections['not_selected'])}`",
+        ])
+    lines.extend([
         f"- reproduction argv (JSON): `{_display(provenance['reproduction_argv'])}`",
         "- certification: this report does not certify a selection",
         "",
@@ -873,7 +1020,7 @@ def _render_markdown(report: Mapping[str, Any], json_sha256: str) -> bytes:
         "",
         "| artifact | path | SHA-256 |",
         "|---|---|---|",
-    ]
+    ])
     for name in ("registry", "manifest", "issuer_receipt", "raw_analysis"):
         artifact = artifacts[name]
         lines.append(
@@ -1034,7 +1181,9 @@ def _discover_campaign_roots(
             for frame in planned_frames
         }
         for planned in publication.planned_result_artifacts:
-            frame = frames_by_attempt[planned.attempt_id]
+            frame = frames_by_attempt.get(planned.attempt_id)
+            if frame is None:
+                continue
             label = f"planned_attempt:{planned.attempt_id}"
             if frame.artifact_availability == "absent":
                 unresolved.append({
