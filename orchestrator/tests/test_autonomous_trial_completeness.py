@@ -4730,6 +4730,24 @@ def test_campaign_chain_reads_legacy_layer3_without_current_verifier_conformance
     )
 
 
+def test_campaign_chain_reads_legacy_layer3_without_knowledge_provenance(
+    tmp_path: Path,
+) -> None:
+    """M6: fails only when legacy comparison does not normalize the missing field."""
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    assert persisted.pop("knowledge_provenance") is None
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    C.assert_campaign_layer3_chain(
+        report=_campaign_report(cell), output_root=output_root,
+    )
+
+
 def test_campaign_chain_rejects_persisted_current_verifier_conformance_mutation(
     tmp_path: Path,
 ) -> None:
