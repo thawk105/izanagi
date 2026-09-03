@@ -48482,3 +48482,174 @@ permutation を known-unavailable へ倒しておく。** 未裁定のまま実�
 
 - **実施済みとして終端する** — 現物が未実施である。
 - **値を AI が推奨する** — 既裁定が明示的に却下している。
+
+## D1575. 刻み応答の非単調性は「素直な滞在説」では説明できない (2026-09-03)
+
+**決定:** 適応 backoff の刻みに対する非単調な応答について、
+**「歩行が大きい `Backoff_` に滞在するから谷ができる」という説明を、
+逐語の遷移 + 静的較正 + Poisson 計数で組み立てた model は再現できない**という事実を記録し、
+**機序は未確定のまま据え置く。** 滞在が効いていること自体は実測が支持しているので、
+説明を捨てるのではなく、**model の前提のどれが誤っているかを次の測定対象にする。**
+
+**理由:**
+- 48 スレッド write-heavy・更新間隔 10 µs で、model は谷を作らない。刻み 25 µs の実測
+  1,241,671 tps に対し予測 2,859,726 tps (相対誤差 130%)。順位も合わない (Kendall 距離 6、上限 2)。
+  最良点は 0.5 でなく 1、最小点は 5〜25 でなく 100 になる。
+- model が出す中間量が理由を直接示す。刻み 25 µs でも `P(Backoff_ > 100 µs)` は 0.038 しかなく、
+  `Backoff_` の中央値は 50 µs に留まる。**歩行が最適帯の近くから暴走しない。**
+  実効更新間隔も 12〜18 µs のままで、`Backoff_` との共成長が起きていない。
+- 上限を絞る自然実験も再現しない。**実測は刻み 2 µs で 2.062 倍の回復なのに model は 1.030 倍。**
+- 一方で、その自然実験 (同一 job・上限だけが違う対) は
+  **滞在が効いていることを実測で支持している。** 刻み 2 µs は上限 1000 → 50 で
+  1,647,478 → 3,397,531 tps、刻み 0.5 µs は 3,547,516 → 3,599,288 tps でほぼ不変。
+- したがって「滞在説が誤り」ではなく「**この組み立て方では滞在が足りない**」が正しい読みである。
+- balanced と read-heavy でも同じ形で外れた。単一 workload の偶然ではない。
+
+**却下した選択肢:**
+- model が合うまで前提を調整する — 事後の当てはめであり、機序の説明にならない。
+  自由パラメータは静的較正だけから決めると事前に固定した。
+- 谷を説明できたと書く — 予測が実測の 2.3 倍で、書けば虚偽になる。
+- 滞在説を棄却する — 上限の自然実験が支持しているので、棄却する根拠がない。
+
+**疑うべき前提 (次の測定対象、優先順):**
+1. 「動的に `Backoff_`=b のときの性能は、b で固定したときの静的な性能に等しい」という混合の仮定。
+   遷移そのものの損失、スレッド間の同調、履歴依存を無視している。
+2. leader の試行周期を全体集計の abort 率から導いたこと。leader 固有の abort 率も
+   試行間隔の分布も測っていない。
+3. 窓あたり commit 数を Poisson としたこと。実データの窓内分布は未測定で、
+   実際がより bursty なら歩行はもっと遠くまで暴走しうる。
+
+**限界:** すべて trace-disabled の性能測定に基づく解析であり**認証されていない**。
+単一環境 (Pegasus 48 物理コア)、protocol は silo。
+材料は `output/insights/2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md`。
+
+## D1576. 適応 backoff の更新窓は一定でなく `Backoff_` とともに伸びる (2026-09-03)
+
+**決定:** `update_backoff()` の窓を「公称 10 µs の一定幅」として扱う記述を改める。
+**更新が評価されるのは leader スレッドが試行を始めた瞬間だけであり、その leader 自身も
+abort 時に `Backoff_` だけ待つため、実効の更新間隔は `Backoff_` とともに伸びる。**
+
+**理由:**
+- 更新するのは `thid_ == 0` の 1 スレッドだけで、呼出し位置は各試行の先頭である。
+  `Backoff::backoff()` は abort からだけ呼ばれる。
+- 同じ静的走行の abort 率から leader の試行周期
+  (`48 * (1 - abort 率) / tps`) を出すと、b=0 で 4.27 µs、b=100 µs で **17.60 µs** になる。
+  **b=100 µs の時点で公称 10 µs を既に超えている。**
+- D1505 が候補として記録した機序「10 µs の窓に入る commit が約 40 件しかなく勾配符号が
+  ノイズに支配される」は、**窓幅が一定であることを前提にしている。その前提が成り立たない。**
+- **候補機序を否定するものではない。** 計数ノイズが効いていないとは言っていない。
+  否定するのは前提だけであり、ノイズと滞在の寄与の切り分けには直接観測が要る。
+
+**却下した選択肢:**
+- D1505 の候補機序を撤回する — 前提が崩れただけで、機序自体の反証は得ていない。
+- 窓幅一定の近似で押し通す — b が育つ領域で桁が変わるため、谷の regime では使えない。
+
+## D1577. 静的 backoff 曲線の b=0 は `zero-loop` を使い `none` を使わない (2026-09-03)
+
+**決定:** 適応 backoff を論じるときの静的曲線の b=0 の点は、
+**`BACKOFF_FIXED=0, BACK_OFF=1` の `zero-loop` セル**とする。
+`BACK_OFF=0` の `none` セルは b=0 の対照にせず、参照線と正規化にだけ使う。
+
+**理由:**
+- `none` は `BACK_OFF=0` であり、abort 時の backoff 呼出しと leader の更新処理が
+  **コンパイル時に丸ごと除去される。** 適応が動いていて `Backoff_` が 0 の状態とは経路が違う。
+- 適応で `Backoff_`=0 のときも `rdtscp`・atomic load・最低 1 回の `_mm_pause` を通る。
+- 48 スレッド write-heavy の生値平均は `zero-loop` が 2,341,208、`none` が 2,314,691 で
+  1.15% 違う。**対照として測定済みだったので、新規測定は要らない。**
+- 集約は保存済み `median_tps` の平均でなく**生値の平均**を正本とする
+  (`tools/plotting/FIGURE_CONVENTIONS.md` の 1)。両者は一致せず、`zero-loop` で
+  2,330,755 対 2,341,208 の差が出る。
+
+**却下した選択肢:**
+- `none` を b=0 に使い続ける — 経路が違うものを同じ点として扱うことになる。
+- 新しく測る — 既に測定済みで、測り直す理由がない。
+
+## D1578. 下位 A/X topology は正本の部分適合に留め、`A^ == Q` の代替述語を発明しない (2026-09-03)
+
+**決定:** 凍結側の下位実装 `orchestrator/campaign/s8b_ratified_freeze.py` を
+`docs/freeze-permanent-design-s2.md` §S2-1.14 へ適合させる作業のうち、本 wave が閉じるのは
+**承認 A と有効 pointer X を別 commit とし、X の parent をちょうど A、各 commit を 1 record 追加のみ
+とする部分だけ**とする。正本が同時に定める `A^ == Q` は実装しない。Q の代わりに世代導入 commit G を
+A の parent として要求する代替述語も**新設しない**。gate `FREEZE-AX-TOPOLOGY` は
+`nonconforming` のまま据え置く。
+
+**理由:**
+
+- 正本の列は `H_gen <- G <- R <- L_prod <- L_manifest <- Q <- A <- X` であり、Q は検査 receipt 4 件の
+  導入 commit である。R / L_prod / L_manifest / Q はいずれも permanent freeze family の構成要素で、
+  同 family の producer・resolver・CLI・世代 artifact・receipt・report は repository に 1 件も存在しない。
+  存在しない入力を要求する述語は採用できない (D75 系の gate 入力実在要求)。
+- 「Q が無いから G を代わりに要求する」案は正本に無い規則であり、足すと正本どおりの完全列
+  `G <- R <- L_prod <- L_manifest <- Q <- A` を逆に拒否する。段 3 の敵対検査が逐語照合で構成した。
+- **A の predecessor が無制約であることは本 wave が作った穴ではない。** 親が repo 外 probe で、
+  G を別枝に置き A+X を同一 commit として merge した history が**変更前のコードで既に受理される**
+  ことを実測した (`RESULT=ACCEPTED`)。本 wave はこの受理集合を広げも狭めもしない。
+- 部分適合であることを隠さない。gate status を動かさず、`FREEZE-AX-TOPOLOGY` を `resolved` に
+  しないことで、残る schema 差 4 件と Q 列の未実装が台帳上に見え続ける。
+
+**却下した選択肢:**
+
+- **G を Q の代替として A の parent に要求する** — 正本に無い規則であり、正本どおりの完全列を
+  拒否する。順序の入れ替えを塞ぐ効果はあるが、塞ぎ方が正本と非同値である。
+- **topology だけ直して gate を `resolved` にする** — 上位権限束設計 §12.4 が明文で禁じる。
+  現行 parser は依然として正本どおりの bytes を拒否し、上位 A が参照する受理集合は旧 schema に
+  支配されたままである。
+- **approval / pointer / revocation / cancellation の schema も同時に正本へ寄せる** — 正本の
+  approval は `bundle_digest` と 7 element の `components` を要求し、その 7 component は
+  known / measurement / holdout / receipt と 3 report である。holdout 単独 family へ被せると
+  実在しない入力を literal で埋めることになる。
+
+## D1579. 派生値 pin の協調更新は owner wave の想定手順であり、テストの弱体化と数えない (2026-09-03)
+
+**決定:** `orchestrator/tests/fixtures/calibration_freeze_authority/` の case が宣言する
+invocation digest、`manifest.v1.json` の `raw_sha256` / `entries_sha256`、および
+`orchestrator/tests/calibration_freeze_authority_contract.py` の
+`_EXPECTED_RAW_SHA256_BY_FIXTURE` / `_EXPECTED_FIXTURE_ENTRIES_SHA256` は、
+**その fixture builder を所有する wave が、fixture の意味を変えないまま協調更新してよい**。
+更新してよいのは派生値だけで、`expected_decision`、`single_mutation`、`builder`、`entrypoint`、
+`binding_state`、`design_row_id`、および gate status と `_EXPECTED_REQUIRED_GATES` は変えない。
+
+**理由:**
+
+- invocation digest の原像には合成 repo の HEAD が入る (`_canonical_argument` が `Path` を
+  `{"type": "git-repository", "head": ..., "status": ...}` へ写す)。builder の commit 構成を
+  変えれば digest は**必ず**変わる。更新できないなら builder は永久に凍結される。
+- pin の目的は不変性の保証ではなく、**builder の意図しない drift を可視化すること**である。
+  contract module 側の pin は「case を変えて manifest を refresh しても pin は動かせない」ように
+  manifest から独立させてあり (同 module の comment が明記)、更新を第三の場所での明示的な編集として
+  露出させる設計である。owner wave が意味を保ったまま更新することは、その設計が想定する経路である。
+- 先例が存在する。commit `b555a2986` は同 builder を変更し、case JSON 6 件と `manifest.v1.json` を
+  同じ commit で更新したうえ、commit message に「contract 側のテストは旧値を固定しているため赤である。
+  次の commit で同期する」と明記している。
+- 凍結された design 文書側にこれらの hash の pin は無い (`docs/calibration-freeze-authority-bundle-design.md`
+  と `docs/freeze-permanent-design-s2.md` を hash 値で検索して 0 件)。束縛は test / contract 層に閉じる。
+
+**却下した選択肢:**
+
+- **builder を同一 commit のまま据え置く** — 3 fixture の positive control (いずれも
+  `expected_decision: accept`) が新しい topology 検査で拒否される。分けても分けなくても赤になり、
+  据え置きは逃げ道にならない。
+- **digest に合わせて fixture の狙いを書き換える** — テストを甘くする変更であり、絶対規律 2 に触れる。
+
+## D1580. 候補集合から恒真になる述語を正しさ防壁として新設しない (2026-09-03)
+
+**決定:** 正本が pairwise 非同一を課していても、**候補の作られ方から常に真になる述語は新設しない**。
+本 wave では `generation-pointer-same-commit` (X と世代導入 commit G の同一性拒否) を採用しない。
+既に実装されている同型の guard は削除しないが、防壁として数えず、変異事前登録にも入れない。
+
+**理由:**
+
+- X は `_assert_user_commit` により raw / parsed とも逐語 `AI-Agent: none` を要求され、G は
+  `_assert_candidate_commit` により `none` を拒否される。同一 commit が両方を満たすことはないため、
+  この述語は実 resolver から到達不能である。
+- 恒真な guard を防壁として数えると、実際には守っていないものを検査済みの保証として台帳や
+  レポートへ計上することになる。段 3 の敵対検査が独立に構成した。
+- 同じ理由で `approval-pointer-same-commit` も受理集合を狭めない。A == X なら追加 path 集合が
+  `{approval, pointer}` となり A 側の exact-diff 検査が必ず拒否するためである。この guard は
+  reason code を明瞭にする診断としてのみ置き、その旨をコード comment に明記した。
+
+**却下した選択肢:**
+
+- **正本の逐語に合わせて pairwise 非同一を全辺実装する** — 到達不能な reason code が増え、
+  変異で kill できない guard が防壁の数に混ざる。
+- **恒真な guard も「多重防御」として数える** — 実際の受理集合を守らないものを保証に計上する。
