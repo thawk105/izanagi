@@ -5975,10 +5975,13 @@ def _classify_and_terminal(
 
 
 def _rechain_attempt_rows(rows: list[dict]) -> list[dict]:
-    """Recompute only v2 chain fields after an intentional semantic mutation."""
+    """Recompute v2/v3 chain fields after an intentional semantic mutation."""
     previous = "0" * 64
     for index, row in enumerate(rows):
-        if row.get("schema_version") != R.ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        if row.get("schema_version") not in {
+            "p3-8c-attempt-registry/v2",
+            R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        }:
             if index == 0:
                 previous = "0" * 64
             continue
@@ -7038,21 +7041,36 @@ def test_attempt_registry_records_seal_observation_and_monotonic_event_index(
 
 
 def test_attempt_event_hash_matches_golden_vector() -> None:
-    row = {
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+    """Keep the v2 vector fixed while pinning the v3 generation-bound schema."""
+    previous = (
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    )
+    v2_row = {
+        "schema_version": "p3-8c-attempt-registry/v2",
         "event": "classification",
         "freeze_id": "freeze-golden-vector",
         "slot_id": "trial-r0-a0",
     }
-    sealed = R._attempt_v2_event_row(
-        row,
+    v2_sealed = R._attempt_v2_event_row(
+        v2_row,
         event_index=3,
-        previous_event_sha256=(
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-        ),
+        previous_event_sha256=previous,
     )
-    assert sealed["event_sha256"] == (
+    assert v2_sealed["event_sha256"] == (
         "c87db9b4449f49eaea673b567d0e1e5db6b4a9bf97075ca4c4dc5f3652a4b8f7"
+    )
+
+    # Generation enters the v3 capability digest (pinned in the adjacent
+    # generation-binding test), while the v3 schema token distinguishes every
+    # chained row carrying that capability contract.  This reduced vector has
+    # no capability field, so the schema token is the direct changed byte.
+    v3_sealed = R._attempt_v2_event_row(
+        {**v2_row, "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION},
+        event_index=3,
+        previous_event_sha256=previous,
+    )
+    assert v3_sealed["event_sha256"] == (
+        "b71bbdd5f8253c6744907e9ab7aa100fd71736c335a4129cb31fb95059c0b3ab"
     )
 
 

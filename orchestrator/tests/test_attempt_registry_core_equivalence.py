@@ -710,6 +710,7 @@ def test_frozen_paths_and_public_signatures_are_literal_pinned() -> None:
         "create_attempt_registry_genesis": (
             "(*, repository_root: 'Path', manifest_path: 'Path', "
             "manifest_sha256: 'str', freeze_id: 'str', "
+            "prereg_generation: 'int', "
             "slots: 'Sequence[Mapping[str, Any]]', "
             "retryable_failure_reasons: 'Sequence[str]' = "
             "('launcher-failure', 'node-failure', 'preempted', 'wall-timeout'), "
