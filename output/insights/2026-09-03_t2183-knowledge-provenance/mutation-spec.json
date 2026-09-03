@@ -1,0 +1,118 @@
+{
+ "estimated_run_seconds": 120,
+ "hang_timeout_seconds": 1200,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_knowledge_report_projects_verified_receipt_sources"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2183.m01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "new": "    if True or checked_knowledge_provenance is None:\n",
+     "old": "    if checked_knowledge_provenance is None:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2183.m02r",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "new": "        knowledge_provenance, knowledge_receipt_sha256 = (\n            checked_knowledge_provenance\n        )\n        knowledge_provenance[\"injected_sources\"] = knowledge_provenance[\"declared_sources\"]\n",
+     "old": "        knowledge_provenance, knowledge_receipt_sha256 = (\n            checked_knowledge_provenance\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_unknown_nested_knowledge_key"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2183.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "          \"required\": [\"knowledge_level\", \"knowledge_manifest_sha256\", \"declared_sources\", \"injected_sources\"],\n",
+     "old": "          \"additionalProperties\": false,\n          \"required\": [\"knowledge_level\", \"knowledge_manifest_sha256\", \"declared_sources\", \"injected_sources\"],\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_missing_injected_sources"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2183.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "          \"required\": [\"knowledge_level\", \"knowledge_manifest_sha256\", \"declared_sources\"],\n",
+     "old": "          \"required\": [\"knowledge_level\", \"knowledge_manifest_sha256\", \"declared_sources\", \"injected_sources\"],\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_reads_legacy_layer3_without_knowledge_provenance"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2183.m06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+     "new": "",
+     "old": "    normalized.setdefault(\"knowledge_provenance\", None)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_report_rejects_receipt_replaced_after_build_start"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2183.m07r",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "new": "    except wal.AttemptTopologyError:\n        checked_knowledge_provenance = None\n        for _record in records:\n            if _record[\"stage\"] != \"build_start\":\n                continue\n            _payload = _record[\"payload\"].get(\"knowledge_provenance\")\n            if _payload is None:\n                continue\n            checked_knowledge_provenance = (\n                {\n                    \"knowledge_level\": _payload[\"knowledge_level\"],\n                    \"knowledge_manifest_sha256\": _payload[\n                        \"knowledge_manifest_sha256\"\n                    ],\n                    \"declared_sources\": _payload[\"sources\"],\n                    \"injected_sources\": _payload[\"sources\"],\n                },\n                None,\n            )\n            break\n",
+     "old": "    except wal.AttemptTopologyError as exc:\n        raise Layer3ReportError(\n            \"knowledge provenance 検証に失敗\"\n        ) from exc\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_artifact_refs_reject_receipt_changed_after_provenance_read"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2183.m08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_report.py",
+     "new": "    if knowledge_receipt_sha256 is not None and False and not any(\n",
+     "old": "    if knowledge_receipt_sha256 is not None and not any(\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 900
+}

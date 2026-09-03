@@ -1,0 +1,149 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/parse.py",
+          "old": "    indices = [outcome.path_index for outcome in received]\n    if len(indices) != len(paths) or sorted(indices) != list(range(len(paths))):\n        return None, received\n",
+          "new": "    indices = [outcome.path_index for outcome in received]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_parallel_worker_exit_discards_partial_results_and_rereads_all_files"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/parse.py",
+          "old": "    return sorted(received, key=lambda outcome: outcome.path_index), received\n",
+          "new": "    return list(received), received\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_parallel_parse_issues_keep_sorted_path_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        for _ordinal, source, destination in merge(*candidate_streams):\n            adjacency[source].add(destination)\n",
+          "new": "        for stream in candidate_streams:\n            for _ordinal, source, destination in stream:\n                adjacency[source].add(destination)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_parallel_edge_replay_uses_global_logical_ordinal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/parse.py",
+          "old": "def _raise_parent_file_error(outcome: _ParsedFileFailure) -> None:\n    if not isinstance(outcome.error, ParseError):\n        _raise_worker_reported_error(outcome)\n",
+          "new": "def _raise_parent_file_error(outcome: _ParsedFileFailure) -> None:\n    raise type(outcome.error)(*outcome.error.args)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_file_failures_keep_sorted_path_priority_over_later_io_error",
+        "orchestrator/tests/test_verifier.py::test_parallel_parse_error_is_raised_by_parent_scanner_with_cause",
+        "orchestrator/tests/test_verifier.py::test_worker_parse_error_survives_file_disappearing_before_parent_reread"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                key_versions = versions.get(key)\n                if key_versions:\n                    successor = bisect_right(key_versions, version)\n                    if successor < len(key_versions):\n                        writer = producer.get((key, key_versions[successor]))\n                        if writer is not None:\n                            add(2 * logical + 1, txid, writer)\n",
+          "new": "                key_versions = versions.get(key)\n                if key_versions:\n                    successor = bisect_right(key_versions, version)\n                    if successor < len(key_versions):\n                        writer = producer.get((key, key_versions[successor]))\n                        if writer is not None and False:\n                            add(2 * logical + 1, txid, writer)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+        "orchestrator/tests/test_verifier.py::test_compact_dsg_keeps_rw_edge_and_detects_g2_cycle",
+        "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+        "orchestrator/tests/test_verifier.py::test_cycle3_g2",
+        "orchestrator/tests/test_verifier.py::test_cycle_verdict_takes_priority_over_framing_violation",
+        "orchestrator/tests/test_verifier.py::test_epoch_rw_successor_order_g2",
+        "orchestrator/tests/test_verifier.py::test_epoch_version_order_g2",
+        "orchestrator/tests/test_verifier.py::test_g4_has_rw_edge_but_no_cycle",
+        "orchestrator/tests/test_verifier.py::test_lost_update_g2",
+        "orchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types",
+        "orchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity",
+        "orchestrator/tests/test_verifier.py::test_parallel_worker_exit_discards_partial_results_and_rereads_all_files",
+        "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+        "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_structured_report_has_edge_detail",
+        "orchestrator/tests/test_verifier.py::test_total_cycles_survives_witness_cap",
+        "orchestrator/tests/test_verifier.py::test_write_skew_g2"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/parse.py",
+          "old": "        for row, txid in enumerate(columns.txn_txid):\n            if txid in seen:\n                issues.dup_txids.append(txid)\n            seen.add(txid)\n            winners[txid] = (columns.path_index, row)\n",
+          "new": "        local_seen = set()\n        for row, txid in enumerate(columns.txn_txid):\n            if txid in local_seen:\n                issues.dup_txids.append(txid)\n            local_seen.add(txid)\n            seen.add(txid)\n            winners[txid] = (columns.path_index, row)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_parallel_cross_file_duplicate_txid_is_parent_replayed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "_EDGE_WORKER_STATE: Optional[_EdgeWorkerState] = None\n",
+          "new": "_EDGE_WORKER_STATE: Optional[_EdgeWorkerState] = None\n_PARENT_EDGE_STATE: Optional[_EdgeWorkerState] = None\n"
+        },
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "def _initialize_edge_worker(state: _EdgeWorkerState) -> None:\n    global _EDGE_WORKER_STATE\n    _EDGE_WORKER_STATE = state\n",
+          "new": "def _initialize_edge_worker(state: _EdgeWorkerState) -> None:\n    global _EDGE_WORKER_STATE\n    _EDGE_WORKER_STATE = _PARENT_EDGE_STATE\n"
+        },
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        outcomes: List[_EdgeCandidateColumns] = []\n        received: List[_EdgeCandidateColumns] = []\n        if worker_count > 1 and len(tasks) > 1:\n",
+          "new": "        global _PARENT_EDGE_STATE\n        _PARENT_EDGE_STATE = state\n        outcomes: List[_EdgeCandidateColumns] = []\n        received: List[_EdgeCandidateColumns] = []\n        if worker_count > 1 and len(tasks) > 1:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -1867,6 +1867,84 @@ def test_knowledge_writer_binds_build_start_only(tmp_path):
     )
 
 
+def test_knowledge_material_report_reader_projects_verified_receipt_sources(
+    tmp_path,
+):
+    """Fails only when the new reader does not reuse the verified receipt path."""
+    layout, resolved, records = _knowledge_diff_reject_records(tmp_path)
+    projection = wal.knowledge_provenance_for_material_report(
+        layout,
+        records,
+        campaign_lock=wal._campaign_lock_value(layout),
+    )
+    expected_sources = [
+        item.source.canonical_value() for item in resolved.sources
+    ]
+
+    assert projection == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_sources": expected_sources,
+        "injected_sources": expected_sources,
+    }
+
+
+def test_validated_receipt_keeps_both_source_origins_distinct(tmp_path):
+    """FX1 positive: canonical and verified fields survive as separate lists."""
+    layout, resolved, _records = _knowledge_diff_reject_records(tmp_path)
+    provenance, verified_sources = wal._validated_knowledge_receipt(
+        wal._read_knowledge_receipt(layout),
+        expected_level="K2",
+        expected_digest=resolved.knowledge_manifest_sha256,
+    )
+    expected_sources = [
+        item.source.canonical_value() for item in resolved.sources
+    ]
+
+    assert provenance["sources"] == expected_sources
+    assert verified_sources == expected_sources
+    assert provenance["sources"] is not verified_sources
+    assert provenance["sources"][0] is not verified_sources[0]
+
+
+def test_knowledge_material_report_reader_rejects_verified_canonical_skew(
+    tmp_path,
+):
+    """FX2: only verified/canonical equality rejects this exact valid shape."""
+    layout, _resolved, records = _knowledge_diff_reject_records(tmp_path)
+    receipt_path = Path(layout.root, KM.RECEIPT_FILENAME)
+    receipt = json.loads(receipt_path.read_bytes())
+    verified_only_sha256 = hashlib.sha256(b"verified-only-skew").hexdigest()
+    receipt["sources"][0]["sha256"] = verified_only_sha256
+    receipt["sources"][0]["verification"]["observed_sha256"] = (
+        verified_only_sha256
+    )
+    receipt_path.write_bytes(KM.canonical_json_bytes(receipt) + b"\n")
+
+    with pytest.raises(
+        wal.AttemptTopologyError,
+        match="canonical manifest と verified sources が不一致",
+    ):
+        wal.knowledge_provenance_for_material_report(
+            layout,
+            records,
+            campaign_lock=wal._campaign_lock_value(layout),
+        )
+
+
+def test_nonknowledge_material_report_reader_does_not_read_receipt(tmp_path):
+    """Fails only when a knowledge-unaware campaign touches a receipt artifact."""
+    layout = CampaignLayout(root=str(tmp_path / "nonknowledge-campaign")).ensure()
+    _seed_legacy_lock(layout)
+    Path(layout.root, KM.RECEIPT_FILENAME).write_bytes(b"not-json\n")
+
+    assert wal.knowledge_provenance_for_material_report(
+        layout,
+        [],
+        campaign_lock=wal._campaign_lock_value(layout),
+    ) is None
+
+
 def test_knowledge_writer_rejects_missing_receipt_before_wal_effect(tmp_path):
     _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
     layout = CampaignLayout(root=str(tmp_path / "missing-receipt")).ensure()
