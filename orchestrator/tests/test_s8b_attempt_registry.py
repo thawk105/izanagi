@@ -2816,6 +2816,82 @@ def test_v2_resume_rejects_recovery_ordinal_and_accepts_zero(
         )
 
 
+def test_v2_reservation_rejects_claim_from_other_protocol_generation(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    assert type(_reserve_v2(case, profile, binding, slot)) is (
+        registry.ReservedAttempt
+    )
+
+    foreign_parent = tmp_path / "foreign"
+    foreign_parent.mkdir()
+    root, protocol, freeze = admission_cases._init_repo(  # noqa: SLF001
+        foreign_parent, master_seed="seed-b",
+    )
+    cells, schedule = admission_cases._cells_and_schedule(  # noqa: SLF001
+        protocol, freeze,
+    )
+    reservation = admission_cases._reserve(  # noqa: SLF001
+        root, protocol, freeze, run_id="run-b", use_real_resolver=True,
+    )
+    admitted_by_cell = admission.finalize_floor_holdout_admissions(reservation)
+    cell = cells[0]
+    schedule_row = next(
+        row for row in schedule if row["cell_id"] == cell["cell_id"]
+    )
+    attempt_id = f"{cell['cell_id']}::seq{schedule_row['seq']}"
+    admitted = admitted_by_cell[cell["cell_id"]]
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    (state.run_dir / "journal.jsonl").write_text(json.dumps({
+        "event": "session-start", "seq": schedule_row["seq"],
+        "round": schedule_row["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "trigger": None,
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    capability = admission.validate_floor_attempt_consumption_marker(
+        admitted, attempt_id=attempt_id,
+    )
+    marker = admission_cases._floor_expected_marker(  # noqa: SLF001
+        admitted, attempt_id,
+    )
+    claim = admission._read_canonical_document(  # noqa: SLF001
+        admission._measurement_generation_claim_path(  # noqa: SLF001
+            state.root, marker["measurement_generation_claim_digest"],
+        )
+    )
+    assert type(capability) is admission.FloorAttemptConsumptionMarker
+    assert claim["protocol_sha256"] != binding.protocol_sha256
+    identity = {
+        "freeze_holdout_key": marker["freeze_holdout_key"],
+        "configuration_id": marker["configuration_id"],
+        "repetition": schedule_row["round"] - 1,
+        "measurement_ordinal": 0,
+        "attempt_ordinal": 0,
+    }
+    foreign_slot = profile8b.S8BV2AttemptSlot(
+        **identity,
+        schedule_row_sha256=hashlib.sha256(
+            core.canonical_json_bytes(identity)
+        ).hexdigest(),
+    )
+    registry.create_attempt_registry(
+        root, profile=profile, slots=[foreign_slot], binding=binding,
+    )
+    foreign_case = {
+        "repo_root": root, "marker": marker, "capability": capability,
+    }
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=(
+            r"^\[s8b-attempt-registry-consume\] v2 admission claim "
+            r"differs from the registry generation or slot$"
+        ),
+    ):
+        _reserve_v2(foreign_case, profile, binding, foreign_slot)
+
+
 def test_v2_start_only_resume_fails_closed_and_classified_resume_stays_open(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
