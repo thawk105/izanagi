@@ -2407,7 +2407,7 @@ def test_locked_update_seam_does_not_reacquire_lock_or_run_prelock_hook(
     assert snapshots == [path.read_bytes()]
 
 
-def test_v2_profile_is_rejected_by_public_mutation_but_slot_lookup_is_five_axis(
+def test_forged_v2_profile_is_rejected_but_slot_lookup_is_five_axis(
     tmp_path: Path,
 ) -> None:
     v2_profile = _v2_authority_profile()
@@ -2525,6 +2525,7 @@ def test_generation_publish_direct_barriers_adapter_mapping_and_positive(
     symlink_path.parent.parent.mkdir(parents=True)
     outside = tmp_path / "generation-outside"
     outside.mkdir()
+    (outside / "registry.jsonl").write_bytes(payload)
     symlink_path.parent.symlink_to(outside, target_is_directory=True)
     with pytest.raises(
         (registry.S8BAttemptRegistryError, admission.HoldoutAdmissionError),
@@ -2593,6 +2594,206 @@ def test_generation_publish_direct_barriers_adapter_mapping_and_positive(
             path=path,
             payload=payload,
         )
+
+
+def test_generation_symlink_lower_layers_map_rejection_and_keep_positive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    complete = tmp_path / "complete-generation"
+    complete.mkdir()
+    (complete / "registry.jsonl").write_bytes(b"{}\n")
+    alias = tmp_path / "generation-alias"
+    alias.symlink_to(complete, target_is_directory=True)
+    operations = (
+        lambda: registry._read_regular_bytes(alias / "registry.jsonl"),
+        lambda: registry._ensure_durable_directory(alias),
+        lambda: registry._write_staging(
+            alias / "candidate.json",
+            b"{}\n",
+            logical_name="floor-attempt-registries/direct",
+        ),
+        lambda: admission.write_guarded_create_bytes(
+            alias / "candidate.json",
+            b"{}\n",
+            logical_name="floor-attempt-registries/direct",
+        ),
+    )
+    for operation in operations:
+        with pytest.raises(
+            admission.HoldoutAdmissionError,
+            match=r"guarded writer path is symlinked:",
+        ):
+            operation()
+
+    profile = _v2_authority_profile()
+    slot = _v2_slot(0)
+    calls: list[Path] = []
+
+    def reject_lower(
+        path: Path, _payload: bytes, *, logical_name: str,
+    ) -> str:
+        calls.append(path)
+        raise admission.HoldoutAdmissionError(
+            "[test-symlink-lower] guarded writer rejected"
+        )
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(admission, "write_guarded_create_bytes", reject_lower)
+        with pytest.raises(
+            admission.HoldoutAdmissionError,
+            match=r"^\[test-symlink-lower\] guarded writer rejected$",
+        ):
+            registry.create_attempt_registry(
+                _repo(tmp_path / "mapped"),
+                profile=profile,
+                slots=[slot],
+                binding=_BINDING,
+            )
+    assert len(calls) == 1
+
+    positive_repo = _repo(tmp_path / "positive")
+    positive = registry.create_attempt_registry(
+        positive_repo, profile=profile, slots=[slot], binding=_BINDING,
+    )
+    assert registry.read_attempt_registry(
+        positive_repo, profile=profile, binding=_BINDING,
+    ) == core.load_attempt_registry(positive.read_bytes(), profile=profile)
+
+
+def test_atomic_update_locked_direct_guard_maps_upstream_and_keeps_positive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    root = admission.shared_admission_root(repo)
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match=r"^floor attempt consumption requires the live admission root lock$",
+    ):
+        registry._atomic_update_locked(
+            admission._AdmissionRootLock(),
+            root=root,
+            path=path,
+            profile=profile,
+            binding=_BINDING,
+            transition=lambda rows: (rows, None),
+        )
+
+    calls: list[Path] = []
+
+    def reject_guard(_lock: object, *, root: Path) -> None:
+        calls.append(root)
+        raise admission.HoldoutAdmissionError(
+            "[test-live-lock-lower] lower lock guard rejected"
+        )
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            admission, "_assert_active_admission_root_lock", reject_guard,
+        )
+        with pytest.raises(
+            admission.HoldoutAdmissionError,
+            match=r"^\[test-live-lock-lower\] lower lock guard rejected$",
+        ):
+            _reserve(repo, profile, slot)
+    assert calls == [root]
+    assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def test_v2_start_only_resume_fails_closed_and_classified_resume_stays_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    reserved = _reserve_v2(case, profile, binding, slot)
+
+    class InjectedCrash(RuntimeError):
+        pass
+
+    def stop_after_claim(point: str) -> None:
+        if point == "after-classification-claim":
+            raise InjectedCrash(point)
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(registry, "_FAULT_HOOK", stop_after_claim)
+        with pytest.raises(InjectedCrash, match="after-classification-claim"):
+            _classify(reserved)
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=(
+            r"^\[s8b-attempt-registry-resume\] "
+            r"v2 start-only resume is not marker-atomic$"
+        ),
+    ):
+        registry.resume_attempt(
+            case["repo_root"],
+            profile=profile,
+            binding=binding,
+            slot_id=profile.slot_codec.slot_id(slot),
+            deferred_output_reader=lambda: b"resumed-output",
+            consumption_marker=case["capability"],
+        )
+
+    assert type(_classify(reserved)) is registry.ClassifiedAttempt
+    assert type(registry.resume_attempt(
+        case["repo_root"],
+        profile=profile,
+        binding=binding,
+        slot_id=profile.slot_codec.slot_id(slot),
+        deferred_output_reader=lambda: b"resumed-output",
+        consumption_marker=case["capability"],
+    )) is registry.ClassifiedAttempt
+
+
+def test_v2_mutation_marker_binding_scope_is_exact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker_calls: list[str] = []
+    plain_calls: list[str] = []
+    real_marker = registry._atomic_update_with_consumption_marker
+    real_plain = registry._atomic_update
+
+    def owner(kwargs: Mapping[str, Any]) -> str:
+        return kwargs["transition"].__qualname__.split(".<locals>.")[0]
+
+    def marker_spy(**kwargs: Any) -> Any:
+        marker_calls.append(owner(kwargs))
+        return real_marker(**kwargs)
+
+    def plain_spy(**kwargs: Any) -> Any:
+        plain_calls.append(owner(kwargs))
+        return real_plain(**kwargs)
+
+    monkeypatch.setattr(
+        registry, "_atomic_update_with_consumption_marker", marker_spy,
+    )
+    monkeypatch.setattr(registry, "_atomic_update", plain_spy)
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    reserved = _reserve_v2(case, profile, binding, slot)
+    classified = _classify(reserved)
+    assert type(classified) is registry.ClassifiedAttempt
+    assert type(registry.begin_attempt_observation(classified)) is (
+        registry.CapturedObservation
+    )
+    with pytest.raises(core.AttemptRegistryCoreError):
+        registry.record_attempt_recovery(
+            reserved,
+            scheduler_accounting_receipt=b"{}\n",
+            recoverer_process_identity=_RECOVERER,
+            recovered_at="2026-08-25T00:00:04+00:00",
+        )
+    events = [row["event"] for row in registry.read_attempt_registry(
+        case["repo_root"], profile=profile, binding=binding,
+    )]
+    assert "classification" in events and _claim_file(case["repo_root"]).is_file()
+    assert "observation-start" in events and "recovery" not in events
+    assert marker_calls == ["reserve_attempt_slot", "_begin_attempt_observation"]
+    assert plain_calls == ["classify_attempt", "record_attempt_recovery"]
 
 
 def test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed(
@@ -2704,14 +2905,22 @@ def test_v2_marker_claim_v3_resume_and_legacy_terminal_fail_closed(
 
 
 def test_v3_claim_address_separates_measurement_ordinals() -> None:
-    first = _v2_slot(0, measurement_ordinal=0)
-    second = _v2_slot(0, measurement_ordinal=1)
+    schedule_row_sha256 = "d" * 64
+    first = replace(
+        _v2_slot(0, measurement_ordinal=0),
+        schedule_row_sha256=schedule_row_sha256,
+    )
+    second = replace(first, measurement_ordinal=1)
     first_payload = registry._slot_address_payload_v3(
         binding=_BINDING, slot=first,
     )
     second_payload = registry._slot_address_payload_v3(
         binding=_BINDING, slot=second,
     )
+    assert first.schedule_row_sha256 == second.schedule_row_sha256
+    assert {
+        key for key in first_payload if first_payload[key] != second_payload[key]
+    } == {"measurement_ordinal"}
     assert first_payload["measurement_ordinal"] == 0
     assert second_payload["measurement_ordinal"] == 1
     assert first_payload != second_payload

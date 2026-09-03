@@ -1583,9 +1583,12 @@ def create_attempt_registry(
     repo_root: Path,
     *,
     profile: core.DomainProfile[
-        profile8b.S8BAttemptSlot, profile8b.S8BAttemptBinding
+        profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot,
+        profile8b.S8BAttemptBinding,
     ],
-    slots: Sequence[profile8b.S8BAttemptSlot],
+    slots: Sequence[
+        profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot
+    ],
     binding: profile8b.S8BAttemptBinding,
     requested_registry_path: Path | None = None,
 ) -> Path:
@@ -1629,7 +1632,8 @@ def read_attempt_registry(
     repo_root: Path,
     *,
     profile: core.DomainProfile[
-        profile8b.S8BAttemptSlot, profile8b.S8BAttemptBinding
+        profile8b.S8BAttemptSlot | profile8b.S8BV2AttemptSlot,
+        profile8b.S8BAttemptBinding,
     ],
     binding: profile8b.S8BAttemptBinding,
 ) -> core.RegistryRows:
@@ -1764,8 +1768,14 @@ def reserve_attempt_slot(
         return candidate, (slot, capability)
 
     if v2_slot is not None:
-        assert consumption_marker is not None
-        assert measurement_generation_claim_digest is not None
+        if (
+            consumption_marker is None
+            or measurement_generation_claim_digest is None
+        ):
+            _fail(
+                "s8b-attempt-registry-consume",
+                "v2 reservation requires a consumption marker",
+            )
         _rows, (_slot, _capability) = (
             _atomic_update_with_consumption_marker(
                 root=root,
@@ -2589,6 +2599,11 @@ def resume_attempt(
                 _fail(
                     "s8b-attempt-registry-consume",
                     "v2 resume recovery ordinal is not capability-backed",
+                )
+            if not classifications:
+                _fail(
+                    "s8b-attempt-registry-resume",
+                    "v2 start-only resume is not marker-atomic",
                 )
             if claim_result is not None:
                 marker_claim = claim_result[0]
