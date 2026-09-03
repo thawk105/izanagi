@@ -301,6 +301,23 @@ def _subprocess_probe(tree: Path, code: str, *arguments: str) -> str:
     return completed.stdout.strip()
 
 
+def _rewrite_post_assembly_raw_judgment(
+    assembly: production_producer.B4RawAnalysisAssembly,
+    raw_analysis_bytes: bytes,
+) -> production_producer.B4RawAnalysisAssembly:
+    """Replace only the assembled raw-analysis payload and its digest."""
+
+    if not isinstance(assembly, production_producer.B4RawAnalysisAssembly):
+        raise TypeError("post-assembly rewrite requires a raw analysis assembly")
+    if type(raw_analysis_bytes) is not bytes:
+        raise TypeError("post-assembly raw analysis must be bytes")
+    return replace(
+        assembly,
+        canonical_bytes=raw_analysis_bytes,
+        sha256=E.sha256_bytes(raw_analysis_bytes),
+    )
+
+
 def _prepare_route_state(tree: Path) -> None:
     code = (
         "import json\n"
@@ -434,11 +451,9 @@ def _route_probe(
         "    emit('guard',issue.code.value,'raw_assembly')\n"
         "   emit('existing',issue.code.value+':'+issue.field)\n"
         "  raise AssertionError('rogue planned attempt artifact was accepted')\n"
-        " assembly=P.B4RawAnalysisAssembly("
-        "schema_version=assembly.schema_version,canonical_bytes=made.raw_analysis_bytes,"
-        "sha256=E.sha256_bytes(made.raw_analysis_bytes),"
-        "source_artifact_bytes=assembly.source_artifact_bytes,"
-        "planned_attempt_artifact_paths=assembly.planned_attempt_artifact_paths)\n"
+        " import test_p3_b4_producer_auth_experiment as H\n"
+        " assembly=H._rewrite_post_assembly_raw_judgment("
+        "assembly,made.raw_analysis_bytes)\n"
         "admission=evidence.evidence[0].admission\n"
         "with mock.patch.object(C, 'REPOSITORY_ROOT', admission.repository), "
         "mock.patch.object(C, 'ROLE_FILE', admission.role_file), "
@@ -744,13 +759,24 @@ def test_rogue_producer_is_a_separate_implementation_path() -> None:
 def test_each_prototype_patch_anchor_is_unique_and_anchor_is_post_prototype(
     tmp_path: Path,
 ) -> None:
-    assert hashlib.sha256((REPOSITORY_ROOT / E.PRODUCER_PATH).read_bytes()).hexdigest() == (
-        E.BASE_PRODUCER_SHA256
+    base_commit = E.resolve_source_head(REPOSITORY_ROOT)
+    base_blob = E.producer_blob_at_commit(REPOSITORY_ROOT, base_commit)
+    base_anchor = E.resolve_candidate_trust_anchor(
+        REPOSITORY_ROOT,
+        base_commit,
+        E.Candidate.ISSUER,
     )
+    assert hashlib.sha256(base_blob).hexdigest() == base_anchor.sha256
     for candidate in E.Candidate:
+        expected = E.resolve_candidate_trust_anchor(
+            REPOSITORY_ROOT,
+            base_commit,
+            candidate,
+        )
         with E.ScratchTree(
             source_repository=REPOSITORY_ROOT,
             scratch_root=tmp_path / candidate.name.lower(),
+            base_commit=base_commit,
         ) as tree:
             patches = E.PROTOTYPE_PATCHES[candidate]
             E.validate_exact_replacements(tree, patches)
@@ -758,7 +784,8 @@ def test_each_prototype_patch_anchor_is_unique_and_anchor_is_post_prototype(
             observed = hashlib.sha256(
                 (tree / E.PRODUCER_PATH).read_bytes()
             ).hexdigest()
-            assert observed == anchor.sha256
+            assert anchor == expected
+            assert observed == expected.sha256
 
 
 def test_prototype_calls_each_guard_once_from_the_fixed_real_callsite(
@@ -1012,6 +1039,13 @@ def test_c1_preregistration_requires_two_processes() -> None:
         "issuance process exits before producer mutation; attempt production "
         "and assembly run in a new process"
     )
+    assert approved["trust_anchor_contract"] == {
+        "digest": "sha256",
+        "expected_bytes_source": E.TRUST_ANCHOR_SOURCE,
+        "freeze_point": "after_candidate_prototype_before_rogue_mutation",
+        "producer_path": E.PRODUCER_PATH,
+    }
+    assert "trust_anchors" not in approved
 
 
 def test_comparison_report_is_canonical_and_has_no_volatile_payload() -> None:
@@ -1029,6 +1063,22 @@ def test_comparison_report_is_canonical_and_has_no_volatile_payload() -> None:
     assert value["schema_version"] == E.REPORT_SCHEMA_VERSION
     assert value["base_commit"] == E.resolve_source_head(REPOSITORY_ROOT)
     assert len(value["results"]) == 39
+    expected_anchors = {
+        candidate.value: E.resolve_candidate_trust_anchor(
+            REPOSITORY_ROOT,
+            value["base_commit"],
+            candidate,
+        ).sha256
+        for candidate in E.Candidate
+    }
+    assert {
+        anchor["candidate"]: anchor["sha256"]
+        for anchor in value["trust_anchors"]
+    } == expected_anchors
+    assert all(
+        anchor["source"] == E.TRUST_ANCHOR_SOURCE
+        for anchor in value["trust_anchors"]
+    )
     assert value["decision_input_mutation_ids"] == sorted(
         f"{family}-{judgment}"
         for family in ("C1", "R")
@@ -1130,17 +1180,18 @@ def test_w01_fixed_anchor_accepts_regular_and_rejects_rogue(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repository = tmp_path / "repository"
-    producer = repository / E.PRODUCER_PATH
-    producer.parent.mkdir(parents=True)
-    producer.write_bytes((REPOSITORY_ROOT / E.PRODUCER_PATH).read_bytes())
-    monkeypatch.setattr(E, "repository_root_from_module", lambda: repository)
-    E.guard_issuer()
-    mutation = E.MUTATION_BY_ID["C0-P"]
-    producer.write_bytes(E.apply_exact_once(producer.read_bytes(), mutation))
-    with pytest.raises(E.ProducerAuthRejection) as caught:
+    with E.ScratchTree(
+        source_repository=REPOSITORY_ROOT,
+        scratch_root=tmp_path / "repository",
+    ) as repository:
+        producer = repository / E.PRODUCER_PATH
+        monkeypatch.setattr(E, "repository_root_from_module", lambda: repository)
         E.guard_issuer()
-    assert caught.value.candidate is E.Candidate.ISSUER
+        mutation = E.MUTATION_BY_ID["C0-P"]
+        producer.write_bytes(E.apply_exact_once(producer.read_bytes(), mutation))
+        with pytest.raises(E.ProducerAuthRejection) as caught:
+            E.guard_issuer()
+        assert caught.value.candidate is E.Candidate.ISSUER
 
 
 def test_w02_baseline_rejection_is_not_an_incremental_kill() -> None:
@@ -1364,7 +1415,12 @@ def test_w09_pos_1_is_accepted_by_every_candidate(tmp_path: Path) -> None:
         candidate: E.CaseOutcome.SURVIVED for candidate in E.Candidate
     }
     E.guard_issuer()
-    E.guard_frozen_consumer(producer_sha256=E.BASE_PRODUCER_SHA256)
+    frozen_anchor = E.resolve_candidate_trust_anchor(
+        REPOSITORY_ROOT,
+        E.resolve_source_head(REPOSITORY_ROOT),
+        E.Candidate.FROZEN_CONSUMER,
+    )
+    E.guard_frozen_consumer(producer_sha256=frozen_anchor.sha256)
     with E.ScratchTree(
         source_repository=REPOSITORY_ROOT,
         scratch_root=tmp_path / "raw-positive",
@@ -1435,11 +1491,98 @@ def test_case_failure_records_aborted_and_remaining_cases_continue(
     aborted = [
         result
         for result in results
-        if result.observation.reason == "case_aborted:baseline:OSError"
+        if result.observation.reason is not None
+        and result.observation.reason.partition(":message=")[0]
+        == "case_aborted:baseline:OSError"
     ]
     assert len(aborted) == 1
-    assert "/" not in aborted[0].observation.reason
+    assert aborted[0].observation.reason == (
+        "case_aborted:baseline:OSError:message="
+        "volatile absolute path must not enter the report"
+    )
     assert all(type(result.wall_seconds) is float for result in results)
+
+
+def test_abort_message_is_preserved_in_shard_json_and_diagnostic_log(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    message = "first failure line\nsecond failure line: complete detail"
+    base_commit = E.resolve_source_head(REPOSITORY_ROOT)
+    results = tuple(
+        E.CandidatePhaseResult(
+            base_commit=base_commit,
+            candidate=E.Candidate.ISSUER,
+            mutation_id=mutation.mutation_id,
+            phase=E.MeasurementPhase.BASELINE,
+            observation=(
+                E._aborted_observation(
+                    E.MeasurementPhase.BASELINE.value,
+                    AssertionError(message),
+                )
+                if mutation.mutation_id == "D-P"
+                else _observation()
+            ),
+            wall_seconds=0.0,
+        )
+        for mutation in E.MUTATIONS
+    )
+    monkeypatch.setattr(E, "run_isolated_cases", lambda **_kwargs: results)
+
+    shard, succeeded, diagnostic = _measure_candidate_phase_shard(
+        E.Candidate.ISSUER,
+        E.MeasurementPhase.BASELINE,
+        scratch_root=tmp_path / "abort-detail",
+    )
+
+    reason = next(
+        result["observation"]["reason"]
+        for result in json.loads(shard)["results"]
+        if result["mutation_id"] == "D-P"
+    )
+    assert reason == f"case_aborted:baseline:AssertionError:message={message}"
+    parsed_results = E.parse_candidate_shard_bytes(shard)[2]
+    assert next(
+        result.observation.reason
+        for result in parsed_results
+        if result.mutation_id == "D-P"
+    ) == reason
+    assert not succeeded
+    assert message.replace("\n", "\\n") in diagnostic
+
+
+def test_post_assembly_raw_rewrite_preserves_new_producer_metadata() -> None:
+    history = production_producer.B4RawRecordRejectionHistory(
+        path="/measurement/rejection-history.jsonl",
+        status="available",
+        fragment_discarded=False,
+        events=(),
+        detail=None,
+    )
+    original = production_producer.B4RawAnalysisAssembly(
+        schema_version="p3-b4-raw-analysis-records/v1",
+        canonical_bytes=b'{"before":true}',
+        sha256=E.sha256_bytes(b'{"before":true}'),
+        source_artifact_bytes=(b"source",),
+        planned_attempt_artifact_paths=("/measurement/attempt.json",),
+        rejection_history=history,
+    )
+    rewritten_bytes = b'{"after":true}'
+
+    rewritten = _rewrite_post_assembly_raw_judgment(
+        original,
+        rewritten_bytes,
+    )
+
+    assert rewritten.canonical_bytes == rewritten_bytes
+    assert rewritten.sha256 == E.sha256_bytes(rewritten_bytes)
+    assert rewritten.schema_version == original.schema_version
+    assert rewritten.source_artifact_bytes is original.source_artifact_bytes
+    assert (
+        rewritten.planned_attempt_artifact_paths
+        is original.planned_attempt_artifact_paths
+    )
+    assert rewritten.rejection_history is history
 
 
 def _candidate_non_regression(
@@ -1603,6 +1746,18 @@ def test_candidate_shards_require_all_39_pairs_before_decision() -> None:
     for shard in shards:
         shard_value = json.loads(shard)
         assert len(shard_value["results"]) == 13
+        shard_candidate = E.Candidate(shard_value["candidate"])
+        expected_anchor = E.resolve_candidate_trust_anchor(
+            REPOSITORY_ROOT,
+            shard_value["base_commit"],
+            shard_candidate,
+        )
+        assert shard_value["trust_anchor"] == {
+            "candidate": shard_candidate.value,
+            "producer_path": E.PRODUCER_PATH,
+            "sha256": expected_anchor.sha256,
+            "source": E.TRUST_ANCHOR_SOURCE,
+        }
         assert all(
             type(result["wall_seconds"]) is float
             and result["wall_seconds"] >= 0.0
@@ -1649,9 +1804,63 @@ def test_recorded_comparison_has_39_preregistered_pairs_and_rederived_decision()
         preregistration_data=E.approved_preregistration_path(
             REPOSITORY_ROOT
         ).read_bytes(),
+        source_repository=REPOSITORY_ROOT,
     )
     assert decision.decision_available
     assert len(decision.incremental_kills) == len(E.Candidate)
+
+
+def test_recorded_anchor_is_checked_against_base_blob_not_worktree(
+    tmp_path: Path,
+) -> None:
+    results = _all_expected_results()
+    decision = E.decide_candidate(
+        results,
+        non_regression={candidate: True for candidate in E.Candidate},
+    )
+    with E.ScratchTree(
+        source_repository=REPOSITORY_ROOT,
+        scratch_root=tmp_path / "recorded-anchor",
+        base_commit=decision.base_commit,
+    ) as repository:
+        report = E.canonical_report_bytes(
+            results=results,
+            decision=decision,
+            source_repository=repository,
+        )
+        producer = repository / E.PRODUCER_PATH
+        producer.write_bytes(b"later working tree producer bytes\n")
+        verified = E.assert_recorded_comparison_matches_preregistration(
+            report,
+            preregistration_data=E.approved_preregistration_path(
+                REPOSITORY_ROOT
+            ).read_bytes(),
+            source_repository=repository,
+        )
+        assert verified == decision
+
+        changed = json.loads(report)
+        changed["trust_anchors"][0]["sha256"] = "0" * 64
+        changed_bytes = (
+            json.dumps(
+                changed,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        ).encode("utf-8")
+        with pytest.raises(
+            E.ComparisonIntegrityError,
+            match="does not match the base commit producer blob",
+        ):
+            E.assert_recorded_comparison_matches_preregistration(
+                changed_bytes,
+                preregistration_data=E.approved_preregistration_path(
+                    REPOSITORY_ROOT
+                ).read_bytes(),
+                source_repository=repository,
+            )
 
 
 def _write_new_artifact(path: Path, data: bytes) -> None:

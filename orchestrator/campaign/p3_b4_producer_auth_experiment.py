@@ -38,16 +38,14 @@ EXPERIMENT_OVERLAY_PATHS = (
     "orchestrator/tests/test_p3_b4_producer_auth_experiment.py",
     PREREGISTRATION_RELATIVE_PATH,
 )
-PREREGISTRATION_SCHEMA_VERSION = "p3-b4-producer-auth-prereg/v6"
-REPORT_SCHEMA_VERSION = "p3-b4-producer-auth-comparison/v6"
-SHARD_SCHEMA_VERSION = "p3-b4-producer-auth-candidate-phase-shard/v3"
+PREREGISTRATION_SCHEMA_VERSION = "p3-b4-producer-auth-prereg/v7"
+REPORT_SCHEMA_VERSION = "p3-b4-producer-auth-comparison/v7"
+SHARD_SCHEMA_VERSION = "p3-b4-producer-auth-candidate-phase-shard/v4"
 REAL_REGIME_BLOCK_COUNT = 201
 MEASUREMENT_FLOOR = 0
+TRUST_ANCHOR_SOURCE = "measurement_base_commit_git_blob"
 _ENVIRONMENT_CONSTANT_PREFIX = "ENVIRONMENT_CONSTANT:"
 _FLOOR_DOMAIN_ERROR = "floor_domain_error"
-BASE_PRODUCER_SHA256 = (
-    "55e264f05eef48e466a1ab20c97d9a7d30acba0afe3e76937e58411e17b1c790"
-)
 
 
 class Candidate(str, Enum):
@@ -521,12 +519,10 @@ _RAW_PATCHES = (
     ExactPatch(
         Candidate.RAW_ASSEMBLY,
         PRODUCER_PATH,
-        b"    \"\"\"Assemble all 201 planned attempt artifacts without writing "
-        b"another path.\"\"\"\n\n"
+        b"    rejection_history: B4RawRecordRejectionHistory | None = None\n"
         b"    try:\n"
         b"        checked = _validated_publication(publication)\n",
-        b"    \"\"\"Assemble all 201 planned attempt artifacts without writing "
-        b"another path.\"\"\"\n\n"
+        b"    rejection_history: B4RawRecordRejectionHistory | None = None\n"
         b"    try:\n"
         b"        guard_raw_assembly()\n"
         b"        checked = _validated_publication(publication)\n",
@@ -536,8 +532,12 @@ _RAW_PATCHES = (
     ExactPatch(
         Candidate.RAW_ASSEMBLY,
         PRODUCER_PATH,
+        b"            rejection_history=rejection_history,\n"
+        b"        )\n"
         b"    except _Reject as exc:\n"
-        b"        return _rejection(None, exc.issue)\n",
+        b"        rejection = _rejection(None, exc.issue)\n",
+        b"            rejection_history=rejection_history,\n"
+        b"        )\n"
         b"    except ProducerAuthRejection as exc:\n"
         b"        return B4RawRecordRejection(\n"
         b"            schema_version=B4_RAW_RECORD_REJECTION_SCHEMA_VERSION,\n"
@@ -550,7 +550,7 @@ _RAW_PATCHES = (
         b"            ),),\n"
         b"        )\n"
         b"    except _Reject as exc:\n"
-        b"        return _rejection(None, exc.issue)\n",
+        b"        rejection = _rejection(None, exc.issue)\n",
         "assemble_b4_raw_analysis producer-auth rejection",
         4,
     ),
@@ -625,24 +625,6 @@ PROTOTYPE_PATCHES: Mapping[Candidate, tuple[ExactPatch, ...]] = {
 }
 
 
-# Filled from the exact producer bytes after applying _RAW_PATCHES in order.
-RAW_PROTOTYPE_PRODUCER_SHA256 = (
-    "72c1c84e4a402dda2a8c43b98637221a2795fe5acb9977c8fc0f01b2eae6f34a"
-)
-
-TRUST_ANCHORS: Mapping[Candidate, TrustAnchor] = {
-    Candidate.ISSUER: TrustAnchor(
-        Candidate.ISSUER, PRODUCER_PATH, BASE_PRODUCER_SHA256
-    ),
-    Candidate.RAW_ASSEMBLY: TrustAnchor(
-        Candidate.RAW_ASSEMBLY, PRODUCER_PATH, RAW_PROTOTYPE_PRODUCER_SHA256
-    ),
-    Candidate.FROZEN_CONSUMER: TrustAnchor(
-        Candidate.FROZEN_CONSUMER, PRODUCER_PATH, BASE_PRODUCER_SHA256
-    ),
-}
-
-
 def repository_root_from_module() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -670,12 +652,59 @@ def resolve_source_head(source_repository: Path) -> str:
     return commit
 
 
+def producer_blob_at_commit(
+    source_repository: Path,
+    base_commit: str,
+) -> bytes:
+    """Read the canonical producer from the measurement base commit."""
+
+    try:
+        commit = _validate_base_commit(base_commit)
+    except ComparisonIntegrityError as exc:
+        raise ScratchTreeError("base commit is not canonical") from exc
+    completed = subprocess.run(
+        ["git", "cat-file", "blob", f"{commit}:{PRODUCER_PATH}"],
+        cwd=source_repository,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.returncode != 0:
+        raise ScratchTreeError(
+            "producer blob is unavailable at the measurement base commit"
+        )
+    return completed.stdout
+
+
+def resolve_candidate_trust_anchor(
+    source_repository: Path,
+    base_commit: str,
+    candidate: Candidate,
+) -> TrustAnchor:
+    """Derive the post-prototype anchor from the pinned base commit blob."""
+
+    data = producer_blob_at_commit(source_repository, base_commit)
+    for patch in sorted(PROTOTYPE_PATCHES[candidate], key=lambda item: item.order):
+        if patch.relative_path == PRODUCER_PATH:
+            data = apply_exact_once(data, patch)
+    return TrustAnchor(candidate, PRODUCER_PATH, sha256_bytes(data))
+
+
+def _runtime_trust_anchor(candidate: Candidate) -> TrustAnchor:
+    repository = repository_root_from_module()
+    return resolve_candidate_trust_anchor(
+        repository,
+        resolve_source_head(repository),
+        candidate,
+    )
+
+
 def _reject(candidate: Candidate, observed_sha256: str) -> NoReturn:
     raise ProducerAuthRejection(candidate, observed_sha256)
 
 
 def _guard_repository_member(candidate: Candidate) -> None:
-    anchor = TRUST_ANCHORS[candidate]
+    anchor = _runtime_trust_anchor(candidate)
     try:
         observed = sha256_bytes(
             (repository_root_from_module() / anchor.producer_path).read_bytes()
@@ -701,7 +730,8 @@ def guard_raw_assembly() -> None:
 def guard_frozen_consumer(*, producer_sha256: str) -> None:
     """Check only the fixed digest of the already-required sixth member."""
 
-    if producer_sha256 != TRUST_ANCHORS[Candidate.FROZEN_CONSUMER].sha256:
+    anchor = _runtime_trust_anchor(Candidate.FROZEN_CONSUMER)
+    if producer_sha256 != anchor.sha256:
         _reject(Candidate.FROZEN_CONSUMER, producer_sha256)
 
 
@@ -814,9 +844,13 @@ def freeze_candidate_anchor_before_mutations(
     repository_root: Path,
     candidate: Candidate,
 ) -> TrustAnchor:
-    """Measure after prototype application and require the preregistered anchor."""
+    """Require the base-blob anchor after prototype and before rogue mutation."""
 
-    anchor = TRUST_ANCHORS[candidate]
+    anchor = resolve_candidate_trust_anchor(
+        repository_root,
+        resolve_source_head(repository_root),
+        candidate,
+    )
     observed = sha256_bytes((repository_root / anchor.producer_path).read_bytes())
     if observed != anchor.sha256:
         raise PreregistrationError(
@@ -1032,27 +1066,52 @@ def _wire_result(result: CandidateCaseResult) -> dict[str, object]:
     }
 
 
+def _wire_trust_anchor(anchor: TrustAnchor) -> dict[str, object]:
+    return {
+        "candidate": anchor.candidate.value,
+        "producer_path": anchor.producer_path,
+        "sha256": anchor.sha256,
+        "source": TRUST_ANCHOR_SOURCE,
+    }
+
+
+def _resolved_trust_anchors(
+    *,
+    source_repository: Path,
+    base_commit: str,
+) -> tuple[TrustAnchor, ...]:
+    return tuple(
+        resolve_candidate_trust_anchor(
+            source_repository,
+            base_commit,
+            candidate,
+        )
+        for candidate in Candidate
+    )
+
+
 def comparison_report_value(
     *,
     results: Sequence[CandidateCaseResult],
     decision: ComparisonDecision,
+    source_repository: Path | None = None,
 ) -> dict[str, object]:
     """Build the canonical, nonvolatile report value."""
 
+    if decision.base_commit is None:
+        raise ComparisonIntegrityError("comparison decision has no base commit")
+    repository = source_repository or repository_root_from_module()
+    anchors = _resolved_trust_anchors(
+        source_repository=repository,
+        base_commit=decision.base_commit,
+    )
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
         "base_commit": decision.base_commit,
         "decision_input_mutation_ids": sorted(DECISION_MUTATION_IDS),
         "control_mutation_ids": sorted(CONTROL_MUTATION_IDS),
         "evaluator_contract": measurement_evaluator_contract_value(),
-        "trust_anchors": [
-            {
-                "candidate": candidate.value,
-                "producer_path": TRUST_ANCHORS[candidate].producer_path,
-                "sha256": TRUST_ANCHORS[candidate].sha256,
-            }
-            for candidate in Candidate
-        ],
+        "trust_anchors": [_wire_trust_anchor(anchor) for anchor in anchors],
         "change_closures": [
             {
                 "candidate": candidate.value,
@@ -1138,10 +1197,15 @@ def canonical_report_bytes(
     *,
     results: Sequence[CandidateCaseResult],
     decision: ComparisonDecision,
+    source_repository: Path | None = None,
 ) -> bytes:
     return (
         json.dumps(
-            comparison_report_value(results=results, decision=decision),
+            comparison_report_value(
+                results=results,
+                decision=decision,
+                source_repository=source_repository,
+            ),
             ensure_ascii=False,
             sort_keys=True,
             separators=(",", ":"),
@@ -1286,6 +1350,58 @@ def _validate_base_commit(value: object) -> str:
     return value
 
 
+def _parse_trust_anchor(
+    value: object,
+    *,
+    candidate: Candidate,
+) -> TrustAnchor:
+    if type(value) is not dict or set(value) != {
+        "candidate",
+        "producer_path",
+        "sha256",
+        "source",
+    }:
+        raise ComparisonIntegrityError("recorded trust anchor has wrong shape")
+    if value["source"] != TRUST_ANCHOR_SOURCE:
+        raise ComparisonIntegrityError("recorded trust anchor source is unknown")
+    try:
+        anchor = TrustAnchor(
+            candidate=Candidate(value["candidate"]),
+            producer_path=value["producer_path"],
+            sha256=value["sha256"],
+        )
+    except (TypeError, ValueError) as exc:
+        raise ComparisonIntegrityError("recorded trust anchor is invalid") from exc
+    if anchor.candidate is not candidate:
+        raise ComparisonIntegrityError("recorded trust anchor candidate differs")
+    return anchor
+
+
+def _assert_recorded_trust_anchor_matches_base_blob(
+    value: object,
+    *,
+    source_repository: Path,
+    base_commit: str,
+    candidate: Candidate,
+) -> TrustAnchor:
+    recorded = _parse_trust_anchor(value, candidate=candidate)
+    try:
+        expected = resolve_candidate_trust_anchor(
+            source_repository,
+            base_commit,
+            candidate,
+        )
+    except ScratchTreeError as exc:
+        raise ComparisonIntegrityError(
+            "recorded base commit producer blob is unavailable"
+        ) from exc
+    if recorded != expected:
+        raise ComparisonIntegrityError(
+            "recorded trust anchor does not match the base commit producer blob"
+        )
+    return recorded
+
+
 def _wire_phase_result(result: CandidatePhaseResult) -> dict[str, object]:
     mutation = MUTATION_BY_ID[result.mutation_id]
     return {
@@ -1359,6 +1475,7 @@ def canonical_candidate_shard_bytes(
     results: Sequence[CandidatePhaseResult],
     non_regression_passed: bool | None,
     non_regression_wall_seconds: float | None,
+    source_repository: Path | None = None,
 ) -> bytes:
     """Serialize one complete candidate x phase measurement shard."""
 
@@ -1381,6 +1498,12 @@ def canonical_candidate_shard_bytes(
             "candidate phase shard base commit is inconsistent"
         )
     base_commit = _validate_base_commit(next(iter(base_commits)))
+    repository = source_repository or repository_root_from_module()
+    anchor = resolve_candidate_trust_anchor(
+        repository,
+        base_commit,
+        candidate,
+    )
     if phase is MeasurementPhase.BASELINE:
         if non_regression_passed is not None or non_regression_wall_seconds is not None:
             raise ComparisonIntegrityError(
@@ -1416,6 +1539,7 @@ def canonical_candidate_shard_bytes(
             )
         ],
         "schema_version": SHARD_SCHEMA_VERSION,
+        "trust_anchor": _wire_trust_anchor(anchor),
     }
     return (
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -1425,6 +1549,8 @@ def canonical_candidate_shard_bytes(
 
 def parse_candidate_shard_bytes(
     data: bytes,
+    *,
+    source_repository: Path | None = None,
 ) -> tuple[
     Candidate,
     MeasurementPhase,
@@ -1444,6 +1570,7 @@ def parse_candidate_shard_bytes(
         "phase",
         "results",
         "schema_version",
+        "trust_anchor",
     }:
         raise ComparisonIntegrityError("candidate phase shard has wrong shape")
     if value["schema_version"] != SHARD_SCHEMA_VERSION:
@@ -1462,6 +1589,13 @@ def parse_candidate_shard_bytes(
         raise ComparisonIntegrityError(
             "candidate phase shard condition is unknown"
         ) from exc
+    repository = source_repository or repository_root_from_module()
+    _assert_recorded_trust_anchor_matches_base_blob(
+        value["trust_anchor"],
+        source_repository=repository,
+        base_commit=base_commit,
+        candidate=candidate,
+    )
     rows = value["results"]
     if type(rows) is not list:
         raise ComparisonIntegrityError("candidate phase results are not a list")
@@ -1511,6 +1645,7 @@ def parse_candidate_shard_bytes(
         results=results,
         non_regression_passed=passed,
         non_regression_wall_seconds=non_regression_wall_seconds,
+        source_repository=repository,
     ):
         raise ComparisonIntegrityError("candidate phase shard is not canonical")
     return candidate, phase, results, passed, non_regression_wall_seconds
@@ -1520,6 +1655,7 @@ def combine_candidate_shards(
     shard_bytes: Sequence[bytes],
     *,
     preregistration_data: bytes,
+    source_repository: Path | None = None,
 ) -> bytes:
     """Require all six candidate x phase shards before making a decision."""
 
@@ -1528,9 +1664,13 @@ def combine_candidate_shards(
         tuple[Candidate, MeasurementPhase],
         tuple[tuple[CandidatePhaseResult, ...], bool | None],
     ] = {}
+    repository = source_repository or repository_root_from_module()
     for data in shard_bytes:
         candidate, phase, phase_results, passed, _wall_seconds = (
-            parse_candidate_shard_bytes(data)
+            parse_candidate_shard_bytes(
+                data,
+                source_repository=repository,
+            )
         )
         key = (candidate, phase)
         if key in by_shard:
@@ -1625,7 +1765,11 @@ def combine_candidate_shards(
             "complete shards did not satisfy decision preconditions: "
             + ",".join(decision.blocking_reasons)
         )
-    return canonical_report_bytes(results=results, decision=decision)
+    return canonical_report_bytes(
+        results=results,
+        decision=decision,
+        source_repository=repository,
+    )
 
 
 def assert_recorded_comparison_matches_preregistration(
@@ -1633,6 +1777,7 @@ def assert_recorded_comparison_matches_preregistration(
     *,
     preregistration_data: bytes,
     expected_base_commit: str | None = None,
+    source_repository: Path | None = None,
 ) -> ComparisonDecision:
     """Recompute the complete decision from a recorded canonical report."""
 
@@ -1643,6 +1788,23 @@ def assert_recorded_comparison_matches_preregistration(
     base_commit = _validate_base_commit(value.get("base_commit"))
     if expected_base_commit is not None and base_commit != expected_base_commit:
         raise ComparisonIntegrityError("recorded comparison is from another commit")
+    repository = source_repository or repository_root_from_module()
+    trust_anchor_values = value.get("trust_anchors")
+    if type(trust_anchor_values) is not list or len(trust_anchor_values) != len(
+        Candidate
+    ):
+        raise ComparisonIntegrityError("recorded trust anchors have wrong shape")
+    recorded_anchors = tuple(
+        _assert_recorded_trust_anchor_matches_base_blob(
+            anchor_value,
+            source_repository=repository,
+            base_commit=base_commit,
+            candidate=candidate,
+        )
+        for candidate, anchor_value in zip(Candidate, trust_anchor_values)
+    )
+    if tuple(anchor.candidate for anchor in recorded_anchors) != tuple(Candidate):
+        raise ComparisonIntegrityError("recorded trust anchors are out of order")
     results = tuple(
         _parse_result(row, base_commit=base_commit) for row in value["results"]
     )
@@ -1676,7 +1838,11 @@ def assert_recorded_comparison_matches_preregistration(
         raise ComparisonIntegrityError(
             "recorded comparison does not satisfy decision preconditions"
         )
-    if data != canonical_report_bytes(results=results, decision=decision):
+    if data != canonical_report_bytes(
+        results=results,
+        decision=decision,
+        source_repository=repository,
+    ):
         raise ComparisonIntegrityError(
             "recorded comparison is noncanonical or internally inconsistent"
         )
@@ -1819,13 +1985,16 @@ def prepare_candidate_tree(repository_root: Path, candidate: Candidate) -> Trust
 
 
 def _aborted_observation(phase: str, exc: Exception) -> LayerObservation:
-    """Return a stable case-local failure without volatile paths or messages."""
+    """Return a case-local failure with the complete exception message."""
 
+    message = str(exc)
     return LayerObservation(
         guard_rejected=False,
         rejecting_candidate=None,
         existing_gate_rejected=False,
-        reason=f"case_aborted:{phase}:{type(exc).__name__}",
+        reason=(
+            f"case_aborted:{phase}:{type(exc).__name__}:message={message}"
+        ),
     )
 
 
@@ -1920,14 +2089,12 @@ def canonical_preregistration_bytes() -> bytes:
                 "production and assembly run in a new process"
             )
         },
-        "trust_anchors": [
-            {
-                "candidate": candidate.value,
-                "producer_path": TRUST_ANCHORS[candidate].producer_path,
-                "sha256": TRUST_ANCHORS[candidate].sha256,
-            }
-            for candidate in Candidate
-        ],
+        "trust_anchor_contract": {
+            "digest": "sha256",
+            "expected_bytes_source": TRUST_ANCHOR_SOURCE,
+            "freeze_point": "after_candidate_prototype_before_rogue_mutation",
+            "producer_path": PRODUCER_PATH,
+        },
         "mutations": [
             {
                 "decision_input": mutation.decision_input,
@@ -2050,7 +2217,7 @@ WAVE_MUTANTS = (
     WaveMutant(
         "W05",
         EXPERIMENT_PATH,
-        b"    if producer_sha256 != TRUST_ANCHORS[Candidate.FROZEN_CONSUMER].sha256:\n",
+        b"    if producer_sha256 != anchor.sha256:\n",
         b"    if not producer_sha256:\n",
         "test_w05_frozen_predicate_is_digest_equality_only",
     ),
@@ -2083,7 +2250,6 @@ WAVE_MUTANTS = (
 
 
 __all__ = [
-    "BASE_PRODUCER_SHA256",
     "CHANGE_CLOSURES",
     "COMPARISON_RELATIVE_PATH",
     "CONTROL_MUTATION_IDS",
@@ -2112,13 +2278,12 @@ __all__ = [
     "PREREGISTRATION_RELATIVE_PATH",
     "ProducerAuthRejection",
     "REPORT_SCHEMA_VERSION",
-    "RAW_PROTOTYPE_PRODUCER_SHA256",
     "REAL_REGIME_BLOCK_COUNT",
     "SCRATCH_ROOT",
     "SHARD_SCHEMA_VERSION",
     "ScratchTree",
     "ScratchTreeError",
-    "TRUST_ANCHORS",
+    "TRUST_ANCHOR_SOURCE",
     "TrustAnchor",
     "WAVE_MUTANTS",
     "WaveMutant",
@@ -2150,10 +2315,12 @@ __all__ = [
     "parse_candidate_shard_bytes",
     "phase_result_matches_registered_route",
     "prepare_candidate_tree",
+    "producer_blob_at_commit",
     "repository_root_from_module",
     "repository_status_bytes",
     "result_matches_registered_route",
     "resolve_source_head",
+    "resolve_candidate_trust_anchor",
     "run_isolated_cases",
     "sha256_bytes",
     "combine_candidate_shards",
