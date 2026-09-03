@@ -1,0 +1,107 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2102-01-PREDICATE-ALWAYS-ACCEPT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-third]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_hash_rejects_nonterminating_reference_ratio[one-thirtieth]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "        if denominator != 1:\n            _fail(\"reference_tps has no finite decimal expansion\")\n",
+          "new": "        if False:\n            _fail(\"reference_tps has no finite decimal expansion\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2102-02-DROP-NONE-GUARD",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_optional_none_reference"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "    if reference is not None:\n        denominator = reference.denominator\n",
+          "new": "    if True:\n        denominator = reference.denominator\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2102-03-DROP-TWO-REDUCTION",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "        while denominator % 2 == 0:\n            denominator //= 2\n",
+          "new": "        while False:\n            denominator //= 2\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2102-04-DROP-FIVE-REDUCTION",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_registry_seal_preserves_finite_decimal_reference",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "        while denominator % 5 == 0:\n            denominator //= 5\n",
+          "new": "        while False:\n            denominator //= 5\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2102-05-PRODUCER-DROP-ARITHMETIC-RAISE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    if denominator != 1:\n        raise ArithmeticError(\"reference_tps has no finite decimal expansion\")\n",
+          "new": "    if False:\n        raise ArithmeticError(\"reference_tps has no finite decimal expansion\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2102-06-PRODUCER-DROP-REJECTION-MAPPING",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m12_nonterminating_reference_ratio_has_only_named_rejection"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+          "old": "    except ArithmeticError:\n        _issue(\n            \"publication\",\n            \"reference_tps\",\n            B4RawRecordIssueCode.DECIMAL_NOT_TERMINATING,\n            \"reference_tps has no finite decimal JSON representation\",\n        )\n    except ValueError as exc:\n",
+          "new": "    except ValueError as exc:\n"
+        }
+      ]
+    }
+  ]
+}

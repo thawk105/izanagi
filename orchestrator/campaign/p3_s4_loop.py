@@ -61,7 +61,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import (backoff_hole_grammar, buildcache,                         # noqa: E402
                campaign_lock as campaign_lock_codec, condition_meaning_gate,
-               coder_effect_gate, env_contract, ident, trigger_gate_binding, wal)
+               coder_effect_gate, env_contract, ident, sort_swo_oracle,
+               trigger_gate_binding, wal)
 from . import knowledge_manifest                                      # noqa: E402
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
@@ -375,6 +376,26 @@ def quarantine(sub: str, implementation: str,
             working_diff = make_working_diff(
                 base_text, edited_text, source_rel
             )
+    if res.passed and marker_id == "silo-writeset-sort":
+        decision = sort_swo_oracle.validate_sort_implementation(
+            implementation
+        )
+        if not decision.accepted:
+            res = _sort_ir_grammar_rejection(
+                decision,
+                implementation=implementation,
+                materialized_source=edited_text,
+                source_rel=source_rel,
+                marker_id=marker_id,
+            )
+        else:
+            canonical = sort_swo_oracle.canonicalize_sort_implementation(
+                implementation
+            )
+            edited_text = render_hole(base_text, marker, canonical)
+            working_diff = make_working_diff(
+                base_text, edited_text, source_rel
+            )
     if write:
         if res.passed:
             with open(path, "w", encoding="utf-8") as f:
@@ -407,6 +428,54 @@ def _backoff_grammar_rejection(
         passed=False,
         subtype=DiffRejectSubtype.BACKOFF_GRAMMAR,
         reason=reason,
+        digest=digest,
+        violations=[digest],
+    )
+
+
+def _sort_ir_grammar_rejection(
+    decision: sort_swo_oracle.SortIrAdmissionDecision,
+    *,
+    implementation: object,
+    materialized_source: str,
+    source_rel: str,
+    marker_id: str,
+) -> DiffQuarantineResult:
+    """Project one sort admission decision through the oracle schema."""
+
+    if (
+        decision.accepted
+        or decision.rule_id is None
+        or decision.reason is None
+        or decision.stage is None
+    ):
+        raise ValueError("sort IR rejection requires a fixed decision")
+    proposal = implementation if type(implementation) is str else ""
+    finding = sort_swo_oracle.SortSwoFinding(
+        sort_swo_oracle.OracleRejectKind.STRUCTURE,
+        decision.reason,
+    )
+    try:
+        materialized_hole = sort_swo_oracle.extract_materialized_hole(
+            materialized_source, marker_id,
+        )
+    except (TypeError, ValueError):
+        materialized_hole = ""
+    result = sort_swo_oracle.SortSwoOracleResult(
+        sort_swo_oracle.OracleStatus.REJECT,
+        hashlib.sha256(materialized_hole.encode("utf-8")).hexdigest(),
+        hashlib.sha256(proposal.encode("utf-8")).hexdigest(),
+        finding,
+    )
+    digest = sort_swo_oracle.rejection_digest(
+        result, diff_region=source_rel, marker_id=marker_id,
+    )
+    digest["rule_id"] = decision.rule_id
+    digest["admission_stage"] = decision.stage
+    return DiffQuarantineResult(
+        passed=False,
+        subtype=DiffRejectSubtype.SORT_SWO_ORACLE,
+        reason=decision.reason,
         digest=digest,
         violations=[digest],
     )

@@ -1,0 +1,1818 @@
+{
+  "bundle_root": ".",
+  "catalog_sha256": "8e23d63a799c8ab9d25151012c34bc738dbb422ac3dfb237999c359137c816ab",
+  "document_type": "bundle_manifest",
+  "excluded_paths": [
+    "manifest.json",
+    "MANIFEST.sha256",
+    "README.md"
+  ],
+  "files": [
+    {
+      "bytes": 18269,
+      "path": "checkpoints/000001.json",
+      "sha256": "0d141560cec125f5fb1faed6d595a3a522ea3839cd22a20e3c40c2382502a2e6"
+    },
+    {
+      "bytes": 20896,
+      "path": "checkpoints/000002.json",
+      "sha256": "036e95fa0a9e3058186c49770ead5a71480c00aeb131083ca74e641e8db3214b"
+    },
+    {
+      "bytes": 18243,
+      "path": "checkpoints/000003.json",
+      "sha256": "e7b5da833482ce3a2ecfa0c2a0e7b7e192baad706e486f61266560c46bb2ca74"
+    },
+    {
+      "bytes": 18243,
+      "path": "checkpoints/000004.json",
+      "sha256": "20951009d769754a0babec0f92fea1781aae7a8ab825c9ad5ed7e3646ea20459"
+    },
+    {
+      "bytes": 18243,
+      "path": "checkpoints/000005.json",
+      "sha256": "d442575ca1bb4a2316a8ba42c782ea83f905072e664c96af0d35eff4949d121a"
+    },
+    {
+      "bytes": 18243,
+      "path": "checkpoints/000006.json",
+      "sha256": "8170e3b6a765e7ff68d1ecb05cfc5e300738f7f792495553b39336eed6b4573e"
+    },
+    {
+      "bytes": 18243,
+      "path": "checkpoints/000007.json",
+      "sha256": "a855e367dc5c429b89465fa6f9d00741052cbdb8bc0e446d5e87ca32b753f050"
+    },
+    {
+      "bytes": 18243,
+      "path": "checkpoints/000008.json",
+      "sha256": "843197c5b19f505d9a5233f6cba213fa77fe0da1f39b573b619412a2fd1406f3"
+    },
+    {
+      "bytes": 216282,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.1f67da7a159f.json",
+      "sha256": "1f67da7a159fb6f1c9dc4b6fe69995c42fc6a9999a93268cbd7b846ca63e21f1"
+    },
+    {
+      "bytes": 118248,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.27dce179a83f.json",
+      "sha256": "27dce179a83f8b9cd3ea6202fc436814085d9f535c04af5bdd96b18b78a58c4d"
+    },
+    {
+      "bytes": 176382,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.3b16dc512b9c.json",
+      "sha256": "3b16dc512b9cf2d214ed880270042c6b3a10b77f803bd14b21ea0da7dad65b23"
+    },
+    {
+      "bytes": 176386,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.41c0c6f34b3d.json",
+      "sha256": "41c0c6f34b3d9738bba1e28f2c03ab3442fb78640bad19eac0b4ee1d774b6dcb"
+    },
+    {
+      "bytes": 216582,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.aee06f7b4d92.json",
+      "sha256": "aee06f7b4d924e0f4c675eb5d6f26fb7f9e512ba60c0aa1a44be73861187260d"
+    },
+    {
+      "bytes": 118248,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.c167a60c0647.json",
+      "sha256": "c167a60c0647c07741679063d535fd4a60b4217be0ffafaf151a36e432d48355"
+    },
+    {
+      "bytes": 59451,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.de87797e52ba.json",
+      "sha256": "de87797e52ba72d51e0e92ac17041a0eb08dd7aee23f792d89fabcb6cbda1a80"
+    },
+    {
+      "bytes": 59451,
+      "path": "ledgers/AX1-20260902-E1-Q1@openalex.pass1.f0edea5a3a29.json",
+      "sha256": "f0edea5a3a293b122c37e706cde0d028b3a27dec4298fad09fc49517a8ab34a3"
+    },
+    {
+      "bytes": 177762,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.0609325fb37e.json",
+      "sha256": "0609325fb37e575e35d6d50a44fc3c5d2c35986a8aefa3f1d9b7d845e8f3c9ea"
+    },
+    {
+      "bytes": 469050,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.0ce04484b4ff.json",
+      "sha256": "0ce04484b4ffab5f7f557566503fecc06682281c47cf9b975c36a0e0401ffdd0"
+    },
+    {
+      "bytes": 471190,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.0d73d00e0e25.json",
+      "sha256": "0d73d00e0e25c63e15e5245c553d4dfbcb08e9dddad46859db111595e913b4b7"
+    },
+    {
+      "bytes": 118746,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.25c9020310c4.json",
+      "sha256": "25c9020310c467a7f4eb81b50bee51fd49f440f68c0aaf3526c2d7abe9429f3b"
+    },
+    {
+      "bytes": 177775,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.307212ba9d32.json",
+      "sha256": "307212ba9d3220d9bd3c96d6b1c64e99c34985073acf1796e6543b2d01dce6b6"
+    },
+    {
+      "bytes": 294298,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.3c6523cc3013.json",
+      "sha256": "3c6523cc3013b227b40520a02ecd3fc233b0d421a8477bf1991624a396add452"
+    },
+    {
+      "bytes": 469075,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.4b13de4945b9.json",
+      "sha256": "4b13de4945b9ffb341dc472ef867c8c5740c7854461755c1c6cd9ca8a3a689b9"
+    },
+    {
+      "bytes": 294285,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.4bba028ade9e.json",
+      "sha256": "4bba028ade9ed6c27f2facac23262cc9ec05215b17103f88092c92642f159067"
+    },
+    {
+      "bytes": 410133,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.4fa0914bcc4f.json",
+      "sha256": "4fa0914bcc4fb7d22d61a4a7f6cc9e5533b8bf5ba9f639042be09143383c57f3"
+    },
+    {
+      "bytes": 118759,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.5ec3a87c77e4.json",
+      "sha256": "5ec3a87c77e4a6eefd10ec91461765548b5ef4d2266a67d6fe2f6aaf89e9a3ee"
+    },
+    {
+      "bytes": 410101,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.7aaa0c2fbf31.json",
+      "sha256": "7aaa0c2fbf31f7d24a9ad3d50514e0921d7b228a874737d5f172ff2166c398ca"
+    },
+    {
+      "bytes": 60177,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.91dfc5006622.json",
+      "sha256": "91dfc5006622de66e4e4e6da1eac3def3441dd2d54a2d74c949e738ec01e030b"
+    },
+    {
+      "bytes": 352231,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.9b0ea268c5f7.json",
+      "sha256": "9b0ea268c5f73187f4b73807b8f260bdbaafd1c273ea11f3978d1dc1e841288a"
+    },
+    {
+      "bytes": 60177,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.a0b7afe5d838.json",
+      "sha256": "a0b7afe5d838208d055d7f159859b92f318b3ce2fc61e768ab8446272e7bd616"
+    },
+    {
+      "bytes": 472061,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.c4583b6dcbb3.json",
+      "sha256": "c4583b6dcbb3720f8022ed0a0a3594d3721b56686cd105dd797f4377ea838bf9"
+    },
+    {
+      "bytes": 236082,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.ee927e0e4d18.json",
+      "sha256": "ee927e0e4d18fbab881461bd82cb200738a7a30470166f3d567c82ce23b6fbbd"
+    },
+    {
+      "bytes": 236069,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.f19174183f06.json",
+      "sha256": "f19174183f069b0bdf07cb5f77fda90339b84d5271f569c6927ebcaec6129e9a"
+    },
+    {
+      "bytes": 352233,
+      "path": "ledgers/AX1-20260902-E1-Q2@openalex.pass1.f76a00120b2e.json",
+      "sha256": "f76a00120b2e9dc8d2f3540fe0301ea06ab734c2fea5a9ee3ef5896b02e04274"
+    },
+    {
+      "bytes": 172133,
+      "path": "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.20062dccc673.json",
+      "sha256": "20062dccc67357d3b3de17224a036fc236804701e2fea3833998fb8ae288cab4"
+    },
+    {
+      "bytes": 272418,
+      "path": "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.47956c83daec.json",
+      "sha256": "47956c83daecdddb6b4fed3d4e6510e37db562222960330e9f6c157a772caf4b"
+    },
+    {
+      "bytes": 115496,
+      "path": "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.99a99a694523.json",
+      "sha256": "99a99a6945235041c99a7d0c7718c1941f7ce85ab4149aeb7ac0a0af12be0e73"
+    },
+    {
+      "bytes": 58203,
+      "path": "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.a019c94150f7.json",
+      "sha256": "a019c94150f7f8f8a657f6e3b02fcef7fe1fe1ed2de924464c4bb246a95cf138"
+    },
+    {
+      "bytes": 229064,
+      "path": "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.c2483a1ff1a4.json",
+      "sha256": "c2483a1ff1a4e59fe4074cd65ec19e65355a575bd4dbbc83b5a46eba2876b352"
+    },
+    {
+      "bytes": 34118,
+      "path": "ledgers/AX1-20260902-E1-Q3-SY1991@openalex.pass1.6631d2012492.json",
+      "sha256": "6631d2012492c8ea76d9bb6b619f143442d37ddcb85fee1ce838725831baee2d"
+    },
+    {
+      "bytes": 53059,
+      "path": "ledgers/AX1-20260902-E1-Q3-SY1992@openalex.pass1.465e5fec279f.json",
+      "sha256": "465e5fec279f6e6b7dc11dfba93700787bb562911bde7317a96d08d49065455f"
+    },
+    {
+      "bytes": 50137,
+      "path": "ledgers/AX1-20260902-E1-Q3-SY1993@openalex.pass1.35876f15c36d.json",
+      "sha256": "35876f15c36d332056981d01020a7e8241f53415e6a5961bffae1d19b025010b"
+    },
+    {
+      "bytes": 47590,
+      "path": "ledgers/AX1-20260902-E1-Q3-SY1994@openalex.pass1.57e6976bc7c3.json",
+      "sha256": "57e6976bc7c35c9878083dd72bb9983ee30b6163c55f8f9bbd9dc7a17d5edaff"
+    },
+    {
+      "bytes": 51917,
+      "path": "ledgers/AX1-20260902-E1-Q3-SY1995@openalex.pass1.e0089a9218f0.json",
+      "sha256": "e0089a9218f01dc74f2ce8c15eb9278037238d76e935f8234c6c7ab734e16079"
+    },
+    {
+      "bytes": 55994,
+      "path": "ledgers/AX1-20260902-E1-Q3-SY1996@openalex.pass1.6cd553ce2240.json",
+      "sha256": "6cd553ce22408c289d9d73ad1bcadeac634d3ca710dd08de9291b1dcbb5e558c"
+    },
+    {
+      "bytes": 589720,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.1c9310cc9c85.json",
+      "sha256": "1c9310cc9c85f5e6cfd7f6e1e34151f22dca6d63ac2c552f4a766137f7db346c"
+    },
+    {
+      "bytes": 236387,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.255c07a7eeca.json",
+      "sha256": "255c07a7eecaf08d70e14952aa7abbd6b46c1f17ac664cdbef6a2cc857da71f4"
+    },
+    {
+      "bytes": 1297577,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.2750ee3cde3a.json",
+      "sha256": "2750ee3cde3a13fb644cc325c570f0447e496526fab234760fe2aaea41d19e9c"
+    },
+    {
+      "bytes": 1179616,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.29910a7cc247.json",
+      "sha256": "29910a7cc247bfd2ad1440da7b2e2b26970d0908e8a47b17508680e987e6e2b7"
+    },
+    {
+      "bytes": 177753,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.2a1560659a9c.json",
+      "sha256": "2a1560659a9ccfcde52b7693439f3c0fb64f516fdd4359a38c3438b2ddac3d79"
+    },
+    {
+      "bytes": 471370,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.2d48cf966907.json",
+      "sha256": "2d48cf9669075fcc2149a9283964c38b999daf84610f1cf5ce969aba6b64efca"
+    },
+    {
+      "bytes": 825968,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.3803067e64b7.json",
+      "sha256": "3803067e64b79723598cabe5b800918271329e8ed379aa0e3f801d40a833725a"
+    },
+    {
+      "bytes": 353150,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.38b398be89b3.json",
+      "sha256": "38b398be89b3f99f16a5b31a9b195175e0a1577d0d42b68549f094bc9a43207a"
+    },
+    {
+      "bytes": 649184,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.38ec7be61b5d.json",
+      "sha256": "38ec7be61b5d80e9a0e07ffe96b2fb135d0acc6b3e00607f30465d2005e8f8f9"
+    },
+    {
+      "bytes": 1120610,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.3a4c5d289ba7.json",
+      "sha256": "3a4c5d289ba7e1688ed66b5236df4c2cb1713f666817ab2fda9a7ce3827d8fac"
+    },
+    {
+      "bytes": 1356738,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.4ac8ecb6813e.json",
+      "sha256": "4ac8ecb6813e1888135cd755511213333e52197c7134828faff6616270e9333a"
+    },
+    {
+      "bytes": 1238451,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.542df0467342.json",
+      "sha256": "542df046734290d80f1b6af2bc6f63ccd785a8cb6434f53ba3995df8ddefe4df"
+    },
+    {
+      "bytes": 295071,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.5bd3b260dd17.json",
+      "sha256": "5bd3b260dd17a77c468ce8af393faa9e5600ad36f6cc6bd6368eefbcb86eb5d3"
+    },
+    {
+      "bytes": 1388146,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.5ef5bbec1cdf.json",
+      "sha256": "5ef5bbec1cdfcbdc0734d16befa18aa836d44335648788648c59e69be1b01eed"
+    },
+    {
+      "bytes": 1061564,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.6a36c0306fc1.json",
+      "sha256": "6a36c0306fc163e98add50e5f215e9036b7758aeeaddbae846e4f72ce8148dbe"
+    },
+    {
+      "bytes": 1002872,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.74a5b9b3ed6e.json",
+      "sha256": "74a5b9b3ed6e4655be0add523ea02fcdacf7f6f994e6f3c1f5385871af7264c4"
+    },
+    {
+      "bytes": 530789,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.7ee423ec9c83.json",
+      "sha256": "7ee423ec9c834e45734c121105cbd66136d475fe848ddde620e5417340f8b3a2"
+    },
+    {
+      "bytes": 412005,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.8a711c6502b1.json",
+      "sha256": "8a711c6502b17b0e5254d56a1d6c5e561ee60a8c61b888a3620d50d5d5919518"
+    },
+    {
+      "bytes": 118597,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.9b6f85ba33ab.json",
+      "sha256": "9b6f85ba33ab659cab3d3ce52f12d865e2e956870c173947ddafb3217aeba768"
+    },
+    {
+      "bytes": 884936,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.9e2afba77a0b.json",
+      "sha256": "9e2afba77a0b9b3a05373abc43037251d9ab1f0c08bfed1844b8a133e6f2e9ca"
+    },
+    {
+      "bytes": 943690,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.a8975bc7ad46.json",
+      "sha256": "a8975bc7ad46ccba91d072459d5d6248442b172f530adc7d1fdce3047b4a7d53"
+    },
+    {
+      "bytes": 767776,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.d038931cfbc2.json",
+      "sha256": "d038931cfbc24b8fd5e5ae80935ac06899a59f6b991a2ed8c2bbcd771655fd43"
+    },
+    {
+      "bytes": 59557,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.fbdcb4345a6d.json",
+      "sha256": "fbdcb4345a6d813c2fbd4931eb2b326d92cefce971e2f4c80631c0fcbeeec0de"
+    },
+    {
+      "bytes": 708617,
+      "path": "ledgers/AX1-20260902-E1-Q4@openalex.pass1.fd100e1b5bce.json",
+      "sha256": "fd100e1b5bce91f3c87df2eefbfa330f82157f614965e6160753292c1eb9c5b8"
+    },
+    {
+      "bytes": 59885,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.03283d01bbc3.json",
+      "sha256": "03283d01bbc3107ca85666792cb9aa4353edf12d34a44c006febd72313369908"
+    },
+    {
+      "bytes": 1118752,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.03d1f4595190.json",
+      "sha256": "03d1f45951905689080931059a68998cfceb8f81a83fb0f65ed72997b32c85ec"
+    },
+    {
+      "bytes": 1699213,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.0cb98b5ade75.json",
+      "sha256": "0cb98b5ade759a11961ab8dcfe8e2d792e5e04516f5731115a080f17b379fe0a"
+    },
+    {
+      "bytes": 648947,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.180f89ecde90.json",
+      "sha256": "180f89ecde90cac731dbf1d3fda1676f1c94f6d5887c0f352a01e9a18e865520"
+    },
+    {
+      "bytes": 1796772,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.1aa59e1928ba.json",
+      "sha256": "1aa59e1928baa326f05a0c0c22d050cf8288bfa80637a340f67e8ec2aed0a0df"
+    },
+    {
+      "bytes": 413880,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.1f74a7174c13.json",
+      "sha256": "1f74a7174c13a86e42c3fad6a67a3d9ef0e4fa1d851046ab48741feb0695621e"
+    },
+    {
+      "bytes": 1583261,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.27395bc2c79c.json",
+      "sha256": "27395bc2c79c5b9dc4c85803d17ebe8d51cb2868d7f535653d7a0f47e6336be9"
+    },
+    {
+      "bytes": 119014,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.287b88095936.json",
+      "sha256": "287b880959365c49883bcbc65aaadd908c1011f09eb36b4c5e32bafb56b6a511"
+    },
+    {
+      "bytes": 1467785,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.2f7f14ca556a.json",
+      "sha256": "2f7f14ca556a2820911b8f87e8abae89bcaf0384b7e3ada50fd94731487228c5"
+    },
+    {
+      "bytes": 531727,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.34a851a823f7.json",
+      "sha256": "34a851a823f7f202e2f21eba359a155ae1561f5a3b9e9828ae5743bdc5d50040"
+    },
+    {
+      "bytes": 1294283,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.48a4bf0fdc83.json",
+      "sha256": "48a4bf0fdc834b13dfcb263b6378d19f63547559ee228669eaaba419008351bf"
+    },
+    {
+      "bytes": 1000689,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.5935ede757a2.json",
+      "sha256": "5935ede757a2606ef987d2761b9121e9677f19e0a3385e2560223ff924ed9ae3"
+    },
+    {
+      "bytes": 1758130,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.5d0821a9ee33.json",
+      "sha256": "5d0821a9ee3370bcf9bb5312d803b766ea0be694e8785e19d24fa3159105de7d"
+    },
+    {
+      "bytes": 1178029,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.62a41c5a057c.json",
+      "sha256": "62a41c5a057c1578cc7ba50d40c419b56027ef9e2f77efbdf7e22cccd8f2651d"
+    },
+    {
+      "bytes": 1351512,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.7061d6ecf5b8.json",
+      "sha256": "7061d6ecf5b811e7949de3fab87aff4003fb28d87908cdeb46df14423296d12a"
+    },
+    {
+      "bytes": 765532,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.75dd12ee272e.json",
+      "sha256": "75dd12ee272ec34ada3e3c7612694b8a1302caba3ef74ad4f3357a945dfc899e"
+    },
+    {
+      "bytes": 941497,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.771f6e38e585.json",
+      "sha256": "771f6e38e585480236b38cddf8c04bbf775d4095142828897857a8cf182598ca"
+    },
+    {
+      "bytes": 1525600,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.7ca119e45cf1.json",
+      "sha256": "7ca119e45cf1e4a3ea3b824f097831a96f3c12ea2277859f4c7dd65d866a470f"
+    },
+    {
+      "bytes": 473293,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.7de0c99acaf3.json",
+      "sha256": "7de0c99acaf3b03e672069375f0798301cad8d7b34ab17e3350fb3b2fb166240"
+    },
+    {
+      "bytes": 707150,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.8a3e506ec923.json",
+      "sha256": "8a3e506ec923885dcfbc18d84c063ff30801224959db4d1ed2e9b366c7fd207a"
+    },
+    {
+      "bytes": 1641560,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.8ee4f5ff6b2f.json",
+      "sha256": "8ee4f5ff6b2ffd8391d3f4e9dfca90d94125b018bf8f4b43f878b525c0a1ee66"
+    },
+    {
+      "bytes": 296112,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.a67ba3b00ea9.json",
+      "sha256": "a67ba3b00ea9ca30e24095c9ddaee207626454297d02818ec902295a37179253"
+    },
+    {
+      "bytes": 1409262,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.b50202ab01de.json",
+      "sha256": "b50202ab01de0e1be67b31a41875eaaa429062c9a8c78397e4c1549b70d09cc2"
+    },
+    {
+      "bytes": 177886,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.baac3892fd50.json",
+      "sha256": "baac3892fd50a79b17dfd627422edf368cca285c9745dcef05192c39e0759594"
+    },
+    {
+      "bytes": 590294,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.cac40ee486aa.json",
+      "sha256": "cac40ee486aa980adf60a31b5c89dcfa99d8510d64cc80b1435d1f3638d25851"
+    },
+    {
+      "bytes": 354924,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.e039982b9092.json",
+      "sha256": "e039982b90923d3a56067d9bb09f16bf606567fdfac7ba935614b3b12c6f1d9b"
+    },
+    {
+      "bytes": 236957,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.e3927de2731f.json",
+      "sha256": "e3927de2731f77f2a28640bec11bf84098070f89e0ab733f1f4f28d264192f14"
+    },
+    {
+      "bytes": 882751,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.e39d17abb1bc.json",
+      "sha256": "e39d17abb1bcad984d0b9fe8c58b5b6452183b24d2f34de0af1b3fa5d7298956"
+    },
+    {
+      "bytes": 1059599,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.ed020223be3e.json",
+      "sha256": "ed020223be3e3c772475e8fc5b89dfd6d2f6e05b35125e479434767625b6339e"
+    },
+    {
+      "bytes": 823943,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.f353cc821479.json",
+      "sha256": "f353cc8214794e09f24f059a16bb00b2e9753fb2ac9ae86d4a3063e02cec313c"
+    },
+    {
+      "bytes": 1236438,
+      "path": "ledgers/AX1-20260902-E1-Q5@openalex.pass1.feb48fcf0c25.json",
+      "sha256": "feb48fcf0c25387d7ef165c0d1e0c72938867cada0e77eca7a30129c4a81920e"
+    },
+    {
+      "bytes": 15790,
+      "path": "ledgers/AX1-20260902-E1-Q6-SPRE1991@openalex.pass1.9e1b58abd84a.json",
+      "sha256": "9e1b58abd84aeaa3b87026b56888d279728e619727739a0f9c1564eecf84a7fc"
+    },
+    {
+      "bytes": 22617,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p0.a01.json",
+      "sha256": "8e93b14842787fc515d859b48f5b4870b658dbc1169c7e5ee2b22dd7b9694665"
+    },
+    {
+      "bytes": 22617,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p0.a02.json",
+      "sha256": "c0ab99f77db22bb90682e1b92ae0382c7db81a662ccf709b87859591510290b6"
+    },
+    {
+      "bytes": 23095,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p1.a01.json",
+      "sha256": "2c21048d2cd92a455e01684d6d227d29e114d824cdf6636cb3135c0b858e09f1"
+    },
+    {
+      "bytes": 23095,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p1.a02.json",
+      "sha256": "9631b62ae5e10ce8bcd39dc836d2e8ba685287b2a382b85f378a0ee84f5afa46"
+    },
+    {
+      "bytes": 23125,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p2.a01.json",
+      "sha256": "851d050ccee7a95198ad3a94d92376ce929f77c6e14b655d5c3e8a79ffa8a663"
+    },
+    {
+      "bytes": 23121,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p2.a02.json",
+      "sha256": "077078fb21029784273d550954a61999e5f16e3f25f1cd54c98995912fe7d7c9"
+    },
+    {
+      "bytes": 20355,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p3.a01.json",
+      "sha256": "fcd325a6f02f8acd47260a90e7bbb16c196f3a9bf830c43e47938f81a633b748"
+    },
+    {
+      "bytes": 20289,
+      "path": "pages/AX1-20260902-E1-Q1@openalex_p3.a02.json",
+      "sha256": "acffc027d626221145a779fc5123b9006dc927e0e98bf1dcf0e3db6482d5c49a"
+    },
+    {
+      "bytes": 20143,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p0.a01.json",
+      "sha256": "685876342bf07a7c2c5ebe5661c6fc3bb6d8cfc2cd0e59c7b6153c6a153352bd"
+    },
+    {
+      "bytes": 20143,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p0.a02.json",
+      "sha256": "9177202ef14e6c059d78e78d2e43d294f4265b73b029cfcc1862a87d30117fac"
+    },
+    {
+      "bytes": 20615,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p1.a01.json",
+      "sha256": "7144b5540d78c17ee545831ebd4908e942116f3b2e222b674c962c6f018e46d4"
+    },
+    {
+      "bytes": 20614,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p1.a02.json",
+      "sha256": "bda6d965a30fe8f92c0113a79dc031f9d42dbea33e8e9602e5cb719d74f6b892"
+    },
+    {
+      "bytes": 20612,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p2.a01.json",
+      "sha256": "e283cca55c3e9202ee9938e3fb651a855026c116fc7cc49634cdbd00162438cb"
+    },
+    {
+      "bytes": 20616,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p2.a02.json",
+      "sha256": "e85bcb3d9ebef0ebba1021bbb13ea4589d2dd59d2b400180dfa9f34a4d97b265"
+    },
+    {
+      "bytes": 20598,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p3.a01.json",
+      "sha256": "c5a09474dae8594bf9bf7ded917eb1479121465061ea9fb77b16f503cdb582bd"
+    },
+    {
+      "bytes": 20626,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p3.a02.json",
+      "sha256": "d1e833c398c643af7c52c23b13cdd45a497352d2023fe1d9f2abd17c5460089a"
+    },
+    {
+      "bytes": 20649,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p4.a01.json",
+      "sha256": "1a51d2cbefc672121b1a137bf7222f2b49ac5783e49d2a83f8cee96823b76bca"
+    },
+    {
+      "bytes": 20648,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p4.a02.json",
+      "sha256": "53db5c0e504dbd1a88cd33d29de5c6f632b34fa1f7027dea1cdd6191e469f199"
+    },
+    {
+      "bytes": 20646,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p5.a01.json",
+      "sha256": "043c2babf58dcfd633df8d61a2923d0d1755c5887af005492aa2f747599c7048"
+    },
+    {
+      "bytes": 20644,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p5.a02.json",
+      "sha256": "308893bc73058dcfdbfd5e750858c9d777258dde73dd15016e42000e22fc4d2d"
+    },
+    {
+      "bytes": 20648,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p6.a01.json",
+      "sha256": "ae1eb128647ab3571508075e770e2a11d14813f658f3578d0ec66590eb1f43ce"
+    },
+    {
+      "bytes": 20641,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p6.a02.json",
+      "sha256": "1c59a0ec38887ffdfa5b9e884af34e38136ce11d70db7123760a114e3c9322f5"
+    },
+    {
+      "bytes": 20641,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p7.a01.json",
+      "sha256": "401be96dca719f4b2cb606bf3e16a7754e7f7d8d34ee792ba6153781336a1365"
+    },
+    {
+      "bytes": 20639,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p7.a02.json",
+      "sha256": "35d5e17962b661ee78106ab89abff1e667c4c6a801a2d5f7eb9406eeb9111310"
+    },
+    {
+      "bytes": 12444,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p8.a01.json",
+      "sha256": "e5b035eaabdf6b77ddb3cd224535575220d1b7c994650900781ac74668201215"
+    },
+    {
+      "bytes": 12576,
+      "path": "pages/AX1-20260902-E1-Q2@openalex_p8.a02.json",
+      "sha256": "345bd3cd5ddf85528abffafff563fd5477ee07b62c6438e1c7bac50baa5328f9"
+    },
+    {
+      "bytes": 19091,
+      "path": "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p0.a01.json",
+      "sha256": "8afcb2a595c5890d4cdea0bc49417261ca1d5310f66757a02c39ede463c7107f"
+    },
+    {
+      "bytes": 19554,
+      "path": "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p1.a01.json",
+      "sha256": "de6dc0090d03bc6fa4732af083288ec707420a41999157c1cfb4c30eed936404"
+    },
+    {
+      "bytes": 19559,
+      "path": "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p2.a01.json",
+      "sha256": "c959dc4de6ac88ebb2ec5674da582b452fd812846e8a9b2df7969e4e523f88a3"
+    },
+    {
+      "bytes": 19556,
+      "path": "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p3.a01.json",
+      "sha256": "77f3bf77bc6ff3a32f1df12d13b6dcd7c684da3017722a100daacef3ebb5dd24"
+    },
+    {
+      "bytes": 17450,
+      "path": "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p4.a01.json",
+      "sha256": "e8351d64a245f46fb02b8fe827aca6bb899c213930a2e70da4d7b230273d34cd"
+    },
+    {
+      "bytes": 15749,
+      "path": "pages/AX1-20260902-E1-Q3-SY1991@openalex_p0.a01.json",
+      "sha256": "fa0927819db66ddff7a8125da69bada25cf820e75f1c5c43014e4a26c908f9af"
+    },
+    {
+      "bytes": 18666,
+      "path": "pages/AX1-20260902-E1-Q3-SY1992@openalex_p0.a01.json",
+      "sha256": "f32ad97176657c24eab06635bfff911179ba16296ad4ca5dabfcb2ca3d95bf87"
+    },
+    {
+      "bytes": 18189,
+      "path": "pages/AX1-20260902-E1-Q3-SY1993@openalex_p0.a01.json",
+      "sha256": "d44c33c1bf6add1aaadda72edcb7471ea20e9c1cbae1288ac8db5cf3c653d8d2"
+    },
+    {
+      "bytes": 17812,
+      "path": "pages/AX1-20260902-E1-Q3-SY1994@openalex_p0.a01.json",
+      "sha256": "edcfd7a8cbdd4384702a81d740449c42faec1370c45bf18f986570cd20903531"
+    },
+    {
+      "bytes": 18474,
+      "path": "pages/AX1-20260902-E1-Q3-SY1995@openalex_p0.a01.json",
+      "sha256": "23e78fbe348c210730dd6e4c38e09155f74c22596f40a6c95016eb07a35bf8a7"
+    },
+    {
+      "bytes": 18983,
+      "path": "pages/AX1-20260902-E1-Q3-SY1996@openalex_p0.a01.json",
+      "sha256": "77352c061a7bc2f16893f8eb3933a2fe8a183066b743b702b43505a2e69a8c2e"
+    },
+    {
+      "bytes": 18597,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p0.a01.json",
+      "sha256": "1b07d93f1c6113d8ce5fa7ee2aeb9abe6325bd71dfcb671776c963ea43660f40"
+    },
+    {
+      "bytes": 19076,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p1.a01.json",
+      "sha256": "5daf35242a818cf14477741400f21fa25208b58790cfa9fb27c2f84d9667fed1"
+    },
+    {
+      "bytes": 19112,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p10.a01.json",
+      "sha256": "6975abf5f4acae0fa8d68baf04a088f65d508b3459cf97bc0d47ab26c688a202"
+    },
+    {
+      "bytes": 19114,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p11.a01.json",
+      "sha256": "ec536e6dd3be4dfcc6e204654d612c88d3795fbf10058a2da3202fd9d2a18c72"
+    },
+    {
+      "bytes": 19102,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p12.a01.json",
+      "sha256": "3e3b71e07410a946182b7b5af01a0ca7a7ccf53322e9c211d01b86da828a7e6b"
+    },
+    {
+      "bytes": 19079,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p13.a01.json",
+      "sha256": "387878e2f34b1a4b799702cffa0a919544a7aa84940b985af96b29a751b62afd"
+    },
+    {
+      "bytes": 19111,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p14.a01.json",
+      "sha256": "baaf871457a0364fecc07acdb9f0e7469094fbb1b8726f70a9a95ea00f6b53e3"
+    },
+    {
+      "bytes": 19111,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p15.a01.json",
+      "sha256": "ce0132e32d7d3225f3e23301dc782f9782da22f31043fca5c9e453e5bb83f7a3"
+    },
+    {
+      "bytes": 19119,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p16.a01.json",
+      "sha256": "ef1deed52574d1c6c74702471115e49069be0d3150efbbe6b0e8461531930f3e"
+    },
+    {
+      "bytes": 19116,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p17.a01.json",
+      "sha256": "5d414d167aa3b3428fdc1d4705be86b47e23ec4852b156d4737d173ce544ee8b"
+    },
+    {
+      "bytes": 19118,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p18.a01.json",
+      "sha256": "8adc3ec16b710b6c917d059e4653e132b7f0eebf4b90bbd2c339437ac212c67c"
+    },
+    {
+      "bytes": 19109,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p19.a01.json",
+      "sha256": "931e7fe61e51b56d99ee6f70864717fbd268f5f0c73c837204b6117e6e740215"
+    },
+    {
+      "bytes": 19098,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p2.a01.json",
+      "sha256": "75eb4eb3027e2aa4b08debf2b786daa0a4128f40dd64193d5dc0f31e203ce411"
+    },
+    {
+      "bytes": 19111,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p20.a01.json",
+      "sha256": "3efb4914511de590b880c536fd54876e6f0c917c7a00d8409080a6677297d359"
+    },
+    {
+      "bytes": 19113,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p21.a01.json",
+      "sha256": "4442561c66a4b1e53f42434b2d8e81da7b1d652b448fc4672bc82c6fd6f49f23"
+    },
+    {
+      "bytes": 19112,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p22.a01.json",
+      "sha256": "4cfa20ef7aff722dec2f15cb872150d3a723fc1604219356225be739944378b7"
+    },
+    {
+      "bytes": 15040,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p23.a01.json",
+      "sha256": "e0ef40fe90a0ef9e30823d8bcfe7d18f12e73d73bb3fa7f763c29cf39b01044e"
+    },
+    {
+      "bytes": 19084,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p3.a01.json",
+      "sha256": "a9f5eaab284f96908e10ed76b5229dfa19965c04de46bce61450fb38e323aa10"
+    },
+    {
+      "bytes": 19093,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p4.a01.json",
+      "sha256": "e9811224d8947ba882c9d207517cffb7fac411093642d4feb08dd79e95140acc"
+    },
+    {
+      "bytes": 19069,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p5.a01.json",
+      "sha256": "7369f8433a5473438bd0da7ca378f208b2d23984dcf52359c7eaedd8f64369cc"
+    },
+    {
+      "bytes": 19075,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p6.a01.json",
+      "sha256": "5b8694da90aa0f33dda6fb1fe864e641d45935c91a472a2103792e84a6f40469"
+    },
+    {
+      "bytes": 19084,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p7.a01.json",
+      "sha256": "82ef29c44a7a34bd5bf7b68fa8864ca5b8e2ef39aea0830ef7fe0c352aa9a101"
+    },
+    {
+      "bytes": 19108,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p8.a01.json",
+      "sha256": "69ae97370bea9520f4f249667929e0d8fa56adc82de182ce9f29bed0e3cfb8c2"
+    },
+    {
+      "bytes": 19074,
+      "path": "pages/AX1-20260902-E1-Q4@openalex_p9.a01.json",
+      "sha256": "671970a6b1dc9ec32b9fb66fe622d3fac732f9f8567d2c794b07be9977c2a14c"
+    },
+    {
+      "bytes": 18667,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p0.a01.json",
+      "sha256": "38a1c1ce4747fcd4a5c3d1f40b5679b2db3e6fc6a38b12f9b05d271f0939f5c2"
+    },
+    {
+      "bytes": 19164,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p1.a01.json",
+      "sha256": "9b06528007ce12c08cf6ef249793272dff9dcab6669ad1dd393c83b721cb41be"
+    },
+    {
+      "bytes": 19130,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p10.a01.json",
+      "sha256": "bcd4686302021f26a4f30a804afd048e89c8652e33ce885bf9a104c74d894b6c"
+    },
+    {
+      "bytes": 19159,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p11.a01.json",
+      "sha256": "506ae4a77fc560557811ed4952c7cbad73c3ce13fdcc287f15743939ef117305"
+    },
+    {
+      "bytes": 19132,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p12.a01.json",
+      "sha256": "c9aab48c03ef05927077d117dbd2e467489da5b9ff428d1ad350111dbd3e06cc"
+    },
+    {
+      "bytes": 19160,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p13.a01.json",
+      "sha256": "63ad8136075a6a8ab9556066015a1d53acc5d19c9137c82dd78e3aa1c04bc967"
+    },
+    {
+      "bytes": 19139,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p14.a01.json",
+      "sha256": "611fa79cd1a19cb6ff8125dc1db77fcc22f194bbfd41cec8a57512ea621dda99"
+    },
+    {
+      "bytes": 19169,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p15.a01.json",
+      "sha256": "9a96d7a5b52f4b3537d2872d9876300f3645f70967c55d90824313387d5459b0"
+    },
+    {
+      "bytes": 19171,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p16.a01.json",
+      "sha256": "81520e63e1d88540cc1157df98698e0f8cd33354e2e2803400ac31d2de866858"
+    },
+    {
+      "bytes": 19166,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p17.a01.json",
+      "sha256": "6d2f55fc3b9c3708066f109b7ab04900171c904ee0a22f072e9d5531a658c66d"
+    },
+    {
+      "bytes": 19156,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p18.a01.json",
+      "sha256": "6392ad4c6a31186bac41472e68cbbc26ac311105b71071481aff6631e745f64a"
+    },
+    {
+      "bytes": 19139,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p19.a01.json",
+      "sha256": "e0b8d8f162c213e7b5a96ad59a4425762e632ac162440b27fc5df795af4bf043"
+    },
+    {
+      "bytes": 19132,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p2.a01.json",
+      "sha256": "2ea618cdd22e8fa0919be729817f80803a9b88d7cfb15f376ad2399da707810d"
+    },
+    {
+      "bytes": 19160,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p20.a01.json",
+      "sha256": "074ede9370fb5bf0d81fa18ea81618f5bf65e4123f0c081d21034a2f6e0bc9ac"
+    },
+    {
+      "bytes": 19168,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p21.a01.json",
+      "sha256": "3e052aa3e69aff2f247bee38264cdb46ea3bc6a6898e8f402dfab1ba0da46307"
+    },
+    {
+      "bytes": 19163,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p22.a01.json",
+      "sha256": "390ca6b932a935b01e32fd5f431965afe2ba6f0277254933490544942caf5c4d"
+    },
+    {
+      "bytes": 19138,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p23.a01.json",
+      "sha256": "9cc66b588ca07611d372a0347f06a667c4c4d99d0cb1cbeed531f9826820bec2"
+    },
+    {
+      "bytes": 19165,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p24.a01.json",
+      "sha256": "c99c3da2fa5e275b5318d59a7d6175c5a7d6af6cc7dc0724807922080883d5a7"
+    },
+    {
+      "bytes": 19166,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p25.a01.json",
+      "sha256": "a09a0919ed497de8ef68aa31958eb44d7a9507fa3c48a0d71c04d813a4e4b152"
+    },
+    {
+      "bytes": 19170,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p26.a01.json",
+      "sha256": "a7f300884c51db7c3d08fc2095bbd5e7b24836994fe1fe09b4ed04c66c9c8229"
+    },
+    {
+      "bytes": 19175,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p27.a01.json",
+      "sha256": "6aa01cf332a84dfc6173cd272691936aec0fb0166d5e107e6acb91b91f4613ed"
+    },
+    {
+      "bytes": 19164,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p28.a01.json",
+      "sha256": "35f163a01f3b6548894c36c145a3de6f9ebbf60e6fcb996d908cb54b5279acec"
+    },
+    {
+      "bytes": 19170,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p29.a01.json",
+      "sha256": "7c38a51d8183e8d5909e2038e94db8b64d9fc7947a14533acd3b3dd535131904"
+    },
+    {
+      "bytes": 19134,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p3.a01.json",
+      "sha256": "e9d69a92bb42989f95fa517f8d5f1f7303cccb651e210900538afc1ae8513ec9"
+    },
+    {
+      "bytes": 16143,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p30.a01.json",
+      "sha256": "0b038c8db06bf2fe7122518caac245c525deefdc33e0dddfacc66533064013ea"
+    },
+    {
+      "bytes": 19136,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p4.a01.json",
+      "sha256": "9219ef3657f27f46ff5e0687f835a40358e9d28d48cb9211ba448e051b2e5efc"
+    },
+    {
+      "bytes": 19155,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p5.a01.json",
+      "sha256": "36691f58b1634bf3ecb422214cda507e3fb9e567921418d0c226ba6c655a7fc7"
+    },
+    {
+      "bytes": 19138,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p6.a01.json",
+      "sha256": "3ef7d7195b158abed4cb8364bf4a04f01f22903d0d06ed7f5345f2de56fe1d2e"
+    },
+    {
+      "bytes": 19162,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p7.a01.json",
+      "sha256": "5613b18eafa594cbb0f3ab4fa925733ff010c1d46d86d312ffd3315f44b7d975"
+    },
+    {
+      "bytes": 19129,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p8.a01.json",
+      "sha256": "7b3df9e9ee0927200aeabb150cf34fb4ae16f96afdca3b6b43119aba349a1136"
+    },
+    {
+      "bytes": 19152,
+      "path": "pages/AX1-20260902-E1-Q5@openalex_p9.a01.json",
+      "sha256": "2d5a7ffafd6032f4fcbad73d48e8d1d7ce1863f292778463ca0137e4e8043b11"
+    },
+    {
+      "bytes": 14767,
+      "path": "pages/AX1-20260902-E1-Q6-SPRE1991@openalex_p0.a01.json",
+      "sha256": "8b451448ff9be3af948316cb8d0707b96375498c3ee4de5caccc15daccb09c7e"
+    },
+    {
+      "bytes": 555095,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p0.a01.body.gz",
+      "sha256": "023eaf6bb9e465577ed01a640d5739548573ff8b0901af4bc5c4bf51ccc6beaa"
+    },
+    {
+      "bytes": 552601,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p0.a02.body.gz",
+      "sha256": "39d57282be3cecf35e2f18c7dfea641f52a23ae88b01532ee5e865d3ab96069e"
+    },
+    {
+      "bytes": 510798,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p1.a01.body.gz",
+      "sha256": "244d96e955af693e6d25bcbc0eefd6e6e218f0d5e17bd03cbfd6d63bee6daa69"
+    },
+    {
+      "bytes": 510416,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p1.a02.body.gz",
+      "sha256": "5b6abcbba892a89ed8bcb26d8fed234f594fc00affe1c60507e2661208f113ce"
+    },
+    {
+      "bytes": 561863,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p2.a01.body.gz",
+      "sha256": "10cddc16a5fed7759d2073954cbd535f3f16358d30a1d763dd53990facf403e5"
+    },
+    {
+      "bytes": 564183,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p2.a02.body.gz",
+      "sha256": "39a06c4c3748c9a8f81b6f903028b6a2e80154e7af40ebaf0518f3ab21ef9825"
+    },
+    {
+      "bytes": 665959,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p3.a01.body.gz",
+      "sha256": "e66e955ffb053ed469d44746a3d2e21d9ecd7600a5f40906a2479d901bf99386"
+    },
+    {
+      "bytes": 663833,
+      "path": "raw/AX1-20260902-E1-Q1@openalex_p3.a02.body.gz",
+      "sha256": "3c9b9798ad5b8436523fb9ad5478b9a6ee1a100a269c02e5c3d44febefda764d"
+    },
+    {
+      "bytes": 560145,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p0.a01.body.gz",
+      "sha256": "8b4b9b9a1f300b87c4444f0c2aebbce95832cc503917d554dcdb011152f30401"
+    },
+    {
+      "bytes": 560122,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p0.a02.body.gz",
+      "sha256": "c9fb589be9e421010747671071eb9f9c022874ce35954c3da6a79551f7ebaaac"
+    },
+    {
+      "bytes": 497954,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p1.a01.body.gz",
+      "sha256": "2549742af27b2071959b06aed60f0f993a452ceb1d3bcd636ae6b61f8fc12426"
+    },
+    {
+      "bytes": 503576,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p1.a02.body.gz",
+      "sha256": "21f8d368cca7ed0e546f97c46cd922bee9853a77a6c2a57d12fb9384937dc9e7"
+    },
+    {
+      "bytes": 496672,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p2.a01.body.gz",
+      "sha256": "60f7b73b17ab1af10ec4d48d567af9d972818b5fc3b3a740c34bf3718a4573b9"
+    },
+    {
+      "bytes": 496483,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p2.a02.body.gz",
+      "sha256": "1bc91092395c13536b2b7fab36d273e8f224bf52339e587d1f285eac95f37792"
+    },
+    {
+      "bytes": 581863,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p3.a01.body.gz",
+      "sha256": "fd02ffb50d76cbd67dfcb07b4fe8e29dda65ac66498ee81b0aefb07edf09ab07"
+    },
+    {
+      "bytes": 578884,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p3.a02.body.gz",
+      "sha256": "7d8eeee9fd325811d2ae0be1a0672049b40681acf34454919d6471e37b1854d5"
+    },
+    {
+      "bytes": 450126,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p4.a01.body.gz",
+      "sha256": "38dd01a86c4c87bfd8b6d3bcb32ba33d8de3c0745f4d5d91ed0f73fdd03b5fb8"
+    },
+    {
+      "bytes": 455979,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p4.a02.body.gz",
+      "sha256": "bbb4a8eee5eb9820232a676c4bf5762b6d119f34d21c3d9fba3806cca2072cef"
+    },
+    {
+      "bytes": 485540,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p5.a01.body.gz",
+      "sha256": "9034596d4273d0d6bcb2944ef87bbfb7d3b375775d38486c1d3329e1d19640a4"
+    },
+    {
+      "bytes": 495921,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p5.a02.body.gz",
+      "sha256": "a1aaa95e26ffffa48811875f2c2428b9c6356d4d49873f35b652b4d1856670a3"
+    },
+    {
+      "bytes": 565097,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p6.a01.body.gz",
+      "sha256": "6ae7eff2d6b13ed222b2a362c3e24e05e7e806a9b242521e4540e50ca5147fec"
+    },
+    {
+      "bytes": 572784,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p6.a02.body.gz",
+      "sha256": "63c0c262ebe134a0594166619e82ca1d0828d9b0686a0c72b2a3e018376b16d0"
+    },
+    {
+      "bytes": 1087738,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p7.a01.body.gz",
+      "sha256": "dcbd60d5b732a71bb22830298afc8b8207baf4f1ec70c84f0c3f12c4bcc32496"
+    },
+    {
+      "bytes": 1059663,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p7.a02.body.gz",
+      "sha256": "b7e5a0d8ff2d6e25d111f57550e510ea9fa3a6684360bc4e4d275bb94d10f718"
+    },
+    {
+      "bytes": 108770,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p8.a01.body.gz",
+      "sha256": "9bf0e97cd11ea6841ede5c802a3ee4047b6a6aa72fce12c472caba2c2dcadc0b"
+    },
+    {
+      "bytes": 155098,
+      "path": "raw/AX1-20260902-E1-Q2@openalex_p8.a02.body.gz",
+      "sha256": "eb4f08a9c67bf26f83566fc070ba25d034896c64b1d58b983772bac1fcfe9c95"
+    },
+    {
+      "bytes": 385178,
+      "path": "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p0.a01.body.gz",
+      "sha256": "ccd38227fe936bf5700c6fc1f941227d149e835c04369ed2d1ac776a02a6c8dc"
+    },
+    {
+      "bytes": 404306,
+      "path": "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p1.a01.body.gz",
+      "sha256": "e14fca2b0f18ef7786ae4deacad0cf507394768917441f8529c2a428f8767531"
+    },
+    {
+      "bytes": 408684,
+      "path": "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p2.a01.body.gz",
+      "sha256": "cba58f5150b5156860458621b5d94f703a438aa634e803e93e0b4a963937976b"
+    },
+    {
+      "bytes": 427195,
+      "path": "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p3.a01.body.gz",
+      "sha256": "e2efcb1f189cbaad8255fddbc7d97716201dc64091009738242ddd55ab2a79e4"
+    },
+    {
+      "bytes": 306185,
+      "path": "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p4.a01.body.gz",
+      "sha256": "ecf67268c96f245dd31ee9dbf3b0301a997463369faf29ed76eac004c54d3d50"
+    },
+    {
+      "bytes": 228074,
+      "path": "raw/AX1-20260902-E1-Q3-SY1991@openalex_p0.a01.body.gz",
+      "sha256": "1e4584b49db350d8d4f38d933aeebed2b496c98ae551eb5f0ea807741630adfe"
+    },
+    {
+      "bytes": 404720,
+      "path": "raw/AX1-20260902-E1-Q3-SY1992@openalex_p0.a01.body.gz",
+      "sha256": "5c2acf794b461c940c5b220a5bcb639a4e833ec8f1e538d72daf6354f4029fb3"
+    },
+    {
+      "bytes": 362137,
+      "path": "raw/AX1-20260902-E1-Q3-SY1993@openalex_p0.a01.body.gz",
+      "sha256": "7a09564d2f66d6b837ca82344a890e61fedae081d63b571ff3789c20a306e381"
+    },
+    {
+      "bytes": 338938,
+      "path": "raw/AX1-20260902-E1-Q3-SY1994@openalex_p0.a01.body.gz",
+      "sha256": "043b8627e7664c41f62376b0630a6053bf4a0244c82ea8dc585c035c8cb337f0"
+    },
+    {
+      "bytes": 374641,
+      "path": "raw/AX1-20260902-E1-Q3-SY1995@openalex_p0.a01.body.gz",
+      "sha256": "1aa74cc806d537fc379c3fd068ce7028082aa41400653bbceab1f4a076a264d3"
+    },
+    {
+      "bytes": 413164,
+      "path": "raw/AX1-20260902-E1-Q3-SY1996@openalex_p0.a01.body.gz",
+      "sha256": "724993f18f23c4e0671c66108eb84fa49e2c229ce99559a43e3829a02438ddcb"
+    },
+    {
+      "bytes": 487591,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p0.a01.body.gz",
+      "sha256": "78b2420f1e68fc934b5d28f3814f7ddff32fe7eb795f04b37285f92decfd4842"
+    },
+    {
+      "bytes": 496735,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p1.a01.body.gz",
+      "sha256": "5280a216442cdcd8a27815b4aeeb9267fcddd89d040e279b2298bc3beac82c17"
+    },
+    {
+      "bytes": 593539,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p10.a01.body.gz",
+      "sha256": "e0707633ab882af9299a69cb232cfe64335a2cb8d258ec93591d94fb517e18d1"
+    },
+    {
+      "bytes": 574598,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p11.a01.body.gz",
+      "sha256": "25da3a27a61304f96873053a186366f2b170e734c4e9ffb4acc945a04aa55621"
+    },
+    {
+      "bytes": 608916,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p12.a01.body.gz",
+      "sha256": "28b0ae6e01da24c43d62672d4e8c31f1b712453a506815c5df3f7b7ed09cc317"
+    },
+    {
+      "bytes": 563654,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p13.a01.body.gz",
+      "sha256": "ce18b9adfd1a1eef85d0d984c6cb76362547b246aaf4cdba896415c56b367931"
+    },
+    {
+      "bytes": 478367,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p14.a01.body.gz",
+      "sha256": "df13592b7fbe3ebdee0e33dee03a76a7edca516b22bfb0ca40a3d21279f32b6e"
+    },
+    {
+      "bytes": 504524,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p15.a01.body.gz",
+      "sha256": "a3d99522da7a9ca5be2f1d8090b8518ced33cc02e599ee198674b5128e2dfe36"
+    },
+    {
+      "bytes": 529339,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p16.a01.body.gz",
+      "sha256": "53622ef799d417c519aaea6067ce0faebeb82bf0903f9b03c02f951ee94a6b6c"
+    },
+    {
+      "bytes": 549143,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p17.a01.body.gz",
+      "sha256": "fe52cea7b2152eedadb2d027312dfa16af2d88406d0ab3f5058b34dc036b9e87"
+    },
+    {
+      "bytes": 598775,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p18.a01.body.gz",
+      "sha256": "8c984e4498acf897005e7490235929832e62b7e69647ac7820f55c96839d205d"
+    },
+    {
+      "bytes": 587079,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p19.a01.body.gz",
+      "sha256": "72aea0aeb8daa4c486dba10b6111ebaf652101f2b72ace76005fb6b2aa1f8a43"
+    },
+    {
+      "bytes": 508021,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p2.a01.body.gz",
+      "sha256": "b0516feb9743cc3b80d9f3ef5a51d0de27c42eb216b5b5ca7030975c4863847f"
+    },
+    {
+      "bytes": 704989,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p20.a01.body.gz",
+      "sha256": "30105373108778de63b2e2f80c1152a744f4fa50d70098eeebdb2004c2140a70"
+    },
+    {
+      "bytes": 773464,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p21.a01.body.gz",
+      "sha256": "c3aeaa7e683ebffc914b9710c8f40a7995adc07aee9ffb67090798c4774cb1bb"
+    },
+    {
+      "bytes": 1046939,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p22.a01.body.gz",
+      "sha256": "042556fde1601db9066084efab2aa012a9ceea884cc8d0dfc70197b79091989e"
+    },
+    {
+      "bytes": 801589,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p23.a01.body.gz",
+      "sha256": "d454c93a1812328e656dc709732f94c5e19eb9aca2575d4bc9fc4a9bc817cede"
+    },
+    {
+      "bytes": 525828,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p3.a01.body.gz",
+      "sha256": "afc2cd5d1f12baaaa256c85dd8ff0ff4d8715833ea7f0950bf82dcb744c982cd"
+    },
+    {
+      "bytes": 504572,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p4.a01.body.gz",
+      "sha256": "46eeba39e92bef68c8e802cb98ca4db0a714c9767e653a30c2bfddf959f1c347"
+    },
+    {
+      "bytes": 507082,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p5.a01.body.gz",
+      "sha256": "ed9ade74c26a795ab69736b75de2437f216ea3240638f0569ad7c9536a444d7d"
+    },
+    {
+      "bytes": 554140,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p6.a01.body.gz",
+      "sha256": "2ccd33c51687f186cfb304d654c4cff6d2017b32e409a2eedf1b927c833a58a9"
+    },
+    {
+      "bytes": 526748,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p7.a01.body.gz",
+      "sha256": "fc6ea69bdd9ba650b3465ebf3dbe025e361002d837a4bdecbcbc01476a8923b0"
+    },
+    {
+      "bytes": 541506,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p8.a01.body.gz",
+      "sha256": "5fce852e1c737b849f352229bd2939dfad80db037e6c52c6d79468171dc0f4d8"
+    },
+    {
+      "bytes": 522607,
+      "path": "raw/AX1-20260902-E1-Q4@openalex_p9.a01.body.gz",
+      "sha256": "7c1de244e9433ed8bd3b41a6ffe589aef095d0b68c200850bf2b0f8dea3b729b"
+    },
+    {
+      "bytes": 512158,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p0.a01.body.gz",
+      "sha256": "b0f8c6a6070cbf7ff27c3d38fa54ef08141730d23d3881c5a5f0812a0e5e1d9b"
+    },
+    {
+      "bytes": 476116,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p1.a01.body.gz",
+      "sha256": "44ec2f6cffc7781bf9d5333b2cb61d25f5884eba8b013ac9a714a493fcf4b6eb"
+    },
+    {
+      "bytes": 497508,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p10.a01.body.gz",
+      "sha256": "e68d030e81cd94b59c56fdce5b6d1550be86be051d44ee4a041a3353f3b5855a"
+    },
+    {
+      "bytes": 509614,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p11.a01.body.gz",
+      "sha256": "79bef143ca65add2d4e3cd69676ff21c2d173a37d07ec45f963ff7c893d612e6"
+    },
+    {
+      "bytes": 493731,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p12.a01.body.gz",
+      "sha256": "d3809678f09b0a5bd49b99e46c36812446e6db8c035a5f92ceeff02299d48f37"
+    },
+    {
+      "bytes": 521519,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p13.a01.body.gz",
+      "sha256": "9fda7742f4a7b1e3cf4ca632b122d855b5ae53a8f06bce662e5920c57282f51a"
+    },
+    {
+      "bytes": 490595,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p14.a01.body.gz",
+      "sha256": "4546e805e73d53cc94e1cde209cf33e09f611bce4d2a3ef29ca32a881e67e16c"
+    },
+    {
+      "bytes": 522467,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p15.a01.body.gz",
+      "sha256": "4bda635d96a0b2e30452dc9bb3525ef7b2535c26e7c660d97b02e420ffb2b0d2"
+    },
+    {
+      "bytes": 510434,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p16.a01.body.gz",
+      "sha256": "67d8e6a8d7a3286cc56082ba0481bfba1bcb43a1012f99d8246ef4fa564822f8"
+    },
+    {
+      "bytes": 533096,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p17.a01.body.gz",
+      "sha256": "ac44fdc2fbe027e9b75baffbb94052c804d1e12cc4890be297145b92a9de7aa6"
+    },
+    {
+      "bytes": 552722,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p18.a01.body.gz",
+      "sha256": "999bec245150551abb592c9f2fcdf0361c0b15fabf1eb6536d1fc7446c273c18"
+    },
+    {
+      "bytes": 543789,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p19.a01.body.gz",
+      "sha256": "2d964523679158e665bf0f1ba00d9042767f816c7557c61cb0249159e770bdc5"
+    },
+    {
+      "bytes": 483520,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p2.a01.body.gz",
+      "sha256": "b60156b134e05ed9c9a0548f18a79342f90fe77ea6d42b7b185bd323e2bc5a70"
+    },
+    {
+      "bytes": 541324,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p20.a01.body.gz",
+      "sha256": "519a9d3f557dc56697854279afebba6865c624d26dab719588749e57030e7e6b"
+    },
+    {
+      "bytes": 535681,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p21.a01.body.gz",
+      "sha256": "3cd942e95bb5148b174264f848a5750c6540e5e29c51566f9afd756e2a7ef6d3"
+    },
+    {
+      "bytes": 471545,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p22.a01.body.gz",
+      "sha256": "2aa1da6d08c0bef3f757d0eaf709a46a65c36b96f5047a039d6ddda4775754a9"
+    },
+    {
+      "bytes": 520593,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p23.a01.body.gz",
+      "sha256": "a1c99bbd47f857b0bc8a9acf33cf17c7183dd28423c2a58efc434ae782848922"
+    },
+    {
+      "bytes": 510089,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p24.a01.body.gz",
+      "sha256": "46fc27b3eb12eb47aa34e1828201cabaa8af5db4d72818f97973571a7b017719"
+    },
+    {
+      "bytes": 513202,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p25.a01.body.gz",
+      "sha256": "a29c6bc78758be2a7c094b6f3cac6d2aa57edcaebe7984870326809300a7d623"
+    },
+    {
+      "bytes": 568091,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p26.a01.body.gz",
+      "sha256": "df8e6ed99e3a784e8769d797b67178fd3d018b0a986e812ceaaafcc9b08ebbe9"
+    },
+    {
+      "bytes": 616988,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p27.a01.body.gz",
+      "sha256": "9db0e53cdceb50ea01d83e7eb393cdd8cd16d0b702f235b291147fa5bd681cbc"
+    },
+    {
+      "bytes": 599348,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p28.a01.body.gz",
+      "sha256": "ecf6b44a0cda3b771991c969eb53e0c71f341cc9563289f4009d8109cb7bcf75"
+    },
+    {
+      "bytes": 730098,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p29.a01.body.gz",
+      "sha256": "b1ce424b0cb42351acd6e2a89c05b831b74078aa1277104147859f3ecbdea9e4"
+    },
+    {
+      "bytes": 484572,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p3.a01.body.gz",
+      "sha256": "b7dcec7382a20eda722ae24eafbf517ca1c8ec33ba212dec5df9769152b0d28b"
+    },
+    {
+      "bytes": 890697,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p30.a01.body.gz",
+      "sha256": "4c892784be610a699188ff0fbb3e54d1a2ae4dd3d934bee2ca32ddb1111c7f6d"
+    },
+    {
+      "bytes": 487837,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p4.a01.body.gz",
+      "sha256": "55803736f563ffca7420e85d8f0c0880303dcd9258dddd48536a67f11e87ca0f"
+    },
+    {
+      "bytes": 505455,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p5.a01.body.gz",
+      "sha256": "edafb8cf26d3eaf0bda7d79e22c809183120482753aafb54b94a6b94cd40d899"
+    },
+    {
+      "bytes": 491689,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p6.a01.body.gz",
+      "sha256": "df330ce645446015ee487f85a571435a2cdbbd0728e106efdc1236a555b2be92"
+    },
+    {
+      "bytes": 504950,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p7.a01.body.gz",
+      "sha256": "c5f5250e7ed0053959b96e7e0cf4617967155fe2646e26ec4b7b0b64b3e96b45"
+    },
+    {
+      "bytes": 499116,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p8.a01.body.gz",
+      "sha256": "da472bbbd912ce7ef0afc6a1f42e5743d59509026baba90810868f2379335569"
+    },
+    {
+      "bytes": 474569,
+      "path": "raw/AX1-20260902-E1-Q5@openalex_p9.a01.body.gz",
+      "sha256": "6b8f029cd4ab3977dc128a73792c0f9ee52371939ea0ed8b5ec8e3032056b477"
+    },
+    {
+      "bytes": 185724,
+      "path": "raw/AX1-20260902-E1-Q6-SPRE1991@openalex_p0.a01.body.gz",
+      "sha256": "782f8b07e4845d9574991987398b4e68bc7bf464453e346e731516cfc1f1fdd1"
+    },
+    {
+      "bytes": 926,
+      "path": "state/runtime.json",
+      "sha256": "c702fb35a0c8046e856c12d9421c8e884c2f732cb888d4c608230fa63e1f80f9"
+    },
+    {
+      "bytes": 15188,
+      "path": "wal/AX1-20260902-E1-Q1@openalex.jsonl",
+      "sha256": "d393735232452b53a0b4f79fa3d3d6723d81d70cdc31a50627af0b6d8d274fbe"
+    },
+    {
+      "bytes": 30748,
+      "path": "wal/AX1-20260902-E1-Q2@openalex.jsonl",
+      "sha256": "469eb89698f2a37eb8b36f13fc395901c388f7f7e0b25363e226af7fc1013e11"
+    },
+    {
+      "bytes": 8166,
+      "path": "wal/AX1-20260902-E1-Q3-SPRE1991@openalex.jsonl",
+      "sha256": "f27dde002c299ffaeaf9553a6b5f484bfdf6231fad3f49eb11573022ffbf9a8a"
+    },
+    {
+      "bytes": 1593,
+      "path": "wal/AX1-20260902-E1-Q3-SY1991@openalex.jsonl",
+      "sha256": "1683dba4cf2696a181592983f9eb382c85447d1d75f0796804f0115c901a29bc"
+    },
+    {
+      "bytes": 1593,
+      "path": "wal/AX1-20260902-E1-Q3-SY1992@openalex.jsonl",
+      "sha256": "dfdfcb8c80391e8ba2a846d2573ad54b28628320d1b00cdd408114bbb40f69a6"
+    },
+    {
+      "bytes": 1593,
+      "path": "wal/AX1-20260902-E1-Q3-SY1993@openalex.jsonl",
+      "sha256": "bdd787b5ee4dacb3fa42cc43a5fd94154f05f16883d72936ea7bf83696ae599d"
+    },
+    {
+      "bytes": 1593,
+      "path": "wal/AX1-20260902-E1-Q3-SY1994@openalex.jsonl",
+      "sha256": "562894846ab3cf5805bc391c2feb8269f3d6fbd2d280c44d660ee2cb85c75e6d"
+    },
+    {
+      "bytes": 1593,
+      "path": "wal/AX1-20260902-E1-Q3-SY1995@openalex.jsonl",
+      "sha256": "ec99e7f41baf43b72ff409e3f629a63c6d9ee5b55aa4b43ed92d6d71b4eabc67"
+    },
+    {
+      "bytes": 1593,
+      "path": "wal/AX1-20260902-E1-Q3-SY1996@openalex.jsonl",
+      "sha256": "af7715251a352cb6f79cee263f904f49f047c58477d64709af6ed0ea748fbae6"
+    },
+    {
+      "bytes": 37655,
+      "path": "wal/AX1-20260902-E1-Q4@openalex.jsonl",
+      "sha256": "a0d429ebf1e736d53980c1c3d2dc09b64d4517128c704927ff9bc99841332467"
+    },
+    {
+      "bytes": 48067,
+      "path": "wal/AX1-20260902-E1-Q5@openalex.jsonl",
+      "sha256": "302687f1ac105f109b7a2aa1eeb4b8479a1089af57ff16ff18a0569be268696d"
+    },
+    {
+      "bytes": 1691,
+      "path": "wal/AX1-20260902-E1-Q6-SPRE1991@openalex.jsonl",
+      "sha256": "223eb17ab32fd027d6658290329f17d408ef2a0a4f0650b35d80259083738e73"
+    }
+  ],
+  "path_set_rule": "manifest paths == bundle regular files - {manifest.json, MANIFEST.sha256, README.md}",
+  "registration_commit": "4ec3eba04354f9ba86117a2dd488c72d007045e6",
+  "registration_epoch": "AX1-20260902-E1",
+  "regular_file_paths": [
+    "checkpoints/000001.json",
+    "checkpoints/000002.json",
+    "checkpoints/000003.json",
+    "checkpoints/000004.json",
+    "checkpoints/000005.json",
+    "checkpoints/000006.json",
+    "checkpoints/000007.json",
+    "checkpoints/000008.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.1f67da7a159f.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.27dce179a83f.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.3b16dc512b9c.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.41c0c6f34b3d.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.aee06f7b4d92.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.c167a60c0647.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.de87797e52ba.json",
+    "ledgers/AX1-20260902-E1-Q1@openalex.pass1.f0edea5a3a29.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.0609325fb37e.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.0ce04484b4ff.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.0d73d00e0e25.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.25c9020310c4.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.307212ba9d32.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.3c6523cc3013.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.4b13de4945b9.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.4bba028ade9e.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.4fa0914bcc4f.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.5ec3a87c77e4.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.7aaa0c2fbf31.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.91dfc5006622.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.9b0ea268c5f7.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.a0b7afe5d838.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.c4583b6dcbb3.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.ee927e0e4d18.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.f19174183f06.json",
+    "ledgers/AX1-20260902-E1-Q2@openalex.pass1.f76a00120b2e.json",
+    "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.20062dccc673.json",
+    "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.47956c83daec.json",
+    "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.99a99a694523.json",
+    "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.a019c94150f7.json",
+    "ledgers/AX1-20260902-E1-Q3-SPRE1991@openalex.pass1.c2483a1ff1a4.json",
+    "ledgers/AX1-20260902-E1-Q3-SY1991@openalex.pass1.6631d2012492.json",
+    "ledgers/AX1-20260902-E1-Q3-SY1992@openalex.pass1.465e5fec279f.json",
+    "ledgers/AX1-20260902-E1-Q3-SY1993@openalex.pass1.35876f15c36d.json",
+    "ledgers/AX1-20260902-E1-Q3-SY1994@openalex.pass1.57e6976bc7c3.json",
+    "ledgers/AX1-20260902-E1-Q3-SY1995@openalex.pass1.e0089a9218f0.json",
+    "ledgers/AX1-20260902-E1-Q3-SY1996@openalex.pass1.6cd553ce2240.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.1c9310cc9c85.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.255c07a7eeca.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.2750ee3cde3a.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.29910a7cc247.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.2a1560659a9c.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.2d48cf966907.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.3803067e64b7.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.38b398be89b3.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.38ec7be61b5d.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.3a4c5d289ba7.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.4ac8ecb6813e.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.542df0467342.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.5bd3b260dd17.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.5ef5bbec1cdf.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.6a36c0306fc1.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.74a5b9b3ed6e.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.7ee423ec9c83.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.8a711c6502b1.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.9b6f85ba33ab.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.9e2afba77a0b.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.a8975bc7ad46.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.d038931cfbc2.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.fbdcb4345a6d.json",
+    "ledgers/AX1-20260902-E1-Q4@openalex.pass1.fd100e1b5bce.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.03283d01bbc3.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.03d1f4595190.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.0cb98b5ade75.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.180f89ecde90.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.1aa59e1928ba.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.1f74a7174c13.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.27395bc2c79c.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.287b88095936.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.2f7f14ca556a.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.34a851a823f7.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.48a4bf0fdc83.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.5935ede757a2.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.5d0821a9ee33.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.62a41c5a057c.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.7061d6ecf5b8.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.75dd12ee272e.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.771f6e38e585.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.7ca119e45cf1.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.7de0c99acaf3.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.8a3e506ec923.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.8ee4f5ff6b2f.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.a67ba3b00ea9.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.b50202ab01de.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.baac3892fd50.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.cac40ee486aa.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.e039982b9092.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.e3927de2731f.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.e39d17abb1bc.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.ed020223be3e.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.f353cc821479.json",
+    "ledgers/AX1-20260902-E1-Q5@openalex.pass1.feb48fcf0c25.json",
+    "ledgers/AX1-20260902-E1-Q6-SPRE1991@openalex.pass1.9e1b58abd84a.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p0.a02.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p1.a01.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p1.a02.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p2.a01.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p2.a02.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p3.a01.json",
+    "pages/AX1-20260902-E1-Q1@openalex_p3.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p0.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p1.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p1.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p2.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p2.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p3.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p3.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p4.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p4.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p5.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p5.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p6.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p6.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p7.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p7.a02.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p8.a01.json",
+    "pages/AX1-20260902-E1-Q2@openalex_p8.a02.json",
+    "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p1.a01.json",
+    "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p2.a01.json",
+    "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p3.a01.json",
+    "pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p4.a01.json",
+    "pages/AX1-20260902-E1-Q3-SY1991@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q3-SY1992@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q3-SY1993@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q3-SY1994@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q3-SY1995@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q3-SY1996@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p1.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p10.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p11.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p12.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p13.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p14.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p15.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p16.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p17.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p18.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p19.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p2.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p20.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p21.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p22.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p23.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p3.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p4.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p5.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p6.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p7.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p8.a01.json",
+    "pages/AX1-20260902-E1-Q4@openalex_p9.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p0.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p1.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p10.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p11.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p12.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p13.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p14.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p15.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p16.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p17.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p18.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p19.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p2.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p20.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p21.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p22.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p23.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p24.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p25.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p26.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p27.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p28.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p29.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p3.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p30.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p4.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p5.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p6.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p7.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p8.a01.json",
+    "pages/AX1-20260902-E1-Q5@openalex_p9.a01.json",
+    "pages/AX1-20260902-E1-Q6-SPRE1991@openalex_p0.a01.json",
+    "raw/AX1-20260902-E1-Q1@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q1@openalex_p0.a02.body.gz",
+    "raw/AX1-20260902-E1-Q1@openalex_p1.a01.body.gz",
+    "raw/AX1-20260902-E1-Q1@openalex_p1.a02.body.gz",
+    "raw/AX1-20260902-E1-Q1@openalex_p2.a01.body.gz",
+    "raw/AX1-20260902-E1-Q1@openalex_p2.a02.body.gz",
+    "raw/AX1-20260902-E1-Q1@openalex_p3.a01.body.gz",
+    "raw/AX1-20260902-E1-Q1@openalex_p3.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p0.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p1.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p1.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p2.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p2.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p3.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p3.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p4.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p4.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p5.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p5.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p6.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p6.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p7.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p7.a02.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p8.a01.body.gz",
+    "raw/AX1-20260902-E1-Q2@openalex_p8.a02.body.gz",
+    "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p1.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p2.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p3.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SPRE1991@openalex_p4.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SY1991@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SY1992@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SY1993@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SY1994@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SY1995@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q3-SY1996@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p1.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p10.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p11.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p12.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p13.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p14.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p15.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p16.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p17.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p18.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p19.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p2.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p20.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p21.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p22.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p23.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p3.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p4.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p5.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p6.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p7.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p8.a01.body.gz",
+    "raw/AX1-20260902-E1-Q4@openalex_p9.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p0.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p1.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p10.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p11.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p12.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p13.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p14.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p15.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p16.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p17.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p18.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p19.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p2.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p20.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p21.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p22.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p23.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p24.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p25.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p26.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p27.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p28.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p29.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p3.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p30.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p4.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p5.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p6.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p7.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p8.a01.body.gz",
+    "raw/AX1-20260902-E1-Q5@openalex_p9.a01.body.gz",
+    "raw/AX1-20260902-E1-Q6-SPRE1991@openalex_p0.a01.body.gz",
+    "state/runtime.json",
+    "wal/AX1-20260902-E1-Q1@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q2@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q3-SPRE1991@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q3-SY1991@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q3-SY1992@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q3-SY1993@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q3-SY1994@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q3-SY1995@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q3-SY1996@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q4@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q5@openalex.jsonl",
+    "wal/AX1-20260902-E1-Q6-SPRE1991@openalex.jsonl"
+  ],
+  "schema_version": "izanagi-axis1-search-bundle-manifest/v1"
+}

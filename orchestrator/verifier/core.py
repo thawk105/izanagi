@@ -14,7 +14,7 @@ from typing import Dict, Optional
 
 from .dsg import DSG
 from .model import VerifyResult
-from .parse import parse_trace_dir
+from .parse import _CompactTrace, _LegacyTrace, _parse_trace_dir_compact
 from .commit_receipt import CommitReceiptError, _domain_digest
 from .report import result_to_dict
 
@@ -22,14 +22,29 @@ from .report import result_to_dict
 def verify_trace_dir(
         trace_dir: str, max_report: Optional[int] = 20, *,
         expected_commits: Optional[int] = None,
+        workers: Optional[int] = None,
 ) -> VerifyResult:
     """1 run (= 1 trace ディレクトリ) を検証する。"""
-    txns, issues = parse_trace_dir(trace_dir)
-    dsg = DSG(txns)
+    parsed = _parse_trace_dir_compact(trace_dir, workers=workers)
+    if isinstance(parsed, _CompactTrace):
+        issues = parsed.issues
+        dsg = DSG.from_compact(parsed)
+        n_txns = len(parsed.winner_txid)
+        n_reads = parsed.n_reads
+        n_writes = parsed.n_writes
+    elif isinstance(parsed, _LegacyTrace):
+        txns = parsed.txns
+        issues = parsed.issues
+        dsg = DSG(txns)
+        n_txns = len(txns)
+        n_reads = sum(len(txn.reads) for txn in txns)
+        n_writes = sum(len(txn.writes) for txn in txns)
+    else:  # fail closed if the internal parser union grows without wiring here
+        raise TypeError(f"unsupported parsed trace type: {type(parsed)!r}")
     if expected_commits is not None:
         # witness は trace 外の CCBench counter。片側だけの部分状態を作らず、
         # expected/observed を持つ新しい Integrity へ一度で差し替える。
-        observed_commits = len(txns)
+        observed_commits = n_txns
         dsg.integrity = replace(
             dsg.integrity,
             expected_commits=expected_commits,
@@ -149,9 +164,9 @@ def verify_trace_dir(
         serializable=(total == 0),
         anomalies=anomalies,
         integrity=dsg.integrity,
-        n_txns=len(txns),
-        n_reads=sum(len(t.reads) for t in txns),
-        n_writes=sum(len(t.writes) for t in txns),
+        n_txns=n_txns,
+        n_reads=n_reads,
+        n_writes=n_writes,
         n_keys=len(dsg.versions),
         n_edges=dsg.n_edges,
         total_cycles=total,
@@ -283,6 +298,7 @@ def _bind_verifier_capability_entrypoint():
     def _verify_trace_dir_with_capability(
             trace_dir: str, max_report: Optional[int] = 20, *,
             expected_commits: Optional[int] = None,
+            workers: Optional[int] = None,
             receipt_sink_kind: str,
             receipt_lock_identity_sha256: str,
             receipt_variant: str,
@@ -292,6 +308,7 @@ def _bind_verifier_capability_entrypoint():
         """Run verification and issue one capability for this exact operation."""
         result = verify_trace_dir(
             trace_dir, max_report=max_report, expected_commits=expected_commits,
+            workers=workers,
         )
         capability = _VerificationCapability(
             result,
