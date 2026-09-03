@@ -1009,20 +1009,11 @@ def _verify_committed_loader_binding(
         if (type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
                 and authority.recorded_contract_loader_relative_paths
                 == campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS):
-            root = contract_loader_binding._validated_root()
-            contract_loader_binding._require_commit(
-                root, authority.contract_loader_commit,
+            contract_loader_binding.verify_committed_contract_loader_blobs(
+                authority.contract_loader_commit,
+                authority.contract_loader_blob_sha256s,
+                authority.recorded_contract_loader_relative_paths,
             )
-            for relative in authority.recorded_contract_loader_relative_paths:
-                blob = contract_loader_binding._blob(
-                    root, authority.contract_loader_commit, relative,
-                )
-                if (hashlib.sha256(blob).hexdigest()
-                        != authority.contract_loader_blob_sha256s[relative]):
-                    raise contract_loader_binding.ContractLoaderBindingError(
-                        "contract-loader-blob-mismatch: 記録 digest と commit blob "
-                        f"が不一致: {relative}"
-                    )
             return
         binding = contract_loader_binding.binding_from_authority(
             authority.contract_loader_commit,

@@ -401,6 +401,25 @@ def verify_committed_contract_loader_binding(
             )
 
 
+def verify_committed_contract_loader_blobs(
+        contract_loader_commit: str,
+        contract_loader_blob_sha256s: Mapping[str, str],
+        relative_paths: tuple[str, ...],
+) -> None:
+    """明示された ordered path 全体の記録 commit blob を digest 照合する。"""
+    root = _validated_root()
+    _require_commit(root, contract_loader_commit)
+    for relative in relative_paths:
+        blob = _blob(root, contract_loader_commit, relative)
+        if (
+            hashlib.sha256(blob).hexdigest()
+            != contract_loader_blob_sha256s[relative]
+        ):
+            raise ContractLoaderBindingError(
+                f"contract-loader-blob-mismatch: 記録 digest と commit blob が不一致: {relative}"
+            )
+
+
 def binding_from_authority(
         contract_loader_commit: str,
         contract_loader_blob_sha256s: Mapping[str, str],

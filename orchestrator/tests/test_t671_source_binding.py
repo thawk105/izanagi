@@ -757,6 +757,8 @@ def test_production_contract_loader_binding_call_sites_are_exact() -> None:
          "binding_from_authority"): 1,
         ("artifact_admission.py", "_verify_committed_loader_binding",
          "verify_committed_contract_loader_binding"): 1,
+        ("artifact_admission.py", "_verify_committed_loader_binding",
+         "verify_committed_contract_loader_blobs"): 1,
         ("artifact_admission.py", "_require_verifier_epoch_for_purpose",
          "capture_contract_loader_binding"): 1,
     })
