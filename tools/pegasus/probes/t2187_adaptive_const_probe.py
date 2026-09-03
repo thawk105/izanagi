@@ -1194,9 +1194,17 @@ def _validated_certification_row(
             "verifier_identity": actual_identity,
             "binary_sha256": document["binary_sha256"],
             "build_cache_key": document["build_cache_key"],
+            "build_trace_enabled": document["build_trace_enabled"],
             "build_admission_receipt_sha256": document[
                 "build_admission_receipt_sha256"
             ],
+            "source_evidence": {
+                "source_bytes_sha256": document["source_evidence"][
+                    "source_bytes_sha256"
+                ],
+                "genome_sha256": document["source_evidence"]["genome_sha256"],
+            },
+            "genome": document["genome"],
             "patch_sha256": document["patch_sha256"],
             "ccbench_commit": document["ccbench_commit"],
             "attempt_id": attempt_id,
@@ -1257,7 +1265,17 @@ def _group_receipt_payload(
         )
     if (
         len({row["trace_dir"] for row in rows}) != 24
-        or len({row["binary_sha256"] for row in rows}) != 1
+        or len(
+            {
+                row["source_evidence"]["source_bytes_sha256"]
+                for row in rows
+            }
+        ) != 1
+        or len(
+            {row["source_evidence"]["genome_sha256"] for row in rows}
+        ) != 1
+        or len({row["genome"] for row in rows}) != 1
+        or any(row["build_trace_enabled"] is not True for row in rows)
         or len({row["patch_sha256"] for row in rows}) != 1
         or len({row["ccbench_commit"] for row in rows}) != 1
         or any(

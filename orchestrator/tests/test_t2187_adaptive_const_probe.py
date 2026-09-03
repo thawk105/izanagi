@@ -844,6 +844,16 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
             }
             document["independent_run_slot"] = slot
             document["pbs_jobid"] = f"{workload}-{slot}"
+            document["source_evidence"]["source_bytes_sha256"] = hashlib.sha256(
+                b"synthetic-shared-source-bytes"
+            ).hexdigest()
+            document["source_evidence"]["genome_sha256"] = hashlib.sha256(
+                b"synthetic-shared-genome"
+            ).hexdigest()
+            document["genome"] = "synthetic-canonical-genome"
+            document["binary_sha256"] = hashlib.sha256(
+                f"synthetic-binary-{workload}-{slot}".encode("ascii")
+            ).hexdigest()
             document["trace_directory"] = str(trace_dir.resolve())
             document["target_verifier"]["argv"][3] = str(trace_dir.resolve())
             document["target_verifier"]["json"]["results"][0]["trace_dir"] = str(
@@ -885,6 +895,27 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
     assert receipt["expected_requests"] == receipt["terminal_requests"] == 24
     assert len(receipt["results"]) == 24
     assert receipt["claim"] == probe.ALLOWED_GROUP_CLAIM
+    assert len({row["binary_sha256"] for row in receipt["results"]}) == 24
+    assert len(
+        {
+            row["source_evidence"]["source_bytes_sha256"]
+            for row in receipt["results"]
+        }
+    ) == 1
+    assert len(
+        {
+            row["source_evidence"]["genome_sha256"]
+            for row in receipt["results"]
+        }
+    ) == 1
+    assert {row["genome"] for row in receipt["results"]} == {
+        "synthetic-canonical-genome"
+    }
+    assert all(row["build_trace_enabled"] is True for row in receipt["results"])
+    assert len({row["patch_sha256"] for row in receipt["results"]}) == 1
+    assert len({row["ccbench_commit"] for row in receipt["results"]}) == 1
+    assert len({row["trace_dir"] for row in receipt["results"]}) == 24
+    assert all(row["build_cache_key"].endswith("_t1") for row in receipt["results"])
     assert probe._group_receipt_payload(
         result_files,
         performance,
@@ -893,6 +924,59 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
         identity,
         identity_file_sha256,
     ) == receipt
+
+    def write_documents(documents: list[dict]) -> None:
+        for path, document in zip(result_files, documents):
+            path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+
+    for mutation in (
+        "source-bytes-sha256",
+        "genome-sha256",
+        "genome",
+        "patch-sha256",
+        "ccbench-commit",
+        "trace-dir-duplicate",
+        "trace-disabled",
+    ):
+        candidates = copy.deepcopy(valid_documents)
+        if mutation == "source-bytes-sha256":
+            candidates[0]["source_evidence"]["source_bytes_sha256"] = "3" * 64
+        elif mutation == "genome-sha256":
+            candidates[0]["source_evidence"]["genome_sha256"] = "4" * 64
+        elif mutation == "genome":
+            candidates[0]["genome"] = "synthetic-other-genome"
+        elif mutation == "patch-sha256":
+            candidates[0]["patch_sha256"] = "0" * 64
+        elif mutation == "ccbench-commit":
+            candidates[0]["ccbench_commit"] = "f" * 40
+        elif mutation == "trace-dir-duplicate":
+            donor = candidates[0]
+            candidate = candidates[1]
+            candidate["trace_directory"] = donor["trace_directory"]
+            candidate["target_verifier"]["argv"][3] = donor["trace_directory"]
+            candidate["target_verifier"]["json"]["results"][0]["trace_dir"] = (
+                donor["trace_directory"]
+            )
+            candidate["target_verifier"]["stdout"] = json.dumps(
+                candidate["target_verifier"]["json"]
+            )
+            candidate["verifier_json"] = candidate["target_verifier"]["json"]
+            candidate["trace_manifest"] = donor["trace_manifest"]
+        elif mutation == "trace-disabled":
+            candidates[0]["build_trace_enabled"] = False
+        write_documents(candidates)
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._group_receipt_payload(
+                result_files,
+                performance,
+                performance_sha256,
+                attempt_id,
+                identity,
+                identity_file_sha256,
+            )
+        assert caught.value.reason == "group-build-identity-mismatch", mutation
+
+    write_documents(valid_documents)
 
     concurrent_group = tmp_path / "group-concurrent.json"
     finalize_barrier = threading.Barrier(2)
