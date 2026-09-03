@@ -176,18 +176,18 @@ def _add_generation(root: Path, number: int, supersedes: str):
 
 def _approve_and_point(root: Path, number: int, gen_sha: str, gen_rel: str,
                        parent_ptr_sha, *, ai_agent: str = "none"):
-    """approval + active pointer を同一 commit A (none) で載せ、(approval_sha, ptr_sha) を返す。"""
+    """approval A → active pointer X の 2 commit で載せ、hash の対を返す。"""
     approval_raw = _approval_raw(gen_sha)
     approval_sha = _sha(approval_raw)
     approval_rel = f"{M.APPROVAL_DIR}/{gen_sha}.json"
     _write(root, approval_rel, approval_raw)
+    _commit(root, f"approve g{number}", ai_agent)
 
     ptr_raw = _pointer_raw(number, gen_rel, gen_sha, parent_ptr_sha, approval_sha)
     ptr_sha = _sha(ptr_raw)
     ptr_rel = f"{M.ACTIVE_DIR}/{ptr_sha}.json"
     _write(root, ptr_rel, ptr_raw)
-
-    _commit(root, f"approve g{number}", ai_agent)
+    _commit(root, f"point g{number}", ai_agent)
     return approval_sha, ptr_sha
 
 
@@ -969,7 +969,7 @@ def build_production_emitter_g1(
         cert_at_generation=False, generation_strings_escaped=False, now=_FIXED_NOW,
         selector_valid_cell=False, selector_extra_files=(),
         selector_payload_hit=False, perf_available=True):
-    """決定的観測下の production-emitter bytes で base→C→G→A を構築する。
+    """決定的観測下の production-emitter bytes で base→C→G→A→X を構築する。
 
     build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
     public/core の official materializer 拒否は変更せず、pytest 専用入口だけを使う。
@@ -1160,29 +1160,31 @@ def build_production_emitter_g1(
     approval_sha = _sha(approval_raw)
     approval_path = f"{M.APPROVAL_DIR}/{gen_sha}.json"
     _write(root, approval_path, approval_raw)
+    a_commit = _commit_exact(
+        root, [approval_path], subject="approve generation", agent="none",
+    )
     pointer_raw = _pointer_raw(1, gen_path, gen_sha, None, approval_sha)
     pointer_sha = _sha(pointer_raw)
     pointer_path = f"{M.ACTIVE_DIR}/{pointer_sha}.json"
     _write(root, pointer_path, pointer_raw)
-    a_paths = [approval_path, pointer_path]
-    a_commit = _commit_exact(
-        root, a_paths, subject="approve generation", agent="none",
+    x_commit = _commit_exact(
+        root, [pointer_path], subject="activate generation", agent="none",
     )
     topology = {
         **state, "base": base, "C": checkpoint["C"], "J": j_commit,
-        "G": g_commit, "A": a_commit, "H": a_commit,
+        "G": g_commit, "A": a_commit, "X": x_commit, "H": x_commit,
         "generation_path": gen_path, "generation_raw": gen_raw,
         "generation_sha": gen_sha, "approval_path": approval_path,
         "approval_raw": approval_raw, "pointer_path": pointer_path,
         "pointer_raw": pointer_raw, "result_md_hit": result_md_hit,
-        "g_paths": tuple(sorted(g_paths)), "a_paths": tuple(sorted(a_paths)),
+        "g_paths": tuple(sorted(g_paths)), "a_paths": (approval_path,),
     }
     bound_mode_paths = [paths[key] for key in
                         ("protocol", "cert", "journal", "manifest", "result",
                          "closure80", "closure20")]
     if result_md_hit:
         bound_mode_paths.append(paths["result_md"])
-    topology["mode_map"] = _fixed_mode_map(root, a_commit, [
+    topology["mode_map"] = _fixed_mode_map(root, x_commit, [
         *bound_mode_paths, gen_path, approval_path, pointer_path,
     ])
     needles = (str(tmp_path).encode(), str(root).encode(), str(out_root).encode())
@@ -1321,11 +1323,13 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
     pointer_path = f"{M.ACTIVE_DIR}/{pointer_sha}.json"
     _write(root, pointer_path, pointer_raw)
     a2 = _commit_exact(
-        root, [approval_path, pointer_path],
-        subject="approve generation two", agent="none",
+        root, [approval_path], subject="approve generation two", agent="none",
+    )
+    x2 = _commit_exact(
+        root, [pointer_path], subject="activate generation two", agent="none",
     )
     return M.load_ratified_freeze(root), {
-        "C2": checkpoint["C2"], "G2": g2_commit, "A2": a2,
+        "C2": checkpoint["C2"], "G2": g2_commit, "A2": a2, "X2": x2,
         "paths": paths, "g2": g2, "g2_sha": g2_sha,
         "retired_g1_paths": retired_g1_paths,
     }
@@ -1442,6 +1446,8 @@ def test_happy_path_resolves_and_loads(tmp_path):
     assert res.generation_sha256 == gen_sha
     assert res.generation_path == gen_rel
     assert res.activation_head == _git(root, "rev-parse", "HEAD")
+    assert topology["A"] != topology["X"]
+    assert M._parents_of(topology["X"], root) == (topology["A"],)
 
     freeze = M.load_ratified_freeze(root)
     assert isinstance(freeze, M.RatifiedFreeze)
@@ -1658,14 +1664,14 @@ def _emitter_observation(tmp_path: Path) -> dict:
         "pointer": _sha(topology["pointer_raw"]),
     }
     blob_oids = {
-        name: _fixed_git(root, "rev-parse", f"{topology['A']}:{topology[path_key]}")
+        name: _fixed_git(root, "rev-parse", f"{topology['X']}:{topology[path_key]}")
         for name, path_key in (
             ("generation", "generation_path"),
             ("approval", "approval_path"),
             ("pointer", "pointer_path"),
         )
     }
-    commits = {name: topology[name] for name in ("base", "C", "G", "A")}
+    commits = {name: topology[name] for name in ("base", "C", "G", "A", "X")}
     trees = {name: _fixed_git(root, "rev-parse", f"{commit}^{{tree}}")
              for name, commit in commits.items()}
     return {
@@ -1717,11 +1723,11 @@ def test_root_bytes_scan_rejects_a_leaked_root() -> None:
 
 
 def test_journal_manifest_may_precede_generation_and_executable_mode_is_accepted(tmp_path):
-    """C→J(journal+manifest)→G→A と 100755 は裁定どおり受理される。"""
+    """C→J(journal+manifest)→G→A→X と 100755 は裁定どおり受理される。"""
     root, freeze, topology = load_emitter_g1(
         tmp_path, journal_manifest_before_g=True, executable_role="manifest",
     )
-    assert topology["C"] != topology["J"] != topology["G"] != topology["A"]
+    assert topology["C"] != topology["J"] != topology["G"] != topology["A"] != topology["X"]
     j_paths = tuple(filter(None, _fixed_git(
         root, "diff-tree", "--no-commit-id", "--name-only", "-r", topology["J"],
     ).splitlines()))
@@ -1935,14 +1941,65 @@ def test_approval_commit_with_extra_file_rejected(tmp_path):
     approval_raw = _approval_raw(gen_sha)
     approval_sha = _sha(approval_raw)
     _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    (root / "extra.txt").write_text("sneaky\n", encoding="utf-8")  # 余分ファイル
+    _commit(root, "approve+extra", "none")
     ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
     ptr_sha = _sha(ptr_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
-    (root / "extra.txt").write_text("sneaky\n", encoding="utf-8")  # 余分ファイル
-    _commit(root, "approve+extra", "none")
+    _commit(root, "point", "none")
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "approval-commit-diff"
+
+
+def test_pointer_commit_with_extra_file_rejected(tmp_path):
+    root = _base_repo(tmp_path)
+    gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
+    approval_raw = _approval_raw(gen_sha)
+    approval_sha = _sha(approval_raw)
+    _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    _commit(root, "approve", "none")
+    ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
+    ptr_sha = _sha(ptr_raw)
+    _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
+    (root / "extra.txt").write_text("sneaky\n", encoding="utf-8")
+    _commit(root, "point+extra", "none")
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.resolve_active_generation(root)
+    assert ei.value.reason == "pointer-commit-diff"
+
+
+def test_pointer_parent_must_be_selected_approval_commit(tmp_path):
+    root = _base_repo(tmp_path)
+    gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
+    approval_raw = _approval_raw(gen_sha)
+    approval_sha = _sha(approval_raw)
+    _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    _commit(root, "approve", "none")
+    (root / "intervening.txt").write_text("intervening\n", encoding="utf-8")
+    _commit(root, "intervening", "none")
+    ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
+    ptr_sha = _sha(ptr_raw)
+    _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
+    _commit(root, "point", "none")
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.resolve_active_generation(root)
+    assert ei.value.reason == "pointer-approval-parent"
+
+
+def test_approval_and_pointer_same_commit_rejected(tmp_path):
+    root = _base_repo(tmp_path)
+    gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
+    approval_raw = _approval_raw(gen_sha)
+    approval_sha = _sha(approval_raw)
+    _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
+    ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
+    ptr_sha = _sha(ptr_raw)
+    _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
+    _commit(root, "approve and point", "none")
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.resolve_active_generation(root)
+    assert ei.value.reason == "approval-pointer-same-commit"
 
 
 def test_generation_and_approval_same_commit_rejected(tmp_path):
@@ -2097,10 +2154,11 @@ def test_second_genesis_rejected(tmp_path):
     approval2_raw = _approval_raw(gen2_sha)
     approval2_sha = _sha(approval2_raw)
     _write(root, f"{M.APPROVAL_DIR}/{gen2_sha}.json", approval2_raw)
+    _commit(root, "approve second genesis", "none")
     ptr2_raw = _pointer_raw(2, gen2_rel, gen2_sha, None, approval2_sha)  # parent null = 第二 genesis
     ptr2_sha = _sha(ptr2_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr2_sha}.json", ptr2_raw)
-    _commit(root, "second genesis", "none")
+    _commit(root, "point second genesis", "none")
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     # 第二 genesis (pointer.generation_number=2 だが parent=null) → number-gap または genesis-count。
@@ -2114,10 +2172,11 @@ def test_generation_number_jump_g999_rejected(tmp_path):
     approval999_raw = _approval_raw(gen999_sha)
     approval999_sha = _sha(approval999_raw)
     _write(root, f"{M.APPROVAL_DIR}/{gen999_sha}.json", approval999_raw)
+    _commit(root, "approve g999", "none")
     ptr999_raw = _pointer_raw(999, gen999_rel, gen999_sha, ptr_sha, approval999_sha)
     ptr999_sha = _sha(ptr999_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr999_sha}.json", ptr999_raw)
-    _commit(root, "g999", "none")
+    _commit(root, "point g999", "none")
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "generation-chain-gap"
@@ -2138,10 +2197,11 @@ def test_pointer_fork_and_cancellation_recovery(tmp_path):
     approval3_raw = _approval_raw(g3_sha)
     approval3_sha = _sha(approval3_raw)
     _write(root, f"{M.APPROVAL_DIR}/{g3_sha}.json", approval3_raw)
+    _commit(root, "approve fork g3", "none")
     ptr3_raw = _pointer_raw(3, g3_rel, g3_sha, ptr1_sha, approval3_sha)  # 同じ parent=ptr1 → fork
     ptr3_sha = _sha(ptr3_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr3_sha}.json", ptr3_raw)
-    _commit(root, "fork g3", "none")
+    _commit(root, "point fork g3", "none")
 
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
