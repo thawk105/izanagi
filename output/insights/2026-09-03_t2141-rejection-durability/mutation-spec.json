@@ -1,0 +1,180 @@
+{
+ "estimated_run_seconds": 1500,
+ "hang_timeout_seconds": 25200,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf@p3-b4-material-report",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_rejection_append_failure_adds_io_error_without_publishing",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_rejection_fsync_failure_rolls_back_to_preappend_length",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_rejection_ledger_symlink_is_rejected_without_touching_target",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_unterminated_tail_is_truncated_before_the_next_single_write",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_validated_rejection_is_appended_as_one_canonical_event"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "    if checked_publication is None:\n        return rejection\n    return rejection\n",
+     "old": "    if checked_publication is None:\n        return rejection\n    return _durably_record_rejection(checked_publication, rejection)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_unterminated_tail_is_truncated_before_the_next_single_write"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        if size > 0 and os.pread(ledger_fd, 1, size - 1) != b\"\\n\":\n            fragment_discarded = True\n",
+     "old": "        if size > 0 and os.pread(ledger_fd, 1, size - 1) != b\"\\n\":\n            os.ftruncate(ledger_fd, _last_complete_line_offset(ledger_fd, size))\n            fragment_discarded = True\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_rejection_append_failure_adds_io_error_without_publishing",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_rejection_fsync_failure_rolls_back_to_preappend_length",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_rejection_ledger_symlink_is_rejected_without_touching_target"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "            issues=rejection.issues + (\n                B4RawRecordIssue(\n                    artifact=path,\n                    field=\"rejection_history\",\n                    code=B4RawRecordIssueCode.EVIDENCE_UNAVAILABLE,\n                    detail=f\"rejection ledger append failed: {type(exc).__name__}: {exc}\",\n                ),\n            ),\n",
+     "old": "            issues=rejection.issues + (\n                B4RawRecordIssue(\n                    artifact=path,\n                    field=\"rejection_history\",\n                    code=B4RawRecordIssueCode.IO_ERROR,\n                    detail=f\"rejection ledger append failed: {type(exc).__name__}: {exc}\",\n                ),\n            ),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_m14_busy_campaign_with_no_terminal_record_is_deferred_without_publish"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        if isinstance(derived, B4RawRecordDeferred):\n            _durably_record_rejection(\n                checked_publication,\n                _rejection(attempt_id, B4RawRecordIssue(\n                    artifact=\"producer\",\n                    field=\"deferred\",\n                    code=B4RawRecordIssueCode.IO_ERROR,\n                    detail=\"deferred\",\n                )),\n            )\n            return derived\n",
+     "old": "        if isinstance(derived, B4RawRecordDeferred):\n            return derived\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[raw-record-rejections.jsonl]",
+    "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_rejection_ledger_conflict[descendant]",
+    "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_rejection_ledger_conflict[exact]",
+    "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_rejection_ledger_exact_path_and_publication_root_are_reserved[exact]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+     "new": "            _RECEIPT_TEMP_NAME,\n        )\n",
+     "old": "            _RECEIPT_TEMP_NAME,\n            B4_RAW_RECORD_REJECTIONS_NAME,\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_unresolved_absent_attempts_exclude_matching_recorded_rejection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "new": "        for planned in publication.planned_result_artifacts\n        if planned.attempt_id in manifest_ids\n        and frame_availability.get(planned.attempt_id) == \"absent\"\n    ]\n    not_selected = [\n",
+     "old": "        for planned in publication.planned_result_artifacts\n        if planned.attempt_id in manifest_ids\n        and frame_availability.get(planned.attempt_id) == \"absent\"\n        and planned.attempt_id not in event_attempt_ids\n    ]\n    not_selected = [\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_unresolved_absence_retains_current_reason_non_guarantee"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "new": "    values = [\n        _REJECTION_LEDGER_TRUNCATION_NON_GUARANTEE,\n",
+     "old": "    values = [\n        _CURRENT_ABSENT_REASON_NON_GUARANTEE,\n        _REJECTION_LEDGER_TRUNCATION_NON_GUARANTEE,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf@p3-b4-material-report",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_invalid_rejection_history_does_not_replace_assembly_rejection",
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_positive_201_block_certified_preserves_decimal_and_all_pair_protocol_bindings"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        rejection_history = load_b4_raw_record_rejection_history(checked)\n        if rejection_history.status == \"invalid\":\n            _issue(\n                \"publication\",\n                \"rejection_history\",\n                B4RawRecordIssueCode.EVIDENCE_SCHEMA,\n                \"rejection history is not readable\",\n            )\n",
+     "old": "        rejection_history = load_b4_raw_record_rejection_history(checked)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_unterminated_tail_is_truncated_before_the_next_single_write"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n09",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        lines = [rejection_line]\n        if False:\n            lines.insert(0, canonical_json_bytes(_rejection_event_payload(\n                publication,\n                _fragment_discarded_rejection(path),\n            )) + b\"\\n\")\n",
+     "old": "        lines = [rejection_line]\n        if fragment_discarded:\n            lines.insert(0, canonical_json_bytes(_rejection_event_payload(\n                publication,\n                _fragment_discarded_rejection(path),\n            )) + b\"\\n\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_rejection_fsync_failure_rolls_back_to_preappend_length"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2141.n10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "            try:\n                os.fsync(ledger_fd)\n            except Exception as rollback_exc:\n",
+     "old": "            try:\n                os.ftruncate(ledger_fd, append_offset)\n                os.fsync(ledger_fd)\n            except Exception as rollback_exc:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 21600
+}
