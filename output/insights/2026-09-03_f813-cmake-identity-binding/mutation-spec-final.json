@@ -1,0 +1,209 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120.0,
+ "timeout_seconds": 5400.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "N1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        \"requested_compiler_identities\", \"control_compiler_identities\",\n        \"cmake_path\", \"requested_configure_argv\", \"control_configure_argv\",\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    cmake_path = evidence[\"cmake_path\"]\n    if type(cmake_path) is not str or not cmake_path:\n        _invalid_record(\"green supply evidence has an empty CMake path\")\n    _validate_record_configure_argv(\n        evidence[\"requested_configure_argv\"],\n        \"requested_configure_argv\",\n        cmake_path=cmake_path,\n    )\n    _validate_record_configure_argv(\n        evidence[\"control_configure_argv\"],\n        \"control_configure_argv\",\n        cmake_path=cmake_path,\n    )\n    requested_cmake = _validate_record_cmake_identities(\n        evidence[\"requested_cmake_identities\"], \"requested_cmake_identities\",\n    )\n    control_cmake = _validate_record_cmake_identities(\n        evidence[\"control_cmake_identities\"], \"control_cmake_identities\",\n    )\n    cmake_identity = (requested_cmake[0].identity, requested_cmake[0].sha256)\n    if (control_cmake[0].identity, control_cmake[0].sha256) != cmake_identity:\n        _invalid_record(\"green supply arms used different CMake identities\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_configure_argv_for_different_cmake_path",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_missing_cmake_evidence",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_real_compile_time_green_admits_certified_selection",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_supply_green_binds_real_cmake_identity_and_gate_configure_argv",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (control_cmake[0].identity, control_cmake[0].sha256) != cmake_identity:\n        _invalid_record(\"green supply arms used different CMake identities\")\n",
+     "new": "    if False:\n        _invalid_record(\"green supply arms used different CMake identities\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (value[0].identity, value[0].sha256) \\\n            != (value[1].identity, value[1].sha256):\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n",
+     "new": "    if False:\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if argv[0] != cmake_path:\n        _invalid_record(f\"{field_name} is not bound to cmake_path\")\n",
+     "new": "    if False:\n        _invalid_record(f\"{field_name} is not bound to cmake_path\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_configure_argv_for_different_cmake_path"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        if (default_cmake[0].identity, default_cmake[0].sha256) != cmake_identity:\n            _invalid_record(\n                \"green compile-time requested/default used different CMake identities\",\n            )\n",
+     "new": "        if False:\n            _invalid_record(\n                \"green compile-time requested/default used different CMake identities\",\n            )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_rejects_different_requested_default_cmake_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/certify_calibration.sh",
+     "old": "if [[ ! -s \"$ATTEMPT_DIR/binary.symbols\" ]]; then\n  write_failure 2 trace_separation \"calibration binary symbol table is empty\"\n  exit 2\nfi\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/certify_calibration.sh",
+     "old": "if grep -qi 'izanagi_trace' \"$ATTEMPT_DIR/binary.symbols\"; then\n  write_failure 2 trace_separation \"trace symbol detected in calibration binary\"\n  exit 2\nfi\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/certify_calibration.sh",
+     "old": "build_argv=(\"$CMAKE_PATH\" --build \"$BUILD_DIR\" --target ycsb_silo.exe -j 48)\n",
+     "new": "build_argv=(cmake --build \"$BUILD_DIR\" --target ycsb_silo.exe -j 48)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    _require_same_cmake(before, after)\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (value[0].identity, value[0].sha256) \\\n            != (value[1].identity, value[1].sha256):\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n",
+     "new": "    if False:\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_configure_compile_commands_rejects_real_cmake_replacement_before_return",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "N10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "            _require_same_cmake(\n                requested_configure.cmake_identities[0],\n                control_configure.cmake_identities[0],\n            )\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        _require_same_cmake(\n            command.cmake_identities[0], command.cmake_identities[1],\n        )\n    _require_same_cmake(\n        configured.requested.cmake_identities[0],\n        configured.control.cmake_identities[0],\n    )\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (control_cmake[0].identity, control_cmake[0].sha256) != cmake_identity:\n        _invalid_record(\"green supply arms used different CMake identities\")\n",
+     "new": "    if False:\n        _invalid_record(\"green supply arms used different CMake identities\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
