@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shlex
 import shutil
 import struct
 import subprocess
@@ -114,6 +115,28 @@ def _public_arm_record(
         request_digest=request_digest,
         evidence=evidence,
     )
+
+
+def _assert_current_cmake_evidence(
+    evidence: dict[str, object],
+    labels: tuple[str, str],
+) -> None:
+    cmake_path = evidence["cmake_path"]
+    assert type(cmake_path) is str
+    cmake_file = Path(cmake_path)
+    current_sha256 = hashlib.sha256(cmake_file.read_bytes()).hexdigest()
+    current_identity = G._file_identity(os.stat(cmake_file, follow_symlinks=False))
+    for label in labels:
+        configure_argv = evidence[f"{label}_configure_argv"]
+        identities = evidence[f"{label}_cmake_identities"]
+        assert type(configure_argv) is tuple
+        assert configure_argv and configure_argv[0] == cmake_path
+        assert type(identities) is tuple
+        assert tuple(row.phase for row in identities) == (
+            "before-configure", "after-configure",
+        )
+        assert all(row.sha256 == current_sha256 for row in identities)
+        assert all(row.identity == current_identity for row in identities)
 
 
 def _copied_fixture(tmp_path: Path) -> Path:
@@ -438,6 +461,102 @@ def test_supply_effectuation_does_not_pin_volatile_fixture_hash(tmp_path: Path):
     )
 
 
+def test_supply_green_binds_real_cmake_identity_and_gate_configure_argv():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    G._validate_arm_record_integrity(supply)
+    _assert_current_cmake_evidence(
+        dict(supply.evidence), ("requested", "control"),
+    )
+
+
+def test_real_cmake_wrapper_replacement_during_configure_is_rejected(
+    tmp_path: Path,
+):
+    real_cmake = Path(_any_cmake()).resolve(strict=True)
+    wrapper = tmp_path / "cmake-wrapper"
+    stable = tmp_path / "cmake-wrapper.stable"
+    stable.write_text(
+        "#!/bin/sh\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    stable.chmod(0o755)
+    original = (
+        "#!/bin/sh\n"
+        "cp \"$0.stable\" \"$0.next\"\n"
+        "chmod 755 \"$0.next\"\n"
+        "mv \"$0.next\" \"$0\"\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n"
+    )
+    wrapper.write_text(original, encoding="utf-8")
+    wrapper.chmod(0o755)
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(_SUPPLIED),
+        request=_request(5),
+        cxx=_any_cxx(),
+        cmake=os.fspath(wrapper),
+    )
+
+    assert wrapper.read_text(encoding="utf-8") == stable.read_text(encoding="utf-8")
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "cmake-identity-drift",
+    )
+
+
+def test_configure_compile_commands_rejects_real_cmake_replacement_before_return(
+    tmp_path: Path,
+):
+    real_cmake = Path(_any_cmake()).resolve(strict=True)
+    wrapper = tmp_path / "cmake-wrapper"
+    stable = tmp_path / "cmake-wrapper.stable"
+    stable.write_text(
+        "#!/bin/sh\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    stable.chmod(0o755)
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        "cp \"$0.stable\" \"$0.next\"\n"
+        "chmod 755 \"$0.next\"\n"
+        "mv \"$0.next\" \"$0\"\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    _spec, requested, _default, companions = G._validate_define_request(request)
+    resolved_wrapper = G._resolve_executable(
+        os.fspath(wrapper), "configure-failed",
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._configure_compile_commands(
+            captured=captured,
+            request=request,
+            source_root=Path(captured.source_root),
+            build_root=tmp_path / "build",
+            value=requested,
+            companions=companions,
+            compiler=G._resolve_compiler(_any_cxx()),
+            cmake=resolved_wrapper,
+        )
+
+    assert wrapper.read_text(encoding="utf-8") == stable.read_text(encoding="utf-8")
+    assert raised.value.reason_code == "cmake-identity-drift"
+    assert raised.value.detail == "CMake path identity/content changed by after-configure"
+
+
 def test_ignored_define_has_identical_preprocessed_bytes_and_is_red():
     captured = G.capture_define_inputs(_IGNORED)
     request = _request(5)
@@ -603,6 +722,65 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
         assert ("cc/silo/transaction.cc", fixture_directives[0]) \
             == patch_declaration
         assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == patch_declaration
+
+
+def test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    G._validate_arm_record_integrity(meaning)
+    _assert_current_cmake_evidence(
+        dict(meaning.evidence), ("requested", "default"),
+    )
+
+
+def test_real_compile_time_green_admits_certified_selection(tmp_path: Path):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _copied_fixture(tmp_path)
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(macro)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured,
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    G._validate_arm_record_integrity(supply)
+    G._validate_arm_record_integrity(meaning)
+    _assert_current_cmake_evidence(
+        dict(supply.evidence), ("requested", "control"),
+    )
+    _assert_current_cmake_evidence(
+        dict(meaning.evidence), ("requested", "default"),
+    )
+    assert admission.admitted is True
 
 
 @pytest.mark.parametrize("macro", _COMPILE_TIME_BRANCH_MACROS)
@@ -1002,6 +1180,88 @@ def test_compile_time_green_schema_rejects_missing_or_mutated_observations(
         assert raised.value.reason_code == "admission-contract-invalid"
 
 
+def test_compile_time_green_rejects_different_requested_default_cmake_identity(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION_SWAP"
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+
+    evidence = dict(meaning.evidence)
+    default_identities = evidence["default_cmake_identities"]
+    assert type(default_identities) is tuple
+    evidence["default_cmake_identities"] = tuple(
+        replace(
+            row,
+            identity=replace(row.identity, inode=row.identity.inode + 1),
+            sha256="0" * 64,
+        )
+        for row in default_identities
+    )
+    forged = _public_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code=meaning.reason_code,
+        request=request,
+        request_digest=meaning.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "different CMake identities" in raised.value.detail
+
+
+def test_nonconfiguring_meaning_proofs_reject_unexpected_cmake_evidence():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    pointwise_request = _request(5)
+    branch_request = _request(-1, default=-1)
+    pointwise = G.evaluate_define_runtime_meaning(
+        captured,
+        request=pointwise_request,
+        declaration=_declaration(_case(5)),
+        cxx=_any_cxx(),
+    )
+    branch = G.evaluate_define_runtime_meaning(
+        captured,
+        request=branch_request,
+        declaration=_declaration(_stock_branch_case()),
+        cxx=_any_cxx(),
+    )
+    assert {
+        pointwise.evidence["proof_kind"], branch.evidence["proof_kind"],
+    } == {G.MEANING_PROOF_KIND, G.BRANCH_MEANING_PROOF_KIND}
+    cmake_path = os.fspath(Path(_any_cmake()).resolve(strict=True))
+
+    for record, request in (
+        (pointwise, pointwise_request), (branch, branch_request),
+    ):
+        assert record.terminal_status == "green"
+        evidence = dict(record.evidence)
+        evidence["cmake_path"] = cmake_path
+        forged = _public_arm_record(
+            arm="runtime-meaning",
+            terminal_status="green",
+            reason_code=record.reason_code,
+            request=request,
+            request_digest=record.request_digest,
+            evidence=evidence,
+        )
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G._validate_arm_record_integrity(forged, require_issuer=False)
+        assert raised.value.reason_code == "admission-contract-invalid"
+        assert "unexpected=['cmake_path']" in raised.value.detail
+
+
 def test_backoff_fixed_minus_one_requires_stock_preprocess_identity(tmp_path: Path):
     root = tmp_path / "supplied"
     shutil.copytree(_SUPPLIED, root)
@@ -1222,6 +1482,136 @@ def test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields():
             )
         assert raised.value.reason_code == "admission-contract-invalid"
         assert "production evaluator" not in raised.value.detail
+
+
+def test_green_supply_rejects_missing_cmake_evidence():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    del evidence["cmake_path"]
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "missing=['cmake_path']" in raised.value.detail
+
+
+def test_green_supply_rejects_configure_argv_for_different_cmake_path():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    requested_argv = evidence["requested_configure_argv"]
+    assert type(requested_argv) is tuple
+    evidence["requested_configure_argv"] = (
+        f"{evidence['cmake_path']}.different", *requested_argv[1:],
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "not bound to cmake_path" in raised.value.detail
+
+
+def test_green_supply_rejects_different_arm_cmake_identity():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    control_identities = evidence["control_cmake_identities"]
+    assert type(control_identities) is tuple
+    evidence["control_cmake_identities"] = tuple(
+        replace(
+            row,
+            identity=replace(row.identity, inode=row.identity.inode + 1),
+            sha256="0" * 64,
+        )
+        for row in control_identities
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "different CMake identities" in raised.value.detail
+
+
+def test_green_supply_rejects_cmake_identity_drift_within_arm():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    requested_identities = evidence["requested_cmake_identities"]
+    control_identities = evidence["control_cmake_identities"]
+    assert type(requested_identities) is tuple
+    assert type(control_identities) is tuple
+    before, after = control_identities
+    assert (requested_identities[0].identity, requested_identities[0].sha256) \
+        == (before.identity, before.sha256)
+    drift_sha256 = (
+        ("0" if after.sha256[0] != "0" else "1") + after.sha256[1:]
+    )
+    evidence["control_cmake_identities"] = (
+        before,
+        replace(
+            after,
+            identity=replace(after.identity, inode=after.identity.inode + 1),
+            sha256=drift_sha256,
+        ),
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "CMake identity drift" in raised.value.detail
 
 
 def test_unknown_terminal_status_is_rejected_before_raw_admission():

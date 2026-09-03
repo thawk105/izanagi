@@ -510,12 +510,28 @@ def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():
     }
     for name, value in cmake_paths.items():
         assert f'{name}="{value}"' in source
+    expected_cmake_arrays = {
+        "gflags_configure_argv",
+        "gflags_build_argv",
+        "gflags_install_argv",
+        "glog_configure_argv",
+        "glog_build_argv",
+        "glog_install_argv",
+        "configure_argv",
+        "build_argv",
+    }
+    cmake_path_arrays = re.findall(
+        r'(?m)^([a-z_]+_argv)=\("\$CMAKE_PATH"(?=[ \n])', source,
+    )
+    assert len(cmake_path_arrays) == 8
+    assert set(cmake_path_arrays) == expected_cmake_arrays
+    assert not re.findall(
+        r"(?m)^([a-z_]+_argv)=\(cmake(?=[ \n])", source,
+    )
+    assert 'for argument in "${configure_argv[@]:5}"; do' in source
     for required in (
-        'cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"',
         '"-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"',
-        'cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"',
         '"-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"',
-        'cmake -S "$BUILD_SOURCE" -B "$BUILD_DIR"',
         '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"',
     ):
         assert required in source
@@ -1112,6 +1128,170 @@ def _glog_stage_fragment() -> str:
     start = source.index("# (iv-b) pinned-clean glog")
     end = source.index("# (iv-c) pinned-clean CCBench", start)
     return source[start:end]
+
+
+def _certify_toolchain_fragment() -> str:
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index("CC_PATH=$(command -v gcc)")
+    end = source.index("\n\nrun_condition_gate()", start)
+    return source[start:end]
+
+
+def _certify_trace_symbol_fragment() -> str:
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index('timeout 60 "$NM_PATH" -C "$BINARY"')
+    end = source.index("\n\n# (v) synchronous build return", start)
+    return source[start:end]
+
+
+def _compile_symbol_probe(tmp_path: Path, *, trace: bool) -> Path:
+    compiler = Path("/usr/bin/gcc").resolve(strict=True)
+    assert compiler.is_file() and os.access(compiler, os.X_OK)
+    source_path = tmp_path / ("trace.c" if trace else "trace-free.c")
+    binary = tmp_path / ("trace.exe" if trace else "trace-free.exe")
+    if trace:
+        source_text = """void izanagi_trace_probe(void) {}
+int main(void) { izanagi_trace_probe(); return 0; }
+"""
+    else:
+        source_text = """int ordinary_probe(void) { return 0; }
+int main(void) { return ordinary_probe(); }
+"""
+    source_path.write_text(source_text, encoding="utf-8")
+    subprocess.run(
+        [str(compiler), "-O0", str(source_path), "-o", str(binary)],
+        check=True, capture_output=True, text=True,
+    )
+    assert binary.is_file() and os.access(binary, os.X_OK)
+    return binary
+
+
+def _real_nm_symbols(binary: Path) -> str:
+    nm_path = Path("/usr/bin/nm").resolve(strict=True)
+    assert nm_path.is_file() and os.access(nm_path, os.X_OK)
+    result = subprocess.run(
+        [str(nm_path), "-C", str(binary)],
+        check=True, capture_output=True, text=True,
+    )
+    return result.stdout
+
+
+def _run_certify_trace_symbol_fragment(
+        attempt: Path, binary: Path) -> subprocess.CompletedProcess[str]:
+    nm_path = Path("/usr/bin/nm").resolve(strict=True)
+    prefix = f"""ATTEMPT_DIR={json.dumps(str(attempt))}
+NM_PATH={json.dumps(str(nm_path))}
+BINARY={json.dumps(str(binary))}
+"""
+    return subprocess.run(
+        [
+            "bash", "-c",
+            _shell_failure_harness(prefix + _certify_trace_symbol_fragment()),
+        ],
+        capture_output=True, text=True,
+    )
+
+
+def test_certify_records_real_cmake_and_fixed_nm_identity(tmp_path):
+    fragment = _certify_toolchain_fragment()
+    assert 'CMAKE_PATH=$(realpath "$(command -v cmake)")' in fragment
+    assert "if ! NM_PATH=$(realpath /usr/bin/nm); then" in fragment
+    assert '[[ ! -f "$NM_PATH" || ! -x "$NM_PATH" ]]' in fragment
+    assert 'realpath "$NM_PATH" >"$ATTEMPT_DIR/nm.path"' in fragment
+    assert '"$NM_PATH" --version >"$ATTEMPT_DIR/nm.version"' in fragment
+    assert "command -v nm" not in fragment
+
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    wrapper_dir = tmp_path / "wrapper-bin"
+    wrapper_dir.mkdir()
+    wrapper_marker = tmp_path / "path-nm-ran"
+    nm_wrapper = wrapper_dir / "nm"
+    nm_wrapper.write_text(
+        "#!/bin/sh\n" + f": > {shlex.quote(str(wrapper_marker))}\nexit 97\n",
+        encoding="utf-8",
+    )
+    nm_wrapper.chmod(0o755)
+    prefix = f"""ATTEMPT_DIR={json.dumps(str(attempt))}
+"""
+    command = (
+        prefix + fragment
+        + '\nprintf "%s\\n" "$CMAKE_PATH" >"$ATTEMPT_DIR/cmake.path.observed"\n'
+    )
+    env = os.environ.copy()
+    env["PATH"] = str(wrapper_dir) + os.pathsep + env.get("PATH", "")
+    result = subprocess.run(
+        ["bash", "-c", _shell_failure_harness(command)],
+        capture_output=True, text=True, env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not wrapper_marker.exists()
+    cmake_path = Path(
+        (attempt / "cmake.path.observed").read_text(encoding="utf-8").strip()
+    )
+    expected_cmake = shutil.which("cmake", path=env["PATH"])
+    assert expected_cmake is not None
+    assert cmake_path == Path(expected_cmake).resolve(strict=True)
+    assert cmake_path.is_absolute()
+    nm_path = Path((attempt / "nm.path").read_text(encoding="utf-8").strip())
+    assert nm_path == Path("/usr/bin/nm").resolve(strict=True)
+    assert (attempt / "nm.version").read_text(encoding="utf-8").strip()
+
+
+def test_certify_trace_symbol_stage_accepts_real_unstripped_trace_free_binary(
+        tmp_path):
+    binary = _compile_symbol_probe(tmp_path, trace=False)
+    symbols = _real_nm_symbols(binary)
+    assert symbols
+    assert "izanagi_trace" not in symbols.lower()
+    attempt = tmp_path / "positive-attempt"
+    attempt.mkdir()
+
+    result = _run_certify_trace_symbol_fragment(attempt, binary)
+
+    assert result.returncode == 0, result.stderr
+    assert (attempt / "binary.symbols").read_text(encoding="utf-8") == symbols
+    assert not (attempt / "failure.json").exists()
+
+
+def test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary(
+        tmp_path):
+    binary = _compile_symbol_probe(tmp_path, trace=True)
+    symbols = _real_nm_symbols(binary)
+    assert symbols
+    assert "izanagi_trace" in symbols.lower()
+    attempt = tmp_path / "trace-attempt"
+    attempt.mkdir()
+
+    result = _run_certify_trace_symbol_fragment(attempt, binary)
+
+    assert result.returncode == 2, result.stderr
+    failure = json.loads((attempt / "failure.json").read_text(encoding="utf-8"))
+    assert failure["stage"] == "trace_separation"
+    assert (attempt / "binary.symbols").read_text(encoding="utf-8") == symbols
+
+
+def test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary(tmp_path):
+    binary = _compile_symbol_probe(tmp_path, trace=True)
+    before_strip = _real_nm_symbols(binary)
+    assert before_strip
+    assert "izanagi_trace" in before_strip.lower()
+    strip_path = Path("/usr/bin/strip").resolve(strict=True)
+    assert strip_path.is_file() and os.access(strip_path, os.X_OK)
+    subprocess.run(
+        [str(strip_path), "--strip-all", str(binary)],
+        check=True, capture_output=True, text=True,
+    )
+    assert _real_nm_symbols(binary) == ""
+    attempt = tmp_path / "stripped-attempt"
+    attempt.mkdir()
+
+    result = _run_certify_trace_symbol_fragment(attempt, binary)
+
+    assert result.returncode == 2, result.stderr
+    failure = json.loads((attempt / "failure.json").read_text(encoding="utf-8"))
+    assert failure["stage"] == "trace_separation"
+    assert (attempt / "binary.symbols").read_text(encoding="utf-8") == ""
 
 
 def test_gflags_missing_source_writes_gflags_failure(tmp_path):

@@ -3656,6 +3656,474 @@ def test_m_nc07_anomaly_is_independently_rejected_by_sidecar_consumer(
         paired.consume_non_certifying_observation(sidecar)
 
 
+def _v3_accounting_fixture() -> dict:
+    return {
+        "method": "bash-times-delta-reaped-descendants/v1",
+        "started_epoch_s": 100.0,
+        "ended_epoch_s": 111.0,
+        "started_monotonic_s": 20.0,
+        "ended_monotonic_s": 31.0,
+        "elapsed_s": 11.0,
+        "shell_user_s": 1.0,
+        "shell_system_s": 2.0,
+        "reaped_descendants_user_s": 3.0,
+        "reaped_descendants_system_s": 4.0,
+        "cpu_total_s": 10.0,
+        "times_baseline_raw": "0m1.000s 0m2.000s\n0m3.000s 0m4.000s",
+        "times_final_raw": "0m2.000s 0m4.000s\n0m6.000s 0m8.000s",
+        "unreaped_descendants": [],
+    }
+
+
+def _v3_job_executions_fixture(attempt: Path | None = None) -> list[dict]:
+    attempt_name = attempt.name if attempt is not None else "attempt"
+    return [
+        {
+            "workload": workload,
+            "ordinal": ordinal,
+            "request_id": f"{123 + ordinal}.server",
+            "reservation_binding": {
+                **_reservation_binding(),
+                "job_id": f"{123 + ordinal}.server",
+                "nonce": f"{attempt_name}.{workload}",
+            },
+            "accounting": _v3_accounting_fixture(),
+        }
+        for ordinal, workload in enumerate(paired.WORKLOAD_ORDER)
+    ]
+
+
+def test_mf1_request_ids_are_unique_only_after_nqsv_normalization_M1_M2() -> None:
+    accepted = _v3_job_executions_fixture()
+    assert paired._validate_v3_job_executions(accepted) == accepted
+
+    aliased = copy.deepcopy(accepted)
+    aliased[1]["request_id"] = "0:123.server"
+    aliased[1]["reservation_binding"]["job_id"] = "0:123.server"
+    with pytest.raises(paired.PaperStoryError, match="normalized request IDs"):
+        paired._validate_v3_job_executions(aliased)
+
+
+def test_mf3_accounting_recomputes_baseline_delta_and_rejects_unreaped_M5_M6() -> None:
+    accounting = _v3_accounting_fixture()
+    assert paired._validate_v3_accounting(accounting) == accounting
+
+    absolute = copy.deepcopy(accounting)
+    absolute["shell_user_s"] = 2.0
+    absolute["cpu_total_s"] = 11.0
+    with pytest.raises(paired.PaperStoryError, match="baseline times delta"):
+        paired._validate_v3_accounting(absolute)
+
+    unreaped = copy.deepcopy(accounting)
+    unreaped["unreaped_descendants"] = [4321]
+    with pytest.raises(paired.PaperStoryError, match="unreaped descendants"):
+        paired._validate_v3_accounting(unreaped)
+
+
+def test_v3_job_execution_ordinal_swap_is_rejected_M7() -> None:
+    executions = _v3_job_executions_fixture()
+    executions[0], executions[1] = executions[1], executions[0]
+    with pytest.raises(paired.PaperStoryError, match="workload ordinal"):
+        paired._validate_v3_job_executions(executions)
+
+
+def test_v3_fan_in_result_replaces_single_reservation_and_readme_lists_accounting(
+) -> None:
+    policy = _v3_pilot_policy()
+    workloads = [
+        {
+            "workload": workload,
+            "campaign_id": f"campaign-{ordinal}",
+            "campaign_binding": {"wal_path": f"/wal/{workload}"},
+            "valid": True,
+            "statistics": {
+                "n": 20,
+                "mean_signed_positional_difference_tps": 1.0,
+                "descriptive_interval_tps": None,
+                "floor_boundary_tps": 2.0,
+                "classification": "pilot-sizing-input-only",
+                "variance_plan_breach": False,
+            },
+            "errors": [],
+            "terminal_result": {
+                "status": "valid",
+                "classification": "pilot-sizing-input-only",
+            },
+        }
+        for ordinal, workload in enumerate(paired.WORKLOAD_ORDER)
+    ]
+    executions = _v3_job_executions_fixture()
+    result = paired.assemble_result(
+        policy,
+        policy_sha256="a" * 64,
+        source_binding=_source_binding(),
+        job_executions=executions,
+        workloads=workloads,
+    )
+    assert "reservation_binding" not in result
+    assert result["job_executions"] == executions
+    readme = paired._readme(result)
+    assert "## Job accounting" in readme
+    for ordinal, workload in enumerate(paired.WORKLOAD_ORDER):
+        assert f"| {workload} | {123 + ordinal}.server |" in readme
+
+
+def test_v3_fan_in_rejects_a_single_group_reservation() -> None:
+    policy = _v3_pilot_policy()
+    workloads = [
+        {
+            "workload": workload,
+            "campaign_id": f"campaign-{ordinal}",
+            "campaign_binding": {"wal_path": f"/wal/{workload}"},
+            "valid": True,
+            "statistics": {"classification": "pilot-sizing-input-only"},
+            "errors": [],
+            "terminal_result": {
+                "status": "valid",
+                "classification": "pilot-sizing-input-only",
+            },
+        }
+        for ordinal, workload in enumerate(paired.WORKLOAD_ORDER)
+    ]
+    with pytest.raises(paired.PaperStoryError, match="must not claim one"):
+        paired.assemble_result(
+            policy,
+            policy_sha256="a" * 64,
+            source_binding=_source_binding(),
+            reservation_binding=_reservation_binding(),
+            job_executions=_v3_job_executions_fixture(),
+            workloads=workloads,
+        )
+
+
+def test_v3_materializer_revalidates_group_sidecar_and_workload_wals() -> None:
+    tree = ast.parse(
+        Path(paired.__file__).read_text(encoding="utf-8")
+    )
+    materializer = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_run_materialize_v3"
+    )
+    called = {
+        node.func.id
+        for node in ast.walk(materializer)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "validate_raw_documents" in called
+    assert "_validate_v3_group_completion" in called
+    assert "consume_non_certifying_observation" in called
+    assert "_revalidate_raw_wals" in called
+
+
+def _barrier_ready_fixture(
+    *, attempt: Path, workload: str, submission: dict, campaign_id: str,
+) -> dict:
+    ordinal = paired.WORKLOAD_ORDER.index(workload)
+    return {
+        "schema_version": paired.V3_READY_SCHEMA,
+        "study_id": paired.V3_PILOT_STUDY_ID,
+        "source_commit": "a" * 40,
+        "attempt_root": os.fspath(attempt),
+        "workload": workload,
+        "ordinal": ordinal,
+        "request_id": submission["jobs"][ordinal]["request_id"],
+        "reservation_nonce": f"{attempt.name}.{workload}",
+        "campaign_id": campaign_id,
+        "prepared_arms": [
+            {
+                "variant": f"variant-{arm}",
+                "build_attempt_id": f"attempt-{arm}",
+                "build_admission_receipt_sha256": str(arm + 1) * 64,
+                "verify_tags": list(paired.EXPECTED_VERIFY_CONFIGS),
+            }
+            for arm in range(2)
+        ],
+        "recorded_epoch": 1,
+    }
+
+
+def test_mf2_ready_exact_triple_precedes_bench_go_and_start_M3(tmp_path: Path) -> None:
+    attempt = tmp_path / "attempt"
+    (attempt / "barrier" / "ready").mkdir(parents=True)
+    (attempt / "barrier" / "bench-start").mkdir()
+    (attempt / "jobs").mkdir()
+    for workload in paired.WORKLOAD_ORDER:
+        (attempt / "jobs" / workload).mkdir()
+    submission = {
+        "jobs": [
+            {"request_id": f"{123 + ordinal}.server"}
+            for ordinal, _ in enumerate(paired.WORKLOAD_ORDER)
+        ],
+    }
+    campaign_ids = [f"campaign-{ordinal}" for ordinal in range(3)]
+    for workload in paired.WORKLOAD_ORDER[1:]:
+        ready = _barrier_ready_fixture(
+            attempt=attempt, workload=workload, submission=submission,
+            campaign_id=campaign_ids[paired.WORKLOAD_ORDER.index(workload)],
+        )
+        paired._exclusive_write(
+            Path(paired._v3_job_roots(attempt, workload)["ready"]), ready,
+        )
+    prepared = [
+        SimpleNamespace(
+            result=SimpleNamespace(variant=f"variant-{arm}"),
+            build_attempt_id=f"attempt-{arm}",
+            build_admission_receipt_sha256=str(arm + 1) * 64,
+            verify_tags=list(paired.EXPECTED_VERIFY_CONFIGS),
+        )
+        for arm in range(2)
+    ]
+    reservation = {
+        **_reservation_binding(),
+        "job_id": "123.server",
+        "nonce": f"{attempt.name}.write-heavy",
+    }
+    paired._v3_barrier_before_bench(
+        prepared_arms=prepared, workload="write-heavy",
+        campaign_id=campaign_ids[0], policy=_v3_pilot_policy(),
+        source_commit="a" * 40, attempt=attempt, submission=submission,
+        reservation=reservation, timeout_s=0.1,
+    )
+    assert (attempt / "barrier" / "bench-go.json").is_file()
+    assert (attempt / "barrier" / "bench-start" / "write-heavy.json").is_file()
+
+
+def test_mf2_one_ready_cannot_publish_bench_go_M3(tmp_path: Path) -> None:
+    attempt = tmp_path / "attempt"
+    (attempt / "barrier" / "ready").mkdir(parents=True)
+    (attempt / "barrier" / "bench-start").mkdir()
+    (attempt / "jobs").mkdir()
+    for workload in paired.WORKLOAD_ORDER:
+        (attempt / "jobs" / workload).mkdir()
+    submission = {"jobs": [
+        {"request_id": f"{123 + ordinal}.server"} for ordinal in range(3)
+    ]}
+    prepared = [
+        SimpleNamespace(
+            result=SimpleNamespace(variant=f"variant-{arm}"),
+            build_attempt_id=f"attempt-{arm}",
+            build_admission_receipt_sha256=str(arm + 1) * 64,
+            verify_tags=list(paired.EXPECTED_VERIFY_CONFIGS),
+        )
+        for arm in range(2)
+    ]
+    with pytest.raises(paired.PaperStoryError, match="ready triple"):
+        paired._v3_barrier_before_bench(
+            prepared_arms=prepared, workload="write-heavy",
+            campaign_id="campaign-0", policy=_v3_pilot_policy(),
+            source_commit="a" * 40, attempt=attempt, submission=submission,
+            reservation={
+                **_reservation_binding(), "job_id": "123.server",
+                "nonce": f"{attempt.name}.write-heavy",
+            },
+            timeout_s=0.0,
+        )
+    assert not (attempt / "barrier" / "bench-go.json").exists()
+
+
+def test_mf2_prior_same_study_bench_start_blocks_new_attempt_M4(
+    tmp_path: Path,
+) -> None:
+    base = tmp_path / "measurement"
+    prior = base / "prior"
+    bench_root = prior / "barrier" / "bench-start"
+    bench_root.mkdir(parents=True)
+    paired._exclusive_write(bench_root / "write-heavy.json", {
+        "schema_version": paired.V3_BENCH_START_SCHEMA,
+        "study_id": paired.V3_PILOT_STUDY_ID,
+        "source_commit": "a" * 40,
+        "attempt_root": os.fspath(prior),
+        "workload": "write-heavy",
+        "ordinal": 0,
+        "request_id": "123.server",
+        "bench_go_sha256": "1" * 64,
+        "ready_sha256": "2" * 64,
+        "recorded_epoch": 1,
+    })
+    with pytest.raises(paired.PaperStoryError, match="group rerun is prohibited"):
+        paired._assert_no_prior_v3_bench_start(
+            base, study_id=paired.V3_PILOT_STUDY_ID,
+            current_attempt=base / "new-attempt",
+        )
+
+
+def test_f1_prior_bench_barrier_blocks_with_empty_or_missing_start_M8(
+    tmp_path: Path,
+) -> None:
+    for reach_evidence in ("bench-go", "ready-triple"):
+        base = tmp_path / reach_evidence / "measurement"
+        prior = base / "prior"
+        barrier = prior / "barrier"
+        ready_root = barrier / "ready"
+        ready_root.mkdir(parents=True)
+        if reach_evidence == "bench-go":
+            (barrier / "bench-start").mkdir()
+            paired._exclusive_write(barrier / "bench-go.json", {
+                "schema_version": paired.V3_BENCH_GO_SCHEMA,
+                "study_id": paired.V3_PILOT_STUDY_ID,
+                "source_commit": "a" * 40,
+                "attempt_root": os.fspath(prior),
+                "ready": [
+                    {
+                        "workload": workload,
+                        "ordinal": ordinal,
+                        "campaign_id": f"campaign-{workload}",
+                        "path": os.fspath(ready_root / f"{workload}.json"),
+                        "sha256": str(ordinal + 1) * 64,
+                    }
+                    for ordinal, workload in enumerate(paired.WORKLOAD_ORDER)
+                ],
+            })
+        else:
+            for ordinal, workload in enumerate(paired.WORKLOAD_ORDER):
+                paired._exclusive_write(ready_root / f"{workload}.json", {
+                    "schema_version": paired.V3_READY_SCHEMA,
+                    "study_id": paired.V3_PILOT_STUDY_ID,
+                    "source_commit": "a" * 40,
+                    "attempt_root": os.fspath(prior),
+                    "workload": workload,
+                    "ordinal": ordinal,
+                    "request_id": f"{100 + ordinal}.server",
+                    "reservation_nonce": f"{prior.name}.{workload}",
+                    "campaign_id": f"campaign-{workload}",
+                    "prepared_arms": [
+                        {
+                            "variant": f"variant-{arm}",
+                            "build_attempt_id": f"attempt-{arm}",
+                            "build_admission_receipt_sha256": str(index + 1) * 64,
+                            "verify_tags": list(paired.EXPECTED_VERIFY_CONFIGS),
+                        }
+                        for index, arm in enumerate(paired.ARM_ORDER)
+                    ],
+                    "recorded_epoch": 1,
+                })
+            assert not (barrier / "bench-start").exists()
+        with pytest.raises(
+            paired.PaperStoryError, match="group rerun is prohibited",
+        ):
+            paired._assert_no_prior_v3_bench_start(
+                base, study_id=paired.V3_PILOT_STUDY_ID,
+                current_attempt=base / "new-attempt",
+            )
+
+
+def test_f1_first_submit_has_no_prior_attempt_and_is_accepted_M8(
+    tmp_path: Path,
+) -> None:
+    paired._assert_no_prior_v3_bench_start(
+        tmp_path / "measurement",
+        study_id=paired.V3_PILOT_STUDY_ID,
+        current_attempt=tmp_path / "measurement" / "first-attempt",
+    )
+
+
+def test_f3_v2_measure_rejects_explicit_workload_selector_M10() -> None:
+    with pytest.raises(
+        paired.PaperStoryError, match=r"v2 measure does not accept --workload",
+    ):
+        paired.run_measurement(SimpleNamespace(
+            study_id=paired.STUDY_ID,
+            workload="balanced",
+        ))
+    parsed = paired._parser().parse_args([
+        "measure",
+        "--study-id", paired.STUDY_ID,
+        "--expected-head", "a" * 40,
+        "--pbs-jobid", "123.server",
+        "--acquisition-receipt", "/receipt",
+        "--acquisition-receipt-sha256", "b" * 64,
+        "--output-root", "/output",
+        "--cache-root", "/cache",
+        "--result-root", "/result",
+        "--dependency-prefix", "/dependency",
+    ])
+    assert parsed.workload is None
+
+
+@pytest.mark.parametrize("admitted", (True, False))
+def test_f4_v3_backoff_gate_calls_real_family_before_measurement_M11(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    admitted: bool,
+) -> None:
+    repo = tmp_path / "repo"
+    source = repo / "external" / "ccbench"
+    stock = tmp_path / "stock"
+    source.mkdir(parents=True)
+    stock.mkdir()
+    events = []
+
+    @contextmanager
+    def checkout(pin: str, *, base_dir: str):
+        assert pin == paired.CANONICAL_CCBENCH_OID
+        assert Path(base_dir) == source
+        events.append("checkout")
+        yield os.fspath(stock)
+
+    def capture(source_root: Path, *, stock_root: str):
+        assert source_root == source
+        assert Path(stock_root) == stock
+        events.append("capture")
+        return object()
+
+    def arm_record(request, arm: str):
+        events.append((arm, request.macro, request.requested_value))
+        return SimpleNamespace(
+            arm=arm,
+            reason_code="established",
+            terminal_status="green",
+        )
+
+    def admit(supply_records, meaning_records, *, use_class: str):
+        assert use_class == "paper"
+        assert len(supply_records) == len(meaning_records) == 2
+        events.append("admission")
+        return SimpleNamespace(admitted=admitted)
+
+    monkeypatch.setattr(paired.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        paired.condition_meaning_gate, "capture_define_inputs", capture,
+    )
+    monkeypatch.setattr(
+        paired.condition_meaning_gate,
+        "evaluate_define_supply_effectuation",
+        lambda _captured, *, request, **_kwargs: arm_record(
+            request, "supply-effectuation",
+        ),
+    )
+    monkeypatch.setattr(
+        paired.condition_meaning_gate,
+        "evaluate_define_runtime_meaning",
+        lambda _captured, *, request, **_kwargs: arm_record(
+            request, "runtime-meaning",
+        ),
+    )
+    monkeypatch.setattr(
+        paired.condition_meaning_gate, "require_condition_gate_family", admit,
+    )
+    policy = paired.load_policy(paired.V3_PILOT_STUDY_ID)[0]
+
+    if admitted:
+        paired._require_v3_backoff_fixed_condition_gate(
+            repo_root=repo, policy=policy, workload="balanced", cxx="g++",
+        )
+    else:
+        with pytest.raises(paired.PaperStoryError, match="rejected measurement"):
+            paired._require_v3_backoff_fixed_condition_gate(
+                repo_root=repo, policy=policy, workload="balanced", cxx="g++",
+            )
+    assert events == [
+        "checkout",
+        "capture",
+        ("supply-effectuation", "BACKOFF_FIXED", 5),
+        ("runtime-meaning", "BACKOFF_FIXED", 5),
+        ("supply-effectuation", "BACKOFF_FIXED", -1),
+        ("runtime-meaning", "BACKOFF_FIXED", -1),
+        "admission",
+    ]
+
+
 def _run() -> int:
     """Keep this test file covered by the repository plain-runner contract."""
     return pytest.main([__file__, "-q"])

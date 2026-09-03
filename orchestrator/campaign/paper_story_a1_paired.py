@@ -22,6 +22,7 @@ import shlex
 import socket
 import stat
 import statistics
+import struct
 import subprocess
 import sys
 import tempfile
@@ -40,8 +41,10 @@ from ..calibrator import runner as calibrator_runner  # noqa: E402
 from . import (  # noqa: E402
     buildcache,
     campaign_lock as campaign_lock_codec,
+    condition_meaning_gate,
     ident,
     p2_2,
+    patchharness,
     pin,
     site_policy,
     trial_registry,
@@ -54,6 +57,7 @@ from .build_admission import (  # noqa: E402
 )
 from .durable_root import DurableRootPolicy  # noqa: E402
 from .layout import CampaignLayout, exploration_campaign_layout  # noqa: E402
+from . import loop as campaign_loop  # noqa: E402
 from .loop import run_campaign  # noqa: E402
 from .model import (  # noqa: E402
     CampaignConfig,
@@ -94,6 +98,19 @@ SUBMISSION_SCHEMA = "paper-story-a1-paired-submission/v1"
 SUBMISSION_INTENT_SCHEMA = "paper-story-a1-paired-submission-intent/v1"
 ACQUISITION_SCHEMA = SUBMISSION_SCHEMA
 COMPLETION_SCHEMA = "paper-story-a1-paired-scheduler-completion/v2"
+V3_GROUP_SUBMISSION_SCHEMA = "paper-story-a1-paired-group-submission/v1"
+V3_GROUP_SUBMISSION_FAILURE_SCHEMA = (
+    "paper-story-a1-paired-group-submission-failure/v1"
+)
+V3_GROUP_INTENT_SCHEMA = "paper-story-a1-paired-group-intent/v1"
+V3_WORKLOAD_SHARD_SCHEMA = "paper-story-a1-paired-workload-shard/v1"
+V3_WORKLOAD_RECEIPT_SCHEMA = "paper-story-a1-paired-workload-receipt/v1"
+V3_JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-workload-job-terminal/v1"
+V3_GROUP_TERMINAL_SCHEMA = "paper-story-a1-paired-group-terminal/v1"
+V3_GROUP_COMPLETION_SCHEMA = "paper-story-a1-paired-group-completion/v1"
+V3_READY_SCHEMA = "paper-story-a1-paired-workload-ready/v1"
+V3_BENCH_GO_SCHEMA = "paper-story-a1-paired-bench-go/v1"
+V3_BENCH_START_SCHEMA = "paper-story-a1-paired-bench-start/v1"
 _SUBMISSION_RECEIPT_KEYS = frozenset({
     "schema_version", "route", "study_id", "source_commit", "attempt_root",
     "request_id", "submission_receipt_path", "completion_receipt_path",
@@ -110,12 +127,19 @@ _NON_CERTIFYING_RESULT_KEYS = frozenset({
     "all_workloads_terminal", "complete", "measurement_error", "workloads",
     "limitations",
 })
+_V3_NON_CERTIFYING_RESULT_KEYS = (
+    _NON_CERTIFYING_RESULT_KEYS - {"reservation_binding"}
+) | {"job_executions"}
 _NON_CERTIFYING_RECEIPT_KEYS = frozenset({
     "schema_version", "study_id", "formal", "promotion_prohibited", "route",
     "pbs_jobid", "host", "recorded_epoch", "policy", "source_binding",
     "submission_receipt", "scheduler_completion_receipt", "roots", "result",
     "calibration_sha256",
 })
+_V3_NON_CERTIFYING_RECEIPT_KEYS = (
+    _NON_CERTIFYING_RECEIPT_KEYS
+    - {"pbs_jobid", "host", "calibration_sha256"}
+) | {"job_executions"}
 PAIRING_DESIGN = "arm-grouped-positional-v1"
 V3_PAIRING_DESIGN = "balanced-a5b5-b5a5-v1"
 ARM_ORDER = ("adaptive", "static10")
@@ -311,6 +335,22 @@ RESERVATION_BINDING_KEYS = (
     "script_sha256",
     "nonce",
 )
+V3_ACCOUNTING_KEYS = frozenset({
+    "method",
+    "started_epoch_s",
+    "ended_epoch_s",
+    "started_monotonic_s",
+    "ended_monotonic_s",
+    "elapsed_s",
+    "shell_user_s",
+    "shell_system_s",
+    "reaped_descendants_user_s",
+    "reaped_descendants_system_s",
+    "cpu_total_s",
+    "times_baseline_raw",
+    "times_final_raw",
+    "unreaped_descendants",
+})
 PBS_EVIDENCE_SCOPE = {
     "job_environment_fields": (
         "PBS_JOBID",
@@ -533,6 +573,135 @@ def _validate_reservation_binding_document(value: object) -> dict[str, object]:
         field: getattr(binding, field)
         for field in RESERVATION_BINDING_KEYS
     }
+
+
+def _validate_v3_accounting(value: object) -> dict[str, object]:
+    """Validate one shell/reaped-descendant accounting window."""
+    if type(value) is not dict or set(value) != V3_ACCOUNTING_KEYS:
+        raise PaperStoryError("job accounting shape differs")
+    if value.get("method") != "bash-times-delta-reaped-descendants/v1":
+        raise PaperStoryError("job accounting method differs")
+    numeric = (
+        "started_epoch_s",
+        "ended_epoch_s",
+        "started_monotonic_s",
+        "ended_monotonic_s",
+        "elapsed_s",
+        "shell_user_s",
+        "shell_system_s",
+        "reaped_descendants_user_s",
+        "reaped_descendants_system_s",
+        "cpu_total_s",
+    )
+    if any(not _finite_number(value.get(key)) for key in numeric):
+        raise PaperStoryError("job accounting contains a non-finite value")
+    if any(float(value[key]) < 0.0 for key in numeric):
+        raise PaperStoryError("job accounting contains a negative value")
+    if (
+        float(value["ended_epoch_s"]) < float(value["started_epoch_s"])
+        or float(value["ended_monotonic_s"])
+        < float(value["started_monotonic_s"])
+        or not math.isclose(
+            float(value["elapsed_s"]),
+            float(value["ended_monotonic_s"])
+            - float(value["started_monotonic_s"]),
+            rel_tol=0.0,
+            abs_tol=1e-6,
+        )
+    ):
+        raise PaperStoryError("job accounting elapsed window differs")
+    components = sum(float(value[key]) for key in (
+        "shell_user_s",
+        "shell_system_s",
+        "reaped_descendants_user_s",
+        "reaped_descendants_system_s",
+    ))
+    if not math.isclose(
+        float(value["cpu_total_s"]), components, rel_tol=0.0, abs_tol=1e-6,
+    ):
+        raise PaperStoryError("job accounting CPU total differs")
+    if (
+        type(value.get("times_baseline_raw")) is not str
+        or not value["times_baseline_raw"]
+        or type(value.get("times_final_raw")) is not str
+        or not value["times_final_raw"]
+    ):
+        raise PaperStoryError("job accounting times snapshots are missing")
+    duration_pattern = re.compile(r"([0-9]+)m([0-9]+(?:\.[0-9]+)?)s")
+
+    def parse_snapshot(raw: str) -> list[float]:
+        matches = duration_pattern.findall(raw)
+        if len(matches) != 4:
+            raise PaperStoryError("job accounting times snapshot shape differs")
+        return [
+            float(minutes) * 60.0 + float(seconds)
+            for minutes, seconds in matches
+        ]
+
+    baseline = parse_snapshot(value["times_baseline_raw"])
+    final = parse_snapshot(value["times_final_raw"])
+    deltas = [end - start for start, end in zip(baseline, final)]
+    recorded = [
+        float(value[key]) for key in (
+            "shell_user_s", "shell_system_s", "reaped_descendants_user_s",
+            "reaped_descendants_system_s",
+        )
+    ]
+    if any(delta < -1e-9 for delta in deltas) or any(
+        not math.isclose(delta, observed, rel_tol=0.0, abs_tol=1e-6)
+        for delta, observed in zip(deltas, recorded)
+    ):
+        raise PaperStoryError("job accounting is not the baseline times delta")
+    if value.get("unreaped_descendants") != []:
+        raise PaperStoryError("job accounting has unreaped descendants")
+    return dict(value)
+
+
+def _validate_v3_job_executions(
+    value: object,
+    *,
+    attempt: Path | None = None,
+) -> list[dict[str, object]]:
+    """Bind the exact workload triple to distinct normalized scheduler jobs."""
+    if type(value) is not list or len(value) != len(WORKLOAD_ORDER):
+        raise PaperStoryError("job executions are not the exact workload triple")
+    validated: list[dict[str, object]] = []
+    normalized_request_ids: list[str] = []
+    for ordinal, (raw, workload) in enumerate(zip(value, WORKLOAD_ORDER)):
+        if type(raw) is not dict or set(raw) != {
+            "workload", "ordinal", "request_id", "reservation_binding",
+            "accounting",
+        }:
+            raise PaperStoryError("job execution shape differs")
+        if raw.get("workload") != workload or raw.get("ordinal") != ordinal:
+            raise PaperStoryError("job execution workload ordinal differs")
+        request_id = _validated_request_id(
+            raw.get("request_id"), f"{workload} request ID",
+        )
+        reservation = _validate_reservation_binding_document(
+            raw.get("reservation_binding")
+        )
+        if _validated_request_id(
+            reservation["job_id"], f"{workload} reservation job ID",
+        ) != request_id:
+            raise PaperStoryError("job execution reservation request ID differs")
+        if attempt is not None and reservation["nonce"] != (
+            f"{attempt.name}.{workload}"
+        ):
+            raise PaperStoryError("job execution reservation nonce differs")
+        accounting = _validate_v3_accounting(raw.get("accounting"))
+        normalized_request_ids.append(request_id)
+        validated.append({
+            "workload": workload,
+            "ordinal": ordinal,
+            "request_id": raw["request_id"],
+            "reservation_binding": reservation,
+            "accounting": accounting,
+        })
+    # MF1: uniqueness is deliberately checked only after NQSV normalization.
+    if len(set(normalized_request_ids)) != len(WORKLOAD_ORDER):
+        raise PaperStoryError("normalized request IDs are not a unique triple")
+    return validated
 
 
 def _reservation_binding_from_environment(
@@ -2209,6 +2378,379 @@ def _attempt_evidence_paths(attempt: Path) -> dict[str, str]:
     }
 
 
+def _v3_attempt_evidence_paths(attempt: Path) -> dict[str, str]:
+    return {
+        "submission_receipt": os.fspath(attempt / "receipts" / "submission.json"),
+        "submission_failure": os.fspath(
+            attempt / "receipts" / "submission-failure.json"
+        ),
+        "completion_receipt": os.fspath(attempt / "receipts" / "completion.json"),
+        "group_terminal": os.fspath(attempt / "raw" / "job-terminal.json"),
+        "result_root": os.fspath(attempt / "raw" / "results"),
+    }
+
+
+def _v3_job_roots(attempt: Path, workload: str) -> dict[str, str]:
+    if workload not in WORKLOAD_ORDER:
+        raise PaperStoryError("workload selector differs")
+    job_root = attempt / "jobs" / workload
+    scheduler_root = job_root / "scheduler"
+    raw_root = job_root / "raw"
+    return {
+        "attempt_root": os.fspath(attempt),
+        "attempt_identity": (
+            _attempt_root_identity(attempt) if attempt.is_dir() else None
+        ),
+        "job_root": os.fspath(job_root),
+        "scheduler_root": os.fspath(scheduler_root),
+        "raw_root": os.fspath(raw_root),
+        "output_root": os.fspath(raw_root / "campaign-output"),
+        "cache_root": os.fspath(job_root / "cache"),
+        "result_root": os.fspath(raw_root / "results"),
+        "tmp_root": os.fspath(raw_root / "tmp"),
+        "stdout_path": os.fspath(scheduler_root / "job.stdout"),
+        "stderr_path": os.fspath(scheduler_root / "job.stderr"),
+        "qsub_stdout_path": os.fspath(scheduler_root / "qsub.stdout"),
+        "qsub_stderr_path": os.fspath(scheduler_root / "qsub.stderr"),
+        "request_id_path": os.fspath(scheduler_root / "request-id"),
+        "qstat_visibility_path": os.fspath(
+            scheduler_root / "qstat-visibility.json"
+        ),
+        "submission_receipt": os.fspath(
+            attempt / "receipts" / "submission.json"
+        ),
+        "completion_receipt": os.fspath(
+            attempt / "receipts" / "completion.json"
+        ),
+        "job_terminal": os.fspath(job_root / "job-terminal.json"),
+        "ready": os.fspath(attempt / "barrier" / "ready" / f"{workload}.json"),
+        "bench_go": os.fspath(attempt / "barrier" / "bench-go.json"),
+        "bench_start": os.fspath(
+            attempt / "barrier" / "bench-start" / f"{workload}.json"
+        ),
+    }
+
+
+def _canonical_v3_qsub_contract(
+    *,
+    repo_root: Path,
+    study_id: str,
+    source_commit: str,
+    attempt: Path,
+    workload: str,
+) -> tuple[list[str], dict[str, object]]:
+    roots = _v3_job_roots(attempt, workload)
+    variables = {
+        "IZANAGI_EXPECTED_HEAD": source_commit,
+        "IZANAGI_A1_STUDY_ID": study_id,
+        "IZANAGI_A1_ATTEMPT_ROOT": os.fspath(attempt),
+        "IZANAGI_A1_WORKLOAD": workload,
+        "IZANAGI_A1_ACQUISITION_RECEIPT": roots["submission_receipt"],
+        "IZANAGI_A1_COMPLETION_RECEIPT": roots["completion_receipt"],
+        "IZANAGI_SUBMISSION_NONCE": f"{attempt.name}.{workload}",
+    }
+    variable_text = ",".join(f"{key}={value}" for key, value in variables.items())
+    options = {
+        "v": variable_text,
+        "variables": variables,
+        "o": roots["stdout_path"],
+        "e": roots["stderr_path"],
+    }
+    argv = [
+        "qsub", "-v", variable_text,
+        "-o", roots["stdout_path"],
+        "-e", roots["stderr_path"],
+        os.fspath((repo_root / JOB_RELATIVE_PATH).resolve(strict=True)),
+    ]
+    return argv, options
+
+
+def _v3_group_intent(
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    source_commit: str,
+    attempt: Path,
+) -> dict[str, object]:
+    jobs = []
+    for ordinal, workload in enumerate(WORKLOAD_ORDER):
+        argv, options = _canonical_v3_qsub_contract(
+            repo_root=repo_root,
+            study_id=_policy_study_id(policy),
+            source_commit=source_commit,
+            attempt=attempt,
+            workload=workload,
+        )
+        jobs.append({
+            "workload": workload,
+            "ordinal": ordinal,
+            "qsub_argv": argv,
+            "qsub_options": options,
+        })
+    value = {
+        "schema_version": V3_GROUP_INTENT_SCHEMA,
+        "study_id": _policy_study_id(policy),
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "jobs": jobs,
+        "source_binding": _non_certifying_source_binding(
+            repo_root, source_commit, policy,
+        ),
+    }
+    value["intent_sha256"] = _submission_intent_digest(value)
+    return value
+
+
+def _assert_no_prior_v3_bench_start(
+    base: Path, *, study_id: str, current_attempt: Path,
+) -> None:
+    """MF2 rear gate: fail closed once a prior attempt could reach bench."""
+    try:
+        entries = tuple(base.iterdir())
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise PaperStoryError(f"cannot inspect prior attempts: {exc}") from exc
+
+    intent_studies: dict[Path, str] = {}
+    suffix = ".intent.json"
+    for intent_path in entries:
+        if not intent_path.name.endswith(suffix):
+            continue
+        if intent_path.is_symlink() or not intent_path.is_file():
+            raise PaperStoryError("prior group intent evidence is unsafe")
+        intent = _read_json(intent_path)
+        attempt_name = intent_path.name[:-len(suffix)]
+        prior = base / attempt_name
+        if (
+            not attempt_name
+            or type(intent) is not dict
+            or set(intent) != {
+                "schema_version", "study_id", "source_commit", "attempt_root",
+                "jobs", "source_binding", "intent_sha256",
+            }
+            or intent.get("schema_version") != V3_GROUP_INTENT_SCHEMA
+            or type(intent.get("study_id")) is not str
+            or type(intent.get("source_commit")) is not str
+            or _FULL_OID.fullmatch(intent["source_commit"]) is None
+            or intent.get("attempt_root") != os.fspath(prior)
+            or type(intent.get("jobs")) is not list
+            or len(intent["jobs"]) != len(WORKLOAD_ORDER)
+            or any(type(job) is not dict for job in intent["jobs"])
+            or type(intent.get("source_binding")) is not dict
+            or intent.get("intent_sha256") != _submission_intent_digest(intent)
+        ):
+            raise PaperStoryError("prior group intent evidence is corrupt")
+        if [job.get("workload") for job in intent["jobs"]] != list(
+            WORKLOAD_ORDER
+        ) or [job.get("ordinal") for job in intent["jobs"]] != list(
+            range(len(WORKLOAD_ORDER))
+        ):
+            raise PaperStoryError("prior group intent job identity is corrupt")
+        intent_studies[prior] = intent["study_id"]
+
+    candidates = {
+        entry for entry in entries
+        if entry != current_attempt
+        and not entry.name.endswith(suffix)
+        and (entry / "barrier").exists()
+    } | {
+        prior for prior in intent_studies
+        if prior != current_attempt and os.path.lexists(prior)
+    }
+    for prior in sorted(candidates):
+        if prior.is_symlink() or not prior.is_dir():
+            raise PaperStoryError("prior attempt evidence root is unsafe")
+        same_study_intent = intent_studies.get(prior) == study_id
+        barrier = prior / "barrier"
+        if barrier.is_symlink() or not barrier.is_dir():
+            raise PaperStoryError("prior barrier evidence root is unsafe")
+
+        ready_root = barrier / "ready"
+        ready_workloads: set[str] = set()
+        if os.path.lexists(ready_root):
+            if ready_root.is_symlink() or not ready_root.is_dir():
+                raise PaperStoryError("prior ready evidence root is unsafe")
+            try:
+                ready_entries = tuple(ready_root.iterdir())
+            except OSError as exc:
+                raise PaperStoryError(
+                    f"cannot inspect prior ready evidence: {exc}"
+                ) from exc
+            for ready_path in ready_entries:
+                if (
+                    ready_path.is_symlink()
+                    or not ready_path.is_file()
+                    or ready_path.name not in {
+                        f"{workload}.json" for workload in WORKLOAD_ORDER
+                    }
+                ):
+                    raise PaperStoryError("prior ready evidence is unsafe")
+                ready = _read_json(ready_path)
+                ready_workload = ready_path.stem
+                if (
+                    type(ready) is not dict
+                    or set(ready) != {
+                        "schema_version", "study_id", "source_commit",
+                        "attempt_root", "workload", "ordinal", "request_id",
+                        "reservation_nonce", "campaign_id", "prepared_arms",
+                        "recorded_epoch",
+                    }
+                    or ready.get("schema_version") != V3_READY_SCHEMA
+                    or ready.get("attempt_root") != os.fspath(prior)
+                    or ready.get("workload") != ready_workload
+                    or ready.get("ordinal") != WORKLOAD_ORDER.index(ready_workload)
+                    or type(ready.get("study_id")) is not str
+                    or type(ready.get("source_commit")) is not str
+                    or _FULL_OID.fullmatch(ready["source_commit"]) is None
+                    or type(ready.get("request_id")) is not str
+                    or type(ready.get("reservation_nonce")) is not str
+                    or type(ready.get("campaign_id")) is not str
+                    or not ready["campaign_id"]
+                    or type(ready.get("prepared_arms")) is not list
+                    or len(ready["prepared_arms"]) != len(ARM_ORDER)
+                    or type(ready.get("recorded_epoch")) is not int
+                    or ready["recorded_epoch"] <= 0
+                ):
+                    raise PaperStoryError("prior ready evidence is corrupt")
+                for arm in ready["prepared_arms"]:
+                    if (
+                        type(arm) is not dict
+                        or set(arm) != {
+                            "variant", "build_attempt_id",
+                            "build_admission_receipt_sha256", "verify_tags",
+                        }
+                        or type(arm.get("variant")) is not str
+                        or not arm["variant"]
+                        or type(arm.get("build_attempt_id")) is not str
+                        or not arm["build_attempt_id"]
+                        or type(arm.get(
+                            "build_admission_receipt_sha256"
+                        )) is not str
+                        or _FULL_SHA256.fullmatch(
+                            arm["build_admission_receipt_sha256"]
+                        ) is None
+                        or arm.get("verify_tags") != list(EXPECTED_VERIFY_CONFIGS)
+                    ):
+                        raise PaperStoryError("prior ready arm evidence is corrupt")
+                if same_study_intent and ready.get("study_id") != study_id:
+                    raise PaperStoryError("prior ready evidence study differs")
+                if ready.get("study_id") == study_id:
+                    ready_workloads.add(ready_workload)
+
+        bench_go_path = barrier / "bench-go.json"
+        bench_go_study = None
+        if os.path.lexists(bench_go_path):
+            if bench_go_path.is_symlink() or not bench_go_path.is_file():
+                raise PaperStoryError("prior bench-go evidence is unsafe")
+            bench_go = _read_json(bench_go_path)
+            if (
+                type(bench_go) is not dict
+                or set(bench_go) != {
+                    "schema_version", "study_id", "source_commit",
+                    "attempt_root", "ready",
+                }
+                or bench_go.get("schema_version") != V3_BENCH_GO_SCHEMA
+                or bench_go.get("attempt_root") != os.fspath(prior)
+                or type(bench_go.get("study_id")) is not str
+                or type(bench_go.get("ready")) is not list
+                or len(bench_go["ready"]) != len(WORKLOAD_ORDER)
+            ):
+                raise PaperStoryError("prior bench-go evidence is corrupt")
+            for ordinal, (binding, workload) in enumerate(zip(
+                bench_go["ready"], WORKLOAD_ORDER,
+            )):
+                if (
+                    type(binding) is not dict
+                    or set(binding) != {
+                        "workload", "ordinal", "campaign_id", "path", "sha256",
+                    }
+                    or binding.get("workload") != workload
+                    or binding.get("ordinal") != ordinal
+                    or type(binding.get("campaign_id")) is not str
+                    or not binding["campaign_id"]
+                    or binding.get("path")
+                    != os.fspath(ready_root / f"{workload}.json")
+                    or type(binding.get("sha256")) is not str
+                    or _FULL_SHA256.fullmatch(binding["sha256"]) is None
+                ):
+                    raise PaperStoryError("prior bench-go ready binding is corrupt")
+            bench_go_study = bench_go["study_id"]
+            if same_study_intent and bench_go_study != study_id:
+                raise PaperStoryError("prior bench-go evidence study differs")
+
+        bench_root = barrier / "bench-start"
+        bench_start_studies: set[str] = set()
+        if not os.path.lexists(bench_root):
+            bench_entries = ()
+        elif bench_root.is_symlink() or not bench_root.is_dir():
+            raise PaperStoryError("prior bench-start evidence root is unsafe")
+        else:
+            try:
+                bench_entries = tuple(bench_root.iterdir())
+            except OSError as exc:
+                raise PaperStoryError(
+                    f"cannot inspect prior bench-start evidence: {exc}"
+                ) from exc
+        for evidence_path in bench_entries:
+            if (
+                evidence_path.is_symlink()
+                or not evidence_path.is_file()
+                or evidence_path.name not in {
+                    f"{workload}.json" for workload in WORKLOAD_ORDER
+                }
+            ):
+                raise PaperStoryError("prior bench-start evidence is unsafe")
+            evidence = _read_json(evidence_path)
+            if (
+                type(evidence) is not dict
+                or evidence.get("schema_version") != V3_BENCH_START_SCHEMA
+                or set(evidence) != {
+                    "schema_version", "study_id", "source_commit",
+                    "attempt_root", "workload", "ordinal", "request_id",
+                    "bench_go_sha256", "ready_sha256", "recorded_epoch",
+                }
+                or evidence.get("attempt_root") != os.fspath(prior)
+                or evidence.get("workload") != evidence_path.stem
+                or evidence.get("ordinal")
+                != WORKLOAD_ORDER.index(evidence_path.stem)
+                or type(evidence.get("study_id")) is not str
+                or type(evidence.get("source_commit")) is not str
+                or _FULL_OID.fullmatch(evidence["source_commit"]) is None
+                or type(evidence.get("request_id")) is not str
+                or type(evidence.get("bench_go_sha256")) is not str
+                or _FULL_SHA256.fullmatch(evidence["bench_go_sha256"]) is None
+                or type(evidence.get("ready_sha256")) is not str
+                or _FULL_SHA256.fullmatch(evidence["ready_sha256"]) is None
+                or type(evidence.get("recorded_epoch")) is not int
+                or evidence["recorded_epoch"] <= 0
+            ):
+                raise PaperStoryError("prior bench-start evidence is corrupt")
+            if same_study_intent and evidence.get("study_id") != study_id:
+                raise PaperStoryError("prior bench-start evidence study differs")
+            bench_start_studies.add(evidence["study_id"])
+
+        if (
+            bench_go_study == study_id
+            or ready_workloads == set(WORKLOAD_ORDER)
+            or study_id in bench_start_studies
+        ):
+            raise PaperStoryError(
+                "prior attempt reached the bench barrier; group rerun is prohibited"
+            )
+        if same_study_intent and (
+            os.path.lexists(bench_go_path)
+            or all(os.path.lexists(
+                ready_root / f"{workload}.json"
+            ) for workload in WORKLOAD_ORDER)
+        ):
+            # The intent supplies study identity even if a later namespace was
+            # emptied between publication and this inspection.
+            raise PaperStoryError(
+                "prior attempt reached the bench barrier; group rerun is prohibited"
+            )
+
+
 def _attempt_intent_path(attempt: Path) -> Path:
     return attempt.parent / f"{attempt.name}.intent.json"
 
@@ -2233,6 +2775,23 @@ def _validate_submission_intent(
 ) -> dict[str, object]:
     policy = policy if policy is not None else load_policy()[0]
     study_id = _policy_study_id(policy)
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        expected = _v3_group_intent(
+            repo_root=repo_root,
+            policy=policy,
+            source_commit=source_commit,
+            attempt=attempt,
+        )
+        if type(value) is not dict or value != expected:
+            raise PaperStoryError("group submission intent identity differs")
+        _verify_current_source_paths(
+            repo_root,
+            source_commit,
+            value["source_binding"],
+            relative_paths=_source_relative_paths(policy, non_certifying=True),
+            label="group submission intent",
+        )
+        return dict(value)
     if type(value) is not dict or set(value) != {
         "schema_version", "study_id", "source_commit", "attempt_root",
         "qsub_argv", "qsub_options", "source_binding", "intent_sha256",
@@ -2335,6 +2894,323 @@ def _observe_qstat_visibility(request_id: str) -> dict[str, object]:
     }
 
 
+def _validate_v3_group_submission(
+    value: object,
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    source_commit: str,
+    attempt: Path,
+) -> dict[str, object]:
+    """Validate the exact ordered group receipt and normalized job identities."""
+    expected_intent = _v3_group_intent(
+        repo_root=repo_root,
+        policy=policy,
+        source_commit=source_commit,
+        attempt=attempt,
+    )
+    evidence = _v3_attempt_evidence_paths(attempt)
+    if type(value) is not dict or set(value) != {
+        "schema_version", "route", "study_id", "source_commit",
+        "attempt_root", "submission_receipt_path", "completion_receipt_path",
+        "intent_sha256", "jobs",
+    }:
+        raise PaperStoryError("group submission receipt shape differs")
+    if (
+        value.get("schema_version") != V3_GROUP_SUBMISSION_SCHEMA
+        or value.get("route") != "direct-qsub-workload-fanout"
+        or value.get("study_id") != _policy_study_id(policy)
+        or value.get("source_commit") != source_commit
+        or value.get("attempt_root") != os.fspath(attempt)
+        or value.get("submission_receipt_path") != evidence["submission_receipt"]
+        or value.get("completion_receipt_path") != evidence["completion_receipt"]
+        or value.get("intent_sha256") != expected_intent["intent_sha256"]
+    ):
+        raise PaperStoryError("group submission receipt identity differs")
+    jobs = value.get("jobs")
+    if type(jobs) is not list or len(jobs) != len(WORKLOAD_ORDER):
+        raise PaperStoryError("group submission is not the exact workload triple")
+    normalized: list[str] = []
+    validated_jobs = []
+    for ordinal, (job, expected_job, workload) in enumerate(zip(
+        jobs, expected_intent["jobs"], WORKLOAD_ORDER,
+    )):
+        if type(job) is not dict or set(job) != {
+            "workload", "ordinal", "request_id", "qsub_argv",
+            "qsub_options", "submit_observation",
+        }:
+            raise PaperStoryError("group submission job shape differs")
+        if (
+            job.get("workload") != workload
+            or job.get("ordinal") != ordinal
+            or job.get("qsub_argv") != expected_job["qsub_argv"]
+            or job.get("qsub_options") != expected_job["qsub_options"]
+        ):
+            raise PaperStoryError("group submission job contract differs")
+        request_id = _validated_request_id(
+            job.get("request_id"), f"{workload} submission request ID",
+        )
+        observation = job.get("submit_observation")
+        if type(observation) is not dict or set(observation) != {
+            "submit_host", "qsub_stdout", "qsub_stdout_sha256",
+            "qsub_stderr", "qsub_stderr_sha256", "qstat_visibility",
+        }:
+            raise PaperStoryError("group submission observation shape differs")
+        stdout = observation.get("qsub_stdout")
+        stderr = observation.get("qsub_stderr")
+        visibility = observation.get("qstat_visibility")
+        if (
+            type(observation.get("submit_host")) is not str
+            or not observation["submit_host"]
+            or type(stdout) is not str
+            or stderr != ""
+            or observation.get("qsub_stdout_sha256")
+            != _sha256_bytes(stdout.encode("utf-8"))
+            or observation.get("qsub_stderr_sha256")
+            != _sha256_bytes(stderr.encode("utf-8"))
+            or _validated_request_id(
+                _parse_request_id(stdout), f"{workload} parsed request ID",
+            ) != request_id
+            or type(visibility) is not dict
+            or set(visibility) != {
+                "request_id", "visible", "state", "queue", "observed_epoch",
+            }
+            or visibility.get("visible") is not True
+            or visibility.get("state") not in NQSV_QSTAT_STATES
+            or visibility.get("queue") != _PBS_QUEUE
+            or type(visibility.get("observed_epoch")) is not int
+            or visibility["observed_epoch"] <= 0
+            or _validated_request_id(
+                visibility.get("request_id"), f"{workload} qstat request ID",
+            ) != request_id
+        ):
+            raise PaperStoryError("group submission observation differs")
+        normalized.append(request_id)
+        validated_jobs.append(dict(job))
+    # MF1: raw aliases such as 123.server and 0:123.server are one request.
+    if len(set(normalized)) != len(WORKLOAD_ORDER):
+        raise PaperStoryError("normalized request IDs are not a unique triple")
+    return {**value, "jobs": validated_jobs}
+
+
+def _write_v3_submission_failure(
+    path: Path,
+    *,
+    study_id: str,
+    source_commit: str,
+    attempt: Path,
+    intent_sha256: str,
+    jobs: Sequence[Mapping[str, object]],
+) -> None:
+    statuses = [dict(item) for item in jobs]
+    while len(statuses) < len(WORKLOAD_ORDER):
+        ordinal = len(statuses)
+        statuses.append({
+            "workload": WORKLOAD_ORDER[ordinal],
+            "ordinal": ordinal,
+            "status": "not-attempted",
+            "request_id": None,
+            "returncode": None,
+        })
+    _exclusive_write(path, {
+        "schema_version": V3_GROUP_SUBMISSION_FAILURE_SCHEMA,
+        "status": "not-successful",
+        "reason": "scheduler-or-infrastructure-failure-before-bench",
+        "study_id": study_id,
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "intent_sha256": intent_sha256,
+        "jobs": statuses,
+        "recorded_epoch": int(time.time()),
+    })
+    _fsync_directory(path.parent)
+
+
+def _run_submit_v3(
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    expected_head: str,
+    attempt: Path,
+) -> int:
+    study_id = _policy_study_id(policy)
+    evidence = _v3_attempt_evidence_paths(attempt)
+    intent_path = _attempt_intent_path(attempt)
+    submission_path = Path(evidence["submission_receipt"])
+    failure_path = Path(evidence["submission_failure"])
+    staging_path = _submission_receipt_staging_path(submission_path)
+    guarded = [
+        submission_path, failure_path, Path(evidence["completion_receipt"]),
+        Path(evidence["group_terminal"]), staging_path,
+    ]
+    if os.path.lexists(intent_path):
+        raise PaperStoryError(
+            "submission indeterminate: intent exists without group receipt; "
+            "qsub will not be repeated"
+        )
+    if os.path.lexists(attempt):
+        raise PaperStoryError("submit attempt root must not already exist")
+    if any(os.path.lexists(path) for path in guarded):
+        raise PaperStoryError("v3 group evidence namespace is not fresh")
+    _assert_no_prior_v3_bench_start(
+        attempt.parent, study_id=study_id, current_attempt=attempt,
+    )
+    intent = _v3_group_intent(
+        repo_root=repo_root,
+        policy=policy,
+        source_commit=expected_head,
+        attempt=attempt,
+    )
+    _exclusive_write(intent_path, intent)
+    _fsync_directory(intent_path.parent)
+    try:
+        attempt.mkdir(mode=0o700)
+        (attempt / "receipts").mkdir(mode=0o700)
+        (attempt / "raw").mkdir(mode=0o700)
+        (attempt / "barrier").mkdir(mode=0o700)
+        (attempt / "barrier" / "ready").mkdir(mode=0o700)
+        (attempt / "barrier" / "bench-start").mkdir(mode=0o700)
+        (attempt / "jobs").mkdir(mode=0o700)
+        for workload in WORKLOAD_ORDER:
+            job_root = attempt / "jobs" / workload
+            job_root.mkdir(mode=0o700)
+            (job_root / "scheduler").mkdir(mode=0o700)
+            _fsync_directory(job_root / "scheduler")
+            _fsync_directory(job_root)
+        for directory in (
+            attempt / "receipts", attempt / "raw",
+            attempt / "barrier" / "ready",
+            attempt / "barrier" / "bench-start",
+            attempt / "barrier", attempt / "jobs",
+        ):
+            _fsync_directory(directory)
+        _fsync_directory(attempt)
+    except OSError as exc:
+        raise PaperStoryError(f"v3 attempt topology creation failed: {exc}") from exc
+
+    receipt_jobs: list[dict[str, object]] = []
+    failure_jobs: list[dict[str, object]] = []
+    for ordinal, expected_job in enumerate(intent["jobs"]):
+        workload = WORKLOAD_ORDER[ordinal]
+        roots = _v3_job_roots(attempt, workload)
+        try:
+            completed = _run_qsub(expected_job["qsub_argv"], cwd=repo_root)
+        except OSError as exc:
+            _exclusive_write_text(Path(roots["qsub_stdout_path"]), "")
+            _exclusive_write_text(Path(roots["qsub_stderr_path"]), str(exc) + "\n")
+            _fsync_directory(Path(roots["scheduler_root"]))
+            failure_jobs.append({
+                "workload": workload, "ordinal": ordinal,
+                "status": "indeterminate", "request_id": None,
+                "returncode": None,
+            })
+            _write_v3_submission_failure(
+                failure_path, study_id=study_id, source_commit=expected_head,
+                attempt=attempt, intent_sha256=intent["intent_sha256"],
+                jobs=failure_jobs,
+            )
+            raise PaperStoryError("qsub invocation is indeterminate") from exc
+        _exclusive_write_text(Path(roots["qsub_stdout_path"]), completed.stdout)
+        _exclusive_write_text(Path(roots["qsub_stderr_path"]), completed.stderr)
+        _fsync_directory(Path(roots["scheduler_root"]))
+        if completed.returncode != 0 or completed.stderr != "":
+            failure_jobs.append({
+                "workload": workload, "ordinal": ordinal,
+                "status": "failed", "request_id": None,
+                "returncode": completed.returncode,
+            })
+            _write_v3_submission_failure(
+                failure_path, study_id=study_id, source_commit=expected_head,
+                attempt=attempt, intent_sha256=intent["intent_sha256"],
+                jobs=failure_jobs,
+            )
+            raise PaperStoryError(
+                "qsub failed after durable group intent; group submission failed"
+            )
+        try:
+            request_id = _parse_request_id(completed.stdout)
+            _exclusive_write_text(Path(roots["request_id_path"]), request_id + "\n")
+            _fsync_directory(Path(roots["scheduler_root"]))
+            visibility = _observe_qstat_visibility(request_id)
+        except (PaperStoryError, OSError) as exc:
+            failure_jobs.append({
+                "workload": workload, "ordinal": ordinal,
+                "status": "indeterminate", "request_id": None,
+                "returncode": completed.returncode,
+            })
+            _write_v3_submission_failure(
+                failure_path, study_id=study_id, source_commit=expected_head,
+                attempt=attempt, intent_sha256=intent["intent_sha256"],
+                jobs=failure_jobs,
+            )
+            raise PaperStoryError(
+                "qsub request identity/visibility is indeterminate"
+            ) from exc
+        _exclusive_write(Path(roots["qstat_visibility_path"]), visibility)
+        _fsync_directory(Path(roots["scheduler_root"]))
+        normalized = _validated_request_id(request_id, "submitted request ID")
+        prior = [
+            _validated_request_id(item["request_id"], "prior request ID")
+            for item in receipt_jobs
+        ]
+        if normalized in prior:
+            failure_jobs.append({
+                "workload": workload, "ordinal": ordinal,
+                "status": "indeterminate", "request_id": request_id,
+                "returncode": completed.returncode,
+            })
+            _write_v3_submission_failure(
+                failure_path, study_id=study_id, source_commit=expected_head,
+                attempt=attempt, intent_sha256=intent["intent_sha256"],
+                jobs=failure_jobs,
+            )
+            raise PaperStoryError("normalized request IDs are not a unique triple")
+        observation = {
+            "submit_host": socket.gethostname(),
+            "qsub_stdout": completed.stdout,
+            "qsub_stdout_sha256": _sha256_bytes(completed.stdout.encode("utf-8")),
+            "qsub_stderr": completed.stderr,
+            "qsub_stderr_sha256": _sha256_bytes(completed.stderr.encode("utf-8")),
+            "qstat_visibility": visibility,
+        }
+        receipt_jobs.append({
+            "workload": workload, "ordinal": ordinal, "request_id": request_id,
+            "qsub_argv": expected_job["qsub_argv"],
+            "qsub_options": expected_job["qsub_options"],
+            "submit_observation": observation,
+        })
+        failure_jobs.append({
+            "workload": workload, "ordinal": ordinal,
+            "status": "accepted", "request_id": request_id,
+            "returncode": completed.returncode,
+        })
+    receipt = {
+        "schema_version": V3_GROUP_SUBMISSION_SCHEMA,
+        "route": "direct-qsub-workload-fanout",
+        "study_id": study_id,
+        "source_commit": expected_head,
+        "attempt_root": os.fspath(attempt),
+        "submission_receipt_path": evidence["submission_receipt"],
+        "completion_receipt_path": evidence["completion_receipt"],
+        "intent_sha256": intent["intent_sha256"],
+        "jobs": receipt_jobs,
+    }
+    _validate_v3_group_submission(
+        receipt, repo_root=repo_root, policy=policy,
+        source_commit=expected_head, attempt=attempt,
+    )
+    try:
+        _publish_submission_receipt(submission_path, receipt)
+    except PaperStoryError:
+        _write_v3_submission_failure(
+            failure_path, study_id=study_id, source_commit=expected_head,
+            attempt=attempt, intent_sha256=intent["intent_sha256"],
+            jobs=failure_jobs,
+        )
+        raise
+    return 0
+
+
 def run_submit(args) -> int:
     """Create an intent before direct qsub, then publish one submission receipt."""
     repo_root = _repo_root().resolve(strict=True)
@@ -2350,6 +3226,11 @@ def run_submit(args) -> int:
     base = _durable_measurement_base(policy)
     attempt = _validate_attempt_root(Path(args.attempt_root), base)
     base.mkdir(parents=True, exist_ok=True)
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        return _run_submit_v3(
+            repo_root=repo_root, policy=policy,
+            expected_head=args.expected_head, attempt=attempt,
+        )
     evidence = _attempt_evidence_paths(attempt)
     intent_path = _attempt_intent_path(attempt)
     submission_path = Path(evidence["submission_receipt"])
@@ -2492,6 +3373,57 @@ def _validate_pbs_observation(
     return dict(observation)
 
 
+def _validate_v3_acquisition_receipt(
+    receipt: object,
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    source_commit: str,
+    request_id: str,
+    pbs_observation: Mapping[str, object],
+    workload: str,
+) -> dict[str, object]:
+    if workload not in WORKLOAD_ORDER:
+        raise PaperStoryError("v3 acquisition workload selector differs")
+    base = _durable_measurement_base(policy)
+    raw_attempt = receipt.get("attempt_root") if type(receipt) is dict else None
+    if type(raw_attempt) is not str:
+        raise PaperStoryError("group acquisition attempt root differs")
+    attempt = _validate_attempt_root(Path(raw_attempt), base)
+    validated = _validate_v3_group_submission(
+        receipt,
+        repo_root=repo_root.resolve(strict=True),
+        policy=policy,
+        source_commit=source_commit,
+        attempt=attempt,
+    )
+    ordinal = WORKLOAD_ORDER.index(workload)
+    job = validated["jobs"][ordinal]
+    if _validated_request_id(
+        job["request_id"], f"{workload} group request ID",
+    ) != _validated_request_id(request_id, "PBS_JOBID"):
+        raise PaperStoryError("group acquisition request ID differs from PBS_JOBID")
+    synthetic = {
+        "submit_observation": job["submit_observation"],
+    }
+    _validate_pbs_observation(
+        pbs_observation,
+        receipt=synthetic,
+        repo_root=repo_root.resolve(strict=True),
+        request_id=job["request_id"],
+    )
+    roots = _v3_job_roots(attempt, workload)
+    if _is_within(attempt, repo_root.resolve(strict=True)) or _under_scr(attempt):
+        raise PaperStoryError("group acquisition attempt root is not durable")
+    return {
+        **roots,
+        "workload": workload,
+        "ordinal": ordinal,
+        "group_result_root": _v3_attempt_evidence_paths(attempt)["result_root"],
+        "group_terminal": _v3_attempt_evidence_paths(attempt)["group_terminal"],
+    }
+
+
 def validate_acquisition_receipt(
     receipt: object,
     *,
@@ -2501,10 +3433,23 @@ def validate_acquisition_receipt(
     request_id: str,
     pbs_observation: Mapping[str, object],
     policy: Mapping[str, object] | None = None,
+    workload: str | None = None,
 ) -> dict[str, object]:
     policy = policy if policy is not None else load_policy()[0]
     if study_id != _policy_study_id(policy):
         raise PaperStoryError("acquisition study ID differs from policy")
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        if type(workload) is not str:
+            raise PaperStoryError("v3 acquisition workload selector is required")
+        return _validate_v3_acquisition_receipt(
+            receipt,
+            repo_root=repo_root,
+            policy=policy,
+            source_commit=source_commit,
+            request_id=request_id,
+            pbs_observation=pbs_observation,
+            workload=workload,
+        )
     if type(receipt) is not dict or set(receipt) != _SUBMISSION_RECEIPT_KEYS:
         raise PaperStoryError("submission receipt shape differs")
     if receipt.get("schema_version") != SUBMISSION_SCHEMA:
@@ -2843,6 +3788,433 @@ def _observe_scheduler_terminal(
     }
 
 
+def _validate_v3_workload_shard(
+    shard: object,
+    receipt: object,
+    terminal: object,
+    *,
+    policy: Mapping[str, object],
+    policy_sha: str,
+    source_commit: str,
+    attempt: Path,
+    workload: str,
+    ordinal: int,
+    submission: Mapping[str, object],
+    result_path: Path,
+    receipt_path: Path,
+) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    if type(shard) is not dict or set(shard) != {
+        "schema_version", "study_id", "workload", "ordinal", "campaign_id",
+        "campaign_ids", "common_record", "source_binding",
+        "non_certifying_source_binding", "reservation_binding",
+        "workload_result",
+    }:
+        raise PaperStoryError("workload shard shape differs")
+    if type(receipt) is not dict or set(receipt) != {
+        "schema_version", "study_id", "workload", "ordinal", "pbs_jobid",
+        "host", "recorded_epoch", "policy", "source_binding",
+        "submission_receipt", "roots", "result", "calibration_sha256",
+    }:
+        raise PaperStoryError("workload receipt shape differs")
+    terminal_keys = {
+        "schema_version", "study_id", "workload", "ordinal", "pbs_jobid",
+        "expected_head", "observed_head", "porcelain", "driver_rc",
+        "shell_rc", "status", "result_sha256", "receipt_sha256",
+        "submission_receipt_sha256", "completion_receipt_path",
+        "pbs_observation", "reservation_binding", "accounting",
+        "attempt_identity", "terminal_source_binding", "recorded_epoch",
+    }
+    if type(terminal) is not dict or set(terminal) != terminal_keys:
+        raise PaperStoryError("workload job terminal shape differs")
+    study_id = _policy_study_id(policy)
+    if any(document.get("study_id") != study_id for document in (
+        shard, receipt, terminal,
+    )):
+        raise PaperStoryError("workload shard study ID differs")
+    if any(document.get("workload") != workload for document in (
+        shard, receipt, terminal,
+    )) or any(document.get("ordinal") != ordinal for document in (
+        shard, receipt, terminal,
+    )):
+        raise PaperStoryError("workload shard ordinal differs")
+    jobs = submission.get("jobs")
+    job = jobs[ordinal] if type(jobs) is list and len(jobs) == 3 else None
+    if type(job) is not dict:
+        raise PaperStoryError("workload submission entry is missing")
+    request_id = _validated_request_id(
+        job.get("request_id"), f"{workload} submission request ID",
+    )
+    for candidate, label in (
+        (receipt.get("pbs_jobid"), "receipt"),
+        (terminal.get("pbs_jobid"), "terminal"),
+    ):
+        if _validated_request_id(candidate, f"{workload} {label} request ID") != request_id:
+            raise PaperStoryError("workload request ID cross-binding differs")
+    reservation = _validate_reservation_binding_document(
+        terminal.get("reservation_binding")
+    )
+    if (
+        shard.get("reservation_binding") != reservation
+        or _validated_request_id(
+            reservation["job_id"], f"{workload} reservation request ID",
+        ) != request_id
+        or reservation["nonce"] != f"{attempt.name}.{workload}"
+    ):
+        raise PaperStoryError("workload reservation binding differs")
+    accounting = _validate_v3_accounting(terminal.get("accounting"))
+    roots = _v3_job_roots(attempt, workload)
+    if receipt.get("roots") != {
+        **roots,
+        "workload": workload,
+        "ordinal": ordinal,
+        "group_result_root": _v3_attempt_evidence_paths(attempt)["result_root"],
+        "group_terminal": _v3_attempt_evidence_paths(attempt)["group_terminal"],
+    }:
+        raise PaperStoryError("workload receipt roots differ")
+    submission_raw = _read_bytes_once(Path(roots["submission_receipt"]))
+    if (
+        receipt.get("submission_receipt") != {
+            "path": roots["submission_receipt"],
+            "sha256": _sha256_bytes(submission_raw),
+        }
+        or terminal.get("submission_receipt_sha256")
+        != _sha256_bytes(submission_raw)
+    ):
+        raise PaperStoryError("workload group receipt binding differs")
+    if (
+        receipt.get("policy") != {
+            "path": _policy_relative_path(policy), "sha256": policy_sha,
+        }
+        or receipt.get("source_binding") != shard.get("source_binding")
+        or not _validate_source_binding(shard.get("source_binding"), policy)
+        or not _validate_non_certifying_source_binding(
+            shard.get("non_certifying_source_binding"), policy,
+        )
+        or terminal.get("terminal_source_binding") != shard.get("source_binding")
+    ):
+        raise PaperStoryError("workload source/policy binding differs")
+    if (
+        terminal.get("expected_head") != source_commit
+        or terminal.get("observed_head") != source_commit
+        or terminal.get("porcelain") != ""
+        or terminal.get("driver_rc") != 0
+        or terminal.get("shell_rc") != 0
+        or terminal.get("status") != "finished"
+        or terminal.get("attempt_identity") != _attempt_root_identity(attempt)
+        or terminal.get("completion_receipt_path")
+        != _v3_attempt_evidence_paths(attempt)["completion_receipt"]
+    ):
+        raise PaperStoryError("workload job did not finish cleanly")
+    if (
+        terminal.get("result_sha256") != _sha256_file(result_path)
+        or terminal.get("receipt_sha256") != _sha256_file(receipt_path)
+        or receipt.get("result") != {
+            "path": os.fspath(result_path),
+            "sha256": _sha256_file(result_path),
+        }
+    ):
+        raise PaperStoryError("workload shard byte binding differs")
+    pbs = terminal.get("pbs_observation")
+    if (
+        type(pbs) is not dict
+        or set(pbs) != _PBS_OBSERVATION_KEYS
+        or _validated_request_id(
+            pbs.get("pbs_jobid"), f"{workload} PBS observation request ID",
+        ) != request_id
+        or pbs.get("pbs_o_workdir") != os.fspath(_repo_root().resolve(strict=True))
+        or pbs.get("pbs_o_host")
+        != job.get("submit_observation", {}).get("submit_host")
+    ):
+        raise PaperStoryError("workload PBS observation differs")
+    common = shard.get("common_record")
+    if (
+        type(common) is not dict
+        or shard.get("campaign_ids") != common.get("campaign_ids")
+    ):
+        raise PaperStoryError("workload campaign triple differs")
+    workload_result = shard.get("workload_result")
+    if (
+        type(shard.get("campaign_ids")) is not list
+        or len(shard["campaign_ids"]) != 3
+        or len(set(shard["campaign_ids"])) != 3
+        or shard.get("campaign_id") != shard["campaign_ids"][ordinal]
+        or type(workload_result) is not dict
+        or workload_result.get("workload") != workload
+        or workload_result.get("campaign_id")
+        != shard.get("campaign_id")
+        or not _workload_has_terminal_result(workload_result)
+    ):
+        raise PaperStoryError("workload shard campaign binding differs")
+    return dict(shard), dict(receipt), {
+        **terminal, "reservation_binding": reservation, "accounting": accounting,
+    }
+
+
+def _validate_v3_barrier_for_completion(
+    *,
+    attempt: Path,
+    policy: Mapping[str, object],
+    source_commit: str,
+    submission: Mapping[str, object],
+    campaign_ids: Sequence[str],
+) -> None:
+    ready_bindings = []
+    for ordinal, workload in enumerate(WORKLOAD_ORDER):
+        roots = _v3_job_roots(attempt, workload)
+        ready_path = Path(roots["ready"])
+        ready_raw = _read_bytes_once(ready_path)
+        ready = _validate_v3_ready_document(
+            _decode_json_bytes(ready_raw, f"{workload} ready evidence"),
+            workload=workload, ordinal=ordinal,
+            study_id=_policy_study_id(policy), source_commit=source_commit,
+            attempt=attempt, submission=submission,
+        )
+        if ready.get("campaign_id") != campaign_ids[ordinal]:
+            raise PaperStoryError("ready campaign ordinal differs")
+        ready_bindings.append({
+            "workload": workload, "ordinal": ordinal,
+            "campaign_id": campaign_ids[ordinal], "path": os.fspath(ready_path),
+            "sha256": _sha256_bytes(ready_raw),
+        })
+    bench_go_path = Path(_v3_job_roots(attempt, WORKLOAD_ORDER[0])["bench_go"])
+    bench_go_raw = _read_bytes_once(bench_go_path)
+    bench_go = _decode_json_bytes(bench_go_raw, "bench-go evidence")
+    if bench_go != {
+        "schema_version": V3_BENCH_GO_SCHEMA,
+        "study_id": _policy_study_id(policy),
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "ready": ready_bindings,
+    }:
+        raise PaperStoryError("bench-go does not bind the exact ready triple")
+    for ordinal, workload in enumerate(WORKLOAD_ORDER):
+        start_path = Path(_v3_job_roots(attempt, workload)["bench_start"])
+        start = _read_json(start_path)
+        job = submission["jobs"][ordinal]
+        if (
+            set(start) != {
+                "schema_version", "study_id", "source_commit", "attempt_root",
+                "workload", "ordinal", "request_id", "bench_go_sha256",
+                "ready_sha256", "recorded_epoch",
+            }
+            or start.get("schema_version") != V3_BENCH_START_SCHEMA
+            or start.get("study_id") != _policy_study_id(policy)
+            or start.get("source_commit") != source_commit
+            or start.get("attempt_root") != os.fspath(attempt)
+            or start.get("workload") != workload
+            or start.get("ordinal") != ordinal
+            or _validated_request_id(
+                start.get("request_id"), f"{workload} bench-start request ID",
+            ) != _validated_request_id(
+                job.get("request_id"), f"{workload} submission request ID",
+            )
+            or start.get("bench_go_sha256") != _sha256_bytes(bench_go_raw)
+            or start.get("ready_sha256") != ready_bindings[ordinal]["sha256"]
+        ):
+            raise PaperStoryError("bench-start evidence differs")
+
+
+def _run_complete_v3(
+    args,
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    policy_sha: str,
+    attempt: Path,
+) -> int:
+    study_id = _policy_study_id(policy)
+    evidence = _v3_attempt_evidence_paths(attempt)
+    submission_path = Path(evidence["submission_receipt"])
+    submission_raw = _read_bytes_once(submission_path)
+    submission = _validate_v3_group_submission(
+        _decode_json_bytes(submission_raw, "group submission receipt"),
+        repo_root=repo_root, policy=policy, source_commit=args.expected_head,
+        attempt=attempt,
+    )
+    intent_raw = _read_bytes_once(_attempt_intent_path(attempt))
+    intent = _validate_submission_intent(
+        _decode_json_bytes(intent_raw, "group submission intent"),
+        repo_root=repo_root, source_commit=args.expected_head,
+        attempt=attempt, policy=policy,
+    )
+    if submission.get("intent_sha256") != intent.get("intent_sha256"):
+        raise PaperStoryError("group submission differs from create-only intent")
+    shards = []
+    terminals = []
+    completion_jobs = []
+    executions = []
+    common_record = None
+    campaign_ids = None
+    for ordinal, workload in enumerate(WORKLOAD_ORDER):
+        roots = _v3_job_roots(attempt, workload)
+        result_path = Path(roots["result_root"]) / "result.json"
+        receipt_path = Path(roots["result_root"]) / "receipt.json"
+        terminal_path = Path(roots["job_terminal"])
+        result_raw = _read_bytes_once(result_path)
+        receipt_raw = _read_bytes_once(receipt_path)
+        terminal_raw = _read_bytes_once(terminal_path)
+        shard, _shard_receipt, terminal = _validate_v3_workload_shard(
+            _decode_json_bytes(result_raw, f"{workload} shard result"),
+            _decode_json_bytes(receipt_raw, f"{workload} shard receipt"),
+            _decode_json_bytes(terminal_raw, f"{workload} job terminal"),
+            policy=policy, policy_sha=policy_sha,
+            source_commit=args.expected_head, attempt=attempt,
+            workload=workload, ordinal=ordinal, submission=submission,
+            result_path=result_path, receipt_path=receipt_path,
+        )
+        if common_record is None:
+            common_record = shard["common_record"]
+            campaign_ids = shard["campaign_ids"]
+        elif (
+            shard["common_record"] != common_record
+            or shard["campaign_ids"] != campaign_ids
+            or shard["source_binding"] != shards[0]["source_binding"]
+            or shard["non_certifying_source_binding"]
+            != shards[0]["non_certifying_source_binding"]
+        ):
+            raise PaperStoryError("workload shard common projection differs")
+        scheduler_terminal = _observe_scheduler_terminal(
+            submission["jobs"][ordinal]["request_id"], submission["jobs"][ordinal],
+        )
+        if scheduler_terminal.get("terminal_reason") == "scheduler-end-state":
+            if scheduler_terminal.get("exit_status") != {"observed": True, "value": 0}:
+                raise PaperStoryError("workload scheduler exit status differs")
+        bindings = {}
+        for label, path in (
+            ("stdout", Path(roots["stdout_path"])),
+            ("stderr", Path(roots["stderr_path"])),
+            ("job_terminal", terminal_path),
+        ):
+            raw = _read_bytes_once(path)
+            bindings[label] = {"path": os.fspath(path), "sha256": _sha256_bytes(raw)}
+        completion_jobs.append({
+            "workload": workload, "ordinal": ordinal,
+            "request_id": submission["jobs"][ordinal]["request_id"],
+            "scheduler_terminal": scheduler_terminal,
+            **bindings,
+        })
+        executions.append({
+            "workload": workload, "ordinal": ordinal,
+            "request_id": submission["jobs"][ordinal]["request_id"],
+            "reservation_binding": terminal["reservation_binding"],
+            "accounting": terminal["accounting"],
+        })
+        shards.append(shard)
+        terminals.append(terminal)
+    _validate_v3_barrier_for_completion(
+        attempt=attempt, policy=policy, source_commit=args.expected_head,
+        submission=submission, campaign_ids=campaign_ids,
+    )
+    workloads = [shard["workload_result"] for shard in shards]
+    result = assemble_result(
+        policy, policy_sha256=policy_sha,
+        source_binding=shards[0]["source_binding"],
+        job_executions=executions, workloads=workloads,
+    )
+    group_roots = {
+        "attempt_root": os.fspath(attempt),
+        "attempt_identity": _attempt_root_identity(attempt),
+        "raw_root": os.fspath(attempt / "raw"),
+        "result_root": evidence["result_root"],
+        "submission_receipt": evidence["submission_receipt"],
+        "completion_receipt": evidence["completion_receipt"],
+        "group_terminal": evidence["group_terminal"],
+        "job_roots": [
+            _v3_job_roots(attempt, workload) for workload in WORKLOAD_ORDER
+        ],
+    }
+    result_root = Path(evidence["result_root"])
+    result_root.mkdir(mode=0o700)
+    _fsync_directory(result_root.parent)
+    result_path = result_root / "result.json"
+    _exclusive_write(result_path, result)
+    receipt = {
+        "schema_version": RECEIPT_SCHEMA,
+        "study_id": study_id,
+        "formal": False,
+        "promotion_prohibited": True,
+        "route": "direct-qsub-workload-fanout",
+        "recorded_epoch": int(time.time()),
+        "policy": {"path": _policy_relative_path(policy), "sha256": policy_sha},
+        "source_binding": shards[0]["source_binding"],
+        "submission_receipt": {
+            "path": evidence["submission_receipt"],
+            "sha256": _sha256_bytes(submission_raw),
+        },
+        "scheduler_completion_receipt": {
+            "path": evidence["completion_receipt"],
+        },
+        "roots": group_roots,
+        "result": {
+            "path": os.fspath(result_path), "sha256": _sha256_file(result_path),
+            "complete": result["complete"],
+            "all_workloads_terminal": result["all_workloads_terminal"],
+        },
+        "job_executions": executions,
+    }
+    receipt_path = result_root / "receipt.json"
+    _exclusive_write(receipt_path, receipt)
+    sidecar_path = _issue_non_certifying_observation(
+        common_record=common_record,
+        source_binding=shards[0]["non_certifying_source_binding"],
+        workloads=workloads,
+        result_path=result_path,
+        receipt_path=receipt_path,
+    )
+    _validate_non_certifying_observation_contents(sidecar_path)
+    group_terminal = {
+        "schema_version": V3_GROUP_TERMINAL_SCHEMA,
+        "study_id": study_id,
+        "source_commit": args.expected_head,
+        "attempt_root": os.fspath(attempt),
+        "jobs": [
+            {
+                "workload": workload, "ordinal": ordinal,
+                "request_id": executions[ordinal]["request_id"],
+                "path": _v3_job_roots(attempt, workload)["job_terminal"],
+                "sha256": _sha256_file(Path(
+                    _v3_job_roots(attempt, workload)["job_terminal"]
+                )),
+                "result": {
+                    "path": os.fspath(Path(
+                        _v3_job_roots(attempt, workload)["result_root"]
+                    ) / "result.json"),
+                    "sha256": terminals[ordinal]["result_sha256"],
+                },
+                "receipt": {
+                    "path": os.fspath(Path(
+                        _v3_job_roots(attempt, workload)["result_root"]
+                    ) / "receipt.json"),
+                    "sha256": terminals[ordinal]["receipt_sha256"],
+                },
+            }
+            for ordinal, workload in enumerate(WORKLOAD_ORDER)
+        ],
+    }
+    group_terminal_path = Path(evidence["group_terminal"])
+    _exclusive_write(group_terminal_path, group_terminal)
+    _fsync_directory(group_terminal_path.parent)
+    completion = {
+        "schema_version": V3_GROUP_COMPLETION_SCHEMA,
+        "study_id": study_id,
+        "source_commit": args.expected_head,
+        "attempt_root": os.fspath(attempt),
+        "submission_receipt": {
+            "path": evidence["submission_receipt"],
+            "sha256": _sha256_bytes(submission_raw),
+        },
+        "group_terminal": {
+            "path": evidence["group_terminal"],
+            "sha256": _sha256_file(group_terminal_path),
+        },
+        "jobs": completion_jobs,
+    }
+    completion_path = Path(evidence["completion_receipt"])
+    _exclusive_write(completion_path, completion)
+    _fsync_directory(completion_path.parent)
+    return 0
+
+
 def run_complete(args) -> int:
     """Publish only the one-shot scheduler completion receipt."""
     repo_root = _repo_root().resolve(strict=True)
@@ -2852,6 +4224,11 @@ def run_complete(args) -> int:
     attempt = _validate_attempt_root(
         Path(args.attempt_root), _durable_measurement_base(policy),
     )
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        return _run_complete_v3(
+            args, repo_root=repo_root, policy=policy, policy_sha=_policy_sha,
+            attempt=attempt,
+        )
     evidence = _attempt_evidence_paths(attempt)
     submission_path = Path(evidence["submission_receipt"])
     submission_raw = _read_bytes_once(submission_path)
@@ -2940,6 +4317,7 @@ def validate_measure_environment(
     observed_head: str,
     porcelain: str,
     attempt_root: Path | None = None,
+    workload: str | None = None,
 ) -> dict[str, str]:
     """Pure fail-closed gate shared by the CLI and negative contract tests."""
     if site != site_policy.PEGASUS_COMPUTE:
@@ -2978,11 +4356,21 @@ def validate_measure_environment(
         raise PaperStoryError("measurement roots must not be under /scr")
     if attempt_root is not None:
         attempt = attempt_root.resolve(strict=False)
-        expected = {
-            "output_root": attempt / "raw" / "campaign-output",
-            "cache_root": attempt / "cache",
-            "result_root": attempt / "raw" / "results",
-        }
+        if workload is None:
+            expected = {
+                "output_root": attempt / "raw" / "campaign-output",
+                "cache_root": attempt / "cache",
+                "result_root": attempt / "raw" / "results",
+            }
+        else:
+            if workload not in WORKLOAD_ORDER:
+                raise PaperStoryError("measurement workload selector differs")
+            job_root = attempt / "jobs" / workload
+            expected = {
+                "output_root": job_root / "raw" / "campaign-output",
+                "cache_root": job_root / "cache",
+                "result_root": job_root / "raw" / "results",
+            }
         if any(Path(roots[key]) != value for key, value in expected.items()):
             raise PaperStoryError("measurement roots differ from fixed attempt topology")
     return roots
@@ -4288,12 +5676,21 @@ def assemble_result(
     *,
     policy_sha256: str,
     source_binding: Mapping[str, object],
-    reservation_binding: Mapping[str, object],
+    reservation_binding: Mapping[str, object] | None = None,
+    job_executions: Sequence[Mapping[str, object]] | None = None,
     workloads: Sequence[Mapping[str, object]],
     measurement_error: str | None = None,
 ) -> dict:
     validate_policy(policy)
-    reservation = _validate_reservation_binding_document(reservation_binding)
+    v3 = _policy_schema(policy) == POLICY_SCHEMA_V3
+    if v3:
+        if reservation_binding is not None:
+            raise PaperStoryError("v3 result must not claim one group reservation")
+        executions = _validate_v3_job_executions(job_executions)
+    else:
+        if job_executions is not None:
+            raise PaperStoryError("legacy result must not claim job executions")
+        reservation = _validate_reservation_binding_document(reservation_binding)
     workload_names = [item.get("workload") for item in workloads]
     campaign_ids = [item.get("campaign_id") for item in workloads]
     wal_paths = [
@@ -4313,7 +5710,7 @@ def assemble_result(
     complete = all_workloads_terminal and all(
         item.get("valid") is True for item in workloads
     )
-    return {
+    result = {
         "schema_version": RESULT_SCHEMA,
         "study_id": _policy_study_id(policy),
         "formal": False,
@@ -4322,7 +5719,6 @@ def assemble_result(
         "pairing_design": _pairing_design(policy),
         "policy_sha256": policy_sha256,
         "source_binding": dict(source_binding),
-        "reservation_binding": reservation,
         "pbs_evidence_scope": _json_safe(PBS_EVIDENCE_SCOPE),
         "workload_reps": {
             name: _expected_reps(policy, name) for name in WORKLOAD_ORDER
@@ -4348,6 +5744,11 @@ def assemble_result(
             ]
         ),
     }
+    if v3:
+        result["job_executions"] = executions
+    else:
+        result["reservation_binding"] = reservation
+    return result
 
 
 def _prepare_runtime_roots(roots: Mapping[str, str], env_tag: str) -> None:
@@ -4366,6 +5767,7 @@ def _prepare_runtime_roots(roots: Mapping[str, str], env_tag: str) -> None:
 def _measurement_intent(
     *, acquisition: Mapping[str, object], repo_root: Path, attempt: Path,
     source_commit: str, policy: Mapping[str, object] | None = None,
+    workload: str | None = None,
 ) -> dict[str, object]:
     raw = _read_bytes_once(_attempt_intent_path(attempt))
     if raw is None:  # pragma: no cover
@@ -4377,7 +5779,24 @@ def _measurement_intent(
         attempt=attempt,
         policy=policy,
     )
-    if (
+    if _policy_schema(policy if policy is not None else load_policy()[0]) == POLICY_SCHEMA_V3:
+        if workload not in WORKLOAD_ORDER:
+            raise PaperStoryError("group intent workload selector differs")
+        ordinal = WORKLOAD_ORDER.index(workload)
+        acquisition_jobs = acquisition.get("jobs")
+        if (
+            type(acquisition_jobs) is not list
+            or len(acquisition_jobs) != len(WORKLOAD_ORDER)
+            or acquisition.get("attempt_root") != intent["attempt_root"]
+            or acquisition.get("source_commit") != intent["source_commit"]
+            or acquisition.get("intent_sha256") != intent["intent_sha256"]
+            or acquisition_jobs[ordinal].get("qsub_argv")
+            != intent["jobs"][ordinal]["qsub_argv"]
+            or acquisition_jobs[ordinal].get("qsub_options")
+            != intent["jobs"][ordinal]["qsub_options"]
+        ):
+            raise PaperStoryError("group receipt differs from its create-only intent")
+    elif (
         acquisition.get("qsub_argv") != intent["qsub_argv"]
         or acquisition.get("qsub_options") != intent["qsub_options"]
         or acquisition.get("attempt_root") != intent["attempt_root"]
@@ -4443,6 +5862,218 @@ def _preseed_a1_non_certifying_locks(
             raise PaperStoryError("existing A-1 non-certifying lock differs")
 
 
+def _preseed_v3_workload_lock(
+    *,
+    configs: Sequence[CampaignConfig],
+    campaign_ids: Sequence[str],
+    workload: str,
+    output_root: str,
+    common_record: Mapping[str, object],
+) -> CampaignLayout:
+    if (
+        workload not in WORKLOAD_ORDER
+        or len(configs) != len(WORKLOAD_ORDER)
+        or len(campaign_ids) != len(WORKLOAD_ORDER)
+    ):
+        raise PaperStoryError("v3 lock preseed requires the exact campaign triple")
+    ordinal = WORKLOAD_ORDER.index(workload)
+    cfg = configs[ordinal]
+    if not ident.is_a1_non_certifying_config(cfg):
+        raise PaperStoryError("A-1 marker differs before workload lock preseed")
+    layout = exploration_campaign_layout(campaign_ids[ordinal], output_root)
+    layout.ensure()
+    lock_text = campaign_lock_codec.encode_non_certifying_campaign_lock(
+        ident.canonical_preimage(cfg),
+        common_record=common_record,
+        workload_binding={
+            "workload": workload,
+            "campaign_id": campaign_ids[ordinal],
+            "ordinal": ordinal,
+        },
+    )
+    if not wal.acquire_lock_atomic(layout, lock_text):
+        if wal.read_lock(layout) != lock_text:
+            raise PaperStoryError("existing A-1 workload lock differs")
+    return layout
+
+
+def _validate_v3_ready_document(
+    value: object,
+    *,
+    workload: str,
+    ordinal: int,
+    study_id: str,
+    source_commit: str,
+    attempt: Path,
+    submission: Mapping[str, object],
+) -> dict[str, object]:
+    if type(value) is not dict or set(value) != {
+        "schema_version", "study_id", "source_commit", "attempt_root",
+        "workload", "ordinal", "request_id", "reservation_nonce",
+        "campaign_id", "prepared_arms", "recorded_epoch",
+    }:
+        raise PaperStoryError("workload ready evidence shape differs")
+    jobs = submission.get("jobs")
+    job = jobs[ordinal] if type(jobs) is list and len(jobs) == 3 else None
+    prepared = value.get("prepared_arms")
+    if (
+        value.get("schema_version") != V3_READY_SCHEMA
+        or value.get("study_id") != study_id
+        or value.get("source_commit") != source_commit
+        or value.get("attempt_root") != os.fspath(attempt)
+        or value.get("workload") != workload
+        or value.get("ordinal") != ordinal
+        or type(job) is not dict
+        or _validated_request_id(
+            value.get("request_id"), f"{workload} ready request ID",
+        ) != _validated_request_id(
+            job.get("request_id"), f"{workload} submission request ID",
+        )
+        or value.get("reservation_nonce") != f"{attempt.name}.{workload}"
+        or type(value.get("campaign_id")) is not str
+        or type(value.get("recorded_epoch")) is not int
+        or value["recorded_epoch"] <= 0
+        or type(prepared) is not list
+        or len(prepared) != len(ARM_ORDER)
+    ):
+        raise PaperStoryError("workload ready evidence differs")
+    for arm in prepared:
+        if type(arm) is not dict or set(arm) != {
+            "variant", "build_attempt_id", "build_admission_receipt_sha256",
+            "verify_tags",
+        }:
+            raise PaperStoryError("workload ready arm evidence shape differs")
+        if (
+            type(arm.get("variant")) is not str
+            or not arm["variant"]
+            or type(arm.get("build_attempt_id")) is not str
+            or not arm["build_attempt_id"]
+            or type(arm.get("build_admission_receipt_sha256")) is not str
+            or _FULL_SHA256.fullmatch(arm["build_admission_receipt_sha256"])
+            is None
+            or arm.get("verify_tags") != list(EXPECTED_VERIFY_CONFIGS)
+        ):
+            raise PaperStoryError("workload ready arm evidence differs")
+    return dict(value)
+
+
+def _v3_barrier_before_bench(
+    *,
+    prepared_arms: Sequence[object],
+    workload: str,
+    campaign_id: str,
+    policy: Mapping[str, object],
+    source_commit: str,
+    attempt: Path,
+    submission: Mapping[str, object],
+    reservation: Mapping[str, object],
+    timeout_s: float = 600.0,
+) -> None:
+    """MF2 front gate: exact three ready files precede bench-go/start."""
+    ordinal = WORKLOAD_ORDER.index(workload)
+    roots = _v3_job_roots(attempt, workload)
+    ready = {
+        "schema_version": V3_READY_SCHEMA,
+        "study_id": _policy_study_id(policy),
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "workload": workload,
+        "ordinal": ordinal,
+        "request_id": reservation["job_id"],
+        "reservation_nonce": reservation["nonce"],
+        "campaign_id": campaign_id,
+        "prepared_arms": [
+            {
+                "variant": prepared.result.variant,
+                "build_attempt_id": prepared.build_attempt_id,
+                "build_admission_receipt_sha256": (
+                    prepared.build_admission_receipt_sha256
+                ),
+                "verify_tags": list(prepared.verify_tags),
+            }
+            for prepared in prepared_arms
+        ],
+        "recorded_epoch": int(time.time()),
+    }
+    _validate_v3_ready_document(
+        ready, workload=workload, ordinal=ordinal,
+        study_id=_policy_study_id(policy), source_commit=source_commit,
+        attempt=attempt, submission=submission,
+    )
+    ready_path = Path(roots["ready"])
+    _exclusive_write(ready_path, ready)
+    _fsync_directory(ready_path.parent)
+
+    deadline = time.monotonic() + timeout_s
+    ready_bindings = None
+    while time.monotonic() <= deadline:
+        bindings = []
+        try:
+            for ready_ordinal, ready_workload in enumerate(WORKLOAD_ORDER):
+                path = Path(_v3_job_roots(attempt, ready_workload)["ready"])
+                raw = _read_bytes_once(path, missing_ok=True)
+                if raw is None:
+                    raise FileNotFoundError
+                document = _validate_v3_ready_document(
+                    _decode_json_bytes(raw, f"{ready_workload} ready evidence"),
+                    workload=ready_workload, ordinal=ready_ordinal,
+                    study_id=_policy_study_id(policy),
+                    source_commit=source_commit, attempt=attempt,
+                    submission=submission,
+                )
+                bindings.append({
+                    "workload": ready_workload,
+                    "ordinal": ready_ordinal,
+                    "campaign_id": document["campaign_id"],
+                    "path": os.fspath(path),
+                    "sha256": _sha256_bytes(raw),
+                })
+        except FileNotFoundError:
+            time.sleep(0.1)
+            continue
+        ready_bindings = bindings
+        break
+    if ready_bindings is None:
+        raise PaperStoryError("exact workload ready triple did not appear before bench")
+    bench_go = {
+        "schema_version": V3_BENCH_GO_SCHEMA,
+        "study_id": _policy_study_id(policy),
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "ready": ready_bindings,
+    }
+    bench_go_path = Path(roots["bench_go"])
+    if not os.path.lexists(bench_go_path):
+        try:
+            _exclusive_write(bench_go_path, bench_go)
+            _fsync_directory(bench_go_path.parent)
+        except PaperStoryError:
+            if not os.path.lexists(bench_go_path):
+                raise
+    bench_go_raw = _read_bytes_once(bench_go_path)
+    if (
+        bench_go_raw is None
+        or _decode_json_bytes(bench_go_raw, "bench-go evidence") != bench_go
+    ):
+        raise PaperStoryError("bench-go evidence differs from exact ready triple")
+    own_ready_raw = _read_bytes_once(ready_path)
+    bench_start = {
+        "schema_version": V3_BENCH_START_SCHEMA,
+        "study_id": _policy_study_id(policy),
+        "source_commit": source_commit,
+        "attempt_root": os.fspath(attempt),
+        "workload": workload,
+        "ordinal": ordinal,
+        "request_id": reservation["job_id"],
+        "bench_go_sha256": _sha256_bytes(bench_go_raw),
+        "ready_sha256": _sha256_bytes(own_ready_raw),
+        "recorded_epoch": int(time.time()),
+    }
+    bench_start_path = Path(roots["bench_start"])
+    _exclusive_write(bench_start_path, bench_start)
+    _fsync_directory(bench_start_path.parent)
+
+
 def _observation_identity_tag(value: Mapping[str, object]) -> str:
     common = value.get("common_record")
     if type(common) is not dict:
@@ -4480,14 +6111,25 @@ def _validate_observation_intent_binding(
     if raw is None:  # pragma: no cover - missing_ok is false
         raise PaperStoryError("non-certifying submission intent is missing")
     intent = _decode_json_bytes(raw, "non-certifying submission intent")
-    if type(intent) is not dict or set(intent) != {
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        if (
+            type(intent) is not dict
+            or set(intent) != {
+                "schema_version", "study_id", "source_commit", "attempt_root",
+                "jobs", "source_binding", "intent_sha256",
+            }
+            or intent.get("schema_version") != V3_GROUP_INTENT_SCHEMA
+            or type(intent.get("jobs")) is not list
+            or len(intent["jobs"]) != 3
+        ):
+            raise PaperStoryError("non-certifying group intent shape differs")
+    elif type(intent) is not dict or set(intent) != {
         "schema_version", "study_id", "source_commit", "attempt_root",
         "qsub_argv", "qsub_options", "source_binding", "intent_sha256",
-    }:
+    } or intent.get("schema_version") != SUBMISSION_INTENT_SCHEMA:
         raise PaperStoryError("non-certifying submission intent shape differs")
     if (
-        intent.get("schema_version") != SUBMISSION_INTENT_SCHEMA
-        or intent.get("study_id") != study_id
+        intent.get("study_id") != study_id
         or intent.get("source_commit") != common_record.get("source_commit")
         or intent.get("attempt_root") != attempt_root
         or not _validate_non_certifying_source_binding(
@@ -4655,9 +6297,24 @@ def _validate_non_certifying_observation_contents(
     study_id = _policy_study_id(policy)
     policy_relative = _policy_relative_path(policy)
     preregistration_sha = policy["preregistration"]["sha256"]
+    result_keys = (
+        _V3_NON_CERTIFYING_RESULT_KEYS
+        if _policy_schema(policy) == POLICY_SCHEMA_V3
+        else _NON_CERTIFYING_RESULT_KEYS
+    )
+    receipt_keys = (
+        _V3_NON_CERTIFYING_RECEIPT_KEYS
+        if _policy_schema(policy) == POLICY_SCHEMA_V3
+        else _NON_CERTIFYING_RECEIPT_KEYS
+    )
+    expected_route = (
+        "direct-qsub-workload-fanout"
+        if _policy_schema(policy) == POLICY_SCHEMA_V3
+        else "direct-qsub"
+    )
     if (
-        set(result) != _NON_CERTIFYING_RESULT_KEYS
-        or set(receipt) != _NON_CERTIFYING_RECEIPT_KEYS
+        set(result) != result_keys
+        or set(receipt) != receipt_keys
         or result.get("schema_version") != RESULT_SCHEMA
         or receipt.get("schema_version") != RECEIPT_SCHEMA
         or result.get("study_id") != study_id
@@ -4668,7 +6325,7 @@ def _validate_non_certifying_observation_contents(
         or result.get("pairing_design") != _pairing_design(policy)
         or receipt.get("formal") is not False
         or receipt.get("promotion_prohibited") is not True
-        or receipt.get("route") != "direct-qsub"
+        or receipt.get("route") != expected_route
         or receipt.get("policy") != {
             "path": policy_relative,
             "sha256": policy_sha,
@@ -4817,6 +6474,37 @@ def _validate_completed_non_certifying_observation(
     roots = receipt.get("roots")
     if type(roots) is not dict:
         raise PaperStoryError("non-certifying final roots are missing")
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        terminal_path = Path(roots.get("group_terminal", ""))
+        terminal_raw = _read_bytes_once(terminal_path, missing_ok=True)
+        if terminal_raw is None:
+            raise PaperStoryError("non-certifying group terminal is missing")
+        terminal = _decode_json_bytes(
+            terminal_raw, "non-certifying group terminal",
+        )
+        validate_raw_documents(result, receipt, terminal, policy)
+        acquisition_raw = _read_observation_binding(
+            receipt.get("submission_receipt"), label="submission receipt",
+        )
+        acquisition = _validate_v3_group_submission(
+            _decode_json_bytes(acquisition_raw, "group submission receipt"),
+            repo_root=repo_root, policy=policy, source_commit=expected_head,
+            attempt=Path(roots["attempt_root"]),
+        )
+        completion_path = Path(roots["completion_receipt"])
+        completion_raw = _read_bytes_once(completion_path, missing_ok=True)
+        if completion_raw is None:
+            raise PaperStoryError("non-certifying group completion is missing")
+        _validate_v3_group_completion(
+            _decode_json_bytes(completion_raw, "group completion receipt"),
+            policy=policy, source_commit=expected_head,
+            attempt=Path(roots["attempt_root"]), submission=acquisition,
+            submission_sha256=_sha256_bytes(acquisition_raw),
+            group_terminal_sha256=_sha256_bytes(terminal_raw),
+        )
+        if result.get("policy_sha256") != policy_sha:
+            raise PaperStoryError("non-certifying final policy hash differs")
+        return
     terminal_path = Path(roots.get("raw_root", "")) / "job-terminal.json"
     terminal_raw = _read_bytes_once(terminal_path, missing_ok=True)
     if terminal_raw is None:
@@ -4903,6 +6591,344 @@ def consume_non_certifying_observation(
     )
 
 
+def _require_v3_backoff_fixed_condition_gate(
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    workload: str,
+    cxx: str,
+) -> None:
+    """Require live supply and meaning records for every v3 fixed-backoff arm."""
+    values = tuple(dict.fromkeys(
+        genome.flags["BACKOFF_FIXED"]
+        for genome in genomes(policy, workload)
+    ))
+    try:
+        source_root = (repo_root / "external" / "ccbench").resolve(strict=True)
+        with patchharness.checkout(
+            CANONICAL_CCBENCH_OID, base_dir=os.fspath(source_root),
+        ) as stock_root:
+            captured = condition_meaning_gate.capture_define_inputs(
+                source_root, stock_root=stock_root,
+            )
+            supply_records = []
+            meaning_records = []
+            for value in values:
+                request = condition_meaning_gate.make_define_request(
+                    driver_id=(
+                        "orchestrator.campaign.paper_story_a1_paired:"
+                        f"v3-{workload}"
+                    ),
+                    macro="BACKOFF_FIXED",
+                    requested_value=value,
+                    default_value=-1,
+                    stock_comparison=value == -1,
+                )
+                if value == -1:
+                    meaning_case = condition_meaning_gate.MeaningCase(
+                        -1,
+                        None,
+                        expected_selected_branch=(
+                            condition_meaning_gate.STOCK_ADAPTIVE_BRANCH
+                        ),
+                    )
+                else:
+                    bits = struct.pack(">d", float(value)).hex()
+                    meaning_case = condition_meaning_gate.MeaningCase(
+                        value, (bits, bits),
+                    )
+                declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+                    "BACKOFF_FIXED", (meaning_case,),
+                )
+                supply_records.append(
+                    condition_meaning_gate.evaluate_define_supply_effectuation(
+                        captured, request=request, cxx=cxx, cmake="cmake",
+                    )
+                )
+                meaning_records.append(
+                    condition_meaning_gate.evaluate_define_runtime_meaning(
+                        captured,
+                        request=request,
+                        declaration=declaration,
+                        cxx=cxx,
+                    )
+                )
+            admission = condition_meaning_gate.require_condition_gate_family(
+                supply_records, meaning_records, use_class="paper",
+            )
+    except (OSError, RuntimeError) as exc:
+        raise PaperStoryError(
+            f"v3 BACKOFF_FIXED condition gate could not run: {exc}"
+        ) from exc
+    if not admission.admitted:
+        rejected = ",".join(
+            f"{record.arm}:{record.reason_code}"
+            for record in (*supply_records, *meaning_records)
+            if record.terminal_status != "green"
+        )
+        raise PaperStoryError(
+            "v3 BACKOFF_FIXED condition gate rejected measurement: "
+            f"{rejected or 'admission-not-granted'}"
+        )
+
+
+def _run_measurement_v3(
+    args,
+    *,
+    repo_root: Path,
+    policy: Mapping[str, object],
+    policy_sha: str,
+) -> int:
+    workload = getattr(args, "workload", None)
+    if workload not in WORKLOAD_ORDER:
+        raise PaperStoryError("v3 measure requires one exact workload selector")
+    study_id = _policy_study_id(policy)
+    acquisition_path = Path(args.acquisition_receipt)
+    if not acquisition_path.is_absolute() or acquisition_path.resolve(
+        strict=True
+    ) != acquisition_path:
+        raise PaperStoryError("acquisition receipt path must be canonical absolute")
+    acquisition_raw = _read_bytes_once(acquisition_path)
+    acquisition_sha = _sha256_bytes(acquisition_raw)
+    if acquisition_sha != args.acquisition_receipt_sha256:
+        raise PaperStoryError("acquisition receipt bytes differ from job binding")
+    acquisition = _decode_json_bytes(acquisition_raw, "group acquisition receipt")
+    trusted_roots = validate_acquisition_receipt(
+        acquisition,
+        repo_root=repo_root,
+        study_id=study_id,
+        source_commit=args.expected_head,
+        request_id=args.pbs_jobid,
+        pbs_observation=_pbs_environment_observation(),
+        policy=policy,
+        workload=workload,
+    )
+    attempt = Path(trusted_roots["attempt_root"])
+    submission_intent = _measurement_intent(
+        acquisition=acquisition,
+        repo_root=repo_root,
+        attempt=attempt,
+        source_commit=args.expected_head,
+        policy=policy,
+        workload=workload,
+    )
+    if os.fspath(acquisition_path) != trusted_roots["submission_receipt"]:
+        raise PaperStoryError("group receipt path differs from durable topology")
+    roots = validate_measure_environment(
+        repo_root=repo_root,
+        expected_head=args.expected_head,
+        output_root=Path(args.output_root),
+        cache_root=Path(args.cache_root),
+        result_root=Path(args.result_root),
+        pbs_jobid=args.pbs_jobid,
+        site=site_policy.current_site(),
+        observed_head=_run_git(repo_root, "rev-parse", "HEAD"),
+        porcelain=_parent_porcelain(repo_root, policy),
+        attempt_root=attempt,
+        workload=workload,
+    )
+    if any(roots[key] != trusted_roots[key] for key in roots):
+        raise PaperStoryError("CLI roots differ from workload acquisition topology")
+    roots = dict(trusted_roots)
+    dependency_prefix = _validated_dependency_prefix(
+        args.dependency_prefix, require_scr=True,
+    )
+    reservation = _reservation_binding_from_environment(os.environ)
+    ordinal = WORKLOAD_ORDER.index(workload)
+    if reservation["nonce"] != f"{attempt.name}.{workload}":
+        raise PaperStoryError("workload reservation nonce differs")
+    submission_job = acquisition["jobs"][ordinal]
+    if _validated_request_id(
+        reservation["job_id"], "reservation job ID",
+    ) != _validated_request_id(
+        submission_job["request_id"], "submission request ID",
+    ):
+        raise PaperStoryError("workload reservation request ID differs")
+
+    site, contract, authorization = p2_2.resolve_site_runtime()
+    if site != site_policy.PEGASUS_COMPUTE:
+        raise PaperStoryError("resolved runtime is not Pegasus compute")
+    loaded_calibration = p2_2._assert_matches_calibration(contract)
+    _prepare_runtime_roots(roots, contract.env_tag)
+    source_binding = _source_binding(repo_root, args.expected_head, policy)
+    non_certifying_source_binding = _non_certifying_source_binding(
+        repo_root, args.expected_head, policy,
+    )
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
+    toolchain_manifest = buildcache.observed_toolchain_manifest(
+        resolved_cc, resolved_cxx,
+    )
+    durable_policy = DurableRootPolicy(
+        approved_roots=(Path(roots["output_root"]).resolve(),),
+        forbidden_roots=(),
+    )
+    campaign_configs = tuple(
+        ident.bind_admission_policy(
+            p2_2._campaign_cfg_for_site(
+                campaign_config(
+                    policy, name, contract=contract, non_certifying=True,
+                ),
+                site,
+                contract,
+            ),
+            build_context.policy,
+        )
+        for name in WORKLOAD_ORDER
+    )
+    campaign_ids = tuple(str(ident.campaign_id(cfg)) for cfg in campaign_configs)
+    projection = trial_registry.issue_a1_registered_noncertifying_projection(
+        study_id=study_id,
+        policy_sha256=policy_sha,
+        preregistration_sha256=policy["preregistration"]["sha256"],
+        source_commit=args.expected_head,
+        workloads=WORKLOAD_ORDER,
+        campaign_ids=campaign_ids,
+    )
+    common_record = _a1_common_record(
+        projection,
+        source_binding=non_certifying_source_binding,
+        environment_contract_sha256=contract.contract_sha256,
+        intent_sha256=submission_intent["intent_sha256"],
+    )
+    layout = _preseed_v3_workload_lock(
+        configs=campaign_configs,
+        campaign_ids=campaign_ids,
+        workload=workload,
+        output_root=roots["output_root"],
+        common_record=common_record,
+    )
+    cfg = campaign_configs[ordinal]
+    campaign_preimage = ident.canonical_preimage(cfg)
+    perf = PerfConfig(
+        records=policy["scale"]["records"],
+        threads=policy["scale"]["threads"],
+        workload=workload_flags(policy, workload),
+        extime=policy["scale"]["extime_s"],
+        reps=_expected_reps(policy, workload),
+    )
+
+    def capability_resolver(evidence):
+        generator_input = (
+            f"paper-story-a1-paired/v1|{study_id}|{workload}|"
+            f"{evidence.genome_sha256}"
+        ).encode("utf-8")
+        return attest_generator_output(
+            build_context,
+            evidence,
+            generator_input_sha256=_sha256_bytes(generator_input),
+        )
+
+    execution_options = _require_registered_execution_options(
+        policy, workload, _campaign_execution_options(policy, workload),
+    )
+    _require_v3_backoff_fixed_condition_gate(
+        repo_root=repo_root,
+        policy=policy,
+        workload=workload,
+        cxx=resolved_cxx,
+    )
+    original_balanced_executor = campaign_loop._run_balanced_schedule
+
+    def gated_balanced_executor(prepared_arms, schedule):
+        _v3_barrier_before_bench(
+            prepared_arms=prepared_arms,
+            workload=workload,
+            campaign_id=campaign_ids[ordinal],
+            policy=policy,
+            source_commit=args.expected_head,
+            attempt=attempt,
+            submission=acquisition,
+            reservation=reservation,
+            timeout_s=max(
+                0.0, float(reservation["deadline_epoch"]) - time.time() - 60.0,
+            ),
+        )
+        return original_balanced_executor(prepared_arms, schedule)
+
+    campaign_loop._run_balanced_schedule = gated_balanced_executor
+    try:
+        _assert_single_tenant()
+        summary = run_campaign(
+            cfg,
+            genomes(policy, workload),
+            perf,
+            contract.env_tag,
+            contract.clocks_per_us,
+            numactl=list(contract.numactl),
+            output_root=roots["output_root"],
+            cache_root=roots["cache_root"],
+            dependency_prefix=dependency_prefix,
+            authorization_contract=authorization,
+            env_contract=contract,
+            expected_toolchain_manifest=toolchain_manifest,
+            build_context=build_context,
+            declared_use_class=DECLARED_USE_CLASS,
+            capability_resolver=capability_resolver,
+            durable_root_policy=durable_policy,
+            **execution_options,
+        )
+    finally:
+        campaign_loop._run_balanced_schedule = original_balanced_executor
+    collected = collect_workload(
+        policy,
+        workload_name=workload,
+        campaign_id=summary.campaign_id,
+        layout=CampaignLayout(summary.layout_root),
+        admission_policy=build_context.policy,
+        env_tag=contract.env_tag,
+        source_binding=source_binding,
+        summary=summary,
+        expected_campaign_preimage=campaign_preimage,
+        expected_layout_root=layout.root,
+        expected_schedule_receipt=summary.balanced_schedule_receipt,
+    )
+    if not _workload_has_terminal_result(collected):
+        raise PaperStoryError("workload did not produce one terminal shard")
+    shard = {
+        "schema_version": V3_WORKLOAD_SHARD_SCHEMA,
+        "study_id": study_id,
+        "workload": workload,
+        "ordinal": ordinal,
+        "campaign_id": campaign_ids[ordinal],
+        "campaign_ids": list(campaign_ids),
+        "common_record": common_record,
+        "source_binding": source_binding,
+        "non_certifying_source_binding": non_certifying_source_binding,
+        "reservation_binding": reservation,
+        "workload_result": collected,
+    }
+    _revalidate_attempt_root(roots)
+    result_path = Path(roots["result_root"]) / "result.json"
+    _exclusive_write(result_path, shard)
+    receipt = {
+        "schema_version": V3_WORKLOAD_RECEIPT_SCHEMA,
+        "study_id": study_id,
+        "workload": workload,
+        "ordinal": ordinal,
+        "pbs_jobid": args.pbs_jobid,
+        "host": socket.gethostname(),
+        "recorded_epoch": int(time.time()),
+        "policy": {
+            "path": _policy_relative_path(policy),
+            "sha256": policy_sha,
+        },
+        "source_binding": source_binding,
+        "submission_receipt": {
+            "path": os.fspath(acquisition_path),
+            "sha256": acquisition_sha,
+        },
+        "roots": roots,
+        "result": {
+            "path": os.fspath(result_path),
+            "sha256": _sha256_file(result_path),
+        },
+        "calibration_sha256": getattr(loaded_calibration, "sha256", None),
+    }
+    _exclusive_write(Path(roots["result_root"]) / "receipt.json", receipt)
+    return 0
+
+
 def run_measurement(args) -> int:
     repo_root = _repo_root()
     policy, policy_sha = _load_policy_for_study(args.study_id)
@@ -4913,6 +6939,12 @@ def run_measurement(args) -> int:
     _assert_ccbench_acceptance(
         repo_root, policy, boundary="driver-measurement",
     )
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        return _run_measurement_v3(
+            args, repo_root=repo_root, policy=policy, policy_sha=policy_sha,
+        )
+    if getattr(args, "workload", None) is not None:
+        raise PaperStoryError("v2 measure does not accept --workload")
     acquisition_path = Path(args.acquisition_receipt)
     if not acquisition_path.is_absolute() or acquisition_path.resolve(
         strict=True
@@ -5244,11 +7276,29 @@ def _revalidate_raw_wals(
 ) -> None:
     policy = policy if policy is not None else load_policy()[0]
     roots = receipt.get("roots")
-    if type(roots) is not dict or type(roots.get("output_root")) is not str:
+    if type(roots) is not dict:
         raise PaperStoryError("receipt output root binding is missing")
-    output_root = Path(roots["output_root"]).resolve(strict=True)
+    v3_job_roots = roots.get("job_roots")
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        if type(v3_job_roots) is not list or len(v3_job_roots) != 3:
+            raise PaperStoryError("receipt workload output roots are missing")
+        output_roots = []
+        for ordinal, workload in enumerate(WORKLOAD_ORDER):
+            item = v3_job_roots[ordinal]
+            if (
+                type(item) is not dict
+                or item != _v3_job_roots(Path(roots["attempt_root"]), workload)
+                or type(item.get("output_root")) is not str
+            ):
+                raise PaperStoryError("receipt workload output root differs")
+            output_roots.append(Path(item["output_root"]).resolve(strict=True))
+    else:
+        if type(roots.get("output_root")) is not str:
+            raise PaperStoryError("receipt output root binding is missing")
+        output_roots = [Path(roots["output_root"]).resolve(strict=True)] * 3
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    for workload in result["workloads"]:
+    for ordinal, workload in enumerate(result["workloads"]):
+        output_root = output_roots[ordinal]
         wal_evidence = workload.get("wal_evidence")
         if type(wal_evidence) is not dict or type(wal_evidence.get("path")) is not str:
             raise PaperStoryError("workload WAL evidence is missing")
@@ -5293,8 +7343,192 @@ def _revalidate_raw_wals(
             raise PaperStoryError("workload does not revalidate from raw WAL snapshot")
 
 
+def _validate_v3_raw_documents(
+    result: object, receipt: object, terminal: object, policy: Mapping[str, object],
+):
+    study_id = _policy_study_id(policy)
+    policy_sha = _sha256_file(_policy_path(policy))
+    if type(result) is not dict or set(result) != _V3_NON_CERTIFYING_RESULT_KEYS:
+        raise PaperStoryError("v3 raw result shape differs")
+    if type(receipt) is not dict or set(receipt) != _V3_NON_CERTIFYING_RECEIPT_KEYS:
+        raise PaperStoryError("v3 raw receipt shape differs")
+    if type(terminal) is not dict or set(terminal) != {
+        "schema_version", "study_id", "source_commit", "attempt_root", "jobs",
+    }:
+        raise PaperStoryError("v3 group terminal shape differs")
+    if (
+        result.get("schema_version") != RESULT_SCHEMA
+        or receipt.get("schema_version") != RECEIPT_SCHEMA
+        or terminal.get("schema_version") != V3_GROUP_TERMINAL_SCHEMA
+        or any(item.get("study_id") != study_id for item in (
+            result, receipt, terminal,
+        ))
+        or result.get("formal") is not False
+        or result.get("promotion_prohibited") is not True
+        or receipt.get("formal") is not False
+        or receipt.get("promotion_prohibited") is not True
+        or receipt.get("route") != "direct-qsub-workload-fanout"
+        or result.get("pairing_design") != _pairing_design(policy)
+        or result.get("pbs_evidence_scope") != _json_safe(PBS_EVIDENCE_SCOPE)
+        or result.get("policy_sha256") != policy_sha
+        or receipt.get("policy") != {
+            "path": _policy_relative_path(policy), "sha256": policy_sha,
+        }
+    ):
+        raise PaperStoryError("v3 raw authority/policy binding differs")
+    source_binding = result.get("source_binding")
+    if (
+        not _validate_source_binding(source_binding, policy)
+        or receipt.get("source_binding") != source_binding
+        or terminal.get("source_commit")
+        != source_binding.get("measurement_source_commit")
+    ):
+        raise PaperStoryError("v3 raw source binding differs")
+    roots = receipt.get("roots")
+    if type(roots) is not dict or set(roots) != {
+        "attempt_root", "attempt_identity", "raw_root", "result_root",
+        "submission_receipt", "completion_receipt", "group_terminal",
+        "job_roots",
+    }:
+        raise PaperStoryError("v3 raw roots shape differs")
+    attempt_raw = roots.get("attempt_root")
+    if type(attempt_raw) is not str or not Path(attempt_raw).is_absolute():
+        raise PaperStoryError("v3 raw attempt root differs")
+    attempt = Path(attempt_raw)
+    evidence = _v3_attempt_evidence_paths(attempt)
+    if (
+        roots.get("attempt_identity") != _attempt_root_identity(attempt)
+        or roots.get("raw_root") != os.fspath(attempt / "raw")
+        or roots.get("result_root") != evidence["result_root"]
+        or roots.get("submission_receipt") != evidence["submission_receipt"]
+        or roots.get("completion_receipt") != evidence["completion_receipt"]
+        or roots.get("group_terminal") != evidence["group_terminal"]
+        or terminal.get("attempt_root") != os.fspath(attempt)
+    ):
+        raise PaperStoryError("v3 raw roots identity differs")
+    executions = _validate_v3_job_executions(
+        result.get("job_executions"), attempt=attempt,
+    )
+    if receipt.get("job_executions") != executions:
+        raise PaperStoryError("v3 receipt job executions differ")
+    workloads = result.get("workloads")
+    if type(workloads) is not list:
+        raise PaperStoryError("v3 result workloads is not a list")
+    names = [item.get("workload") if type(item) is dict else None for item in workloads]
+    ids = [item.get("campaign_id") if type(item) is dict else None for item in workloads]
+    wal_paths = [
+        item.get("campaign_binding", {}).get("wal_path")
+        if type(item) is dict and type(item.get("campaign_binding")) is dict
+        else None
+        for item in workloads
+    ]
+    all_terminal = (
+        result.get("measurement_error") is None
+        and names == list(WORKLOAD_ORDER)
+        and len(ids) == len(set(ids)) == 3
+        and len(wal_paths) == len(set(wal_paths)) == 3
+        and None not in wal_paths
+        and all(_workload_has_terminal_result(item) for item in workloads)
+    )
+    complete = all_terminal and all(item.get("valid") is True for item in workloads)
+    if (
+        result.get("workload_reps") != {
+            name: _expected_reps(policy, name) for name in WORKLOAD_ORDER
+        }
+        or result.get("all_workloads_terminal") is not all_terminal
+        or result.get("complete") is not complete
+        or "cross_workload_conclusion" in result
+    ):
+        raise PaperStoryError("v3 raw workload aggregate differs")
+    for item in workloads:
+        schedule = item.get("schedule_receipt") if type(item) is dict else None
+        arms = item.get("arms") if type(item) is dict else None
+        errors = _balanced_schedule_receipt_errors(
+            policy, item.get("workload"),
+            schedule.get("document") if type(schedule) is dict else None,
+            arms if type(arms) is dict else None,
+        )
+        if (
+            type(item.get("errors")) is not list
+            or any(error not in item["errors"] for error in errors)
+            or (item.get("valid") is True and errors)
+        ):
+            raise PaperStoryError("v3 balanced schedule evidence differs")
+        if item.get("valid") is True:
+            expected_names = _workload_arm_order(policy, item["workload"])
+            if type(arms) is not dict or set(arms) != set(expected_names):
+                raise PaperStoryError("v3 valid workload arm set differs")
+            statistics_result = _consumer_positional_statistics(
+                policy, item["workload"],
+                {name: arms[name].get("raw_tps") for name in expected_names},
+            )
+            if item.get("statistics") != statistics_result:
+                raise PaperStoryError("v3 workload statistics differ")
+    terminal_jobs = terminal.get("jobs")
+    job_roots = roots.get("job_roots")
+    if (
+        type(terminal_jobs) is not list or len(terminal_jobs) != 3
+        or type(job_roots) is not list or len(job_roots) != 3
+    ):
+        raise PaperStoryError("v3 group terminal is not the exact job triple")
+    for ordinal, workload in enumerate(WORKLOAD_ORDER):
+        expected_roots = _v3_job_roots(attempt, workload)
+        entry = terminal_jobs[ordinal]
+        execution = executions[ordinal]
+        terminal_path = Path(expected_roots["job_terminal"])
+        result_path = Path(expected_roots["result_root"]) / "result.json"
+        receipt_path = Path(expected_roots["result_root"]) / "receipt.json"
+        if (
+            job_roots[ordinal] != expected_roots
+            or type(entry) is not dict
+            or set(entry) != {
+                "workload", "ordinal", "request_id", "path", "sha256",
+                "result", "receipt",
+            }
+            or entry.get("workload") != workload
+            or entry.get("ordinal") != ordinal
+            or _validated_request_id(
+                entry.get("request_id"), f"{workload} group terminal request ID",
+            ) != _validated_request_id(
+                execution["request_id"], f"{workload} execution request ID",
+            )
+            or entry.get("path") != os.fspath(terminal_path)
+            or entry.get("sha256") != _sha256_file(terminal_path)
+            or entry.get("result") != {
+                "path": os.fspath(result_path), "sha256": _sha256_file(result_path),
+            }
+            or entry.get("receipt") != {
+                "path": os.fspath(receipt_path), "sha256": _sha256_file(receipt_path),
+            }
+            or execution["reservation_binding"]["script_sha256"]
+            != source_binding["files"][JOB_RELATIVE_PATH]["working_sha256"]
+        ):
+            raise PaperStoryError("v3 group terminal job binding differs")
+    result_path = Path(evidence["result_root"]) / "result.json"
+    if receipt.get("result") != {
+        "path": os.fspath(result_path),
+        "sha256": _sha256_file(result_path),
+        "complete": result["complete"],
+        "all_workloads_terminal": result["all_workloads_terminal"],
+    }:
+        raise PaperStoryError("v3 raw result byte binding differs")
+    submission = receipt.get("submission_receipt")
+    if (
+        type(submission) is not dict
+        or set(submission) != {"path", "sha256"}
+        or submission.get("path") != evidence["submission_receipt"]
+        or submission.get("sha256") != _sha256_file(Path(evidence["submission_receipt"]))
+        or receipt.get("scheduler_completion_receipt")
+        != {"path": evidence["completion_receipt"]}
+    ):
+        raise PaperStoryError("v3 raw scheduler binding differs")
+    return result, receipt, terminal
+
+
 def validate_raw_documents(result: object, receipt: object, terminal: object, policy: object):
     validate_policy(policy)
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        return _validate_v3_raw_documents(result, receipt, terminal, policy)
     study_id = _policy_study_id(policy)
     pairing_design = _pairing_design(policy)
     policy_path = _policy_relative_path(policy)
@@ -5513,6 +7747,32 @@ def _readme(result: Mapping[str, object]) -> str:
                 f"invalid: {reasons} | n/a |"
             )
     workload_table = "\n".join(workload_rows)
+    accounting_rows = []
+    executions = result.get("job_executions")
+    if type(executions) is list:
+        for execution in executions:
+            if type(execution) is not dict:
+                continue
+            reservation = execution.get("reservation_binding")
+            accounting = execution.get("accounting")
+            if type(reservation) is dict and type(accounting) is dict:
+                accounting_rows.append(
+                    f"| {execution.get('workload')} | {execution.get('request_id')} | "
+                    f"{reservation.get('host')} | "
+                    f"{float(accounting.get('cpu_total_s')):.6f} | "
+                    f"{float(accounting.get('elapsed_s')):.6f} |"
+                )
+    accounting_section = ""
+    if accounting_rows:
+        accounting_section = (
+            "\n## Job accounting\n\n"
+            "CPU is the baseline-subtracted Bash shell plus reaped-descendant "
+            "CPU window recorded by each workload job.\n\n"
+            "| workload | request ID | host | CPU total s | elapsed s |\n"
+            "|---|---|---|---:|---:|\n"
+            + "\n".join(accounting_rows)
+            + "\n"
+        )
     materialization_evidence = result.get("materialization_evidence")
     publish_evidence = (
         materialization_evidence.get("publish")
@@ -5577,6 +7837,7 @@ def _readme(result: Mapping[str, object]) -> str:
         f"| workload | status | reps | {mean_label} | descriptive interval tps | B tps | classification | variance_plan_breach |\n"
         "|---|---:|---:|---:|---:|---:|---|---:|\n"
         f"{workload_table}\n\n"
+        f"{accounting_section}"
         "This result is exploratory, formal=false, and promotion is prohibited. "
         f"{design_text} Trace0 evidence is source-routed and is not an "
         "artifact-standalone proof.\n\n"
@@ -5602,6 +7863,37 @@ def _materialized_result(
     completion: Mapping[str, object],
     terminal: Mapping[str, object],
 ) -> dict[str, object]:
+    if completion.get("schema_version") == V3_GROUP_COMPLETION_SCHEMA:
+        jobs = completion.get("jobs")
+        return {
+            **result,
+            "materialization_evidence": {
+                "schema_version": MATERIALIZATION_EVIDENCE_SCHEMA,
+                "derivation": {
+                    "authoritative_input": "three workload-local raw WAL byte sequences",
+                    "workload_rederivation": "recollected from its ordinal job root before publish",
+                    "result_receipt_comparison": "self-consistency check only",
+                    "independent_evidence_claimed": False,
+                },
+                "scheduler_terminals": [
+                    {
+                        "workload": item["workload"],
+                        "request_id": item["request_id"],
+                        "scheduler_terminal": dict(item["scheduler_terminal"]),
+                    }
+                    for item in jobs
+                ],
+                "job_terminal_outcomes": [
+                    {
+                        "workload": execution["workload"],
+                        "request_id": execution["request_id"],
+                        "accounting": dict(execution["accounting"]),
+                    }
+                    for execution in result["job_executions"]
+                ],
+                "interpretation": _json_safe(SCHEDULER_COMPLETION_INTERPRETATION),
+            },
+        }
     return {
         **result,
         "materialization_evidence": {
@@ -5970,6 +8262,178 @@ def _publish_materialization_bundle(
             _remove_unpublished_staging(staging, staging_identity)
 
 
+def _validate_v3_group_completion(
+    completion: object,
+    *,
+    policy: Mapping[str, object],
+    source_commit: str,
+    attempt: Path,
+    submission: Mapping[str, object],
+    submission_sha256: str,
+    group_terminal_sha256: str,
+) -> dict[str, object]:
+    if type(completion) is not dict or set(completion) != {
+        "schema_version", "study_id", "source_commit", "attempt_root",
+        "submission_receipt", "group_terminal", "jobs",
+    }:
+        raise PaperStoryError("group completion shape differs")
+    evidence = _v3_attempt_evidence_paths(attempt)
+    if (
+        completion.get("schema_version") != V3_GROUP_COMPLETION_SCHEMA
+        or completion.get("study_id") != _policy_study_id(policy)
+        or completion.get("source_commit") != source_commit
+        or completion.get("attempt_root") != os.fspath(attempt)
+        or completion.get("submission_receipt") != {
+            "path": evidence["submission_receipt"],
+            "sha256": submission_sha256,
+        }
+        or completion.get("group_terminal") != {
+            "path": evidence["group_terminal"],
+            "sha256": group_terminal_sha256,
+        }
+    ):
+        raise PaperStoryError("group completion identity differs")
+    jobs = completion.get("jobs")
+    if type(jobs) is not list or len(jobs) != 3:
+        raise PaperStoryError("group completion is not the exact job triple")
+    for ordinal, workload in enumerate(WORKLOAD_ORDER):
+        roots = _v3_job_roots(attempt, workload)
+        entry = jobs[ordinal]
+        submission_job = submission["jobs"][ordinal]
+        if type(entry) is not dict or set(entry) != {
+            "workload", "ordinal", "request_id", "scheduler_terminal",
+            "stdout", "stderr", "job_terminal",
+        }:
+            raise PaperStoryError("group completion job shape differs")
+        if (
+            entry.get("workload") != workload
+            or entry.get("ordinal") != ordinal
+            or _validated_request_id(
+                entry.get("request_id"), f"{workload} completion request ID",
+            ) != _validated_request_id(
+                submission_job.get("request_id"),
+                f"{workload} submission request ID",
+            )
+        ):
+            raise PaperStoryError("group completion job identity differs")
+        fake_roots = {
+            "attempt_root": os.fspath(attempt),
+            "submission_receipt": evidence["submission_receipt"],
+            "stdout_path": roots["stdout_path"],
+            "stderr_path": roots["stderr_path"],
+            "raw_root": roots["job_root"],
+        }
+        fake_completion = {
+            "schema_version": COMPLETION_SCHEMA,
+            "study_id": _policy_study_id(policy),
+            "source_commit": source_commit,
+            "attempt_root": os.fspath(attempt),
+            "request_id": entry["request_id"],
+            "submission_receipt": completion["submission_receipt"],
+            "scheduler_terminal": entry["scheduler_terminal"],
+            "stdout": entry["stdout"],
+            "stderr": entry["stderr"],
+            "job_terminal": entry["job_terminal"],
+        }
+        validate_completion_receipt(
+            fake_completion,
+            trusted_roots=fake_roots,
+            source_commit=source_commit,
+            request_id=entry["request_id"],
+            submission_receipt=submission_job,
+            submission_receipt_sha256=submission_sha256,
+            job_terminal_sha256=_sha256_file(Path(roots["job_terminal"])),
+            study_id=_policy_study_id(policy),
+        )
+    return dict(completion)
+
+
+def _run_materialize_v3(
+    args,
+    *,
+    repo_root: Path,
+    result: Mapping[str, object],
+    receipt: Mapping[str, object],
+    terminal: Mapping[str, object],
+    policy: Mapping[str, object],
+    policy_sha: str,
+    raw_result_path: Path,
+    raw_receipt_path: Path,
+    group_terminal_path: Path,
+    completion_path: Path,
+) -> int:
+    validate_raw_documents(result, receipt, terminal, policy)
+    roots = receipt["roots"]
+    attempt = Path(roots["attempt_root"])
+    evidence = _v3_attempt_evidence_paths(attempt)
+    if (
+        raw_result_path != Path(evidence["result_root"]) / "result.json"
+        or raw_receipt_path != Path(evidence["result_root"]) / "receipt.json"
+        or group_terminal_path != Path(evidence["group_terminal"])
+        or completion_path != Path(evidence["completion_receipt"])
+    ):
+        raise PaperStoryError("v3 raw document paths differ from group topology")
+    acquisition_binding = receipt["submission_receipt"]
+    acquisition_raw = _read_bytes_once(Path(acquisition_binding["path"]))
+    if _sha256_bytes(acquisition_raw) != acquisition_binding["sha256"]:
+        raise PaperStoryError("v3 group submission bytes differ")
+    acquisition = _validate_v3_group_submission(
+        _decode_json_bytes(acquisition_raw, "materialized group submission"),
+        repo_root=repo_root, policy=policy, source_commit=args.expected_head,
+        attempt=attempt,
+    )
+    _revalidate_attempt_root(roots)
+    completion_raw = _read_bytes_once(completion_path)
+    completion = _validate_v3_group_completion(
+        _decode_json_bytes(completion_raw, "group completion receipt"),
+        policy=policy, source_commit=args.expected_head, attempt=attempt,
+        submission=acquisition,
+        submission_sha256=acquisition_binding["sha256"],
+        group_terminal_sha256=_sha256_file(group_terminal_path),
+    )
+    consume_non_certifying_observation(
+        Path(evidence["result_root"]) / NON_CERTIFYING_OBSERVATION_FILENAME
+    )
+    if result.get("policy_sha256") != policy_sha:
+        raise PaperStoryError("v3 raw result policy hash differs")
+    _verify_current_source(
+        repo_root, args.expected_head, result["source_binding"], policy,
+    )
+    _revalidate_raw_wals(result, receipt, policy)
+    destination = _exact_materialization_destination(
+        repo_root, Path(args.destination), policy,
+    )
+    materialized_receipt = {
+        **receipt,
+        "materialization": {
+            "destination": os.fspath(destination),
+            "raw_result": {
+                "path": os.fspath(raw_result_path),
+                "sha256": _sha256_file(raw_result_path),
+            },
+            "raw_receipt": {
+                "path": os.fspath(raw_receipt_path),
+                "sha256": _sha256_file(raw_receipt_path),
+            },
+            "job_terminal": {
+                "path": os.fspath(group_terminal_path),
+                "sha256": _sha256_file(group_terminal_path),
+            },
+            "scheduler_completion_receipt": {
+                "path": os.fspath(completion_path),
+                "sha256": _sha256_bytes(completion_raw),
+            },
+        },
+    }
+    _publish_materialization_bundle(
+        destination,
+        materialized_receipt,
+        _materialized_result(result, completion, terminal),
+        policy,
+    )
+    return 0
+
+
 def run_materialize(args) -> int:
     repo_root = _repo_root()
     raw_result_path = Path(args.raw_result).resolve(strict=True)
@@ -5982,6 +8446,14 @@ def run_materialize(args) -> int:
     policy, policy_sha = _load_policy_for_study(result.get("study_id"))
     study_id = _policy_study_id(policy)
     _require_policy_ready_for_execution(policy)
+    if _policy_schema(policy) == POLICY_SCHEMA_V3:
+        return _run_materialize_v3(
+            args, repo_root=repo_root, result=result, receipt=receipt,
+            terminal=terminal, policy=policy, policy_sha=policy_sha,
+            raw_result_path=raw_result_path, raw_receipt_path=raw_receipt_path,
+            group_terminal_path=job_terminal_path,
+            completion_path=completion_receipt_path,
+        )
     validate_raw_documents(result, receipt, terminal, policy)
     acquisition_binding = receipt.get("submission_receipt")
     if (
@@ -6122,6 +8594,7 @@ def _parser() -> argparse.ArgumentParser:
     measure.add_argument("--cache-root", required=True)
     measure.add_argument("--result-root", required=True)
     measure.add_argument("--dependency-prefix", required=True)
+    measure.add_argument("--workload", choices=WORKLOAD_ORDER)
     materialize = sub.add_parser("materialize")
     materialize.add_argument("--expected-head", required=True)
     materialize.add_argument("--raw-result", required=True)
