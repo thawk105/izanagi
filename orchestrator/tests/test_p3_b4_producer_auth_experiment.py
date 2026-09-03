@@ -1,22 +1,37 @@
 from __future__ import annotations
 
+import argparse
 import ast
+from dataclasses import replace
 import errno
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
+import time
+
+_MODULE_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+for _module_path in (
+    _MODULE_REPOSITORY_ROOT,
+    _MODULE_REPOSITORY_ROOT / "orchestrator/tests",
+):
+    if str(_module_path) not in sys.path:
+        sys.path.insert(0, str(_module_path))
 
 import pytest
 
 from orchestrator.campaign import p3_b4_producer_auth_experiment as E
 from orchestrator.campaign import p3_b4_raw_record_producer as production_producer
-from p3_b4_rogue_producer_support import produce_rogue_artifacts
+from p3_b4_rogue_producer_support import (
+    install_rogue_planned_attempt,
+    produce_rogue_artifacts,
+)
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = _MODULE_REPOSITORY_ROOT
 
 WAVE_MUTATION_NODES = {
     "W01": "test_w01_fixed_anchor_accepts_regular_and_rejects_rogue",
@@ -46,22 +61,27 @@ def _observation(
 
 
 def _all_expected_results() -> tuple[E.CandidateCaseResult, ...]:
+    base_commit = E.resolve_source_head(REPOSITORY_ROOT)
     results = []
     for mutation in E.MUTATIONS:
         for candidate in E.Candidate:
             expected = E.EXPECTED_MATRIX[mutation.mutation_id][candidate]
             baseline = (
-                _observation(existing=True, reason="source_rederivation")
+                _observation(
+                    existing=True,
+                    reason="evidence_binding:source_rederivation",
+                )
                 if expected is E.CaseOutcome.BASELINE_REJECTED
                 else _observation()
             )
             if expected is E.CaseOutcome.KILLED:
                 prototype = _observation(
-                    guard=candidate, reason="producer_auth_rejection"
+                    guard=candidate, reason="producer_auth_mismatch"
                 )
             elif expected is E.CaseOutcome.BASELINE_REJECTED:
                 prototype = _observation(
-                    existing=True, reason="source_rederivation"
+                    existing=True,
+                    reason="evidence_binding:source_rederivation",
                 )
             else:
                 prototype = _observation()
@@ -72,6 +92,7 @@ def _all_expected_results() -> tuple[E.CandidateCaseResult, ...]:
             )
             results.append(
                 E.CandidateCaseResult(
+                    base_commit=base_commit,
                     candidate=candidate,
                     mutation_id=mutation.mutation_id,
                     expected=expected,
@@ -81,6 +102,49 @@ def _all_expected_results() -> tuple[E.CandidateCaseResult, ...]:
                 )
             )
     return tuple(results)
+
+
+def _all_expected_phase_results() -> tuple[E.CandidatePhaseResult, ...]:
+    phases = []
+    for result in _all_expected_results():
+        for phase, observation in (
+            (E.MeasurementPhase.BASELINE, result.baseline),
+            (E.MeasurementPhase.PROTOTYPE, result.prototype),
+        ):
+            phases.append(
+                E.CandidatePhaseResult(
+                    base_commit=result.base_commit,
+                    candidate=result.candidate,
+                    mutation_id=result.mutation_id,
+                    phase=phase,
+                    observation=observation,
+                    wall_seconds=1.0,
+                )
+            )
+    return tuple(phases)
+
+
+def _all_expected_phase_shards() -> list[bytes]:
+    results = _all_expected_phase_results()
+    return [
+        E.canonical_candidate_shard_bytes(
+            candidate=candidate,
+            phase=phase,
+            results=tuple(
+                result
+                for result in results
+                if result.candidate is candidate and result.phase is phase
+            ),
+            non_regression_passed=(
+                True if phase is E.MeasurementPhase.PROTOTYPE else None
+            ),
+            non_regression_wall_seconds=(
+                2.0 if phase is E.MeasurementPhase.PROTOTYPE else None
+            ),
+        )
+        for candidate in E.Candidate
+        for phase in E.MeasurementPhase
+    ]
 
 
 def _make_source(*, arm: str, ordinal: int) -> dict[str, object]:
@@ -237,66 +301,13 @@ def _subprocess_probe(tree: Path, code: str, *arguments: str) -> str:
     return completed.stdout.strip()
 
 
-def _issuer_probe(tree: Path) -> bool:
-    code = (
-        "import sys\n"
-        "from pathlib import Path\n"
-        "from orchestrator.campaign import p3_b4_prerun_issuer as I\n"
-        "from test_p3_b4_prerun_issuer import _eligible_attempts, _planned\n"
-        "attempts=tuple(_eligible_attempts())\n"
-        "try:\n"
-        " I.issue_b4_prerun_publication(scheduled_inputs=attempts, "
-        "planned_result_artifacts=_planned(attempts, Path(sys.argv[2])), "
-        "publication_root=sys.argv[1])\n"
-        "except Exception as exc:\n"
-        " reason=getattr(getattr(exc, 'reason', None), 'value', None)\n"
-        " print(reason or type(exc).__name__)\n"
-        "else:\n"
-        " print('accepted')\n"
-    )
-    reason = _subprocess_probe(
-        tree,
-        code,
-        str((tree / ".case-artifacts" / "issuer-publication").resolve()),
-        str((tree / ".case-artifacts" / "results").resolve()),
-    )
-    return reason == "producer_auth_mismatch"
-
-
-def _assembly_probe(tree: Path) -> bool:
-    code = (
-        "import sys\n"
-        "from pathlib import Path\n"
-        "from orchestrator.campaign import p3_b4_prerun_issuer as I\n"
-        "from orchestrator.campaign import p3_b4_raw_record_producer as P\n"
-        "from test_p3_b4_prerun_issuer import _eligible_attempts, _planned\n"
-        "publication_root=Path(sys.argv[1])\n"
-        "if publication_root.exists():\n"
-        " publication=I.load_b4_prerun_publication(str(publication_root))\n"
-        "else:\n"
-        " attempts=tuple(_eligible_attempts())\n"
-        " publication=I.issue_b4_prerun_publication("
-        "scheduled_inputs=attempts, planned_result_artifacts=_planned("
-        "attempts, Path(sys.argv[2])), publication_root=str(publication_root))\n"
-        "result=P.assemble_b4_raw_analysis(publication=publication)\n"
-        "print(result.issues[0].code.value)\n"
-    )
-    return _subprocess_probe(
-        tree,
-        code,
-        str((tree / ".case-artifacts" / "issuer-publication").resolve()),
-        str((tree / ".case-artifacts" / "results").resolve()),
-    ) == "producer_auth_mismatch"
-
-
-def _prepare_frozen_publication(tree: Path) -> None:
+def _prepare_route_state(tree: Path) -> None:
     code = (
         "import json\n"
         "import sys\n"
         "from pathlib import Path\n"
-        "from test_p3_b4_raw_record_producer import "
-        "_build_full_publication_evidence\n"
-        "evidence=_build_full_publication_evidence("
+        "import test_p3_b4_raw_record_producer as F\n"
+        "evidence=F._build_full_publication_evidence("
         "Path(sys.argv[1]), terminal='commit')\n"
         "admission=evidence.evidence[0].admission\n"
         "value={'publication_root':evidence.publication.publication_root, "
@@ -316,13 +327,20 @@ def _prepare_frozen_publication(tree: Path) -> None:
     assert _subprocess_probe(
         tree,
         code,
-        str((tree / ".case-artifacts" / "frozen-evidence").resolve()),
-        str((tree / ".case-artifacts" / "frozen-state.json").resolve()),
+        str((tree / ".case-artifacts" / "route-evidence").resolve()),
+        str((tree / ".case-artifacts" / "route-state.json").resolve()),
     ) == "prepared"
 
 
-def _frozen_material_probe(tree: Path, mutation: E.MutationSpec) -> bool:
+def _route_probe(
+    tree: Path,
+    candidate: E.Candidate,
+    mutation: E.MutationSpec,
+) -> E.LayerObservation:
+    """Run the real issuer, producer, and material route and preserve rejection."""
+
     code = (
+        "import contextlib\n"
         "import json\n"
         "import sys\n"
         "from pathlib import Path\n"
@@ -333,145 +351,148 @@ def _frozen_material_probe(tree: Path, mutation: E.MutationSpec) -> bool:
         "from orchestrator.campaign import p3_b4_raw_record_producer as P\n"
         "from orchestrator.campaign import p3_b4_producer_auth_experiment as E\n"
         "from orchestrator.campaign.layout import CampaignLayout\n"
-        "from p3_b4_rogue_producer_support import produce_rogue_artifacts\n"
+        "from p3_b4_rogue_producer_support import "
+        "install_rogue_planned_attempt, produce_rogue_artifacts\n"
+        "import test_p3_b4_raw_record_producer as F\n"
         "from test_p3_b4_raw_record_producer import "
-        "_build_full_publication_evidence, _Evidence, _PublicationEvidence, "
-        "_SharedAdmission, _marked_driver_configs, _publish_full_publication\n"
+        "_Evidence, _PublicationEvidence, _SharedAdmission, _assert_write, "
+        "_marked_driver_configs, _request\n"
+        "production_evaluator=R.evaluate_b4_artifacts\n"
+        "def measurement_evaluator(**kwargs):\n"
+        " return E.evaluate_with_measurement_floor("
+        "evaluator=production_evaluator,evaluator_kwargs=kwargs)\n"
+        "def emit(kind, reason=None, candidate=None):\n"
+        " print(json.dumps({'kind':kind,'reason':reason,'candidate':candidate},"
+        "sort_keys=True,separators=(',',':')))\n"
+        " raise SystemExit(0)\n"
         "state_path=Path(sys.argv[1])\n"
-        "if state_path.exists():\n"
-        " value=json.loads(state_path.read_text(encoding='utf-8'))\n"
-        " admission=_SharedAdmission("
+        "try:\n"
+        " if state_path.exists():\n"
+        "  value=json.loads(state_path.read_text(encoding='utf-8'))\n"
+        "  admission=_SharedAdmission("
         "repository=Path(value['admission_repository']), "
         "role_file=Path(value['admission_role_file']), "
         "record_path=Path(value['admission_record_path']))\n"
-        " on_cfg,off_cfg=_marked_driver_configs()\n"
-        " items=tuple(_Evidence("
+        "  on_cfg,off_cfg=_marked_driver_configs()\n"
+        "  items=tuple(_Evidence("
         "admission=admission,on_cfg=on_cfg,off_cfg=off_cfg,"
         "on_layout=CampaignLayout(item['on_root']),"
         "off_layout=CampaignLayout(item['off_root']),"
         "on_receipt=Path(item['on_receipt']),"
         "off_receipt=Path(item['off_receipt']),"
         "iteration=item['iteration']) for item in value['evidence'])\n"
-        " evidence=_PublicationEvidence("
+        "  evidence=_PublicationEvidence("
         "publication=I.load_b4_prerun_publication(value['publication_root']),"
         "evidence=items)\n"
-        "else:\n"
-        " evidence=_build_full_publication_evidence("
+        " else:\n"
+        "  evidence=F._build_full_publication_evidence("
         "Path(sys.argv[2]), terminal='commit')\n"
-        "publication, first_assembly=_publish_full_publication("
-        "publication=evidence.publication, evidence=evidence.evidence)\n"
+        "except I.B4PrerunIssuerError as exc:\n"
+        " reason=exc.reason.value\n"
+        " emit('guard' if reason=='producer_auth_mismatch' else 'existing',"
+        "reason,'issuer' if reason=='producer_auth_mismatch' else None)\n"
+        "publication=evidence.publication\n"
+        "admission=evidence.evidence[0].admission\n"
+        "with contextlib.ExitStack() as stack:\n"
+        " stack.enter_context(mock.patch.object(C,'REPOSITORY_ROOT',admission.repository))\n"
+        " stack.enter_context(mock.patch.object(C,'ROLE_FILE',admission.role_file))\n"
+        " requests=[_request(item,row.attempt_id) for item,row in "
+        "zip(evidence.evidence,publication.manifest.rows)]\n"
+        " writes=P.publish_b4_attempt_results(publication=publication,requests=requests)\n"
+        " for write in writes:\n"
+        "  if isinstance(write,P.B4RawRecordRejection):\n"
+        "   issue=write.issues[0]\n"
+        "   emit('existing',issue.code.value+':'+issue.field)\n"
+        "  _assert_write(write)\n"
+        " assembly=P.assemble_b4_raw_analysis(publication=publication)\n"
+        "if isinstance(assembly,P.B4RawRecordRejection):\n"
+        " issue=assembly.issues[0]\n"
+        " if issue.code.value=='producer_auth_mismatch':\n"
+        "  emit('guard',issue.code.value,'raw_assembly')\n"
+        " emit('existing',issue.code.value+':'+issue.field)\n"
+        "if not isinstance(assembly,P.B4RawAnalysisAssembly):\n"
+        " raise AssertionError('assembly returned an unknown result type')\n"
         "family=sys.argv[3]\n"
-        "judgment=sys.argv[4]\n"
         "if family in {'R','D'}:\n"
-        " original_assemble=R.assemble_b4_raw_analysis\n"
-        " def rogue_assemble(*, publication):\n"
-        "  assembly=original_assemble(publication=publication)\n"
-        "  if not isinstance(assembly, P.B4RawAnalysisAssembly):\n"
-        "   return assembly\n"
-        "  attempt_path=Path(publication.planned_result_artifacts[0].artifact_path)\n"
-        "  made=produce_rogue_artifacts("
-        "judgment=judgment, attempt_artifact_bytes=attempt_path.read_bytes(), "
+        " attempt_path=Path(publication.planned_result_artifacts[0].artifact_path)\n"
+        " made=produce_rogue_artifacts("
+        "judgment=sys.argv[4], attempt_artifact_bytes=attempt_path.read_bytes(), "
         "raw_analysis_bytes=assembly.canonical_bytes, "
         "source_artifact_bytes=assembly.source_artifact_bytes, "
-        "output_root=Path(sys.argv[5]))\n"
-        "  return P.B4RawAnalysisAssembly("
-        "schema_version=assembly.schema_version, "
-        "canonical_bytes=made.raw_analysis_bytes, "
-        "sha256=E.sha256_bytes(made.raw_analysis_bytes), "
-        "source_artifact_bytes=made.source_artifact_bytes, "
+        "output_root=Path(sys.argv[5]), old_bytes=bytes.fromhex(sys.argv[6]), "
+        "new_bytes=bytes.fromhex(sys.argv[7]),"
+        "rewrite_source_binding=family=='R')\n"
+        " if family=='R':\n"
+        "  install_rogue_planned_attempt("
+        "made,planned_attempt_path=attempt_path)\n"
+        "  with mock.patch.object(C,'REPOSITORY_ROOT',admission.repository), "
+        "mock.patch.object(C,'ROLE_FILE',admission.role_file):\n"
+        "   assembly=P.assemble_b4_raw_analysis(publication=publication)\n"
+        "  if isinstance(assembly,P.B4RawRecordRejection):\n"
+        "   issue=assembly.issues[0]\n"
+        "   if issue.code.value=='producer_auth_mismatch':\n"
+        "    emit('guard',issue.code.value,'raw_assembly')\n"
+        "   emit('existing',issue.code.value+':'+issue.field)\n"
+        "  raise AssertionError('rogue planned attempt artifact was accepted')\n"
+        " assembly=P.B4RawAnalysisAssembly("
+        "schema_version=assembly.schema_version,canonical_bytes=made.raw_analysis_bytes,"
+        "sha256=E.sha256_bytes(made.raw_analysis_bytes),"
+        "source_artifact_bytes=assembly.source_artifact_bytes,"
         "planned_attempt_artifact_paths=assembly.planned_attempt_artifact_paths)\n"
-        " R.assemble_b4_raw_analysis=rogue_assemble\n"
         "admission=evidence.evidence[0].admission\n"
         "with mock.patch.object(C, 'REPOSITORY_ROOT', admission.repository), "
-        "mock.patch.object(C, 'ROLE_FILE', admission.role_file):\n"
+        "mock.patch.object(C, 'ROLE_FILE', admission.role_file), "
+        "mock.patch.object(R, 'assemble_b4_raw_analysis', return_value=assembly), "
+        "mock.patch.object(R, 'evaluate_b4_artifacts', "
+        "side_effect=measurement_evaluator):\n"
         " try:\n"
         "  inputs=R._load_and_evaluate(Path(publication.publication_root))\n"
-        " except E.ProducerAuthRejection:\n"
-        "  print('producer_auth_mismatch')\n"
-        " else:\n"
-        "  if inputs.analysis_result is None:\n"
-        "   issue=inputs.assembly.issues[0]\n"
-        "   print('route_rejected:'+issue.code.value+':'+issue.field)\n"
-        "  else:\n"
-        "   print('accepted')\n"
+        " except E.ProducerAuthRejection as exc:\n"
+        "  emit('guard','producer_auth_mismatch',exc.candidate.value)\n"
+        "if isinstance(inputs.assembly,P.B4RawRecordRejection):\n"
+        " issue=inputs.assembly.issues[0]\n"
+        " emit('existing',issue.code.value+':'+issue.field)\n"
+        "if inputs.analysis_result is None:\n"
+        " emit('existing','evaluator:result_missing')\n"
+        "if inputs.analysis_result.analysis_invalid is not None:\n"
+        " reason=E.analysis_invalid_observation_reason("
+        "inputs.analysis_result.analysis_invalid.reasons)\n"
+        " emit('environment_constant' if "
+        "E.is_environment_constant_reason(reason) else 'existing',reason)\n"
+        "emit('accepted')\n"
     )
-    outcome = _subprocess_probe(
+    output = _subprocess_probe(
         tree,
         code,
-        str((tree / ".case-artifacts" / "frozen-state.json").resolve()),
-        str((tree / ".case-artifacts" / "frozen-evidence").resolve()),
+        str((tree / ".case-artifacts" / "route-state.json").resolve()),
+        str((tree / ".case-artifacts" / "route-evidence").resolve()),
         mutation.family,
         mutation.judgment,
         str(
             (
                 tree
                 / ".case-artifacts"
-                / f"material-rogue-{mutation.mutation_id}"
+                / f"rogue-{mutation.mutation_id}"
             ).resolve()
         ),
+        mutation.old_bytes.hex(),
+        mutation.new_bytes.hex(),
     )
-    assert outcome in {"accepted", "producer_auth_mismatch"}, outcome
-    return outcome == "producer_auth_mismatch"
-
-
-def _raw_rogue_rederivation_probe(
-    tree: Path,
-    mutation: E.MutationSpec,
-) -> bool:
-    code = (
-        "import sys\n"
-        "from pathlib import Path\n"
-        "from unittest import mock\n"
-        "from orchestrator.campaign import p3_b4_closed_critic as C\n"
-        "from orchestrator.campaign import p3_b4_raw_record_producer as P\n"
-        "from p3_b4_rogue_producer_support import produce_rogue_artifacts\n"
-        "from test_p3_b4_raw_record_producer import "
-        "_build_full_publication_evidence, _publish_full_publication\n"
-        "evidence=_build_full_publication_evidence("
-        "Path(sys.argv[1]), terminal='commit')\n"
-        "publication, assembly=_publish_full_publication("
-        "publication=evidence.publication, evidence=evidence.evidence)\n"
-        "attempt_path=Path(publication.planned_result_artifacts[0].artifact_path)\n"
-        "made=produce_rogue_artifacts("
-        "judgment=sys.argv[2], attempt_artifact_bytes=attempt_path.read_bytes(), "
-        "raw_analysis_bytes=assembly.canonical_bytes, "
-        "source_artifact_bytes=assembly.source_artifact_bytes, "
-        "output_root=Path(sys.argv[3]))\n"
-        "attempt_path.write_bytes(made.attempt_artifact_bytes)\n"
-        "admission=evidence.evidence[0].admission\n"
-        "with mock.patch.object(C, 'REPOSITORY_ROOT', admission.repository), "
-        "mock.patch.object(C, 'ROLE_FILE', admission.role_file):\n"
-        " result=P.assemble_b4_raw_analysis(publication=publication)\n"
-        "assert isinstance(result, P.B4RawRecordRejection)\n"
-        "print(result.issues[0].field)\n"
-    )
-    return _subprocess_probe(
-        tree,
-        code,
-        str((tree / ".case-artifacts" / "raw-rogue-evidence").resolve()),
-        mutation.judgment,
-        str(
-            (
-                tree
-                / ".case-artifacts"
-                / f"raw-rogue-{mutation.mutation_id}"
-            ).resolve()
-        ),
-    ) == "source_rederivation"
-
-
-def _produce_rogue_case_files(tree: Path, mutation: E.MutationSpec) -> None:
-    attempt, raw, sources = _rogue_inputs()
-    produced = produce_rogue_artifacts(
-        judgment=mutation.judgment,
-        attempt_artifact_bytes=attempt,
-        raw_analysis_bytes=raw,
-        source_artifact_bytes=sources,
-        output_root=(tree / ".case-artifacts" / mutation.mutation_id).resolve(),
-    )
-    assert produced.attempt_artifact_path.is_file()
-    assert produced.raw_analysis_path.is_file()
-    assert all(path.is_file() for path in produced.source_artifact_paths)
+    value = json.loads(output)
+    assert set(value) == {"candidate", "kind", "reason"}
+    if value["kind"] == "accepted":
+        return _observation()
+    if value["kind"] == "environment_constant":
+        assert type(value["reason"]) is str and value["reason"]
+        assert E.is_environment_constant_reason(value["reason"])
+        return _observation(reason=value["reason"])
+    if value["kind"] == "existing":
+        assert type(value["reason"]) is str and value["reason"]
+        return _observation(existing=True, reason=value["reason"])
+    assert value["kind"] == "guard", value
+    rejecting = E.Candidate(value["candidate"])
+    assert rejecting is candidate
+    return _observation(guard=rejecting, reason=value["reason"])
 
 
 def _comparison_case_runner(
@@ -482,79 +503,26 @@ def _comparison_case_runner(
 ) -> E.LayerObservation:
     """Concrete case probe used by the external-scratch comparison test."""
 
-    # C1 always performs issuance in a process that exits before mutation and
-    # runs the assembly-side probe in a later process.
-    c1_issuer_rejected = False
+    assert E.measurement_block_count(
+        mutation, prototype_enabled=prototype_enabled
+    ) == E.REAL_REGIME_BLOCK_COUNT
+
     if mutation.family == "C1":
-        if candidate is E.Candidate.FROZEN_CONSUMER:
-            _prepare_frozen_publication(tree)
-        else:
-            c1_issuer_rejected = _issuer_probe(tree)
+        _prepare_route_state(tree)
 
     if mutation.family in {"C0", "C1"}:
         producer_path = tree / E.PRODUCER_PATH
         producer_path.write_bytes(
             E.apply_exact_once(producer_path.read_bytes(), mutation)
         )
-    elif (
-        mutation.family in {"R", "D"}
-        and candidate is not E.Candidate.FROZEN_CONSUMER
-        and not (
-            mutation.family == "R"
-            and candidate is E.Candidate.RAW_ASSEMBLY
-        )
-    ):
-        _produce_rogue_case_files(tree, mutation)
-
-    guard_rejected = False
-    c1_assembly_rejected = False
-    if mutation.family == "C1" and not (
-        candidate is E.Candidate.FROZEN_CONSUMER
-        or (prototype_enabled and candidate is E.Candidate.RAW_ASSEMBLY)
-    ):
-        c1_assembly_rejected = _assembly_probe(tree)
-    if candidate is E.Candidate.FROZEN_CONSUMER:
-        frozen_rejected = _frozen_material_probe(tree, mutation)
-        guard_rejected = frozen_rejected if prototype_enabled else False
-        if not prototype_enabled:
-            assert not frozen_rejected
-    elif (
-        candidate is E.Candidate.RAW_ASSEMBLY
-        and mutation.family == "R"
-    ):
-        raw_rederivation_rejected = _raw_rogue_rederivation_probe(
-            tree, mutation
-        )
-        assert raw_rederivation_rejected
-    elif prototype_enabled:
-        if candidate is E.Candidate.ISSUER:
-            guard_rejected = (
-                c1_issuer_rejected
-                if mutation.family == "C1"
-                else _issuer_probe(tree)
-            )
-        elif candidate is E.Candidate.RAW_ASSEMBLY:
-            guard_rejected = _assembly_probe(tree)
-        else:  # pragma: no cover - Candidate is exhaustive above
-            raise AssertionError("unexpected candidate")
-    if mutation.family == "C1" and candidate is not E.Candidate.RAW_ASSEMBLY:
-        assert not c1_assembly_rejected
-
-    existing_gate_rejected = (
-        mutation.family == "R" and candidate is E.Candidate.RAW_ASSEMBLY
+    observation = _route_probe(
+        tree,
+        candidate,
+        mutation,
     )
-    return E.LayerObservation(
-        guard_rejected=guard_rejected,
-        rejecting_candidate=candidate if guard_rejected else None,
-        existing_gate_rejected=existing_gate_rejected,
-        reason=(
-            "producer_auth_rejection"
-            if guard_rejected
-            else "source_rederivation"
-            if existing_gate_rejected
-            else None
-        ),
-    )
+    if not prototype_enabled:
+        assert not observation.guard_rejected
+    return observation
 
 
 def test_expected_matrix_has_twelve_negative_cases_and_pos_1() -> None:
@@ -573,9 +541,42 @@ def test_expected_matrix_has_twelve_negative_cases_and_pos_1() -> None:
         for row in E.EXPECTED_MATRIX.values()
     )
     assert all(
-        E.EXPECTED_MATRIX[f"R-{judgment}"][E.Candidate.RAW_ASSEMBLY]
+        E.EXPECTED_MATRIX[f"R-{judgment}"][candidate]
         is E.CaseOutcome.BASELINE_REJECTED
         for judgment in ("P", "T", "C")
+        for candidate in E.Candidate
+    )
+    assert all(
+        E.measurement_block_count(mutation, prototype_enabled=phase) == 201
+        for mutation in E.MUTATIONS
+        for phase in (False, True)
+    )
+    assert E.measurement_plan_value() == {
+        "comparison_pair_count": 39,
+        "phase_count_per_shard": 13,
+        "phase_wall_time_field": "results[].wall_seconds",
+        "phase_wall_time_unit": "seconds",
+        "phases": [phase.value for phase in E.MeasurementPhase],
+        "publication_block_count": 201,
+        "non_regression_measurements": [
+            {
+                "candidate": candidate.value,
+                "execution_phase": "prototype",
+                "node_ids": list(E.non_regression_node_ids(candidate)),
+                "producer_node_count": 29,
+            }
+            for candidate in E.Candidate
+        ],
+        "required_candidate_phase_shards": [
+            {"candidate": candidate.value, "phase": phase.value}
+            for candidate in E.Candidate
+            for phase in E.MeasurementPhase
+        ],
+        "shard_unit": "candidate_x_phase",
+    }
+    assert all(
+        E.result_matches_registered_route(result)
+        for result in _all_expected_results()
     )
 
 
@@ -588,7 +589,14 @@ def test_main_worktree_has_no_permanent_prototype_or_pin_change() -> None:
         }
     )
     completed = subprocess.run(
-        ["git", "diff", "--exit-code", E.BASE_COMMIT, "--", *protected],
+        [
+            "git",
+            "diff",
+            "--exit-code",
+            E.resolve_source_head(REPOSITORY_ROOT),
+            "--",
+            *protected,
+        ],
         cwd=REPOSITORY_ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -623,18 +631,46 @@ def test_default_scratch_root_is_outside_every_registered_worktree() -> None:
     )
 
 
+def test_scratch_tree_pins_disk_bytes_and_git_head_to_runtime_head(
+    tmp_path: Path,
+) -> None:
+    resolved = E.resolve_source_head(REPOSITORY_ROOT)
+    with E.ScratchTree(
+        source_repository=REPOSITORY_ROOT,
+        scratch_root=tmp_path / "runtime-head",
+    ) as tree:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=tree,
+            check=True,
+            stdout=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+        blob = subprocess.run(
+            ["git", "show", "HEAD:orchestrator/verifier/core.py"],
+            cwd=tree,
+            check=True,
+            stdout=subprocess.PIPE,
+        ).stdout
+        assert head == resolved
+        assert blob == (tree / "orchestrator/verifier/core.py").read_bytes()
+
+
 @pytest.mark.parametrize("judgment", ["P", "T", "C"])
 def test_real_rogue_producer_writes_attempt_raw_and_source_bytes(
     tmp_path: Path,
     judgment: str,
 ) -> None:
     attempt, raw, sources = _rogue_inputs()
+    mutation = E.MUTATION_BY_ID[f"R-{judgment}"]
     produced = produce_rogue_artifacts(
         judgment=judgment,
         attempt_artifact_bytes=attempt,
         raw_analysis_bytes=raw,
         source_artifact_bytes=sources,
         output_root=(tmp_path / judgment).resolve(),
+        old_bytes=mutation.old_bytes,
+        new_bytes=mutation.new_bytes,
     )
 
     assert produced.attempt_artifact_path.read_bytes() == produced.attempt_artifact_bytes
@@ -663,6 +699,24 @@ def test_real_rogue_producer_writes_attempt_raw_and_source_bytes(
     assert raw_value["blocks"][0]["arms"][0][
         "source_artifact_sha256"
     ] == hashlib.sha256(produced.source_artifact_bytes[0]).hexdigest()
+
+    d_mutation = E.MUTATION_BY_ID[f"D-{judgment}"]
+    post_assembly = produce_rogue_artifacts(
+        judgment=judgment,
+        attempt_artifact_bytes=attempt,
+        raw_analysis_bytes=raw,
+        source_artifact_bytes=sources,
+        output_root=(tmp_path / f"D-{judgment}").resolve(),
+        old_bytes=d_mutation.old_bytes,
+        new_bytes=d_mutation.new_bytes,
+        rewrite_source_binding=False,
+    )
+    before_raw = production_producer._strict_json(raw)
+    after_raw = production_producer._strict_json(post_assembly.raw_analysis_bytes)
+    assert after_raw["blocks"][0]["arms"][0][field] is expected
+    assert after_raw["blocks"][0]["arms"][0][
+        "source_artifact_sha256"
+    ] == before_raw["blocks"][0]["arms"][0]["source_artifact_sha256"]
 
 
 def test_rogue_producer_is_a_separate_implementation_path() -> None:
@@ -757,16 +811,16 @@ def test_frozen_prototype_uses_material_report_route_and_precedes_evaluator(
             and node.func.id
             in {
                 "assemble_b4_raw_analysis",
-                "generate_verified_analysis_source_closure_receipt",
+                "generate_experiment_closure_receipt",
                 "guard_frozen_consumer",
                 "evaluate_b4_artifacts",
             }
         ]
         line = {node.func.id: node.lineno for node in calls}
         assert line["assemble_b4_raw_analysis"] < line[
-            "generate_verified_analysis_source_closure_receipt"
+            "generate_experiment_closure_receipt"
         ]
-        assert line["generate_verified_analysis_source_closure_receipt"] < line[
+        assert line["generate_experiment_closure_receipt"] < line[
             "guard_frozen_consumer"
         ] < line["evaluate_b4_artifacts"]
 
@@ -805,31 +859,167 @@ def test_frozen_prototype_uses_material_report_route_and_precedes_evaluator(
         assert len(analysis_paths) == 6
         assert analysis_paths[-1] == E.PRODUCER_PATH
 
-
-def test_raw_candidate_rejects_through_real_assembly_callsite(
-    tmp_path: Path,
-) -> None:
-    with E.ScratchTree(
-        source_repository=REPOSITORY_ROOT,
-        scratch_root=tmp_path / "raw-callsite",
-    ) as tree:
-        E.prepare_candidate_tree(tree, E.Candidate.RAW_ASSEMBLY)
-        mutation = E.MUTATION_BY_ID["C0-P"]
-        producer_path = tree / E.PRODUCER_PATH
-        producer_path.write_bytes(
-            E.apply_exact_once(producer_path.read_bytes(), mutation)
+        assert b"evaluation_block_count" not in material_source
+        helper = _function(
+            (tree / E.EXPERIMENT_PATH).read_bytes(),
+            "generate_experiment_closure_receipt",
         )
-        assert _assembly_probe(tree)
+        assert not any(
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Attribute)
+                and target.attr == "EXPECTED_BLOCK_COUNT"
+                for target in node.targets
+            )
+            for node in ast.walk(helper)
+        )
+
+
+def test_measurement_harness_routes_cases_through_real_probe() -> None:
+    runner = _function(Path(__file__).read_bytes(), "_comparison_case_runner")
+    calls = _call_names(runner)
+    assert calls.count("measurement_block_count") == 1
+    assert calls.count("_route_probe") == 1
+    assert "apply_exact_once" in calls
+
+
+def test_measurement_supplies_floor_zero_at_the_material_report_evaluator() -> None:
+    calls: list[dict[str, object]] = []
+    sentinel = object()
+
+    def evaluator(**kwargs: object) -> object:
+        calls.append(kwargs)
+        return sentinel
+
+    assert E.evaluate_with_measurement_floor(
+        evaluator=evaluator,
+        evaluator_kwargs={"floor": None, "contract_binding": object()},
+    ) is sentinel
+    assert len(calls) == 1
+    assert calls[0]["floor"] == 0
+    assert type(calls[0]["floor"]) is int
+    assert E.measurement_evaluator_contract_value() == {
+        "floor": 0,
+        "floor_domain_error_classification": "ENVIRONMENT_CONSTANT",
+        "floor_scope": "experiment_only",
+        "production_floor": None,
+        "production_floor_availability": "absent",
+    }
+
+    route = _function(Path(__file__).read_bytes(), "_route_probe")
+    probe_script = next(
+        node.value
+        for node in ast.walk(route)
+        if isinstance(node, ast.Constant)
+        and type(node.value) is str
+        and "production_evaluator=R.evaluate_b4_artifacts" in node.value
+    )
+    assert "inputs=R._load_and_evaluate" in probe_script
+    assert "side_effect=measurement_evaluator" in probe_script
+    assert "E.evaluate_with_measurement_floor" in probe_script
+
+
+def test_floor_domain_error_is_not_attributed_to_a_candidate() -> None:
+    reason = E.analysis_invalid_observation_reason(
+        ("floor_domain_error", "block_count_mismatch")
+    )
+    assert reason == (
+        "ENVIRONMENT_CONSTANT:evaluator:analysis_invalid:"
+        "reasons=floor_domain_error,block_count_mismatch"
+    )
+    environment = _observation(reason=reason)
+    assert not environment.existing_gate_rejected
+    assert not environment.guard_rejected
+    for baseline, prototype in (
+        (environment, _observation()),
+        (_observation(), environment),
+    ):
+        assert E.classify_case(
+            candidate=E.Candidate.ISSUER,
+            baseline=baseline,
+            prototype=prototype,
+        ) is E.CaseOutcome.ENVIRONMENT_CONSTANT
+
+    results = list(_all_expected_results())
+    results[0] = replace(
+        results[0],
+        observed=E.CaseOutcome.ENVIRONMENT_CONSTANT,
+        baseline=environment,
+    )
+    assert not results[0].incremental_kill
+    decision = E.decide_candidate(
+        results,
+        non_regression={candidate: True for candidate in E.Candidate},
+    )
+    assert not decision.decision_available
+    assert "environment_constant_present" in decision.blocking_reasons
+
+    phase_results = [
+        result
+        for result in _all_expected_phase_results()
+        if result.candidate is E.Candidate.ISSUER
+        and result.phase is E.MeasurementPhase.BASELINE
+    ]
+    phase_results[0] = replace(phase_results[0], observation=environment)
+    shard = E.canonical_candidate_shard_bytes(
+        candidate=E.Candidate.ISSUER,
+        phase=E.MeasurementPhase.BASELINE,
+        results=phase_results,
+        non_regression_passed=None,
+        non_regression_wall_seconds=None,
+    )
+    shard_row = json.loads(shard)["results"][0]
+    assert shard_row["classification"] == "ENVIRONMENT_CONSTANT"
+    assert shard_row["observation"]["reason"] == reason
+    assert not shard_row["observation"]["existing_gate_rejected"]
+
+
+def test_analysis_invalid_diagnostic_preserves_all_reasons() -> None:
+    reason = E.analysis_invalid_observation_reason(
+        ("binding_domain_error", "block_count_mismatch")
+    )
+    assert reason == (
+        "evaluator:analysis_invalid:"
+        "reasons=binding_domain_error,block_count_mismatch"
+    )
+    assert not E.is_environment_constant_reason(reason)
+
+
+def test_report_discloses_measurement_floor_non_guarantee() -> None:
+    results = _all_expected_results()
+    decision = E.decide_candidate(
+        results,
+        non_regression={candidate: True for candidate in E.Candidate},
+    )
+    value = E.comparison_report_value(results=results, decision=decision)
+    disclosure = " ".join(value["non_guarantees"])
+    for phrase in (
+        "measurement supplies floor=0",
+        "production route does not currently supply",
+        "Production passes floor=None",
+        "no authoritative floor artifact has been issued",
+        "only when a floor is supplied",
+        "not current production behavior",
+    ):
+        assert phrase in disclosure
 
 
 def test_c1_preregistration_requires_two_processes() -> None:
-    lines = E.canonical_preregistration_bytes().decode("utf-8").splitlines()
-    assert lines[1] == "process: C1 issuance and assembly use separate processes"
+    approved = json.loads(
+        E.approved_preregistration_path(REPOSITORY_ROOT).read_bytes()
+    )
+    assert approved["process_model"]["C1"] == (
+        "issuance process exits before producer mutation; attempt production "
+        "and assembly run in a new process"
+    )
 
 
 def test_comparison_report_is_canonical_and_has_no_volatile_payload() -> None:
     results = _all_expected_results()
-    decision = E.decide_candidate(results)
+    decision = E.decide_candidate(
+        results,
+        non_regression={candidate: True for candidate in E.Candidate},
+    )
     first = E.canonical_report_bytes(results=results, decision=decision)
     second = E.canonical_report_bytes(
         results=tuple(reversed(results)), decision=decision
@@ -837,6 +1027,7 @@ def test_comparison_report_is_canonical_and_has_no_volatile_payload() -> None:
     assert first == second
     value = json.loads(first)
     assert value["schema_version"] == E.REPORT_SCHEMA_VERSION
+    assert value["base_commit"] == E.resolve_source_head(REPOSITORY_ROOT)
     assert len(value["results"]) == 39
     assert value["decision_input_mutation_ids"] == sorted(
         f"{family}-{judgment}"
@@ -844,6 +1035,29 @@ def test_comparison_report_is_canonical_and_has_no_volatile_payload() -> None:
         for judgment in ("P", "T", "C")
     )
     encoded = first.decode("utf-8")
+    assert {
+        item["candidate"]: item["production_file_count"]
+        for item in value["change_closures"]
+    } == {
+        E.Candidate.ISSUER.value: 2,
+        E.Candidate.RAW_ASSEMBLY.value: 2,
+        E.Candidate.FROZEN_CONSUMER.value: 4,
+    }
+    assert all(
+        "shared runtime experiment module" in item["production_file_count_basis"]
+        for item in value["change_closures"]
+    )
+    non_guarantees = " ".join(value["non_guarantees"])
+    for phrase in (
+        "other judgment values",
+        "arbitrary code mutations",
+        "coordinated rewrites",
+        "path races",
+        "temporary six-member closure with an additional gate",
+        "current five-file consumer",
+        "production adoption",
+    ):
+        assert phrase in non_guarantees
     assert str(REPOSITORY_ROOT) not in encoded
     assert "timestamp" not in encoded
     assert "working_tree" not in encoded
@@ -853,14 +1067,80 @@ def test_wave_mutation_node_mapping_is_complete_and_one_to_one() -> None:
     assert set(WAVE_MUTATION_NODES) == {f"W{index:02d}" for index in range(1, 10)}
     assert len(set(WAVE_MUTATION_NODES.values())) == 9
     assert all(callable(globals().get(node)) for node in WAVE_MUTATION_NODES.values())
+    assert {mutant.mutation_id for mutant in E.WAVE_MUTANTS} == {
+        f"W{index:02d}" for index in range(1, 9)
+    }
+    assert all(
+        mutant.target_node == WAVE_MUTATION_NODES[mutant.mutation_id]
+        for mutant in E.WAVE_MUTANTS
+    )
+    for mutant in E.WAVE_MUTANTS:
+        source = (REPOSITORY_ROOT / mutant.relative_path).read_bytes()
+        assert source.count(mutant.old_bytes) == 1
+        assert mutant.old_bytes != mutant.new_bytes
+        mutated = source.replace(mutant.old_bytes, mutant.new_bytes, 1)
+        assert mutated != source
+        ast.parse(mutated)
 
 
-def test_w01_fixed_anchor_accepts_regular_and_rejects_rogue() -> None:
+@pytest.mark.parametrize(
+    "mutant",
+    E.WAVE_MUTANTS,
+    ids=lambda item: item.mutation_id.lower(),
+)
+def test_wave_mutant_kills_exactly_one_registered_node(
+    mutant: E.WaveMutant,
+    tmp_path: Path,
+) -> None:
+    """Apply each executable mutant and measure the W01-W08 failing set."""
+
+    with E.ScratchTree(
+        source_repository=REPOSITORY_ROOT,
+        scratch_root=tmp_path / mutant.mutation_id.lower(),
+    ) as tree:
+        target = tree / mutant.relative_path
+        source = target.read_bytes()
+        assert source.count(mutant.old_bytes) == 1
+        target.write_bytes(source.replace(mutant.old_bytes, mutant.new_bytes, 1))
+        node_ids = [
+            "orchestrator/tests/test_p3_b4_producer_auth_experiment.py::"
+            + WAVE_MUTATION_NODES[f"W{index:02d}"]
+            for index in range(1, 9)
+        ]
+        completed = subprocess.run(
+            [sys.executable, "tools/run_tests.py", *node_ids, "-q", "-rf"],
+            cwd=tree,
+            env=_scratch_environment(tree),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    failed_nodes = set(
+        re.findall(
+            r"FAILED .*::(test_w[0-9]{2}_[A-Za-z0-9_]+)",
+            completed.stdout,
+        )
+    )
+    assert completed.returncode == 1, completed.stdout
+    assert failed_nodes == {mutant.target_node}, completed.stdout
+    assert "1 failed, 7 passed" in completed.stdout, completed.stdout
+
+
+def test_w01_fixed_anchor_accepts_regular_and_rejects_rogue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    producer = repository / E.PRODUCER_PATH
+    producer.parent.mkdir(parents=True)
+    producer.write_bytes((REPOSITORY_ROOT / E.PRODUCER_PATH).read_bytes())
+    monkeypatch.setattr(E, "repository_root_from_module", lambda: repository)
     E.guard_issuer()
-    E.guard_frozen_consumer(producer_sha256=E.BASE_PRODUCER_SHA256)
+    mutation = E.MUTATION_BY_ID["C0-P"]
+    producer.write_bytes(E.apply_exact_once(producer.read_bytes(), mutation))
     with pytest.raises(E.ProducerAuthRejection) as caught:
-        E.guard_frozen_consumer(producer_sha256="0" * 64)
-    assert caught.value.candidate is E.Candidate.FROZEN_CONSUMER
+        E.guard_issuer()
+    assert caught.value.candidate is E.Candidate.ISSUER
 
 
 def test_w02_baseline_rejection_is_not_an_incremental_kill() -> None:
@@ -876,21 +1156,17 @@ def test_w02_baseline_rejection_is_not_an_incremental_kill() -> None:
         baseline=baseline,
         prototype=prototype,
     ) is E.CaseOutcome.BASELINE_REJECTED
-    harness = _function(
-        (REPOSITORY_ROOT / E.EXPERIMENT_PATH).read_bytes(),
-        "run_isolated_cases",
+    report = E.combine_candidate_shards(
+        _all_expected_phase_shards(),
+        preregistration_data=E.approved_preregistration_path(
+            REPOSITORY_ROOT
+        ).read_bytes(),
     )
-    phases = {
-        call.args[-1].value
-        for call in ast.walk(harness)
-        if isinstance(call, ast.Call)
-        and isinstance(call.func, ast.Name)
-        and call.func.id == "case_runner"
-        and call.args
-        and isinstance(call.args[-1], ast.Constant)
-        and type(call.args[-1].value) is bool
-    }
-    assert phases == {False, True}
+    rows = json.loads(report)["results"]
+    r_rows = [row for row in rows if row["mutation_id"].startswith("R-")]
+    assert len(r_rows) == 9
+    assert all(row["observed"] == "BASELINE_REJECTED" for row in r_rows)
+    assert all(not row["incremental_kill"] for row in r_rows)
 
 
 def test_w03_only_the_candidate_guard_can_own_a_kill() -> None:
@@ -953,8 +1229,17 @@ def test_w06_only_c1_and_r_are_decision_inputs() -> None:
             "POS-1",
         }
     )
+    assert all(
+        E.is_decision_input(f"{family}-{judgment}")
+        is (family in {"C1", "R"})
+        for family in ("C0", "C1", "R", "D")
+        for judgment in ("P", "T", "C")
+    )
     results = _all_expected_results()
-    decision = E.decide_candidate(results)
+    decision = E.decide_candidate(
+        results,
+        non_regression={candidate: True for candidate in E.Candidate},
+    )
     counts = dict(decision.incremental_kills)
     assert counts == {
         E.Candidate.ISSUER: 0,
@@ -965,14 +1250,64 @@ def test_w06_only_c1_and_r_are_decision_inputs() -> None:
     assert not decision.complete_candidate_exists
 
 
+@pytest.mark.parametrize(
+    ("variant", "blocking_reason"),
+    [
+        ("missing", "candidate_mutation_matrix_incomplete"),
+        ("duplicate", "duplicate_candidate_mutation_result"),
+        ("aborted", "aborted_case_present"),
+        ("mismatch", "expected_observed_mismatch"),
+    ],
+)
+def test_decision_is_unavailable_for_incomplete_or_invalid_measurements(
+    variant: str,
+    blocking_reason: str,
+) -> None:
+    results = list(_all_expected_results())
+    if variant == "missing":
+        results.pop()
+    elif variant == "duplicate":
+        results.append(results[-1])
+    elif variant == "aborted":
+        results[0] = replace(results[0], observed=E.CaseOutcome.ABORTED)
+    else:
+        results[0] = replace(results[0], observed=E.CaseOutcome.SURVIVED)
+    decision = E.decide_candidate(
+        results,
+        non_regression={candidate: True for candidate in E.Candidate},
+    )
+    assert not decision.decision_available
+    assert decision.leaders == ()
+    assert blocking_reason in decision.blocking_reasons
+
+
+def test_non_regression_failure_excludes_candidate_from_decision() -> None:
+    decision = E.decide_candidate(
+        _all_expected_results(),
+        non_regression={
+            E.Candidate.ISSUER: True,
+            E.Candidate.RAW_ASSEMBLY: False,
+            E.Candidate.FROZEN_CONSUMER: True,
+        },
+    )
+    assert decision.decision_available
+    assert decision.leaders == (E.Candidate.FROZEN_CONSUMER,)
+    assert decision.ineligible_candidates == (E.Candidate.RAW_ASSEMBLY,)
+
+
 def test_w07_every_exact_replacement_requires_one_occurrence() -> None:
     source = (REPOSITORY_ROOT / E.PRODUCER_PATH).read_bytes()
     for mutation in E.MUTATIONS:
-        if mutation.family not in {"C0", "C1"}:
+        if mutation.family == "POS":
             continue
-        assert source.count(mutation.old_bytes) == 1
         assert mutation.old_bytes != mutation.new_bytes
-        assert E.apply_exact_once(source, mutation).count(mutation.new_bytes) >= 1
+        target = (
+            source
+            if mutation.family in {"C0", "C1"}
+            else E._ARTIFACT_JUDGMENT_OLD
+        )
+        assert target.count(mutation.old_bytes) == 1
+        assert E.apply_exact_once(target, mutation).count(mutation.new_bytes) == 1
     patch = E.ExactPatch(
         E.Candidate.ISSUER,
         "x.py",
@@ -988,25 +1323,40 @@ def test_w07_every_exact_replacement_requires_one_occurrence() -> None:
 
 
 def test_w08_preregistration_is_rederived_from_content(tmp_path: Path) -> None:
-    approved = tmp_path / "mutation-prereg.md"
-    approved.write_bytes(E.canonical_preregistration_bytes())
-    E.assert_preregistration_matches_registry(approved.read_bytes())
+    approved = E.approved_preregistration_path(REPOSITORY_ROOT)
+    approved_bytes = approved.read_bytes()
+    E.assert_preregistration_matches_registry(approved_bytes)
+    assert approved_bytes == E.canonical_preregistration_bytes()
 
-    changed = approved.read_bytes().replace(b"C1-P|C1|P", b"C1-P|C0|P", 1)
-    with pytest.raises(E.PreregistrationError, match="rederived mutation content"):
+    changed = approved_bytes.replace(b'"family":"C1"', b'"family":"C0"', 1)
+    with pytest.raises(E.PreregistrationError, match="approved preregistration"):
         E.assert_preregistration_matches_registry(changed)
-    changed_matrix = approved.read_bytes().replace(
-        b"C1-P|SURVIVED|KILLED|KILLED",
-        b"C1-P|KILLED|KILLED|KILLED",
+    changed_matrix = approved_bytes.replace(
+        b'"issuer":"SURVIVED"',
+        b'"issuer":"KILLED"',
         1,
     )
-    with pytest.raises(E.PreregistrationError, match="expectation matrix"):
+    with pytest.raises(E.PreregistrationError, match="approved preregistration"):
         E.assert_preregistration_matches_registry(changed_matrix)
     harness = _function(
         (REPOSITORY_ROOT / E.EXPERIMENT_PATH).read_bytes(),
         "run_isolated_cases",
     )
     assert "assert_preregistration_matches_registry" in _call_names(harness)
+
+
+def test_missing_approved_preregistration_fails_closed(tmp_path: Path) -> None:
+    with pytest.raises(
+        E.PreregistrationError,
+        match="approved preregistration file is unavailable",
+    ):
+        E.run_isolated_cases(
+            source_repository=tmp_path,
+            case_runner=lambda *_args: _observation(),
+            candidate=E.Candidate.ISSUER,
+            phase=E.MeasurementPhase.BASELINE,
+            scratch_root=tmp_path / "scratch",
+        )
 
 
 def test_w09_pos_1_is_accepted_by_every_candidate(tmp_path: Path) -> None:
@@ -1020,7 +1370,20 @@ def test_w09_pos_1_is_accepted_by_every_candidate(tmp_path: Path) -> None:
         scratch_root=tmp_path / "raw-positive",
     ) as tree:
         E.prepare_candidate_tree(tree, E.Candidate.RAW_ASSEMBLY)
-        assert not _assembly_probe(tree)
+        assert _subprocess_probe(
+            tree,
+            "from orchestrator.campaign import "
+            "p3_b4_producer_auth_experiment as E\n"
+            "E.guard_raw_assembly()\n"
+            "print('accepted')\n",
+        ) == "accepted"
+    positive = E.MUTATION_BY_ID["POS-1"]
+    assert E.measurement_block_count(
+        positive, prototype_enabled=False
+    ) == E.REAL_REGIME_BLOCK_COUNT
+    assert E.measurement_block_count(
+        positive, prototype_enabled=True
+    ) == E.REAL_REGIME_BLOCK_COUNT
 
 
 def test_disposable_tree_mutation_does_not_change_main_worktree(
@@ -1040,96 +1403,310 @@ def test_disposable_tree_mutation_does_not_change_main_worktree(
     E.assert_repository_unchanged(REPOSITORY_ROOT, before)
 
 
-def test_full_baseline_and_prototype_comparison_in_external_scratch() -> None:
-    """Execute all 78 runs only where the ruled external scratch is writable."""
-
-    if not _external_scratch_is_writable():
-        pytest.skip(f"required scratch root is not writable: {E.SCRATCH_ROOT}")
-    preregistration = E.SCRATCH_ROOT / f"mutation-prereg-{os.getpid()}.md"
-    fd = os.open(preregistration, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    try:
-        data = E.canonical_preregistration_bytes()
-        view = memoryview(data)
-        while view:
-            written = os.write(fd, view)
-            assert written > 0
-            view = view[written:]
-    finally:
-        os.close(fd)
-    try:
-        results = E.run_isolated_cases(
-            source_repository=REPOSITORY_ROOT,
-            preregistration_path=preregistration,
-            case_runner=_comparison_case_runner,
-        )
-        assert len(results) == 13 * 3
-        assert all(result.expected is result.observed for result in results)
-        decision = E.decide_candidate(results)
-        assert decision.leaders == (E.Candidate.RAW_ASSEMBLY,)
-        assert not decision.complete_candidate_exists
-        report = E.canonical_report_bytes(results=results, decision=decision)
-        assert len(json.loads(report)["results"]) == 39
-    finally:
-        preregistration.unlink(missing_ok=True)
-
-
-@pytest.mark.parametrize("candidate", list(E.Candidate), ids=lambda item: item.name.lower())
-def test_candidate_enabled_producer_29_node_non_regression(
-    candidate: E.Candidate,
+def test_case_failure_records_aborted_and_remaining_cases_continue(
+    tmp_path: Path,
 ) -> None:
-    """Run the unmodified producer suite with each disposable candidate active."""
+    calls: list[tuple[str, E.Candidate, bool]] = []
 
-    if not _external_scratch_is_writable():
-        pytest.skip(f"required scratch root is not writable: {E.SCRATCH_ROOT}")
+    def runner(
+        _tree: Path,
+        candidate: E.Candidate,
+        mutation: E.MutationSpec,
+        prototype_enabled: bool,
+    ) -> E.LayerObservation:
+        calls.append((mutation.mutation_id, candidate, prototype_enabled))
+        if (
+            mutation.mutation_id == "C0-P"
+            and candidate is E.Candidate.ISSUER
+            and not prototype_enabled
+        ):
+            raise OSError("volatile absolute path must not enter the report")
+        return _observation()
+
+    results = E.run_isolated_cases(
+        source_repository=REPOSITORY_ROOT,
+        case_runner=runner,
+        candidate=E.Candidate.ISSUER,
+        phase=E.MeasurementPhase.BASELINE,
+        scratch_root=tmp_path / "case-abort",
+    )
+    assert len(calls) == 13
+    assert len(results) == 13
+    aborted = [
+        result
+        for result in results
+        if result.observation.reason == "case_aborted:baseline:OSError"
+    ]
+    assert len(aborted) == 1
+    assert "/" not in aborted[0].observation.reason
+    assert all(type(result.wall_seconds) is float for result in results)
+
+
+def _candidate_non_regression(
+    candidate: E.Candidate,
+    *,
+    base_commit: str,
+    scratch_root: Path = E.SCRATCH_ROOT,
+) -> tuple[bool, str, float]:
+    """Return a reportable candidate-specific result for the fixed suites."""
+
     before = E.repository_status_bytes(REPOSITORY_ROOT)
+    outputs: list[str] = []
+    started = time.monotonic()
     try:
-        with E.ScratchTree(source_repository=REPOSITORY_ROOT) as tree:
+        with E.ScratchTree(
+            source_repository=REPOSITORY_ROOT,
+            base_commit=base_commit,
+            scratch_root=scratch_root,
+        ) as tree:
             E.prepare_candidate_tree(tree, candidate)
-            completed = subprocess.run(
-                [
-                    sys.executable,
-                    "tools/run_tests.py",
-                    "orchestrator/tests/test_p3_b4_raw_record_producer.py",
-                    "-q",
-                ],
-                cwd=tree,
-                env=_scratch_environment(tree),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-            assert completed.returncode == 0, completed.stdout
-            if candidate is E.Candidate.ISSUER:
-                issuer_loader = subprocess.run(
-                    [
-                        sys.executable,
-                        "tools/run_tests.py",
-                        "orchestrator/tests/test_p3_b4_prerun_issuer.py::"
-                        "test_issue_publishes_complete_bundle_and_existing_consumers_reverify",
-                        "-q",
-                    ],
+            passed = True
+            for node_id in E.non_regression_node_ids(candidate):
+                completed = subprocess.run(
+                    [sys.executable, "tools/run_tests.py", node_id, "-q"],
                     cwd=tree,
                     env=_scratch_environment(tree),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                 )
-                assert issuer_loader.returncode == 0, issuer_loader.stdout
-            if candidate is E.Candidate.FROZEN_CONSUMER:
-                frozen_route = subprocess.run(
-                    [
-                        sys.executable,
-                        "tools/run_tests.py",
-                        "orchestrator/tests/test_p3_b4_material_report.py::"
-                        "test_normal_path_assembles_binds_evaluates_and_builds_document",
-                        "-q",
-                    ],
-                    cwd=tree,
-                    env=_scratch_environment(tree),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                )
-                assert frozen_route.returncode == 0, frozen_route.stdout
+                outputs.append(completed.stdout)
+                if completed.returncode != 0:
+                    passed = False
+    except Exception as exc:
+        return False, f"{type(exc).__name__}", round(
+            time.monotonic() - started, 6
+        )
     finally:
         E.assert_repository_unchanged(REPOSITORY_ROOT, before)
+    return passed, "\n".join(outputs), round(time.monotonic() - started, 6)
+
+
+def _phase_diagnostic_classification(
+    observation: E.LayerObservation,
+) -> str:
+    if E.is_environment_constant_reason(observation.reason):
+        return E.CaseOutcome.ENVIRONMENT_CONSTANT.value
+    return "ROUTE_MISMATCH"
+
+
+def _measure_candidate_phase_shard(
+    candidate: E.Candidate,
+    phase: E.MeasurementPhase,
+    *,
+    scratch_root: Path,
+) -> tuple[bytes, bool, str]:
+    """Run one candidate x phase shard outside pytest collection."""
+
+    results = E.run_isolated_cases(
+        source_repository=REPOSITORY_ROOT,
+        case_runner=_comparison_case_runner,
+        scratch_root=scratch_root,
+        candidate=candidate,
+        phase=phase,
+    )
+    assert len(results) == 13
+    base_commits = {result.base_commit for result in results}
+    assert len(base_commits) == 1
+    base_commit = next(iter(base_commits))
+    if phase is E.MeasurementPhase.PROTOTYPE:
+        passed, output, non_regression_wall_seconds = _candidate_non_regression(
+            candidate,
+            base_commit=base_commit,
+            scratch_root=scratch_root,
+        )
+    else:
+        passed = None
+        output = ""
+        non_regression_wall_seconds = None
+    shard = E.canonical_candidate_shard_bytes(
+        candidate=candidate,
+        phase=phase,
+        results=results,
+        non_regression_passed=passed,
+        non_regression_wall_seconds=non_regression_wall_seconds,
+    )
+    route_mismatches = [
+        result
+        for result in results
+        if not E.phase_result_matches_registered_route(result)
+    ]
+    positive_baseline = next(
+        (
+            result
+            for result in results
+            if result.mutation_id == "POS-1"
+            and phase is E.MeasurementPhase.BASELINE
+        ),
+        None,
+    )
+    positive_baseline_accepted = (
+        phase is not E.MeasurementPhase.BASELINE
+        or (
+            positive_baseline is not None
+            and positive_baseline.observation == _observation()
+        )
+    )
+    succeeded = passed is not False and not route_mismatches and (
+        positive_baseline_accepted
+    )
+    diagnostics = []
+    if not positive_baseline_accepted:
+        if positive_baseline is None:
+            diagnostics.append(
+                "POS-1 baseline did not reach accepted: "
+                f"candidate={candidate.value} reason='observation_missing'"
+            )
+        else:
+            diagnostics.append(
+                "POS-1 baseline did not reach accepted: "
+                f"candidate={candidate.value} "
+                "classification="
+                f"{_phase_diagnostic_classification(positive_baseline.observation)} "
+                f"reason={positive_baseline.observation.reason!r}"
+            )
+    diagnostics.extend(
+        "phase route mismatch: "
+        f"candidate={result.candidate.value} phase={result.phase.value} "
+        f"mutation={result.mutation_id} "
+        f"classification={_phase_diagnostic_classification(result.observation)} "
+        f"reason={result.observation.reason!r}"
+        for result in route_mismatches
+        if result is not positive_baseline
+    )
+    if passed is False:
+        diagnostics.append("candidate non-regression failed")
+        if output:
+            diagnostics.append(output)
+    return shard, succeeded, "\n".join(diagnostics) + ("\n" if diagnostics else "")
+
+
+def test_candidate_shards_require_all_39_pairs_before_decision() -> None:
+    shards = _all_expected_phase_shards()
+    preregistration = E.approved_preregistration_path(REPOSITORY_ROOT).read_bytes()
+    with pytest.raises(
+        E.ComparisonIntegrityError,
+        match="all six candidate phase shards",
+    ):
+        E.combine_candidate_shards(
+            shards[:-1], preregistration_data=preregistration
+        )
+    report = E.combine_candidate_shards(
+        shards, preregistration_data=preregistration
+    )
+    value = json.loads(report)
+    assert len(value["results"]) == 39
+    assert value["decision"]["available"]
+    assert value["decision"]["leaders"] == [E.Candidate.RAW_ASSEMBLY.value]
+    assert not value["decision"]["complete_candidate_exists"]
+
+    for shard in shards:
+        shard_value = json.loads(shard)
+        assert len(shard_value["results"]) == 13
+        assert all(
+            type(result["wall_seconds"]) is float
+            and result["wall_seconds"] >= 0.0
+            for result in shard_value["results"]
+        )
+
+
+def test_pos_1_baseline_must_reach_accepted_before_combination() -> None:
+    shards = _all_expected_phase_shards()
+    value = json.loads(shards[0])
+    positive = next(
+        result for result in value["results"] if result["mutation_id"] == "POS-1"
+    )
+    positive["observation"] = {
+        "existing_gate_rejected": True,
+        "guard_rejected": False,
+        "reason": "evaluator:analysis_invalid",
+        "rejecting_candidate": None,
+    }
+    shards[0] = (
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        + "\n"
+    ).encode("utf-8")
+    with pytest.raises(
+        E.ComparisonIntegrityError,
+        match=(
+            "POS-1 baseline did not reach accepted for issuer: "
+            "evaluator:analysis_invalid"
+        ),
+    ):
+        E.combine_candidate_shards(
+            shards,
+            preregistration_data=E.approved_preregistration_path(
+                REPOSITORY_ROOT
+            ).read_bytes(),
+        )
+
+
+def test_recorded_comparison_has_39_preregistered_pairs_and_rederived_decision() -> None:
+    path = REPOSITORY_ROOT / E.COMPARISON_RELATIVE_PATH
+    assert path.is_file(), f"recorded measurement is required: {path}"
+    decision = E.assert_recorded_comparison_matches_preregistration(
+        path.read_bytes(),
+        preregistration_data=E.approved_preregistration_path(
+            REPOSITORY_ROOT
+        ).read_bytes(),
+    )
+    assert decision.decision_available
+    assert len(decision.incremental_kills) == len(E.Candidate)
+
+
+def _write_new_artifact(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as stream:
+        stream.write(data)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _measurement_main(arguments: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        description="Run and combine sharded T-2103 producer-auth measurements."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    measure = subparsers.add_parser("measure-candidate")
+    measure.add_argument(
+        "--candidate", required=True, choices=[item.value for item in E.Candidate]
+    )
+    measure.add_argument(
+        "--phase",
+        required=True,
+        choices=[item.value for item in E.MeasurementPhase],
+    )
+    measure.add_argument("--output", required=True, type=Path)
+    measure.add_argument("--scratch-root", type=Path, default=E.SCRATCH_ROOT)
+    combine = subparsers.add_parser("combine")
+    combine.add_argument("--shard", required=True, action="append", type=Path)
+    combine.add_argument("--output", required=True, type=Path)
+    parsed = parser.parse_args(arguments)
+
+    if parsed.command == "measure-candidate":
+        candidate = E.Candidate(parsed.candidate)
+        phase = E.MeasurementPhase(parsed.phase)
+        shard, succeeded, diagnostic = _measure_candidate_phase_shard(
+            candidate,
+            phase,
+            scratch_root=parsed.scratch_root,
+        )
+        _write_new_artifact(parsed.output, shard)
+        if not succeeded:
+            sys.stderr.write(diagnostic)
+            return 1
+        return 0
+
+    shard_data = [path.read_bytes() for path in parsed.shard]
+    report = E.combine_candidate_shards(
+        shard_data,
+        preregistration_data=E.approved_preregistration_path(
+            REPOSITORY_ROOT
+        ).read_bytes(),
+    )
+    _write_new_artifact(parsed.output, report)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_measurement_main(sys.argv[1:]))
