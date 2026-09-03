@@ -1572,6 +1572,48 @@ def test_green_supply_rejects_different_arm_cmake_identity():
     assert "different CMake identities" in raised.value.detail
 
 
+def test_green_supply_rejects_cmake_identity_drift_within_arm():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    requested_identities = evidence["requested_cmake_identities"]
+    control_identities = evidence["control_cmake_identities"]
+    assert type(requested_identities) is tuple
+    assert type(control_identities) is tuple
+    before, after = control_identities
+    assert (requested_identities[0].identity, requested_identities[0].sha256) \
+        == (before.identity, before.sha256)
+    drift_sha256 = (
+        ("0" if after.sha256[0] != "0" else "1") + after.sha256[1:]
+    )
+    evidence["control_cmake_identities"] = (
+        before,
+        replace(
+            after,
+            identity=replace(after.identity, inode=after.identity.inode + 1),
+            sha256=drift_sha256,
+        ),
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "CMake identity drift" in raised.value.detail
+
+
 def test_unknown_terminal_status_is_rejected_before_raw_admission():
     captured = G.capture_define_inputs(_SUPPLIED)
     request = _request(5)
