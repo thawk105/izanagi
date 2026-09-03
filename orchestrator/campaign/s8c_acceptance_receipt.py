@@ -107,6 +107,11 @@ _ATTEMPT_UNIT_KEYS = frozenset({
     "replicate_index",
 })
 _ATTEMPT_SCHEMA_VERSION = "p3-8c-attempt-registry/v3"
+_ATTEMPT_SCHEMA_VERSIONS = frozenset({
+    "p3-8c-attempt-registry/v1",
+    "p3-8c-attempt-registry/v2",
+    _ATTEMPT_SCHEMA_VERSION,
+})
 _ATTEMPT_CHAIN_KEYS = frozenset({
     "event_index", "previous_event_sha256", "event_sha256",
 })
@@ -533,6 +538,17 @@ class _ReceiptAttemptBindingCodec:
         }
 
 
+def _receipt_attempt_binding_mismatch(
+    actual: tuple[str, str],
+    expected: tuple[str | None, str | None],
+) -> str | None:
+    if expected[0] is not None and actual[0] != expected[0]:
+        return "attempt row content commit differs from receipt prereg_commit"
+    if expected[1] is not None and actual[1] != expected[1]:
+        return "attempt row effective commit differs from expected C"
+    return None
+
+
 _RECEIPT_ATTEMPT_PROFILE = _attempt_core.DomainProfile(
     schema=_attempt_core.SchemaProfile(
         current=_ATTEMPT_SCHEMA_VERSION,
@@ -576,6 +592,7 @@ _RECEIPT_ATTEMPT_PROFILE = _attempt_core.DomainProfile(
     },
     freeze_id_from_genesis=lambda genesis: str(genesis["freeze_id"]),
     binding_conflict_message="attempt rows do not share one P/C pair",
+    binding_mismatch=_receipt_attempt_binding_mismatch,
 )
 
 
@@ -1523,8 +1540,16 @@ def _assert_attempt_registry_consumption(
             "receipt-attempt-registry",
             "attempt registry is not tracked at Git HEAD",
         )
-    _assert_git_history_append_only(
-        root, receipt.attempt_registry_path, label="attempt registry",
+    current_attempt_registry = _read_regular_bytes(
+        _resolved_reference(
+            root, receipt.attempt_registry_path, "attempt registry",
+        ),
+        label="attempt registry",
+    )
+    _assert_attempt_registry_history_append_only(
+        root,
+        receipt.attempt_registry_path,
+        current_bytes=current_attempt_registry,
     )
     prefix = _assert_prefix_digest(
         root,
@@ -1535,12 +1560,41 @@ def _assert_attempt_registry_consumption(
     )
     try:
         rows = _attempt_core.load_attempt_registry(
-            prefix, profile=_RECEIPT_ATTEMPT_PROFILE,
+            prefix,
+            profile=_RECEIPT_ATTEMPT_PROFILE,
+            expected_binding=(receipt.prereg_commit, None),
         )
     except _attempt_core.AttemptRegistryCoreError as exc:
         raise AcceptanceReceiptError(
             f"[receipt-attempt-registry] {exc}"
         ) from exc
+    genesis = rows[0]
+    if genesis["manifest_sha256"] != receipt.manifest_sha256:
+        _fail(
+            "receipt-attempt-binding",
+            "attempt registry manifest_sha256 differs from receipt",
+        )
+    initial_blob = _blob_at_commit(
+        root, receipt.prereg_commit, receipt.attempt_registry_path,
+    )
+    if initial_blob is None or not prefix.startswith(initial_blob):
+        _fail(
+            "receipt-attempt-binding",
+            "attempt registry does not extend the genesis at prereg_commit",
+        )
+    try:
+        initial_rows = _attempt_core.load_attempt_registry(
+            initial_blob, profile=_RECEIPT_ATTEMPT_PROFILE,
+        )
+    except _attempt_core.AttemptRegistryCoreError as exc:
+        raise AcceptanceReceiptError(
+            f"[receipt-attempt-registry] {exc}"
+        ) from exc
+    if len(initial_rows) != 1:
+        _fail(
+            "receipt-attempt-binding",
+            "attempt registry at prereg_commit is not genesis-only",
+        )
     derived_projection = _attempt_projection_from_rows(rows)
     if derived_projection != receipt.attempt_slot_projection:
         _fail(
@@ -1657,6 +1711,156 @@ def _assert_git_history_append_only(
                 "receipt-history",
                 f"working {label} does not extend committed history",
             )
+
+
+def _assert_not_shallow(root: Path) -> None:
+    result = _git(root, ("rev-parse", "--is-shallow-repository"))
+    if result.returncode != 0:
+        _fail("receipt-history", "shallow-repository state cannot be determined")
+    if result.stdout.strip() != b"false":
+        _fail("receipt-history", "shallow repositories are not accepted")
+
+
+def _assert_no_grafts_or_replace_refs(root: Path) -> None:
+    graft = _git(root, ("rev-parse", "--git-path", "info/grafts"))
+    if graft.returncode != 0:
+        _fail("receipt-history", "Git graft path could not be resolved")
+    try:
+        graft_path = Path(graft.stdout.decode("utf-8").strip())
+    except UnicodeDecodeError as exc:
+        raise AcceptanceReceiptError(
+            "[receipt-history] Git graft path was not UTF-8"
+        ) from exc
+    if not graft_path.is_absolute():
+        graft_path = root / graft_path
+    if graft_path.exists() or graft_path.is_symlink():
+        _fail("receipt-history", "Git graft files are not accepted")
+    replaces = _git(root, (
+        "for-each-ref", "--format=%(refname)", "refs/replace",
+    ))
+    if replaces.returncode != 0:
+        _fail("receipt-history", "replace-ref enumeration failed")
+    if replaces.stdout.splitlines():
+        _fail("receipt-history", "Git replace refs are not accepted")
+
+
+def _attempt_tree_paths(
+    root: Path, *, commit_id: str,
+) -> tuple[tuple[str, bytes], ...]:
+    listing = _git(root, (
+        "ls-tree", "-r", "-z", "--full-tree", commit_id,
+    ))
+    if listing.returncode != 0:
+        _fail("receipt-history", "attempt registry tree walk failed")
+    result: list[tuple[str, bytes]] = []
+    for entry in (item for item in listing.stdout.split(b"\0") if item):
+        metadata, separator, entry_path = entry.partition(b"\t")
+        fields = metadata.split()
+        if separator != b"\t" or len(fields) != 3 or fields[1] != b"blob":
+            continue
+        try:
+            path = entry_path.decode("utf-8")
+            blob_id = fields[2].decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise AcceptanceReceiptError(
+                "[receipt-history] attempt tree entry is not valid UTF-8"
+            ) from exc
+        blob = _git(root, ("cat-file", "blob", blob_id))
+        if blob.returncode != 0:
+            _fail("receipt-history", "attempt tree blob cannot be read")
+        result.append((path, blob.stdout))
+    return tuple(result)
+
+
+def _looks_like_attempt_genesis(data: bytes) -> bool:
+    if not data:
+        return False
+    first_line = data.splitlines()[0]
+    if not any(
+        schema.encode("ascii") in first_line
+        for schema in _ATTEMPT_SCHEMA_VERSIONS
+    ):
+        return False
+    try:
+        value = _decode_json(first_line)
+    except AcceptanceReceiptError:
+        return False
+    return (
+        isinstance(value, Mapping)
+        and value.get("schema_version") in _ATTEMPT_SCHEMA_VERSIONS
+        and value.get("event") == "freeze"
+    )
+
+
+def _assert_attempt_registry_history_append_only(
+    root: Path,
+    relative_path: str,
+    *,
+    current_bytes: bytes,
+) -> None:
+    """Apply the issuer's all-ref, all-tree single-root history gate."""
+    if relative_path != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
+        _fail("receipt-history", "attempt registry path is not canonical")
+    _assert_no_grafts_or_replace_refs(root)
+    _assert_not_shallow(root)
+    commits = _git(root, ("rev-list", "--all", "--topo-order", "--reverse"))
+    if commits.returncode != 0:
+        _fail("receipt-history", "attempt registry full history walk failed")
+    previous: bytes | None = None
+    canonical_seen = False
+    for raw_commit in commits.stdout.splitlines():
+        try:
+            commit_id = raw_commit.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise AcceptanceReceiptError(
+                "[receipt-history] attempt history commit is not ASCII"
+            ) from exc
+        if _COMMIT_RE.fullmatch(commit_id) is None:
+            _fail("receipt-history", "attempt history returned an invalid commit ID")
+        tree_paths = _attempt_tree_paths(root, commit_id=commit_id)
+        canonical = next((
+            blob for path, blob in tree_paths if path == relative_path
+        ), None)
+        if canonical is None:
+            if canonical_seen:
+                _fail("receipt-history", "attempt registry was deleted")
+        else:
+            canonical_seen = True
+            try:
+                _attempt_core.load_attempt_registry(
+                    canonical, profile=_RECEIPT_ATTEMPT_PROFILE,
+                )
+            except _attempt_core.AttemptRegistryCoreError as exc:
+                raise AcceptanceReceiptError(
+                    f"[receipt-attempt-registry] {exc}"
+                ) from exc
+            if previous is not None and canonical != previous and (
+                not canonical.startswith(previous) or len(canonical) <= len(previous)
+            ):
+                _fail(
+                    "receipt-history",
+                    "attempt registry history is not a strict prefix extension",
+                )
+            previous = canonical
+        for path, blob in tree_paths:
+            if path != relative_path and _looks_like_attempt_genesis(blob):
+                _fail(
+                    "receipt-history",
+                    "alternate attempt registry genesis exists on a ref",
+                )
+    try:
+        _attempt_core.load_attempt_registry(
+            current_bytes, profile=_RECEIPT_ATTEMPT_PROFILE,
+        )
+    except _attempt_core.AttemptRegistryCoreError as exc:
+        raise AcceptanceReceiptError(
+            f"[receipt-attempt-registry] {exc}"
+        ) from exc
+    if previous is not None and not current_bytes.startswith(previous):
+        _fail(
+            "receipt-history",
+            "working attempt registry does not extend committed history",
+        )
 
 
 def _blob_at_commit(root: Path, commit_id: str, relative_path: str) -> bytes | None:
@@ -1809,12 +2013,17 @@ def verify_acceptance_receipt(
 def require_current_verified_receipt(
     verified: VerifiedAcceptanceReceipt,
 ) -> VerifiedAcceptanceReceipt:
-    """Reverify a sealed capability so later byte changes cannot reuse it."""
+    """Require v5 and reverify it so later byte changes cannot reuse it."""
     if (
         not isinstance(verified, VerifiedAcceptanceReceipt)
         or verified._seal is not _VERIFIED_RECEIPT_SEAL
     ):
         _fail("receipt-capability", "receipt was not issued by the verifier")
+    if verified.receipt.schema_version != SCHEMA_VERSION:
+        _fail(
+            "receipt-capability",
+            "downstream capability requires the current receipt schema",
+        )
     current = verify_acceptance_receipt(
         verified.path, repository_root=verified.repository_root,
     )

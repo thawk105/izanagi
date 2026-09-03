@@ -137,7 +137,35 @@ def _assert_resolved_descriptor_matches_ratified_literals(
     assert descriptor == expected_descriptors[(holdout, arm)]
 
 
-def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
+def _attempt_slots(trials: list[dict], *, prereg_generation: int) -> list[dict]:
+    slots = []
+    for row in trials:
+        for attempt_index in range(2):
+            identity = {
+                "trial_id": row["trial_id"],
+                "arm": row["arm"],
+                "holdout": row["holdout"],
+                "campaign_id": row["campaign_id"],
+                "prereg_generation": prereg_generation,
+                "replicate_index": 0,
+                "attempt_index": attempt_index,
+            }
+            slots.append({
+                "slot_id": f"{row['trial_id']}-r0-a{attempt_index}",
+                **identity,
+                "schedule_row_sha256": hashlib.sha256(
+                    _canonical(identity)
+                ).hexdigest(),
+            })
+    return slots
+
+
+def _fixture(
+    tmp_path: Path,
+    *,
+    attempt_manifest_sha256: str | None = None,
+    track_attempt_genesis: bool = True,
+) -> tuple[Path, Path, dict]:
     from orchestrator.campaign import s8c_arm_inputs
 
     repo = tmp_path / "repo"
@@ -153,6 +181,28 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
     lifecycle_path = repo / "output" / "s8c-trial-registry" / "lifecycle.jsonl"
     lifecycle_sha = _write(lifecycle_path, b'{"fixture":"lifecycle"}\n')
     s8c_arm_inputs.generate_off_neutral_artifacts(repository_root=repo)
+    genesis_trials = [
+        {
+            "trial_id": f"trial-{holdout.lower()}-{arm}",
+            "arm": arm,
+            "holdout": holdout,
+            "campaign_id": f"campaign-{holdout.lower()}-{arm}",
+        }
+        for holdout in ("H1", "H2")
+        for arm in ("on", "off", "swapped")
+    ]
+    if track_attempt_genesis:
+        genesis_rows = attempt_core.create_attempt_registry_genesis(
+            profile=receipt._RECEIPT_ATTEMPT_PROFILE,
+            freeze_id="receipt-v5-fixture",
+            manifest_path=PurePosixPath(manifest_path.relative_to(repo).as_posix()),
+            manifest_sha256=(attempt_manifest_sha256 or manifest_sha),
+            slots=_attempt_slots(genesis_trials, prereg_generation=13),
+        )
+        attempt_path = repo.joinpath(
+            *receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts
+        )
+        _write(attempt_path, _canonical_line(genesis_rows[0]))
     introduction = _commit_all(repo, "receipt references and off artifacts")
 
     trial_rows = []
@@ -277,37 +327,27 @@ def _install_attempt_registry_binding(
     *,
     terminal_failure_trials: frozenset[str] = frozenset(),
     retry_trial_id: str | None = None,
+    binding_prereg_commit: str | None = None,
 ) -> None:
     prereg_generation = 13
-    slots = []
-    for row in value["trials"]:
-        attempts = 2 if row["trial_id"] == retry_trial_id else 1
-        for attempt_index in range(attempts):
-            identity = {
-                "trial_id": row["trial_id"],
-                "arm": row["arm"],
-                "holdout": row["holdout"],
-                "campaign_id": row["campaign_id"],
-                "prereg_generation": prereg_generation,
-                "replicate_index": 0,
-                "attempt_index": attempt_index,
-            }
-            slots.append({
-                "slot_id": f"{row['trial_id']}-r0-a{attempt_index}",
-                **identity,
-                "schedule_row_sha256": hashlib.sha256(
-                    _canonical(identity)
-                ).hexdigest(),
-            })
+    slots = _attempt_slots(value["trials"], prereg_generation=prereg_generation)
     profile = receipt._RECEIPT_ATTEMPT_PROFILE
-    rows = attempt_core.create_attempt_registry_genesis(
-        profile=profile,
-        freeze_id="receipt-v5-fixture",
-        manifest_path=PurePosixPath(value["manifest_path"]),
-        manifest_sha256=value["manifest_sha256"],
-        slots=slots,
-    )
-    binding = (value["prereg_commit"], value["prereg_commit"])
+    attempt_path = repo.joinpath(*receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts)
+    if attempt_path.is_file():
+        rows = attempt_core.load_attempt_registry(
+            attempt_path.read_bytes(), profile=profile,
+        )
+        assert rows[0]["slots"] == slots
+    else:
+        rows = attempt_core.create_attempt_registry_genesis(
+            profile=profile,
+            freeze_id="receipt-v5-fixture",
+            manifest_path=PurePosixPath(value["manifest_path"]),
+            manifest_sha256=value["manifest_sha256"],
+            slots=slots,
+        )
+    binding_commit = binding_prereg_commit or value["prereg_commit"]
+    binding = (binding_commit, binding_commit)
     trial_rows = {row["trial_id"]: row for row in value["trials"]}
 
     def consume(slot: dict, *, terminal_status: str, report_sha256: str) -> None:
@@ -415,7 +455,6 @@ def _install_attempt_registry_binding(
             )
 
     attempt_bytes = b"".join(_canonical_line(row) for row in rows)
-    attempt_path = repo.joinpath(*receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts)
     _write(attempt_path, attempt_bytes)
     initial_slots = sorted(
         (slot for slot in slots if slot["attempt_index"] == 0),
@@ -449,6 +488,7 @@ def _upgrade_to_current(
     *,
     terminal_failure_trials: frozenset[str] = frozenset(),
     retry_trial_id: str | None = None,
+    binding_prereg_commit: str | None = None,
 ) -> None:
     value["schema_version"] = receipt.SCHEMA_VERSION
     for index, row in enumerate(value["trials"]):
@@ -469,6 +509,7 @@ def _upgrade_to_current(
         value,
         terminal_failure_trials=terminal_failure_trials,
         retry_trial_id=retry_trial_id,
+        binding_prereg_commit=binding_prereg_commit,
     )
 
 
@@ -985,6 +1026,114 @@ def test_v5_attempt_binding_accepts_all_predeclared_observed_units(
     assert projection is not None
     assert projection.prereg_generation == 13
     assert projection.unit_count == 6
+    assert receipt.require_current_verified_receipt(verified).sha256 == verified.sha256
+
+
+def test_m4_downstream_capability_rejects_readable_v4_receipt(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    value["schema_version"] = receipt.CROSS_BINDING_V2_SCHEMA_VERSION
+    for field in (
+        "attempt_registry_path",
+        "attempt_registry_prefix_bytes",
+        "attempt_registry_prefix_sha256",
+        "attempt_slot_projection",
+    ):
+        value.pop(field)
+    _rewrite_receipt(repo, path, value, "readable legacy receipt v4")
+
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-capability\] downstream capability requires the "
+            r"current receipt schema$"
+        ),
+    ):
+        receipt.require_current_verified_receipt(verified)
+
+
+def test_v5_rejects_attempt_registry_bound_to_another_manifest(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(
+        tmp_path, attempt_manifest_sha256="f" * 64,
+    )
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "receipt with other-manifest registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-binding\] attempt registry manifest_sha256 "
+            r"differs from receipt$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_attempt_registry_bound_to_another_prereg_commit(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    registry_binding_commit = value["prereg_commit"]
+    value["prereg_commit"] = _run(repo, "rev-parse", "HEAD").stdout.strip()
+    assert value["prereg_commit"] != registry_binding_commit
+    _upgrade_to_current(
+        repo, value, binding_prereg_commit=registry_binding_commit,
+    )
+    _rewrite_receipt(repo, path, value, "receipt with other-P registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-registry\] \[attempt-binding\] attempt row "
+            r"content commit differs from receipt prereg_commit$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_registry_first_tracked_after_prereg_commit(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path, track_attempt_genesis=False)
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "receipt with late complete registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-binding\] attempt registry does not extend "
+            r"the genesis at prereg_commit$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_second_registry_root_on_another_ref(tmp_path: Path) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "valid receipt before alternate root")
+    original_branch = _run(repo, "branch", "--show-current").stdout.strip()
+    assert original_branch
+    assert _run(repo, "checkout", "-q", "-b", "alternate-root").returncode == 0
+    canonical = repo.joinpath(*receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parts)
+    alternate = repo / "alternate" / "attempt-registry.jsonl"
+    _write(alternate, canonical.read_bytes().splitlines(keepends=True)[0])
+    _commit_all(repo, "alternate attempt registry root")
+    assert _run(repo, "checkout", "-q", original_branch).returncode == 0
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-history\] alternate attempt registry genesis exists "
+            r"on a ref$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
 
 
 def test_m3_v5_rejects_predeclared_unit_without_final_terminal(
@@ -1007,6 +1156,27 @@ def test_m3_v5_rejects_predeclared_unit_without_final_terminal(
         match=(
             r"^\[receipt-attempt-consumption\] predeclared unit does not have "
             r"exactly one final terminal$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_m3b_v5_rejects_receipt_projection_divergent_from_registry(
+    tmp_path: Path,
+) -> None:
+    """All terminals remain valid; only one receipt-side slot_id is changed."""
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_current(repo, value)
+    units = value["attempt_slot_projection"]["units"]
+    units[0]["slot_id"] = "a-receipt-only-slot"
+    assert units == sorted(units, key=lambda unit: unit["slot_id"])
+    _rewrite_receipt(repo, path, value, "receipt-only projection divergence")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-projection\] attempt registry slot projection "
+            r"differs from receipt$"
         ),
     ):
         receipt.verify_acceptance_receipt(path, repository_root=repo)

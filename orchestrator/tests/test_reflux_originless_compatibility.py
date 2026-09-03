@@ -204,10 +204,13 @@ _VOLATILE_ACCEPTANCE_REPORT_SHA = ("acceptance", "trials", "*", "report_sha256")
 _VOLATILE_ACCEPTANCE_JOURNAL_SHA = ("acceptance", "trials", "*", "attempt_journal_sha256")
 # The attempt prefix contains exact start/classification/terminal evidence,
 # including wall-clock timestamps, process identity, and report/journal-derived
-# digests.  Its receipt binding must remain exact, but its value is therefore
-# transitively volatile across equivalent harness rebuilds.
+# digests.  Its receipt binding must remain exact, but its digest and byte count
+# are therefore transitively volatile across equivalent harness rebuilds.
 _VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_SHA = (
     "acceptance", "attempt_registry_prefix_sha256",
+)
+_VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_BYTES = (
+    "acceptance", "attempt_registry_prefix_bytes",
 )
 # Attempt output digests cover the journal's wall clock and temporary paths.
 _VOLATILE_REPORT_RAW_OUTPUT_SHA = ("reports", "*", "raw_output_sha256")
@@ -296,6 +299,7 @@ _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_ACCEPTANCE_REPORT_SHA,
     _VOLATILE_ACCEPTANCE_JOURNAL_SHA,
     _VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_SHA,
+    _VOLATILE_ACCEPTANCE_ATTEMPT_PREFIX_BYTES,
     _VOLATILE_REPORT_RAW_OUTPUT_SHA,
     _VOLATILE_LIFECYCLE_CLASSIFICATION_SHA,
     _VOLATILE_LIFECYCLE_RAW_OUTPUT_SHA,
