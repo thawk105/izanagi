@@ -531,7 +531,11 @@ def _trace_summary(trace_dir: str) -> dict[str, Any]:
 
 def _verify(trace_dir: str) -> dict[str, Any]:
     proc = subprocess.run(
-        [sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet"],
+        [
+            sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet",
+            "--protocol", "silo", "--ccbench-root",
+            os.path.join(_repo_root(), "external", "ccbench"),
+        ],
         cwd=os.path.join(_repo_root(), "orchestrator"),
         capture_output=True,
         text=True,

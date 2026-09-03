@@ -225,6 +225,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8c_acceptance_receipt.py", "<module>._git"): 1,
     ("campaign/s8c_preregistration.py", "<module>._git"): 1,
     ("campaign/silo_ladder_rung1.py", "<module>._run"): 2,
+    # Git-object export plus patching of a disposable copy materialize the
+    # exact pinned source snapshot; neither invocation launches CCBench.
+    (
+        "campaign/silo_ladder_rung1.py",
+        "<module>._pinned_patched_source_model",
+    ): 2,
     # Sanitized read-only Git root/HEAD and tracked-path queries; neither argv
     # names nor executes CCBench.
     ("campaign/sort_swo_dependency_material.py", "<module>._run_git"): 1,

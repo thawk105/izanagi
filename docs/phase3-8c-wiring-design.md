@@ -645,3 +645,54 @@ dereference しない。物理実行を主張できるのは formal consumer が
 未着手のまま残る層も明記する。**completeness 検査**は現在の exact key gate が新 record を拒否する。
 **材料レポート renderer** は現在 WAL と whiteboard しか読まず、ledger も result-evidence も読まない。
 この 2 層に触れずに「結線した」と名乗ってはならない。
+
+---
+
+## 追記訂正 (2026-09-03) — §11 V-8 の「実行費用が 33 倍」は run の本数比であって費用比ではない
+
+D1561 が求めた費用内訳の再測定を行った ([T-2261])。**既存 bytes は 1 バイトも書き換えていない。**
+§11 の表の (a) 欄は「実行費用が 33 倍」のままである。本節はその追記訂正である。
+測定の全文と一次資料は `output/insights/2026-09-03_t2261-v8-cost-breakdown/README.md`。
+
+**§5.3 の「33 倍」は campaign run の本数比 (33 対 1) をそのまま実行費用の比と呼んだ数字である。**
+費用は run の本数ではなく、run ごとの固定費 `F` と行ごとの費用 `R` の和で決まる。
+
+現行コード (`c7ed56589`) の実測は次のとおり。
+
+- run の前置費 (job 開始→最初の `build_start`) = **33 秒**。ただし job script の prologue と
+  Python の import を含む未分離の区間で、`F` の点推定ではない。
+- 1 行の費用 = **908.908 秒**と**374.728 秒** (同じ campaign の 2 変種)。行の費用は 1 つの値ではない。
+- 行間費用 = 3 秒。これは (b) が払い (a) が払わない。
+- 直列性検査の並列化により、同一変種・同一 commit 数の行が **1672.789 秒 → 908.908 秒**になった。
+
+これらを `(a) = J + 33(F+R)`、`(b) = J + F + 32R + D + 31g` に入れると、
+`J` と `F` の分け方の両端点で **倍率は 1.02〜1.11 倍**である。
+
+**33 倍になるのは、比較相手が物理行を 1 本しか実行しないときだけである** (`33(F+R)/(F+R) = 33`)。
+物理行を 32 本または 33 本実行する相手に対しては、`R` をいくら小さくしても 33 倍には届かない
+(`R = 0` でも 8.6 倍)。そして「物理行 1 本から 33 record を作る」形は、§5.3 自身が
+「per-query の物理実行保証が破れる」として退けた形である。
+
+### §5.3 の行番号は古い
+
+「現 campaign ループは 1 run 内で同一 variant identity を `done` に入れて skip する
+(`orchestrator/campaign/loop.py:242-246`)」の行番号は現行位置と違う。現行は
+`orchestrator/campaign/loop.py:522-529` である。**記述の意味はコードと一致している。**
+duplicate skip が起きるのは `query_ordinal = 1 + m_s` の行であり、`m_s = 0` のときだけ 2 行目になる。
+
+### V-8 (a) は現行コードで実行形が成立していない
+
+費用より重い発見である。
+
+- `campaign_identity` は `CampaignConfig` だけから決まり `genomes` を含まないので
+  (`loop.py:194`、`ident.py:196-235`)、同じ cfg で 33 回呼ぶと identity は 33 回とも同じになる。
+- `acquire_claim` は identity を key に `O_EXCL` で claim を作り、release API を持たない
+  (`campaign_claim.py:74-79`、`383-434`)。**2 回目の `run_campaign()` は拒否される。**
+- cfg を変えて 33 identity にすると、§6.2 の `OriginBindingCapability/v1` が `campaign_id` を
+  1 つしか持たないことと、§4.1 条件 3 の campaign 一致要求に衝突する。
+
+**claim を通すには 33 個の別 identity が要り、consumer を通すには 33 record が同じ `campaign_id` を
+持つ必要がある。** V-8 の裁定はこの衝突の解消と一体で行う必要がある。
+
+なお generic な reservation は 33 run の連続実行を妨げない (`reservation.py:26-55`、`223-275`)。
+**scheduler へ 33 回投入する必要はない。** 止めているのは claim と capability の identity 設計である。
