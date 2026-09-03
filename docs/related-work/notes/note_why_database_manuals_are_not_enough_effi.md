@@ -106,8 +106,9 @@ SysInsight は待機経路を**読む**。転記:
 
 > configuration knobs fundamentally influence performance by controlling predefined execution paths
 
-`predefined` である。spin するか park するかの分岐そのもの、その条件式、
+`predefined` である。spin と待ち合わせのどちらへ倒すかの分岐そのもの、その条件式、
 新しい待機戦略の追加はどれも起きない。**動くのは既存のスカラの大きさだけである。**
+(`park` は一次資料に 0 件なので、その語では書かない。)
 
 ### 「値」か「小さな方策」か
 
@@ -122,10 +123,12 @@ controller を合成するか` である。
 
 ### 競合検出と abort について言えること
 
-母集合 = 上記整形本文 87,303 文字の全体 (節・表・参考文献を含み、先頭切り出しをしていない)。
-小文字一致の件数は `abort` 0 / `deadlock` 0 / `concurrency control` 0 / `serializab` 0 /
-`isolation level` 0 / `two-phase` 0 / `innodb_thread_concurrency` 0。
-`mvcc` は 4 件だが、いずれも undo log 鎖の長さと `row_search_mvcc()` の文脈である。
+**母集合 = 上記整形本文 87,303 文字の全体 (節・表・参考文献を含み、先頭切り出しをしていない) に対し、
+走査語 `abort` / `deadlock` / `concurrency control` / `serializab` / `isolation level` /
+`two-phase` / `innodb_thread_concurrency` を小文字一致で走査した結果はいずれも 0 件であり、
+かつ精読でもトランザクションの競合検出・wait-versus-abort 方策を扱う正の記述を確認できなかった。
+これはこの 1 論文という列挙可能な母集合の中の不在であって、世界の不在ではない。**
+参考: `mvcc` は 4 件だが、いずれも undo log 鎖の長さと `row_search_mvcc()` の文脈である。
 
 **この不在から言えるのは「論文がその読解を報告していない」までである。**
 論文は「extracts hypotheses for all 44 knobs directly from the source code」と書く一方、
@@ -163,7 +166,8 @@ GPTuner は本文の分類で manual-driven に入るが、**LLM を使う手法
 (マニュアルから knob ごとの推奨範囲・推奨値・特殊値を構造化し、狭めた空間で BO を回す)。
 abstract の `the SOTA baseline` と貢献箇条書きの `the second-best baseline` は対象名を省いた
 短縮であり、同じ 7.11 倍と 19.9% の組を明示する 6.2 が対象を決める。
-**全文で `faster` が現れるのはこの 3 箇所だけで、専業 ML/RL に対する収束比の数値は無い。**
+**`7.11` と `faster` が共起する本文記述はこの 3 箇所だけで、専業 ML/RL に対する収束比の数値は無い**
+(整形本文全体の `faster` は 4 件で、4 件目は参考文献題名 `towards faster database tuning` である)。
 
 **ただしこれは知識源だけを切り分けた ablation ではない。** GPTuner は
 「マニュアル知識 + BO」、SysInsight は「静的解析 + LLM + rule mining + 診断 + rule 適用」であり、
@@ -182,7 +186,10 @@ knob 選択の ablation (6.6.4) でも:
 > worst, as the limited number of observations is insufficient to yield reliable knob importance
 > rankings.
 
-**「knob 探索は専業 ML/RL で解けてしまう」は、観測数が空間に対して乏しい側では成立しない。**
+**「knob 探索は専業 ML/RL で解けてしまう」は、この実験条件では成立しなかった。**
+**regime 一般への一般化ではない** — 一次資料が測ったのは MySQL 8.0.36 の 44 knob・
+1 session 20 反復 x 3 session・別途 workload ごと 100 config の履歴データ、という 1 条件だけであり、
+ML ベースが最下位になった knob 選択 ablation も TPC-C 単独の結果である。
 
 ### P2-5 との関係
 
@@ -225,30 +232,32 @@ A✗ かつ B✗ なので、pilot の判定規則どおり `除外`。
 ただし合成対象は新しい CC 実装でも action space でもなく、既存 knob 上の条件付き方策であるため
 `直接接地` までは上げない。
 
-### 軸 3 (説明可能性) — `直接接地` / 極性 `競合`
+### 軸 3 (説明可能性) — `部分接地` / 極性 `方法論的祖先`。ただし狭い能力については `競合`
 
-**これが本ノートの最も重い発見である。**
-SysInsight は説明を副産物のログとして持つのではなく、**中核機構として持つ**。
-summary agent が `structured reasoning chain` を生成し、influence path、performance implications、
-causal link、hypothesis、定量 rule、confidence を一本に繋ぐ。
+**強さは `部分接地` に留める。** `直接接地` の定義は「論文の対象がその軸の主題そのもの」であり、
+SysInsight の対象は効率的で信頼できる knob チューニングである。`structured reasoning chain` は
+調整仮説を作るための**中間機構**であって、論文の主題ではない。
+confidence が検証するのは調整と性能改善の関連であり、**説明そのものの忠実性は評価されない。**
+新しい CC も、試行の完全な provenance も、コードから測定値までの proof chain も示さない。
 
-`docs/paper-story/` は差別化の核を説明可能性に置いているが、**その軸に対して
-SysInsight は競合として直接接地する。** 「コード由来の機序説明を作る」こと自体は
-もはや空白ではない。
-
-ただし SysInsight の confidence が検証するのは調整と性能改善の関連であって、
-LLM の因果説明そのものの忠実性ではない。また新しい CC も、試行の完全な provenance も、
-コードから測定値までの proof chain も示さない。
+**ただし 1 点だけ `競合` である。**
+「**DBMS のソースコードから LLM が機序説明を生成し、それを観測に接地させる**」という
+狭い能力については、SysInsight が査読付きで実演している。
+`docs/paper-story/` が差別化の核を説明可能性に置くとき、**この狭い能力を核にはできない。**
+説明可能性の軸**全体**が埋まったわけではない — 忠実性・proof chain・provenance は空いている。
 
 ---
 
 ## この論文が izanagi の差別化に与える損害
 
-**使えなくなる差別化語:**
+**核にできなくなった語 (この 3 語だけである):**
 
 - 「LLM に DBMS のソースコードを読ませる」— SysInsight が査読付きで行っている。
 - 「コードから機序を取り出す」— 同上。
 - 「観測に接地した説明を作る」— 同上 (rule mining + confidence)。
+
+**説明可能性の軸そのものが埋まったわけではない。** SysInsight は説明の忠実性を評価せず、
+proof chain も試行 provenance も持たない。そこは空いている。
 
 **残る差別化:**
 
@@ -273,8 +282,10 @@ LLM の因果説明そのものの忠実性ではない。また新しい CC も
 
 **ただし 44 個の全リストは論文に無い。**
 したがって「SysInsight は正しさや耐久性に関わる knob を触らない」とは**言えない**。
-言えるのは「本文に現れる 8 個は性能専用であり、正しさ・耐久性に関わる knob は本文に現れない」
-までである (母集合は上記 87,303 文字)。
+**言えるのは、母集合 = 整形本文 87,303 文字の全体を走査語 `flush_log_at_trx_commit` /
+`sync_binlog` / `doublewrite` / `durab` / `fsync` で走査した結果がいずれも 0 件であり、
+かつ精読でも本文に名前が現れる 8 個以外の knob を確認できなかった、までである。**
+走査語の外にある耐久性・正しさ関連の knob が 44 個の中に含まれる可能性は排除していない。
 
 ---
 
