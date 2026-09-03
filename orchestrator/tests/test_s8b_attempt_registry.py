@@ -2824,16 +2824,25 @@ def test_v2_reservation_rejects_claim_from_other_protocol_generation(
         registry.ReservedAttempt
     )
 
-    foreign_parent = tmp_path / "foreign"
-    foreign_parent.mkdir()
-    root, protocol, freeze = admission_cases._init_repo(  # noqa: SLF001
-        foreign_parent, master_seed="seed-b",
+    root = case["repo_root"]
+    protocol, freeze = admission_cases._fixture_documents(  # noqa: SLF001
+        master_seed="seed-b",
+    )
+    admission_cases._write_fixed_documents(  # noqa: SLF001
+        root, protocol, freeze,
+    )
+    admission_cases._git(  # noqa: SLF001
+        root, "add", "output/s8b-freeze/floor_protocol.json",
+    )
+    admission_cases._git(  # noqa: SLF001
+        root, "-c", "user.name=fixture", "-c", "user.email=f@example.invalid",
+        "commit", "-m", "change schedule seed",
     )
     cells, schedule = admission_cases._cells_and_schedule(  # noqa: SLF001
         protocol, freeze,
     )
     reservation = admission_cases._reserve(  # noqa: SLF001
-        root, protocol, freeze, run_id="run-b", use_real_resolver=True,
+        root, protocol, freeze, run_id="run-b",
     )
     admitted_by_cell = admission.finalize_floor_holdout_admissions(reservation)
     cell = cells[0]
@@ -2876,9 +2885,13 @@ def test_v2_reservation_rejects_claim_from_other_protocol_generation(
             core.canonical_json_bytes(identity)
         ).hexdigest(),
     )
-    registry.create_attempt_registry(
-        root, profile=profile, slots=[foreign_slot], binding=binding,
+    path = registry.registry_path(
+        root, freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=binding.protocol_sha256,
     )
+    path.write_bytes(_bytes(core.create_attempt_registry_genesis(
+        profile=profile, slots=[foreign_slot], binding=binding,
+    )))
     foreign_case = {
         "repo_root": root, "marker": marker, "capability": capability,
     }
