@@ -317,9 +317,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    **残課題 (現役):** (a) D36 決定 4-2 の「AND 共通ヘルパ」は W (STAGE_COMMIT.verify_configs への書き込み)
    のみ実装 — 読み手 consumer が出た時点で追加 (規律 5)、(b) backoff 軸 driver (`p3_s4_loop.SOURCE_REL`)
    は引き続き backoff.hh 単一マーカーのみを駆動 (sort 軸は兄弟 driver 側)、(c) auditor ギャラリー型 14
-   (非 SWO comparator) は **[T-316] R2-b の独立 oracle が build 前に反例探索する**
-   (`orchestrator/campaign/sort_swo_oracle.py`、有限 corpus 上の反例発見器であり全入力の証明ではない。
-   型 15 fairness の機械観測点は依然として未実装)。実走手順 =
+   (非 SWO comparator) は **[T-316] R2-b の独立 oracle が build 前に閉じた IR への membership で塞ぐ**
+   (`orchestrator/campaign/sort_swo_oracle.py`、[T-2145] で受理言語を閉じた 79 値 IR へ縮めた。
+   保証は構成的 SWO + 実 TU conformance であり、動的な反例発見器ではなく全入力の証明でもない。
+   この縮小は D39 の raw C++ 独立合成の実証点を別実験へ移すが、D344 の実験同一性の論点は
+   supersede されていない (D1451)。型 15 fairness の機械観測点は依然として未実装)。実走手順 =
    `docs/phase3-s5-sort-runbook.md`。正本 = D40〜D43・`orchestrator/campaign/p3_s4_loop_sort.py`。
    campaign `p3-s5-sort-loop-s5-sort-autonomous-3be89e0d` は oracle 導入前の歴史成果物で再開不可。
 6. **(完了 2026-07-16) 旧主実験の縮小主張 S' を閉じる** — D52 で旧 headline を主張 S に再構成したが、
