@@ -262,3 +262,45 @@ test suite の source で名前が挙がるのは 183 で、残る 3 本
 - 受入が 5 分以内になること。**本 wave は最長単体 node に触れていない。**
 - repo 外束縛が「全数防護済み」であること。固定既定値 5 module・3 root については閉じたが、
   動的 git ignore 入力と、`/mnt` 等の将来の prefix は覆っていない。
+
+## 変異検査 — 8/8 KILLED、SURVIVED 0、MISMATCH 0
+
+一次資料は同 directory の `mutation-spec.json` (事前登録) と `mutation-ledger.json` (harness の生台帳)。
+`repo_head=2f81522e8c51ae83ea1a0f260397f54bcbaf4487`、baseline `PASSED`。
+
+```
+KILLED 8 / SURVIVED 0 / MISMATCH 0 / TIMEOUT 0 / PARSE_ERROR 0
+registered 8, completed 8, matching 8
+```
+
+**8 件すべてが事前登録した exact な期待赤 node 集合と完全一致して KILLED になった** (`DW-M08`)。
+`MISMATCH 0` は、赤の出方が予想と違うものが 1 件も無かったことを意味する。
+
+| 変異 | 何を壊すか | 何が守ったか |
+|---|---|---|
+| `MUT-A1-MARKER-NOT-NECESSARY` | marker を `run_campaign` へ | 7 件 pin、bounded fixture、既存の registry exact |
+| `MUT-A2-NFKC-DROPPED` | NFKC 正規化を外し生 source で判定 | bounded fixture の NFKC 正例のみ |
+| `MUT-A3-NAME-PIN-TAMPERED` | 7 件 pin の `p3_kickoff` を 1 文字変更 | 名前 pin のみ |
+| `MUT-B1-T189-ROOT-ONLY-GUARD` | t189 の欠落判定を根 directory の有無へ | t189 の missing-one 正例のみ |
+| `MUT-B2-T189-GUARD-DOES-NOT-SKIP` | t189 の `pytest.skip` を `return` へ | 同上 |
+| `MUT-B3-T1434-ROOT-ONLY-GUARD` | t1434 の欠落判定を根 directory の有無へ | t1434 の missing-one 正例のみ |
+| `MUT-B4-B10-PROV-ROOT-ONLY-GUARD` | B-10 provenance 側を同上 | B-10 provenance の missing-one 正例のみ |
+| `MUT-B5-B10-PLOT-ROOT-ONLY-GUARD` | B-10 plot 側を同上 | B-10 plot の missing-one 正例のみ |
+
+### この変異が実証したこと
+
+- **`MUT-A2` は「新しいテストだけが検出する差分」である** (`DW-M08` がテスト強化 wave へ要求する形)。
+  生 source prefilter は現行 7 driver に対しては同じ結果を返すので、
+  実 repo を見るどの検査でも区別できない。区別するのは bounded fixture の全角 `ｅ` 正例だけである。
+  段 3 のレンズ A が見つけた穴が実際に塞がれていることの、機構を通った証拠になる。
+- **`MUT-B1/B3/B4/B5` は 2026-09-01 に全 wave を止めた偽実装そのものを殺している。**
+  「根 directory は在るが要求 file が 1 件欠ける」正例が 4 file それぞれで発火した。
+- **`MUT-B2` は guard が実際に発火していることを示す。** `pytest.skip` を `return` に変えると
+  guard が素通りして本体が走り、赤になる。
+
+### 変異が確かめていないこと
+
+- 資源が完全に在る環境での既存 assertion の不変性。これは焦点走 (233 passed) が担う。
+- 計算ノード 48 並列での wall。変異は正しさの検査であって性能の測定ではない。
+- 動的 git ignore 依存 (`output_snapshot_ignores.py`) と、`/mnt` 等の将来の prefix。
+  どちらも本 wave の scope 外で、次の一手へ送った。
