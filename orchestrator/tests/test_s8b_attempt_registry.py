@@ -394,9 +394,11 @@ def _recovery_receipt_bytes(
     profile: core.DomainProfile[Any, Any],
     slot: profile8b.S8BAttemptSlot,
     reason: str,
+    *, binding: profile8b.S8BAttemptBinding = _BINDING,
+    authority_id: str = _RECOVERY_AUTHORITY, authority_policy_sha256: str = _POLICY,
 ) -> bytes:
     rows = registry.read_attempt_registry(
-        repo, profile=profile, binding=_BINDING,
+        repo, profile=profile, binding=binding,
     )
     starts = [
         row for row in rows
@@ -414,8 +416,8 @@ def _recovery_receipt_bytes(
         "scheduler_request_id": "adapter-test-request",
         "target_start_event_sha256": starts[0]["event_sha256"],
         "raw_scheduler_accounting_record_sha256": _ACCOUNTING,
-        "authority_id": _RECOVERY_AUTHORITY,
-        "authority_policy_sha256": _POLICY,
+        "authority_id": authority_id,
+        "authority_policy_sha256": authority_policy_sha256,
         "failure_reason": reason,
         "collected_at": "2026-08-25T00:00:03+00:00",
     }
@@ -2702,6 +2704,118 @@ def test_atomic_update_locked_direct_guard_maps_upstream_and_keeps_positive(
             _reserve(repo, profile, slot)
     assert calls == [root]
     assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def test_atomic_update_with_consumption_marker_hook_precedes_root_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(tmp_path)
+    root = admission.shared_admission_root(case["repo_root"])
+    path = registry.registry_path(
+        case["repo_root"],
+        freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=binding.protocol_sha256,
+    )
+    hook_saw_unlocked: list[bool] = []
+    def observe_lock_state(_snapshot: bytes) -> None:
+        fd = os.open(root / admission._LOCK_NAME, os.O_RDWR)
+        try:
+            try:
+                admission.fcntl.flock(
+                    fd, admission.fcntl.LOCK_EX | admission.fcntl.LOCK_NB,
+                )
+            except BlockingIOError:
+                pass
+            else:
+                hook_saw_unlocked.append(True)
+                admission.fcntl.flock(fd, admission.fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    monkeypatch.setattr(registry, "_PRELOCK_SNAPSHOT_HOOK", observe_lock_state)
+    identity = case["use_kwargs"]
+    registry._atomic_update_with_consumption_marker(
+        root=root, path=path,
+        profile=profile, binding=binding, slot=slot,
+        marker=case["capability"],
+        measurement_generation_claim_digest=identity[
+            "measurement_generation_claim_digest"
+        ],
+        attempt_id=identity["attempt_id"],
+        campaign_run_id=identity["campaign_run_id"],
+        manifest_sha256=identity["manifest_sha256"],
+        run_relpath=identity["run_relpath"], cell_id=identity["cell_id"],
+        transition=lambda rows: (rows, None),
+    )
+    assert hook_saw_unlocked == [True]
+
+
+def test_v2_resume_rejects_recovery_ordinal_and_accepts_zero(
+    tmp_path: Path,
+) -> None:
+    case, profile, binding, slot = _v2_registry_capability_case(
+        tmp_path / "recovery-ordinal",
+    )
+    retry_slot = replace(slot, attempt_ordinal=1, schedule_row_sha256="d" * 64)
+    path = registry.registry_path(
+        case["repo_root"],
+        freeze_sha256=binding.freeze_sha256,
+        protocol_sha256=binding.protocol_sha256,
+    )
+    path.write_bytes(_bytes(core.create_attempt_registry_genesis(
+        profile=profile, slots=[slot, retry_slot], binding=binding,
+    )))
+    reserved = _reserve_v2(case, profile, binding, slot)
+    classified = _classify(reserved)
+    assert type(registry.resume_attempt(
+        case["repo_root"],
+        profile=profile,
+        binding=binding,
+        slot_id=profile.slot_codec.slot_id(slot),
+        deferred_output_reader=lambda: b"zero-output",
+        consumption_marker=case["capability"],
+    )) is type(classified) is registry.ClassifiedAttempt
+    registry.record_attempt_recovery(
+        reserved,
+        scheduler_accounting_receipt=_recovery_receipt_bytes(
+            case["repo_root"], profile, slot, "node_failure",
+            binding=binding,
+            authority_id=scheduler.AUTHORITY_ID,
+            authority_policy_sha256=scheduler.AUTHORITY_POLICY_SHA256,
+        ),
+        recoverer_process_identity=_RECOVERER,
+        recovered_at="2026-08-25T00:00:04+00:00",
+    )
+    rows = registry.read_attempt_registry(
+        case["repo_root"], profile=profile, binding=binding,
+    )
+    rows = core.reserve_attempt_slot(
+        rows,
+        profile=profile,
+        freeze_id=binding.freeze_sha256,
+        slot_id=profile.slot_codec.slot_id(retry_slot),
+        binding=binding,
+        run_start_receipt_sha256=_RUN_START,
+        process_identity=_PROCESS,
+        started_at="2026-08-25T00:00:05+00:00",
+    )
+    path.write_bytes(_bytes(rows))
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=(
+            r"^\[s8b-attempt-registry-consume\] "
+            r"v2 resume recovery ordinal is not capability-backed$"
+        ),
+    ):
+        registry.resume_attempt(
+            case["repo_root"],
+            profile=profile,
+            binding=binding,
+            slot_id=profile.slot_codec.slot_id(retry_slot),
+            deferred_output_reader=lambda: b"retry-output",
+            consumption_marker=case["capability"],
+        )
 
 
 def test_v2_start_only_resume_fails_closed_and_classified_resume_stays_open(
