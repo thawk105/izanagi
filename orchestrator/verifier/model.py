@@ -4,11 +4,13 @@
 trace を読んだ後の中間表現と、依存グラフ (DSG) / 異常 (anomaly) の構造化表現。
 ここには「正しさ検証に必要なもの」だけを置く。性能数値 (throughput 等) は
 **一切持ち込まない** — verifier の入力側隔離 (roadmap §3.4-4, anti-fabrication
-isolation)。verifier の入力は trace のみ。
+isolation)。verifier の入力は trace、commit witness、protocol/source context に限る。
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
+import re
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
@@ -21,6 +23,243 @@ Version = Tuple[int, int]
 
 # 初期 DB ロードが書いた版。producer trx を持たない (Tuple::init が epoch=1,tid=0)。
 GENESIS: Version = (1, 0)
+
+
+PROOF_SURFACE_EVIDENCE_PRESENT = "evidence-present"
+PROOF_SURFACE_EVIDENCE_ABSENT = "evidence-absent"
+PROOF_SURFACE_UNAVAILABLE = "unavailable"
+_PROOF_SURFACE_VALUES = frozenset({
+    PROOF_SURFACE_EVIDENCE_PRESENT,
+    PROOF_SURFACE_EVIDENCE_ABSENT,
+    PROOF_SURFACE_UNAVAILABLE,
+})
+_PROOF_SURFACE_PROTOCOLS = frozenset({"silo", "si", "mocc"})
+_COMPILED_SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx"})
+_SOURCE_COMMENT_PATTERN = re.compile(r"//[^\n]*|/\*.*?\*/", re.DOTALL)
+_CONDITIONAL_OPEN_PATTERN = re.compile(r"^\s*#\s*(?:if|ifdef|ifndef)\b")
+_CONDITIONAL_CLOSE_PATTERN = re.compile(r"^\s*#\s*endif\b")
+_CONDITIONAL_ALTERNATE_PATTERN = re.compile(r"^\s*#\s*(?:else|elif)\b")
+_LITERAL_IF_ZERO_PATTERN = re.compile(r"^\s*#\s*if\s+0\s*$")
+_LITERAL_TRACE_PATTERN = re.compile(r"^\s*#\s*if\s+TRACE\s*$")
+_LOCK_COVERAGE_EMITTER_PATTERN = re.compile(
+    r"\bizanagi_trace::emit_lock_violation\s*\(",
+)
+_PERMUTATION_EMITTER_PATTERN = re.compile(
+    r'\bizanagi_trace::stream\s*\([^)]*\)\s*<<\s*"P "',
+)
+_WRITE_INTENT_EMITTER_PATTERNS = (
+    re.compile(r"\bizanagi_trace::emit_write_intent_violation\s*\("),
+    re.compile(r'\bizanagi_trace::stream\s*\([^)]*\)\s*<<\s*"I "'),
+)
+
+
+@dataclass(frozen=True)
+class ProofSurfaceAssessment:
+    """X/P/I emitter の compiled-source text assessment。"""
+
+    protocol: Optional[str] = None
+    lock_coverage: str = PROOF_SURFACE_UNAVAILABLE
+    permutation: str = PROOF_SURFACE_UNAVAILABLE
+    write_intent: str = PROOF_SURFACE_UNAVAILABLE
+
+    def __post_init__(self) -> None:
+        if self.protocol is not None and type(self.protocol) is not str:
+            raise TypeError("proof-surface protocol must be exact str or None")
+        for name, value in (
+            ("X", self.lock_coverage),
+            ("P", self.permutation),
+            ("I", self.write_intent),
+        ):
+            if value not in _PROOF_SURFACE_VALUES:
+                raise ValueError(f"proof-surface {name} value is invalid: {value!r}")
+
+    def certification_gate_satisfied(self) -> bool:
+        """Certification が要求する X/P の text evidence が揃うときだけ真。"""
+        return (
+            self.lock_coverage == PROOF_SURFACE_EVIDENCE_PRESENT
+            and self.permutation == PROOF_SURFACE_EVIDENCE_PRESENT
+        )
+
+    def as_record(self) -> Dict[str, Optional[str]]:
+        """VERIFY_DONE 用の X/P/I 三面 projection。"""
+        return {
+            "protocol": self.protocol,
+            "X": self.lock_coverage,
+            "P": self.permutation,
+            "I": self.write_intent,
+        }
+
+
+def _normalize_compiled_source_text(source: str) -> str:
+    """コメントと literal ``#if 0`` block を共通規則で除く。"""
+    source = _SOURCE_COMMENT_PATTERN.sub(
+        lambda found: "\n" * found.group(0).count("\n"), source,
+    )
+    conditional_depth = 0
+    dead_if_zero_depth: Optional[int] = None
+    retained_lines = []
+    for line in source.splitlines(keepends=True):
+        directive_line = line.rstrip("\r\n")
+        if _CONDITIONAL_OPEN_PATTERN.match(directive_line):
+            conditional_depth += 1
+            if (dead_if_zero_depth is None
+                    and _LITERAL_IF_ZERO_PATTERN.match(directive_line)):
+                dead_if_zero_depth = conditional_depth
+        if dead_if_zero_depth is None:
+            retained_lines.append(line)
+        # #else/#elif は評価せず、literal #if 0 全体を対応する #endif まで捨てる。
+        if _CONDITIONAL_CLOSE_PATTERN.match(directive_line):
+            if conditional_depth == dead_if_zero_depth:
+                dead_if_zero_depth = None
+            conditional_depth = max(0, conditional_depth - 1)
+    return "".join(retained_lines)
+
+
+def compiled_protocol_source_texts(
+        protocol: str, ccbench_root: Path | str,
+) -> Optional[Tuple[str, ...]]:
+    """CMake ``SOURCES`` の compiled source を列挙し lexical normalization する。
+
+    D1373 と X/P/I assessment が同じ source 集合と同じコメント・literal
+    ``#if 0`` 除去規則を見るための唯一の実装である。CMake/source の欠落、不正、
+    読取不能は ``None`` とする。
+    """
+    if (type(protocol) is not str
+            or re.fullmatch(r"[a-z0-9_+-]+", protocol) is None):
+        return None
+    try:
+        protocol_dir = Path(ccbench_root) / "cc" / protocol
+        if not protocol_dir.is_dir():
+            return None
+        cmake_source = (protocol_dir / "CMakeLists.txt").read_text(
+            encoding="utf-8",
+        )
+    except (OSError, TypeError, UnicodeDecodeError):
+        return None
+
+    # CMake の行コメント内にある helper 名を invocation と誤認しない。
+    cmake_source = re.sub(r"#.*$", "", cmake_source, flags=re.MULTILINE)
+    source_paths: Optional[Tuple[Path, ...]] = None
+    for match in re.finditer(
+        r"\bccbench_add_protocol\s*\((.*?)\)", cmake_source, re.DOTALL,
+    ):
+        tokens = match.group(1).split()
+        if not tokens or tokens[0] != protocol:
+            continue
+        if source_paths is not None or tokens.count("SOURCES") != 1:
+            return None
+        source_index = tokens.index("SOURCES") + 1
+        section_indexes = [
+            tokens.index(section, source_index)
+            for section in ("WORKLOADS", "OPTIONS")
+            if section in tokens[source_index:]
+        ]
+        source_end = min(section_indexes, default=len(tokens))
+        source_names = tokens[source_index:source_end]
+        if not source_names:
+            return None
+        relative_names = tuple(Path(name) for name in source_names)
+        if (any(name.is_absolute() or ".." in name.parts
+                for name in relative_names)
+                or any(name.suffix not in _COMPILED_SOURCE_SUFFIXES
+                       for name in relative_names)):
+            return None
+        paths = tuple(protocol_dir / name for name in relative_names)
+        if any(not path.is_file() for path in paths):
+            return None
+        source_paths = paths
+    if source_paths is None:
+        return None
+
+    normalized = []
+    try:
+        for path in source_paths:
+            normalized.append(_normalize_compiled_source_text(
+                path.read_text(encoding="utf-8"),
+            ))
+    except (OSError, UnicodeDecodeError):
+        return None
+    return tuple(normalized)
+
+
+def _literal_trace_regions(source: str) -> str:
+    """literal ``#if TRACE`` の first branch 内にある text だけを返す。"""
+    # None は評価しない一般 conditional、bool は literal TRACE conditional の
+    # first branch 内外を表す。一般 conditional の枝はどちらも保持する。
+    conditional_stack: List[Optional[bool]] = []
+    retained_lines = []
+    for line in source.splitlines(keepends=True):
+        directive_line = line.rstrip("\r\n")
+        if _CONDITIONAL_OPEN_PATTERN.match(directive_line):
+            conditional_stack.append(
+                True if _LITERAL_TRACE_PATTERN.match(directive_line) else None
+            )
+            continue
+        if _CONDITIONAL_ALTERNATE_PATTERN.match(directive_line):
+            if conditional_stack and conditional_stack[-1] is not None:
+                conditional_stack[-1] = False
+            continue
+        if _CONDITIONAL_CLOSE_PATTERN.match(directive_line):
+            if conditional_stack:
+                conditional_stack.pop()
+            continue
+        trace_states = [
+            state for state in conditional_stack if state is not None
+        ]
+        if trace_states and all(trace_states):
+            retained_lines.append(line)
+    return "".join(retained_lines)
+
+
+def assess_protocol_proof_surfaces(
+        protocol: Optional[str], ccbench_root: Optional[Path | str],
+) -> ProofSurfaceAssessment:
+    """X/P/I emitter call の compiled-source text evidence を三値評価する。
+
+    compiled source の literal ``#if TRACE`` first branch に emitter の呼出しが
+    在ることしか言わない。
+    前処理条件の評価、到達可能性、実際の発火、verifier が読めることは証明しない。
+    未指定、対象外 protocol、source 不読、走査例外は三面
+    とも ``unavailable`` にする。読取例外を evidence-present へ変換しない。
+    """
+    recorded_protocol = protocol if type(protocol) is str else None
+    unavailable = ProofSurfaceAssessment(protocol=recorded_protocol)
+    if protocol not in _PROOF_SURFACE_PROTOCOLS or ccbench_root is None:
+        return unavailable
+    try:
+        sources = compiled_protocol_source_texts(protocol, ccbench_root)
+        if sources is None:
+            return unavailable
+        trace_regions = tuple(_literal_trace_regions(source) for source in sources)
+
+        def assessed(found: bool) -> str:
+            return (
+                PROOF_SURFACE_EVIDENCE_PRESENT
+                if found else PROOF_SURFACE_EVIDENCE_ABSENT
+            )
+
+        lock_coverage = assessed(any(
+            _LOCK_COVERAGE_EMITTER_PATTERN.search(source)
+            for source in trace_regions
+        ))
+        permutation = assessed(any(
+            _PERMUTATION_EMITTER_PATTERN.search(source)
+            for source in trace_regions
+        ))
+        write_intent = assessed(any(
+            pattern.search(source)
+            for source in trace_regions
+            for pattern in _WRITE_INTENT_EMITTER_PATTERNS
+        ))
+    except Exception:
+        # Source/scan failure is an unavailable assessment, never positive evidence.
+        return unavailable
+    return ProofSurfaceAssessment(
+        protocol=protocol,
+        lock_coverage=lock_coverage,
+        permutation=permutation,
+        write_intent=write_intent,
+    )
 
 
 @dataclass
@@ -154,6 +393,10 @@ class Integrity:
     expected_commits: Optional[int] = None  # trace 外 counter の期待 commit 数
     observed_commits: Optional[int] = None  # dedup 後の trace committed txn 数
     notes: List[str] = field(default_factory=list)
+    # 非 wire field。result_to_dict() と receipt schema には投影しない。
+    proof_surfaces: ProofSurfaceAssessment = field(
+        default_factory=ProofSurfaceAssessment,
+    )
 
     def clean(self) -> bool:
         commit_witness_clean = (
@@ -171,6 +414,7 @@ class Integrity:
                 and self.lock_coverage_violations == 0
                 and self.write_intent_violations == 0
                 and self.permutation_violations == 0
+                and self.proof_surfaces.certification_gate_satisfied()
                 and commit_witness_clean)
 
 

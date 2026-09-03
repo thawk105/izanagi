@@ -1472,6 +1472,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 vr, verification_capability = verify_trace_dir_with_capability(
                     tdir,
                     expected_commits=trace_result.commit_count_witness,
+                    protocol=genome.protocol,
+                    ccbench_root=evidence.source_root,
                     receipt_sink_kind=receipt_sink_kind,
                     receipt_lock_identity_sha256=receipt_lock_identity,
                     receipt_variant=v,
@@ -1488,6 +1490,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 "commits": ncommit, "aborts": aborts,
                 "commit_witness": commit_witness,
                 "anomalies": len(vr.anomalies), "workload": {"tag": tag},
+                "proof_surfaces": vr.integrity.proof_surfaces.as_record(),
             }
             if qualification_policy is not None:
                 verify_payload.update({

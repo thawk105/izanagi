@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import tempfile
 from types import MappingProxyType
 
 from orchestrator.campaign import artifact_admission, wal
@@ -23,6 +24,37 @@ from orchestrator.verifier.commit_receipt import (
 
 
 _FIXTURE = Path(__file__).resolve().parent / "fixtures/g1_serial"
+_PROOF_SOURCE_TMP = tempfile.TemporaryDirectory(
+    prefix="izanagi-proof-source-fixture-",
+)
+_CCBENCH_ROOT = Path(_PROOF_SOURCE_TMP.name)
+_SILO_SOURCE = _CCBENCH_ROOT / "cc/silo"
+_SILO_SOURCE.mkdir(parents=True)
+(_SILO_SOURCE / "CMakeLists.txt").write_text(
+    "ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n",
+    encoding="utf-8",
+)
+(_SILO_SOURCE / "transaction.cc").write_text(
+    "#if TRACE\n"
+    "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+    "izanagi_trace::stream(0) << \"P \";\n"
+    "#endif\n",
+    encoding="utf-8",
+)
+_MOCC_SOURCE = _CCBENCH_ROOT / "cc/mocc"
+_MOCC_SOURCE.mkdir(parents=True)
+(_MOCC_SOURCE / "CMakeLists.txt").write_text(
+    "ccbench_add_protocol(mocc SOURCES transaction.cc WORKLOADS ycsb)\n",
+    encoding="utf-8",
+)
+(_MOCC_SOURCE / "transaction.cc").write_text(
+    "#if TRACE\nizanagi_trace::emit_write(0, 0, {}, {}, 0, 0);\n#endif\n",
+    encoding="utf-8",
+)
+
+
+def proof_source_root() -> Path:
+    return _CCBENCH_ROOT
 
 
 def verification_capabilities(
@@ -32,6 +64,8 @@ def verification_capabilities(
     results = tuple(
         verify_trace_dir_with_capability(
             str(_FIXTURE),
+            protocol="silo",
+            ccbench_root=_CCBENCH_ROOT,
             receipt_sink_kind=sink_kind,
             receipt_lock_identity_sha256=lock_identity_sha256,
             receipt_variant=variant,

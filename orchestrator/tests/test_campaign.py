@@ -85,7 +85,7 @@ from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate     # 
 from orchestrator.campaign.source_digest import SourceEvidence                # noqa: E402
 from skiputil import Skip, skip, skip_conditional_unrun          # noqa: E402
 from orchestrator.verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
-                            Integrity, RW, VerifyResult)
+                            Integrity, ProofSurfaceAssessment, RW, VerifyResult)
 from certified_writer_fixtures import (                          # noqa: E402
     build_admission_fixture,
     build_source_drift_fixture,
@@ -5719,7 +5719,12 @@ def test_m8_preflight_rejects_fail_open_domain_module_drift(tmp_path=None):
 def _green_vr():
     """実 VerifyResult (緑): certified=True になる最小の health。"""
     return VerifyResult(trace_dir="/tmp/ev", serializable=True, anomalies=[],
-                        integrity=Integrity(), n_txns=100, n_reads=300,
+                        integrity=Integrity(proof_surfaces=ProofSurfaceAssessment(
+                            protocol="silo",
+                            lock_coverage="evidence-present",
+                            permutation="evidence-present",
+                            write_intent="evidence-absent",
+                        )), n_txns=100, n_reads=300,
                         n_writes=100, n_keys=50, n_edges=120)
 
 
@@ -5731,7 +5736,12 @@ def _red_vr():
                        reasons=[EdgeReason(etype=RW, key="bb", u_ver=(1, 1), v_ver=(1, 2))])]
     a = Anomaly(cycle=[1, 2], phenomenon="G2", edges=edges)
     return VerifyResult(trace_dir="/tmp/ev", serializable=False, anomalies=[a],
-                        integrity=Integrity(), n_txns=2, n_reads=2,
+                        integrity=Integrity(proof_surfaces=ProofSurfaceAssessment(
+                            protocol="silo",
+                            lock_coverage="evidence-present",
+                            permutation="evidence-present",
+                            write_intent="evidence-absent",
+                        )), n_txns=2, n_reads=2,
                         n_writes=2, n_keys=2, n_edges=2)
 
 
@@ -5906,7 +5916,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         return _source_evidence(
             genome_value,
             commit,
-            source_root=ccbench_dir or "/tmp/izanagi-test-ccbench",
+            source_root=ccbench_dir or str(commit_receipts.proof_source_root()),
         )
 
     patch("source_digest", types.SimpleNamespace(
@@ -6016,7 +6026,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
 
 def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
-          record_rep_returncodes=False, **mock_kw):
+          record_rep_returncodes=False, protocol="silo", **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
     if wal.read_lock(lay) is None:
         cfg = _cfg()
@@ -6028,7 +6038,7 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
         _write_certified_lock(lay, _bound(cfg))
     with _mock_pipeline(**mock_kw) as calls:
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
+            Genome(protocol, {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
             do_bench=do_bench, screening=screening,
@@ -7329,7 +7339,32 @@ def test_pipeline_matching_commit_witness_commits_and_records_verify_payload():
         "commit_counts": 100,
         "batch_commit_counts": 0,
     }
+    assert verify[0].payload["proof_surfaces"] == {
+        "protocol": "silo",
+        "X": "evidence-present",
+        "P": "evidence-present",
+        "I": "evidence-absent",
+    }
     assert any(record.stage == STAGE_COMMIT for record in records)
+
+
+def test_pipeline_records_mocc_missing_proof_surfaces_and_does_not_commit():
+    """同じ実 verifier 入力を mocc source assessment で fail-closed にする。"""
+    lay = _tmp_layout()
+    result, calls = _eval(lay, do_bench=False, protocol="mocc")
+    assert calls.verify_witnesses == [100]
+    assert result.aborted and not result.certified
+    assert result.verdict == "indeterminate"
+    records = list(wal.read_records(lay))
+    verify = [record for record in records if record.stage == STAGE_VERIFY_DONE]
+    assert len(verify) == 1
+    assert verify[0].payload["proof_surfaces"] == {
+        "protocol": "mocc",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+    assert STAGE_COMMIT not in {record.stage for record in records}
 
 
 def test_run_trace_parses_abort_from_stdout():
@@ -8077,7 +8112,10 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         STOCK="stock", assert_worktree_within_allowlist=lambda *a, **k: None,
         resolve_evidence=lambda genome_value, commit, **kwargs: _source_evidence(
             genome_value, commit,
-            source_root=kwargs.get("ccbench_dir") or "/tmp/izanagi-test-ccbench",
+            source_root=(
+                kwargs.get("ccbench_dir")
+                or str(commit_receipts.proof_source_root())
+            ),
         )))
     patch("_run_trace", fake_run_trace)
     patch("verify_trace_dir_with_capability", fake_verify)

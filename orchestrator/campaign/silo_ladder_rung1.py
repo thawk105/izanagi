@@ -2985,7 +2985,11 @@ def validate_raw_bundle(
             raise DriverError("raw correctness trace count is not four")
         from orchestrator.verifier.core import verify_trace_dir
         from orchestrator.verifier.report import result_to_dict
-        recomputed_result = result_to_dict(verify_trace_dir(str(trace_root)))
+        recomputed_result = result_to_dict(verify_trace_dir(
+            str(trace_root),
+            protocol="silo",
+            ccbench_root=_repo_root() / "external/ccbench",
+        ))
         # trace_dir is a storage location, not a verifier predicate.
         recomputed_result["trace_dir"] = verifier["results"][0]["trace_dir"]
         recomputed = {
@@ -4089,7 +4093,11 @@ def _correctness_command(attempt_dir: Path) -> dict[str, Any]:
             if run_result.returncode:
                 raise DriverError(f"correctness run rc={run_result.returncode}")
             verifier_result = _run(
-                [sys.executable, "-m", "orchestrator.verifier", "--json", str(run_dir)],
+                [
+                    sys.executable, "-m", "orchestrator.verifier", "--json",
+                    "--protocol", "silo", "--ccbench-root", str(source_path),
+                    str(run_dir),
+                ],
                 cwd=repo, timeout=600, stdout_path=raw / "verifier.json",
                 stderr_path=raw / "verifier.stderr",
             )

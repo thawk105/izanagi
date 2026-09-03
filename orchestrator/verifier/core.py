@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""検証のトップレベル: trace ディレクトリ -> VerifyResult。
+"""検証のトップレベル: trace ディレクトリ + source context -> VerifyResult。
 
-verifier の入力は **trace と optional な trace 外 commit counter のみ**。
+verifier の入力は trace、optional な trace 外 commit counter、protocol/source context。
 性能数値 (throughput 等) をここに渡さない
 (roadmap §3.4-4 anti-fabrication isolation = 入力側隔離。捏造経路をデータレベル
 で断つ。書き込み権限を持たない出力側隔離と対になる)。
@@ -13,7 +13,7 @@ import os
 from typing import Dict, Optional
 
 from .dsg import DSG
-from .model import VerifyResult
+from .model import VerifyResult, assess_protocol_proof_surfaces
 from .parse import _CompactTrace, _LegacyTrace, _parse_trace_dir_compact
 from .commit_receipt import CommitReceiptError, _domain_digest
 from .report import result_to_dict
@@ -23,8 +23,10 @@ def verify_trace_dir(
         trace_dir: str, max_report: Optional[int] = 20, *,
         expected_commits: Optional[int] = None,
         workers: Optional[int] = None,
+        protocol: Optional[str] = None,
+        ccbench_root: Optional[str | os.PathLike[str]] = None,
 ) -> VerifyResult:
-    """1 run (= 1 trace ディレクトリ) を検証する。"""
+    """1 run を検証する。source context 未指定・不読は認証不能にする。"""
     parsed = _parse_trace_dir_compact(trace_dir, workers=workers)
     if isinstance(parsed, _CompactTrace):
         issues = parsed.issues
@@ -41,6 +43,9 @@ def verify_trace_dir(
         n_writes = sum(len(txn.writes) for txn in txns)
     else:  # fail closed if the internal parser union grows without wiring here
         raise TypeError(f"unsupported parsed trace type: {type(parsed)!r}")
+    dsg.integrity.proof_surfaces = assess_protocol_proof_surfaces(
+        protocol, ccbench_root,
+    )
     if expected_commits is not None:
         # witness は trace 外の CCBench counter。片側だけの部分状態を作らず、
         # expected/observed を持つ新しい Integrity へ一度で差し替える。
@@ -299,6 +304,8 @@ def _bind_verifier_capability_entrypoint():
             trace_dir: str, max_report: Optional[int] = 20, *,
             expected_commits: Optional[int] = None,
             workers: Optional[int] = None,
+            protocol: Optional[str] = None,
+            ccbench_root: Optional[str | os.PathLike[str]] = None,
             receipt_sink_kind: str,
             receipt_lock_identity_sha256: str,
             receipt_variant: str,
@@ -308,7 +315,7 @@ def _bind_verifier_capability_entrypoint():
         """Run verification and issue one capability for this exact operation."""
         result = verify_trace_dir(
             trace_dir, max_report=max_report, expected_commits=expected_commits,
-            workers=workers,
+            workers=workers, protocol=protocol, ccbench_root=ccbench_root,
         )
         capability = _VerificationCapability(
             result,

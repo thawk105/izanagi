@@ -6,11 +6,13 @@ Adya の Direct Serialization Graph を作り、rw (anti-dependency) を含む c
 (G2) まで検出する。anomaly は構造化して返す (絶対規律3)。
 
 公開 API:
-    verify_trace_dir(trace_dir, *, expected_commits=None) -> VerifyResult
+    verify_trace_dir(trace_dir, *, expected_commits=None, protocol=None,
+                     ccbench_root=None) -> VerifyResult
     result_to_dict(res) / render_text(res)
 
 設計背景: docs/roadmap.md §3、.claude/agents/verifier.md。
-入力は trace と optional な trace 外 commit counter のみ。性能数値は持ち込まない
+入力は trace、optional な trace 外 commit counter、protocol/source context。
+性能数値は持ち込まない
 (入力側隔離, roadmap §3.4-4)。
 """
 from .core import (

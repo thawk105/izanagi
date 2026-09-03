@@ -79,6 +79,7 @@ from orchestrator.verifier.parse import (  # noqa: E402
 )
 
 
+_CCBENCH_ROOT = receipt_support.proof_source_root()
 _CANON = "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
 _TEST_BUILD_CONTEXT = build_run_context(
     generator_id=GeneratorId.BACKOFF_SWEEP,
@@ -336,7 +337,7 @@ def test_verification_capability_is_operation_bound_and_single_use() -> None:
         "receipt_workload_tag": "legacy",
     }
     result, capability = verify_trace_dir_with_capability(
-        str(trace_dir), **binding,
+        str(trace_dir), protocol="silo", ccbench_root=_CCBENCH_ROOT, **binding,
     )
     assert result.certified
     assert not hasattr(capability, "_issuer_token")
@@ -353,7 +354,7 @@ def test_verification_capability_is_operation_bound_and_single_use() -> None:
         issue_commit_receipt([capability], **issue_args)
 
     _result, copy_source = verify_trace_dir_with_capability(
-        str(trace_dir), **binding,
+        str(trace_dir), protocol="silo", ccbench_root=_CCBENCH_ROOT, **binding,
     )
     shallow_clone = copy(copy_source)
     deep_clone = deepcopy(copy_source)
@@ -364,7 +365,7 @@ def test_verification_capability_is_operation_bound_and_single_use() -> None:
         issue_commit_receipt([deep_clone], **issue_args)
 
     _result, other_capability = verify_trace_dir_with_capability(
-        str(trace_dir), **binding,
+        str(trace_dir), protocol="silo", ccbench_root=_CCBENCH_ROOT, **binding,
     )
     mutated_clone = copy(other_capability)
     object.__setattr__(mutated_clone, "_variant", "other-v")
