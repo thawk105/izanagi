@@ -19,8 +19,8 @@ does not prove the branch body's semantics, dynamic reachability, an expected
 runtime anomaly, or correctness.  Supply preprocessing separately proves that
 a define changes the selected owner TU's compile-command input.
 ``driver_integration`` on the legacy evidence remains ``"none"``.
-Compiler path snapshots narrow identity drift around invocations, but do not
-attest a same-UID adversarial process, delegated compiler processes, the
+Compiler and CMake path snapshots narrow identity drift around invocations,
+but do not attest a same-UID adversarial process, delegated processes, the
 network, or a sandbox.
 """
 from __future__ import annotations
@@ -413,7 +413,11 @@ class CompileTimeBranchSelectionObservation:
 
 @dataclass(frozen=True, slots=True)
 class CompileTimeBranchSelectionEvidence:
-    """Bounded owner-TU proof that one preprocessor branch distinguishes 1/0."""
+    """Bounded owner-TU proof that one preprocessor branch distinguishes 1/0.
+
+    Configure argv fields are the exact outer argv this gate executed; they do
+    not claim to observe argv inside a delegating CMake wrapper.
+    """
 
     proof_kind: str
     source_rel: str
@@ -425,11 +429,25 @@ class CompileTimeBranchSelectionEvidence:
     compiler_path: str
     compiler_version: str
     compiler_identities: tuple["CompilerFileEvidence", ...]
+    cmake_path: str
+    requested_configure_argv: tuple[str, ...]
+    default_configure_argv: tuple[str, ...]
+    requested_cmake_identities: tuple["CMakeFileEvidence", ...]
+    default_cmake_identities: tuple["CMakeFileEvidence", ...]
 
 
 @dataclass(frozen=True, slots=True)
 class CompilerFileEvidence:
     """One compiler path identity/hash snapshot at a declared phase."""
+
+    phase: str
+    identity: RegularFileIdentity
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class CMakeFileEvidence:
+    """One CMake path identity/hash snapshot at a declared phase."""
 
     phase: str
     identity: RegularFileIdentity
@@ -464,7 +482,7 @@ class DefineRequest:
 
 @dataclass(frozen=True, slots=True)
 class _ConfiguredOwnerCompileCommand:
-    """One immutable owner-TU command emitted for supply evaluation."""
+    """One owner-TU command and the outer configure argv this gate executed."""
 
     directory: str
     argv: tuple[str, ...]
@@ -472,6 +490,19 @@ class _ConfiguredOwnerCompileCommand:
     source_root: str
     build_root: str
     define_value: str | None
+    cmake_path: str
+    configure_argv: tuple[str, ...]
+    cmake_identities: tuple[CMakeFileEvidence, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _CMakeConfigureResult:
+    """Command database and evidence for the argv this gate executed."""
+
+    commands: tuple[dict[str, Any], ...]
+    cmake_path: str
+    configure_argv: tuple[str, ...]
+    cmake_identities: tuple[CMakeFileEvidence, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -596,6 +627,8 @@ class ConditionFamilyAdmission:
 
 @dataclass(frozen=True, slots=True)
 class _PreprocessResult:
+    """Preprocess result bound to the configure argv this gate executed."""
+
     preprocessed_bytes: bytes
     digest: str
     byte_length: int
@@ -608,6 +641,9 @@ class _PreprocessResult:
     compiler_path: str
     compiler_version: str
     compiler_identities: tuple[CompilerFileEvidence, ...]
+    cmake_path: str
+    configure_argv: tuple[str, ...]
+    cmake_identities: tuple[CMakeFileEvidence, ...]
 
 
 def canonical_float64_bits(value: float) -> str:
@@ -1367,6 +1403,73 @@ def _require_same_compiler(
         )
 
 
+def _capture_cmake_identity(cmake: Path, phase: str) -> CMakeFileEvidence:
+    """Capture the CMake path before or after one configure invocation.
+
+    This records a path snapshot, not the identity of a process to which CMake
+    may delegate. The phase names describe the argv this gate executed.
+    """
+    reason = "configure-failed" if phase == "before-configure" \
+        else "cmake-identity-drift"
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(cmake, flags)
+    except OSError as exc:
+        raise ConditionMeaningGateError(
+            reason, f"CMake path is unavailable at {phase}",
+        ) from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ConditionMeaningGateError(reason, f"CMake is not regular at {phase}")
+        if not os.access(cmake, os.X_OK):
+            raise ConditionMeaningGateError(reason, f"CMake is not executable at {phase}")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        after = os.fstat(descriptor)
+    except OSError as exc:
+        raise ConditionMeaningGateError(
+            reason, f"CMake cannot be read at {phase}",
+        ) from exc
+    finally:
+        os.close(descriptor)
+    content = b"".join(chunks)
+    before_identity = _file_identity(before)
+    after_identity = _file_identity(after)
+    try:
+        path_identity = _file_identity(os.stat(cmake, follow_symlinks=False))
+    except OSError as exc:
+        raise ConditionMeaningGateError(
+            reason, f"CMake path disappeared at {phase}",
+        ) from exc
+    if (before_identity != after_identity
+            or after_identity != path_identity
+            or len(content) != after_identity.size):
+        raise ConditionMeaningGateError(
+            reason, f"CMake changed during {phase} capture",
+        )
+    return CMakeFileEvidence(
+        phase=phase,
+        identity=after_identity,
+        sha256=_sha256(content),
+    )
+
+
+def _require_same_cmake(
+    baseline: CMakeFileEvidence,
+    observed: CMakeFileEvidence,
+) -> None:
+    if baseline.identity != observed.identity or baseline.sha256 != observed.sha256:
+        raise ConditionMeaningGateError(
+            "cmake-identity-drift",
+            f"CMake path identity/content changed by {observed.phase}",
+        )
+
+
 def _run_process(
     argv: Sequence[str],
     *,
@@ -1466,7 +1569,7 @@ def _configure_compile_commands(
     companions: tuple[tuple[str, str], ...],
     compiler: Path,
     cmake: Path,
-) -> tuple[dict[str, Any], ...]:
+) -> _CMakeConfigureResult:
     cxx_flag_prefix = "-DCMAKE_CXX_FLAGS="
     base_cxx_flags = ""
     configure_args: list[str] = []
@@ -1485,9 +1588,12 @@ def _configure_compile_commands(
             request, value, companions, base_cxx_flags=base_cxx_flags,
         ),
     )
+    before = _capture_cmake_identity(cmake, "before-configure")
     _run_process(
         argv, timeout_reason="configure-timeout", failure_reason="configure-failed",
     )
+    after = _capture_cmake_identity(cmake, "after-configure")
+    _require_same_cmake(before, after)
     commands_path = build_root / "compile_commands.json"
     try:
         raw = commands_path.read_bytes()
@@ -1500,7 +1606,12 @@ def _configure_compile_commands(
         raise ConditionMeaningGateError(
             "compile-command-unavailable", "compile command database has the wrong shape",
         )
-    return tuple(decoded)
+    return _CMakeConfigureResult(
+        commands=tuple(decoded),
+        cmake_path=os.fspath(cmake),
+        configure_argv=argv,
+        cmake_identities=(before, after),
+    )
 
 
 def _entry_argv(entry: Mapping[str, Any]) -> tuple[str, ...]:
@@ -1576,6 +1687,7 @@ def _select_owner_entry(
 def _configured_owner_command(
     entry: Mapping[str, Any],
     *,
+    configure: _CMakeConfigureResult,
     owner: Path,
     source_root: Path,
     build_root: Path,
@@ -1593,6 +1705,9 @@ def _configured_owner_command(
         source_root=os.fspath(source_root),
         build_root=os.fspath(build_root),
         define_value=define_value,
+        cmake_path=configure.cmake_path,
+        configure_argv=configure.configure_argv,
+        cmake_identities=configure.cmake_identities,
     )
 
 
@@ -1654,21 +1769,25 @@ def _configured_define_compile_commands(
             # two raw meaning argv differ only in the tested define.
             control_build = requested_build if shared_branch_build else \
                 base / ("stock" if stock_identity else "default")
-            requested_commands = _configure_compile_commands(
+            requested_configure = _configure_compile_commands(
                 captured=captured, request=request, source_root=source_root,
                 build_root=requested_build, value=requested,
                 companions=companions, compiler=compiler, cmake=cmake_path,
             )
-            control_commands = _configure_compile_commands(
+            control_configure = _configure_compile_commands(
                 captured=captured, request=request, source_root=control_root,
                 build_root=control_build, value=control_value,
                 companions=companions, compiler=compiler, cmake=cmake_path,
             )
+            _require_same_cmake(
+                requested_configure.cmake_identities[0],
+                control_configure.cmake_identities[0],
+            )
             requested_entry, requested_owner = _select_owner_entry(
-                requested_commands, source_root=source_root, request=request,
+                requested_configure.commands, source_root=source_root, request=request,
             )
             control_entry, control_owner = _select_owner_entry(
-                control_commands, source_root=control_root, request=request,
+                control_configure.commands, source_root=control_root, request=request,
             )
             configured = _ConfiguredDefineCompileCommands(
                 captured=captured,
@@ -1676,12 +1795,14 @@ def _configured_define_compile_commands(
                 compiler_path=os.fspath(compiler),
                 cmake_path=os.fspath(cmake_path),
                 requested=_configured_owner_command(
-                    requested_entry, owner=requested_owner,
+                    requested_entry, configure=requested_configure,
+                    owner=requested_owner,
                     source_root=source_root, build_root=requested_build,
                     define_value=requested,
                 ),
                 control=_configured_owner_command(
-                    control_entry, owner=control_owner,
+                    control_entry, configure=control_configure,
+                    owner=control_owner,
                     source_root=control_root, build_root=control_build,
                     define_value=control_value,
                 ),
@@ -1745,6 +1866,35 @@ def _validate_configured_define_compile_commands(
             "compile-command-drift",
             "configured owner commands use a different toolchain or shape",
         )
+    for command in (configured.requested, configured.control):
+        if command.cmake_path != configured.cmake_path \
+                or type(command.configure_argv) is not tuple \
+                or not command.configure_argv \
+                or any(type(argument) is not str or not argument
+                       for argument in command.configure_argv) \
+                or command.configure_argv[0] != command.cmake_path \
+                or type(command.cmake_identities) is not tuple \
+                or len(command.cmake_identities) != 2 \
+                or any(type(row) is not CMakeFileEvidence
+                       for row in command.cmake_identities):
+            raise ConditionMeaningGateError(
+                "compile-command-drift",
+                "configured owner command lacks exact CMake execution evidence",
+            )
+        if tuple(row.phase for row in command.cmake_identities) != (
+            "before-configure", "after-configure",
+        ):
+            raise ConditionMeaningGateError(
+                "compile-command-drift",
+                "configured owner command has non-exact CMake capture phases",
+            )
+        _require_same_cmake(
+            command.cmake_identities[0], command.cmake_identities[1],
+        )
+    _require_same_cmake(
+        configured.requested.cmake_identities[0],
+        configured.control.cmake_identities[0],
+    )
     return compiler, configured.requested, configured.control
 
 
@@ -1952,6 +2102,9 @@ def _collect_preprocess(
     expected_value: str | None,
     stock_identity: bool,
     compiler: Path,
+    cmake_path: str,
+    configure_argv: tuple[str, ...],
+    cmake_identities: tuple[CMakeFileEvidence, ...],
 ) -> _PreprocessResult:
     compile_argv = _entry_argv(entry)
     entry_compiler = _resolve_executable(compile_argv[0], "compile-command-invalid")
@@ -2046,6 +2199,9 @@ def _collect_preprocess(
         compiler_path=os.fspath(compiler),
         compiler_version=version_lines[0],
         compiler_identities=(before, after),
+        cmake_path=cmake_path,
+        configure_argv=configure_argv,
+        cmake_identities=cmake_identities,
     )
 
 
@@ -2076,6 +2232,11 @@ def _preprocess_evidence(
         "compiler_version": requested.compiler_version,
         "requested_compiler_identities": requested.compiler_identities,
         "control_compiler_identities": control.compiler_identities,
+        "cmake_path": requested.cmake_path,
+        "requested_configure_argv": requested.configure_argv,
+        "control_configure_argv": control.configure_argv,
+        "requested_cmake_identities": requested.cmake_identities,
+        "control_cmake_identities": control.cmake_identities,
         "requested_dependency_closure": requested.dependency_closure,
         "requested_dependency_closure_digest": requested.dependency_closure_digest,
         "control_dependency_closure": control.dependency_closure,
@@ -2136,6 +2297,9 @@ def _collect_supply_preprocess_pair(
         expected_value=requested_value,
         stock_identity=stock_identity,
         compiler=compiler,
+        cmake_path=requested_command.cmake_path,
+        configure_argv=requested_command.configure_argv,
+        cmake_identities=requested_command.cmake_identities,
     )
     control_result = _collect_preprocess(
         entry=_configured_entry(control_command),
@@ -2148,6 +2312,9 @@ def _collect_supply_preprocess_pair(
         expected_value=None if stock_identity else control_value,
         stock_identity=stock_identity,
         compiler=compiler,
+        cmake_path=control_command.cmake_path,
+        configure_argv=control_command.configure_argv,
+        cmake_identities=control_command.cmake_identities,
     )
     return requested_result, control_result
 
@@ -2758,6 +2925,9 @@ def _assert_compile_time_branch_selection(
         )
 
     observations: list[CompileTimeBranchSelectionObservation] = []
+    configure_evidence: list[
+        _CMakeConfigureResult | _ConfiguredOwnerCompileCommand
+    ] = []
     with tempfile.TemporaryDirectory(prefix="izanagi_compile_time_branch_") as temporary:
         base = Path(temporary)
         source_root = Path(captured.source_root)
@@ -2771,13 +2941,14 @@ def _assert_compile_time_branch_selection(
         if configured_pair is None:
             assert cmake_path is not None
             for label, value in (("requested", requested), ("default", default)):
-                commands = _configure_compile_commands(
+                configure = _configure_compile_commands(
                     captured=captured, request=request, source_root=source_root,
                     build_root=build_root, value=value, companions=companions,
                     compiler=compiler, cmake=cmake_path,
                 )
+                configure_evidence.append(configure)
                 entry, owner = _select_owner_entry(
-                    commands, source_root=source_root, request=request,
+                    configure.commands, source_root=source_root, request=request,
                 )
                 entries.append((label, entry, owner, build_root))
         else:
@@ -2788,6 +2959,17 @@ def _assert_compile_time_branch_selection(
                     label, _configured_entry(command), Path(command.owner),
                     Path(command.build_root),
                 ))
+                configure_evidence.append(command)
+        requested_configure, default_configure = configure_evidence
+        if requested_configure.cmake_path != default_configure.cmake_path:
+            raise ConditionMeaningGateError(
+                "cmake-identity-drift",
+                "requested/default configure commands used different CMake paths",
+            )
+        _require_same_cmake(
+            requested_configure.cmake_identities[0],
+            default_configure.cmake_identities[0],
+        )
         comparables: list[tuple[str, ...]] = []
         for (label, entry, owner, entry_build_root), value in zip(
             entries, (requested, default), strict=True,
@@ -2845,6 +3027,11 @@ def _assert_compile_time_branch_selection(
         compiler_path=os.fspath(compiler),
         compiler_version=version_lines[0],
         compiler_identities=tuple(identities),
+        cmake_path=requested_configure.cmake_path,
+        requested_configure_argv=requested_configure.configure_argv,
+        default_configure_argv=default_configure.configure_argv,
+        requested_cmake_identities=requested_configure.cmake_identities,
+        default_cmake_identities=default_configure.cmake_identities,
     )
 
 
@@ -2913,6 +3100,17 @@ def evaluate_define_runtime_meaning(
                 "compiler_path": compile_time_observed.compiler_path,
                 "compiler_version": compile_time_observed.compiler_version,
                 "compiler_identities": compile_time_observed.compiler_identities,
+                "cmake_path": compile_time_observed.cmake_path,
+                "requested_configure_argv": (
+                    compile_time_observed.requested_configure_argv
+                ),
+                "default_configure_argv": compile_time_observed.default_configure_argv,
+                "requested_cmake_identities": (
+                    compile_time_observed.requested_cmake_identities
+                ),
+                "default_cmake_identities": (
+                    compile_time_observed.default_cmake_identities
+                ),
             },
         )
     if type(declaration) is not MeaningWitnessDeclaration \
@@ -3045,6 +3243,38 @@ def _validate_record_compiler_identities(
     return value
 
 
+def _validate_record_cmake_identities(
+    value: object,
+    field_name: str,
+) -> tuple[CMakeFileEvidence, CMakeFileEvidence]:
+    if type(value) is not tuple or len(value) != 2 \
+            or any(type(row) is not CMakeFileEvidence for row in value):
+        _invalid_record(f"{field_name} must contain exact CMake identity observations")
+    if tuple(row.phase for row in value) != (
+        "before-configure", "after-configure",
+    ):
+        _invalid_record(f"{field_name} has non-exact configure phases")
+    for index, row in enumerate(value):
+        _validate_record_file_identity(row.identity, f"{field_name}[{index}].identity")
+        _require_record_sha256(row.sha256, f"{field_name}[{index}].sha256")
+    if (value[0].identity, value[0].sha256) \
+            != (value[1].identity, value[1].sha256):
+        _invalid_record(f"{field_name} records CMake identity drift")
+    return value
+
+
+def _validate_record_configure_argv(
+    value: object,
+    field_name: str,
+    *,
+    cmake_path: str,
+) -> tuple[str, ...]:
+    argv = _require_record_argv(value, field_name)
+    if argv[0] != cmake_path:
+        _invalid_record(f"{field_name} is not bound to cmake_path")
+    return argv
+
+
 def _validate_record_dependency_closure(
     value: object,
     digest: object,
@@ -3077,6 +3307,8 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
         "control_replay_argv", "owner_tu", "requested_owner_tu_sha256",
         "control_owner_tu_sha256", "compiler_path", "compiler_version",
         "requested_compiler_identities", "control_compiler_identities",
+        "cmake_path", "requested_configure_argv", "control_configure_argv",
+        "requested_cmake_identities", "control_cmake_identities",
         "requested_dependency_closure", "requested_dependency_closure_digest",
         "control_dependency_closure", "control_dependency_closure_digest",
         "requested_root_dependent_builtin_paths",
@@ -3106,6 +3338,28 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
     )
     if requested_argv[0] != compiler_path or control_argv[0] != compiler_path:
         _invalid_record("green supply replay argv is not bound to the compiler path")
+    cmake_path = evidence["cmake_path"]
+    if type(cmake_path) is not str or not cmake_path:
+        _invalid_record("green supply evidence has an empty CMake path")
+    _validate_record_configure_argv(
+        evidence["requested_configure_argv"],
+        "requested_configure_argv",
+        cmake_path=cmake_path,
+    )
+    _validate_record_configure_argv(
+        evidence["control_configure_argv"],
+        "control_configure_argv",
+        cmake_path=cmake_path,
+    )
+    requested_cmake = _validate_record_cmake_identities(
+        evidence["requested_cmake_identities"], "requested_cmake_identities",
+    )
+    control_cmake = _validate_record_cmake_identities(
+        evidence["control_cmake_identities"], "control_cmake_identities",
+    )
+    cmake_identity = (requested_cmake[0].identity, requested_cmake[0].sha256)
+    if (control_cmake[0].identity, control_cmake[0].sha256) != cmake_identity:
+        _invalid_record("green supply arms used different CMake identities")
     requested_compilers = _validate_record_compiler_identities(
         evidence["requested_compiler_identities"], "requested_compiler_identities",
     )
@@ -3316,6 +3570,8 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
         required = {
             "source_rel", "start_directive", "source_file",
             "requested", "default",
+            "cmake_path", "requested_configure_argv", "default_configure_argv",
+            "requested_cmake_identities", "default_cmake_identities",
         }
         missing = required - set(evidence)
         unexpected = set(evidence) - common - required
@@ -3323,6 +3579,32 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
             _invalid_record(
                 "green compile-time branch evidence schema differs: "
                 f"missing={sorted(missing)!r} unexpected={sorted(unexpected)!r}",
+            )
+        cmake_path = evidence["cmake_path"]
+        if type(cmake_path) is not str or not cmake_path:
+            _invalid_record("green compile-time branch evidence has an empty CMake path")
+        _validate_record_configure_argv(
+            evidence["requested_configure_argv"],
+            "requested_configure_argv",
+            cmake_path=cmake_path,
+        )
+        _validate_record_configure_argv(
+            evidence["default_configure_argv"],
+            "default_configure_argv",
+            cmake_path=cmake_path,
+        )
+        requested_cmake = _validate_record_cmake_identities(
+            evidence["requested_cmake_identities"],
+            "requested_cmake_identities",
+        )
+        default_cmake = _validate_record_cmake_identities(
+            evidence["default_cmake_identities"],
+            "default_cmake_identities",
+        )
+        cmake_identity = (requested_cmake[0].identity, requested_cmake[0].sha256)
+        if (default_cmake[0].identity, default_cmake[0].sha256) != cmake_identity:
+            _invalid_record(
+                "green compile-time requested/default used different CMake identities",
             )
         registered = CONDITIONAL_BRANCH_WITNESSES.get(record.macro)
         if registered is None \

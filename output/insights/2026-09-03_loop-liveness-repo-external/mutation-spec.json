@@ -1,0 +1,138 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "MUT-A1-MARKER-NOT-NECESSARY",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture",
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_driver_contract_registry_is_exact"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+          "old": "_CAMPAIGN_DRIVER_MARKER = \"exploration_campaign_layout\"\n",
+          "new": "_CAMPAIGN_DRIVER_MARKER = \"run_campaign\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-A2-NFKC-DROPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_lexical_prefilter_matches_unfiltered_bounded_fixture"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+          "old": "                and _CAMPAIGN_DRIVER_MARKER not in unicodedata.normalize(\n                    \"NFKC\", source_text,\n                )\n",
+          "new": "                and _CAMPAIGN_DRIVER_MARKER not in source_text\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-A3-NAME-PIN-TAMPERED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_exploration_namespace.py::test_campaign_driver_discovery_names_are_pinned"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_exploration_namespace.py",
+          "old": "        \"p3_kickoff\",\n        \"p3_s4_loop\",\n        \"p3_s4_loop_sort\",\n",
+          "new": "        \"p3_kickof\",\n        \"p3_s4_loop\",\n        \"p3_s4_loop_sort\",\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B1-T189-ROOT-ONLY-GUARD",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+          "old": "def _missing_pinned_jobs_files(jobs_root: Path) -> tuple[str, ...]:\n    missing = []\n    for relative in _pinned_jobs_paths():\n        try:\n            os.stat(jobs_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n",
+          "new": "def _missing_pinned_jobs_files(jobs_root: Path) -> tuple[str, ...]:\n    if not jobs_root.is_dir():\n        return _pinned_jobs_paths()\n    return ()\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B2-T189-GUARD-DOES-NOT-SKIP",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+          "old": "        pytest.skip(\n            \"pinned external jobs inputs are unavailable; missing relative \"\n            f\"paths: {detail}; with the complete input set, all assertions \"\n            \"in this test would run\"\n        )\n",
+          "new": "        return\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B3-T1434-ROOT-ONLY-GUARD",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_pinned_jobs_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t1434_t1222_science_slice.py",
+          "old": "    for relative in requirements:\n        try:\n            os.stat(jobs_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n",
+          "new": "    if not jobs_root.is_dir():\n        return tuple(requirements)\n    return ()\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B4-B10-PROV-ROOT-ONLY-GUARD",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_extended_figure_provenance.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_b10_extended_figure_provenance.py",
+          "old": "    for relative in requirements:\n        try:\n            os.stat(measurement_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n",
+          "new": "    if not measurement_root.is_dir():\n        return tuple(requirements)\n    return ()\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B5-B10-PLOT-ROOT-ONLY-GUARD",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_extended_backoff.py::test_pinned_measurement_guard_skips_when_root_exists_but_one_file_is_missing"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_plot_b10_extended_backoff.py",
+          "old": "    for relative in requirements:\n        try:\n            os.stat(measurement_root / relative)\n        except FileNotFoundError:\n            missing.append(relative)\n    return tuple(missing)\n",
+          "new": "    if not measurement_root.is_dir():\n        return tuple(requirements)\n    return ()\n"
+        }
+      ]
+    }
+  ]
+}

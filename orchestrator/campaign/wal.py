@@ -762,7 +762,9 @@ def _checked_knowledge_provenance(
     }
 
 
-def _read_knowledge_receipt(layout: CampaignLayout) -> object:
+def _read_knowledge_receipt_with_sha256(
+        layout: CampaignLayout,
+) -> tuple[object, str]:
     path = os.path.join(layout.root, KNOWLEDGE_RECEIPT_FILENAME)
     flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
     try:
@@ -795,7 +797,7 @@ def _read_knowledge_receipt(layout: CampaignLayout) -> object:
         ) + "\n").encode("utf-8")
         if receipt_bytes != canonical:
             raise AttemptTopologyError("knowledge receipt bytes が canonical でない")
-        return decoded
+        return decoded, hashlib.sha256(receipt_bytes).hexdigest()
     except (
         OSError,
         UnicodeDecodeError,
@@ -807,11 +809,17 @@ def _read_knowledge_receipt(layout: CampaignLayout) -> object:
         ) from exc
 
 
-def _knowledge_provenance_from_receipt(
-        layout: CampaignLayout, *, expected_level: str, expected_digest: str,
-) -> dict:
+def _read_knowledge_receipt(layout: CampaignLayout) -> object:
+    receipt, _receipt_sha256 = _read_knowledge_receipt_with_sha256(layout)
+    return receipt
+
+
+def _validated_knowledge_receipt(
+        value: object, *, expected_level: str, expected_digest: str,
+) -> tuple[dict, list[dict]]:
+    """Return canonical provenance and verified sources as separate values."""
     receipt = _knowledge_exact_object(
-        _read_knowledge_receipt(layout),
+        value,
         {
             "schema_version", "knowledge_level", "knowledge_manifest_sha256",
             "canonical_manifest", "sources", "planner_projection",
@@ -891,11 +899,25 @@ def _knowledge_provenance_from_receipt(
             or type(claim["de_novo_claim"]) is not bool
             or claim["pilot_comparison_eligible"] is not False):
         raise AttemptTopologyError("knowledge receipt claim_boundary 宣言が不正")
-    return {
-        "knowledge_level": level,
-        "knowledge_manifest_sha256": stated_digest,
-        "sources": canonical_sources,
-    }
+    return (
+        {
+            "knowledge_level": level,
+            "knowledge_manifest_sha256": stated_digest,
+            "sources": canonical_sources,
+        },
+        verified_sources,
+    )
+
+
+def _knowledge_provenance_from_receipt(
+        layout: CampaignLayout, *, expected_level: str, expected_digest: str,
+) -> dict:
+    provenance, _verified_sources = _validated_knowledge_receipt(
+        _read_knowledge_receipt(layout),
+        expected_level=expected_level,
+        expected_digest=expected_digest,
+    )
+    return provenance
 
 
 def validate_knowledge_provenance_bindings(
@@ -928,6 +950,60 @@ def validate_knowledge_provenance_bindings(
             expected_level=expected_level,
             expected_digest=expected_digest,
         )
+
+
+def knowledge_provenance_and_receipt_sha256_for_material_report(
+        layout: CampaignLayout, records: List[WalRecord], *,
+        campaign_lock: object,
+) -> Optional[tuple[dict, str]]:
+    """Return the receipt projection and digest from the same validated read."""
+    expected = _knowledge_lock_binding(campaign_lock)
+    validate_knowledge_provenance_bindings(
+        records, campaign_lock=campaign_lock,
+    )
+    if expected is None:
+        return None
+    expected_level, expected_digest = expected
+    receipt, receipt_sha256 = _read_knowledge_receipt_with_sha256(layout)
+    provenance, verified_sources = _validated_knowledge_receipt(
+        receipt,
+        expected_level=expected_level,
+        expected_digest=expected_digest,
+    )
+
+    def source_projection(source: dict) -> dict:
+        return {
+            "kind": source["kind"],
+            "identity": dict(source["identity"]),
+            "sha256": source["sha256"],
+        }
+
+    return (
+        {
+            "knowledge_level": provenance["knowledge_level"],
+            "knowledge_manifest_sha256": provenance[
+                "knowledge_manifest_sha256"
+            ],
+            "declared_sources": [
+                source_projection(source) for source in provenance["sources"]
+            ],
+            "injected_sources": [
+                source_projection(source) for source in verified_sources
+            ],
+        },
+        receipt_sha256,
+    )
+
+
+def knowledge_provenance_for_material_report(
+        layout: CampaignLayout, records: List[WalRecord], *,
+        campaign_lock: object,
+) -> Optional[dict]:
+    """Return the receipt-bound two-level projection for a material report."""
+    checked = knowledge_provenance_and_receipt_sha256_for_material_report(
+        layout, records, campaign_lock=campaign_lock,
+    )
+    return None if checked is None else checked[0]
 
 
 def _append_record(

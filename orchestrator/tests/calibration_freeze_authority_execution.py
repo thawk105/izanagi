@@ -341,6 +341,7 @@ def _approve_and_point(
         f"{module.APPROVAL_DIR}/{generation_sha256}.json",
         approval_raw,
     )
+    _commit(root, f"approve g{number}", "none")
     pointer_raw = _canonical_bytes({
         "generation_number": number,
         "path": generation_path,
@@ -350,7 +351,7 @@ def _approve_and_point(
     })
     pointer_sha256 = hashlib.sha256(pointer_raw).hexdigest()
     _write(root, f"{module.ACTIVE_DIR}/{pointer_sha256}.json", pointer_raw)
-    _commit(root, f"approve g{number}", "none")
+    _commit(root, f"point g{number}", "none")
     return approval_sha256, pointer_sha256
 
 

@@ -538,6 +538,7 @@ def test_result_path_symlink_component_is_rejected_before_rng(
         "analysis-manifest.json",
         "prerun-issuer-receipt.json",
         ".prerun-issuer-receipt.tmp",
+        issuer.B4_RAW_RECORD_REJECTIONS_NAME,
     ),
 )
 def test_fixed_artifact_descendant_is_rejected_before_rng_or_publication(
@@ -554,6 +555,38 @@ def test_fixed_artifact_descendant_is_rejected_before_rng_or_publication(
             publication_root / fixed_artifact_name / "future-result.json"
         ),
     )
+    calls = _install_counted_seed(monkeypatch)
+
+    with pytest.raises(issuer.B4PrerunIssuerError) as caught:
+        issuer.issue_b4_prerun_publication(
+            scheduled_inputs=attempts,
+            planned_result_artifacts=planned,
+            publication_root=str(publication_root),
+        )
+
+    _assert_reason(
+        caught,
+        issuer.B4PrerunRejectionReason.PLANNED_RESULT_PATH_INVALID,
+    )
+    assert calls == []
+    assert not publication_root.exists()
+
+
+@pytest.mark.parametrize("conflict_kind", ("exact", "publication-root"))
+def test_rejection_ledger_exact_path_and_publication_root_are_reserved(
+    conflict_kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = _eligible_attempts()
+    publication_root = tmp_path / "publication"
+    planned = list(_planned(attempts, tmp_path / "results"))
+    conflict = (
+        publication_root / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+        if conflict_kind == "exact"
+        else publication_root
+    )
+    planned[0] = replace(planned[0], artifact_path=str(conflict))
     calls = _install_counted_seed(monkeypatch)
 
     with pytest.raises(issuer.B4PrerunIssuerError) as caught:
@@ -609,6 +642,38 @@ def test_loader_rejects_fully_rebound_fixed_artifact_conflict(
     )
     planned = list(publication.planned_result_artifacts)
     conflicting_path = Path(publication.receipt_path)
+    if conflict_kind == "descendant":
+        conflicting_path /= "future-result.json"
+    planned[0] = replace(planned[0], artifact_path=str(conflicting_path))
+    _rewrite_planned_paths_and_all_bindings(publication, tuple(planned))
+
+    with pytest.raises(issuer.B4PrerunIssuerError) as caught:
+        issuer.load_b4_prerun_publication(str(publication_root))
+
+    _assert_reason(
+        caught,
+        issuer.B4PrerunRejectionReason.PLANNED_RESULT_PATH_INVALID,
+    )
+
+
+@pytest.mark.parametrize("conflict_kind", ("exact", "descendant"))
+def test_loader_rejects_fully_rebound_rejection_ledger_conflict(
+    conflict_kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = _eligible_attempts()
+    publication_root = tmp_path / "publication"
+    _install_counted_seed(monkeypatch)
+    publication = issuer.issue_b4_prerun_publication(
+        scheduled_inputs=attempts,
+        planned_result_artifacts=_planned(attempts, tmp_path / "results"),
+        publication_root=str(publication_root),
+    )
+    planned = list(publication.planned_result_artifacts)
+    conflicting_path = (
+        publication_root / issuer.B4_RAW_RECORD_REJECTIONS_NAME
+    )
     if conflict_kind == "descendant":
         conflicting_path /= "future-result.json"
     planned[0] = replace(planned[0], artifact_path=str(conflicting_path))
