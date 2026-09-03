@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from ..calibrator import perf_preflight as _perf_preflight                # noqa: E402
@@ -1114,18 +1114,17 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         proof_snapshot = capture_compiled_protocol_source_snapshot(
             genome.protocol, current_evidence.source_root,
         )
-        if (current_evidence.proof_source_snapshot is not None
-                and current_evidence.proof_source_snapshot != proof_snapshot):
-            raise BuildAdmissionError(
-                "SourceEvidence resolve 中に proof source snapshot が変化した"
+        try:
+            evidence = current_evidence._bind_runtime_verification(
+                proof_source_snapshot=proof_snapshot,
+                verification_variant=variant_id(
+                    genome, current_evidence.src_token,
+                ),
             )
-        evidence = replace(
-            current_evidence,
-            proof_source_snapshot=proof_snapshot,
-            verification_variant=variant_id(
-                genome, current_evidence.src_token,
-            ),
-        )
+        except ValueError as exc:
+            raise BuildAdmissionError(
+                "SourceEvidence resolve 中に proof source binding が変化した"
+            ) from exc
         if src_token is not None and src_token != evidence.src_token:
             raise BuildAdmissionError("src_token が current SourceEvidence と不一致")
         capability = capability_resolver(evidence) if capability_resolver is not None else None

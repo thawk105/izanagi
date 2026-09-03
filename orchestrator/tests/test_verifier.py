@@ -88,11 +88,15 @@ def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
     from orchestrator.campaign.pin import CURRENT_PIN
 
     trace_dir = os.path.join(FIX, "g1_serial")
-    head = subprocess.run(
-        ["git", "-C", REAL_CCBENCH_ROOT, "rev-parse", "HEAD"],
+    head, pinned = subprocess.run(
+        [
+            "git", "-C", REAL_CCBENCH_ROOT, "rev-parse",
+            "HEAD", f"{CURRENT_PIN}^{{commit}}",
+        ],
         check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    assert head == CURRENT_PIN
+    ).stdout.splitlines()
+    assert len(head) == 40 and len(pinned) == 40
+    assert head == pinned
     silo = _verify_trace_dir(
         trace_dir, protocol="silo", ccbench_root=REAL_CCBENCH_ROOT,
     )

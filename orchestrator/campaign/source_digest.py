@@ -205,6 +205,44 @@ class SourceEvidence:
             "tracked_paths": list(self.tracked_paths),
         }
 
+    def _bind_runtime_verification(
+            self, *,
+            proof_source_snapshot: CompiledProtocolSourceSnapshot,
+            verification_variant: str,
+    ) -> "SourceEvidence":
+        """Bind missing non-wire fields once while preserving this instance.
+
+        Production ``resolve_evidence()`` supplies both fields at construction.
+        In-process legacy/test resolvers may omit them; the pipeline completes
+        only those runtime fields before forwarding this exact object to the
+        capability resolver and both build APIs.  An existing conflicting
+        binding is never replaced.
+        """
+        if type(proof_source_snapshot) is not CompiledProtocolSourceSnapshot:
+            raise ValueError("SourceEvidence proof source snapshot が不正")
+        if proof_source_snapshot.ccbench_root != self.source_root:
+            raise ValueError("SourceEvidence proof source snapshot root が不一致")
+        if type(verification_variant) is not str or not verification_variant:
+            raise ValueError("SourceEvidence verification variant が不正")
+        if (self.proof_source_snapshot is not None
+                and self.proof_source_snapshot != proof_source_snapshot):
+            raise ValueError("SourceEvidence proof source snapshot が既存束縛と不一致")
+        if (self.verification_variant is not None
+                and self.verification_variant != verification_variant):
+            raise ValueError("SourceEvidence verification variant が既存束縛と不一致")
+        if self.proof_source_snapshot is None:
+            object.__setattr__(
+                self, "proof_source_snapshot", proof_source_snapshot,
+            )
+        if self.verification_variant is None:
+            object.__setattr__(
+                self, "verification_variant", verification_variant,
+            )
+        if (self.proof_source_snapshot != proof_source_snapshot
+                or self.verification_variant != verification_variant):
+            raise ValueError("SourceEvidence runtime binding が競合した")
+        return self
+
     @classmethod
     def from_receipt(cls, value: object) -> "SourceEvidence":
         if not isinstance(value, Mapping) or set(value) != cls._KEYS:
