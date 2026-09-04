@@ -364,13 +364,17 @@ def test_public_certification_contract_runs_full_real_verifier_path_and_saves_cr
     _install_certification_runtime(monkeypatch, tmp_path, events=events)
     real_run_verifier = probe._run_verifier
 
-    def observed_verifier(trace_dir, expected_commits, timeout_s):
+    def observed_verifier(
+        trace_dir, expected_commits, timeout_s, protocol, ccbench_root
+    ):
         events.append(
             "positive-control"
             if Path(trace_dir).resolve() == probe.POSITIVE_CONTROL_TRACE.resolve()
             else "target-verifier"
         )
-        return real_run_verifier(trace_dir, expected_commits, timeout_s)
+        return real_run_verifier(
+            trace_dir, expected_commits, timeout_s, protocol, ccbench_root
+        )
 
     monkeypatch.setattr(probe, "_run_verifier", observed_verifier)
     argv = _certify_argv(tmp_path)
@@ -396,6 +400,18 @@ def test_public_certification_contract_runs_full_real_verifier_path_and_saves_cr
         "orchestrator/verify.py",
     ]
     assert "--lenient" not in document["target_verifier"]["argv"]
+    assert document["proof_surface"]["protocol"] == probe.CERT_PROTOCOL
+    assert document["proof_surface"]["source_snapshot_identity"] == document[
+        "source_evidence"
+    ]
+    proof_root = document["proof_surface"]["ccbench_root"]
+    for invocation in (
+        document["positive_control"],
+        document["target_verifier"],
+    ):
+        invocation_argv = invocation["argv"]
+        assert invocation_argv[invocation_argv.index("--protocol") + 1] == "silo"
+        assert invocation_argv[invocation_argv.index("--ccbench-root") + 1] == proof_root
     assert document["target_verifier"]["environment"] == {
         "PYTHONDONTWRITEBYTECODE": "1"
     }
@@ -447,8 +463,12 @@ def test_run_and_verify_phase_measurements_keep_distinct_meanings(
     monkeypatch.setattr(probe, "_phase_measurement", lambda *_args: next(measurements))
     real_run_verifier = probe._run_verifier
 
-    def phase_tagged_verifier(trace_dir, expected_commits, timeout_s):
-        invocation = real_run_verifier(trace_dir, expected_commits, timeout_s)
+    def phase_tagged_verifier(
+        trace_dir, expected_commits, timeout_s, protocol, ccbench_root
+    ):
+        invocation = real_run_verifier(
+            trace_dir, expected_commits, timeout_s, protocol, ccbench_root
+        )
         if Path(trace_dir).resolve() != probe.POSITIVE_CONTROL_TRACE.resolve():
             invocation.update(
                 elapsed_seconds=5.0,
@@ -512,10 +532,14 @@ def test_public_certification_rejects_substituted_target_trace_only(
     _install_certification_runtime(monkeypatch, tmp_path)
     real_run_verifier = probe._run_verifier
 
-    def substitute(trace_dir, expected_commits, timeout_s):
+    def substitute(trace_dir, expected_commits, timeout_s, protocol, ccbench_root):
         if Path(trace_dir).resolve() == probe.POSITIVE_CONTROL_TRACE.resolve():
-            return real_run_verifier(trace_dir, expected_commits, timeout_s)
-        return real_run_verifier(G6_SERIAL_TRACE, 200, timeout_s)
+            return real_run_verifier(
+                trace_dir, expected_commits, timeout_s, protocol, ccbench_root
+            )
+        return real_run_verifier(
+            G6_SERIAL_TRACE, 200, timeout_s, protocol, ccbench_root
+        )
 
     monkeypatch.setattr(probe, "_run_verifier", substitute)
     argv = _certify_argv(tmp_path)
@@ -530,8 +554,10 @@ def test_public_certification_rejects_target_exit_three_only(
     _install_certification_runtime(monkeypatch, tmp_path)
     real_run_verifier = probe._run_verifier
 
-    def exit_three(trace_dir, expected_commits, timeout_s):
-        invocation = real_run_verifier(trace_dir, expected_commits, timeout_s)
+    def exit_three(trace_dir, expected_commits, timeout_s, protocol, ccbench_root):
+        invocation = real_run_verifier(
+            trace_dir, expected_commits, timeout_s, protocol, ccbench_root
+        )
         if Path(trace_dir).resolve() != probe.POSITIVE_CONTROL_TRACE.resolve():
             invocation["exit_code"] = 3
         return invocation
@@ -549,14 +575,61 @@ def test_public_certification_rejects_lenient_argv_only(
     _install_certification_runtime(monkeypatch, tmp_path)
     real_argv = probe._verifier_argv
 
-    def lenient_argv(trace_dir, expected_commits):
-        return [*real_argv(trace_dir, expected_commits), "--lenient"]
+    def lenient_argv(trace_dir, expected_commits, protocol, ccbench_root):
+        return [
+            *real_argv(trace_dir, expected_commits, protocol, ccbench_root),
+            "--lenient",
+        ]
 
     monkeypatch.setattr(probe, "_verifier_argv", lenient_argv)
     argv = _certify_argv(tmp_path)
     assert probe.main(argv) == 1
     document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
     assert document["reject_reason"] == "verifier-argv-contract"
+
+
+@pytest.mark.parametrize("surface", ("positive", "target"))
+@pytest.mark.parametrize("option", ("--protocol", "--ccbench-root"))
+@pytest.mark.parametrize("mutation", ("missing", "mismatch"))
+def test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    surface: str,
+    option: str,
+    mutation: str,
+) -> None:
+    _install_certification_runtime(monkeypatch, tmp_path)
+    real_argv = probe._verifier_argv
+
+    def mutate_surface(trace_dir, expected_commits, protocol, ccbench_root):
+        invocation_argv = real_argv(
+            trace_dir, expected_commits, protocol, ccbench_root
+        )
+        is_positive = Path(trace_dir).resolve() == probe.POSITIVE_CONTROL_TRACE.resolve()
+        if (surface == "positive") == is_positive:
+            index = invocation_argv.index(option)
+            if mutation == "missing":
+                del invocation_argv[index : index + 2]
+            else:
+                invocation_argv[index + 1] = "not-the-bound-value"
+        return invocation_argv
+
+    monkeypatch.setattr(probe, "_verifier_argv", mutate_surface)
+    argv = _certify_argv(tmp_path)
+    assert probe.main(argv) == 1
+    document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
+    assert document["reject_reason"] == "verifier-argv-contract"
+
+
+def test_public_certification_rejects_non_silo_genome_before_verification(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _install_certification_runtime(monkeypatch, tmp_path)
+    monkeypatch.setattr(probe, "genome_for", lambda _cell: probe.Genome("si", {}))
+    argv = _certify_argv(tmp_path)
+    assert probe.main(argv) == 1
+    document = json.loads(Path(argv[-1]).read_text(encoding="utf-8"))
+    assert document["reject_reason"] == "certification-protocol-mismatch"
 
 
 def test_public_certification_rejects_verifier_identity_drift_only(
@@ -609,7 +682,9 @@ def test_public_certification_rejects_post_verifier_identity_drift_only(
 
 
 def test_real_serial_fixture_with_positive_stdout_abort_satisfies_abort_gate() -> None:
-    invocation = probe._run_verifier(G6_SERIAL_TRACE, 200, 30.0)
+    invocation = probe._run_verifier(
+        G6_SERIAL_TRACE, 200, 30.0, probe.CERT_PROTOCOL, CCBENCH
+    )
     identity = probe._verifier_identity()
     trace_result = SimpleNamespace(
         returncode=0,
@@ -624,6 +699,8 @@ def test_real_serial_fixture_with_positive_stdout_abort_satisfies_abort_gate() -
         trace_result,
         identity,
         identity,
+        probe.CERT_PROTOCOL,
+        CCBENCH,
     )
     assert result["certified"] is True
     assert result["stats"]["abort_reasons"] == {}
@@ -635,8 +712,10 @@ def test_positive_control_real_fixture_accepts_wr_without_v_ver() -> None:
         probe.POSITIVE_CONTROL_TRACE,
         probe.POSITIVE_CONTROL_EXPECTED_COMMITS,
         probe.POSITIVE_CONTROL_TIMEOUT_S,
+        probe.CERT_PROTOCOL,
+        CCBENCH,
     )
-    probe._validate_positive_control(invocation)
+    probe._validate_positive_control(invocation, probe.CERT_PROTOCOL, CCBENCH)
     wr_reasons = [
         reason
         for anomaly in invocation["json"]["results"][0]["anomalies"]
@@ -850,6 +929,9 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
             document["source_evidence"]["genome_sha256"] = hashlib.sha256(
                 b"synthetic-shared-genome"
             ).hexdigest()
+            document["proof_surface"]["source_snapshot_identity"] = copy.deepcopy(
+                document["source_evidence"]
+            )
             document["genome"] = "synthetic-canonical-genome"
             document["binary_sha256"] = hashlib.sha256(
                 f"synthetic-binary-{workload}-{slot}".encode("ascii")
@@ -911,6 +993,13 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
     assert {row["genome"] for row in receipt["results"]} == {
         "synthetic-canonical-genome"
     }
+    assert receipt["proof_surface"]["protocol"] == probe.CERT_PROTOCOL
+    assert receipt["proof_surface"]["source_snapshot_identity"] == valid_documents[
+        0
+    ]["source_evidence"]
+    assert {
+        row["proof_surface"]["protocol"] for row in receipt["results"]
+    } == {probe.CERT_PROTOCOL}
     assert all(row["build_trace_enabled"] is True for row in receipt["results"])
     assert len({row["patch_sha256"] for row in receipt["results"]}) == 1
     assert len({row["ccbench_commit"] for row in receipt["results"]}) == 1
@@ -937,12 +1026,21 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
         "ccbench-commit",
         "trace-dir-duplicate",
         "trace-disabled",
+        "source-src-token",
+        "proof-snapshot-detached",
+        "proof-protocol",
     ):
         candidates = copy.deepcopy(valid_documents)
         if mutation == "source-bytes-sha256":
             candidates[0]["source_evidence"]["source_bytes_sha256"] = "3" * 64
+            candidates[0]["proof_surface"]["source_snapshot_identity"] = copy.deepcopy(
+                candidates[0]["source_evidence"]
+            )
         elif mutation == "genome-sha256":
             candidates[0]["source_evidence"]["genome_sha256"] = "4" * 64
+            candidates[0]["proof_surface"]["source_snapshot_identity"] = copy.deepcopy(
+                candidates[0]["source_evidence"]
+            )
         elif mutation == "genome":
             candidates[0]["genome"] = "synthetic-other-genome"
         elif mutation == "patch-sha256":
@@ -964,6 +1062,18 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
             candidate["trace_manifest"] = donor["trace_manifest"]
         elif mutation == "trace-disabled":
             candidates[0]["build_trace_enabled"] = False
+        elif mutation == "source-src-token":
+            candidates[0]["source_evidence"]["src_token"] = "different-snapshot"
+            candidates[0]["proof_surface"]["source_snapshot_identity"] = copy.deepcopy(
+                candidates[0]["source_evidence"]
+            )
+        elif mutation == "proof-snapshot-detached":
+            candidates[0]["proof_surface"]["source_snapshot_identity"] = {
+                **candidates[0]["source_evidence"],
+                "source_bytes_sha256": "5" * 64,
+            }
+        elif mutation == "proof-protocol":
+            candidates[0]["proof_surface"]["protocol"] = "si"
         write_documents(candidates)
         with pytest.raises(probe.CertificationReject) as caught:
             probe._group_receipt_payload(
@@ -974,7 +1084,12 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
                 identity,
                 identity_file_sha256,
             )
-        assert caught.value.reason == "group-build-identity-mismatch", mutation
+        expected_reason = (
+            "group-proof-surface-mismatch"
+            if mutation in {"proof-snapshot-detached", "proof-protocol"}
+            else "group-build-identity-mismatch"
+        )
+        assert caught.value.reason == expected_reason, mutation
 
     write_documents(valid_documents)
 

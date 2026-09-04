@@ -69,6 +69,7 @@ CERT_EXTIME = 3
 CERT_REPS_PER_JOB = 1
 CERT_SLOTS = tuple(range(8))
 CERT_WORKLOADS = ("write-heavy", "balanced", "read-heavy")
+CERT_PROTOCOL = "silo"
 POSITIVE_CONTROL_EXPECTED_COMMITS = 288
 POSITIVE_CONTROL_TIMEOUT_S = 120.0
 DEFAULT_VERIFIER_TIMEOUT_S = 5_400.0
@@ -353,6 +354,16 @@ def genome_for(cell: Cell) -> Genome:
     )
 
 
+def _certification_protocol(genome: Genome) -> str:
+    protocol = getattr(genome, "protocol", None)
+    if protocol != CERT_PROTOCOL:
+        raise CertificationReject(
+            "certification-protocol-mismatch",
+            f"certify requires genome protocol {CERT_PROTOCOL!r}, got {protocol!r}",
+        )
+    return protocol
+
+
 def _cpu_seconds() -> float:
     own = resource.getrusage(resource.RUSAGE_SELF)
     children = resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -620,7 +631,12 @@ def _verifier_identity() -> dict:
     return {"repository_commit": commit, "module_sha256": modules}
 
 
-def _verifier_argv(trace_dir: Path, expected_commits: int) -> list[str]:
+def _verifier_argv(
+    trace_dir: Path,
+    expected_commits: int,
+    protocol: str,
+    ccbench_root: Path,
+) -> list[str]:
     return [
         sys.executable,
         "-B",
@@ -629,14 +645,22 @@ def _verifier_argv(trace_dir: Path, expected_commits: int) -> list[str]:
         "--json",
         "--expected-commits",
         str(expected_commits),
+        "--protocol",
+        protocol,
+        "--ccbench-root",
+        str(ccbench_root.resolve(strict=True)),
     ]
 
 
 def _run_verifier(
-    trace_dir: Path, expected_commits: int, timeout_s: float
+    trace_dir: Path,
+    expected_commits: int,
+    timeout_s: float,
+    protocol: str,
+    ccbench_root: Path,
 ) -> dict:
     """Run the exact verifier child and collect per-child CPU/RSS with wait4."""
-    argv = _verifier_argv(trace_dir, expected_commits)
+    argv = _verifier_argv(trace_dir, expected_commits, protocol, ccbench_root)
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     started = time.monotonic()
     timed_out = False
@@ -715,7 +739,43 @@ def _single_result(invocation: dict, reason_prefix: str) -> tuple[dict, dict]:
     return document, document["results"][0]
 
 
-def _validate_positive_control(invocation: dict) -> None:
+def _verifier_argv_has_exact_surface(
+    invocation: dict,
+    *,
+    protocol: str,
+    ccbench_root: Path,
+) -> None:
+    argv = invocation.get("argv")
+    expected_root = str(ccbench_root.resolve(strict=False))
+
+    def exact_option(option: str, expected: str) -> bool:
+        if type(argv) is not list or argv.count(option) != 1:
+            return False
+        index = argv.index(option)
+        return index + 1 < len(argv) and argv[index + 1] == expected
+
+    if (
+        type(argv) is not list
+        or argv[:3] != [sys.executable, "-B", "orchestrator/verify.py"]
+        or "--lenient" in argv
+        or not exact_option("--protocol", protocol)
+        or not exact_option("--ccbench-root", expected_root)
+    ):
+        raise CertificationReject(
+            "verifier-argv-contract",
+            "verifier argv must use python -B without --lenient and bind the "
+            "exact protocol/source checkout proof surface",
+        )
+
+
+def _validate_positive_control(
+    invocation: dict,
+    protocol: str,
+    ccbench_root: Path,
+) -> None:
+    _verifier_argv_has_exact_surface(
+        invocation, protocol=protocol, ccbench_root=ccbench_root
+    )
     if invocation.get("timed_out") is not False or invocation.get("exit_code") != 1:
         raise CertificationReject(
             "positive-control-exit", "static broken-Silo fixture must exit exactly 1"
@@ -786,23 +846,18 @@ def _validate_target(
     trace_result: object,
     expected_verifier_identity: dict,
     verifier_identity_after: dict,
+    protocol: str,
+    ccbench_root: Path,
 ) -> tuple[dict, dict]:
     _require_expected_verifier_identity(
         verifier_identity_after, expected_verifier_identity
     )
+    _verifier_argv_has_exact_surface(
+        invocation, protocol=protocol, ccbench_root=ccbench_root
+    )
     if invocation.get("timed_out") is not False or invocation.get("exit_code") != 0:
         raise CertificationReject(
             "target-verifier-exit", "target verifier must exit exactly 0"
-        )
-    argv = invocation.get("argv")
-    if (
-        type(argv) is not list
-        or argv[:3] != [sys.executable, "-B", "orchestrator/verify.py"]
-        or "--lenient" in argv
-    ):
-        raise CertificationReject(
-            "verifier-argv-contract",
-            "target verifier argv must use python -B without --lenient",
         )
     document, result = _single_result(invocation, "target")
     if _normalized_path(result.get("trace_dir")) != str(trace_dir.resolve(strict=True)):
@@ -936,6 +991,32 @@ class _ReceiptTraceResult:
     abort_counts: object
     commit_count_witness: object
     batch_commit_count_witness: object
+
+
+def _validated_proof_surface(document: dict) -> dict:
+    proof_surface = document.get("proof_surface")
+    source_evidence = document.get("source_evidence")
+    if type(proof_surface) is not dict or set(proof_surface) != {
+        "protocol",
+        "ccbench_root",
+        "source_snapshot_identity",
+    }:
+        raise CertificationReject(
+            "group-proof-surface-mismatch", "proof-surface binding schema is invalid"
+        )
+    ccbench_root = proof_surface.get("ccbench_root")
+    if (
+        proof_surface.get("protocol") != CERT_PROTOCOL
+        or type(ccbench_root) is not str
+        or not Path(ccbench_root).is_absolute()
+        or str(Path(ccbench_root).resolve(strict=False)) != ccbench_root
+        or proof_surface.get("source_snapshot_identity") != source_evidence
+    ):
+        raise CertificationReject(
+            "group-proof-surface-mismatch",
+            "proof surface is not bound to Silo and the recorded source evidence",
+        )
+    return proof_surface
 
 
 def _validate_trace_manifest_receipt(trace_dir: Path, manifest: object) -> None:
@@ -1112,6 +1193,7 @@ def _validated_certification_row(
             "group-build-identity-mismatch",
             f"result build/pin/patch/trace identity is invalid: {path}",
         )
+    proof_surface = _validated_proof_surface(document)
     trace_value = document.get("trace_directory")
     normalized_trace = _normalized_path(trace_value)
     if normalized_trace is None or normalized_trace != trace_value:
@@ -1137,7 +1219,9 @@ def _validated_certification_row(
         raise CertificationReject(
             "group-result-invalid", f"positive-control JSON binding differs: {path}"
         )
-    _validate_positive_control(positive)
+    proof_protocol = proof_surface["protocol"]
+    proof_root = Path(proof_surface["ccbench_root"])
+    _validate_positive_control(positive, proof_protocol, proof_root)
     run = document.get("run")
     target = document.get("target_verifier")
     if type(run) is not dict or type(target) is not dict:
@@ -1169,6 +1253,8 @@ def _validated_certification_row(
         trace_result,
         expected_verifier_identity,
         actual_identity,
+        proof_protocol,
+        proof_root,
     )
     if document.get("verifier_json") != target_document:
         raise CertificationReject(
@@ -1204,6 +1290,7 @@ def _validated_certification_row(
                 ],
                 "genome_sha256": document["source_evidence"]["genome_sha256"],
             },
+            "proof_surface": proof_surface,
             "genome": document["genome"],
             "patch_sha256": document["patch_sha256"],
             "ccbench_commit": document["ccbench_commit"],
@@ -1275,6 +1362,18 @@ def _group_receipt_payload(
             {row["source_evidence"]["genome_sha256"] for row in rows}
         ) != 1
         or len({row["genome"] for row in rows}) != 1
+        or len({row["proof_surface"]["protocol"] for row in rows}) != 1
+        or len(
+            {
+                json.dumps(
+                    row["proof_surface"]["source_snapshot_identity"],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                for row in rows
+            }
+        )
+        != 1
         or any(row["build_trace_enabled"] is not True for row in rows)
         or len({row["patch_sha256"] for row in rows}) != 1
         or len({row["ccbench_commit"] for row in rows}) != 1
@@ -1294,6 +1393,12 @@ def _group_receipt_payload(
             "group-build-identity-mismatch",
             "a complete group requires unique traces and exact build identities",
         )
+    proof_surface = {
+        "protocol": rows[0]["proof_surface"]["protocol"],
+        "source_snapshot_identity": rows[0]["proof_surface"][
+            "source_snapshot_identity"
+        ],
+    }
     return {
         "schema_version": GROUP_RECEIPT_SCHEMA_VERSION,
         "complete": True,
@@ -1311,6 +1416,7 @@ def _group_receipt_payload(
             expected_verifier_identity_file_sha256
         ),
         "performance_artifact": performance_identity,
+        "proof_surface": proof_surface,
         "results": rows,
     }
 
@@ -1336,6 +1442,7 @@ def _validate_published_group(
         )
     expected_paths = {str(path.resolve(strict=True)): path for path in result_files}
     rows = receipt.get("results")
+    proof_surface = receipt.get("proof_surface")
     if (
         receipt.get("schema_version") != GROUP_RECEIPT_SCHEMA_VERSION
         or receipt.get("complete") is not True
@@ -1355,6 +1462,22 @@ def _validate_published_group(
     ):
         raise CertificationReject(
             "group-receipt-collision", "published group receipt has another identity"
+        )
+    if (
+        type(proof_surface) is not dict
+        or set(proof_surface) != {"protocol", "source_snapshot_identity"}
+        or proof_surface.get("protocol") != CERT_PROTOCOL
+        or any(
+            type(row.get("proof_surface")) is not dict
+            or row["proof_surface"].get("protocol") != proof_surface["protocol"]
+            or row["proof_surface"].get("source_snapshot_identity")
+            != proof_surface["source_snapshot_identity"]
+            for row in rows
+        )
+    ):
+        raise CertificationReject(
+            "group-receipt-collision",
+            "published group receipt has another proof-surface identity",
         )
     for row in rows:
         path = expected_paths[row["path"]]
@@ -1651,6 +1774,7 @@ def _certify_main(args: argparse.Namespace) -> int:
         cache_root = Path(os.environ["TMPDIR"]) / "build-variants"
         cache_root.mkdir(mode=0o700)
         genome = genome_for(cell)
+        protocol = _certification_protocol(genome)
 
         build_wall_started = time.monotonic()
         build_cpu_started = _cpu_seconds()
@@ -1729,6 +1853,12 @@ def _certify_main(args: argparse.Namespace) -> int:
                     "src_token": evidence.src_token,
                     "source_bytes_sha256": evidence.source_bytes_sha256,
                 }
+                proof_root = Path(work_root).resolve(strict=True)
+                payload["proof_surface"] = {
+                    "protocol": protocol,
+                    "ccbench_root": str(proof_root),
+                    "source_snapshot_identity": dict(payload["source_evidence"]),
+                }
                 payload["binary_sha256"] = build.bin_sha256
                 payload["ccbench_head"] = head
                 payload["genome"] = genome.canonical()
@@ -1804,14 +1934,18 @@ def _certify_main(args: argparse.Namespace) -> int:
                     POSITIVE_CONTROL_TRACE,
                     POSITIVE_CONTROL_EXPECTED_COMMITS,
                     POSITIVE_CONTROL_TIMEOUT_S,
+                    protocol,
+                    proof_root,
                 )
                 payload["positive_control"] = positive
-                _validate_positive_control(positive)
+                _validate_positive_control(positive, protocol, proof_root)
 
                 target = _run_verifier(
                     trace_dir,
                     trace_result.commit_count_witness,
                     args.verifier_timeout_s,
+                    protocol,
+                    proof_root,
                 )
                 payload["target_verifier"] = target
                 verifier_identity_after = _verifier_identity()
@@ -1821,6 +1955,8 @@ def _certify_main(args: argparse.Namespace) -> int:
                     trace_result,
                     expected_verifier_identity,
                     verifier_identity_after,
+                    protocol,
+                    proof_root,
                 )
                 payload["verify_phase"] = {
                     key: target[key]
