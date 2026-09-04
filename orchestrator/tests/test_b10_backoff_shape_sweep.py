@@ -2425,12 +2425,12 @@ def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Pat
 
     policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding="utf-8"))
     walltime_s = policy["b10_backoff_shape_walltime_s"]
-    assert walltime_s == 12 * 60 * 60
+    assert walltime_s == 24 * 60 * 60
 
     directive = re.findall(
         r"(?m)^#PBS -l elapstim_req=([0-9]+):([0-9]+):([0-9]+)$", job_text,
     )
-    assert directive == [("12", "00", "00")]
+    assert directive == [("24", "00", "00")]
     hours, minutes, seconds = map(int, directive[0])
     assert hours * 3600 + minutes * 60 + seconds == walltime_s
 
@@ -2494,7 +2494,8 @@ def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Pat
 
     for text in (submit_text, job_text):
         assert "build|verify|perf|probe|verify-perf|report" in text
-    assert "43200" not in job_text + submit_text + driver_text
+    for duplicated_walltime in ("43200", "86400"):
+        assert duplicated_walltime not in job_text + submit_text + driver_text
     assert "21600" not in submit_text + job_text + driver_text
     assert "06:00:00" not in job_text
 
