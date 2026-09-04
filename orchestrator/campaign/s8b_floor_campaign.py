@@ -192,6 +192,8 @@ _FLOOR_PREFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-preflight-failure.json"
 _FLOOR_POSTFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-postflight-failure.json"
 _PRIVATE_SORT_SWO_EVIDENCE_SCHEMA = "s8b-sort-swo-private-evidence/v1"
 _FLOOR_THIRD_PARTY_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
+_FLOOR_SUBMISSION_PAYLOAD_LEAF = "masstree-payload"
+_FLOOR_FETCHCONTENT_STAGING_LEAF = "izanagi-floor-fetchcontent"
 _FLOOR_PREFLIGHT_MATERIALIZED_SHA256 = hashlib.sha256(
     b"floor-sort-swo-preflight:materialized-unavailable"
 ).hexdigest()
@@ -3096,6 +3098,174 @@ def _canonical_floor_fetchcontent_base(
     return resolved
 
 
+def _require_floor_payload_directory_components(
+        repo_root: Path, target: Path, *, origin: str,
+) -> None:
+    """固定 submission prefix から target までを no-follow で検査する。"""
+    try:
+        relative = target.relative_to(repo_root)
+    except ValueError as exc:
+        raise _FloorOraclePreflightError(
+            "floor submission payload が canonical repo root 外",
+            detail_code="floor-dependency-staged-source-path-invalid",
+            origin=origin,
+            outcome="invalid-path",
+            path=target,
+        ) from exc
+    current = repo_root
+    for component in relative.parts:
+        current /= component
+        try:
+            info = current.lstat()
+        except OSError as exc:
+            raise _FloorOraclePreflightError(
+                "floor submission payload の固定 path component が存在しない",
+                detail_code="floor-dependency-staged-source-not-directory",
+                origin=origin,
+                outcome="missing",
+                path=current,
+            ) from exc
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+            raise _FloorOraclePreflightError(
+                "floor submission payload の固定 path component が実 directory でない",
+                detail_code="floor-dependency-staged-source-not-directory",
+                origin=origin,
+                outcome="not-regular-file",
+                path=current,
+            )
+
+
+def _stage_default_floor_fetchcontent_payload(
+        *, repo_root: Path, contract,
+        reservation_binding: Optional[reservation.ReservationBinding],
+) -> Path:
+    """検証済み reservation に束縛された payload を固定 scratch へ複製する。"""
+    if not isinstance(reservation_binding, reservation.ReservationBinding):
+        raise _FloorOraclePreflightError(
+            "default floor transport に検証済み reservation binding がない",
+            detail_code="floor-dependency-base-unavailable",
+            origin="reservation-binding:floor-fetchcontent",
+            outcome="not-configured",
+        )
+    try:
+        canonical_repo = Path(repo_root).resolve(strict=True)
+        receipt = floor_submit_receipt.receipt_path(
+            canonical_repo,
+            env_tag=contract.env_tag,
+            nonce=reservation_binding.nonce,
+        )
+    except (AttributeError, TypeError, OSError, RuntimeError,
+            floor_submit_receipt.FloorSubmitReceiptError) as exc:
+        raise _FloorOraclePreflightError(
+            "default floor transport の submission payload path が不正",
+            detail_code="floor-dependency-staged-source-path-invalid",
+            origin="reservation-binding:floor-fetchcontent",
+            outcome="invalid-path",
+            path=_preflight_candidate_path(repo_root),
+        ) from exc
+    payload_root = receipt.parent / _FLOOR_SUBMISSION_PAYLOAD_LEAF
+    _require_floor_payload_directory_components(
+        canonical_repo, payload_root,
+        origin="floor-submission-payload:root",
+    )
+    sources = {
+        name: payload_root / f"{name}-src"
+        for name in _FLOOR_THIRD_PARTY_SOURCE_NAMES
+    }
+    for name, source in sources.items():
+        _require_floor_payload_directory_components(
+            canonical_repo, source,
+            origin=f"floor-submission-payload:{name}",
+        )
+
+    tmpdir = os.environ.get("TMPDIR")
+    if not tmpdir:
+        raise _FloorOraclePreflightError(
+            "production floor の TMPDIR が未設定",
+            detail_code="floor-dependency-tmpdir-unconfigured",
+            origin="environment:TMPDIR",
+            outcome="not-configured",
+        )
+    try:
+        unresolved_tmp = Path(tmpdir)
+        tmp_root = unresolved_tmp.resolve(strict=True)
+    except (TypeError, ValueError, OSError, RuntimeError) as exc:
+        raise _FloorOraclePreflightError(
+            "production floor の TMPDIR を解決できない",
+            detail_code="floor-dependency-base-unavailable",
+            origin="environment:TMPDIR",
+            outcome="missing",
+            path=_preflight_candidate_path(tmpdir),
+        ) from exc
+    if (not unresolved_tmp.is_absolute() or unresolved_tmp.is_symlink()
+            or not tmp_root.is_dir()):
+        raise _FloorOraclePreflightError(
+            "production floor の TMPDIR が実 absolute directory でない",
+            detail_code="floor-dependency-base-not-directory",
+            origin="environment:TMPDIR",
+            outcome="not-regular-file",
+            path=unresolved_tmp,
+        )
+    destination = tmp_root / _FLOOR_FETCHCONTENT_STAGING_LEAF
+    try:
+        if os.path.commonpath(
+                (str(destination), str(canonical_repo))) == str(canonical_repo):
+            raise _FloorOraclePreflightError(
+                "default FetchContent staging は repo 外でなければならない",
+                detail_code="floor-dependency-base-inside-repository",
+                origin="floor-fetchcontent-staging:destination",
+                outcome="invalid-path",
+                path=destination,
+            )
+    except ValueError as exc:
+        raise _FloorOraclePreflightError(
+            "default FetchContent staging の repo 境界を比較できない",
+            detail_code="floor-dependency-base-boundary-unavailable",
+            origin="floor-fetchcontent-staging:destination",
+            outcome="invalid-path",
+            path=destination,
+        ) from exc
+    if os.path.lexists(destination):
+        raise _FloorOraclePreflightError(
+            "default FetchContent staging destination が既に存在する",
+            detail_code="floor-dependency-base-create-failed",
+            origin="floor-fetchcontent-staging:destination",
+            outcome="execution-failed",
+            path=destination,
+        )
+    try:
+        destination.mkdir(mode=0o700)
+    except OSError as exc:
+        raise _FloorOraclePreflightError(
+            "default FetchContent staging destination を排他作成できない",
+            detail_code="floor-dependency-base-create-failed",
+            origin="floor-fetchcontent-staging:destination",
+            outcome="execution-failed",
+            path=destination,
+        ) from exc
+    try:
+        for name, source in sources.items():
+            copied = destination / f"{name}-src"
+            shutil.copytree(
+                source, copied, symlinks=True, copy_function=shutil.copy2,
+            )
+            copied_info = copied.lstat()
+            if stat.S_ISLNK(copied_info.st_mode) or not stat.S_ISDIR(
+                    copied_info.st_mode):
+                raise OSError("copied source root is not a real directory")
+    except (OSError, shutil.Error) as exc:
+        raise _FloorOraclePreflightError(
+            "floor submission payload を staging destination へ複製できない",
+            detail_code="floor-dependency-base-create-failed",
+            origin="floor-fetchcontent-staging:copy",
+            outcome="execution-failed",
+            path=destination,
+        ) from exc
+    return _canonical_floor_fetchcontent_base(
+        destination, repo_root=canonical_repo,
+    )
+
+
 def _materialize_floor_oracle_dependency(
         binding: _FloorOracleDependencyBinding, *, lease_parent: Path,
 ) -> tuple[
@@ -3199,14 +3369,13 @@ def _bind_expected_floor_masstree_payload(
 
 
 def _prepare_floor_oracle_dependency(
-        fetchcontent_base: Optional[Path], *, ccbench_pin: str,
+        fetchcontent_base: Path, *, ccbench_pin: str,
         expected_toolchain_manifest: Mapping[str, object], repo_root: Path = ROOT,
         _material_sink: Optional[list[
             _sort_swo_dependency_material.CanonicalDependencyMaterial
         ]] = None,
 ) -> _FloorOracleDependencyBinding:
-    """staged/legacy の transport を固定して prebuild し、oracle identity を取得する。"""
-    staged_sources: dict[str, Path] = {}
+    """staged source-dir transport を検証して oracle identity を取得する。"""
     captured_policy_pins = _floor_third_party_policy_pins(Path(repo_root))
     expected_payload: Optional[_LoadedFloorMasstreePayloadPolicy] = None
     payload_policy_error: Optional[_FloorOraclePreflightError] = None
@@ -3231,18 +3400,11 @@ def _prepare_floor_oracle_dependency(
             origin="floor-toolchain:manifest",
             outcome="invalid-path",
         ) from exc
-    if fetchcontent_base is None:
-        # legacy は従来どおり job-local base を作成してから無条件 prebuild する。
-        effective_base = _canonical_floor_fetchcontent_base(
-            None, repo_root=Path(repo_root),
-        )
-    else:
-        # 明示 base は staged mode。検査失敗を legacy/network 経路へ変換しない。
-        effective_base = Path(fetchcontent_base)
-        staged_sources = _verify_pristine_floor_dependency_sources(
-            effective_base, repo_root=Path(repo_root),
-            expected_pins=captured_policy_pins,
-        )
+    effective_base = Path(fetchcontent_base)
+    staged_sources = _verify_pristine_floor_dependency_sources(
+        effective_base, repo_root=Path(repo_root),
+        expected_pins=captured_policy_pins,
+    )
     fixed_sub = Path(repo_root) / "external" / "ccbench"
     try:
         checkout = patchharness.checkout(ccbench_pin, base_dir=str(fixed_sub))
@@ -3264,12 +3426,11 @@ def _prepare_floor_oracle_dependency(
                     "configure_timeout_s": _FLOOR_DEPENDENCY_CONFIGURE_CAP_S,
                     "target_timeout_s": _FLOOR_DEPENDENCY_TARGET_CAP_S,
                 }
-                if fetchcontent_base is not None:
-                    prepare_kwargs.update({
-                        "masstree_source_dir": str(staged_sources["masstree"]),
-                        "mimalloc_source_dir": str(staged_sources["mimalloc"]),
-                        "googletest_source_dir": str(staged_sources["googletest"]),
-                    })
+                prepare_kwargs.update({
+                    "masstree_source_dir": str(staged_sources["masstree"]),
+                    "mimalloc_source_dir": str(staged_sources["mimalloc"]),
+                    "googletest_source_dir": str(staged_sources["googletest"]),
+                })
                 buildcache.prepare_masstree_fetchcontent(**prepare_kwargs)
             except buildcache.MasstreeFetchContentError as exc:
                 code = (
@@ -3317,11 +3478,10 @@ def _prepare_floor_oracle_dependency(
         binding,
         captured_policy_pins=tuple(sorted(captured_policy_pins.items())),
     )
-    if fetchcontent_base is not None:
-        binding = replace(
-            binding,
-            transport_mode="source-dir",
-        )
+    binding = replace(
+        binding,
+        transport_mode="source-dir",
+    )
     binding, material = _materialize_floor_oracle_dependency(
         binding, lease_parent=effective_base,
     )
@@ -4048,6 +4208,8 @@ def _build_cells_impl(
         _invoke_build,
         fetchcontent_base_dir: Optional[os.PathLike[str] | str] = None,
         phase_marker_root: Optional[os.PathLike[str] | str] = None,
+        repo_root: Path = ROOT,
+        reservation_binding: Optional[reservation.ReservationBinding] = None,
         _canonical_material_sink: list[
             _sort_swo_dependency_material.CanonicalDependencyMaterial
         ],
@@ -4125,23 +4287,21 @@ def _build_cells_impl(
                     path=_preflight_candidate_path(verified_oracle_compiler),
                 )
             if fetchcontent_base_dir is None:
-                dependency_binding = _prepare_floor_oracle_dependency(
-                    None,
-                    ccbench_pin=ccbench_pin,
-                    expected_toolchain_manifest=expected_toolchain_manifest,
-                    _material_sink=_canonical_material_sink,
+                fetchcontent_base = _stage_default_floor_fetchcontent_payload(
+                    repo_root=Path(repo_root), contract=contract,
+                    reservation_binding=reservation_binding,
                 )
-                fetchcontent_base = dependency_binding.source_root.parent
             else:
                 fetchcontent_base = _canonical_floor_fetchcontent_base(
-                    fetchcontent_base_dir,
+                    fetchcontent_base_dir, repo_root=Path(repo_root),
                 )
-                dependency_binding = _prepare_floor_oracle_dependency(
-                    fetchcontent_base,
-                    ccbench_pin=ccbench_pin,
-                    expected_toolchain_manifest=expected_toolchain_manifest,
-                    _material_sink=_canonical_material_sink,
-                )
+            dependency_binding = _prepare_floor_oracle_dependency(
+                fetchcontent_base,
+                ccbench_pin=ccbench_pin,
+                expected_toolchain_manifest=expected_toolchain_manifest,
+                repo_root=Path(repo_root),
+                _material_sink=_canonical_material_sink,
+            )
             if (
                 dependency_binding.oracle_root is None
                 or dependency_binding.canonical_lease_root is None
@@ -4510,6 +4670,8 @@ def build_cells(
         build_fn=None,
         fetchcontent_base_dir: Optional[os.PathLike[str] | str] = None,
         phase_marker_root: Optional[os.PathLike[str] | str] = None,
+        repo_root: Path = ROOT,
+        reservation_binding: Optional[reservation.ReservationBinding] = None,
 ) -> dict[str, dict]:
     """Build cells while retaining the canonical lease through postflight."""
     build_fn = build_fn or buildcache.build_v2
@@ -4553,6 +4715,8 @@ def build_cells(
             _invoke_build=invoke_build,
             fetchcontent_base_dir=fetchcontent_base_dir,
             phase_marker_root=phase_marker_root,
+            repo_root=repo_root,
+            reservation_binding=reservation_binding,
             _canonical_material_sink=materials,
         )
     finally:
@@ -7466,6 +7630,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             verified_calibration=verified_calibration,
             build_fn=build_fn,
             fetchcontent_base_dir=fetchcontent_base_dir,
+            repo_root=repo_root,
+            reservation_binding=reservation_binding,
         )
         # content-addressed store (C3-7): 計測 bytes を env scope 永続領域へ複製し store_path を記録。
         store_root = Path(env_scope_dir(protocol["env_tag"], output_root=str(out_root))) / "binaries"
@@ -7532,6 +7698,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 verified_calibration=verified_calibration,
                 build_fn=build_fn,
                 fetchcontent_base_dir=fetchcontent_base_dir,
+                repo_root=repo_root,
+                reservation_binding=reservation_binding,
             )
             store_root = Path(env_scope_dir(
                 protocol["env_tag"], output_root=str(out_root))) / "binaries"
