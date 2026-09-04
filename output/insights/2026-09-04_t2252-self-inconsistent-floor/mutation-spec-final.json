@@ -1,0 +1,169 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_resolves_contract_pin_by_suffix",
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_direct_copy_does_not_restore_within_run_match",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_series_excludes_direct_within_but_keeps_between",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_v2_adds_only_contract_pin_not_registered_glob"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    exclude_within_run = (\n        contract_pin is not None\n        and (contract_pin.path, contract_pin.sha256)\n        in SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS\n    )\n",
+          "new": "    exclude_within_run = False\n"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_resolves_contract_pin_by_suffix",
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_direct_copy_does_not_restore_within_run_match",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_series_excludes_direct_within_but_keeps_between",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_v2_adds_only_contract_pin_not_registered_glob",
+        "orchestrator/tests/test_layer3_report.py::test_within_run_exclusion_declaration_matches_real_self_failures"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS: frozenset[tuple[str, str]] = frozenset({\n    (\n        \"output/env/pegasus/calibration/registered/\"\n        \"calibration-753f535a8d024727.json\",\n        \"753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49\",\n    ),\n})\n",
+          "new": "SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS: frozenset[tuple[str, str]] = frozenset()\n"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_registered_healthy_pegasus_g2_pin_remains_selectable",
+        "orchestrator/tests/test_layer3_report.py::test_within_run_exclusion_declaration_matches_real_self_failures"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        \"753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49\",\n    ),\n})\n",
+          "new": "        \"753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49\",\n    ),\n    (\n        \"output/env/pegasus/calibration/registered/\"\n        \"calibration-94a4b79fa31bba3c.json\",\n        \"94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9\",\n    ),\n})\n"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_direct_copy_does_not_restore_within_run_match",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_series_excludes_direct_within_but_keeps_between"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if kind == \"within_run\" and exclude_within_run:\n            continue\n",
+          "new": "        if kind == \"within_run\" and exclude_within_run and not path_sources[path]:\n            continue\n"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_series_excludes_direct_within_but_keeps_between"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if kind == \"within_run\" and exclude_within_run:\n            continue\n",
+          "new": "        if exclude_within_run:\n            continue\n"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_contract_pin_sha_mismatch_fails_closed_before_floor_use",
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_resolves_contract_pin_by_suffix",
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_series_excludes_direct_within_but_keeps_between",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_v2_adds_only_contract_pin_not_registered_glob"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if contract_pin is not None:\n        pin_path = _validated_pin_path(calibration_dir, contract_pin)\n",
+          "new": "    if (contract_pin is not None\n            and (contract_pin.path, contract_pin.sha256)\n            not in SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS):\n        pin_path = _validated_pin_path(calibration_dir, contract_pin)\n"
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    exclude_within_run = (\n        contract_pin is not None\n        and (contract_pin.path, contract_pin.sha256)\n        in SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS\n    )\n",
+          "new": "    exclude_within_run = (\n        contract_pin is not None\n        and pin_search is not None\n        and pin_search.get(\"status\") == \"validated\"\n        and (contract_pin.path, contract_pin.sha256)\n        in SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS\n    )\n"
+        }
+      ]
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_resolves_contract_pin_by_suffix",
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_series_excludes_direct_within_but_keeps_between",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_v2_adds_only_contract_pin_not_registered_glob"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "            if kind == \"within_run\" and exclude_within_run:\n                detail_pin[\"within_run_exclusion\"] = (\n                    \"self-inconsistent-calibration\"\n                )\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "M9",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS: frozenset[tuple[str, str]] = frozenset({\n    (\n        \"output/env/pegasus/calibration/registered/\"\n        \"calibration-753f535a8d024727.json\",\n        \"753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49\",\n    ),\n})\n",
+          "new": "SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS: frozenset[tuple[str, str]] = frozenset([\n    (\n        \"output/env/pegasus/calibration/registered/\"\n        \"calibration-753f535a8d024727.json\",\n        \"753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49\",\n    ),\n])\n"
+        }
+      ]
+    }
+  ]
+}

@@ -150,6 +150,10 @@ def _write_campaign_lock_with_writer(target: CampaignLayout, target_cfg) -> None
     authority = _writer_authority()
     binding = authority.binding
     activation_state = authority.activation_state
+    if target_cfg.bound_environment_contract is None:
+        target_cfg = ident.bind_environment_contract(
+            target_cfg, env_contract.lookup(L.ENV_TAG),
+        )
     contract = target_cfg.bound_environment_contract
     assert contract is not None
     wal.write_lock(

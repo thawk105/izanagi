@@ -1,0 +1,162 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120.0,
+ "timeout_seconds": 5400.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if request.macro == \"BACKOFF_NOINLINE\":\n        if requested not in {\"0\", \"1\"} or default != \"0\" \\\n",
+     "new": "    if request.macro == \"BACKOFF_NOINLINE\":\n        if requested != \"1\" or default != \"0\" \\\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    comparison = \"1\" if requested == \"0\" else default\n",
+     "new": "    comparison = default\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "                if original.is_symlink() or name == \".git\":\n                    shadow.symlink_to(original, target_is_directory=True)\n                    directory_names.remove(name)\n                else:\n                    shadow.mkdir()\n",
+     "new": "                if True:\n                    shadow.symlink_to(original, target_is_directory=True)\n                    directory_names.remove(name)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        instrumented_path = shadow_root / relative\n        instrumented_path.write_text(instrumented_source, encoding=\"utf-8\")\n        return shadow_root / owner_tu\n",
+     "new": "        instrumented_path = shadow_root / relative\n        instrumented_path.write_text(instrumented_source, encoding=\"utf-8\")\n        return instrumented_path\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "                not stock_identity\n                and request.route == ROUTE_CMAKE_CXX_FLAGS\n                and request.macro in CONDITIONAL_BRANCH_WITNESSES\n",
+     "new": "                not stock_identity\n                and request.macro in CONDITIONAL_BRANCH_WITNESSES\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        requested_value = \"1\"\n        default_value = \"0\"\n        if record.macro == \"BACKOFF_NOINLINE\":\n",
+     "new": "        requested_value = \"1\"\n        default_value = \"0\"\n        if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "old": "                    declaration = (\n                        condition_meaning_gate.\n                        declare_define_runtime_meaning(request)\n                    )\n",
+     "new": "                    declaration = None\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "        declaration = condition_meaning_gate.declare_define_runtime_meaning(\n            request,\n        )\n        if declaration is None:\n            declaration = _condition_meaning_declaration(\n                request.macro, request.requested_value,\n            )\n",
+     "new": "        declaration = _condition_meaning_declaration(\n            request.macro, request.requested_value,\n        )\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t1683_rr5_cost_probe.py",
+     "old": "            declaration = condition_meaning_gate.declare_define_runtime_meaning(\n                request,\n            )\n",
+     "new": "            declaration = None\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    elif requested != \"1\" or default != \"0\" \\\n            or source_rel not in spec.owner_tus:\n",
+     "new": "    elif requested not in {\"0\", \"1\"} or default != \"0\" \\\n            or source_rel not in spec.owner_tus:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "E1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    requested_expected = (int(requested), 1)\n    default_expected = (int(comparison), 1)\n",
+     "new": "    requested_expected = (int(requested), 1,)\n    default_expected = (int(comparison), 1,)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

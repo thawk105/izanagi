@@ -4,15 +4,22 @@ set -Eeuo pipefail
 umask 077
 
 usage() {
-  echo "usage: submit_b10_backoff_grid.sh --output-parent ABSOLUTE_PATH" >&2
+  echo "usage: submit_b10_backoff_grid.sh --output-parent ABSOLUTE_PATH" \
+    "[--run-kind extended|t2266-tail]" >&2
 }
 
 OUTPUT_PARENT=""
+B10_RUN_KIND=extended
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output-parent)
       [[ $# -ge 2 ]] || { usage; exit 2; }
       OUTPUT_PARENT=$2
+      shift 2
+      ;;
+    --run-kind)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      B10_RUN_KIND=$2
       shift 2
       ;;
     -h|--help)
@@ -25,6 +32,12 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+case "$B10_RUN_KIND" in
+  extended|t2266-tail) ;;
+  *) usage; exit 2 ;;
+esac
+export B10_RUN_KIND
 
 [[ -n "$OUTPUT_PARENT" && "$OUTPUT_PARENT" == /* && -d "$OUTPUT_PARENT" \
     && ! -L "$OUTPUT_PARENT" ]] || {
@@ -101,11 +114,13 @@ import json, os, pathlib, stat, sys
 path = pathlib.Path(sys.argv[1])
 kind = sys.argv[2]
 values = sys.argv[3:]
+run_kind = os.environ["B10_RUN_KIND"]
 if kind == "manifest":
     group, nonce, script_hash, *workloads = values
     event = {
         "schema_version": "b10-backoff-grid-submit-event/v1",
         "event": "manifest",
+        "run_kind": run_kind,
         "group_id": group,
         "submission_nonce": nonce,
         "job_script_sha256": script_hash,
@@ -117,6 +132,7 @@ elif kind == "submitted":
     event = {
         "schema_version": "b10-backoff-grid-submit-event/v1",
         "event": "submitted",
+        "run_kind": run_kind,
         "workload": workload,
         "job_id": job_id,
         "output_root": root,
@@ -129,6 +145,7 @@ elif kind == "failed":
     event = {
         "schema_version": "b10-backoff-grid-submit-event/v1",
         "event": "failed",
+        "run_kind": run_kind,
         "workload": workload,
         "returncode": int(returncode),
         "reason": reason,
@@ -164,9 +181,13 @@ for workload in "${WORKLOADS[@]}"; do
   root="$OUTPUT_PARENT/$GROUP_ID-$workload"
   stdout="$OUTPUT_PARENT/$GROUP_ID-$workload.stdout"
   stderr="$OUTPUT_PARENT/$GROUP_ID-$workload.stderr"
+  QSUB_ENV="B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,B10_SUBMISSION_NONCE=$SUBMISSION_NONCE,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256"
+  if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then
+    QSUB_ENV="$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND"
+  fi
   qsub_rc=0
   job_id=$(qsub \
-    -v "B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,B10_SUBMISSION_NONCE=$SUBMISSION_NONCE,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256" \
+    -v "$QSUB_ENV" \
     -o "$stdout" -e "$stderr" "$JOB_SCRIPT") || qsub_rc=$?
   if [[ "$qsub_rc" -ne 0 ]]; then
     append_submission_event failed "$workload" "$qsub_rc" "qsub_failed"
