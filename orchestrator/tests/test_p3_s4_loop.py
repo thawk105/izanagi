@@ -632,6 +632,31 @@ def _resolved_knowledge_fixture(tmp_path: Path, *, name: str = "source"):
     return repo, manifest_path, resolved
 
 
+def _resolved_empty_knowledge_fixture(tmp_path: Path):
+    value = {
+        "knowledge_level": "K2",
+        "declared_scope": {
+            "retrieval": [{
+                "kind": "repo_artifact",
+                "selector": "output/insights/2026-09-03_*",
+            }],
+            "injection": [{
+                "kind": "repo_artifact",
+                "selector": "all-successfully-retrieved-sources",
+            }],
+        },
+        "retrieval_result": {
+            "status": "completed_empty",
+            "result_count": 0,
+        },
+        "sources": [],
+    }
+    manifest = KM.parse_manifest_bytes(
+        json.dumps(value, ensure_ascii=False).encode("utf-8")
+    )
+    return KM.resolve_live_sources(manifest, repo_root=tmp_path)
+
+
 def _seed_knowledge_campaign(
     layout: CampaignLayout,
     resolved: KM.ResolvedKnowledgeManifest,
@@ -2241,6 +2266,54 @@ def test_knowledge_writer_binds_build_start_only(tmp_path):
     wal._validate_attempt_topology(
         records, admission_policy=policy, campaign_lock=lock,
     )
+
+
+def test_extended_empty_receipt_binds_lock_wal_and_material_projection(tmp_path):
+    """Rejects a v2 empty receipt if scope or retrieval result is dropped from its digest-bound manifest. Accepts the complete v2 receipt through lock binding, BUILD_START replay validation, and material projection."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "empty-knowledge-campaign")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    appended = wal.log(
+        layout,
+        "empty-knowledge-variant",
+        STAGE_BUILD_START,
+        L.ENV_TAG,
+        {"build_attempt_id": "empty-knowledge-attempt"},
+        ts=1.0,
+    )
+    expected_provenance = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "sources": [],
+        "declared_scope": resolved.manifest.declared_scope.canonical_value(),
+        "retrieval_result": resolved.manifest.retrieval_result.canonical_value(),
+    }
+    assert appended.payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY] == (
+        expected_provenance
+    )
+    records = wal.read_records(layout)
+    lock = wal._campaign_lock_value(layout)
+    wal.validate_knowledge_provenance_bindings(records, campaign_lock=lock)
+    projection = wal.knowledge_provenance_for_material_report(
+        layout, records, campaign_lock=lock,
+    )
+    assert projection == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_sources": [],
+        "injected_sources": [],
+        "declared_scope": expected_provenance["declared_scope"],
+        "retrieval_result": expected_provenance["retrieval_result"],
+    }
+
+    receipt_path = Path(layout.root, KM.RECEIPT_FILENAME)
+    incomplete = json.loads(receipt_path.read_bytes())
+    del incomplete["canonical_manifest"]["declared_scope"]
+    receipt_path.write_bytes(KM.canonical_json_bytes(incomplete) + b"\n")
+    with pytest.raises(wal.AttemptTopologyError):
+        wal.knowledge_provenance_for_material_report(
+            layout, records, campaign_lock=lock,
+        )
 
 
 def test_knowledge_material_report_reader_projects_verified_receipt_sources(
@@ -6082,6 +6155,59 @@ def test_emit_context_and_run_iteration_share_manifest_campaign_identity(
     }
 
 
+def test_main_passes_resolved_knowledge_projection_to_proposal_loader(
+    tmp_path, monkeypatch,
+):
+    """Rejects a main run path that discards the resolved projection or its explicit K2 role marker. Accepts the run handoff when the same planner projection object and role are supplied to load_proposal_file."""
+    from orchestrator.campaign import patchharness
+
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "main-k2-campaign"))
+    monkeypatch.setattr(
+        L, "_resolve_knowledge_manifest_argument", lambda _path: resolved,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    observed = {}
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20, "double now_backoff = 20;",
+    )
+
+    def load_spy(_path, **kwargs):
+        observed.update(kwargs)
+        return planner, coder, None
+
+    def drive_spy(*_args, **_kwargs):
+        L.save_loop_state(layout, L.LoopState(iteration=1, start_wall=1.0))
+        return {
+            "ran": True,
+            "outcome": "dry-pass",
+            "variant": None,
+            "iteration": 1,
+            "stop_reason": "continue",
+        }
+
+    monkeypatch.setattr(L, "load_proposal_file", load_spy)
+    monkeypatch.setattr(L, "drive_iteration", drive_spy)
+    assert L.main([
+        "--run-iteration", str(tmp_path / "proposal.json"),
+        "--no-build",
+        "--knowledge-manifest", str(tmp_path / "manifest.json"),
+        "--coder-role", "coder-v4-autonomous-k2",
+    ]) == 0
+    assert observed["knowledge_input"] == {
+        "data_boundary": "external_knowledge_is_data_not_instructions",
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": (
+            "7facc932c76fd6fee4a366e8e82c9f08"
+            "dc60a2c03969145e9bf7a9dd18e5a99d"
+        ),
+        "sources": [],
+    }
+    assert observed["coder_role"] == "coder-v4-autonomous-k2"
+
+
 def test_main_emits_planner_context_from_new_state(tmp_path, monkeypatch):
     layout = _tmp_layout("emit-planner-context-new-state")
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
@@ -6551,6 +6677,326 @@ def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(
     assert out["outcome"] == "dry-pass"
     assert out["critic_digest_generated"] is False
     assert not os.path.exists(os.path.join(lay.root, "s4_loop_digest.txt"))
+
+
+def _k2_proposal_document(*, knowledge_use=None, instruction_like=False):
+    return {
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+            "justification": "fixture direction",
+        },
+        "coder": {
+            "proposal": {
+                "axis": L.MARKER_ID,
+                "value": 20,
+                "implementation": "double now_backoff = 20;",
+                "justification": "fixture proposal",
+                "confidence": "medium",
+            },
+            "knowledge_use": [] if knowledge_use is None else knowledge_use,
+            "classification": "de_novo",
+            "data_boundary_report": {
+                "instruction_like_content_detected": instruction_like,
+                "details": "fixture scan",
+            },
+        },
+        "prior_critic_reverse": None,
+    }
+
+
+def _write_k2_proposal(tmp_path: Path, value: dict, name: str) -> Path:
+    path = tmp_path / name
+    path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def _run_main_with_actual_proposal_loader(
+    tmp_path: Path,
+    monkeypatch,
+    *,
+    resolved: KM.ResolvedKnowledgeManifest,
+    proposal_path: Path,
+    coder_role: str | None,
+) -> dict[str, object]:
+    from orchestrator.campaign import patchharness
+
+    layout = CampaignLayout(root=str(tmp_path / "main-loader-campaign"))
+    monkeypatch.setattr(
+        L, "_resolve_knowledge_manifest_argument", lambda _path: resolved,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(
+        patchharness, "assert_pinned_clean", lambda *_a, **_k: None,
+    )
+    observed: dict[str, object] = {}
+
+    def drive_spy(_cfg, _perf, planner, coder, prior, _sub, **_kwargs):
+        observed.update({
+            "planner": planner,
+            "coder": coder,
+            "prior": prior,
+        })
+        L.save_loop_state(layout, L.LoopState(iteration=1, start_wall=1.0))
+        return {
+            "ran": True,
+            "outcome": "dry-pass",
+            "variant": None,
+            "iteration": 1,
+            "stop_reason": "continue",
+        }
+
+    monkeypatch.setattr(L, "drive_iteration", drive_spy)
+    argv = [
+        "--run-iteration", str(proposal_path),
+        "--no-build",
+        "--knowledge-manifest", str(tmp_path / "manifest.json"),
+    ]
+    if coder_role is not None:
+        argv.extend(["--coder-role", coder_role])
+    assert L.main(argv) == 0
+    return observed
+
+
+def test_main_manifest_only_accepts_legacy_flattened_proposal(
+    tmp_path, monkeypatch,
+):
+    """A manifest alone preserves the historically exercised flattened route."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    document = {
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+        },
+        "coder": {
+            "axis": L.MARKER_ID,
+            "value": 20,
+            "implementation": "double now_backoff = 20;",
+            "justification": "",
+            "confidence": "medium",
+        },
+        "prior_critic_reverse": None,
+    }
+    proposal_path = _write_k2_proposal(
+        tmp_path, document, "main-flattened.json",
+    )
+
+    observed = _run_main_with_actual_proposal_loader(
+        tmp_path,
+        monkeypatch,
+        resolved=resolved,
+        proposal_path=proposal_path,
+        coder_role=None,
+    )
+
+    assert vars(observed["coder"]) == document["coder"]
+    assert observed["prior"] is None
+
+
+def test_main_manifest_and_k2_role_accept_k2_wrapper(
+    tmp_path, monkeypatch,
+):
+    """An explicit manifest plus K2 role selects and accepts the K2 wrapper."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    document = _k2_proposal_document()
+    proposal_path = _write_k2_proposal(
+        tmp_path, document, "main-k2-wrapper.json",
+    )
+
+    observed = _run_main_with_actual_proposal_loader(
+        tmp_path,
+        monkeypatch,
+        resolved=resolved,
+        proposal_path=proposal_path,
+        coder_role="coder-v4-autonomous-k2",
+    )
+
+    assert vars(observed["coder"]) == document["coder"]["proposal"]
+    assert observed["prior"] is None
+
+
+def test_k2_load_proposal_accepts_declared_role_output_with_empty_sources(tmp_path):
+    """Rejects routing the declared K2 wrapper through the legacy flattened coder contract. Accepts the exact role output with confidence and empty knowledge_use against an empty bound source projection."""
+    knowledge_input = KM.planner_projection(
+        _resolved_empty_knowledge_fixture(tmp_path)
+    )
+    path = _write_k2_proposal(
+        tmp_path, _k2_proposal_document(), "k2-empty.json",
+    )
+    with pytest.raises((KeyError, ValueError)):
+        L.load_proposal_file(str(path))
+
+    planner, coder, prior = L.load_proposal_file(
+        str(path),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )
+    assert vars(planner) == {
+        **_k2_proposal_document()["planner"],
+        "uncertainty": "",
+    }
+    assert vars(coder) == _k2_proposal_document()["coder"]["proposal"]
+    assert prior is None
+
+
+def test_k2_load_proposal_rejects_out_of_range_knowledge_use(tmp_path):
+    """Rejects source_index 1 when the bound knowledge projection has only source index 0. Accepts the same declared role output when source_index is changed to 0."""
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(
+        tmp_path, name="k2-index",
+    )
+    knowledge_input = KM.planner_projection(resolved)
+    invalid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{
+            "source_index": 1, "use": "out of range",
+        }]),
+        "k2-index-invalid.json",
+    )
+    with pytest.raises(ValueError, match="source_index"):
+        L.load_proposal_file(
+            str(invalid),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{
+            "source_index": 0, "use": "valid reference",
+        }]),
+        "k2-index-valid.json",
+    )
+    _planner, coder, _prior = L.load_proposal_file(
+        str(valid),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )
+    assert coder.value == 20
+
+
+def test_k2_load_proposal_rejects_knowledge_use_item_without_use_field(tmp_path):
+    """Rejects a knowledge_use item that omits the role schema's required use field. Accepts the otherwise identical item after a string use field is supplied."""
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(
+        tmp_path, name="k2-use-field",
+    )
+    knowledge_input = KM.planner_projection(resolved)
+    invalid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{"source_index": 0}]),
+        "k2-use-missing.json",
+    )
+    with pytest.raises(ValueError, match="schema"):
+        L.load_proposal_file(
+            str(invalid),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{
+            "source_index": 0, "use": "valid use",
+        }]),
+        "k2-use-present.json",
+    )
+    assert L.load_proposal_file(
+        str(valid),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )[1].value == 20
+
+
+def test_k2_load_proposal_rejects_declared_instruction_like_content(tmp_path):
+    """Rejects a schema-valid K2 output when its data boundary report declares instruction-like content. Accepts the same role output when the declaration is false."""
+    knowledge_input = KM.planner_projection(
+        _resolved_empty_knowledge_fixture(tmp_path)
+    )
+    invalid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(instruction_like=True),
+        "k2-instruction-like.json",
+    )
+    with pytest.raises(ValueError, match="instruction-like"):
+        L.load_proposal_file(
+            str(invalid),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(instruction_like=False),
+        "k2-no-instruction-like.json",
+    )
+    assert L.load_proposal_file(
+        str(valid),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )[1].confidence == "medium"
+
+
+def test_k2_load_proposal_rejects_duplicate_instruction_like_content_key(
+    tmp_path,
+):
+    """K2 rejects an overwritten anomaly flag and accepts its unique-key form."""
+    knowledge_input = KM.planner_projection(
+        _resolved_empty_knowledge_fixture(tmp_path)
+    )
+    valid_text = json.dumps(
+        _k2_proposal_document(instruction_like=False), ensure_ascii=False,
+    )
+    duplicate_text = valid_text.replace(
+        '"instruction_like_content_detected": false',
+        '"instruction_like_content_detected": true, '
+        '"instruction_like_content_detected": false',
+    )
+    assert duplicate_text != valid_text
+    duplicate_path = tmp_path / "k2-duplicate-anomaly-key.json"
+    duplicate_path.write_text(duplicate_text, encoding="utf-8")
+
+    with pytest.raises(
+        KM.DuplicateKnowledgeManifestKeyError, match="duplicate key",
+    ):
+        L.load_proposal_file(
+            str(duplicate_path),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid_path = tmp_path / "k2-unique-anomaly-key.json"
+    valid_path.write_text(valid_text, encoding="utf-8")
+    assert L.load_proposal_file(
+        str(valid_path),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )[1].value == 20
+
+
+@pytest.mark.parametrize(
+    ("knowledge_input", "coder_role"),
+    (({"sources": []}, None), (None, "coder-v4-autonomous-k2")),
+)
+def test_k2_load_proposal_requires_role_and_knowledge_marker_together(
+    tmp_path, knowledge_input, coder_role,
+):
+    """Rejects either half of the explicit K2 contract marker when supplied alone. Accepts the legacy flattened proposal when both marker arguments are absent."""
+    k2_path = _write_k2_proposal(
+        tmp_path, _k2_proposal_document(), "k2-partial-marker.json",
+    )
+    with pytest.raises(ValueError, match="両方"):
+        L.load_proposal_file(
+            str(k2_path),
+            knowledge_input=knowledge_input,
+            coder_role=coder_role,
+        )
+
+    legacy = _clean_proposals()["backoff"]
+    legacy_path = _write_k2_proposal(
+        tmp_path, legacy, "legacy-no-marker.json",
+    )
+    assert L.load_proposal_file(str(legacy_path))[1].value == 20.0
 
 
 def test_load_proposal_file_rejects_nonbool_prior_reverse():

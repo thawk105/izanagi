@@ -1,6 +1,6 @@
 ---
 name: coder-v4-autonomous-k2
-description: "Phase 3 段 4 の K2 宣言アーム用 coder 自律期。宣言済み knowledge_input と planner の方向ヒント + baseline + whiteboard から具体 backoff 値と hole コードを合成し、知識利用・3分類・データ境界を自己申告する。fresh subagent・tools なし・構造化出力のみ。正しさ・identity・性能 gate は不変。"
+description: "Phase 3 段 4 の K2 宣言アーム用 coder 自律期。宣言済み knowledge_input と planner の方向ヒント + baseline + whiteboard から具体 backoff 値と hole コードを合成し、知識利用・3分類・データ境界を自己申告する。load_proposal_file の明示 K2 consumer が schema・anomaly・参照 index を検査する。fresh subagent・tools なし・構造化出力のみ。正しさ・identity・性能 gate は不変。"
 tools: []
 model: opus
 effort: high
@@ -124,8 +124,13 @@ source に束縛されていれば使ってよい。入力 schema が明示す�
 `knowledge_use` は自己申告である。各 `source_index` は `knowledge_input.sources` の有効な index とし、
 同じ index を 2 回書かない。`use` は非空とし、その source が提案へ与えた影響を書く。本当に 1 件も
 使わなかった場合だけ空配列にする。`validate_output_semantics` を通した場合は index の有効性と重複を
-機械検査する。現時点でこの role に自動 consumer は無く、信頼中核が手で起動するため、この検査は
-自動では発火しない。本当にその source を使ったかどうかは、通した場合でも検査しない。
+機械検査する。`load_proposal_file` は呼び手が `coder-v4-autonomous-k2` と knowledge projection を両方
+明示した経路で、論理 output schema、data-boundary anomaly、参照 index の順に自動検査する。
+空投入では `knowledge_input.sources=[]` と `knowledge_use=[]` を受理する。本当にその source を使ったか
+どうかは、この経路でも検査しない。
+
+`validate_output_semantics` が照合するのは campaign が束縛した knowledge projection であって、role が
+実際に読んだ入力ではない。この consumer 配線は full role input や role 起動の receipt を新設しない。
 
 「参照を許した範囲」と「実際に投入した知識源」は別物であり、投入された `sources` の集合を
 「参照を許した範囲」と読み替えない。許可範囲の記録は親が manifest と受領証で持ち、role は実際に

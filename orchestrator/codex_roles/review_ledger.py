@@ -24,7 +24,8 @@ SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-26: T-1690; suffix-free literal/value一致・1文の producer 契約を追加。
     "coder-v4-autonomous": "4073ac4223eaca9c353685f116a4dfb53db5b3412011373b717c44e3b25ec10d",
     # Reviewed 2026-09-02: T-2200; K2 宣言アーム用 sibling role 契約を追加。
-    "coder-v4-autonomous-k2": "f0b8583a00d02b2cea63d40eb8d5a450f5d015500695ec593b44c720b6fd0577",
+    # Reviewed 2026-09-03: T-2246; empty-source と明示 consumer の境界を追記。
+    "coder-v4-autonomous-k2": "c149f0955bdeee69edc93d52f2437122e0d533a8737d5bbb3376ef93699d67a6",
     # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
     # Reviewed 2026-09-02: T-2145; raw C++ 合成を閉じた sort IR proposal へ縮小。
     "coder-v4-autonomous-sort": "0d98a362d6cde3e77a407851aaace7444086ee6add33dbd5df2f586db5666772",
@@ -56,7 +57,8 @@ ROLE_MANIFEST_SHA256 = {
     # Reviewed 2026-08-26: T-1690; projection に suffix-free literal/value一致・1文制約を追加。
     "coder-v4-autonomous": "5e277d54ad7314807cd2f8c46574c6223e8a87e2b251eb29bdb53e2d02bb8bdd",
     # Reviewed 2026-09-02: T-2200; K2 入力・自己申告出力・境界を固定。
-    "coder-v4-autonomous-k2": "78ec33ac6b41215d3f5758d01d10253dfedf2b4ffbab593de1f1fe5eb2dd85c3",
+    # Reviewed 2026-09-03: T-2246; empty-source と明示 consumer を固定。
+    "coder-v4-autonomous-k2": "c57eafe7b75061b30e956ecd33586f22ac8339d7eba01a7fcb37c122c8e9231c",
     "coder-v4-autonomous-sort": "0516335248dd542372ba4a420835c2451ea816b2aadc78cacaa1c388bd2252fa",
     # Reviewed 2026-08-04: stage5-agent-review.md and stage6-fix-ruling.md r2-7.
     "coder-v4-autonomous-trigger-gating": "c307d820022585bf9f34ffb3f70b10734c8903b5eb0f450698739aa9413d3a8c",
@@ -79,7 +81,7 @@ DESCRIPTION_SHA256 = {
     "calibrator": "89ff12f68058d1fb1f0e8fbced10b04d34909c1c903f3140d6736b0a9c0df6ed",
     "coder": "e69da61c8d99ce72ddd9888d275cba9b9a31e5c8457d68696a7e00e9e5d94602",
     "coder-v4-autonomous": "c40c7e9d9a0ef4957c02957088331377186ffd2f23443236e05c4f231f0faa1b",
-    "coder-v4-autonomous-k2": "9a804cadee14bf32f23632c4fb2ade105df66df76fa3fb7e44bc6a094b294a86",
+    "coder-v4-autonomous-k2": "0674e6b541ac09d51b19f93708f5119d6470486a16ec2ebe477d8d44e09f6bfe",
     # Reviewed 2026-09-02: T-2145; verified IR producer を明記した description へ追随。
     "coder-v4-autonomous-sort": "c65ecb4ef49ab1cf6b91aada5fcf7f401ed5f50e4540c0bdeab37cb2ab114a86",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
@@ -119,7 +121,7 @@ SCHEMA_SHA256 = {
         "output": "bdede09e28ba864440cce8e055460370126ce8c230268abfbc61e976229da1ef",
     },
     "coder-v4-autonomous-k2": {
-        "input": "3098009c93b77f94531d57f803273a11be2e615125691f647d9c61c5e64e3d8a",
+        "input": "eb27a6e93e0abd7ddc276105b43b43f8c1e44a86841d862c84e42e1b8d80235c",
         "output": "fb318c56fdaeeb61ebff284939d6386268c5d793e6d13210e22d5adc021ce24a",
     },
     "coder-v4-autonomous-sort": {

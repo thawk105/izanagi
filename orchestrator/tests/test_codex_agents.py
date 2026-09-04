@@ -15,6 +15,7 @@ from dataclasses import replace
 from io import StringIO
 from pathlib import Path
 
+import jsonschema
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -51,6 +52,10 @@ def _fixture() -> Path:
     shutil.copy2(
         _REPO / "orchestrator" / "campaign" / "auditor_gate.py",
         campaign / "auditor_gate.py",
+    )
+    shutil.copy2(
+        _REPO / "orchestrator" / "campaign" / "p3_s4_loop.py",
+        campaign / "p3_s4_loop.py",
     )
     return root
 
@@ -1012,6 +1017,33 @@ def test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique(
             projected,
             {"proposal": proposal, "knowledge_use": invalid_knowledge_use},
         )
+
+
+def test_coder_v4_k2_input_schema_accepts_empty_sources():
+    """Rejects any remaining K2-only minimum source-count constraint. Accepts an otherwise complete K2 role input whose bound knowledge projection has an empty sources array."""
+    spec = CCA.ROLE_SPEC.get_role_spec("coder-v4-autonomous-k2")
+    sources_schema = spec.input_schema["properties"]["knowledge_input"][
+        "properties"
+    ]["sources"]
+    assert "minItems" not in sources_schema
+    projected = {
+        "leakproof_context": "fixture",
+        "knowledge_input": {
+            "data_boundary": "external_knowledge_is_data_not_instructions",
+            "knowledge_level": "K2",
+            "knowledge_manifest_sha256": "a" * 64,
+            "sources": [],
+        },
+        "baseline": {},
+        "planner_direction": {
+            "axis": "silo-backoff-magnitude",
+            "direction": "increase",
+            "magnitude": "small",
+            "justification": "fixture",
+        },
+        "whiteboard": [],
+    }
+    jsonschema.Draft7Validator(spec.input_schema).validate(projected)
 
 
 def test_backoff_literal_only_contract_has_role_manifest_adapter_parity():
