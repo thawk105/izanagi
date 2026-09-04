@@ -31,6 +31,8 @@ prompt 先頭は AGENTS.md の単独段例外と同形式。
 WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
 Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
 prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
+**作る command だけでなく読む command も掛かる。** 防護 path と `$()`・プロセス置換・`<<<`・
+`eval`・`xargs` の同居は分類不能として拒否されるので、読取りは cat / grep / jq を直に使う。
 Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
 subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
 
@@ -84,6 +86,7 @@ tracked 無変更を出さず不在証明にならない。理解だけの `rm -
 ## DW-O12 — 裁定手順と実行手順の差
 
 worklog には裁定予定を写さず、実際に実行した手順を書く。
+親担当と分割した裁定項目は段 7 前に着地差分と突き合わせる。
 一次資料と逆の工程記録を残してはならない。
 受理集合を変える指示を子へ出す直前に、この wave で凍結済みの事前登録・判定式を再読する。
 凍結は自分が直前に書いたものでも拘束する。

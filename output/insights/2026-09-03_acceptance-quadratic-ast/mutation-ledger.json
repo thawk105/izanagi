@@ -1,0 +1,561 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/b8940f73e38e4fee95c63eb02d325fdb/izdw-b8940f73e3.o974392",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/b8940f73e38e4fee95c63eb02d325fdb/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [63 items]\n\n...............................................................          [100%]\n============================== 63 passed in 9.28s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "99d74aa288cc1a2bdafc9f217386923e0329a0ff1ee8d6e191f36b466ccf3a5d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "8e9d5b44a5c5e37434904d8637d77e447113a203bddaf9ad8bdd24165a322e8e",
+    "duration_s": 32.172,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "bd3c3a94b6719c66440fc1cc8977844df090bd8a8d4b7eefb0c7abc0bff38666",
+    "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+    "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+    "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+    "status": "PASSED",
+    "test_output_sha256": "99d74aa288cc1a2bdafc9f217386923e0329a0ff1ee8d6e191f36b466ccf3a5d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+  },
+  "date": "2026-09-03T12:29:29.675299+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/f16325f875b7b46d2e3b31dd2d74b028/izdw-f16325f875.o974398",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/f16325f875b7b46d2e3b31dd2d74b028/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [63 items]\n\n................................F..............................          [100%]\n=================================== FAILURES ===================================\n___________ test_source_segment_helper_matches_stdlib_at_boundaries ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_segment_helper_matches_stdlib_at_boundaries():\n        def located(\n            lineno: int, col_offset: int, end_lineno: int, end_col_offset: int,\n        ) -> ast.Name:\n            node = ast.Name(id=\"synthetic\", ctx=ast.Load())\n            node.lineno = lineno\n            node.col_offset = col_offset\n            node.end_lineno = end_lineno\n            node.end_col_offset = end_col_offset\n            return node\n    \n        def assert_matches(\n            source: str, node: ast.AST, *, padded: bool = False,\n        ) -> None:\n            lines = P._split_source_lines(source)\n            try:\n                expected = ast.get_source_segment(source, node, padded=padded)\n            except Exception as expected_error:\n                with pytest.raises(type(expected_error)):\n                    P._get_source_segment(lines, node, padded=padded)\n            else:\n                assert P._get_source_segment(lines, node, padded=padded) == expected\n    \n        before_source = \"\\u03b1 target suffix\"\n>       assert_matches(\n            before_source,\n            located(\n                1,\n                len(\"\\u03b1 \".encode(\"utf-8\")),\n                1,\n                len(\"\\u03b1 target\".encode(\"utf-8\")),\n            ),\n        )\n\norchestrator/tests/test_p3_b4_wiring_probe.py:206: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = 'α target suffix', node = <ast.Name object at 0x14bbb4bc4520>\npadded = False\n\n    def assert_matches(\n        source: str, node: ast.AST, *, padded: bool = False,\n    ) -> None:\n        lines = P._split_source_lines(source)\n        try:\n            expected = ast.get_source_segment(source, node, padded=padded)\n        except Exception as expected_error:\n            with pytest.raises(type(expected_error)):\n                P._get_source_segment(lines, node, padded=padded)\n        else:\n>           assert P._get_source_segment(lines, node, padded=padded) == expected\nE           AssertionError: assert 'arget ' == 'target'\nE             \nE             - target\nE             ? -\nE             + arget \nE             ?      +\n\norchestrator/tests/test_p3_b4_wiring_probe.py:203: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries\n========================= 1 failed, 62 passed in 9.22s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2257 retained_bytes=2257 omitted_bytes=0 rendered_excerpt_bytes=2393 sha256=eb110b994bb6731d9544db24541fad4d810d37e887cdcb289584d1640a616835\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_segment_helper_matches_stdlib_at_boundaries():\n>         def located(\n>             lineno: int, col_offset: int, end_lineno: int, end_col_offset: int,\n>         ) -> ast.Name:\n>             node = ast.Name(id=\"synthetic\", ctx=ast.Load())\n>             node.lineno = lineno\n>             node.col_offset = col_offset\n>             node.end_lineno = end_lineno\n>             node.end_col_offset = end_col_offset\n>             return node\n>     \n>         def assert_matches(\n>             source: str, node: ast.AST, *, padded: bool = False,\n>         ) -> None:\n>             lines = P._split_source_lines(source)\n>             try:\n>                 expected = ast.get_source_segment(source, node, padded=padded)\n>             except Exception as expected_error:\n>                 with pytest.raises(type(expected_error)):\n>                     P._get_source_segment(lines, node, padded=padded)\n>             else:\n>                 assert P._get_source_segment(lines, node, padded=padded) == expected\n>     \n>         before_source = \"\\x5cu03b1 target suffix\"\n> >       assert_matches(\n>             before_source,\n>             located(\n>                 1,\n>                 len(\"\\x5cu03b1 \".encode(\"utf-8\")),\n>                 1,\n>                 len(\"\\x5cu03b1 target\".encode(\"utf-8\")),\n>             ),\n>         )\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:206: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> source = '\\u03b1 target suffix', node = <ast.Name object at 0x14bbb4bc4520>\n> padded = False\n> \n>     def assert_matches(\n>         source: str, node: ast.AST, *, padded: bool = False,\n>     ) -> None:\n>         lines = P._split_source_lines(source)\n>         try:\n>             expected = ast.get_source_segment(source, node, padded=padded)\n>         except Exception as expected_error:\n>             with pytest.raises(type(expected_error)):\n>                 P._get_source_segment(lines, node, padded=padded)\n>         else:\n> >           assert P._get_source_segment(lines, node, padded=padded) == expected\n> E           AssertionError: assert 'arget ' == 'target'\n> E             \n> E             - target\n> E             ? -\n> E             + arget \n> E             ?      +\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:203: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2257 retained_bytes=2257 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3123 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "914bf41b54dff3f2cb0564926434a70f2590e5e87f9913c6ebb44abe2a041c2c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e9d5b44a5c5e37434904d8637d77e447113a203bddaf9ad8bdd24165a322e8e",
+      "duration_s": 32.187,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "hang_risk": false,
+      "id": "M-A1-CHAR-SLICE-NOT-BYTE",
+      "injection_diff_sha256": "3b563f173f29284d723f003bfbd380f616fd41e5ed35b124dffb3273e5e4f913",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "66078ac8483a3e34454587b0d4e785de0ece9dd248052084d431bca73f6f7967",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "        return lines[lineno][col_offset:end_col_offset]\n",
+          "old": "        return lines[lineno].encode(\"utf-8\")[\n            col_offset:end_col_offset\n        ].decode(\"utf-8\")\n"
+        }
+      ],
+      "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+      "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+      "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+      "status": "KILLED",
+      "test_output_sha256": "914bf41b54dff3f2cb0564926434a70f2590e5e87f9913c6ebb44abe2a041c2c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/0e10231726c1b7c4809b62c22d638b60/izdw-0e10231726.o974401",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/0e10231726c1b7c4809b62c22d638b60/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [63 items]\n\n...............................................F...............          [100%]\n=================================== FAILURES ===================================\n___________ test_source_segment_helper_matches_stdlib_at_boundaries ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_segment_helper_matches_stdlib_at_boundaries():\n        def located(\n            lineno: int, col_offset: int, end_lineno: int, end_col_offset: int,\n        ) -> ast.Name:\n            node = ast.Name(id=\"synthetic\", ctx=ast.Load())\n            node.lineno = lineno\n            node.col_offset = col_offset\n            node.end_lineno = end_lineno\n            node.end_col_offset = end_col_offset\n            return node\n    \n        def assert_matches(\n            source: str, node: ast.AST, *, padded: bool = False,\n        ) -> None:\n            lines = P._split_source_lines(source)\n            try:\n                expected = ast.get_source_segment(source, node, padded=padded)\n            except Exception as expected_error:\n                with pytest.raises(type(expected_error)):\n                    P._get_source_segment(lines, node, padded=padded)\n            else:\n                assert P._get_source_segment(lines, node, padded=padded) == expected\n    \n        before_source = \"\\u03b1 target suffix\"\n        assert_matches(\n            before_source,\n            located(\n                1,\n                len(\"\\u03b1 \".encode(\"utf-8\")),\n                1,\n                len(\"\\u03b1 target\".encode(\"utf-8\")),\n            ),\n        )\n        inside_source = \"prefix \\u03b1 suffix\"\n        assert_matches(\n            inside_source,\n            located(\n                1,\n                len(\"prefix \".encode(\"utf-8\")),\n                1,\n                len(\"prefix \\u03b1\".encode(\"utf-8\")),\n            ),\n        )\n    \n        for newline in (\"\\n\", \"\\r\\n\", \"\\r\"):\n            source = f\"\\u03b1 prefix{newline}\\u03b2 suffix\"\n            assert_matches(\n                source,\n                located(\n                    1,\n                    len(\"\\u03b1 \".encode(\"utf-8\")),\n                    2,\n                    len(\"\\u03b2\".encode(\"utf-8\")),\n                ),\n            )\n    \n        for separator in (\n            \"\\f\", \"\\x0b\", \"\\x1c\", \"\\x1d\", \"\\x1e\", \"\\x85\", \"\\u2028\", \"\\u2029\",\n        ):\n            source = f\"\\u03b1 {separator}\\u03b2\"\n>           assert_matches(\n                source,\n                located(\n                    1,\n                    len(\"\\u03b1 \".encode(\"utf-8\")),\n                    1,\n                    len(source.encode(\"utf-8\")),\n                ),\n            )\n\norchestrator/tests/test_p3_b4_wiring_probe.py:242: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = 'α \\x0cβ', node = <ast.Name object at 0x14668431fcd0>, padded = False\n\n    def assert_matches(\n        source: str, node: ast.AST, *, padded: bool = False,\n    ) -> None:\n        lines = P._split_source_lines(source)\n        try:\n            expected = ast.get_source_segment(source, node, padded=padded)\n        except Exception as expected_error:\n            with pytest.raises(type(expected_error)):\n                P._get_source_segment(lines, node, padded=padded)\n        else:\n>           assert P._get_source_segment(lines, node, padded=padded) == expected\nE           AssertionError: assert '\\x0c' == '\\x0cβ'\nE             \nE             Strings contain only whitespace, escaping them using repr()\nE             - '\\x0cβ'\nE             ?      -\nE             + '\\x0c'\n\norchestrator/tests/test_p3_b4_wiring_probe.py:203: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries\n========================= 1 failed, 62 passed in 9.26s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=3387 retained_bytes=3387 omitted_bytes=0 rendered_excerpt_bytes=3683 sha256=a2b8cbe5fd08a95ccd0c16875d49d9e12923bad21bc25c6d6202f19b22c5f0ee\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_segment_helper_matches_stdlib_at_boundaries():\n>         def located(\n>             lineno: int, col_offset: int, end_lineno: int, end_col_offset: int,\n>         ) -> ast.Name:\n>             node = ast.Name(id=\"synthetic\", ctx=ast.Load())\n>             node.lineno = lineno\n>             node.col_offset = col_offset\n>             node.end_lineno = end_lineno\n>             node.end_col_offset = end_col_offset\n>             return node\n>     \n>         def assert_matches(\n>             source: str, node: ast.AST, *, padded: bool = False,\n>         ) -> None:\n>             lines = P._split_source_lines(source)\n>             try:\n>                 expected = ast.get_source_segment(source, node, padded=padded)\n>             except Exception as expected_error:\n>                 with pytest.raises(type(expected_error)):\n>                     P._get_source_segment(lines, node, padded=padded)\n>             else:\n>                 assert P._get_source_segment(lines, node, padded=padded) == expected\n>     \n>         before_source = \"\\x5cu03b1 target suffix\"\n>         assert_matches(\n>             before_source,\n>             located(\n>                 1,\n>                 len(\"\\x5cu03b1 \".encode(\"utf-8\")),\n>                 1,\n>                 len(\"\\x5cu03b1 target\".encode(\"utf-8\")),\n>             ),\n>         )\n>         inside_source = \"prefix \\x5cu03b1 suffix\"\n>         assert_matches(\n>             inside_source,\n>             located(\n>                 1,\n>                 len(\"prefix \".encode(\"utf-8\")),\n>                 1,\n>                 len(\"prefix \\x5cu03b1\".encode(\"utf-8\")),\n>             ),\n>         )\n>     \n>         for newline in (\"\\x5cn\", \"\\x5cr\\x5cn\", \"\\x5cr\"):\n>             source = f\"\\x5cu03b1 prefix{newline}\\x5cu03b2 suffix\"\n>             assert_matches(\n>                 source,\n>                 located(\n>                     1,\n>                     len(\"\\x5cu03b1 \".encode(\"utf-8\")),\n>                     2,\n>                     len(\"\\x5cu03b2\".encode(\"utf-8\")),\n>                 ),\n>             )\n>     \n>         for separator in (\n>             \"\\x5cf\", \"\\x5cx0b\", \"\\x5cx1c\", \"\\x5cx1d\", \"\\x5cx1e\", \"\\x5cx85\", \"\\x5cu2028\", \"\\x5cu2029\",\n>         ):\n>             source = f\"\\x5cu03b1 {separator}\\x5cu03b2\"\n> >           assert_matches(\n>                 source,\n>                 located(\n>                     1,\n>                     len(\"\\x5cu03b1 \".encode(\"utf-8\")),\n>                     1,\n>                     len(source.encode(\"utf-8\")),\n>                 ),\n>             )\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:242: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> source = '\\u03b1 \\x5cx0c\\u03b2', node = <ast.Name object at 0x14668431fcd0>, padded = False\n> \n>     def assert_matches(\n>         source: str, node: ast.AST, *, padded: bool = False,\n>     ) -> None:\n>         lines = P._split_source_lines(source)\n>         try:\n>             expected = ast.get_source_segment(source, node, padded=padded)\n>         except Exception as expected_error:\n>             with pytest.raises(type(expected_error)):\n>                 P._get_source_segment(lines, node, padded=padded)\n>         else:\n> >           assert P._get_source_segment(lines, node, padded=padded) == expected\n> E           AssertionError: assert '\\x5cx0c' == '\\x5cx0c\\u03b2'\n> E             \n> E             Strings contain only whitespace, escaping them using repr()\n> E             - '\\x5cx0c\\u03b2'\n> E             ?      -\n> E             + '\\x5cx0c'\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:203: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3387 retained_bytes=3387 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4413 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4735b5946aa8ec13250fb0cc101051b7a6823f55f1cb4a843ffca1f872e3ee16"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e9d5b44a5c5e37434904d8637d77e447113a203bddaf9ad8bdd24165a322e8e",
+      "duration_s": 32.645,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "hang_risk": false,
+      "id": "M-A2-SPLIT-ON-FORM-FEED",
+      "injection_diff_sha256": "c03afa726e5232ffddec305a30afffcee0f081cbadac29d55dd2bf08a0899849",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "839d6d53fe47b0949f55f94d4a4590a7ae1e8cfd67d83b03b1053a101b499ae3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "        elif character in \"\\r\\f\":\n",
+          "old": "        elif character == \"\\r\":\n"
+        }
+      ],
+      "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+      "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+      "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+      "status": "KILLED",
+      "test_output_sha256": "4735b5946aa8ec13250fb0cc101051b7a6823f55f1cb4a843ffca1f872e3ee16",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/1144b0938f551b2a317ea8aa22e08f97/izdw-1144b0938f.o974406",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/1144b0938f551b2a317ea8aa22e08f97/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [63 items]\n\n...............................................F.......F.......          [100%]\n=================================== FAILURES ===================================\n___________ test_source_segment_helper_matches_stdlib_at_boundaries ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_segment_helper_matches_stdlib_at_boundaries():\n        def located(\n            lineno: int, col_offset: int, end_lineno: int, end_col_offset: int,\n        ) -> ast.Name:\n            node = ast.Name(id=\"synthetic\", ctx=ast.Load())\n            node.lineno = lineno\n            node.col_offset = col_offset\n            node.end_lineno = end_lineno\n            node.end_col_offset = end_col_offset\n            return node\n    \n        def assert_matches(\n            source: str, node: ast.AST, *, padded: bool = False,\n        ) -> None:\n            lines = P._split_source_lines(source)\n            try:\n                expected = ast.get_source_segment(source, node, padded=padded)\n            except Exception as expected_error:\n                with pytest.raises(type(expected_error)):\n                    P._get_source_segment(lines, node, padded=padded)\n            else:\n                assert P._get_source_segment(lines, node, padded=padded) == expected\n    \n        before_source = \"\\u03b1 target suffix\"\n        assert_matches(\n            before_source,\n            located(\n                1,\n                len(\"\\u03b1 \".encode(\"utf-8\")),\n                1,\n                len(\"\\u03b1 target\".encode(\"utf-8\")),\n            ),\n        )\n        inside_source = \"prefix \\u03b1 suffix\"\n        assert_matches(\n            inside_source,\n            located(\n                1,\n                len(\"prefix \".encode(\"utf-8\")),\n                1,\n                len(\"prefix \\u03b1\".encode(\"utf-8\")),\n            ),\n        )\n    \n        for newline in (\"\\n\", \"\\r\\n\", \"\\r\"):\n            source = f\"\\u03b1 prefix{newline}\\u03b2 suffix\"\n>           assert_matches(\n                source,\n                located(\n                    1,\n                    len(\"\\u03b1 \".encode(\"utf-8\")),\n                    2,\n                    len(\"\\u03b2\".encode(\"utf-8\")),\n                ),\n            )\n\norchestrator/tests/test_p3_b4_wiring_probe.py:228: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = 'α prefix\\nβ suffix', node = <ast.Name object at 0x15115e2afc40>\npadded = False\n\n    def assert_matches(\n        source: str, node: ast.AST, *, padded: bool = False,\n    ) -> None:\n        lines = P._split_source_lines(source)\n        try:\n            expected = ast.get_source_segment(source, node, padded=padded)\n        except Exception as expected_error:\n            with pytest.raises(type(expected_error)):\n                P._get_source_segment(lines, node, padded=padded)\n        else:\n>           assert P._get_source_segment(lines, node, padded=padded) == expected\nE           AssertionError: assert 'prefixβ' == 'prefix\\nβ'\nE             \nE             - prefix\nE             ?       ^\nE             + prefixβ\nE             ?       ^\nE             - β\n\norchestrator/tests/test_p3_b4_wiring_probe.py:203: AssertionError\n_________ test_source_segment_helper_matches_stdlib_for_all_static_ifs _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154df9569c00>\n\n    def test_source_segment_helper_matches_stdlib_for_all_static_ifs(monkeypatch):\n        static = P._load_static_modules()\n        assert len(static) == 45\n    \n        stdlib_splitter = ast._splitlines_no_ff\n        reference_cache: dict[str, list[str]] = {}\n    \n        def cached_stdlib_splitter(source: str) -> list[str]:\n            if source not in reference_cache:\n                reference_cache[source] = stdlib_splitter(source)\n            return reference_cache[source]\n    \n        monkeypatch.setattr(ast, \"_splitlines_no_ff\", cached_stdlib_splitter)\n        compared = 0\n        for module in sorted(static.values(), key=lambda value: value.relative_path):\n            lines = P._split_source_lines(module.source)\n            for node in ast.walk(module.tree):\n                if not isinstance(node, ast.If):\n                    continue\n                actual = P._get_source_segment(lines, node.test)\n                expected = ast.get_source_segment(module.source, node.test)\n>               assert actual == expected, (\n                    f\"source segment mismatch: {module.relative_path}:\"\n                    f\"{node.test.lineno}\"\n                )\nE               AssertionError: source segment mismatch: orchestrator/campaign/artifact_admission.py:530\nE               assert 'type(authori...\",\\n        }' == 'type(authori...\",\\n        }'\nE                 \nE                 + type(authority) is not dict        or set(authority) != _AUTHORITY_KEYS\nE                 - type(authority) is not dict\nE                 -         or set(authority) != _AUTHORITY_KEYS\nE                           or authority != {\nE                               \"kind\": \"deny-only-admission-overlay\",\nE                               \"ruling_id\": \"T-342+T-343+T-344/s4-ruling/1-C\",\nE                           }\n\norchestrator/tests/test_p3_b4_wiring_probe.py:174: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs\n========================= 2 failed, 61 passed in 9.38s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2948 retained_bytes=2948 omitted_bytes=0 rendered_excerpt_bytes=3186 sha256=9f8cc23ad0321c5454666a3222b7aa975244708489ac3615a81d2c703bd6fd4f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_segment_helper_matches_stdlib_at_boundaries():\n>         def located(\n>             lineno: int, col_offset: int, end_lineno: int, end_col_offset: int,\n>         ) -> ast.Name:\n>             node = ast.Name(id=\"synthetic\", ctx=ast.Load())\n>             node.lineno = lineno\n>             node.col_offset = col_offset\n>             node.end_lineno = end_lineno\n>             node.end_col_offset = end_col_offset\n>             return node\n>     \n>         def assert_matches(\n>             source: str, node: ast.AST, *, padded: bool = False,\n>         ) -> None:\n>             lines = P._split_source_lines(source)\n>             try:\n>                 expected = ast.get_source_segment(source, node, padded=padded)\n>             except Exception as expected_error:\n>                 with pytest.raises(type(expected_error)):\n>                     P._get_source_segment(lines, node, padded=padded)\n>             else:\n>                 assert P._get_source_segment(lines, node, padded=padded) == expected\n>     \n>         before_source = \"\\x5cu03b1 target suffix\"\n>         assert_matches(\n>             before_source,\n>             located(\n>                 1,\n>                 len(\"\\x5cu03b1 \".encode(\"utf-8\")),\n>                 1,\n>                 len(\"\\x5cu03b1 target\".encode(\"utf-8\")),\n>             ),\n>         )\n>         inside_source = \"prefix \\x5cu03b1 suffix\"\n>         assert_matches(\n>             inside_source,\n>             located(\n>                 1,\n>                 len(\"prefix \".encode(\"utf-8\")),\n>                 1,\n>                 len(\"prefix \\x5cu03b1\".encode(\"utf-8\")),\n>             ),\n>         )\n>     \n>         for newline in (\"\\x5cn\", \"\\x5cr\\x5cn\", \"\\x5cr\"):\n>             source = f\"\\x5cu03b1 prefix{newline}\\x5cu03b2 suffix\"\n> >           assert_matches(\n>                 source,\n>                 located(\n>                     1,\n>                     len(\"\\x5cu03b1 \".encode(\"utf-8\")),\n>                     2,\n>                     len(\"\\x5cu03b2\".encode(\"utf-8\")),\n>                 ),\n>             )\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:228: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> source = '\\u03b1 prefix\\x5cn\\u03b2 suffix', node = <ast.Name object at 0x15115e2afc40>\n> padded = False\n> \n>     def assert_matches(\n>         source: str, node: ast.AST, *, padded: bool = False,\n>     ) -> None:\n>         lines = P._split_source_lines(source)\n>         try:\n>             expected = ast.get_source_segment(source, node, padded=padded)\n>         except Exception as expected_error:\n>             with pytest.raises(type(expected_error)):\n>                 P._get_source_segment(lines, node, padded=padded)\n>         else:\n> >           assert P._get_source_segment(lines, node, padded=padded) == expected\n> E           AssertionError: assert 'prefix\\u03b2' == 'prefix\\x5cn\\u03b2'\n> E             \n> E             - prefix\n> E             ?       ^\n> E             + prefix\\u03b2\n> E             ?       ^\n> E             - \\u03b2\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:203: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=2005 retained_bytes=2005 omitted_bytes=0 rendered_excerpt_bytes=2094 sha256=09c213817bc1f67e074b21c27f3c9aea8ac79b9537ce16faeaccc84695e992ad\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154df9569c00>\n> \n>     def test_source_segment_helper_matches_stdlib_for_all_static_ifs(monkeypatch):\n>         static = P._load_static_modules()\n>         assert len(static) == 45\n>     \n>         stdlib_splitter = ast._splitlines_no_ff\n>         reference_cache: dict[str, list[str]] = {}\n>     \n>         def cached_stdlib_splitter(source: str) -> list[str]:\n>             if source not in reference_cache:\n>                 reference_cache[source] = stdlib_splitter(source)\n>             return reference_cache[source]\n>     \n>         monkeypatch.setattr(ast, \"_splitlines_no_ff\", cached_stdlib_splitter)\n>         compared = 0\n>         for module in sorted(static.values(), key=lambda value: value.relative_path):\n>             lines = P._split_source_lines(module.source)\n>             for node in ast.walk(module.tree):\n>                 if not isinstance(node, ast.If):\n>                     continue\n>                 actual = P._get_source_segment(lines, node.test)\n>                 expected = ast.get_source_segment(module.source, node.test)\n> >               assert actual == expected, (\n>                     f\"source segment mismatch: {module.relative_path}:\"\n>                     f\"{node.test.lineno}\"\n>                 )\n> E               AssertionError: source segment mismatch: orchestrator/campaign/artifact_admission.py:530\n> E               assert 'type(authori...\",\\x5cn        }' == 'type(authori...\",\\x5cn        }'\n> E                 \n> E                 + type(authority) is not dict        or set(authority) != _AUTHORITY_KEYS\n> E                 - type(authority) is not dict\n> E                 -         or set(authority) != _AUTHORITY_KEYS\n> E                           or authority != {\n> E                               \"kind\": \"deny-only-admission-overlay\",\n> E                               \"ruling_id\": \"T-342+T-343+T-344/s4-ruling/1-C\",\n> E                           }\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:174: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4953 retained_bytes=4953 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6458 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5bef047af735df771904a4ec95bdb06a1150b8d8eac77ef5d2b78397313560e8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e9d5b44a5c5e37434904d8637d77e447113a203bddaf9ad8bdd24165a322e8e",
+      "duration_s": 32.163,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs"
+      ],
+      "hang_risk": false,
+      "id": "M-A3-MULTILINE-JOIN-DROPS-NEWLINE",
+      "injection_diff_sha256": "b9dce7f271ee0bd6326ad6bd0f7a1bc5ffe840fe3c9907dfac513063101e9386",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7f34af48a687094311bf9f82852afe0d197a4aac29a6bf7a8a4b2083cec5d2b5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "    return \"\".join((first.rstrip(\"\\n\"), *lines[lineno + 1:end_lineno], last))\n",
+          "old": "    return \"\".join((first, *lines[lineno + 1:end_lineno], last))\n"
+        }
+      ],
+      "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+      "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+      "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+      "status": "KILLED",
+      "test_output_sha256": "5bef047af735df771904a4ec95bdb06a1150b8d8eac77ef5d2b78397313560e8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/d333ab539fca16c8a05e41d9e577bb25/izdw-d333ab539f.o974407",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/d333ab539fca16c8a05e41d9e577bb25/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [63 items]\n\n...............................................FF..............          [100%]\n=================================== FAILURES ===================================\n___________ test_analyze_source_preserves_guard_wiring_and_fallback ____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149e6be65ae0>\n\n    def test_analyze_source_preserves_guard_wiring_and_fallback(monkeypatch):\n        module_name = \"orchestrator.campaign.synthetic_guard_wiring\"\n        relative_path = \"orchestrator/campaign/synthetic_guard_wiring.py\"\n        source = textwrap.dedent(\"\"\"\\\n            def target():\n                pass\n            def caller(cond):\n                if cond:\n                    target()\n                else:\n                    target()\n        \"\"\")\n    \n        analyzed = P._analyze_source(module_name, relative_path, source)\n        calls = analyzed.functions[f\"{module_name}.caller\"].calls\n        assert [call.guards for call in calls] == [\n            (\"cond\",),\n            (\"not (cond)\",),\n        ]\n    \n        fallback = \"fallback_guard\"\n        monkeypatch.setattr(P.ast, \"unparse\", lambda _node: fallback)\n        for missing_segment in (None, \"\"):\n            monkeypatch.setattr(\n                P,\n                \"_get_source_segment\",\n                lambda _lines, _node, result=missing_segment: result,\n            )\n            analyzed = P._analyze_source(module_name, relative_path, source)\n            calls = analyzed.functions[f\"{module_name}.caller\"].calls\n>           assert [call.guards for call in calls] == [\n                (fallback,),\n                (f\"not ({fallback})\",),\n            ]\nE           AssertionError: assert [('cond',), ('not (cond)',)] == [('fallback_g...ack_guard)',)]\nE             \nE             At index 0 diff: ('cond',) != ('fallback_guard',)\nE             Use -v to get more diff\n\norchestrator/tests/test_p3_b4_wiring_probe.py:297: AssertionError\n_____________ test_analyze_source_splits_each_module_exactly_once ______________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bcf192dea0>\n\n    def test_analyze_source_splits_each_module_exactly_once(monkeypatch):\n        source = textwrap.dedent(\"\"\"\\\n            def target():\n                pass\n            def first(left, right):\n                if left:\n                    target()\n                if right:\n                    target()\n            def second(left, right):\n                if left:\n                    target()\n                if right:\n                    target()\n        \"\"\")\n        original_splitter = P._split_source_lines\n        original_get_source_segment = P._get_source_segment\n        split_calls = 0\n        split_results: list[list[str]] = []\n        segment_inputs: list[list[str]] = []\n    \n        def split_spy(value: str) -> list[str]:\n            nonlocal split_calls\n            split_calls += 1\n            result = original_splitter(value)\n            split_results.append(result)\n            return result\n    \n        def segment_spy(\n            lines: list[str], node: ast.AST, *, padded: bool = False,\n        ) -> str | None:\n            segment_inputs.append(lines)\n            return original_get_source_segment(lines, node, padded=padded)\n    \n        monkeypatch.setattr(P, \"_split_source_lines\", split_spy)\n        monkeypatch.setattr(P, \"_get_source_segment\", segment_spy)\n        analyzed = P._analyze_source(\n            \"orchestrator.campaign.synthetic_split_count\",\n            \"orchestrator/campaign/synthetic_split_count.py\",\n            source,\n        )\n        assert len(analyzed.functions) == 3\n        assert sum(\n            isinstance(node, ast.If) for node in ast.walk(analyzed.tree)\n        ) == 4\n>       assert split_calls == 1\nE       assert 0 == 1\n\norchestrator/tests/test_p3_b4_wiring_probe.py:348: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once\n=================== 2 failed, 61 passed in 61.37s (0:01:01) ====================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1874 retained_bytes=1874 omitted_bytes=0 rendered_excerpt_bytes=1984 sha256=5dcc0b63d0a34b6192b2380bea2b35bb408737cee98fa9d05a5c3f4217060cba\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bcf192dea0>\n> \n>     def test_analyze_source_splits_each_module_exactly_once(monkeypatch):\n>         source = textwrap.dedent(\"\"\"\\x5c\n>             def target():\n>                 pass\n>             def first(left, right):\n>                 if left:\n>                     target()\n>                 if right:\n>                     target()\n>             def second(left, right):\n>                 if left:\n>                     target()\n>                 if right:\n>                     target()\n>         \"\"\")\n>         original_splitter = P._split_source_lines\n>         original_get_source_segment = P._get_source_segment\n>         split_calls = 0\n>         split_results: list[list[str]] = []\n>         segment_inputs: list[list[str]] = []\n>     \n>         def split_spy(value: str) -> list[str]:\n>             nonlocal split_calls\n>             split_calls += 1\n>             result = original_splitter(value)\n>             split_results.append(result)\n>             return result\n>     \n>         def segment_spy(\n>             lines: list[str], node: ast.AST, *, padded: bool = False,\n>         ) -> str | None:\n>             segment_inputs.append(lines)\n>             return original_get_source_segment(lines, node, padded=padded)\n>     \n>         monkeypatch.setattr(P, \"_split_source_lines\", split_spy)\n>         monkeypatch.setattr(P, \"_get_source_segment\", segment_spy)\n>         analyzed = P._analyze_source(\n>             \"orchestrator.campaign.synthetic_split_count\",\n>             \"orchestrator/campaign/synthetic_split_count.py\",\n>             source,\n>         )\n>         assert len(analyzed.functions) == 3\n>         assert sum(\n>             isinstance(node, ast.If) for node in ast.walk(analyzed.tree)\n>         ) == 4\n> >       assert split_calls == 1\n> E       assert 0 == 1\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:348: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1729 retained_bytes=1729 omitted_bytes=0 rendered_excerpt_bytes=1821 sha256=dcf826d4a4b548db9bff5046f6564c81340d415af1814540316cf57964d84b07\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149e6be65ae0>\n> \n>     def test_analyze_source_preserves_guard_wiring_and_fallback(monkeypatch):\n>         module_name = \"orchestrator.campaign.synthetic_guard_wiring\"\n>         relative_path = \"orchestrator/campaign/synthetic_guard_wiring.py\"\n>         source = textwrap.dedent(\"\"\"\\x5c\n>             def target():\n>                 pass\n>             def caller(cond):\n>                 if cond:\n>                     target()\n>                 else:\n>                     target()\n>         \"\"\")\n>     \n>         analyzed = P._analyze_source(module_name, relative_path, source)\n>         calls = analyzed.functions[f\"{module_name}.caller\"].calls\n>         assert [call.guards for call in calls] == [\n>             (\"cond\",),\n>             (\"not (cond)\",),\n>         ]\n>     \n>         fallback = \"fallback_guard\"\n>         monkeypatch.setattr(P.ast, \"unparse\", lambda _node: fallback)\n>         for missing_segment in (None, \"\"):\n>             monkeypatch.setattr(\n>                 P,\n>                 \"_get_source_segment\",\n>                 lambda _lines, _node, result=missing_segment: result,\n>             )\n>             analyzed = P._analyze_source(module_name, relative_path, source)\n>             calls = analyzed.functions[f\"{module_name}.caller\"].calls\n> >           assert [call.guards for call in calls] == [\n>                 (fallback,),\n>                 (f\"not ({fallback})\",),\n>             ]\n> E           AssertionError: assert [('cond',), ('not (cond)',)] == [('fallback_g...ack_guard)',)]\n> E             \n> E             At index 0 diff: ('cond',) != ('fallback_guard',)\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:297: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3603 retained_bytes=3603 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4973 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "396b79d0368352b67e6b6182dd534a864369502bb6403be740eb49200b41fd93"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e9d5b44a5c5e37434904d8637d77e447113a203bddaf9ad8bdd24165a322e8e",
+      "duration_s": 83.305,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+      ],
+      "hang_risk": false,
+      "id": "M-A4-ANALYZE-REVERTS-TO-STDLIB-PER-IF",
+      "injection_diff_sha256": "0cf9acd0c657aceb816666fc738b4738af2707bafbd98c8118e758fa82c361d2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "441aa9b6ea77e7a51396c0f38874fea049fe33a3debb3dcaaebf2d9299f49fc6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "    source_lines = source\n",
+          "old": "    source_lines = _split_source_lines(source)\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "        guard = ast.get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n",
+          "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n"
+        }
+      ],
+      "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+      "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+      "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+      "status": "KILLED",
+      "test_output_sha256": "396b79d0368352b67e6b6182dd534a864369502bb6403be740eb49200b41fd93",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/ff41565e2042523edee103af738d5837/izdw-ff41565e20.o974411",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/ff41565e2042523edee103af738d5837/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [63 items]\n\n................................................F..............          [100%]\n=================================== FAILURES ===================================\n_____________ test_analyze_source_splits_each_module_exactly_once ______________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ef6d535e40>\n\n    def test_analyze_source_splits_each_module_exactly_once(monkeypatch):\n        source = textwrap.dedent(\"\"\"\\\n            def target():\n                pass\n            def first(left, right):\n                if left:\n                    target()\n                if right:\n                    target()\n            def second(left, right):\n                if left:\n                    target()\n                if right:\n                    target()\n        \"\"\")\n        original_splitter = P._split_source_lines\n        original_get_source_segment = P._get_source_segment\n        split_calls = 0\n        split_results: list[list[str]] = []\n        segment_inputs: list[list[str]] = []\n    \n        def split_spy(value: str) -> list[str]:\n            nonlocal split_calls\n            split_calls += 1\n            result = original_splitter(value)\n            split_results.append(result)\n            return result\n    \n        def segment_spy(\n            lines: list[str], node: ast.AST, *, padded: bool = False,\n        ) -> str | None:\n            segment_inputs.append(lines)\n            return original_get_source_segment(lines, node, padded=padded)\n    \n        monkeypatch.setattr(P, \"_split_source_lines\", split_spy)\n        monkeypatch.setattr(P, \"_get_source_segment\", segment_spy)\n        analyzed = P._analyze_source(\n            \"orchestrator.campaign.synthetic_split_count\",\n            \"orchestrator/campaign/synthetic_split_count.py\",\n            source,\n        )\n        assert len(analyzed.functions) == 3\n        assert sum(\n            isinstance(node, ast.If) for node in ast.walk(analyzed.tree)\n        ) == 4\n>       assert split_calls == 1\nE       assert 5 == 1\n\norchestrator/tests/test_p3_b4_wiring_probe.py:348: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once\n======================== 1 failed, 62 passed in 54.59s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1874 retained_bytes=1874 omitted_bytes=0 rendered_excerpt_bytes=1984 sha256=caa245ea55ab1744240685f03da289db8cd8f506c242825c6f601ff7d5e9edf2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ef6d535e40>\n> \n>     def test_analyze_source_splits_each_module_exactly_once(monkeypatch):\n>         source = textwrap.dedent(\"\"\"\\x5c\n>             def target():\n>                 pass\n>             def first(left, right):\n>                 if left:\n>                     target()\n>                 if right:\n>                     target()\n>             def second(left, right):\n>                 if left:\n>                     target()\n>                 if right:\n>                     target()\n>         \"\"\")\n>         original_splitter = P._split_source_lines\n>         original_get_source_segment = P._get_source_segment\n>         split_calls = 0\n>         split_results: list[list[str]] = []\n>         segment_inputs: list[list[str]] = []\n>     \n>         def split_spy(value: str) -> list[str]:\n>             nonlocal split_calls\n>             split_calls += 1\n>             result = original_splitter(value)\n>             split_results.append(result)\n>             return result\n>     \n>         def segment_spy(\n>             lines: list[str], node: ast.AST, *, padded: bool = False,\n>         ) -> str | None:\n>             segment_inputs.append(lines)\n>             return original_get_source_segment(lines, node, padded=padded)\n>     \n>         monkeypatch.setattr(P, \"_split_source_lines\", split_spy)\n>         monkeypatch.setattr(P, \"_get_source_segment\", segment_spy)\n>         analyzed = P._analyze_source(\n>             \"orchestrator.campaign.synthetic_split_count\",\n>             \"orchestrator/campaign/synthetic_split_count.py\",\n>             source,\n>         )\n>         assert len(analyzed.functions) == 3\n>         assert sum(\n>             isinstance(node, ast.If) for node in ast.walk(analyzed.tree)\n>         ) == 4\n> >       assert split_calls == 1\n> E       assert 5 == 1\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:348: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1874 retained_bytes=1874 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2709 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9c45dfbdf5bc8049d774a6a48a6514833aa745b8e85389bbe050f7495125ac08"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e9d5b44a5c5e37434904d8637d77e447113a203bddaf9ad8bdd24165a322e8e",
+      "duration_s": 78.398,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+      ],
+      "hang_risk": false,
+      "id": "M-A5-SPLIT-PER-IF-NOT-PER-MODULE",
+      "injection_diff_sha256": "f8435016f1c0a916a0b936da54ba922ed74cc29be454d5c996bd9e561ed93eb5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5e692290be2486a3c955cd7c27169686435378bc7fc247ec6bbc583aa2de7e26",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "        guard = _get_source_segment(_split_source_lines(\"\".join(self.source_lines)), node.test) or ast.unparse(node.test)\n",
+          "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n"
+        }
+      ],
+      "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+      "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+      "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+      "status": "KILLED",
+      "test_output_sha256": "9c45dfbdf5bc8049d774a6a48a6514833aa745b8e85389bbe050f7495125ac08",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/eb462963bc6284f22d329caa439ec1cc/izdw-eb462963bc.o974415",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/eb462963bc6284f22d329caa439ec1cc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [63 items]\n\n....................................F..........................          [100%]\n=================================== FAILURES ===================================\n___________ test_analyze_source_preserves_guard_wiring_and_fallback ____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14af1aa52260>\n\n    def test_analyze_source_preserves_guard_wiring_and_fallback(monkeypatch):\n        module_name = \"orchestrator.campaign.synthetic_guard_wiring\"\n        relative_path = \"orchestrator/campaign/synthetic_guard_wiring.py\"\n        source = textwrap.dedent(\"\"\"\\\n            def target():\n                pass\n            def caller(cond):\n                if cond:\n                    target()\n                else:\n                    target()\n        \"\"\")\n    \n        analyzed = P._analyze_source(module_name, relative_path, source)\n        calls = analyzed.functions[f\"{module_name}.caller\"].calls\n        assert [call.guards for call in calls] == [\n            (\"cond\",),\n            (\"not (cond)\",),\n        ]\n    \n        fallback = \"fallback_guard\"\n        monkeypatch.setattr(P.ast, \"unparse\", lambda _node: fallback)\n        for missing_segment in (None, \"\"):\n            monkeypatch.setattr(\n                P,\n                \"_get_source_segment\",\n                lambda _lines, _node, result=missing_segment: result,\n            )\n            analyzed = P._analyze_source(module_name, relative_path, source)\n            calls = analyzed.functions[f\"{module_name}.caller\"].calls\n>           assert [call.guards for call in calls] == [\n                (fallback,),\n                (f\"not ({fallback})\",),\n            ]\nE           AssertionError: assert [('',), ('not ()',)] == [('fallback_g...ack_guard)',)]\nE             \nE             At index 0 diff: ('',) != ('fallback_guard',)\nE             Use -v to get more diff\n\norchestrator/tests/test_p3_b4_wiring_probe.py:297: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback\n======================== 1 failed, 62 passed in 12.88s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1717 retained_bytes=1717 omitted_bytes=0 rendered_excerpt_bytes=1809 sha256=70d85011b176311247d4c2403aaa8717a1d95700aa33c983532b47071c8bd803\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14af1aa52260>\n> \n>     def test_analyze_source_preserves_guard_wiring_and_fallback(monkeypatch):\n>         module_name = \"orchestrator.campaign.synthetic_guard_wiring\"\n>         relative_path = \"orchestrator/campaign/synthetic_guard_wiring.py\"\n>         source = textwrap.dedent(\"\"\"\\x5c\n>             def target():\n>                 pass\n>             def caller(cond):\n>                 if cond:\n>                     target()\n>                 else:\n>                     target()\n>         \"\"\")\n>     \n>         analyzed = P._analyze_source(module_name, relative_path, source)\n>         calls = analyzed.functions[f\"{module_name}.caller\"].calls\n>         assert [call.guards for call in calls] == [\n>             (\"cond\",),\n>             (\"not (cond)\",),\n>         ]\n>     \n>         fallback = \"fallback_guard\"\n>         monkeypatch.setattr(P.ast, \"unparse\", lambda _node: fallback)\n>         for missing_segment in (None, \"\"):\n>             monkeypatch.setattr(\n>                 P,\n>                 \"_get_source_segment\",\n>                 lambda _lines, _node, result=missing_segment: result,\n>             )\n>             analyzed = P._analyze_source(module_name, relative_path, source)\n>             calls = analyzed.functions[f\"{module_name}.caller\"].calls\n> >           assert [call.guards for call in calls] == [\n>                 (fallback,),\n>                 (f\"not ({fallback})\",),\n>             ]\n> E           AssertionError: assert [('',), ('not ()',)] == [('fallback_g...ack_guard)',)]\n> E             \n> E             At index 0 diff: ('',) != ('fallback_guard',)\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_wiring_probe.py:297: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1717 retained_bytes=1717 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2539 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bdcb761830b538e17ff71baff31b8b02784232afaad3dbc3963f5f571343cd50"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8e9d5b44a5c5e37434904d8637d77e447113a203bddaf9ad8bdd24165a322e8e",
+      "duration_s": 39.708,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback"
+      ],
+      "hang_risk": false,
+      "id": "M-A6-FALLBACK-DROPPED",
+      "injection_diff_sha256": "255998f4cc9e607df1c91da2cc43bd33f00eaa7bd4179c4dfab2d156c2163eb2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2f1a95c943827b1bd6f1f144e1f4de5e905bd2889075f993c016c5a2457c699b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "        guard = _get_source_segment(self.source_lines, node.test) or \"\"\n",
+          "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n"
+        }
+      ],
+      "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+      "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+      "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+      "status": "KILLED",
+      "test_output_sha256": "bdcb761830b538e17ff71baff31b8b02784232afaad3dbc3963f5f571343cd50",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/41d147d12acccbd1e616e72b86f504a8/izdw-41d147d12a.o974390",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/output/pegasus-dispatch/41d147d12acccbd1e616e72b86f504a8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries\norchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback\norchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_mapping_matches_runtime_import_targets\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib\\nfrom . import p3_s4_loop as L-loader = importlib.import_module\\n    loader(name)-dynamic import]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys\\nfrom . import p3_s4_loop as L-mods = sys.modules\\n    mods[name].make_critic_digest()-sys.modules callable]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr\\n    getter(L, name)()-non-literal getattr]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()\\n    target()-unresolved local assignment]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\natexit.register(lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\ndef helper():\\n    atexit.register(lambda: None)\\nhelper()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\n@atexit.register\\ndef cleanup():\\n    pass]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal\\nsignal.signal(signal.SIGTERM, lambda *_: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref\\nweakref.finalize(object(), lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading\\nthreading.Thread().start()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import\norchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate\norchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived\norchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent\norchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site\norchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception\norchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields\norchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked\norchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes\n\n63 tests collected in 0.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "747dc40a3694213e94ca4fb3f7d40cfb5f119db3616b6fed70bb376ac0a125e0"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_mapping_matches_runtime_import_targets",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib/nfrom . import p3_s4_loop as L-loader = importlib.import_module/n    loader(name)-dynamic import]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys/nfrom . import p3_s4_loop as L-mods = sys.modules/n    mods[name].make_critic_digest()-sys.modules callable]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr/n    getter(L, name)()-non-literal getattr]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()/n    target()-unresolved local assignment]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/natexit.register(lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/ndef helper():/n    atexit.register(lambda: None)/nhelper()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/n@atexit.register/ndef cleanup():/n    pass]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal/nsignal.signal(signal.SIGTERM, lambda *_: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref/nweakref.finalize(object(), lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading/nthreading.Thread().start()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+      ],
+      "duration_s": 22.03,
+      "rc": 0,
+      "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+      "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+      "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+      "status": "PASSED",
+      "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M-A1-CHAR-SLICE-NOT-BYTE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3b563f173f29284d723f003bfbd380f616fd41e5ed35b124dffb3273e5e4f913",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "        return lines[lineno][col_offset:end_col_offset]\n",
+            "old": "        return lines[lineno].encode(\"utf-8\")[\n            col_offset:end_col_offset\n        ].decode(\"utf-8\")\n"
+          }
+        ]
+      },
+      "M-A2-SPLIT-ON-FORM-FEED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c03afa726e5232ffddec305a30afffcee0f081cbadac29d55dd2bf08a0899849",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "        elif character in \"\\r\\f\":\n",
+            "old": "        elif character == \"\\r\":\n"
+          }
+        ]
+      },
+      "M-A3-MULTILINE-JOIN-DROPS-NEWLINE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs",
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b9dce7f271ee0bd6326ad6bd0f7a1bc5ffe840fe3c9907dfac513063101e9386",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "    return \"\".join((first.rstrip(\"\\n\"), *lines[lineno + 1:end_lineno], last))\n",
+            "old": "    return \"\".join((first, *lines[lineno + 1:end_lineno], last))\n"
+          }
+        ]
+      },
+      "M-A4-ANALYZE-REVERTS-TO-STDLIB-PER-IF": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback",
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0cf9acd0c657aceb816666fc738b4738af2707bafbd98c8118e758fa82c361d2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "    source_lines = source\n",
+            "old": "    source_lines = _split_source_lines(source)\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "        guard = ast.get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n",
+            "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n"
+          }
+        ]
+      },
+      "M-A5-SPLIT-PER-IF-NOT-PER-MODULE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f8435016f1c0a916a0b936da54ba922ed74cc29be454d5c996bd9e561ed93eb5",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "        guard = _get_source_segment(_split_source_lines(\"\".join(self.source_lines)), node.test) or ast.unparse(node.test)\n",
+            "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n"
+          }
+        ]
+      },
+      "M-A6-FALLBACK-DROPPED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "255998f4cc9e607df1c91da2cc43bd33f00eaa7bd4179c4dfab2d156c2163eb2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "        guard = _get_source_segment(self.source_lines, node.test) or \"\"\n",
+            "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "bd3c3a94b6719c66440fc1cc8977844df090bd8a8d4b7eefb0c7abc0bff38666",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "ca8b14c61bb6fb0cda9e351f45d021c5af883390",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "73e51b76f6e7b4a85bf35d56f0d990333299b5c4",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "47d01321a8daf66e68d252e26a9c95fe15a67caf54c4d83cda3935916a70ee60",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f8e51777e56dcd3e36397191306ffa374b1d199066ee25c8f7cd071df8891e3a",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-quadratic-ast/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "84a431f9d0456a8423432947b9c76800f15b0dcf0d7890ed31bd76a886ad9b1c",
+  "updated_at": "2026-09-03T12:35:41.318321+00:00"
+}

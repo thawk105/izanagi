@@ -719,15 +719,69 @@ def _resolve_expr(
     return None
 
 
+def _split_source_lines(source: str) -> list[str]:
+    """Split CR/LF source for use only with valid nodes from ``ast.parse``."""
+    lines: list[str] = []
+    start = 0
+    index = 0
+    while index < len(source):
+        character = source[index]
+        if character == "\n":
+            index += 1
+            lines.append(source[start:index])
+            start = index
+        elif character == "\r":
+            index += 1
+            if index < len(source) and source[index] == "\n":
+                index += 1
+            lines.append(source[start:index])
+            start = index
+        else:
+            index += 1
+    if start < len(source):
+        lines.append(source[start:])
+    return lines
+
+
+def _get_source_segment(
+    lines: Sequence[str], node: ast.AST, *, padded: bool = False,
+) -> str | None:
+    """Return text only for a valid location-bearing node from ``ast.parse``."""
+    lineno = getattr(node, "lineno", None)
+    col_offset = getattr(node, "col_offset", None)
+    end_lineno = getattr(node, "end_lineno", None)
+    end_col_offset = getattr(node, "end_col_offset", None)
+    if None in (lineno, col_offset, end_lineno, end_col_offset):
+        return None
+
+    lineno -= 1
+    end_lineno -= 1
+    if lineno == end_lineno:
+        return lines[lineno].encode("utf-8")[
+            col_offset:end_col_offset
+        ].decode("utf-8")
+
+    padding = ""
+    if padded:
+        prefix = lines[lineno].encode("utf-8")[:col_offset].decode("utf-8")
+        padding = "".join(
+            character if character in "\t\f" else " "
+            for character in prefix
+        )
+    first = padding + lines[lineno].encode("utf-8")[col_offset:].decode("utf-8")
+    last = lines[end_lineno].encode("utf-8")[:end_col_offset].decode("utf-8")
+    return "".join((first, *lines[lineno + 1:end_lineno], last))
+
+
 class _FunctionCallVisitor(ast.NodeVisitor):
     def __init__(
         self,
-        source: str,
+        source_lines: Sequence[str],
         bindings: Mapping[str, str],
         module_name: str,
         local_functions: frozenset[str],
     ):
-        self.source = source
+        self.source_lines = source_lines
         self.bindings = bindings
         self.module_name = module_name
         self.local_functions = local_functions
@@ -747,7 +801,7 @@ class _FunctionCallVisitor(ast.NodeVisitor):
         return
 
     def visit_If(self, node: ast.If) -> None:
-        guard = ast.get_source_segment(self.source, node.test) or ast.unparse(node.test)
+        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)
         self.guards.append(guard.strip())
         for child in node.body:
             self.visit(child)
@@ -831,6 +885,7 @@ def _analyze_source(module_name: str, relative_path: str, source: str) -> _Stati
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as exc:
         raise StaticInventoryError(f"cannot parse {relative_path}: {exc}") from exc
+    source_lines = _split_source_lines(source)
     bindings, module_issues = _import_bindings(module_name, tree)
     defs = {
         node.name: node
@@ -851,7 +906,10 @@ def _analyze_source(module_name: str, relative_path: str, source: str) -> _Stati
         if node.args.kwarg is not None:
             parameters[node.args.kwarg.arg] = f"parameter.{node.args.kwarg.arg}"
         visitor = _FunctionCallVisitor(
-            source, {**bindings, **parameters}, module_name, local_functions,
+            source_lines,
+            {**bindings, **parameters},
+            module_name,
+            local_functions,
         )
         for child in node.body:
             visitor.visit(child)
