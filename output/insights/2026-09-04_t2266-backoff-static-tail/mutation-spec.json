@@ -1,0 +1,158 @@
+{
+  "estimated_run_seconds": 300,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-DROP-750",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "T2266_REALIZED_US = (150, 200, 300, 500, 999)\n",
+          "old": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 999)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-REALIZED-1000",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 1000)\n",
+          "old": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 999)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-SHELL-DEFAULT-FLIP",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "new": "B10_RUN_KIND=${B10_RUN_KIND:-t2266-tail}\n",
+          "old": "B10_RUN_KIND=${B10_RUN_KIND:-extended}\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-COMPLETION-DROPS-RUN-KIND",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "new": "    \"workload\": workload,\n    \"pbs_jobid\": job,\n",
+          "old": "    \"run_kind\": run_kind,\n    \"workload\": workload,\n    \"pbs_jobid\": job,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-ABORT-REPRESENTATIVE-DUPLICATION",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "            for rep, (throughput, abort_rate) in enumerate(zip(\n                throughputs, [abort_rates[0]] * len(throughputs),\n            ))\n",
+          "old": "            for rep, (throughput, abort_rate) in enumerate(zip(\n                throughputs, abort_rates,\n            ))\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-ABORT-CARDINALITY-GATE-REMOVED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "        if False:\n            raise RuntimeError(\n                \"T-2266 rep capture requires exactly one abort parser call \"\n                \"per throughput rep, in rep order\"\n            )\n",
+          "old": "        if len(abort_rates) != len(throughputs):\n            raise RuntimeError(\n                \"T-2266 rep capture requires exactly one abort parser call \"\n                \"per throughput rep, in rep order\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-DISTINCT-BINARY-GATE-REMOVED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "        if False:\n            raise RuntimeError(\n                \"distinct T-2266 genomes produced the same binary: \"\n                f\"{previous} and {canonical} (sha256={sha256})\"\n            )\n",
+          "old": "        if previous != canonical:\n            raise RuntimeError(\n                \"distinct T-2266 genomes produced the same binary: \"\n                f\"{previous} and {canonical} (sha256={sha256})\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-PERFORMANCE-CERTIFIED-TRUE",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "            \"performance_certified\": True,\n            \"certified\": True,\n",
+          "old": "            \"performance_certified\": False,\n            \"certified\": False,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T2266-EXTENDED-GRID-ENDPOINT",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "    150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 999,\n",
+          "old": "    150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 1000,\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 3600
+}

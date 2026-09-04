@@ -27,14 +27,16 @@ OUTPUT_ROOT=""
 OUTPUT_ROOT_READY=0
 CCBENCH_BASE=""
 CCBENCH_WORKTREE=""
+B10_RUN_KIND=${B10_RUN_KIND:-extended}
 
 write_failure_receipt() {
   local rc=$1
   local line=$2
   [[ -n "$PY" && -n "$OUTPUT_ROOT" && "$OUTPUT_ROOT_READY" -eq 1 ]] || return 0
-  "$PY" -I -B - "$OUTPUT_ROOT" "$rc" "$CURRENT_STAGE" "$line" "${PBS_JOBID:-}" <<'PY' || true
+  "$PY" -I -B - "$OUTPUT_ROOT" "$rc" "$CURRENT_STAGE" "$line" \
+    "${PBS_JOBID:-}" "$B10_RUN_KIND" <<'PY' || true
 import hashlib, json, os, pathlib, sys
-root, rc, stage, line, job = sys.argv[1:]
+root, rc, stage, line, job, run_kind = sys.argv[1:]
 path = pathlib.Path(root + ".failure.json")
 base = pathlib.Path(root)
 wal_receipts = []
@@ -111,6 +113,7 @@ for candidate in sorted(base.glob("b10-backoff-grid-*.json")):
         })
 document = {
     "schema_version": "b10-backoff-grid-job-failure/v1",
+    "run_kind": run_kind,
     "returncode": int(rc),
     "stage": stage,
     "line": int(line),
@@ -179,6 +182,11 @@ cleanup_worktree() {
   exit "$original_rc"
 }
 trap cleanup_worktree EXIT
+
+case "$B10_RUN_KIND" in
+  extended|t2266-tail) ;;
+  *) fail 2 "B10_RUN_KIND must be extended or t2266-tail" ;;
+esac
 
 [[ -n "${PBS_JOBID:-}" && -n "${PBS_NODEFILE:-}" \
   && -n "${PBS_O_WORKDIR:-}" && -n "${B10_SUBMISSION_NONCE:-}" \
@@ -383,9 +391,9 @@ export IZANAGI_RESERVATION_SCRIPT_SHA256="$COMMITTED_SCRIPT_SHA256"
 export IZANAGI_RESERVATION_NONCE="$B10_SUBMISSION_NONCE"
 "$PY" -I -B - "$OUTPUT_ROOT/reservation.json" \
   "$OUTPUT_ROOT/qstat-f.stdout" "$OUTPUT_ROOT/qstat-f.stderr" \
-  "$CURRENT_COMMIT" "$CCBENCH_EXPECTED_COMMIT" <<'PY'
+  "$CURRENT_COMMIT" "$CCBENCH_EXPECTED_COMMIT" "$B10_RUN_KIND" <<'PY'
 import hashlib, json, os, pathlib, sys
-destination, stdout_path, stderr_path, repo_commit, ccbench_commit = sys.argv[1:]
+destination, stdout_path, stderr_path, repo_commit, ccbench_commit, run_kind = sys.argv[1:]
 keys = (
     "JOB_ID", "REQUESTED_S", "SCHEDULER_STARTED_EPOCH", "DEADLINE_EPOCH",
     "HOST", "BOOT_ID", "SCRIPT_SHA256", "NONCE",
@@ -400,6 +408,7 @@ def evidence(path):
     return {"filename": pathlib.Path(path).name, "sha256": hashlib.sha256(raw).hexdigest()}
 document = {
     "schema_version": "b10-backoff-grid-reservation/v1",
+    "run_kind": run_kind,
     "binding": binding,
     "source_binding": {
         "repository_commit": repo_commit,
@@ -567,24 +576,34 @@ PY
 FREEZE_BEFORE=$(freeze_digest)
 [[ "$FREEZE_BEFORE" == "$EXPECTED_FREEZE_TREES_SHA256" ]] || \
   fail 2 "freeze trees do not match the B-10 preregistered bytes"
-CURRENT_STAGE=extended_sweep
-timeout "$SWEEP_CAP_S" "$PY" -I -B \
+if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then
+  CURRENT_STAGE=t2266_tail_sweep
+else
+  CURRENT_STAGE=extended_sweep
+fi
+SWEEP_COMMAND=("$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py" \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
   --cache-root "$B10_BUILD_CACHE_ROOT" \
-  --ccbench-dir "$CCBENCH_WORKTREE"
+  --ccbench-dir "$CCBENCH_WORKTREE")
+if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then
+  SWEEP_COMMAND+=(--run-kind "$B10_RUN_KIND")
+fi
+timeout "$SWEEP_CAP_S" "${SWEEP_COMMAND[@]}"
 
-CURRENT_STAGE=add_analysis
-timeout "$AA_CAP_S" "$PY" -I -B \
-  "$REPO_ROOT/orchestrator/campaign/backoff_overthrottle.py" \
-  "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
-  --cache-root "$B10_BUILD_CACHE_ROOT" \
-  --ccbench-dir "$CCBENCH_WORKTREE"
+if [[ "$B10_RUN_KIND" == "extended" ]]; then
+  CURRENT_STAGE=add_analysis
+  timeout "$AA_CAP_S" "$PY" -I -B \
+    "$REPO_ROOT/orchestrator/campaign/backoff_overthrottle.py" \
+    "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
+    --cache-root "$B10_BUILD_CACHE_ROOT" \
+    --ccbench-dir "$CCBENCH_WORKTREE"
 
-CURRENT_STAGE=report
-timeout "$REPORT_CAP_S" "$PY" -I -B \
-  "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py" \
-  "$WORKLOAD" --output-root "$OUTPUT_ROOT" --defer-plot
+  CURRENT_STAGE=report
+  timeout "$REPORT_CAP_S" "$PY" -I -B \
+    "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py" \
+    "$WORKLOAD" --output-root "$OUTPUT_ROOT" --defer-plot
+fi
 
 CURRENT_STAGE=ccbench_worktree_cleanup
 remove_ccbench_worktree
@@ -594,19 +613,39 @@ FREEZE_AFTER=$(freeze_digest)
 [[ "$FREEZE_AFTER" == "$EXPECTED_FREEZE_TREES_SHA256" ]] || \
   fail 2 "freeze trees changed during the job"
 timeout "$FINALIZE_CAP_S" "$PY" -I -B - \
-  "$OUTPUT_ROOT" "$WORKLOAD" "$PBS_JOBID" "$FREEZE_AFTER" <<'PY'
+  "$OUTPUT_ROOT" "$WORKLOAD" "$PBS_JOBID" "$FREEZE_AFTER" \
+  "$B10_RUN_KIND" <<'PY'
 import hashlib, json, pathlib, sys
-root, workload, job, freeze_hash = sys.argv[1:]
+root, workload, job, freeze_hash, run_kind = sys.argv[1:]
 base = pathlib.Path(root)
 campaigns = [path for path in (base / "campaigns").iterdir() if path.is_dir()]
 if len(campaigns) != 1:
     raise SystemExit(f"expected exactly one campaign, found {len(campaigns)}")
+if run_kind == "t2266-tail":
+    wal_path = campaigns[0] / "runs" / "wal.jsonl"
+    commits = {
+        parsed.get("variant")
+        for row in wal_path.read_bytes().splitlines()
+        if row
+        for parsed in [json.loads(row)]
+        if parsed.get("stage") == "commit"
+    }
+    if len(commits) != 8 or None in commits:
+        raise SystemExit(f"T-2266 requires eight committed genomes, found {len(commits)}")
+    report_stem = (
+        campaigns[0] / "reports" / f"t2266-backoff-static-tail-{workload}"
+    )
+    for suffix in (".dat", ".json"):
+        report = pathlib.Path(f"{report_stem}{suffix}")
+        if not report.is_file() or report.is_symlink():
+            raise SystemExit(f"T-2266 report artifact is missing: {report.name}")
 artifacts = {}
 for path in sorted(item for item in campaigns[0].rglob("*") if item.is_file()):
     artifacts[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 document = {
     "schema_version": "b10-backoff-grid-job-complete/v1",
     "status": "complete",
+    "run_kind": run_kind,
     "workload": workload,
     "pbs_jobid": job,
     "campaign_id": campaigns[0].name,
