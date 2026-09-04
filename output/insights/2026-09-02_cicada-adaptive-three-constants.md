@@ -1,8 +1,22 @@
 # Cicada adaptive backoff の律速は刻みでなく更新間隔だった — 窓を 4 倍にすると刻みの選択問題が消える
 
-**種別:** CCBench 還元候補 / 探索の妥当性文書。**認証されていない** — trace-disabled の
-性能測定のみで、直列性の検査は行っていない。ここにある値を根拠に variant を採用してはならない
-(規律 2)。正しさの検査は [T-2189] の担当である。
+**種別:** CCBench 還元候補 / 探索の妥当性文書。
+
+**正しさの検査は済んだ。ここに並ぶ性能値そのものは、依然として認証されていない。**
+2 つを混同しないこと。
+
+- **正しさ:** 調整済み定数 (刻み 1 µs / 上限 1000 µs / 更新間隔 2560 µs) は、
+  本文書と同じ workload パラメータ (records 1,000,000 / threads 48 / extime 3 秒 /
+  max_ope 10 / zipf 0.9 / rmw 0、rr5・rr50・rr95 × 独立反復 8、計 24 trace) の下で
+  trace-enabled 走行 24 件すべてが certified serializable となり、anomaly は 0 件だった。
+  検証したトランザクション 1 億 4,590 万、依存グラフの辺 22 億 7,534 万、abort 1 億 8,913 万。
+  詳細・限界・証明面の前提は
+  `2026-09-04_t2189-adaptive-serializability-certification.md`。
+- **性能値:** 下表以下の throughput・比・CI は **trace-disabled の別走行**で得たものであり
+  (絶対規律 1)、直列性の検査を通した値ではない。**認証されたのは正しさだけである。**
+
+したがって「調整済み adaptive が直列化可能性を破っていないこと」は上記の固定条件について
+言えるが、**条件を外した一般化と、性能値が認証されたという読み方はいずれも誤りである。**
 
 ## 発見
 
@@ -203,7 +217,10 @@ python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX <stage3 
 ## 未了
 
 - `Backoff_` 軌跡と勾配符号の的中率の記録 (上記「機序」の直接確認)。
-- 調整後 adaptive に対する正しさの検査 (trace-enabled 走行 + verifier) — [T-2189]。
+- ~~調整後 adaptive に対する正しさの検査 (trace-enabled 走行 + verifier) — [T-2189]。~~
+  **済 (2026-09-04)。** 24 trace すべてで anomaly ゼロ。
+  `2026-09-04_t2189-adaptive-serializability-certification.md`。
+  ただし単一環境 (Pegasus 48 コア) であり、測った条件の外は言えない。
 - 更新間隔 10〜40 µs の間 (窓を広げる効果がどこで立ち上がるか) は未測定。
   本測定の間隔格子は等比 4 倍刻みで、10 と 40 の間に点が無い。
 - 上限の小さい側 (50 µs 未満) は未測定。効果が CI 以下なので優先度は低い。

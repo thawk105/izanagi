@@ -2809,13 +2809,13 @@ _PEGASUS_EXPECTED_ENTRIES = {
     },
     "tools/pegasus/probes/t2187_adaptive_const_probe.pbs": {
         "class": "dispatch-required",
-        "reason": "PBS Cicada adaptive-backoff constant performance measurement job body",
+        "reason": "PBS Cicada adaptive-backoff performance measurement and correctness certification job body",
         "primary_gate": "PBS allocation and job-body compute-host validation",
         "evidence": "static job-body classification"
     },
     "tools/pegasus/probes/t2187_adaptive_const_probe.py": {
         "class": "dispatch-required",
-        "reason": "compute-side Cicada adaptive-backoff constant performance measurement driver",
+        "reason": "compute-side Cicada adaptive-backoff performance measurement and correctness certification driver",
         "primary_gate": "compute allocation owned by t2187_adaptive_const_probe.pbs",
         "evidence": "static compute-side call-site classification"
     },
