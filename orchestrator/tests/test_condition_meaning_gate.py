@@ -28,6 +28,7 @@ _F707 = _FIXTURES / "f707-missing-supply"
 _IGNORED = _FIXTURES / "effectuation-ignored"
 _PATCH = _ROOT / "patches" / "silo-backoff-fixed.patch"
 _COMPILE_TIME_BRANCH_MACROS = (
+    "BACKOFF_NOINLINE",
     "IZANAGI_BREAK_PERMUTATION",
     "IZANAGI_BREAK_PERMUTATION_SWAP",
     "IZANAGI_BREAK_LOCK_COVERAGE",
@@ -220,6 +221,14 @@ def _compile_time_source_root(
     owner_text: str | None = None,
 ) -> Path:
     root = tmp_path / "ccbench"
+    source_rel, _start_directive = G.CONDITIONAL_BRANCH_WITNESSES[macro]
+    owner_rel = G.DEFINE_SPECS[macro].owner_tus[0]
+    if source_rel != owner_rel:
+        assert macro == "BACKOFF_NOINLINE"
+        assert not prefix and not duplicate and not nested and close
+        assert directive is None and owner_text is None
+        shutil.copytree(_SUPPLIED, root)
+        return root
     owner = root / "cc" / "silo" / "transaction.cc"
     owner.parent.mkdir(parents=True)
     if owner_text is None:
@@ -952,14 +961,159 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
         fixture = _compile_time_source_root(tmp_path / macro, macro)
         fixture_directives = [
             line for line in (
-                fixture / "cc" / "silo" / "transaction.cc"
+                fixture / patch_declaration[0]
             ).read_text(encoding="utf-8").splitlines()
-            if line.startswith("#if ")
+            if line == patch_declaration[1]
         ]
         assert fixture_directives == [f"#if {macro}"]
-        assert ("cc/silo/transaction.cc", fixture_directives[0]) \
+        assert (patch_declaration[0], fixture_directives[0]) \
             == patch_declaration
         assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == patch_declaration
+
+
+def test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_NOINLINE")
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=0, default=0,
+    )
+    declaration = G.declare_define_runtime_meaning(request)
+
+    assert type(declaration) is G.ConditionalBranchMeaningDeclaration
+    assert declaration.source_rel == "include/backoff.hh"
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=declaration,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    requested = meaning.evidence["requested"]
+    default = meaning.evidence["default"]
+    assert (requested.define_value, requested.selected_count,
+            requested.completed_count) == ("0", 0, 1)
+    assert (default.define_value, default.selected_count,
+            default.completed_count) == ("1", 1, 1)
+    for observation in (requested, default):
+        assert sum(
+            argument.endswith(request.owner_tu)
+            for argument in observation.preprocess_argv
+        ) == 1
+    G._validate_arm_record_integrity(meaning)
+    requested_argv = tuple(
+        argument.replace("-DBACKOFF_NOINLINE=0", "-DBACKOFF_NOINLINE=<VALUE>")
+        for argument in requested.preprocess_argv
+    )
+    default_argv = tuple(
+        argument.replace("-DBACKOFF_NOINLINE=1", "-DBACKOFF_NOINLINE=<VALUE>")
+        for argument in default.preprocess_argv
+    )
+    assert requested_argv == default_argv
+
+
+def test_backoff_noinline_requested_one_supply_and_meaning_are_green(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_NOINLINE")
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=1, default=0,
+    )
+    cxx = _any_cxx()
+    cmake = _any_cmake()
+
+    with G._configured_define_compile_commands(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    ) as configured_commands:
+        assert configured_commands.requested is not None
+        assert configured_commands.control is not None
+        assert configured_commands.requested.build_root != (
+            configured_commands.control.build_root
+        )
+        supply = G.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        meaning = G.evaluate_define_runtime_meaning(
+            captured,
+            request=request,
+            declaration=G.declare_define_runtime_meaning(request),
+            cxx=cxx,
+            cmake=cmake,
+            configured_commands=configured_commands,
+        )
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    assert meaning.evidence["requested"].define_value == "1"
+    assert meaning.evidence["default"].define_value == "0"
+    assert admission.admitted is True
+
+
+def test_header_shadow_preserves_directory_symlinks_and_git_link(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path / "source", "BACKOFF_NOINLINE")
+    (root / ".git").mkdir()
+    (root / "linked-target").mkdir()
+    (root / "linked-target" / ".git").mkdir()
+    (root / "linked-directory").symlink_to(
+        root / "linked-target", target_is_directory=True,
+    )
+    shadow = tmp_path / "shadow"
+    owner = G._write_shadow_owner_source(
+        root,
+        "include/backoff.hh",
+        "#if BACKOFF_NOINLINE\n#endif\n",
+        shadow,
+        owner_tu="cc/silo/transaction.cc",
+    )
+
+    assert owner == shadow / "cc" / "silo" / "transaction.cc"
+    assert owner.is_symlink()
+    assert (shadow / "include").is_dir()
+    assert not (shadow / "include").is_symlink()
+    assert not (shadow / "include" / "backoff.hh").is_symlink()
+    assert (shadow / "linked-directory").is_symlink()
+    assert (shadow / ".git").is_symlink()
+    assert (shadow / "linked-target" / ".git").is_symlink()
+
+
+@pytest.mark.parametrize("failure", [OSError("walk"), RuntimeError("walk")])
+def test_header_shadow_traversal_failure_is_structured(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+):
+    root = _compile_time_source_root(tmp_path / "source", "BACKOFF_NOINLINE")
+
+    def fail_walk(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(G.os, "walk", fail_walk)
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._write_shadow_owner_source(
+            root,
+            "include/backoff.hh",
+            "#if BACKOFF_NOINLINE\n#endif\n",
+            tmp_path / "shadow",
+            owner_tu="cc/silo/transaction.cc",
+        )
+    assert raised.value.reason_code == (
+        "compile-time-branch-instrumentation-failed"
+    )
 
 
 def test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv(
@@ -1347,6 +1501,30 @@ def test_compile_time_factory_rejects_nonpaired_values(
     assert G.declare_define_runtime_meaning(request) is None
 
 
+@pytest.mark.parametrize(
+    ("requested", "default", "declared"),
+    [
+        (0, 0, True),
+        (1, 0, True),
+        (0, 1, False),
+        (1, 1, False),
+        (0, None, False),
+    ],
+)
+def test_backoff_noinline_factory_accepts_only_default_zero_binary_requests(
+    requested: int,
+    default: int | None,
+    declared: bool,
+):
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=requested, default=default,
+    )
+    declaration = G.declare_define_runtime_meaning(request)
+
+    assert (type(declaration) is G.ConditionalBranchMeaningDeclaration) \
+        is declared
+
+
 def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(
     tmp_path: Path,
 ):
@@ -1354,6 +1532,8 @@ def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(
         == G.MeaningWitnessDeclaration("BACKOFF_FIXED", ())
     with pytest.raises(ValueError, match="no runtime witness support"):
         G.MeaningWitnessDeclaration("IZANAGI_BREAK_PERMUTATION", ())
+    with pytest.raises(ValueError, match="no runtime witness support"):
+        G.MeaningWitnessDeclaration("BACKOFF_NOINLINE", ())
 
     root = tmp_path / "ccbench"
     root.mkdir()
@@ -1409,6 +1589,42 @@ def test_compile_time_green_schema_rejects_missing_or_mutated_observations(
             arm="runtime-meaning",
             terminal_status="green",
             reason_code="declared-compile-time-branch-selection-observed",
+            request=request,
+            request_digest=meaning.request_digest,
+            evidence=evidence,
+        )
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G._validate_arm_record_integrity(forged, require_issuer=False)
+        assert raised.value.reason_code == "admission-contract-invalid"
+
+
+def test_backoff_noinline_green_schema_rejects_nonbinary_and_same_value(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_NOINLINE")
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=0, default=0,
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+
+    nonbinary = dict(meaning.evidence)
+    nonbinary["requested"] = replace(
+        nonbinary["requested"], define_value="2",
+    )
+    same_value = dict(meaning.evidence)
+    same_value["default"] = same_value["requested"]
+    for evidence in (nonbinary, same_value):
+        forged = _public_arm_record(
+            arm="runtime-meaning",
+            terminal_status="green",
+            reason_code=meaning.reason_code,
             request=request,
             request_digest=meaning.request_digest,
             evidence=evidence,

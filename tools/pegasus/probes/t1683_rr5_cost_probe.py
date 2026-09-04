@@ -164,7 +164,9 @@ def _condition_requests_by_genome(workload: dict) -> tuple:
                 default_value=default,
                 stock_comparison=inert,
             )
-            declaration = None
+            declaration = condition_meaning_gate.declare_define_runtime_meaning(
+                request,
+            )
             if macro == "BACKOFF_FIXED" and requested == -1:
                 declaration = condition_meaning_gate.MeaningWitnessDeclaration(
                     macro,
