@@ -93,6 +93,7 @@ from .model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             CampaignConfig, Genome)
 from .pipeline import PerfConfig                           # noqa: E402
 from .projection_guard import (                            # noqa: E402
+    CODER_CONTRACT_K2,
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
 )
@@ -1718,11 +1719,41 @@ def _fold_critic_reverse(state: LoopState, prior_critic_reverse: Optional[bool])
         state.reverse_recommendations = 0
 
 
+def _consume_k2_coder_output(
+    result: Dict[str, Any],
+    projected_input: Dict[str, Any],
+) -> Dict[str, Any]:
+    """K2 role の論理出力を schema、anomaly、semantic の順で検査する。"""
+    from orchestrator.codex_roles.events import validate_schema_instance
+    from orchestrator.codex_roles.policy import validate_output_semantics
+    from orchestrator.codex_roles.spec import get_role_spec
+
+    spec = get_role_spec("coder-v4-autonomous-k2")
+    validate_schema_instance(
+        result, spec.output_schema, label="coder-v4-autonomous-k2 output",
+    )
+    proposal = result["proposal"]
+    knowledge_use = result["knowledge_use"]
+    classification = result["classification"]
+    data_boundary_report = result["data_boundary_report"]
+    del knowledge_use, classification
+    if data_boundary_report["instruction_like_content_detected"] is True:
+        raise ValueError(
+            "coder-v4-autonomous-k2 が instruction-like content を申告した"
+        )
+    validate_output_semantics(
+        "coder-v4-autonomous-k2", projected_input, result,
+    )
+    return proposal
+
+
 def load_proposal_file(
     path: str,
     *,
     b4_reflux_ablation: bool = False,
     b4_closed_critic_receipt_sha256: str | None = None,
+    knowledge_input: Optional[Dict[str, Any]] = None,
+    coder_role: str | None = None,
 ) -> Tuple[PlannerProposal, CoderProposal, Optional[bool]]:
     """メインセッションが spawn した planner/coder の構造化出力 (+ 前 critic の逆方向 bool) を
     JSON ファイルから読む。schema:
@@ -1758,10 +1789,36 @@ def load_proposal_file(
         schema_document.pop(B4_PROPOSAL_RECEIPT_SHA256_KEY, None)
     elif b4_closed_critic_receipt_sha256 is not None:
         raise B4ProtocolError("proposal receipt binding requires B-4 mode")
-    assert_closed_proposal_schema(
-        schema_document, require_auditor=False, require_coder_value=True,
-    )
+    has_knowledge_input = knowledge_input is not None
+    has_coder_role = coder_role is not None
+    if has_knowledge_input != has_coder_role:
+        raise ValueError(
+            "knowledge_input と coder_role は両方指定するか両方省略する必要がある"
+        )
+    k2_contract = has_knowledge_input and has_coder_role
+    if k2_contract and coder_role != "coder-v4-autonomous-k2":
+        raise ValueError("K2 proposal loader の coder_role が不正")
+    if k2_contract:
+        assert_closed_proposal_schema(
+            schema_document,
+            require_auditor=False,
+            require_coder_value=True,
+            coder_contract=CODER_CONTRACT_K2,
+        )
+    else:
+        assert_closed_proposal_schema(
+            schema_document, require_auditor=False, require_coder_value=True,
+        )
     p, c = d["planner"], d["coder"]
+    if k2_contract:
+        assert knowledge_input is not None
+        c = _consume_k2_coder_output(
+            c,
+            {
+                "knowledge_input": knowledge_input,
+                "planner_direction": p,
+            },
+        )
     planner = PlannerProposal(
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
         justification=p.get("justification", ""), uncertainty=p.get("uncertainty", ""))
@@ -1942,6 +1999,9 @@ def main(
                     help="proposal 生成前の planner-v4 入力 (whiteboard + 任意の policy_hint) を JSON 出力")
     ap.add_argument("--knowledge-manifest", type=Path, metavar="PATH",
                     help="K2 knowledge manifest (commit/path/raw-byte SHA を検証して条件付き bind)")
+    ap.add_argument("--coder-role", choices=("coder-v4-autonomous-k2",),
+                    default=None,
+                    help="--run-iteration の coder role 契約を明示する")
     ap.add_argument("--knowledge-classification", metavar="TEXT",
                     default="reproduction_or_selection",
                     help="knowledge receipt へ記録する呼び手宣言の候補分類")
@@ -2034,7 +2094,7 @@ def main(
         cfg = default_cfg(reflux=(a.reflux == "on"))
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
-    cfg, _knowledge_layout, _knowledge_input = _prepare_knowledge_campaign(
+    cfg, _knowledge_layout, knowledge_input = _prepare_knowledge_campaign(
         cfg,
         resolved_knowledge,
         classification=a.knowledge_classification,
@@ -2078,6 +2138,8 @@ def main(
             a.run_iteration,
             b4_reflux_ablation=a.b4_reflux_ablation,
             b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+            knowledge_input=knowledge_input,
+            coder_role=a.coder_role,
         )
         print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
               f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "

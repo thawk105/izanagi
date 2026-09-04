@@ -57,6 +57,33 @@ def _manifest(*sources: dict[str, object]) -> dict[str, object]:
     return {"knowledge_level": "K2", "sources": list(sources)}
 
 
+def _declared_scope(selector: str = "output/insights/2026-09-03_*") -> dict:
+    return {
+        "retrieval": [{"kind": "repo_artifact", "selector": selector}],
+        "injection": [{
+            "kind": "repo_artifact",
+            "selector": "all-successfully-retrieved-sources",
+        }],
+    }
+
+
+def _extended_manifest(
+    *sources: dict[str, object],
+    selector: str = "output/insights/2026-09-03_*",
+    status: str = "completed_empty",
+    result_count: int = 0,
+) -> dict[str, object]:
+    return {
+        "knowledge_level": "K2",
+        "declared_scope": _declared_scope(selector),
+        "retrieval_result": {
+            "status": status,
+            "result_count": result_count,
+        },
+        "sources": list(sources),
+    }
+
+
 def _parse(value: object) -> KM.KnowledgeManifest:
     return KM.parse_manifest_bytes(json.dumps(
         value, ensure_ascii=False, separators=(",", ":"),
@@ -158,6 +185,174 @@ def test_canonical_manifest_ignores_source_and_key_order(source_repo):
     second = _parse(second_value)
     assert KM.canonical_manifest_bytes(first) == KM.canonical_manifest_bytes(second)
     assert KM.manifest_sha256(first) == KM.manifest_sha256(second)
+
+
+def test_completed_empty_retrieval_is_accepted_and_recorded(source_repo):
+    """Rejects an empty legacy manifest without scope and a completed result. Accepts and records a declared completed-empty retrieval through resolution and a v2 receipt."""
+    with pytest.raises(KM.KnowledgeManifestError, match="declared_scope"):
+        _parse(_manifest())
+
+    parsed = _parse(_extended_manifest())
+    resolved = KM.resolve_live_sources(parsed, repo_root=source_repo["repo"])
+    receipt = KM.receipt_value(
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
+
+    assert resolved.sources == ()
+    assert KM.planner_projection(resolved)["sources"] == []
+    assert receipt["schema_version"] == KM.EXTENDED_RECEIPT_SCHEMA_VERSION
+    assert receipt["canonical_manifest"]["declared_scope"] == _declared_scope()
+    assert receipt["canonical_manifest"]["retrieval_result"] == {
+        "status": "completed_empty",
+        "result_count": 0,
+    }
+    assert "呼び手の宣言" in receipt["declaration_status"]
+    assert "強制しない" in receipt["declaration_status"]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-scope",
+        "missing-result",
+        "empty-retrieval-scope",
+        "empty-injection-scope",
+        "unknown-status",
+        "empty-with-nonempty-result",
+        "empty-status-with-positive-count",
+    ),
+)
+def test_empty_sources_require_declared_scope_and_completed_empty_result(
+    mutation, source_repo,
+):
+    """Rejects each partial or contradictory empty-source declaration. Accepts a valid completed-empty declaration and a nonempty retrieval count independent of injected-source length."""
+    invalid = _extended_manifest()
+    if mutation == "missing-scope":
+        del invalid["declared_scope"]
+    elif mutation == "missing-result":
+        del invalid["retrieval_result"]
+    elif mutation == "empty-retrieval-scope":
+        invalid["declared_scope"]["retrieval"] = []
+    elif mutation == "empty-injection-scope":
+        invalid["declared_scope"]["injection"] = []
+    elif mutation == "unknown-status":
+        invalid["retrieval_result"]["status"] = "failed"
+    elif mutation == "empty-with-nonempty-result":
+        invalid["retrieval_result"] = {
+            "status": "completed_nonempty", "result_count": 1,
+        }
+    else:
+        invalid["retrieval_result"]["result_count"] = 1
+    with pytest.raises(KM.KnowledgeManifestError):
+        _parse(invalid)
+
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    accepted = _parse(_extended_manifest(
+        source, status="completed_nonempty", result_count=7,
+    ))
+    assert len(accepted.sources) == 1
+    assert accepted.retrieval_result.result_count == 7
+
+
+def test_extended_manifest_digest_binds_scope_and_retrieval_result(source_repo):
+    """Rejects canonicalization that drops either scope or retrieval-result differences from the digest. Accepts reordered but equivalent scope entries as the same canonical manifest."""
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    base = _parse(_extended_manifest(
+        source, status="completed_nonempty", result_count=5,
+    ))
+    changed_scope = _parse(_extended_manifest(
+        source,
+        selector="output/insights/another-*",
+        status="completed_nonempty",
+        result_count=5,
+    ))
+    changed_result = _parse(_extended_manifest(
+        source, status="completed_nonempty", result_count=8,
+    ))
+    assert len({
+        KM.manifest_sha256(base),
+        KM.manifest_sha256(changed_scope),
+        KM.manifest_sha256(changed_result),
+    }) == 3
+
+    reordered_value = _extended_manifest(
+        source, status="completed_nonempty", result_count=5,
+    )
+    reordered_value["declared_scope"] = {
+        "injection": [
+            {"selector": "all-successfully-retrieved-sources", "kind": "repo_artifact"}
+        ],
+        "retrieval": [
+            {"selector": "output/insights/2026-09-03_*", "kind": "repo_artifact"}
+        ],
+    }
+    assert KM.manifest_sha256(_parse(reordered_value)) == KM.manifest_sha256(base)
+
+
+def test_receipt_version_is_v1_for_legacy_and_v2_for_extended(source_repo):
+    """Rejects unconditional receipt-version promotion that would change legacy bytes. Accepts v1 for the old two-key manifest and v2 only when an extension field is present."""
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    legacy = KM.resolve_live_sources(
+        _parse(_manifest(source)), repo_root=source_repo["repo"],
+    )
+    extended = KM.resolve_live_sources(
+        _parse(_extended_manifest(
+            source, status="completed_nonempty", result_count=4,
+        )),
+        repo_root=source_repo["repo"],
+    )
+    legacy_receipt = KM.receipt_value(
+        legacy, classification="de_novo", de_novo_claim=True,
+    )
+    extended_receipt = KM.receipt_value(
+        extended, classification="de_novo", de_novo_claim=True,
+    )
+    assert legacy_receipt["schema_version"] == KM.RECEIPT_SCHEMA_VERSION
+    assert legacy_receipt["declaration_status"] == KM.DECLARATION_STATUS
+    assert set(legacy_receipt["canonical_manifest"]) == {
+        "knowledge_level", "sources",
+    }
+    assert extended_receipt["schema_version"] == (
+        KM.EXTENDED_RECEIPT_SCHEMA_VERSION
+    )
+
+
+def test_nonempty_extended_manifest_fields_are_independently_optional(source_repo):
+    """Rejects treating either extension field as universally required for nonempty sources. Accepts scope-only and retrieval-result-only manifests as v2 while retaining their exact present-field set."""
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    scope_only_value = _manifest(source)
+    scope_only_value["declared_scope"] = _declared_scope()
+    result_only_value = _manifest(source)
+    result_only_value["retrieval_result"] = {
+        "status": "completed_nonempty",
+        "result_count": 9,
+    }
+    for value, expected_extension in (
+        (scope_only_value, "declared_scope"),
+        (result_only_value, "retrieval_result"),
+    ):
+        resolved = KM.resolve_live_sources(
+            _parse(value), repo_root=source_repo["repo"],
+        )
+        receipt = KM.receipt_value(
+            resolved,
+            classification="reproduction_or_selection",
+            de_novo_claim=False,
+        )
+        assert receipt["schema_version"] == KM.EXTENDED_RECEIPT_SCHEMA_VERSION
+        assert set(receipt["canonical_manifest"]) == {
+            "knowledge_level", "sources", expected_extension,
+        }
 
 
 def test_repo_source_uses_commit_blob_not_working_tree_and_projects_exact_bytes(
