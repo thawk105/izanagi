@@ -64,6 +64,30 @@ def test_prepare_cell_condition_family_uses_real_two_arm_api():
     assert "evaluate_define_supply_effectuation" in source
     assert "evaluate_define_runtime_meaning" in source
     assert "require_condition_gate_family" in source
+    assert "declare_define_runtime_meaning" in source
+
+
+def test_noinline_inert_meaning_record_comes_from_registry_factory():
+    driver_id = "test.s1_direct_comparison.noinline-factory"
+    genome = Genome("silo", {"BACKOFF_NOINLINE": 0})
+    supply_records, meaning_records = _issued_condition_records(
+        tuple(sorted(genome.flags.items())), driver_id,
+    )
+    request = S._condition_requests_for_flags(
+        genome.flags, driver_id=driver_id,
+    )[0]
+    declaration = condition_meaning_gate.declare_define_runtime_meaning(request)
+    admission = _assert_promotion_admission_contract(
+        supply_records, meaning_records,
+    )
+
+    assert type(declaration) is \
+        condition_meaning_gate.ConditionalBranchMeaningDeclaration
+    assert S._condition_meaning_declaration("BACKOFF_NOINLINE", 0) is None
+    assert [record.terminal_status for record in meaning_records] == ["green"]
+    assert meaning_records[0].evidence["source_rel"] == declaration.source_rel
+    assert admission.unestablished_meaning_macros == ()
+
 
 _OUTER_WHITESPACE = (
     ("space", " "),

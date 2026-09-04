@@ -1,0 +1,70 @@
+{
+ "estimated_run_seconds": 300,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1905wt.m01",
+   "replacements": [
+    {
+     "file": "tools/pegasus/policy.json",
+     "new": "  \"b10_backoff_shape_walltime_s\": 43200,\n",
+     "old": "  \"b10_backoff_shape_walltime_s\": 86400,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1905wt.m02",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+     "new": "#PBS -l elapstim_req=12:00:00\n",
+     "old": "#PBS -l elapstim_req=24:00:00\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1905wt.m03",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+     "new": "print(86400)\n",
+     "old": "print(walltime_s)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1905wt.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+     "new": "    for duplicated_walltime in (\"43200\",):\n",
+     "old": "    for duplicated_walltime in (\"43200\", \"86400\"):\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1500
+}

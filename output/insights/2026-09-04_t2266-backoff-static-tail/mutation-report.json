@@ -1,0 +1,719 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/fd554b0677a84b5374a1c3e45706ee2f/izdw-fd554b0677.o975670",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/fd554b0677a84b5374a1c3e45706ee2f/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................                                     [100%]\n36 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "3707308fb1984d54429339f3bc3f8af2aa9d51252c56c8ddc422a7b6d67e2c71"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+    "duration_s": 27.458,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "90c0b8c11ea34dc8d93d60d4db7dd19cd0faa556043be5c3afaf201834417b6d",
+    "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+    "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+    "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+    "status": "PASSED",
+    "test_output_sha256": "3707308fb1984d54429339f3bc3f8af2aa9d51252c56c8ddc422a7b6d67e2c71",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+  },
+  "date": "2026-09-04T05:05:34.296253+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/70f78417d94ac245a0f6beac6a7da98e/izdw-70f78417d9.o975674",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/70f78417d94ac245a0f6beac6a7da98e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FFF.F.                                     [100%]\n=================================== FAILURES ===================================\n__ test_t2266_requested_realized_and_unrealized_are_separate_identity_fields ___\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():\n        assert M.T2266_REQUESTED_US == (150, 200, 300, 500, 750, 1000)\n>       assert M.T2266_REALIZED_US == (150, 200, 300, 500, 750, 999)\nE       assert (150, 200, 300, 500, 999) == (150, 200, 300, 500, 750, 999)\nE         \nE         At index 4 diff: 999 != 750\nE         Right contains one more item: 999\nE         Use -v to get more diff\n\norchestrator/tests/test_backoff_extended_sweep.py:316: AssertionError\n__________ test_t2266_grid_is_exact_eight_points_without_encoded_1000 __________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2266_grid_is_exact_eight_points_without_encoded_1000():\n        expected_static = (150, 200, 300, 500, 750, 999)\n        for tag, _workload in M.WORKLOADS:\n            points = M.t2266_genomes(tag)\n>           assert len(points) == 8\nE           AssertionError: assert 7 == 8\nE            +  where 7 = len([Genome(protocol='silo', flags={'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0, 'BACK_OFF': 1, '...lags={'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0, 'BACK_OFF': 1, 'BACKOFF_FIXED': 999}), ...])\n\norchestrator/tests/test_backoff_extended_sweep.py:297: AssertionError\n________ test_t2266_none_and_adaptive_must_have_distinct_perf_binaries _________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153d36852ad0>\n\n    def test_t2266_none_and_adaptive_must_have_distinct_perf_binaries(monkeypatch):\n        points = M.t2266_genomes(\"balanced\")\n        shared_reference_sha256 = hashlib.sha256(b\"same-reference-binary\").hexdigest()\n    \n        monkeypatch.setattr(\n            M.source_digest, \"resolve_evidence\",\n            lambda genome, *_args, **_kwargs: SimpleNamespace(\n                src_token=hashlib.sha256(genome.canonical().encode()).hexdigest(),\n            ),\n        )\n        monkeypatch.setattr(M, \"derive_build_admission\", lambda *_args, **_kwargs: object())\n    \n        def build_v2(genome, **kwargs):\n            amount = genome.flags[\"BACKOFF_FIXED\"]\n            sha256 = (\n                shared_reference_sha256\n                if amount == -1 else hashlib.sha256(genome.canonical().encode()).hexdigest()\n            )\n            return M.buildcache.BuildResult(\n                genome=genome,\n                trace=kwargs[\"trace\"],\n                binary=f\"/bin/t2266-{genome.canonical()}\",\n                bin_sha256=sha256,\n                build_dir=f\"/build/t2266-{amount}\",\n                cached=False,\n            )\n    \n        monkeypatch.setattr(M.buildcache, \"build_v2\", build_v2)\n>       with pytest.raises(RuntimeError, match=\"T-2266 genomes produced the same binary\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'T-2266 genomes produced the same binary'\nE         Actual message: 'T-2266 binary identity requires exactly eight genomes'\n\norchestrator/tests/test_backoff_extended_sweep.py:617: AssertionError\n_____ test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep _____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15080924c2b0>\n\n    def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n            tmp_path, monkeypatch):\n        capture = M._T2266RepCapture()\n        expected_abort_rates = []\n        with capture.installed():\n            for point_index in range(8):\n                expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n>       view = _t2266_certified_view(tmp_path, capture)\n\norchestrator/tests/test_backoff_extended_sweep.py:353: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_backoff_extended_sweep.py:252: in _t2266_certified_view\n    return artifact_admission.CertifiedCampaignView(\norchestrator/campaign/artifact_admission.py:376: in __init__\n    self.__post_init__()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = CertifiedCampaignView(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture...ifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない'), persisted_certified_commit_count=8)\n\n    def __post_init__(self) -> None:\n        AdmittedCampaign.__post_init__(self)\n        if self.campaign_verifier_epoch.state != \"E1\":\n            raise TypeError(\"CertifiedCampaignView requires exact E1\")\n        count = self.persisted_certified_commit_count\n        if type(count) is not int:\n            raise TypeError(\n                \"persisted certified commit count requires exact int\"\n            )\n        if count < 0:\n            raise ValueError(\n                \"persisted certified commit count must be non-negative\"\n            )\n        snapshot_commit_count = sum(\n            record.stage == STAGE_COMMIT for record in self.records\n        )\n        if count != snapshot_commit_count:\n>           raise ValueError(\n                \"persisted certified commit count does not match WAL snapshot\"\n            )\nE           ValueError: persisted certified commit count does not match WAL snapshot\n\norchestrator/campaign/artifact_admission.py:395: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\n4 failed, 32 passed in 4.35s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=2313 retained_bytes=2313 omitted_bytes=0 rendered_excerpt_bytes=2447 sha256=c517286cca03acb67351f33d68fa75124fe62cf0afde3d4dc4a3aeccc2dbbe16\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15080924c2b0>\n> \n>     def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n>             tmp_path, monkeypatch):\n>         capture = M._T2266RepCapture()\n>         expected_abort_rates = []\n>         with capture.installed():\n>             for point_index in range(8):\n>                 expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n> >       view = _t2266_certified_view(tmp_path, capture)\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:353: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_backoff_extended_sweep.py:252: in _t2266_certified_view\n>     return artifact_admission.CertifiedCampaignView(\n> orchestrator/campaign/artifact_admission.py:376: in __init__\n>     self.__post_init__()\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = CertifiedCampaignView(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture...ifier/cli.py\\u3001\\u304a\\u3088\\u3073 package \\u5916\\u306e orchestrator/verify.py \\u306e implementation bytes \\u306f\\u675f\\u7e1b\\u3057\\u306a\\u3044'), persisted_certified_commit_count=8)\n> \n>     def __post_init__(self) -> None:\n>         AdmittedCampaign.__post_init__(self)\n>         if self.campaign_verifier_epoch.state != \"E1\":\n>             raise TypeError(\"CertifiedCampaignView requires exact E1\")\n>         count = self.persisted_certified_commit_count\n>         if type(count) is not int:\n>             raise TypeError(\n>                 \"persisted certified commit count requires exact int\"\n>             )\n>         if count < 0:\n>             raise ValueError(\n>                 \"persisted certified commit count must be non-negative\"\n>             )\n>         snapshot_commit_count = sum(\n>             record.stage == STAGE_COMMIT for record in self.records\n>         )\n>         if count != snapshot_commit_count:\n> >           raise ValueError(\n>                 \"persisted certified commit count does not match WAL snapshot\"\n>             )\n> E           ValueError: persisted certified commit count does not match WAL snapshot\n> \n> orchestrator/campaign/artifact_admission.py:395: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1689 retained_bytes=1689 omitted_bytes=0 rendered_excerpt_bytes=1766 sha256=046f19d92e5a0fc498f213ecfc5a92454b3022053b5be716d63f9aaaea87a628\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153d36852ad0>\n> \n>     def test_t2266_none_and_adaptive_must_have_distinct_perf_binaries(monkeypatch):\n>         points = M.t2266_genomes(\"balanced\")\n>         shared_reference_sha256 = hashlib.sha256(b\"same-reference-binary\").hexdigest()\n>     \n>         monkeypatch.setattr(\n>             M.source_digest, \"resolve_evidence\",\n>             lambda genome, *_args, **_kwargs: SimpleNamespace(\n>                 src_token=hashlib.sha256(genome.canonical().encode()).hexdigest(),\n>             ),\n>         )\n>         monkeypatch.setattr(M, \"derive_build_admission\", lambda *_args, **_kwargs: object())\n>     \n>         def build_v2(genome, **kwargs):\n>             amount = genome.flags[\"BACKOFF_FIXED\"]\n>             sha256 = (\n>                 shared_reference_sha256\n>                 if amount == -1 else hashlib.sha256(genome.canonical().encode()).hexdigest()\n>             )\n>             return M.buildcache.BuildResult(\n>                 genome=genome,\n>                 trace=kwargs[\"trace\"],\n>                 binary=f\"/bin/t2266-{genome.canonical()}\",\n>                 bin_sha256=sha256,\n>                 build_dir=f\"/build/t2266-{amount}\",\n>                 cached=False,\n>             )\n>     \n>         monkeypatch.setattr(M.buildcache, \"build_v2\", build_v2)\n> >       with pytest.raises(RuntimeError, match=\"T-2266 genomes produced the same binary\"):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'T-2266 genomes produced the same binary'\n> E         Actual message: 'T-2266 binary identity requires exactly eight genomes'\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:617: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=680 retained_bytes=680 omitted_bytes=0 rendered_excerpt_bytes=703 sha256=20b52e30c3834c0b74212ef1135cce65dd34fb86a6b99dd97960488ac9544159\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2266_grid_is_exact_eight_points_without_encoded_1000():\n>         expected_static = (150, 200, 300, 500, 750, 999)\n>         for tag, _workload in M.WORKLOADS:\n>             points = M.t2266_genomes(tag)\n> >           assert len(points) == 8\n> E           AssertionError: assert 7 == 8\n> E            +  where 7 = len([Genome(protocol='silo', flags={'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0, 'BACK_OFF': 1, '...lags={'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0, 'BACK_OFF': 1, 'BACKOFF_FIXED': 999}), ...])\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:297: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=545 retained_bytes=545 omitted_bytes=0 rendered_excerpt_bytes=570 sha256=b9d8191bb96b6dd6e61b2eee48478805a12feca550e9827a6875049d4d4b0973\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():\n>         assert M.T2266_REQUESTED_US == (150, 200, 300, 500, 750, 1000)\n> >       assert M.T2266_REALIZED_US == (150, 200, 300, 500, 750, 999)\n> E       assert (150, 200, 300, 500, 999) == (150, 200, 300, 500, 750, 999)\n> E         \n> E         At index 4 diff: 999 != 750\n> E         Right contains one more item: 999\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:316: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5227 retained_bytes=5227 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7595 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4750e826cc3e6a3ac8a1e6056db1368faff2dd2ea06dd71b98970b617a9826fb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 27.517,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-DROP-750",
+      "injection_diff_sha256": "39afaa7fa576debc996683421e21575ccc42deefd824b89f72fd9d59e5b0ad61",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "84818f8010b717f3340d3748dbd8b24cc2219da9fd262c4169009dd66e3f5609",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "T2266_REALIZED_US = (150, 200, 300, 500, 999)\n",
+          "old": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 999)\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "4750e826cc3e6a3ac8a1e6056db1368faff2dd2ea06dd71b98970b617a9826fb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/4c5cf305c3bab0f27173b5a424077b7f/izdw-4c5cf305c3.o975677",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/4c5cf305c3bab0f27173b5a424077b7f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FF..                                     [100%]\n=================================== FAILURES ===================================\n__ test_t2266_requested_realized_and_unrealized_are_separate_identity_fields ___\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():\n        assert M.T2266_REQUESTED_US == (150, 200, 300, 500, 750, 1000)\n>       assert M.T2266_REALIZED_US == (150, 200, 300, 500, 750, 999)\nE       assert (150, 200, 30...00, 750, 1000) == (150, 200, 300, 500, 750, 999)\nE         \nE         At index 5 diff: 1000 != 999\nE         Use -v to get more diff\n\norchestrator/tests/test_backoff_extended_sweep.py:316: AssertionError\n__________ test_t2266_grid_is_exact_eight_points_without_encoded_1000 __________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2266_grid_is_exact_eight_points_without_encoded_1000():\n        expected_static = (150, 200, 300, 500, 750, 999)\n        for tag, _workload in M.WORKLOADS:\n            points = M.t2266_genomes(tag)\n            assert len(points) == 8\n            assert len({point.canonical() for point in points}) == 8\n            assert sum(point.flags[\"BACK_OFF\"] == 0 for point in points) == 1\n            assert sum(\n                point.flags[\"BACK_OFF\"] == 1\n                and point.flags[\"BACKOFF_FIXED\"] == -1\n                for point in points\n            ) == 1\n>           assert tuple(sorted(\n                point.flags[\"BACKOFF_FIXED\"]\n                for point in points\n                if point.flags[\"BACK_OFF\"] == 1\n                and point.flags[\"BACKOFF_FIXED\"] >= 0\n            )) == expected_static\nE           assert (150, 200, 30...00, 750, 1000) == (150, 200, 300, 500, 750, 999)\nE             \nE             At index 5 diff: 1000 != 999\nE             Use -v to get more diff\n\norchestrator/tests/test_backoff_extended_sweep.py:305: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000\n2 failed, 34 passed in 4.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1122 retained_bytes=1122 omitted_bytes=0 rendered_excerpt_bytes=1175 sha256=3df769fae337e38fc2eda0531aa5cfe15cee430825de17b71642b2ea5ec34439\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2266_grid_is_exact_eight_points_without_encoded_1000():\n>         expected_static = (150, 200, 300, 500, 750, 999)\n>         for tag, _workload in M.WORKLOADS:\n>             points = M.t2266_genomes(tag)\n>             assert len(points) == 8\n>             assert len({point.canonical() for point in points}) == 8\n>             assert sum(point.flags[\"BACK_OFF\"] == 0 for point in points) == 1\n>             assert sum(\n>                 point.flags[\"BACK_OFF\"] == 1\n>                 and point.flags[\"BACKOFF_FIXED\"] == -1\n>                 for point in points\n>             ) == 1\n> >           assert tuple(sorted(\n>                 point.flags[\"BACKOFF_FIXED\"]\n>                 for point in points\n>                 if point.flags[\"BACK_OFF\"] == 1\n>                 and point.flags[\"BACKOFF_FIXED\"] >= 0\n>             )) == expected_static\n> E           assert (150, 200, 30...00, 750, 1000) == (150, 200, 300, 500, 750, 999)\n> E             \n> E             At index 5 diff: 1000 != 999\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:305: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=507 retained_bytes=507 omitted_bytes=0 rendered_excerpt_bytes=530 sha256=c014103e2786a7c0c6d24e990ea4368751f5243191181ea34c791e4d5bd65de8\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():\n>         assert M.T2266_REQUESTED_US == (150, 200, 300, 500, 750, 1000)\n> >       assert M.T2266_REALIZED_US == (150, 200, 300, 500, 750, 999)\n> E       assert (150, 200, 30...00, 750, 1000) == (150, 200, 300, 500, 750, 999)\n> E         \n> E         At index 5 diff: 1000 != 999\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:316: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1629 retained_bytes=1629 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2904 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3af092a68ec1e7640955487beef9b4bec8a7e373b9fa061c9f6cf16d0562b3b1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 27.391,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-REALIZED-1000",
+      "injection_diff_sha256": "2c2a57f13b93e25dc931c8434d20e68dcda84d17abcdecf944f241b6df550e38",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8ca993f719be3b7dad75bb4a423ad2ed41128229a14b76b96aecdd4fa10ebaf8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 1000)\n",
+          "old": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 999)\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "3af092a68ec1e7640955487beef9b4bec8a7e373b9fa061c9f6cf16d0562b3b1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/ba0a0c4bbdcd3c3ca2a5c6745982e775/izdw-ba0a0c4bbd.o975679",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/ba0a0c4bbdcd3c3ca2a5c6745982e775/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F..                                     [100%]\n=================================== FAILURES ===================================\n_____ test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts _____\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts():\n        root = Path(__file__).resolve().parents[2]\n        job_path = root / \"tools/pegasus/b10_backoff_grid.sh\"\n        submit_path = root / \"tools/pegasus/submit_b10_backoff_grid.sh\"\n        for path in (job_path, submit_path):\n            subprocess.run([\"bash\", \"-n\", str(path)], check=True)\n        job = job_path.read_text(encoding=\"utf-8\")\n        submit = submit_path.read_text(encoding=\"utf-8\")\n    \n        assert \"B10_RUN_KIND=extended\" in submit\n>       assert \"B10_RUN_KIND=${B10_RUN_KIND:-extended}\" in job\nE       assert 'B10_RUN_KIND=${B10_RUN_KIND:-extended}' in '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=05:00:00\\n#PBS -b 1\\n\\nset -Eeuo pipefail\\numask 077\\n\\...encoding=\"utf-8\") as handle:\\n    json.dump(document, handle, sort_keys=True, indent=2)\\n    handle.write(\"\\\\n\")\\nPY\\n'\n\norchestrator/tests/test_backoff_extended_sweep.py:880: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts\n1 failed, 35 passed in 4.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1019 retained_bytes=1019 omitted_bytes=0 rendered_excerpt_bytes=1097 sha256=c798a53de14d77cd18f190560dbbe40004c730573cc40a0335b1f5ccef3cba97\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts():\n>         root = Path(__file__).resolve().parents[2]\n>         job_path = root / \"tools/pegasus/b10_backoff_grid.sh\"\n>         submit_path = root / \"tools/pegasus/submit_b10_backoff_grid.sh\"\n>         for path in (job_path, submit_path):\n>             subprocess.run([\"bash\", \"-n\", str(path)], check=True)\n>         job = job_path.read_text(encoding=\"utf-8\")\n>         submit = submit_path.read_text(encoding=\"utf-8\")\n>     \n>         assert \"B10_RUN_KIND=extended\" in submit\n> >       assert \"B10_RUN_KIND=${B10_RUN_KIND:-extended}\" in job\n> E       assert 'B10_RUN_KIND=${B10_RUN_KIND:-extended}' in '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=05:00:00\\x5cn#PBS -b 1\\x5cn\\x5cnset -Eeuo pipefail\\x5cnumask 077\\x5cn\\x5c...encoding=\"utf-8\") as handle:\\x5cn    json.dump(document, handle, sort_keys=True, indent=2)\\x5cn    handle.write(\"\\x5c\\x5cn\")\\x5cnPY\\x5cn'\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:880: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1019 retained_bytes=1019 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1844 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "981e9c417092ae587782ddbc40bfb60fc71df7412387f6bcda32a3f860c67f08"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 27.601,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-SHELL-DEFAULT-FLIP",
+      "injection_diff_sha256": "daad7296dff28bf00f49d5695002a2cc200012d4c3c3e95bab58eec92ec21d66",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cab04d3fb22599aecb5a45b777116d0ec18d3b8f307789ad45ed978b73284c30",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "new": "B10_RUN_KIND=${B10_RUN_KIND:-t2266-tail}\n",
+          "old": "B10_RUN_KIND=${B10_RUN_KIND:-extended}\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "981e9c417092ae587782ddbc40bfb60fc71df7412387f6bcda32a3f860c67f08",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/dcb9b65bc0098067fc1f425668bc986f/izdw-dcb9b65bc0.o975682",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/dcb9b65bc0098067fc1f425668bc986f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F..                                     [100%]\n=================================== FAILURES ===================================\n_____ test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts _____\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts():\n        root = Path(__file__).resolve().parents[2]\n        job_path = root / \"tools/pegasus/b10_backoff_grid.sh\"\n        submit_path = root / \"tools/pegasus/submit_b10_backoff_grid.sh\"\n        for path in (job_path, submit_path):\n            subprocess.run([\"bash\", \"-n\", str(path)], check=True)\n        job = job_path.read_text(encoding=\"utf-8\")\n        submit = submit_path.read_text(encoding=\"utf-8\")\n    \n        assert \"B10_RUN_KIND=extended\" in submit\n        assert \"B10_RUN_KIND=${B10_RUN_KIND:-extended}\" in job\n        for script in (job, submit):\n            assert \"extended|t2266-tail\" in script\n        assert \"--run-kind)\" in submit\n        assert \"B10_RUN_KIND=$B10_RUN_KIND\" in submit\n        assert (\n            'QSUB_ENV=\"B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,'\n            'B10_SUBMISSION_NONCE=$SUBMISSION_NONCE,'\n            'JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\"'\n        ) in submit\n        assert 'QSUB_ENV=\"$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND\"' in submit\n        assert 'SWEEP_COMMAND+=(--run-kind \"$B10_RUN_KIND\")' in job\n        assert 'if [[ \"$B10_RUN_KIND\" == \"t2266-tail\" ]]; then' in job\n        assert 'if [[ \"$B10_RUN_KIND\" == \"extended\" ]]; then' in job\n    \n        extended_only = job.split(\n            'if [[ \"$B10_RUN_KIND\" == \"extended\" ]]; then', 1,\n        )[1].split(\"\\nfi\", 1)[0]\n        assert \"backoff_overthrottle.py\" in extended_only\n        assert \"backoff_extended_sweep_report.py\" in extended_only\n        t2266_argv = job.split(\n            'SWEEP_COMMAND+=(--run-kind \"$B10_RUN_KIND\")', 1,\n        )[0].rsplit('if [[ \"$B10_RUN_KIND\" == \"t2266-tail\" ]]; then', 1)[1]\n        assert \"backoff_overthrottle.py\" not in t2266_argv\n        assert \"backoff_extended_sweep_report.py\" not in t2266_argv\n    \n        assert 'run_kind = os.environ[\"B10_RUN_KIND\"]' in submit\n        assert submit.count('\"run_kind\": run_kind') == 3\n        assert 'root, rc, stage, line, job, run_kind = sys.argv[1:]' in job\n        assert 'repo_commit, ccbench_commit, run_kind = sys.argv[1:]' in job\n        assert 'root, workload, job, freeze_hash, run_kind = sys.argv[1:]' in job\n>       assert job.count('\"run_kind\": run_kind') == 3\nE       assert 2 == 3\nE        +  where 2 = <built-in method count of str object at 0x564fb227a7e0>('\"run_kind\": run_kind')\nE        +    where <built-in method count of str object at 0x564fb227a7e0> = '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=05:00:00\\n#PBS -b 1\\n\\nset -Eeuo pipefail\\numask 077\\n\\...encoding=\"utf-8\") as handle:\\n    json.dump(document, handle, sort_keys=True, indent=2)\\n    handle.write(\"\\\\n\")\\nPY\\n'.count\n\norchestrator/tests/test_backoff_extended_sweep.py:911: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts\n1 failed, 35 passed in 4.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=2819 retained_bytes=2819 omitted_bytes=0 rendered_excerpt_bytes=2966 sha256=fd7a24bf62510484d08949bc6374df95d9e4b2929ba267e24e8bdecc318d2036\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts():\n>         root = Path(__file__).resolve().parents[2]\n>         job_path = root / \"tools/pegasus/b10_backoff_grid.sh\"\n>         submit_path = root / \"tools/pegasus/submit_b10_backoff_grid.sh\"\n>         for path in (job_path, submit_path):\n>             subprocess.run([\"bash\", \"-n\", str(path)], check=True)\n>         job = job_path.read_text(encoding=\"utf-8\")\n>         submit = submit_path.read_text(encoding=\"utf-8\")\n>     \n>         assert \"B10_RUN_KIND=extended\" in submit\n>         assert \"B10_RUN_KIND=${B10_RUN_KIND:-extended}\" in job\n>         for script in (job, submit):\n>             assert \"extended|t2266-tail\" in script\n>         assert \"--run-kind)\" in submit\n>         assert \"B10_RUN_KIND=$B10_RUN_KIND\" in submit\n>         assert (\n>             'QSUB_ENV=\"B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,'\n>             'B10_SUBMISSION_NONCE=$SUBMISSION_NONCE,'\n>             'JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256\"'\n>         ) in submit\n>         assert 'QSUB_ENV=\"$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND\"' in submit\n>         assert 'SWEEP_COMMAND+=(--run-kind \"$B10_RUN_KIND\")' in job\n>         assert 'if [[ \"$B10_RUN_KIND\" == \"t2266-tail\" ]]; then' in job\n>         assert 'if [[ \"$B10_RUN_KIND\" == \"extended\" ]]; then' in job\n>     \n>         extended_only = job.split(\n>             'if [[ \"$B10_RUN_KIND\" == \"extended\" ]]; then', 1,\n>         )[1].split(\"\\x5cnfi\", 1)[0]\n>         assert \"backoff_overthrottle.py\" in extended_only\n>         assert \"backoff_extended_sweep_report.py\" in extended_only\n>         t2266_argv = job.split(\n>             'SWEEP_COMMAND+=(--run-kind \"$B10_RUN_KIND\")', 1,\n>         )[0].rsplit('if [[ \"$B10_RUN_KIND\" == \"t2266-tail\" ]]; then', 1)[1]\n>         assert \"backoff_overthrottle.py\" not in t2266_argv\n>         assert \"backoff_extended_sweep_report.py\" not in t2266_argv\n>     \n>         assert 'run_kind = os.environ[\"B10_RUN_KIND\"]' in submit\n>         assert submit.count('\"run_kind\": run_kind') == 3\n>         assert 'root, rc, stage, line, job, run_kind = sys.argv[1:]' in job\n>         assert 'repo_commit, ccbench_commit, run_kind = sys.argv[1:]' in job\n>         assert 'root, workload, job, freeze_hash, run_kind = sys.argv[1:]' in job\n> >       assert job.count('\"run_kind\": run_kind') == 3\n> E       assert 2 == 3\n> E        +  where 2 = <built-in method count of str object at 0x564fb227a7e0>('\"run_kind\": run_kind')\n> E        +    where <built-in method count of str object at 0x564fb227a7e0> = '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=05:00:00\\x5cn#PBS -b 1\\x5cn\\x5cnset -Eeuo pipefail\\x5cnumask 077\\x5cn\\x5c...encoding=\"utf-8\") as handle:\\x5cn    json.dump(document, handle, sort_keys=True, indent=2)\\x5cn    handle.write(\"\\x5c\\x5cn\")\\x5cnPY\\x5cn'.count\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:911: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2819 retained_bytes=2819 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3713 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8de72584db3147792325442b57b50e95b5b21b873ec8419c5d5d61d09d939e64"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 28.334,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-COMPLETION-DROPS-RUN-KIND",
+      "injection_diff_sha256": "13feb430058d134bc752c490313164676522616b35820c2a690f9d5225b6f971",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d2041cdedce2b205d78d3acb2861e631ca0a980ce4c7b2cdd0846a26f5132e92",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "new": "    \"workload\": workload,\n    \"pbs_jobid\": job,\n",
+          "old": "    \"run_kind\": run_kind,\n    \"workload\": workload,\n    \"pbs_jobid\": job,\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "8de72584db3147792325442b57b50e95b5b21b873ec8419c5d5d61d09d939e64",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/606d3f25df2563add04bf3bfc070f2b2/izdw-606d3f25df.o975685",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/606d3f25df2563add04bf3bfc070f2b2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F.                                     [100%]\n=================================== FAILURES ===================================\n_____ test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep _____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1486cc9db8e0>\n\n    def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n            tmp_path, monkeypatch):\n        capture = M._T2266RepCapture()\n        expected_abort_rates = []\n        with capture.installed():\n            for point_index in range(8):\n                expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n        view = _t2266_certified_view(tmp_path, capture)\n    \n        def discover(slug, search_tag, output_root, *, purpose):\n            assert slug == \"t2266-backoff-static-tail-silo-balanced\"\n            assert search_tag == \"sweep\"\n            assert output_root == str(tmp_path)\n            assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n            return view\n    \n        # Redirect only the filesystem locator; certified-view validation and WAL\n        # replay remain the production consumers used by materialize_t2266_report.\n        monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n    \n        paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n        document = json.loads(Path(paths[\"json\"]).read_text(encoding=\"utf-8\"))\n        dat = Path(paths[\"dat\"]).read_text(encoding=\"utf-8\")\n    \n        assert document[\"schema_version\"] == M.T2266_REPORT_SCHEMA\n        assert document[\"run_kind\"] == M.T2266_RUN_KIND\n        assert document[\"claim_scope\"] == \"descriptive_backoff_shape_only\"\n        assert document[\"source_measurement\"] == \"trace_disabled\"\n        assert document[\"performance_certified\"] is False\n        assert document[\"correctness_verified\"] is True\n        assert len(document[\"points\"]) == 8\n        for point_index, point in enumerate(document[\"points\"]):\n            assert len(point[\"reps\"]) == p2_2.REPS\n            assert point[\"throughput_tps_reps\"] == [\n                rep[\"throughput_tps\"] for rep in point[\"reps\"]\n            ]\n>           assert point[\"abort_rate_reps\"] == expected_abort_rates[point_index]\nE           assert [0.01, 0.01, 0.01, 0.01, 0.01] == [0.01, 0.011,...000001, 0.014]\nE             \nE             At index 1 diff: 0.01 != 0.011\nE             Use -v to get more diff\n\norchestrator/tests/test_backoff_extended_sweep.py:382: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\n1 failed, 35 passed in 4.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=2416 retained_bytes=2416 omitted_bytes=0 rendered_excerpt_bytes=2513 sha256=edea03b9dbecf7d503b6827b6673b0b12090a40452de530e404b8e0a01b55066\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1486cc9db8e0>\n> \n>     def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n>             tmp_path, monkeypatch):\n>         capture = M._T2266RepCapture()\n>         expected_abort_rates = []\n>         with capture.installed():\n>             for point_index in range(8):\n>                 expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n>         view = _t2266_certified_view(tmp_path, capture)\n>     \n>         def discover(slug, search_tag, output_root, *, purpose):\n>             assert slug == \"t2266-backoff-static-tail-silo-balanced\"\n>             assert search_tag == \"sweep\"\n>             assert output_root == str(tmp_path)\n>             assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n>             return view\n>     \n>         # Redirect only the filesystem locator; certified-view validation and WAL\n>         # replay remain the production consumers used by materialize_t2266_report.\n>         monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n>     \n>         paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n>         document = json.loads(Path(paths[\"json\"]).read_text(encoding=\"utf-8\"))\n>         dat = Path(paths[\"dat\"]).read_text(encoding=\"utf-8\")\n>     \n>         assert document[\"schema_version\"] == M.T2266_REPORT_SCHEMA\n>         assert document[\"run_kind\"] == M.T2266_RUN_KIND\n>         assert document[\"claim_scope\"] == \"descriptive_backoff_shape_only\"\n>         assert document[\"source_measurement\"] == \"trace_disabled\"\n>         assert document[\"performance_certified\"] is False\n>         assert document[\"correctness_verified\"] is True\n>         assert len(document[\"points\"]) == 8\n>         for point_index, point in enumerate(document[\"points\"]):\n>             assert len(point[\"reps\"]) == p2_2.REPS\n>             assert point[\"throughput_tps_reps\"] == [\n>                 rep[\"throughput_tps\"] for rep in point[\"reps\"]\n>             ]\n> >           assert point[\"abort_rate_reps\"] == expected_abort_rates[point_index]\n> E           assert [0.01, 0.01, 0.01, 0.01, 0.01] == [0.01, 0.011,...000001, 0.014]\n> E             \n> E             At index 1 diff: 0.01 != 0.011\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:382: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2416 retained_bytes=2416 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3260 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "63008d75e5e2d83aefdfb88ee946ad9a6838e9f0b779839aa1f185091462789d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 114.918,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-ABORT-REPRESENTATIVE-DUPLICATION",
+      "injection_diff_sha256": "a9a7acedcc272e19f1b8a1fb058dd20f4314fbced4321affa2516ff29f7d0587",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "af3218727c11c3a9326885ec20e7911ed90426a5ab19138ee3c892b4513af0a0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "            for rep, (throughput, abort_rate) in enumerate(zip(\n                throughputs, [abort_rates[0]] * len(throughputs),\n            ))\n",
+          "old": "            for rep, (throughput, abort_rate) in enumerate(zip(\n                throughputs, abort_rates,\n            ))\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "63008d75e5e2d83aefdfb88ee946ad9a6838e9f0b779839aa1f185091462789d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/53addf29ee4ffd3fb6f7b3411fb9f46f/izdw-53addf29ee.o975692",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/53addf29ee4ffd3fb6f7b3411fb9f46f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F..                                     [100%]\n=================================== FAILURES ===================================\n____________ test_t2266_rep_capture_rejects_extra_abort_parser_call ____________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2266_rep_capture_rejects_extra_abort_parser_call():\n        capture = M._T2266RepCapture()\n        with capture.installed():\n>           with pytest.raises(RuntimeError, match=\"exactly one abort parser call\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_backoff_extended_sweep.py:398: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call\n1 failed, 35 passed in 4.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=381 retained_bytes=381 omitted_bytes=0 rendered_excerpt_bytes=400 sha256=7f1a8abb1a5ba18f13a967551a759a9a6a89975cf7cba1af948de97aa4b438d1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2266_rep_capture_rejects_extra_abort_parser_call():\n>         capture = M._T2266RepCapture()\n>         with capture.installed():\n> >           with pytest.raises(RuntimeError, match=\"exactly one abort parser call\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:398: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=381 retained_bytes=381 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1128 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6a2fb1ff7b80b632f0ca5ae73fe171cd2630af3527611b541e10647941a66629"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 145.26,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-ABORT-CARDINALITY-GATE-REMOVED",
+      "injection_diff_sha256": "0767cc55ef9d181ed8387cc710f23d806339005e0c52bef03493df00b9b19f45",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "91f46d9cd51ba81738b0faaf8ee5192687bcd5341b07ec867807ca8e80a1d2d9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "        if False:\n            raise RuntimeError(\n                \"T-2266 rep capture requires exactly one abort parser call \"\n                \"per throughput rep, in rep order\"\n            )\n",
+          "old": "        if len(abort_rates) != len(throughputs):\n            raise RuntimeError(\n                \"T-2266 rep capture requires exactly one abort parser call \"\n                \"per throughput rep, in rep order\"\n            )\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "6a2fb1ff7b80b632f0ca5ae73fe171cd2630af3527611b541e10647941a66629",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/0cafe3b544e4bba5ddf4fd78b9e014ff/izdw-0cafe3b544.o975701",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/0cafe3b544e4bba5ddf4fd78b9e014ff/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F...                                     [100%]\n=================================== FAILURES ===================================\n________ test_t2266_none_and_adaptive_must_have_distinct_perf_binaries _________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a4a6cf5a20>\n\n    def test_t2266_none_and_adaptive_must_have_distinct_perf_binaries(monkeypatch):\n        points = M.t2266_genomes(\"balanced\")\n        shared_reference_sha256 = hashlib.sha256(b\"same-reference-binary\").hexdigest()\n    \n        monkeypatch.setattr(\n            M.source_digest, \"resolve_evidence\",\n            lambda genome, *_args, **_kwargs: SimpleNamespace(\n                src_token=hashlib.sha256(genome.canonical().encode()).hexdigest(),\n            ),\n        )\n        monkeypatch.setattr(M, \"derive_build_admission\", lambda *_args, **_kwargs: object())\n    \n        def build_v2(genome, **kwargs):\n            amount = genome.flags[\"BACKOFF_FIXED\"]\n            sha256 = (\n                shared_reference_sha256\n                if amount == -1 else hashlib.sha256(genome.canonical().encode()).hexdigest()\n            )\n            return M.buildcache.BuildResult(\n                genome=genome,\n                trace=kwargs[\"trace\"],\n                binary=f\"/bin/t2266-{genome.canonical()}\",\n                bin_sha256=sha256,\n                build_dir=f\"/build/t2266-{amount}\",\n                cached=False,\n            )\n    \n        monkeypatch.setattr(M.buildcache, \"build_v2\", build_v2)\n>       with pytest.raises(RuntimeError, match=\"T-2266 genomes produced the same binary\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'T-2266 genomes produced the same binary'\nE         Actual message: 'T-2266 binary identity check is incomplete'\n\norchestrator/tests/test_backoff_extended_sweep.py:617: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries\n1 failed, 35 passed in 4.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1678 retained_bytes=1678 omitted_bytes=0 rendered_excerpt_bytes=1755 sha256=5e82bd1b40f17e9dcac6c2527bb486e7fe517214dc15e94a33f6893a02863f2d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a4a6cf5a20>\n> \n>     def test_t2266_none_and_adaptive_must_have_distinct_perf_binaries(monkeypatch):\n>         points = M.t2266_genomes(\"balanced\")\n>         shared_reference_sha256 = hashlib.sha256(b\"same-reference-binary\").hexdigest()\n>     \n>         monkeypatch.setattr(\n>             M.source_digest, \"resolve_evidence\",\n>             lambda genome, *_args, **_kwargs: SimpleNamespace(\n>                 src_token=hashlib.sha256(genome.canonical().encode()).hexdigest(),\n>             ),\n>         )\n>         monkeypatch.setattr(M, \"derive_build_admission\", lambda *_args, **_kwargs: object())\n>     \n>         def build_v2(genome, **kwargs):\n>             amount = genome.flags[\"BACKOFF_FIXED\"]\n>             sha256 = (\n>                 shared_reference_sha256\n>                 if amount == -1 else hashlib.sha256(genome.canonical().encode()).hexdigest()\n>             )\n>             return M.buildcache.BuildResult(\n>                 genome=genome,\n>                 trace=kwargs[\"trace\"],\n>                 binary=f\"/bin/t2266-{genome.canonical()}\",\n>                 bin_sha256=sha256,\n>                 build_dir=f\"/build/t2266-{amount}\",\n>                 cached=False,\n>             )\n>     \n>         monkeypatch.setattr(M.buildcache, \"build_v2\", build_v2)\n> >       with pytest.raises(RuntimeError, match=\"T-2266 genomes produced the same binary\"):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'T-2266 genomes produced the same binary'\n> E         Actual message: 'T-2266 binary identity check is incomplete'\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:617: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1678 retained_bytes=1678 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2495 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eaa1d59783600cb8d676e60340972da3479e43c442be269bd41d01147746266e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 216.668,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-DISTINCT-BINARY-GATE-REMOVED",
+      "injection_diff_sha256": "cca45ddb4e94a054c2455fdc783d7690e265b280ec8fc50f92719b2f27aab6ad",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cbf46df93bc81d35501359cb6bbb4e5e5626d7538114c59f7737c50cf2bc5a46",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "        if False:\n            raise RuntimeError(\n                \"distinct T-2266 genomes produced the same binary: \"\n                f\"{previous} and {canonical} (sha256={sha256})\"\n            )\n",
+          "old": "        if previous != canonical:\n            raise RuntimeError(\n                \"distinct T-2266 genomes produced the same binary: \"\n                f\"{previous} and {canonical} (sha256={sha256})\"\n            )\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "eaa1d59783600cb8d676e60340972da3479e43c442be269bd41d01147746266e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/d05a460280547c82a5c7eb5c3c38b9c7/izdw-d05a460280.o975705",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/d05a460280547c82a5c7eb5c3c38b9c7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F..                                     [100%]\n=================================== FAILURES ===================================\n_____ test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep _____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1516445438e0>\n\n    def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n            tmp_path, monkeypatch):\n        capture = M._T2266RepCapture()\n        expected_abort_rates = []\n        with capture.installed():\n            for point_index in range(8):\n                expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n        view = _t2266_certified_view(tmp_path, capture)\n    \n        def discover(slug, search_tag, output_root, *, purpose):\n            assert slug == \"t2266-backoff-static-tail-silo-balanced\"\n            assert search_tag == \"sweep\"\n            assert output_root == str(tmp_path)\n            assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n            return view\n    \n        # Redirect only the filesystem locator; certified-view validation and WAL\n        # replay remain the production consumers used by materialize_t2266_report.\n        monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n    \n        paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n        document = json.loads(Path(paths[\"json\"]).read_text(encoding=\"utf-8\"))\n        dat = Path(paths[\"dat\"]).read_text(encoding=\"utf-8\")\n    \n        assert document[\"schema_version\"] == M.T2266_REPORT_SCHEMA\n        assert document[\"run_kind\"] == M.T2266_RUN_KIND\n        assert document[\"claim_scope\"] == \"descriptive_backoff_shape_only\"\n        assert document[\"source_measurement\"] == \"trace_disabled\"\n        assert document[\"performance_certified\"] is False\n        assert document[\"correctness_verified\"] is True\n        assert len(document[\"points\"]) == 8\n        for point_index, point in enumerate(document[\"points\"]):\n            assert len(point[\"reps\"]) == p2_2.REPS\n            assert point[\"throughput_tps_reps\"] == [\n                rep[\"throughput_tps\"] for rep in point[\"reps\"]\n            ]\n            assert point[\"abort_rate_reps\"] == expected_abort_rates[point_index]\n            assert point[\"abort_rate_reps\"] == [\n                rep[\"abort_rate\"] for rep in point[\"reps\"]\n            ]\n>           assert point[\"certified\"] is False\nE           assert True is False\n\norchestrator/tests/test_backoff_extended_sweep.py:386: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\n1 failed, 35 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=2436 retained_bytes=2436 omitted_bytes=0 rendered_excerpt_bytes=2535 sha256=9f1f00f4ba2490672afdd2dc05e0339b5f3704af3d72cdd8673f6f165e45a639\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_t2266_real_rep_capture_fl0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1516445438e0>\n> \n>     def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(\n>             tmp_path, monkeypatch):\n>         capture = M._T2266RepCapture()\n>         expected_abort_rates = []\n>         with capture.installed():\n>             for point_index in range(8):\n>                 expected_abort_rates.append(_measure_t2266_round(capture, point_index))\n>         view = _t2266_certified_view(tmp_path, capture)\n>     \n>         def discover(slug, search_tag, output_root, *, purpose):\n>             assert slug == \"t2266-backoff-static-tail-silo-balanced\"\n>             assert search_tag == \"sweep\"\n>             assert output_root == str(tmp_path)\n>             assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE\n>             return view\n>     \n>         # Redirect only the filesystem locator; certified-view validation and WAL\n>         # replay remain the production consumers used by materialize_t2266_report.\n>         monkeypatch.setattr(M, \"discover_campaign_dir\", discover)\n>     \n>         paths = M.materialize_t2266_report(\"balanced\", str(tmp_path), capture)\n>         document = json.loads(Path(paths[\"json\"]).read_text(encoding=\"utf-8\"))\n>         dat = Path(paths[\"dat\"]).read_text(encoding=\"utf-8\")\n>     \n>         assert document[\"schema_version\"] == M.T2266_REPORT_SCHEMA\n>         assert document[\"run_kind\"] == M.T2266_RUN_KIND\n>         assert document[\"claim_scope\"] == \"descriptive_backoff_shape_only\"\n>         assert document[\"source_measurement\"] == \"trace_disabled\"\n>         assert document[\"performance_certified\"] is False\n>         assert document[\"correctness_verified\"] is True\n>         assert len(document[\"points\"]) == 8\n>         for point_index, point in enumerate(document[\"points\"]):\n>             assert len(point[\"reps\"]) == p2_2.REPS\n>             assert point[\"throughput_tps_reps\"] == [\n>                 rep[\"throughput_tps\"] for rep in point[\"reps\"]\n>             ]\n>             assert point[\"abort_rate_reps\"] == expected_abort_rates[point_index]\n>             assert point[\"abort_rate_reps\"] == [\n>                 rep[\"abort_rate\"] for rep in point[\"reps\"]\n>             ]\n> >           assert point[\"certified\"] is False\n> E           assert True is False\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:386: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2436 retained_bytes=2436 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3282 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ea8dc88d2986e7ac9c5ec88ae9f8f09cab37a8e4227676f5be3d0953583da2ed"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 165.654,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-PERFORMANCE-CERTIFIED-TRUE",
+      "injection_diff_sha256": "ab6bc89e35fe6a13910d65c06634a248c372dddb95c00a128c67183c2af60baf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "00386c6d8e87f9e4fc7a16d8d50e1afd271501859f7bb40b128e9f4601e9f6f0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "            \"performance_certified\": True,\n            \"certified\": True,\n",
+          "old": "            \"performance_certified\": False,\n            \"certified\": False,\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "ea8dc88d2986e7ac9c5ec88ae9f8f09cab37a8e4227676f5be3d0953583da2ed",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/43b80c1f6a62a67514d4e64a07625faa/izdw-43b80c1f6a.o975771",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/43b80c1f6a62a67514d4e64a07625faa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FFF...                                     [100%]\n=================================== FAILURES ===================================\n___ test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage ___\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage():\n        adaptive_states_literal = (0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)\n>       assert set(adaptive_states_literal) <= set(M.EXTENDED_SWEEP_US)\nE       assert {0, 100, 200,...400, 500, ...} <= {0, 1, 2, 3, 4, 5, ...}\nE         \nE         Extra items in the left set:\nE         1000\n\norchestrator/tests/test_backoff_extended_sweep.py:276: AssertionError\n_____________ test_mu2_grid_upper_endpoint_matches_adaptive_range ______________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_mu2_grid_upper_endpoint_matches_adaptive_range():\n>       assert M.EXTENDED_SWEEP_US[-1] == 1000\nE       assert 999 == 1000\n\norchestrator/tests/test_backoff_extended_sweep.py:271: AssertionError\n___ test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint ____\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint():\n        adaptive_states_literal = {0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}\n>       assert tuple(\n            amount for amount in M.EXTENDED_SWEEP_US\n            if amount not in adaptive_states_literal\n        ) == (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 35, 50, 75, 150, 250, 560)\nE       assert (1, 2, 3, 4, 5, 6, ...) == (1, 2, 3, 4, 5, 6, ...)\nE         \nE         Left contains one more item: 999\nE         Use -v to get more diff\n\norchestrator/tests/test_backoff_extended_sweep.py:264: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range\nFAILED orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint\n3 failed, 33 passed in 4.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=654 retained_bytes=654 omitted_bytes=0 rendered_excerpt_bytes=683 sha256=16d94ddc19013b6bc288692d0293320d6c903ba5ac78f3b6df67cb662eaab6ae\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint():\n>         adaptive_states_literal = {0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}\n> >       assert tuple(\n>             amount for amount in M.EXTENDED_SWEEP_US\n>             if amount not in adaptive_states_literal\n>         ) == (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 35, 50, 75, 150, 250, 560)\n> E       assert (1, 2, 3, 4, 5, 6, ...) == (1, 2, 3, 4, 5, 6, ...)\n> E         \n> E         Left contains one more item: 999\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:264: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=501 retained_bytes=501 omitted_bytes=0 rendered_excerpt_bytes=524 sha256=0016acc2af4fcb06ccdbebbf4f55e7c2364e08a0e3b20dd1ca2188ea2788ab03\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage():\n>         adaptive_states_literal = (0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)\n> >       assert set(adaptive_states_literal) <= set(M.EXTENDED_SWEEP_US)\n> E       assert {0, 100, 200,...400, 500, ...} <= {0, 1, 2, 3, 4, 5, ...}\n> E         \n> E         Extra items in the left set:\n> E         1000\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:276: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=255 retained_bytes=255 omitted_bytes=0 rendered_excerpt_bytes=270 sha256=db460a969236ddb60c0570d0f1344f4dc170c746bbfbd807d79730fe64941d22\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_mu2_grid_upper_endpoint_matches_adaptive_range():\n> >       assert M.EXTENDED_SWEEP_US[-1] == 1000\n> E       assert 999 == 1000\n> \n> orchestrator/tests/test_backoff_extended_sweep.py:271: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1410 retained_bytes=1410 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3125 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ade8411f39a5564abfd33fb9b44c60a2f033d5a8a0b0c7983f9dd6d0857f6c61"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ccdcf49ec3c23056d91043f7c59e633ff58722c912b843be0a917f8a45dff0d0",
+      "duration_s": 2295.219,
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2266-EXTENDED-GRID-ENDPOINT",
+      "injection_diff_sha256": "5a338174360418f4c881ae46d20b27afef006b942e2047ef63608f8a91a70f93",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "be01b3d59f0316a312ecec5488d1e048d9c7a3b4debc4e084c3b27ef6b78349d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/backoff_extended_sweep.py",
+          "new": "    150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 999,\n",
+          "old": "    150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 1000,\n"
+        }
+      ],
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "KILLED",
+      "test_output_sha256": "ade8411f39a5564abfd33fb9b44c60a2f033d5a8a0b0c7983f9dd6d0857f6c61",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/07b5505746fd60afce3f9f65bc12f435/izdw-07b5505746.o975668",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/output/pegasus-dispatch/07b5505746fd60afce3f9f65bc12f435/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint\norchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range\norchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage\norchestrator/tests/test_backoff_extended_sweep.py::test_fixed_zero_and_none_are_distinct_genomes\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_report_writers_are_create_only\norchestrator/tests/test_backoff_extended_sweep.py::test_applied_tree_contains_the_backoff_fixed_build_surface\norchestrator/tests/test_backoff_extended_sweep.py::test_both_drivers_accept_the_same_explicit_ccbench_worktree_cli\norchestrator/tests/test_backoff_extended_sweep.py::test_invalid_explicit_worktree_cannot_fall_back_to_valid_shared_tree\norchestrator/tests/test_backoff_extended_sweep.py::test_distinct_backoff_fixed_amounts_produce_distinct_build_results\norchestrator/tests/test_backoff_extended_sweep.py::test_real_extended_driver_gate_recomputes_preprocessed_file_digest\norchestrator/tests/test_backoff_extended_sweep.py::test_duplicate_static_binary_hash_stops_before_campaign\norchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries\norchestrator/tests/test_backoff_extended_sweep.py::test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv\norchestrator/tests/test_backoff_extended_sweep.py::test_mu11_measurement_order_is_the_registered_seeded_permutation\norchestrator/tests/test_backoff_extended_sweep.py::test_measurement_seed_changes_the_real_campaign_id\norchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records\norchestrator/tests/test_backoff_extended_sweep.py::test_all_genomes_must_be_committed_and_none_aborted\norchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_receipt_is_durable_before_loop_raises\norchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_driver_materializes_typed_stop_receipt\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_builds_pinned_dependencies_in_job_scratch\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[normal]\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[abnormal]\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_time_budget_matches_walltime\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_script_identity_uses_three_sha256_values_not_path_equality\norchestrator/tests/test_backoff_extended_sweep.py::test_deferred_report_writes_plot_inputs_and_records_missing_png\norchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args0-True]\norchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args1-False]\norchestrator/tests/test_backoff_extended_sweep.py::test_failure_and_submission_receipts_cover_partial_progress\norchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate\n\n36 tests collected in 0.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "c052c281699fdfbf0fab138d0495af835c0dcc2ff02dd5b685e3b76e3756f678"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_fixed_zero_and_none_are_distinct_genomes",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_report_writers_are_create_only",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_applied_tree_contains_the_backoff_fixed_build_surface",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_both_drivers_accept_the_same_explicit_ccbench_worktree_cli",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_invalid_explicit_worktree_cannot_fall_back_to_valid_shared_tree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_distinct_backoff_fixed_amounts_produce_distinct_build_results",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_real_extended_driver_gate_recomputes_preprocessed_file_digest",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_duplicate_static_binary_hash_stops_before_campaign",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu11_measurement_order_is_the_registered_seeded_permutation",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_measurement_seed_changes_the_real_campaign_id",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_mu13_run_path_uses_the_calibration_bound_records",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_all_genomes_must_be_committed_and_none_aborted",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_receipt_is_durable_before_loop_raises",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_probe_error_driver_materializes_typed_stop_receipt",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_builds_pinned_dependencies_in_job_scratch",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[normal]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit[abnormal]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_time_budget_matches_walltime",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_job_script_identity_uses_three_sha256_values_not_path_equality",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_deferred_report_writes_plot_inputs_and_records_missing_png",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args0-True]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_report_cli_preserves_default_render_and_allows_measurement_deferral[extra_args1-False]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_failure_and_submission_receipts_cover_partial_progress",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate"
+      ],
+      "duration_s": 23.993,
+      "rc": 0,
+      "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+      "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+      "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+      "status": "PASSED",
+      "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2266-ABORT-CARDINALITY-GATE-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_rep_capture_rejects_extra_abort_parser_call"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0767cc55ef9d181ed8387cc710f23d806339005e0c52bef03493df00b9b19f45",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "        if False:\n            raise RuntimeError(\n                \"T-2266 rep capture requires exactly one abort parser call \"\n                \"per throughput rep, in rep order\"\n            )\n",
+            "old": "        if len(abort_rates) != len(throughputs):\n            raise RuntimeError(\n                \"T-2266 rep capture requires exactly one abort parser call \"\n                \"per throughput rep, in rep order\"\n            )\n"
+          }
+        ]
+      },
+      "MUT-T2266-ABORT-REPRESENTATIVE-DUPLICATION": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a9a7acedcc272e19f1b8a1fb058dd20f4314fbced4321affa2516ff29f7d0587",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "            for rep, (throughput, abort_rate) in enumerate(zip(\n                throughputs, [abort_rates[0]] * len(throughputs),\n            ))\n",
+            "old": "            for rep, (throughput, abort_rate) in enumerate(zip(\n                throughputs, abort_rates,\n            ))\n"
+          }
+        ]
+      },
+      "MUT-T2266-COMPLETION-DROPS-RUN-KIND": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "13feb430058d134bc752c490313164676522616b35820c2a690f9d5225b6f971",
+        "replacements": [
+          {
+            "file": "tools/pegasus/b10_backoff_grid.sh",
+            "new": "    \"workload\": workload,\n    \"pbs_jobid\": job,\n",
+            "old": "    \"run_kind\": run_kind,\n    \"workload\": workload,\n    \"pbs_jobid\": job,\n"
+          }
+        ]
+      },
+      "MUT-T2266-DISTINCT-BINARY-GATE-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cca45ddb4e94a054c2455fdc783d7690e265b280ec8fc50f92719b2f27aab6ad",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "        if False:\n            raise RuntimeError(\n                \"distinct T-2266 genomes produced the same binary: \"\n                f\"{previous} and {canonical} (sha256={sha256})\"\n            )\n",
+            "old": "        if previous != canonical:\n            raise RuntimeError(\n                \"distinct T-2266 genomes produced the same binary: \"\n                f\"{previous} and {canonical} (sha256={sha256})\"\n            )\n"
+          }
+        ]
+      },
+      "MUT-T2266-DROP-750": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_none_and_adaptive_must_have_distinct_perf_binaries",
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep",
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "39afaa7fa576debc996683421e21575ccc42deefd824b89f72fd9d59e5b0ad61",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "T2266_REALIZED_US = (150, 200, 300, 500, 999)\n",
+            "old": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 999)\n"
+          }
+        ]
+      },
+      "MUT-T2266-EXTENDED-GRID-ENDPOINT": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_mu15_all_adaptive_discrete_states_have_independent_literal_coverage",
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint",
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_mu2_grid_upper_endpoint_matches_adaptive_range"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5a338174360418f4c881ae46d20b27afef006b942e2047ef63608f8a91a70f93",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "    150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 999,\n",
+            "old": "    150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 1000,\n"
+          }
+        ]
+      },
+      "MUT-T2266-PERFORMANCE-CERTIFIED-TRUE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ab6bc89e35fe6a13910d65c06634a248c372dddb95c00a128c67183c2af60baf",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "            \"performance_certified\": True,\n            \"certified\": True,\n",
+            "old": "            \"performance_certified\": False,\n            \"certified\": False,\n"
+          }
+        ]
+      },
+      "MUT-T2266-REALIZED-1000": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_grid_is_exact_eight_points_without_encoded_1000",
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_t2266_requested_realized_and_unrealized_are_separate_identity_fields"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2c2a57f13b93e25dc931c8434d20e68dcda84d17abcdecf944f241b6df550e38",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/backoff_extended_sweep.py",
+            "new": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 1000)\n",
+            "old": "T2266_REALIZED_US = (150, 200, 300, 500, 750, 999)\n"
+          }
+        ]
+      },
+      "MUT-T2266-SHELL-DEFAULT-FLIP": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "daad7296dff28bf00f49d5695002a2cc200012d4c3c3e95bab58eec92ec21d66",
+        "replacements": [
+          {
+            "file": "tools/pegasus/b10_backoff_grid.sh",
+            "new": "B10_RUN_KIND=${B10_RUN_KIND:-t2266-tail}\n",
+            "old": "B10_RUN_KIND=${B10_RUN_KIND:-extended}\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "90c0b8c11ea34dc8d93d60d4db7dd19cd0faa556043be5c3afaf201834417b6d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_backoff_extended_sweep.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "3499ef8dfd792a5fb150a19ee30b0ee562d98aa3",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_backoff_extended_sweep.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "86ee3978dcd42e17dea83c2cc728eb38f967abba",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "4a64dd75d8c74bc857bc50f680111e49787376264612af5718d957f1dfbf4fee",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ae2a3dca7439adb93bf3673910e15f2b2dd50227e0e956c687da2ac32a906c73",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2266-backoff-static-tail/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "98aa7c63291ee89347bccd624e3ae537ab6eaae95c0b9cea922e1b96d0a9aba9",
+  "updated_at": "2026-09-04T05:58:47.968569+00:00"
+}

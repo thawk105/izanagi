@@ -19,6 +19,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import (
+    artifact_admission,
     backoff_extended_sweep as M,
     backoff_extended_sweep_report as R,
     backoff_overthrottle as O,
@@ -149,6 +150,115 @@ def _independent_replay_digest(record) -> str:
     return hashlib.sha256(completed.stdout).hexdigest()
 
 
+def _measure_t2266_round(
+        capture: M._T2266RepCapture, point_index: int, *,
+        extra_parser_call: bool = False,
+) -> list[float]:
+    """Drive the real measurement/parser path with a subprocess boundary fake."""
+    abort_rates = [0.01 * (point_index + 1) + 0.001 * rep for rep in range(p2_2.REPS)]
+    calls = 0
+
+    def subprocess_runner(*_args, **_kwargs):
+        nonlocal calls
+        rep = calls
+        calls += 1
+        if extra_parser_call and rep == 0:
+            M.calibrator_runner.parse_abort_rate({"abort_rate": "0.9"})
+        throughput = 1_000_000.0 + point_index * 100.0 + rep
+        return SimpleNamespace(
+            returncode=0,
+            stdout=(
+                f"throughput[tps]:\t{throughput}\n"
+                f"abort_rate:\t{abort_rates[rep]}\n"
+                "latency[ns]:\t100\n"
+            ),
+            stderr="",
+        )
+
+    M.campaign_pipeline.measure_point(
+        f"/fixture/t2266-point-{point_index}",
+        records=1,
+        threads=1,
+        clocks_per_us=1,
+        extime=1,
+        reps=p2_2.REPS,
+        workload={},
+        subprocess_runner=subprocess_runner,
+        require_all_reps=True,
+        use_perf=False,
+    )
+    assert calls == p2_2.REPS
+    return abort_rates
+
+
+def _t2266_certified_view(tmp_path: Path, capture: M._T2266RepCapture):
+    """Build the real immutable WAL projection consumed by the report loader."""
+    records = []
+    for point_index, genome in enumerate(M.t2266_genomes("balanced")):
+        captured = capture.rounds[point_index]
+        variant = f"fixture-variant-{point_index}"
+        attempt = f"fixture-attempt-{point_index}"
+        common = {"build_attempt_id": attempt}
+        records.extend((
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_BUILD_START, "fixture-env", point_index * 4,
+                {**common, "genome": genome.canonical()},
+            ),
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_VERIFY_DONE, "fixture-env", point_index * 4 + 1,
+                {**common, "certified": True},
+            ),
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_BENCH_DONE, "fixture-env", point_index * 4 + 2,
+                {
+                    **common,
+                    "run_cmd": captured["run_cmd"],
+                    "tps": captured["throughput_tps"],
+                    "median_tps": captured["throughput_tps"][p2_2.REPS // 2],
+                    "leading_indicators": {
+                        "abort_rate": captured["reps"][p2_2.REPS // 2]["abort_rate"],
+                        "latency_ns": 100.0,
+                    },
+                    "cv": 0.001,
+                    "unstable": False,
+                },
+            ),
+            artifact_admission.ImmutableWalRecord(
+                variant, M.wal.STAGE_COMMIT, "fixture-env", point_index * 4 + 3,
+                common,
+            ),
+        ))
+    campaign_id = "t2266-fixture-campaign"
+    root = tmp_path / "campaigns" / campaign_id
+    (root / "reports").mkdir(parents=True)
+    digest = "0" * 64
+    decision = artifact_admission.CampaignAdmissionDecision(
+        classification="official-certified",
+        admission_status="admitted",
+        verification_status="verified",
+        campaign_id=campaign_id,
+        campaign_path=str(root),
+        campaign_lock_sha256=digest,
+        wal_sha256=digest,
+        policy_sha256=None,
+        attempt_receipt_sha256s=(),
+        overlay_ledger_sha256=digest,
+        overlay_record_key=None,
+        validator_sha256=digest,
+    )
+    epoch = artifact_admission.CampaignVerifierEpoch(
+        f"E1:{digest}", "E1", "recorded-closure",
+    )
+    return artifact_admission.CertifiedCampaignView(
+        layout=artifact_admission.CampaignLayout(str(root)),
+        records=tuple(records),
+        decision=decision,
+        campaign_verifier_epoch=epoch,
+        persisted_certified_commit_count=8,
+        _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
+    )
+
+
 def test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint():
     adaptive_states_literal = {0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
     assert tuple(
@@ -178,6 +288,130 @@ def test_fixed_zero_and_none_are_distinct_genomes():
     assert none.flags["BACKOFF_FIXED"] == -1
     assert fixed_zero.flags["BACKOFF_FIXED"] == 0
     assert none.canonical() != fixed_zero.canonical()
+
+
+def test_t2266_grid_is_exact_eight_points_without_encoded_1000():
+    expected_static = (150, 200, 300, 500, 750, 999)
+    for tag, _workload in M.WORKLOADS:
+        points = M.t2266_genomes(tag)
+        assert len(points) == 8
+        assert len({point.canonical() for point in points}) == 8
+        assert sum(point.flags["BACK_OFF"] == 0 for point in points) == 1
+        assert sum(
+            point.flags["BACK_OFF"] == 1
+            and point.flags["BACKOFF_FIXED"] == -1
+            for point in points
+        ) == 1
+        assert tuple(sorted(
+            point.flags["BACKOFF_FIXED"]
+            for point in points
+            if point.flags["BACK_OFF"] == 1
+            and point.flags["BACKOFF_FIXED"] >= 0
+        )) == expected_static
+        assert all(point.flags["BACKOFF_FIXED"] not in {0, 1000} for point in points)
+
+
+def test_t2266_requested_realized_and_unrealized_are_separate_identity_fields():
+    assert M.T2266_REQUESTED_US == (150, 200, 300, 500, 750, 1000)
+    assert M.T2266_REALIZED_US == (150, 200, 300, 500, 750, 999)
+    assert M.T2266_REQUESTED_US is not M.T2266_REALIZED_US
+    assert set(M.T2266_UNREALIZED) == {1000}
+    assert "F718" in M.T2266_UNREALIZED[1000]
+    assert "商 1" in M.T2266_UNREALIZED[1000]
+    assert "振幅 0" in M.T2266_UNREALIZED[1000]
+    assert "固定 0" in M.T2266_UNREALIZED[1000]
+
+    cfg = M.t2266_config_for("balanced", M.WORKLOAD_BY_TAG["balanced"])
+    assert cfg.spec_slug == "t2266-backoff-static-tail-silo-balanced"
+    assert cfg.search_config["requested_us"] == list(M.T2266_REQUESTED_US)
+    assert cfg.search_config["realized_us"] == list(M.T2266_REALIZED_US)
+    assert cfg.search_config["unrealized"] == [{
+        "backoff_us": 1000,
+        "reason": M.T2266_UNREALIZED[1000],
+    }]
+    assert cfg.search_config["run_kind"] == M.T2266_RUN_KIND
+    assert cfg.search_config["measurement_order"] == M.t2266_measurement_order(
+        "balanced",
+    )
+    assert [point["label"] for point in cfg.search_config["grid"]] == (
+        ["none", "adaptive", *[
+            f"fixed-{amount}us" for amount in M.T2266_REALIZED_US
+        ]]
+    )
+    assert set(cfg.search_config["measurement_order"]) == {
+        point["label"] for point in cfg.search_config["grid"]
+    }
+
+
+def test_t2266_real_rep_capture_flows_through_wal_consumer_for_every_rep(
+        tmp_path, monkeypatch):
+    capture = M._T2266RepCapture()
+    expected_abort_rates = []
+    with capture.installed():
+        for point_index in range(8):
+            expected_abort_rates.append(_measure_t2266_round(capture, point_index))
+    view = _t2266_certified_view(tmp_path, capture)
+
+    def discover(slug, search_tag, output_root, *, purpose):
+        assert slug == "t2266-backoff-static-tail-silo-balanced"
+        assert search_tag == "sweep"
+        assert output_root == str(tmp_path)
+        assert purpose is M.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+        return view
+
+    # Redirect only the filesystem locator; certified-view validation and WAL
+    # replay remain the production consumers used by materialize_t2266_report.
+    monkeypatch.setattr(M, "discover_campaign_dir", discover)
+
+    paths = M.materialize_t2266_report("balanced", str(tmp_path), capture)
+    document = json.loads(Path(paths["json"]).read_text(encoding="utf-8"))
+    dat = Path(paths["dat"]).read_text(encoding="utf-8")
+
+    assert document["schema_version"] == M.T2266_REPORT_SCHEMA
+    assert document["run_kind"] == M.T2266_RUN_KIND
+    assert document["claim_scope"] == "descriptive_backoff_shape_only"
+    assert document["source_measurement"] == "trace_disabled"
+    assert document["performance_certified"] is False
+    assert document["correctness_verified"] is True
+    assert len(document["points"]) == 8
+    for point_index, point in enumerate(document["points"]):
+        assert len(point["reps"]) == p2_2.REPS
+        assert point["throughput_tps_reps"] == [
+            rep["throughput_tps"] for rep in point["reps"]
+        ]
+        assert point["abort_rate_reps"] == expected_abort_rates[point_index]
+        assert point["abort_rate_reps"] == [
+            rep["abort_rate"] for rep in point["reps"]
+        ]
+        assert point["certified"] is False
+        assert point["performance_certified"] is False
+        assert point["correctness_verified"] is True
+    assert '"claim_scope":"descriptive_backoff_shape_only"' in dat
+    assert '"source_measurement":"trace_disabled"' in dat
+    assert '"performance_certified":false' in dat
+    assert '"correctness_verified":true' in dat
+
+
+def test_t2266_rep_capture_rejects_extra_abort_parser_call():
+    capture = M._T2266RepCapture()
+    with capture.installed():
+        with pytest.raises(RuntimeError, match="exactly one abort parser call"):
+            _measure_t2266_round(capture, 0, extra_parser_call=True)
+    assert capture.rounds == []
+
+
+def test_t2266_report_writers_are_create_only(tmp_path):
+    dat_path = tmp_path / "tail.dat"
+    json_path = tmp_path / "tail.json"
+    M._write_create_only_text(dat_path, "first\n")
+    M._write_create_only_json(json_path, {"first": True})
+
+    with pytest.raises(FileExistsError):
+        M._write_create_only_text(dat_path, "replacement\n")
+    with pytest.raises(FileExistsError):
+        M._write_create_only_json(json_path, {"first": False})
+    assert dat_path.read_text(encoding="utf-8") == "first\n"
+    assert json.loads(json_path.read_text(encoding="utf-8")) == {"first": True}
 
 
 def test_applied_tree_contains_the_backoff_fixed_build_surface(tmp_path):
@@ -349,6 +583,50 @@ def test_duplicate_static_binary_hash_stops_before_campaign(monkeypatch):
             build_context=object(),
             capability_resolver=lambda _evidence: object(),
             trace_modes=(False,),
+        )
+
+
+def test_t2266_none_and_adaptive_must_have_distinct_perf_binaries(monkeypatch):
+    points = M.t2266_genomes("balanced")
+    shared_reference_sha256 = hashlib.sha256(b"same-reference-binary").hexdigest()
+
+    monkeypatch.setattr(
+        M.source_digest, "resolve_evidence",
+        lambda genome, *_args, **_kwargs: SimpleNamespace(
+            src_token=hashlib.sha256(genome.canonical().encode()).hexdigest(),
+        ),
+    )
+    monkeypatch.setattr(M, "derive_build_admission", lambda *_args, **_kwargs: object())
+
+    def build_v2(genome, **kwargs):
+        amount = genome.flags["BACKOFF_FIXED"]
+        sha256 = (
+            shared_reference_sha256
+            if amount == -1 else hashlib.sha256(genome.canonical().encode()).hexdigest()
+        )
+        return M.buildcache.BuildResult(
+            genome=genome,
+            trace=kwargs["trace"],
+            binary=f"/bin/t2266-{genome.canonical()}",
+            bin_sha256=sha256,
+            build_dir=f"/build/t2266-{amount}",
+            cached=False,
+        )
+
+    monkeypatch.setattr(M.buildcache, "build_v2", build_v2)
+    with pytest.raises(RuntimeError, match="T-2266 genomes produced the same binary"):
+        M._prebuild_backoff_binaries(
+            points,
+            contract=object(),
+            cache_root="/cache",
+            ccbench_dir="/ccbench",
+            resolved_cc="cc",
+            resolved_cxx="c++",
+            expected_toolchain_manifest={},
+            build_context=object(),
+            capability_resolver=lambda _evidence: object(),
+            trace_modes=(False,),
+            require_all_binary_hashes=True,
         )
 
 
@@ -587,6 +865,53 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert 'export https_proxy="$BUILD_NETWORK_PROXY_URL"' in job
     assert '"external_fetch_via_proxy": True' in job
     assert '"dependency_revisions": "sha-pinned"' in job
+
+
+def test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts():
+    root = Path(__file__).resolve().parents[2]
+    job_path = root / "tools/pegasus/b10_backoff_grid.sh"
+    submit_path = root / "tools/pegasus/submit_b10_backoff_grid.sh"
+    for path in (job_path, submit_path):
+        subprocess.run(["bash", "-n", str(path)], check=True)
+    job = job_path.read_text(encoding="utf-8")
+    submit = submit_path.read_text(encoding="utf-8")
+
+    assert "B10_RUN_KIND=extended" in submit
+    assert "B10_RUN_KIND=${B10_RUN_KIND:-extended}" in job
+    for script in (job, submit):
+        assert "extended|t2266-tail" in script
+    assert "--run-kind)" in submit
+    assert "B10_RUN_KIND=$B10_RUN_KIND" in submit
+    assert (
+        'QSUB_ENV="B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,'
+        'B10_SUBMISSION_NONCE=$SUBMISSION_NONCE,'
+        'JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256"'
+    ) in submit
+    assert 'QSUB_ENV="$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND"' in submit
+    assert 'SWEEP_COMMAND+=(--run-kind "$B10_RUN_KIND")' in job
+    assert 'if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then' in job
+    assert 'if [[ "$B10_RUN_KIND" == "extended" ]]; then' in job
+
+    extended_only = job.split(
+        'if [[ "$B10_RUN_KIND" == "extended" ]]; then', 1,
+    )[1].split("\nfi", 1)[0]
+    assert "backoff_overthrottle.py" in extended_only
+    assert "backoff_extended_sweep_report.py" in extended_only
+    t2266_argv = job.split(
+        'SWEEP_COMMAND+=(--run-kind "$B10_RUN_KIND")', 1,
+    )[0].rsplit('if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then', 1)[1]
+    assert "backoff_overthrottle.py" not in t2266_argv
+    assert "backoff_extended_sweep_report.py" not in t2266_argv
+
+    assert 'run_kind = os.environ["B10_RUN_KIND"]' in submit
+    assert submit.count('"run_kind": run_kind') == 3
+    assert 'root, rc, stage, line, job, run_kind = sys.argv[1:]' in job
+    assert 'repo_commit, ccbench_commit, run_kind = sys.argv[1:]' in job
+    assert 'root, workload, job, freeze_hash, run_kind = sys.argv[1:]' in job
+    assert job.count('"run_kind": run_kind') == 3
+    assert 'if run_kind == "t2266-tail":' in job
+    assert "len(commits) != 8" in job
+    assert 'for suffix in (".dat", ".json")' in job
 
 
 def test_b10_job_builds_pinned_dependencies_in_job_scratch():

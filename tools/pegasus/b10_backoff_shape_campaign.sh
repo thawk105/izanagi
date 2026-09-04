@@ -2,7 +2,7 @@
 #PBS -A SFC
 #PBS -q gen_S
 #PBS -b 1
-#PBS -l elapstim_req=12:00:00
+#PBS -l elapstim_req=24:00:00
 #PBS -N izanagi-b10-shape
 #PBS --accept-sigterm=yes
 set -Eeuo pipefail

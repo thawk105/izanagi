@@ -148,6 +148,22 @@
   恒久対応は memory `stage1-closure-must-list-recent-insight-dirs` を新設して閉じる。
   `DW-S01` への統合は、同節が既に実測で予算超過 (L1 unique footprint 10656 bytes >
   予算 10625 bytes) と記録されているため行わない。
+
+- **再発: 2026-09-04** — F241 (2026-08-12) が、観測 (`perf stat` の rc=2) から**推論した**
+  「計算ノードに perf が無い」を根本原因として記録し、「環境側 (管理者手番) に linux-tools を
+  入れてもらう以外に道はない」まで一般化した。一次資料を 2 つ確認していない —
+  `/usr/bin/perf` の実物 (完全一致する版が無ければ他版へ fallback せず exit 2 する**振り分け役**)
+  と、**同じ台帳の F89** (9 日前の 2026-08-03 に bnode005 / bnode009 で候補実体が rc=0 で動くことを
+  実測済み) である。`docs/pegasus-runbook.md` の環境事実も同じ機構を既に書いていた。
+  転写対象が日付・機構の実在状態・推測の確度から、**観測した非 0 rc の帰属先**へ広がった顕在化で
+  ある。振り分け役の rc は「その kernel 版の実体が無い」ことしか言わず、その先に動く実体が
+  あるかどうかについては何も言わない。相反する根本原因が同じ台帳に併存したまま、
+  F501 と `output/insights/2026-08-26_b10-balanced-profile/README.md` が独立に正しい機構を
+  書いた後も F241 は訂正されなかった。検出はユーザーの指摘と、同日の同一 node・同一 run 対測定
+  23 run。恒久対応は memory `nonzero-rc-of-a-dispatcher-is-not-absence` —
+  非 0 rc を「対象の不在」と読む前に、rc を返した実体が振り分け役でないかを確かめ、
+  推論の否定側を同じ台帳の中でも検索する (worklog 2026-09-04、
+  `output/insights/2026-09-04_f241-perf-attribution/`)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -8158,6 +8174,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   12 セル分の build を終えてから 120 回続けて失敗する)。
   **`driver_rc` と `status` だけを見て成功と判定しない** — 成果物の `floors` が
   実数を持つことまで確かめる。本件は rc=0 で 2 回返っている。
+- **supersede: 2026-09-04** — 恒久対応の 3 点を訂正する。(1)「計算ノードに現行 kernel 用 perf が無い」は kernel 一致の linux-tools が無いという意味では真だが、既設の `/usr/lib/linux-tools/5.15.0-100-generic/perf` と `/usr/lib/linux-tools/5.15.0-135-generic/perf` は実在して動く。(2)「環境側 (管理者手番) に linux-tools を入れてもらう以外に道はない」は成り立たない。rc=2 を返すのは `/usr/bin/perf` という振り分け役で、完全一致する版が無ければ他版へ fallback せず exit 2 するだけである。(3)「perf を外す回避を採ってはならない」は D352 と矛盾する — 正式系列は perf 不在で進み `use_perf=false` の測定は eligible である。2026-09-04 の実測: gen_S へ 24 job 投入し 23 job が返却 (request 975613 のみ scheduler 出力・probe 出力とも戻らず除外)、6 distinct bnode (049 / 074 / 075 / 076 / 092 / 101、うち 092 と 101 で 17 run)、全 node が kernel 5.15.0-173-generic・`perf_event_paranoid=0`。同一 node・同一 run の対比で literal `perf` は 23/23 が `stat` rc=2 で 4 event 0/4、絶対 path 2 本は 46/46 が rc=0 で 4/4、両側 control は全 run で成立した。示したのは候補実体の直接 smoke までであり、production argv (`-x,` と `-o <csv>`) の完走は示していない。受理集合は経路ごとに違う — shell の `certify_calibration.sh` は `[[ -x ]]` で候補を受理して既に選定しており、Python の `submission._executable` は symlink を拒み (F89、未裁定)、床値 preflight は literal だけを probe する (D348)。したがって本追記は絶対 path の採用を認可せず、[T-970] の見送りと D352 を動かさない。distinct node は 6 であり本項の 8 node と同等の標本ではない。全数記録は `output/insights/2026-09-04_f241-perf-attribution/`。
 
 ### F242. 実装子が全員テストを実走できない wave では、静的レビュー 4 本を通った欠陥が初回実測で出る [テスト代表性]
 
@@ -9056,6 +9073,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   legacy 6 node の 3 秒 admission 経路だけである。** launcher と checker の 10 秒 watchdog、
   child pid の 2 秒 deadline、manifest 観測の 3 秒、late rollout の 3 秒、fake barrier の 5 秒は
   残存する。file 全体の flake 解消は主張しない。
+
+- **再発: 2026-09-04** — 受入全走を 3 回投入し、いずれも `test_codex_worker_launch.py` の
+  1 件だけが落ちた (毎回 20341 passed / 68 skipped / 1 failed)。**落ちた node は
+  `test_sigterm_ignoring_child_is_killed` → `test_limit_stop_is_never_accepted` →
+  `test_sigterm_ignoring_child_is_killed` と揺れた。** 中身は前者が
+  `actual rc timeout != expected rc 1` (`communicate(timeout=10)` 超過、`loadavg=45.9` /
+  `bnode082`)、後者が `assert -9 == 0` (`max_wall="11"` の watchdog が子を SIGKILL)。
+  いずれも launcher の壁時計上限である。
+  同エントリの再発検知手順を実行した — 並行 launcher は **8 本** (F273 の 2 回目と同水準)、
+  同 file の単独走は **211 passed / rc=0 / 8.87 秒**で緑。落ちた node の単独再走も 7.44 秒で緑。
+  本 wave の差分は `orchestrator/tests/test_codex_reasoning_ab.py` 1 本だけで production は
+  無変更のため、同 file への到達経路が無い。**差分へ帰属させない。**
+- **再発: 2026-09-04** — 同じ窓で、受入が**テストに到達せず** infra で 2 回落ちた。
+  1 回は同一 worktree から provenance 監査と受入を並行投入したことによる orphan hold
+  (`DW-O26` の直列化義務違反、親の操作ミス)、1 回は `queue-wait-timeout` (scheduler は
+  QUE 8 本 / RUN 0 本)。後者は D612 の opt-in 上書き (queue-wait 3600 秒) を当てて解消した。
+  **受入 lease が他 wave の codex 子を排除しない構造は同エントリの記載どおり未解決で、
+  本 wave では機構を新設せず、hold 登録による迂回も採らない。**
+  他 wave 所有のテストを hold へ入れて自分の wave を通すことは、共有の正しさ関門を
+  弱める方向であり、本 wave の scope 外である。land を保留してユーザー裁定へ返す。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -21793,3 +21830,128 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「親担当と分割した裁定項目は段 7 前に着地差分と突き合わせる」を追記した。
 - 再発検知: 段 7 前の目視照合。機械化は未実装で、裁定文の分割記法が定型でないため
   lint 化には形式の固定が要る (F262 と同じ制約)。
+
+### F840. job 単位のメモリ表示を物理常駐量と読み、上限に迫っていると誤認した [計測汚染]
+
+- 事象: 走行中の B-10 campaign job を `qstat` で見ると Memory が 115.29G まで跳ね、
+  ユーザ利用上限 115GiB のすぐ下に見えた。短縮表示と `qstat -f` が同じ値を返すため
+  読み違いではないと確認され、read-heavy (commit 数が約 4 倍) は上限を越えると誤認しかけた。
+- 根本原因: 直列性検査器は `fork` で 16 子を作る。Linux の RSS は共有 copy-on-write ページを
+  **触った全プロセスへ重複計上する**ため、job 単位の合計は親の常駐量の worker 数倍まで膨らむ。
+  実測でもスパイクは隣接する定常値の 11.4-17.1 倍 (中心 13-14 倍) で並列度 16 と一致し、
+  約 60 秒周期で 2 段に分かれた (fork する段が構文解析と辺候補計算の 2 つある)。
+- 恒久対応: 並列化した producer の記憶量は **cgroup の `memory.current` を専用 scope で
+  sampling して測る**。手順は `docs/pegasus-runbook.md` §7.0.0 が正本で、同節は
+  「`/usr/bin/time -f %M` の per-process ピーク RSS を代理値にしてはならない — 多重プロセスを
+  worker 数分の 1 に過小評価し、共有ページを二重計上し、file / slab / page table の charge を
+  落とす」と既に明記している。**`qstat` の job 単位 Memory も同じ理由で代理値にしない。**
+- 再発検知: 並列 producer の記憶量を論じる記録では、値の出所 (cgroup か per-process 合計か) を
+  明示し、合計値を使うなら並列度で割った値と定常値の桁が合うかを併記する。
+  桁が合わないまま上限との比較を書いたら誤りとする。
+
+### F841. 投入前の試し打ちを求める裁定が、実行面の不在と同一性束縛によって満たせなくなった [手順漏れ]
+
+- 事象: D1480 条件 2 は「45 cell 全滅の可能性を 1 cell の安い試し打ちで本走の前に潰す」ことを
+  ユーザー裁定として求めている。B-10 read-heavy の投入前にこれを満たそうとしたが、
+  **現行 CLI にその実行面が無い** — `verify-perf` は 15 変種 45 セルへ進み、
+  `report` は exact 135 セルを要求し、`probe` phase は待ちループの実測であって
+  セルの試し打ちではない。
+- 根本原因: 実行面を足すには driver を編集するしかないが、driver 自身の bytes が
+  `analysis_code_sha256` として campaign 同一性へ入る。**足した瞬間に、同じ系列で走行中の
+  balanced 45 セルが最終集約から外れる。** 条件 2 を字義どおり満たすことと、
+  D1509 決定 3 が守ろうとした完走分を残すことが正面から衝突する。
+  試し打ち機構を「本走の前に作る」ものとして設計せず、本走の driver と同一性を共有する形に
+  置いたことが原因である。
+- 恒久対応: **ユーザー裁定へ返した** (設計文書 §9 の問い 6 に 3 択で記録)。
+  併せて、以後「投入前の試し打ち」を裁定条件に含める設計では、
+  **試し打ちの実行面が本走の同一性束縛の外にあるか**を設計時に確かめる義務を
+  同 §9 へ明記した。実体は `docs/b10-multinode-formal-run-design.md` §9 の問い 6。
+- 再発検知: 投入前条件を持つ設計を書くとき、その条件を満たす操作が
+  現行 CLI に存在するかを設計文書へ file:line で書く。書けなければ条件として採らない。
+
+### F842. 設定 1 値の変更が、file 全体の hash pin を外して受入で赤になった [手順漏れ]
+
+- 事象: `tools/pegasus/policy.json` の `b10_backoff_shape_walltime_s` を 43200 から 86400 へ
+  変えたところ、受入全走が 20300 件中 2 件の赤を返した。
+  `test_shared_pegasus_policy_owns_no_t126_qualification_keys` と
+  `test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head` である。
+  原因は同 file の**現行 bytes を sha256 で明示 pin する golden**
+  (`orchestrator/tests/pegasus_policy_expected_goldens.py` の
+  `EXPECTED_CURRENT_PEGASUS_POLICY_SHA256`) が外れたことだった。
+- 根本原因: 親は pin 閉包を **key 名** (`b10_backoff_shape_walltime_s`) と
+  **値の字面** (`43200` / `12:00:00` / `12 * 60 * 60`) で取った。
+  **file 全体の hash を持つ pin は key 名も値も本文に持たないので、どちらの検索にも掛からない。**
+  DW-O09 が指示する `git grep -n "<成果物パス>"` を走らせていなかった。
+  段 2 のプランと段 3・段 6 の 4 レンズも全員が同じ探し方をしたので誰も見つけず、
+  受入全走だけが見つけた。段 6 の焦点走も変更 file と同名の test file だけで、
+  DW-O26 が求める「変更した production file を参照する consumer test」を引いていなかった。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O09` が既に
+  「`git grep -n "<成果物パス>"` を使い bytes を pin する台帳・test・trust root を全列挙する」
+  と定めており、規約側の不足ではない。**規約どおりに引かなかったことが原因である。**
+  再発防止は既存 `DW-O09` の遵守と、`DW-O26` の焦点走拡張の遵守に閉じる。
+  新しい節は足さない。
+- 再発検知: 設定 file の中の 1 値を変える wave では、段 0 の閉包に
+  `git grep -n "<変更する file の repo 相対 path>"` の出力を残す。
+  この出力が無いまま段 5 へ進んだら閉包未了とする。
+
+### F843. 材料文書が「1 点も測っていない」と書いたが、その測定は執筆時点で既に存在していた [検証漏れ] [一次資料未確認]
+
+- 事象: `output/insights/2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md` §5 が
+  「b > 100 µs の静的 `T(b)` は 1 点も測っていない」と書き、§7 がそれを次の作業の根拠にした。
+  この記述を正本として [T-2266] が起票され、依頼として投げられた。
+  **実際には B-10 拡張格子が 2026-08-26 に b = 0〜900 µs の有効 28 点を 3 workload 分すべて
+  完走させており、依頼が挙げた 6 点のうち 4 点は依頼どおりの条件で既に測られていた**
+  (job 951689 / 951690 / 951691)。
+- 根本原因: **成果物が repo 外 (`/work/1/SFC/tanab/b10-backoff-grid-runs5/`) にあり、
+  repo 内の grep では見つからない。** 一方で同じ bytes は
+  `docs/paper-story/figures/fig2c_b10_extended_backoff.provenance.json` が図 2c の入力として
+  束縛しており、repo 内から辿る経路は存在した。執筆者は「未測定」を、
+  自分が参照した材料の範囲で判断し、既存成果物の全数確認を行わなかった。
+- 恒久対応: `docs/dev-wave/core.md` の `DW-S01` が既に
+  「依頼・対象 vector の既存被覆を性質で decisions / archive worklog まで検索し、純増だけ書く」
+  を求めている。本件はこの義務が **repo 外の測定成果物にも及ぶ**ことを示す実例である。
+  measurement 系の「未測定」主張は、`docs/paper-story/figures/*.provenance.json` の
+  `root_at_generation` が指す repo 外 root を列挙して反証を試みてから書く。
+- 再発検知: 「未測定」「1 点も測っていない」と書く段で、
+  対象量を出力する producer (`orchestrator/campaign/*.py`) を名指しし、
+  その成果物 root を実際に `ls` した記録を残す。記録の無い未測定主張を根拠に起票しない。
+
+### F844. 焦点走の rc=16 を test の赤と読みかけた [誤帰属] [infra]
+
+- 事象: fix 後の焦点走が rc=16 で戻った。log 末尾は
+  `Pegasus dispatch infrastructure failure: queue-wait-timeout` /
+  `IZANAGI_DISPATCH_OUTCOME_V1 {"child_rc":null,"child_started":false,...}` で、
+  **子は 1 度も起動しておらず test は 1 件も走っていない。**
+  他 wave の job が 5 本 queue に並ぶ混雑下だった。
+- 根本原因: 既定の queue 待ち上限 (900 秒) が、実際の混雑 (数十分〜時間オーダー) に足りない。
+  D612 が opt-in 上書きを用意しているが、既定のまま投げると infra 失敗が test 結果の位置に現れる。
+- 恒久対応: `docs/decisions.md` D612 の
+  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` / `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`
+  を混雑時に明示して投げる (本 wave では 3600 / 600 で通った)。
+  併せて `IZANAGI_DISPATCH_OUTCOME_V1` の `child_started` を rc の解釈より先に読む。
+- 再発検知: 非 0 rc を赤と分類する前に、log 末尾の `IZANAGI_DISPATCH_OUTCOME_V1` 行を読み、
+  `child_started` が false なら infra として扱い、赤の内訳へ数えない。
+  失敗後は `output/pegasus-dispatch/orphan-hold.json` と
+  `output/pegasus-dispatch/orphan-holds/<request>.json` の 2 file を、
+  `qstat -f <request>` で job の不在を確認してから撤去する。
+
+### F845. 変異 harness の使い捨て worktree が submodule 未初期化で baseline を赤にし、`--resume` がその赤を回復しないため再開が空転した [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py` が作る使い捨て container は submodule を再帰初期化しない。
+  復帰した snapshot 検査が `submodule is not initialized: external/ccbench/third_party/shirakami` で
+  21 件落ち、baseline が `PARSE_ERROR` になって本走が始まらなかった。container の submodule を
+  初期化してから `--resume` しても、harness は記録済みの赤 baseline を再走せず
+  (`baseline=0 run(s)`)、同じ位置で止まり続けた。2 回の再開が空転した。
+- 根本原因: container 生成が `DW-O08` の再帰初期化を含まないこと。加えて `--resume` の意味論が
+  「baseline は完了済みとして再走しない」であり、baseline の赤が環境要因でも回復経路が無いこと。
+  `--resume` は `--attempt-out` に**既存 file** を要求し、通常の再投入 (`--out` と `--attempt-out` を
+  新 path にする、`DW-O19`) と要求が逆向きになる点も、再開を 1 回余分に失敗させた。
+- 恒久対応: memory `mutation-container-needs-submodule-init` — container は起動前に
+  `python3 tools/dev_wave_submodule_init.py --worktree <container>/repo` で再帰初期化し、
+  baseline が赤で終わった run は `--resume` せず、初期化済みの固定 commit checkout に対して
+  `tools/mutation_harness.py --repo .` を**新しい `--out`** で走らせ直す。
+  **`docs/dev-wave/` へ書けなかった。** `DW-O19` は 998/1000 bytes、`DW-M05` へ 4 行足すと
+  L1.5 unique footprint が 9922 > 9696 bytes で `check_docs` が赤になる (実測)。
+  共有契約が新しい運用知見を吸収できない状態にあることを併せて記録する。
+- 再発検知: 変異走の baseline が `PARSE_ERROR` または `submodule is not initialized` を含んだら
+  実装差分へ帰属せず container の初期化状態を先に見る (同 memory の How to apply)。

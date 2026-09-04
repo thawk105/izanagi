@@ -1,0 +1,25 @@
+{
+ "note": "login-node diagnostic reproduction of the backoff_sweep supply arm; not a measurement, not the job's own record",
+ "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2211-a5-resubmit",
+ "ccbench_pin": "511c953",
+ "cxx": "g++",
+ "cmake_prefix_path": "/work/1/SFC/tanab/izanagi-a2-deps",
+ "records": [
+  {
+   "requested_value": 10,
+   "stock_comparison": false,
+   "arm": "supply-effectuation",
+   "terminal_status": "red",
+   "reason_code": "preprocess-failed",
+   "evidence": "{'detail': \"process returned rc=1; stderr=b'/tmp/repro-tmp/izanagi_wt_bfugwqxf/wt/cc/silo/include/atomic_tool.hh:3,\\\\n                 from /home/SFC/tanab/.claude/jobs/0807dc76/tmp/repro-tmp/izanagi_wt_bfugwqxf/wt/cc/silo/transaction.cc:5:\\\\n/home/SFC/tanab/.claude/jobs/0807dc76/tmp/repro-tmp/izanagi_wt_bfugwqxf/wt/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: \\\\xe3\\\\x81\\\\x9d\\\\xe3\\\\x81\\\\xae\\\\xe3\\\\x82\\\\x88\\\\xe3\\\\x81\\\\x86\\\\xe3\\\\x81\\\\xaa\\\\xe3\\\\x83\\\\x95\\\\xe3\\\\x82\\\\xa1\\\\xe3\\\\x82\\\\xa4\\\\xe3\\\\x83\\\\xab\\\\xe3\\\\x82\\\\x84\\\\xe3\\\\x83\\\\x87\\\\xe3\\\\x82\\\\xa3\\\\xe3\\\\x83\\\\xac\\\\xe3\\\\x82\\\\xaf\\\\xe3\\\\x83\\\\x88\\\\xe3\\\\x83\\\\xaa\\\\xe3\\\\x81\\\\xaf\\\\xe3\\\\x81\\\\x82\\\\xe3\\\\x82\\\\x8a\\\\xe3\\\\x81\\\\xbe\\\\xe3\\\\x81\\\\x9b\\\\xe3\\\\x82\\\\x93\\\\n   20 | #include <config.h>\\\\n      |          ^~~~~~~~~~\\\\ncompilation terminated.\\\\n'\", 'expected': None, 'observed': None}"
+  },
+  {
+   "requested_value": -1,
+   "stock_comparison": true,
+   "arm": "supply-effectuation",
+   "terminal_status": "red",
+   "reason_code": "preprocess-failed",
+   "evidence": "{'detail': \"process returned rc=1; stderr=b'/tmp/repro-tmp/izanagi_wt_bfugwqxf/wt/cc/silo/include/atomic_tool.hh:3,\\\\n                 from /home/SFC/tanab/.claude/jobs/0807dc76/tmp/repro-tmp/izanagi_wt_bfugwqxf/wt/cc/silo/transaction.cc:5:\\\\n/home/SFC/tanab/.claude/jobs/0807dc76/tmp/repro-tmp/izanagi_wt_bfugwqxf/wt/cc/silo/include/../../../include/masstree_wrapper.hh:20:10: fatal error: config.h: \\\\xe3\\\\x81\\\\x9d\\\\xe3\\\\x81\\\\xae\\\\xe3\\\\x82\\\\x88\\\\xe3\\\\x81\\\\x86\\\\xe3\\\\x81\\\\xaa\\\\xe3\\\\x83\\\\x95\\\\xe3\\\\x82\\\\xa1\\\\xe3\\\\x82\\\\xa4\\\\xe3\\\\x83\\\\xab\\\\xe3\\\\x82\\\\x84\\\\xe3\\\\x83\\\\x87\\\\xe3\\\\x82\\\\xa3\\\\xe3\\\\x83\\\\xac\\\\xe3\\\\x82\\\\xaf\\\\xe3\\\\x83\\\\x88\\\\xe3\\\\x83\\\\xaa\\\\xe3\\\\x81\\\\xaf\\\\xe3\\\\x81\\\\x82\\\\xe3\\\\x82\\\\x8a\\\\xe3\\\\x81\\\\xbe\\\\xe3\\\\x81\\\\x9b\\\\xe3\\\\x82\\\\x93\\\\n   20 | #include <config.h>\\\\n      |          ^~~~~~~~~~\\\\ncompilation terminated.\\\\n'\", 'expected': None, 'observed': None}"
+  }
+ ]
+}
