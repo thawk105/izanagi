@@ -31,6 +31,13 @@ M4b を 3 件へ分割 (M4b: top-level build id 照合、M4c: variant 照合、M
 M1 の期待理由を訂正。M11 / M12 の対 test を subprocess 経路へ。合計 KILLED 期待 14 + diagnostic 1 (M7)。
 anchor は fix 後の統合 commit で再検証し、probe を全件 SURVIVED 期待で走らせて観測 node を本登録する。
 
+## 受入 1 回目の赤 (段 6 の追記)
+
+受入全走 1 回目 (tip A、post-claim merge 後) は `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` の 1 件だけ赤。
+新 test file に自走 harness (`__main__` + `pytest.main`) が無い。本変更に帰属 (実装子の F42 洗い出しが plotting 一覧 pin の meta-test しか見ていなかった)。
+fix 子 2 本目に `__main__` ブロック 4 行だけを足させた (統合 commit C `6a9c4d080`)。**変異の再走は不要**: 被変異 file は commit A と C で byte 同一、
+test 関数本体も不変で、各変異の失敗 node 集合は変わらない。anchor は commit C で再検証し 16 件一意 (DW-M07)。
+
 ## fix 子の契約
 
 段 5 実装子契約 (DW-S05-A/B/C) を全文継承。所有 path は同じ 3 本。既存テストの期待値変更・xfail・skip・削除で緑にしない。
