@@ -49974,3 +49974,59 @@ literal のまま変えない。既定経路は raw 引数が `None` のまま s
 - **旧 basis を新 claim へ backfill する** — create-only の記録へ書き換え経路を持ち込む。
 - **basis の混在を許容する述語へ緩める** — 正しさ防壁を緩める向きである。
 - **移行機構を先に用意しておく** — 発火条件を満たす既存 artifact が無く、`DW-G04` に反する。
+
+## D1630. sort 軸の契約束縛は単一 producer と binder のドメイン分離だけで閉じ、入口 gate と public seam の拡張は足さない (2026-09-05)
+
+**決定:** D1548 の局所適用は、(1) `p3_s4_loop_sort.py` の単一 producer `_require_sort_oracle_contract(cfg)` が
+campaign 宣言と実行中の `ORACLE_CONTRACT_ID` の exact 一致を identity 束縛より前に要求すること、(2) `run_campaign` /
+`evaluate` / `resolve_evidence` / `build` / `build_v2` / `_recheck_source_evidence` の keyword-only 引数 (既定 `None`)、
+(3) `source_digest` の sort 専用 binder (preimage `sort-src-token/v1\0contract=<id>\0source=<digest>`) と backoff 版との
+相互排他、の 3 点で閉じる。`loop.run_campaign` 入口の三者 gate、`loop.py` への `sort_swo_oracle` import、
+`resolve()` / `src_token()` の public seam への引数追加は実装しない。driver 側の `sort_swo_oracle` 参照も関数内 import にする。
+
+**理由:**
+- 単一 producer が `layout.ensure()` と WAL 作成より前に照合する限り、入口 gate が無いことで変わる in-scope の成果物は無い。
+  gate が守るのは producer を迂回して `run_campaign` を直接呼ぶ経路だけで、repo にその caller は無い。
+- `loop.py` は全 campaign の共通経路であり、`sort_swo_oracle` は import 時に `inspect.getsource` を実行して失敗を
+  fail-closed にする。import を足すと sort を使わない campaign まで import 段階で止まりうる。driver の module-level import も
+  B-4 launcher など driver を先に読む経路へ同じ失敗面を広げるので、関数内 import に限る。
+- 段 5 sort loop の実経路は `resolve_evidence → _resolved_src_token` であり、`resolve()` / `src_token()` は通らない。
+  局所適用の原則に従い、実経路外の seam へは引数を足さない。
+- 相互排他 (両方非 `None` → `ValueError`) は binder を選ぶ `_resolved_src_token` の 1 箇所に置く。登録済み producer は
+  片方しか渡さないので受理集合は変わらない。
+
+**却下した選択肢:**
+- `run_campaign` 入口の三者 gate (backoff の `loop.py` gate の写し) — 仮想リスク向けの防壁新設に当たり、import の失敗面も広げる。
+- `SORT_IR_GRAMMAR_VERSION` (int) を既存の `backoff_grammar_version` 経路へ流す — backoff の gate が module 定数と照合するので
+  両立せず、corpus / checker / TU template の改版で contract ID が変わっても IR 版だけ据え置きのとき旧 binary を再利用する。
+- `resolve()` / `src_token()` まで引数を足す — 実経路外で、変更面と変異の owner を不要に広げる。
+
+## D1631. paper-story に完走済み個別結果の結果節材料を置く `results/` 系列を設ける (2026-09-05)
+
+**決定:** `docs/paper-story/results/` を、版 (時点ごとの凍結スナップショット) とも `claim-evidence/` (主張ごとの作業表) とも別の
+第 3 の系列として設ける。1 file = 完走した 1 つの protocol または campaign 群の結果を、論文の結果節・表・図・限定の形へ
+落とした執筆者向けの統制稿とする。規則の正本は `docs/paper-story/README.md` の「results 系列」節とし、次を課す。
+
+1. append-only。書いた後は更新せず、誤りは新しい日付の file で改める。
+2. 新しい日付を足すときは、その結果の一次資料全体 (権威 bytes、raw manifest、WAL、裁定) から作り直す。
+3. 「版の履歴」表に登録しない。版か結果材料かはディレクトリで判別する。
+4. 数値・日付・protocol status の出所は一次資料だけとし、版や claim-evidence の記述を出所にしない。
+   図を伴うときは figures の凍結物と provenance JSON を指し、表の数値は provenance から転記して転記元の SHA-256 を書く。
+5. protocol status は protocol の出力として書き、研究としての成功・失敗・新規性の宣告へ拡張しない (D12)。
+   この系列は D12 の機械射影の材料レポートではなく、一次資料に束縛した執筆者向け統制稿である。
+
+最初の file は A-2 正式 certification (outer `reject`) の結果節である。
+
+**理由:**
+- 完走した個別結果を「版の A 群の 1 行」から結果節へ落とすとき、版へ書くと全面再導出が要り (版の契約)、claim-evidence へ書くと
+  入力 5 節全体の再導出が要る (D1013 規則 2)。どちらも 1 結果の材料化には過大で、部分改訂を許せば「その日付時点でそう主張した」
+  という新しい嘘が生まれる。結果 1 件を単位にした系列なら、append-only と全体再導出の両方を結果の粒度で成立させられる。
+- ディレクトリで分けるのは D1013 と同じ理由による。自己申告の見出しだけで「これは版ではない」を担わせると、同形式の文書が増えたとき
+  判別できなくなる。
+- 執筆者向け統制稿と D12 の機械射影を混同すると、散文の解釈が一次事実として下流へ流れる。系列の規則として区別を明記する。
+
+**却下した選択肢:**
+- claim-evidence へ新しい日付を足す — 入力 5 節全体の再導出が要り、1 結果の材料化に対して過大である。
+- 新しい版を足す — 全面再導出が要り、科学的主張が動いていない時点では版を増やす理由にならない。
+- README の stale 注記だけで済ませる — stale 注記は最新版の記述が古くなった箇所を指す入口であり、結果節・表・図の材料を置く場所ではない。
+- 本 wave の insight に置いて README から指す — 作業記録と論文材料が混ざり、append-only と再導出単位の規則を持てない。
