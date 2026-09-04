@@ -1,0 +1,57 @@
+{
+ "estimated_run_seconds": 600,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_agents.py::test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2200.m01",
+   "replacements": [
+    {
+     "file": "tools/check_codex_agents.py",
+     "new": "    if role.name not in _SOURCE_EXAMPLE_PARITY_ROLES:\n        return\n    if role.name == \"coder-v4-autonomous-k2\":\n        return\n",
+     "old": "    if role.name not in _SOURCE_EXAMPLE_PARITY_ROLES:\n        return\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_agents.py::test_coder_v4_output_semantics_requires_literal_only_single_statement_value_match"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2200.m02",
+   "replacements": [
+    {
+     "file": "orchestrator/codex_roles/policy.py",
+     "new": "            if not decision.accepted and spec.name != \"coder-v4-autonomous-k2\":\n",
+     "old": "            if not decision.accepted:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use0]",
+    "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use1]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2200.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/codex_roles/policy.py",
+     "new": "            if False and spec.name == \"coder-v4-autonomous-k2\":\n",
+     "old": "            if spec.name == \"coder-v4-autonomous-k2\":\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1200
+}

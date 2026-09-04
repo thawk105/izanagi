@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import ctypes
 import errno
 import hashlib
@@ -26,10 +27,11 @@ import statistics
 import struct
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Iterable, Mapping, Optional, Sequence
+from typing import Any, Iterable, Iterator, Mapping, Optional, Sequence
 
 from ..scheduler_nqsv import (
     QSTAT_REQUEST_ID_RE,
@@ -55,6 +57,7 @@ COMPUTE_RESULT_SCHEMA = "paper-story-a2-compute-result/v2"
 RESERVATION_RESULT_SCHEMA = "paper-story-a2-reservation-result/v1"
 COMPLETE_MARKER_SCHEMA = "paper-story-a2-materialization-complete/v1"
 POLICY_PATH = Path(__file__).with_suffix(".v2.json")
+A6_POLICY_PATH = POLICY_PATH.with_name("paper_story_a6_certification.v2.json")
 VERIFY_MODE = "legacy+performance"
 PERFORMANCE_TAG = "performance"
 LEGACY_TAG = "legacy"
@@ -152,7 +155,6 @@ _RESERVATION_ENV_KEYS = {
     "IZANAGI_RESERVATION_NONCE",
 }
 _RESULT_LIMIT = 2 * 1024 * 1024
-_QSUB_JOB_NAME = "paper-a2-cert"
 _SUBMISSION_VISIBLE_STATES = frozenset({"QUE", "RUN"})
 _COLLECT_TEST_TOKEN = object()
 
@@ -290,6 +292,41 @@ def _protocol_preimage(document: Mapping[str, Any]) -> Mapping[str, Any]:
     }
 
 
+def canonical_policy_path(path: Path | str) -> Path:
+    """Return one of the two shipped policy paths, rejecting aliases and others."""
+    requested = Path(path)
+    repository_root = POLICY_PATH.parents[2]
+    canonical_paths = (POLICY_PATH, A6_POLICY_PATH)
+    matches = [
+        candidate for candidate in canonical_paths
+        if requested == (candidate if requested.is_absolute()
+                         else candidate.relative_to(repository_root))
+    ]
+    if len(matches) != 1:
+        raise CertificationError("policy path is not a canonical shipped policy")
+    return matches[0]
+
+
+def _qsub_job_name(policy: Policy) -> str:
+    names = {
+        "paper-story-a2-certification": "paper-a2-cert",
+        "paper-story-a6-certification": "paper-a6-cert",
+    }
+    try:
+        return names[policy.study]
+    except KeyError as exc:
+        raise CertificationError("policy study has no certification job name") from exc
+
+
+def _qsub_environment_keys(policy: Policy) -> set[str]:
+    keys = set(_QSUB_ENV_KEYS)
+    if policy.study == "paper-story-a6-certification":
+        keys.add("IZANAGI_A2_POLICY_PATH")
+    elif policy.study != "paper-story-a2-certification":
+        raise CertificationError("policy study has no qsub environment contract")
+    return keys
+
+
 def load_policy(path: Path | str = POLICY_PATH) -> Policy:
     policy_path = Path(path)
     if policy_path.is_symlink() or not policy_path.is_file():
@@ -423,9 +460,17 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
                     build_argv["jobs_option"]}) != 3):
         raise CertificationError("trace0 build grammar is malformed")
 
+    policy_shapes = {
+        "paper-story-a2-certification": (2, 4),
+        "paper-story-a6-certification": (1, 2),
+    }
+    try:
+        workload_count, cell_count = policy_shapes[document["study"]]
+    except KeyError as exc:
+        raise CertificationError("policy study is not a shipped certification study") from exc
     workloads_raw = document["workloads"]
-    if type(workloads_raw) is not list or len(workloads_raw) != 2:
-        raise CertificationError("policy must define exactly two workloads")
+    if type(workloads_raw) is not list or len(workloads_raw) != workload_count:
+        raise CertificationError("policy workload count differs from its study shape")
     workloads: dict[str, Mapping[str, Any]] = {}
     for index, raw_workload in enumerate(workloads_raw):
         workload = _exact_keys(raw_workload, _WORKLOAD_KEYS, f"workloads[{index}]")
@@ -441,8 +486,8 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
         workloads[workload_id] = workload
 
     cells_raw = document["cells"]
-    if type(cells_raw) is not list or len(cells_raw) != 4:
-        raise CertificationError("policy must define exactly four cells")
+    if type(cells_raw) is not list or len(cells_raw) != cell_count:
+        raise CertificationError("policy cell count differs from its study shape")
     cells: list[CellSpec] = []
     seen_cells: set[str] = set()
     role_pairs: dict[str, set[str]] = {key: set() for key in workloads}
@@ -491,7 +536,8 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
         seen_cells.add(cell_id)
         role_pairs[workload_id].add(role)
     if any(roles != {"stock", "adopted"} for roles in role_pairs.values()):
-        raise CertificationError("policy is not the exact two-by-two protocol")
+        raise CertificationError(
+            "each workload must have exactly one stock and one adopted cell")
 
     return Policy(
         path=policy_path.resolve(),
@@ -527,80 +573,131 @@ def _genome_for_cell(policy: Policy, cell: CellSpec):
     )
 
 
-def _require_condition_gate_family(
+@contextlib.contextmanager
+def _condition_gate_family_context(
         source_root: Path, genomes: Sequence[object], *, cxx: str,
-        dependency_prefix: Path, current_pin: str) -> list[dict[str, object]]:
-    """Fail closed on both condition arms before a paper benchmark starts."""
+        dependency_prefix: Path, current_pin: str,
+        expected_toolchain_manifest: Mapping[str, object],
+) -> Iterator[tuple[Path, list[dict[str, object]]]]:
+    """Yield a patched isolated tree after both paper condition arms pass."""
     defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
-    receipts = []
+    receipts: list[dict[str, object]] = []
+    patch_path = os.fspath(
+        Path(__file__).resolve().parents[2]
+        / "patches/silo-backoff-fixed.patch"
+    )
     with patchharness.checkout(
-            current_pin, base_dir=os.fspath(source_root)) as stock_root:
-        captured = condition_meaning_gate.capture_define_inputs(
-            source_root, stock_root=stock_root,
-            configure_args=(f"-DCMAKE_PREFIX_PATH={dependency_prefix}",),
-        )
-        for index, genome in enumerate(genomes):
-            supply_records = []
-            meaning_records = []
-            for macro in sorted(set(genome.flags) & set(defaults)):
-                value = genome.flags[macro]
-                request = condition_meaning_gate.make_define_request(
-                    driver_id=(
-                        "orchestrator.campaign.paper_story_a2_certification:"
-                        f"cell-{index}"
-                    ),
-                    macro=macro, requested_value=value, default_value=defaults[macro],
-                    stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
-                )
-                declaration = None
-                if macro == "BACKOFF_FIXED" and value == -1:
-                    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
-                        macro,
-                        (condition_meaning_gate.MeaningCase(
-                            -1, None,
-                            expected_selected_branch=(
-                                condition_meaning_gate.STOCK_ADAPTIVE_BRANCH
-                            ),
-                        ),),
-                    )
-                elif macro == "BACKOFF_FIXED" and value >= 0:
-                    bits = struct.pack(">d", float(value)).hex()
-                    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
-                        macro,
-                        (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
-                    )
-                supply_records.append(
-                    condition_meaning_gate.evaluate_define_supply_effectuation(
-                        captured, request=request, cxx=cxx, cmake="cmake",
-                    )
-                )
-                meaning_records.append(
-                    condition_meaning_gate.evaluate_define_runtime_meaning(
-                        captured, request=request, declaration=declaration, cxx=cxx,
-                    )
-                )
-            admission = condition_meaning_gate.require_condition_gate_family(
-                supply_records, meaning_records, use_class="paper",
+            current_pin, base_dir=os.fspath(source_root)) as variant_worktree:
+        variant_root = Path(variant_worktree)
+        with patchharness.applied(
+                patch_path, current_pin,
+                ccbench_dir=os.fspath(variant_root)), \
+                tempfile.TemporaryDirectory(
+                    prefix="izanagi-a2-condition-gate-"
+                ) as fetchcontent_base:
+            buildcache.prepare_masstree_fetchcontent(
+                ccbench_dir=os.fspath(variant_root.resolve()),
+                fetchcontent_base_dir=fetchcontent_base,
+                expected_toolchain_manifest=expected_toolchain_manifest,
+                configure_timeout_s=900,
+                target_timeout_s=900,
+                dependency_prefix=os.fspath(dependency_prefix),
             )
-            if not admission.admitted:
-                reasons = ",".join(
-                    f"{record.macro}:{record.arm}:{record.reason_code}"
-                    for record in (*supply_records, *meaning_records)
-                    if record.terminal_status != "green"
+            captured = condition_meaning_gate.capture_define_inputs(
+                variant_root, stock_root=source_root,
+                configure_args=(
+                    f"-DCMAKE_PREFIX_PATH={dependency_prefix}",
+                    f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+                ),
+            )
+            for index, genome in enumerate(genomes):
+                supply_records = []
+                meaning_records = []
+                for macro in sorted(set(genome.flags) & set(defaults)):
+                    value = genome.flags[macro]
+                    request = condition_meaning_gate.make_define_request(
+                        driver_id=(
+                            "orchestrator.campaign."
+                            "paper_story_a2_certification:"
+                            f"cell-{index}"
+                        ),
+                        macro=macro, requested_value=value,
+                        default_value=defaults[macro],
+                        stock_comparison=(
+                            macro == "BACKOFF_FIXED" and value == -1
+                        ),
+                    )
+                    declaration = (
+                        condition_meaning_gate.
+                        declare_define_runtime_meaning(request)
+                    )
+                    if macro == "BACKOFF_FIXED" and value == -1:
+                        declaration = (
+                            condition_meaning_gate.
+                            MeaningWitnessDeclaration(
+                                macro,
+                                (condition_meaning_gate.MeaningCase(
+                                    -1, None,
+                                    expected_selected_branch=(
+                                        condition_meaning_gate.
+                                        STOCK_ADAPTIVE_BRANCH
+                                    ),
+                                ),),
+                            )
+                        )
+                    elif macro == "BACKOFF_FIXED" and value >= 0:
+                        bits = struct.pack(">d", float(value)).hex()
+                        declaration = (
+                            condition_meaning_gate.
+                            MeaningWitnessDeclaration(
+                                macro,
+                                (condition_meaning_gate.MeaningCase(
+                                    value, (bits, bits)),),
+                            )
+                        )
+                    supply_records.append(
+                        condition_meaning_gate.
+                        evaluate_define_supply_effectuation(
+                            captured, request=request, cxx=cxx,
+                            cmake="cmake",
+                        )
+                    )
+                    meaning_records.append(
+                        condition_meaning_gate.
+                        evaluate_define_runtime_meaning(
+                            captured, request=request,
+                            declaration=declaration, cxx=cxx,
+                        )
+                    )
+                admission = (
+                    condition_meaning_gate.require_condition_gate_family(
+                        supply_records, meaning_records, use_class="paper",
+                    )
                 )
-                raise CertificationError(
-                    f"condition gate rejected paper workload cell-{index}: {reasons}"
-                )
-            receipts.append({
-                "supply_records": [
-                    json.loads(record.canonical_json()) for record in supply_records
-                ],
-                "meaning_records": [
-                    json.loads(record.canonical_json()) for record in meaning_records
-                ],
-                "admission": json.loads(admission.canonical_json()),
-            })
-    return receipts
+                if not admission.admitted:
+                    reasons = ",".join(
+                        f"{record.macro}:{record.arm}:"
+                        f"{record.reason_code}:"
+                        f"detail={record.evidence.get('detail')!r}"
+                        for record in (*supply_records, *meaning_records)
+                        if record.terminal_status != "green"
+                    )
+                    raise CertificationError(
+                        "condition gate rejected paper workload "
+                        f"cell-{index}: {reasons}"
+                    )
+                receipts.append({
+                    "supply_records": [
+                        json.loads(record.canonical_json())
+                        for record in supply_records
+                    ],
+                    "meaning_records": [
+                        json.loads(record.canonical_json())
+                        for record in meaning_records
+                    ],
+                    "admission": json.loads(admission.canonical_json()),
+                })
+            yield variant_root, receipts
 
 
 def _generator_input_sha256(policy: Policy, workload_id: str,
@@ -944,7 +1041,7 @@ def _validate_submission_receipt(policy: Policy, payload: Mapping[str, Any],
     jobs = payload["jobs"]
     expected_workloads = workload_ids(policy)
     if type(jobs) is not list or len(jobs) != len(expected_workloads):
-        raise CertificationError("submission must contain the exact two-job group")
+        raise CertificationError("submission must contain the exact policy-sized job group")
     bindings: list[dict[str, Any]] = []
     for workload_id, job in zip(expected_workloads, jobs):
         job_required = {
@@ -979,7 +1076,7 @@ def _validate_submission_receipt(policy: Policy, payload: Mapping[str, Any],
                 or argv[3:5] != ["-q", scheduler["queue"]]
                 or argv[5:7] != ["-b", str(scheduler["nodes"])]
                 or argv[7:9] != ["-l", f"elapstim_req={scheduler['walltime']}"]
-                or argv[9:11] != ["-N", _QSUB_JOB_NAME]
+                or argv[9:11] != ["-N", _qsub_job_name(policy)]
                 or argv[11] != "-v" or argv[13] != "-o" or argv[15] != "-e"):
             raise CertificationError("qsub argv does not match scheduler policy")
         variable_arg = _option_value(argv, "-v")
@@ -989,13 +1086,16 @@ def _validate_submission_receipt(policy: Policy, payload: Mapping[str, Any],
             if not separator or not key or key in variables:
                 raise CertificationError("qsub -v mapping is malformed or duplicated")
             variables[key] = value
-        if (set(variables) != _QSUB_ENV_KEYS
+        qsub_environment_keys = _qsub_environment_keys(policy)
+        if (set(variables) != qsub_environment_keys
                 or variables.get("IZANAGI_A2_ATTEMPT_ROOT") != str(attempt_root)
                 or variables.get("IZANAGI_A2_WORKLOAD") != workload_id
                 or variables.get("IZANAGI_A2_EXPECTED_HEAD") != payload["source_commit"]
                 or variables.get("IZANAGI_A2_CURRENT_PIN") != current_pin
                 or variables.get("IZANAGI_A2_REPO_ROOT") != str(submission_cwd)
-                or not all(variables.get(name) for name in _QSUB_ENV_KEYS)):
+                or ("IZANAGI_A2_POLICY_PATH" in qsub_environment_keys
+                    and variables.get("IZANAGI_A2_POLICY_PATH") != str(policy.path))
+                or not all(variables.get(name) for name in qsub_environment_keys)):
             raise CertificationError("qsub -v is not bound to workload and current pin")
         if job["qsub_environment"] != variables:
             raise CertificationError("qsub environment differs from the exact -v mapping")
@@ -1294,7 +1394,7 @@ def _validate_completion_receipt(policy: Policy, payload: Mapping[str, Any],
     expected_workloads = workload_ids(policy)
     if (type(jobs) is not list or len(jobs) != len(expected_workloads)
             or len(submission_jobs) != len(expected_workloads)):
-        raise CertificationError("completion must contain the exact two-job group")
+        raise CertificationError("completion must contain the exact policy-sized job group")
     job_bindings = [
         _validate_completion_job(
             policy, job, attempt_id, attempt_root, current_pin,
@@ -1311,7 +1411,8 @@ def _validate_completion_receipt(policy: Policy, payload: Mapping[str, Any],
         binding["workload"] for binding in job_bindings
         if binding["driver_rc"] == 0]
     successful_workload = None
-    if schema == COMPLETION_SCHEMA and len(successful_workloads) == 2:
+    if (schema == COMPLETION_SCHEMA
+            and len(successful_workloads) == len(expected_workloads)):
         try:
             if (payload["raw_result_manifest"] is None
                     or payload["raw_result_manifest_sha256"] is None):
@@ -1338,9 +1439,10 @@ def _validate_completion_receipt(policy: Policy, payload: Mapping[str, Any],
             raise CertificationError(
                 "failed group completion must not claim a raw manifest")
     else:
-        if len(successful_workloads) != 1:
+        if (len(expected_workloads) != 2
+                or len(successful_workloads) != 1):
             raise CertificationError(
-                "partial completion requires exactly one successful workload")
+                "partial completion requires one success in an exact two-workload policy")
         successful_workload = successful_workloads[0]
         if payload["successful_workload"] != successful_workload:
             raise CertificationError(
@@ -1709,7 +1811,8 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
     if len(successful_workloads) == len(workload_ids(policy)):
         manifest_path = finalize_raw_manifest(policy, root, current_pin)
         manifest_sha = _sha256_file(manifest_path)
-    elif len(successful_workloads) == 1:
+    elif (len(workload_ids(policy)) == 2
+          and len(successful_workloads) == 1):
         completion_schema = PARTIAL_COMPLETION_SCHEMA
         manifest_path = _finalize_partial_raw_manifest(
             policy, root, current_pin, successful_workloads[0])
@@ -3008,57 +3111,59 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
         resolved_cc, resolved_cxx,
     )
-    condition_gate_receipts = _require_condition_gate_family(
-        source_root, genomes, cxx=resolved_cxx, dependency_prefix=dependency,
-        current_pin=current_pin,
-    )
-    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
+    with _condition_gate_family_context(
+            source_root, genomes, cxx=resolved_cxx,
+            dependency_prefix=dependency,
+            current_pin=current_pin,
+            expected_toolchain_manifest=expected_toolchain_manifest,
+    ) as (variant_root, condition_gate_receipts):
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
 
-    def capability_resolver(evidence):
-        return attest_generator_output(
-            build_context,
-            evidence,
-            generator_input_sha256=_generator_input_sha256(
-                policy, workload_id, evidence.genome_sha256),
-        )
+        def capability_resolver(evidence):
+            return attest_generator_output(
+                build_context,
+                evidence,
+                generator_input_sha256=_generator_input_sha256(
+                    policy, workload_id, evidence.genome_sha256),
+            )
 
-    summary = run_campaign(
-        cfg, genomes, perf, contract.env_tag, contract.clocks_per_us,
-        numactl=contract.numactl, do_bench=True, output_root=str(output_root),
-        log=log, ccbench_dir=str(source_root), env_contract=contract,
-        dependency_prefix=str(dependency),
-        authorization_contract=authorization,
-        cache_root=str(cache_root),
-        build_context=build_context,
-        capability_resolver=capability_resolver,
-        declared_use_class="official",
-        expected_toolchain_manifest=expected_toolchain_manifest,
-        durable_root_policy=durable_policy,
-    )
-    if len(summary.results) != len(cells) or summary.skipped != 0:
-        raise CertificationError("fresh workload did not evaluate exactly two cells")
-    summary.condition_gate_receipts = condition_gate_receipts
-    raw_payloads = []
-    for cell, result in zip(cells, summary.results):
-        payload = _raw_cell_from_wal(
-            policy, cell, result=result, layout_root=summary.layout_root,
-            attempt_id=attempt_name, current_pin=current_pin,
+        summary = run_campaign(
+            cfg, genomes, perf, contract.env_tag, contract.clocks_per_us,
+            numactl=contract.numactl, do_bench=True, output_root=str(output_root),
+            log=log, ccbench_dir=os.fspath(variant_root), env_contract=contract,
+            dependency_prefix=str(dependency),
+            authorization_contract=authorization,
+            cache_root=str(cache_root),
+            build_context=build_context,
+            capability_resolver=capability_resolver,
+            declared_use_class="official",
+            expected_toolchain_manifest=expected_toolchain_manifest,
+            durable_root_policy=durable_policy,
         )
-        write_json_x(raw / f"{cell.cell_id}.json", payload)
-        raw_payloads.append(payload)
-    _fsync_dir(raw)
-    for payload in raw_payloads:
-        if payload["terminal"] != "abort":
-            continue
-        statuses = {
-            repetition.get("status")
-            for tag in (LEGACY_TAG, PERFORMANCE_TAG)
-            for repetition in payload["correctness"][tag]
-        }
-        if "anomaly" not in statuses:
-            raise CertificationError(
-                "workload evidence, infrastructure, or performance is incomplete")
-    return summary
+        if len(summary.results) != len(cells) or summary.skipped != 0:
+            raise CertificationError("fresh workload did not evaluate exactly two cells")
+        summary.condition_gate_receipts = condition_gate_receipts
+        raw_payloads = []
+        for cell, result in zip(cells, summary.results):
+            payload = _raw_cell_from_wal(
+                policy, cell, result=result, layout_root=summary.layout_root,
+                attempt_id=attempt_name, current_pin=current_pin,
+            )
+            write_json_x(raw / f"{cell.cell_id}.json", payload)
+            raw_payloads.append(payload)
+        _fsync_dir(raw)
+        for payload in raw_payloads:
+            if payload["terminal"] != "abort":
+                continue
+            statuses = {
+                repetition.get("status")
+                for tag in (LEGACY_TAG, PERFORMANCE_TAG)
+                for repetition in payload["correctness"][tag]
+            }
+            if "anomaly" not in statuses:
+                raise CertificationError(
+                    "workload evidence, infrastructure, or performance is incomplete")
+        return summary
 
 
 _CAMPAIGN_CLAIM_KEYS = {
@@ -3233,8 +3338,8 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
                           current_pin: str) -> Path:
     attempt_id, root = validate_attempt_root(policy, attempt_root)
     # Loading closes each independently owned job-local raw directory, without
-    # enumerating the shared jobs/ parent, then opens the four policy paths.
-    # The manifest freezes those bytes and both lock/WAL/claim triples.
+    # enumerating the shared jobs/ parent, then opens the 2N policy paths.
+    # The manifest freezes those bytes and the N lock/WAL/claim triples.
     raw_results = load_raw_results(policy, root)
     submission_payload, _ = _read_json(root / "receipts" / "submission.json")
     submission = _validate_submission_receipt(
@@ -3258,9 +3363,11 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
                     "workload manifest member hash is inconsistent")
         campaign_paths.update(authority["campaign_members"])
         claims[workload_id] = authority["claim"]
-    if len(files) != 10 or len(campaign_paths) != 6:
+    workload_count = len(workload_ids(policy))
+    if (len(files) != 5 * workload_count
+            or len(campaign_paths) != 3 * workload_count):
         raise CertificationError(
-            "raw results do not bind exactly two campaign lock/WAL/claim triples")
+            "raw results do not bind the policy-sized campaign closures")
     manifest = {
         "schema_version": RAW_MANIFEST_SCHEMA,
         "study": policy.study,
@@ -3503,7 +3610,7 @@ def _load_raw_manifest_bundle(
         f"jobs/{cell.workload_id}/raw/{cell.cell_id}.json"
         for cell in policy.cells}
     if (not raw_names.issubset(files)
-            or len(files) != len(raw_names) + 6
+            or len(files) != len(raw_names) + 3 * len(workload_ids(policy))
             or any(type(name) is not str
                    or type(digest) is not str
                    or _SHA256_RE.fullmatch(digest) is None
@@ -4032,7 +4139,7 @@ def _indeterminate_report(policy: Policy, evidence: Mapping[str, Any], *,
 
 
 def _collect_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     evidence = validate_acquisition_bundle(
         policy, args.acquisition_receipt, current_pin=args.current_pin)
     attempt_id, attempt_root = validate_attempt_root(policy, args.attempt_root)
@@ -4081,7 +4188,7 @@ def _collect_command(args: argparse.Namespace) -> int:
 
 
 def _preflight_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     raw = compute_preflight(
         policy, workload_id=args.workload, attempt_root=args.attempt_root,
         raw_root=args.raw_root,
@@ -4093,14 +4200,14 @@ def _preflight_command(args: argparse.Namespace) -> int:
 
 
 def _run_workload_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     summary = run_workload(
         policy, workload_id=args.workload, attempt_root=args.attempt_root,
         raw_root=args.raw_root, current_pin=args.current_pin,
         dependency_prefix=args.dependency_prefix, ccbench_dir=args.ccbench_dir,
     )
     # A workload-level abort is scientific/evidence data.  The final collector
-    # determines whether the outer attempt is determinate after all four cells.
+    # determines whether the outer attempt is determinate after all policy cells.
     print(json.dumps({
         "campaign_id": summary.campaign_id,
         "committed": summary.committed,
@@ -4113,32 +4220,34 @@ def _run_workload_command(args: argparse.Namespace) -> int:
 
 
 def _preregister_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     print(preregister_attempt(policy, args.attempt_id, args.current_pin))
     return 0
 
 
 def _record_request_id_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     print(record_scheduler_request_id(
         policy, args.attempt_root, args.workload, args.request_id))
     return 0
 
 
 def _durabilize_qsub_diagnostics_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     durabilize_scheduler_qsub_diagnostics(
         policy, args.attempt_root, args.workload)
     return 0
 
 
 def _finalize_raw_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     print(finalize_raw_manifest(policy, args.attempt_root, args.current_pin))
     return 0
 
 
 def _exact_qsub_command(args: argparse.Namespace) -> int:
+    if args.policy is not None:
+        canonical_policy_path(args.policy)
     argv = list(args.qsub_argv)
     if argv and argv[0] == "--":
         argv = argv[1:]
@@ -4147,7 +4256,7 @@ def _exact_qsub_command(args: argparse.Namespace) -> int:
 
 
 def _finish_group_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     completion, acquisition = finish_group(
         policy, args.attempt_root, args.current_pin)
     print(completion)
@@ -4156,7 +4265,7 @@ def _finish_group_command(args: argparse.Namespace) -> int:
 
 
 def _record_receipt_command(args: argparse.Namespace) -> int:
-    policy = load_policy()
+    policy = _load_selected_policy(args)
     if args.receipt_kind == "acquisition":
         path = record_acquisition_receipt(
             policy, args.attempt_root, args.current_pin)
@@ -4172,8 +4281,18 @@ def _record_receipt_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_selected_policy(args: argparse.Namespace) -> Policy:
+    if args.policy is None:
+        return load_policy()
+    return load_policy(canonical_policy_path(args.policy))
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--policy", metavar="PATH",
+        help="select one of the two canonical repository certification policies",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     exact_submit = sub.add_parser("exact-qsub")
     exact_submit.add_argument("qsub_argv", nargs=argparse.REMAINDER)

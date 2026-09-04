@@ -22,6 +22,10 @@ report にすぎないことを機械可読に示す。既存 v3 reader では�
 非認証入力として受理する。
 ``generated_from_head`` は provenance であり、決定論比較の対象外である（HEAD が動けば
 変わる）。
+D1537 の ``SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS`` は consumer-local な
+exact identity 集合であり、T-419 U-1/U-2 で登録簿から外れたときに削除する。
+契約 ref がこの集合に完全一致する campaign では within-run 候補をすべて空にする。
+これは samples/tolerance を読んで自己整合性述語を再検査するものではない。
 """
 from __future__ import annotations
 
@@ -37,7 +41,7 @@ from collections import Counter, defaultdict
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import jsonschema
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -52,6 +56,7 @@ _HERE = Path(__file__).resolve().parent
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import (  # noqa: E402
     campaign_lock,
+    env_contract,
     p3_s4_loop,
     s8c_acceptance_receipt,
     trigger_gate_binding,
@@ -65,10 +70,19 @@ from .artifact_admission import (  # noqa: E402
     require_certified_commit_evidence,
 )
 from .genome import protocol_from_floor_genome  # noqa: E402
+from .layout import CampaignLayout  # noqa: E402
+from .model import WalRecord  # noqa: E402
 
 
 _SCHEMA_PATH = _HERE / "layer3_schema.json"
 _DEFAULT_OUTPUT_ROOT = _HERE.parents[1] / "output"
+SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS: frozenset[tuple[str, str]] = frozenset({
+    (
+        "output/env/pegasus/calibration/registered/"
+        "calibration-753f535a8d024727.json",
+        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+    ),
+})
 
 
 class Layer3ReportError(RuntimeError):
@@ -191,12 +205,30 @@ def _resolve_generated_from_head(
         raise
 
 
-def _artifact_refs(campaign_dir: Path) -> List[Dict[str, str]]:
+def _artifact_refs(
+        campaign_dir: Path, *,
+        knowledge_receipt_sha256: Optional[str] = None,
+) -> List[Dict[str, str]]:
     files = sorted(path for path in campaign_dir.rglob("*") if path.is_file())
     if not files:
         raise Layer3ReportError("campaign に artifact がない")
-    return [{"path": str(path.relative_to(campaign_dir)), "sha256": _sha256_file(path)}
-            for path in files]
+    refs = [
+        {
+            "path": str(path.relative_to(campaign_dir)),
+            "sha256": _sha256_file(path),
+        }
+        for path in files
+    ]
+    if knowledge_receipt_sha256 is not None and not any(
+            ref == {
+                "path": wal.KNOWLEDGE_RECEIPT_FILENAME,
+                "sha256": knowledge_receipt_sha256,
+            }
+            for ref in refs):
+        raise Layer3ReportError(
+            "knowledge receipt bytes changed after provenance validation"
+        )
+    return refs
 
 
 def _report_primary_refs(report: Mapping[str, Any]) -> Counter:
@@ -267,6 +299,7 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
         schema["properties"]["schema_version"] = {"const": LEGACY_SCHEMA_VERSION}
         schema["required"].remove("admission_decision")
         schema["properties"].pop("admission_decision")
+        schema["properties"].pop("knowledge_provenance")
     try:
         jsonschema.Draft7Validator(schema).validate(report)
     except jsonschema.ValidationError as exc:
@@ -339,6 +372,131 @@ def _campaign_protocol(records: Sequence[Mapping[str, Any]]) -> Optional[str]:
     return next(iter(protocols))
 
 
+def _contract_calibration_pin(
+    decoded_lock: campaign_lock.DecodedCampaignLock,
+    env_tag: str,
+) -> Tuple[Optional[env_contract.CalibrationRef], Optional[Dict[str, Any]]]:
+    """Resolve a v2 lock pin, or record why it does not apply to this WAL env."""
+    if decoded_lock.authority is None:
+        return None, None
+    try:
+        entry = env_contract.resolve_by_contract_sha256(
+            decoded_lock.authority.environment_contract_sha256,
+        )
+    except env_contract.EnvContractError as exc:
+        raise Layer3ReportError(
+            "campaign lock の environment contract を解決できない"
+        ) from exc
+    if entry.contract.env_tag != env_tag:
+        return None, {
+            "status": "authority-env-tag-mismatch",
+            "authority_env_tag": entry.contract.env_tag,
+            "campaign_env_tag": env_tag,
+        }
+    contract_pin = entry.contract.calibration_ref
+    return contract_pin, {
+        "status": "candidate",
+        "path": contract_pin.path,
+        "sha256": contract_pin.sha256,
+    }
+
+
+def _validated_pin_path(
+    calibration_dir: Path,
+    contract_pin: env_contract.CalibrationRef,
+) -> Optional[Path]:
+    """Map a contract pin's calibration suffix into the active output root."""
+    logical_calibration_dir = Path(calibration_dir)
+    resolved_calibration_dir = calibration_dir.resolve()
+    relative_pin = PurePosixPath(contract_pin.path)
+    if relative_pin.is_absolute():
+        raise Layer3ReportError("contract calibration pin が repo 相対 path でない")
+    if ".." in relative_pin.parts:
+        raise Layer3ReportError("contract calibration pin に .. 成分がある")
+    if (logical_calibration_dir.name != "calibration"
+            or logical_calibration_dir.parent.parent.name != "env"):
+        raise Layer3ReportError(
+            "calibration directory から当該 env_tag を解決できない"
+        )
+    env_tag = logical_calibration_dir.parent.name
+    expected_prefix = ("output", "env", env_tag, "calibration")
+    if (len(relative_pin.parts) < len(expected_prefix)
+            or relative_pin.parts[:len(expected_prefix)] != expected_prefix):
+        raise Layer3ReportError(
+            "contract calibration pin が当該 env の calibration directory 外にある"
+        )
+    suffix = relative_pin.parts[len(expected_prefix):]
+    if not suffix:
+        raise Layer3ReportError("contract calibration pin が通常 file でない")
+    unresolved_pin = logical_calibration_dir.joinpath(*suffix)
+    try:
+        pin_path = unresolved_pin.resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        raise Layer3ReportError(
+            "contract calibration pin を解決できない: %s" % unresolved_pin
+        ) from exc
+    try:
+        pin_path.relative_to(resolved_calibration_dir)
+    except ValueError as exc:
+        raise Layer3ReportError(
+            "contract calibration pin が当該 env の calibration directory 外にある"
+        ) from exc
+    try:
+        unresolved_pin.stat()
+    except FileNotFoundError:
+        if unresolved_pin.is_symlink():
+            raise Layer3ReportError("contract calibration pin が通常 file でない")
+        return None
+    except OSError as exc:
+        raise Layer3ReportError(
+            "contract calibration pin を検査できない: %s" % unresolved_pin
+        ) from exc
+    try:
+        pin_path = unresolved_pin.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise Layer3ReportError(
+            "contract calibration pin を解決できない: %s" % unresolved_pin
+        ) from exc
+    try:
+        pin_path.relative_to(resolved_calibration_dir)
+    except ValueError as exc:
+        raise Layer3ReportError(
+            "contract calibration pin が当該 env の calibration directory 外にある"
+        ) from exc
+    if not pin_path.is_file():
+        raise Layer3ReportError("contract calibration pin が通常 file でない")
+    actual_sha256 = _sha256_file(pin_path)
+    if actual_sha256 != contract_pin.sha256:
+        raise Layer3ReportError(
+            "contract calibration pin の SHA-256 が不一致: "
+            f"expected={contract_pin.sha256} actual={actual_sha256}"
+        )
+    return pin_path
+
+
+def _floor_protocol_and_basis(
+    doc: Mapping[str, Any], kind: str, path: Path,
+) -> Tuple[str, str]:
+    if "genome" in doc:
+        try:
+            protocol = protocol_from_floor_genome(doc["genome"])
+        except ValueError as exc:
+            raise Layer3ReportError(
+                "floor calibration の genome が canonical でない: %s" % path
+            ) from exc
+        basis = (
+            "receipt-derived-build-argv"
+            if "acquisition_receipt" in doc
+            else "canonical-floor-genome"
+        )
+        return protocol, basis
+    if kind == "within_run":
+        return "silo", "genome-absent-legacy-record"
+    raise Layer3ReportError(
+        "between-run floor calibration に canonical genome がない: %s" % path
+    )
+
+
 def _view_row(event: Mapping[str, Any]) -> Dict[str, Any]:
     payload = {
         key: value for key, value in event["payload"].items()
@@ -351,11 +509,39 @@ def _view_row(event: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
-                        workload: Any, *, protocol: Optional[str]
+                        workload: Any, *, protocol: Optional[str],
+                        contract_pin: Optional[env_contract.CalibrationRef] = None,
+                        contract_pin_search: Optional[Mapping[str, Any]] = None,
                         ) -> Tuple[Dict[str, Dict[str, Any]],
                                    Dict[str, Dict[str, Any]]]:
     """floor を kind 別に分類・照合し、report 値と完全な検索詳細を返す。"""
-    paths = sorted(calibration_dir.glob("*.json")) if calibration_dir.is_dir() else []
+    direct_paths = (
+        sorted(path.resolve() for path in calibration_dir.glob("*.json"))
+        if calibration_dir.is_dir() else []
+    )
+    path_sources = {path: True for path in direct_paths}
+    pin_search = (
+        dict(contract_pin_search) if contract_pin_search is not None else None
+    )
+    if contract_pin is not None:
+        pin_path = _validated_pin_path(calibration_dir, contract_pin)
+        if pin_search is None:
+            pin_search = {
+                "status": "candidate",
+                "path": contract_pin.path,
+                "sha256": contract_pin.sha256,
+            }
+        if pin_path is None:
+            pin_search["status"] = "pin-file-missing"
+        else:
+            pin_search["status"] = "validated"
+            path_sources[pin_path] = path_sources.get(pin_path, False)
+    exclude_within_run = (
+        contract_pin is not None
+        and (contract_pin.path, contract_pin.sha256)
+        in SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS
+    )
+    paths = sorted(path_sources)
     block_for_kind = {"within_run": "noise_floor", "between_run": "between_run"}
     candidates: Dict[str, List[Tuple[
         Path, Dict[str, Any], Any, Any, Dict[str, Any], str, str,
@@ -375,6 +561,9 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
         if not kinds:
             skipped_no_floor_block.append(path.name)
             continue
+        kind = kinds[0]
+        if kind == "between_run" and not path_sources[path]:
+            continue
 
         if "records" in doc:
             doc_records = doc["records"]
@@ -387,22 +576,11 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
             raise Layer3ReportError("floor calibration に threads がない: %s" % path)
         if "workload" not in doc or not isinstance(doc["workload"], dict):
             raise Layer3ReportError("floor calibration に workload dict がない: %s" % path)
-        kind = kinds[0]
-        if "genome" in doc:
-            try:
-                doc_protocol = protocol_from_floor_genome(doc["genome"])
-            except ValueError as exc:
-                raise Layer3ReportError(
-                    "floor calibration の genome が canonical でない: %s" % path
-                ) from exc
-            protocol_match_basis = "canonical-floor-genome"
-        elif kind == "within_run":
-            doc_protocol = "silo"
-            protocol_match_basis = "genome-absent-legacy-record"
-        else:
-            raise Layer3ReportError(
-                "between-run floor calibration に canonical genome がない: %s" % path
-            )
+        doc_protocol, protocol_match_basis = _floor_protocol_and_basis(
+            doc, kind, path,
+        )
+        if kind == "within_run" and exclude_within_run:
+            continue
         candidates[kind].append(
             (path, doc[block_for_kind[kind]], doc_records, doc["threads"],
              doc["workload"], doc_protocol, protocol_match_basis))
@@ -445,6 +623,13 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
                          "workload": workload if isinstance(workload, dict) else None},
             "mismatches": mismatches,
         }
+        if pin_search is not None:
+            detail_pin = dict(pin_search)
+            if kind == "within_run" and exclude_within_run:
+                detail_pin["within_run_exclusion"] = (
+                    "self-inconsistent-calibration"
+                )
+            detail["contract_pin"] = detail_pin
         search_details[kind] = detail
         if matches:
             path, floor, protocol_match_basis = matches[0]
@@ -458,8 +643,7 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
                 },
                 "search": None,
             }
-            if protocol_match_basis == "genome-absent-legacy-record":
-                report_floors[kind]["protocol_match_basis"] = protocol_match_basis
+            report_floors[kind]["protocol_match_basis"] = protocol_match_basis
         else:
             report_floors[kind] = {
                 "value": None,
@@ -614,6 +798,34 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         != admitted_campaign.decision.wal_sha256
     ):
         raise Layer3ReportError("campaign bytes changed after admission validation")
+    try:
+        checked_knowledge_provenance = (
+            wal.knowledge_provenance_and_receipt_sha256_for_material_report(
+                CampaignLayout(root=str(campaign_dir)),
+                [
+                    WalRecord(
+                        variant=record["variant"],
+                        stage=record["stage"],
+                        env_tag=record["env_tag"],
+                        ts=record["ts"],
+                        payload=record["payload"],
+                    )
+                    for record in records
+                ],
+                campaign_lock=decoded_lock,
+            )
+        )
+    except wal.AttemptTopologyError as exc:
+        raise Layer3ReportError(
+            "knowledge provenance 検証に失敗"
+        ) from exc
+    if checked_knowledge_provenance is None:
+        knowledge_provenance = None
+        knowledge_receipt_sha256 = None
+    else:
+        knowledge_provenance, knowledge_receipt_sha256 = (
+            checked_knowledge_provenance
+        )
     if _contains_qualification_lineage(records):
         raise Layer3ReportError(
             "qualification lineage は formal Layer3 入力として受理しない")
@@ -635,10 +847,15 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
                 "source_ref": canonical_record_ref("wal", events[-1])}
                for name, events in sorted(events_by_variant.items())
                if not any(event["stage"] == "commit" for event in events)]
-    calibration_dir = output_root / "env" / next(iter(env_tags)) / "calibration"
+    env_tag = next(iter(env_tags))
+    calibration_dir = output_root / "env" / env_tag / "calibration"
+    contract_pin, contract_pin_search = _contract_calibration_pin(
+        decoded_lock, env_tag,
+    )
     noise_floor, _ = _calibration_floors(
         calibration_dir, records_count, threads, lock["search_config"].get("ycsb"),
-        protocol=protocol,
+        protocol=protocol, contract_pin=contract_pin,
+        contract_pin_search=contract_pin_search,
     )
     report: Dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -652,13 +869,18 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         },
         "workload": lock["search_config"],
         "policy_hint": lock["search_config"].get("policy_hint"),
+        "knowledge_provenance": knowledge_provenance,
         "variants": variant_rows, "runs": runs,
         "verifications": verifications, "rejects": rejects, "aborts": aborts,
         "noise_floor": noise_floor,
         "env_tags": sorted(env_tags),
         "whiteboard": sorted(whiteboard, key=lambda item: canonical_record_ref("wb", item)),
         "whiteboard_provenance": whiteboard_provenance,
-        "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
+        "artifact_refs": _artifact_refs(
+            campaign_dir,
+            knowledge_receipt_sha256=knowledge_receipt_sha256,
+        ),
+        "source_refs": [],
         "admission_decision": admitted_campaign.decision.as_receipt(),
         "campaign_verifier_epoch": _epoch_projection(
             admitted_campaign.campaign_verifier_epoch,

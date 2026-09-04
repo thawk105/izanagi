@@ -23,8 +23,10 @@ from orchestrator.campaign import s8b_oracle_manifest as manifest  # noqa: E402
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze as ratified_freeze  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as holdout_freeze  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
+import test_s8b_ratified_freeze  # noqa: E402
 
 
 FREEZE_PATH = _ROOT / "output/s8b-freeze/holdout_freeze.json"
@@ -59,7 +61,7 @@ PIN_GATE_SCHEDULE_SHA256 = (
     "105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2"
 )
 PIN_GATE_SPEC_SHA256 = (
-    "053bbb0ae520bd69734bad40a5c9e665d8781b6b8da86a45c6aa8aedcda080e1"
+    "58190f7b402ea5a72d19e86e38d63ef2941e3281d1617a4a8ff986c2e4769f8e"
 )
 # production serializer から独立した reviewed-spec golden。UTF-8 非 ASCII、
 # sort 済み key 順、compact separator、末尾 LF 無しを raw bytes として固定する。
@@ -84,7 +86,7 @@ PIN_GATE_SPEC_RAW = (
     b'"judge":{"path":"orchestrator/campaign/s8b_oracle_judge.py",'
     b'"sha256":"0e6276ddcb6cde6e38f781bdbb8df1289520cfcce9653330d2c83a1db20784d3"},'
     b'"materializer":{"path":"orchestrator/campaign/s1_direct_comparison.py",'
-    b'"sha256":"e399e35b920cc6185bf51c8a4788f092993b732fffed3cf8730d4d1bff489b82"},'
+    b'"sha256":"049642ca067d93b046df66b14ddfdda3782bb06c830f2803c71e0e60e42f316d"},'
     b'"outcome_stage_contract":{"path":"orchestrator/campaign/s8b_outcome_stage_contract.py",'
     b'"sha256":"f8a0bb2237dcaf3c643a78c04ca6b8cea2a8f83e3d306d85c781716b165c73af"},'
     b'"report":{"path":"orchestrator/campaign/s8b_oracle_report.py",'
@@ -191,7 +193,7 @@ def _build_manifest(freeze_path, *, schedule=None, generator_root=_ROOT):
         allowed_excluded_reasons=["machine-failure"],
         generator_versions=_generator_versions(root=generator_root),
     )
-    built = manifest.build_manifest(
+    built = manifest._build_manifest(
         freeze_path=freeze_path,
         spec_sha256=approved.sha256,
         schedule=schedule,
@@ -397,7 +399,7 @@ def test_write_is_create_only_and_valid_manifest_verifies(tmp_path):
     freeze_path = _freeze_copy(tmp_path)
     document = _build_manifest(freeze_path)
     path = tmp_path / "oracle_manifest.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
     verified = _verify(path, freeze_path)
     assert type(document) is artifacts.OfficialManifest
     assert isinstance(verified, manifest.VerifiedManifest)
@@ -405,7 +407,7 @@ def test_write_is_create_only_and_valid_manifest_verifies(tmp_path):
     assert verified.document == document
     assert verified.sha256 == _canonical_sha256(document)
     with pytest.raises(manifest.ManifestError, match="既に存在"):
-        manifest.write_manifest(path, document)
+        manifest._write_manifest(path, document)
 
 
 def test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects(
@@ -419,7 +421,7 @@ def test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects(
         holdout_ids=_holdout_ids(),
         configuration_ids=("stock_common",),
     )
-    document = manifest.build_manifest(
+    document = manifest._build_manifest(
         freeze_path=freeze_path,
         spec_sha256="a" * 64,
         schedule=schedule,
@@ -438,7 +440,7 @@ def test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects(
         generator_versions=_generator_versions(),
     )
     path = tmp_path / "subset-manifest.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
     with pytest.raises(
             manifest.ManifestError,
             match="holdout-configuration product と完全一致しない"):
@@ -464,7 +466,7 @@ def test_missing_holdout_build_stays_accepted_but_verify_rejects(tmp_path):
         holdout_ids=(retained,),
         configuration_ids=CONFIGURATION_IDS,
     )
-    document = manifest.build_manifest(
+    document = manifest._build_manifest(
         freeze_path=freeze_path,
         spec_sha256="a" * 64,
         schedule=schedule,
@@ -484,7 +486,7 @@ def test_missing_holdout_build_stays_accepted_but_verify_rejects(tmp_path):
     )
     assert type(document) is artifacts.OfficialManifest
     path = tmp_path / "missing-holdout-manifest.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
 
     with pytest.raises(
             manifest.ManifestError,
@@ -523,7 +525,7 @@ def test_verified_manifest_sealed_constructor_rejects_non_lowercase_hash(
     freeze_path = _freeze_copy(tmp_path)
     document = _build_manifest(freeze_path)
     path = tmp_path / "oracle_manifest.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
     original = manifest._canonical_sha256
 
     def uppercase_final_official_hash(value):
@@ -546,7 +548,7 @@ def test_write_manifest_rejects_exploration_and_legacy_artifact_types(tmp_path):
     legacy = artifacts.LegacyManifest({"campaign_ids": {}})
     for document in (exploration, legacy, dict(exploration)):
         with pytest.raises(artifacts.OracleArtifactTypeError, match="OfficialManifest"):
-            manifest.write_manifest(tmp_path / "must-not-exist.json", document)
+            manifest._write_manifest(tmp_path / "must-not-exist.json", document)
     assert not (tmp_path / "must-not-exist.json").exists()
 
 
@@ -566,7 +568,7 @@ def test_binding_identity_requires_complete_unique_schedule_cell_product(tmp_pat
     else:
         bindings[0]["holdout_id"] = "not-in-schedule"
     with pytest.raises(manifest.ManifestError, match="binding_identity|binding identity"):
-        manifest.build_manifest(
+        manifest._build_manifest(
             freeze_path=freeze_path,
             spec_sha256="a" * 64,
             schedule=schedule,
@@ -602,7 +604,7 @@ def test_campaign_config_preimage_hash_is_bound_and_tampering_is_rejected(tmp_pa
 def _assert_generator_versions_rejected(
         tmp_path, freeze_path, document, generator_versions, message):
     with pytest.raises(manifest.ManifestError, match=message):
-        manifest.build_manifest(
+        manifest._build_manifest(
             freeze_path=freeze_path,
             spec_sha256="a" * 64,
             schedule=document["schedule"],
@@ -625,7 +627,7 @@ def test_generator_versions_exact_five_canonical_paths_and_hashes_verify(tmp_pat
     freeze_path = _freeze_copy(tmp_path)
     document = _build_manifest(freeze_path)
     path = tmp_path / "oracle-manifest-five-generators.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
     verified = _verify(path, freeze_path)
 
     assert set(verified.document["generator_versions"]) == set(GENERATOR_SOURCES)
@@ -652,7 +654,7 @@ def test_legacy_three_key_generator_authority_is_rejected_directly_at_build(
                 r"missing=\['artifacts', 'outcome_stage_contract'\] "
                 r"extra=\[\]"
             )):
-        manifest.build_manifest(
+        manifest._build_manifest(
             freeze_path=freeze_path,
             spec_sha256="a" * 64,
             schedule=schedule,
@@ -775,7 +777,7 @@ def test_verify_rehashes_each_canonical_generator_in_supplied_root(
         freeze_path, generator_root=root_a,
     )
     manifest_path = tmp_path / "root-a-manifest.json"
-    manifest.write_manifest(manifest_path, document)
+    manifest._write_manifest(manifest_path, document)
 
     artifacts_path_b = root_b / GENERATOR_SOURCES["artifacts"]
     artifacts_path_b.write_bytes(artifacts_path_b.read_bytes() + b"x")
@@ -796,7 +798,7 @@ def test_verify_detects_freeze_byte_tampering(tmp_path):
     freeze_path = _freeze_copy(tmp_path)
     document = _build_manifest(freeze_path)
     path = tmp_path / "oracle_manifest.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
     freeze_path.write_bytes(freeze_path.read_bytes() + b"\n")
     with pytest.raises(manifest.ManifestError, match="freeze byte sha256"):
         _verify(path, freeze_path)
@@ -853,7 +855,7 @@ def test_v1_two_block_manifest_is_rejected_at_build_and_verify(tmp_path):
     }
     # build 側: 2 block schedule から manifest を組もうとすると拒否される。
     with pytest.raises(manifest.ManifestError, match="正確に 1 件でない"):
-        manifest.build_manifest(
+        manifest._build_manifest(
             freeze_path=freeze_path,
             spec_sha256="0" * 64,
             schedule=two_block_schedule,
@@ -1244,6 +1246,18 @@ def test_reviewed_spec_requires_canonical_bytes_without_trailing_lf(
 
 
 @pytest.mark.parametrize(
+    "public_name",
+    ("build_manifest", "build_manifest_from_ratified", "write_manifest"),
+)
+def test_ungated_manifest_apis_are_not_public(public_name):
+    """拒否の含意: 選択 gate のない旧 3 名は属性解決できず、構築・保存へ到達しない。
+    受理の含意: public な build_approved_manifest の正例は
+    test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate が担う。"""
+    with pytest.raises(AttributeError):
+        getattr(manifest, public_name)
+
+
+@pytest.mark.parametrize(
     "option",
     [
         "--schedule", "--schedule-path", "--freeze", "--freeze-path",
@@ -1333,6 +1347,14 @@ def test_build_approved_active_without_pin_fails_before_output(
     monkeypatch.setattr(
         ratified_freeze, "load_ratified_freeze", lambda candidate: active,
     )
+    selection_calls = []
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
 
@@ -1340,6 +1362,7 @@ def test_build_approved_active_without_pin_fails_before_output(
         manifest.build_approved_manifest(output, root=root)
 
     assert captured.value.reason == "no-approved-spec"
+    assert selection_calls == [(active, root)]
     assert not (root / manifest.MANIFEST_CANDIDATE_DIR).exists()
 
 
@@ -1356,6 +1379,14 @@ def test_build_approved_valid_fixture_output_depends_only_on_spec_pin(
     monkeypatch.setattr(
         ratified_freeze, "load_ratified_freeze", lambda candidate: active,
     )
+    selection_calls = []
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/pin-behavior.json"
 
     monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
@@ -1369,6 +1400,7 @@ def test_build_approved_valid_fixture_output_depends_only_on_spec_pin(
     built = manifest.build_approved_manifest(output, root=root)
 
     assert type(built) is artifacts.OfficialManifest
+    assert selection_calls == [(active, root), (active, root)]
     assert (root / output).is_file()
 
 
@@ -1384,17 +1416,26 @@ def test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate(
     )
     active = _synthetic_ratified_freeze()
     calls = []
+    selection_calls = []
 
     def load_once(candidate):
         calls.append(Path(candidate))
         return active
 
     monkeypatch.setattr(ratified_freeze, "load_ratified_freeze", load_once)
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
 
     built = manifest.build_approved_manifest(output, root=root)
 
     assert calls == [root]
+    assert selection_calls == [(active, root)]
     output_path = root / output
     assert output_path.is_file()
     verified = manifest.verify_manifest(
@@ -1423,13 +1464,80 @@ def test_build_approved_rejects_uniform_configuration_subset_before_output(
     monkeypatch.setattr(
         ratified_freeze, "load_ratified_freeze", lambda candidate: active,
     )
+    selection_calls = []
+    monkeypatch.setattr(
+        ratified_freeze,
+        "assert_g1_floor_selection_identity",
+        lambda candidate, candidate_root: selection_calls.append(
+            (candidate, candidate_root)
+        ),
+    )
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
 
     with pytest.raises(manifest.ManifestCliError) as captured:
         manifest.build_approved_manifest(output, root=root)
 
     assert captured.value.reason == "approved-spec-cell-product-mismatch"
+    assert selection_calls == [(active, root)]
     assert not (root / manifest.MANIFEST_CANDIDATE_DIR).exists()
+
+
+def test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate(
+        tmp_path, monkeypatch):
+    root, *_ = test_s8b_ratified_freeze.build_production_emitter_g1(tmp_path)
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest.build_approved_manifest(output, root=root)
+
+    assert captured.value.reason == "no-approved-spec"
+    assert isinstance(captured.value.__cause__, oracle_spec.ReviewedSpecError)
+    assert not (root / output).exists()
+
+
+def test_build_approved_real_g1_rule_mismatch_preserves_selection_reason(
+        tmp_path, monkeypatch):
+    root, _sha, _rel, _g1, topology = (
+        test_s8b_ratified_freeze.build_production_emitter_g1(tmp_path)
+    )
+    selected_rel = topology["paths"]["result"]
+    earlier_rel = selected_rel.replace(
+        "20260718T120000Z", "20260718T115959Z",
+    )
+    assert earlier_rel != selected_rel
+    earlier_path = root / earlier_rel
+    earlier_path.parent.mkdir(parents=True, exist_ok=True)
+    earlier_path.write_bytes((root / selected_rel).read_bytes())
+    test_s8b_ratified_freeze._commit_exact(
+        root,
+        [earlier_rel],
+        subject="earlier official result",
+        agent="fixture",
+    )
+    eligibility_calls = []
+
+    def derive_eligibility(**kwargs):
+        eligibility_calls.append(kwargs["result_rel"])
+        return kwargs["result_rel"] == earlier_rel
+
+    monkeypatch.setattr(
+        holdout_freeze,
+        "_derive_floor_selection_eligibility",
+        derive_eligibility,
+    )
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest.build_approved_manifest(output, root=root)
+
+    assert captured.value.reason == "floor-selection-rule-mismatch"
+    assert isinstance(
+        captured.value.__cause__, ratified_freeze.RatifiedFreezeError,
+    )
+    assert captured.value.__cause__.reason == "floor-selection-rule-mismatch"
+    assert eligibility_calls == [earlier_rel]
+    assert not (root / output).exists()
 
 
 def _install_projection_root(root: Path, *, alter_report=False) -> Path:
@@ -1480,7 +1588,7 @@ def _build_projection_manifest(
         schedule: dict, run_contract: dict, campaign_ids: dict,
         binding_identity: list, allowed_excluded_reasons: list,
         generator_versions: dict):
-    return manifest.build_manifest(
+    return manifest._build_manifest(
         freeze_path=freeze_path,
         spec_sha256=spec_sha256,
         schedule=schedule,
@@ -1496,7 +1604,7 @@ def _verify_projection_manifest(
         *, root: Path, freeze_path: Path, document,
         approved: oracle_spec.ReviewedSpec, monkeypatch):
     path = root / f"projection-manifest-{document['manifest_id']}.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
     raw = freeze_path.read_bytes()
     monkeypatch.setattr(
         oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
@@ -1696,7 +1804,7 @@ def test_generic_builder_still_accepts_run_contract_extra_key(tmp_path):
     schedule = _schedule(n=1)
     run_contract = _run_contract()
     run_contract["future_extension"] = {"enabled": True}
-    document = manifest.build_manifest(
+    document = manifest._build_manifest(
         freeze_path=freeze_path,
         spec_sha256="a" * 64,
         schedule=schedule,
@@ -1737,7 +1845,7 @@ def test_verify_manifest_requires_freeze_document(tmp_path):
     freeze_path = _freeze_copy(tmp_path)
     document = _build_manifest(freeze_path)
     path = tmp_path / "oracle_manifest.json"
-    manifest.write_manifest(path, document)
+    manifest._write_manifest(path, document)
     with pytest.raises(manifest.ManifestError, match="freeze_document"):
         manifest.verify_manifest(
             path,

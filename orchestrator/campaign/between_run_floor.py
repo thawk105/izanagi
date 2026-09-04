@@ -42,6 +42,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from ..calibrator.analyze import noise_floor                       # noqa: E402
 from ..calibrator.runner import measure_point                      # noqa: E402
 from ..calibrator.stability import between_run_noise_floor        # noqa: E402
+from ..verifier.model import compiled_protocol_source_texts        # noqa: E402
 from . import buildcache, pin, source_digest              # noqa: E402
 from .build_admission import (GeneratorId, build_run_context,  # noqa: E402
                                       derive_build_admission)
@@ -113,49 +114,18 @@ def _protocol_source_has_trace_hook_evidence_only(
 ) -> bool:
     """protocol binary の列挙 source に trace hook の text-level 証拠があれば真。
 
-    この述語は hook の意味論的正しさ、verifier が通ること、測定値の正しさの
-    いずれも証明しない。コメント除去後の同一 file に trace.hh include、
+    この述語は hook の意味論的正しさや測定値の正しさを証明しない。
+    コメント除去後の同一 file に trace.hh include、
     ``#if TRACE``、izanagi_trace hook 呼出しという文字列が揃うかだけを見る。
     プリプロセッサ条件は評価せず、literal ``#if 0`` directive の block だけは
     証拠から除く。目的は証拠不在を fail-closed に拒否することで hook の実在を
     証明することではない。CMake SOURCES の欠落・読取不能も拒否する。
+    前処理条件の評価、到達可能性、実際の発火、verifier が読めることは証明しない。
     """
-    protocol_dir = Path(ccbench_root or CCBENCH_ROOT) / "cc" / protocol
-    if not protocol_dir.is_dir():
-        return False
-    cmake_path = protocol_dir / "CMakeLists.txt"
-    try:
-        cmake_source = cmake_path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return False
-    # CMake の行コメント内にある helper 名を invocation と誤認しない。
-    cmake_source = re.sub(r"#.*$", "", cmake_source, flags=re.MULTILINE)
-    source_paths: tuple[Path, ...] | None = None
-    for match in re.finditer(
-        r"\bccbench_add_protocol\s*\((.*?)\)", cmake_source, re.DOTALL,
-    ):
-        tokens = match.group(1).split()
-        if not tokens or tokens[0] != protocol:
-            continue
-        if source_paths is not None or tokens.count("SOURCES") != 1:
-            return False
-        source_index = tokens.index("SOURCES") + 1
-        section_indexes = [
-            tokens.index(section, source_index)
-            for section in ("WORKLOADS", "OPTIONS")
-            if section in tokens[source_index:]
-        ]
-        source_end = min(section_indexes, default=len(tokens))
-        source_names = tokens[source_index:source_end]
-        if not source_names:
-            return False
-        compiled_suffixes = frozenset({".c", ".cc", ".cpp", ".cxx"})
-        paths = tuple(protocol_dir / name for name in source_names)
-        if (any(Path(name).suffix not in compiled_suffixes for name in source_names)
-                or any(not path.is_file() for path in paths)):
-            return False
-        source_paths = paths
-    if source_paths is None:
+    sources = compiled_protocol_source_texts(
+        protocol, ccbench_root or CCBENCH_ROOT,
+    )
+    if sources is None:
         return False
 
     include_pattern = re.compile(
@@ -163,36 +133,7 @@ def _protocol_source_has_trace_hook_evidence_only(
     )
     guard_pattern = re.compile(r"^\s*#\s*if\s+TRACE\b", re.MULTILINE)
     hook_pattern = re.compile(r"\bizanagi_trace::[A-Za-z_]\w*\s*\(")
-    comment_pattern = re.compile(r"//[^\n]*|/\*.*?\*/", re.DOTALL)
-    conditional_open_pattern = re.compile(r"^\s*#\s*(?:if|ifdef|ifndef)\b")
-    conditional_close_pattern = re.compile(r"^\s*#\s*endif\b")
-    literal_if_zero_pattern = re.compile(r"^\s*#\s*if\s+0\s*$")
-    for path in source_paths:
-        try:
-            source = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            return False
-        source = comment_pattern.sub(
-            lambda found: "\n" * found.group(0).count("\n"), source,
-        )
-        conditional_depth = 0
-        dead_if_zero_depth: int | None = None
-        retained_lines = []
-        for line in source.splitlines(keepends=True):
-            directive_line = line.rstrip("\r\n")
-            if conditional_open_pattern.match(directive_line):
-                conditional_depth += 1
-                if (dead_if_zero_depth is None
-                        and literal_if_zero_pattern.match(directive_line)):
-                    dead_if_zero_depth = conditional_depth
-            if dead_if_zero_depth is None:
-                retained_lines.append(line)
-            # #else/#elif は評価せず、dead block 全体を対応する #endif まで捨てる。
-            if conditional_close_pattern.match(directive_line):
-                if conditional_depth == dead_if_zero_depth:
-                    dead_if_zero_depth = None
-                conditional_depth = max(0, conditional_depth - 1)
-        source = "".join(retained_lines)
+    for source in sources:
         if (include_pattern.search(source) and guard_pattern.search(source)
                 and hook_pattern.search(source)):
             return True

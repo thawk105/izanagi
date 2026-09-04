@@ -1,0 +1,8 @@
+hostname=bnode080
+cwd=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock
+files=111
+head=1b7822110c54536f82ecab8d058d7a9253bfd3ce
+start=1788529388.5180047
+rc=1
+wall=252.3
+end=1788529640.8730369

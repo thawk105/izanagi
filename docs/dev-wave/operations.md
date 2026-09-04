@@ -19,12 +19,10 @@ wait側`--receipt-file`はworker launcher receiptと別pathにする（同じpat
 
 ## DW-O02 — job artifact
 
-prompt、log、patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave の同名
-artifact と共有しない。専用場所を確保できなければ作成を止める。
-親 brief と前段の子成果物は同 subdirectory へ置き、prompt へ全文複製せず絶対パスで
-読ませる。prompt には読めなければ即停止と書き、context 無しの子出力をレビュー結果と
-数えない。必読資料と前提の既裁定は逐語を job dir へ取り出して渡す（repo 内 path は
-worktree の遅れで fail-closed する）。
+prompt・log・patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave と共有せず、
+確保できなければ止める。親 brief と前段の子成果物も同 dir へ置き、全文複製せず絶対パスで読ませる。prompt に読めなければ即停止と書き、context 無しの子出力を結果と数えない。
+必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空の
+成功で戻る、F819）。
 出力へ結合文字 U+0300〜U+036F を使わせない。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
@@ -33,6 +31,8 @@ prompt 先頭は AGENTS.md の単独段例外と同形式。
 WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
 Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
 prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
+**作る command だけでなく読む command も掛かる。** 防護 path と `$()`・プロセス置換・`<<<`・
+`eval`・`xargs` の同居は分類不能として拒否されるので、読取りは cat / grep / jq を直に使う。
 Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
 subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
 
@@ -86,6 +86,7 @@ tracked 無変更を出さず不在証明にならない。理解だけの `rm -
 ## DW-O12 — 裁定手順と実行手順の差
 
 worklog には裁定予定を写さず、実際に実行した手順を書く。
+親担当と分割した裁定項目は段 7 前に着地差分と突き合わせる。
 一次資料と逆の工程記録を残してはならない。
 受理集合を変える指示を子へ出す直前に、この wave で凍結済みの事前登録・判定式を再読する。
 凍結は自分が直前に書いたものでも拘束する。
@@ -120,8 +121,8 @@ NO-GO が続く場合は fix を重ねず 3 巡を上限とし (親の実機 blo
 
 ## DW-O17 — commit trailer
 
-trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--dry-run -F`単独rc=0→`commit -F`→full監査。
-mergeは`OLD_HEAD`を保存し、ffはincoming監査→`--ff-only`→full監査、非ffは`--no-ff --no-commit`→
+trailerは`docs/ai-provenance.md`に従う（F25）。通常はmessage→`--message-file`検査rc=0→`commit -F`→full監査。
+mergeは`OLD_HEAD`を保存し、ffはincoming監査（自commit 0件なら省略可）→`--ff-only`→full監査、非ffは`--no-ff --no-commit`→
 競合解消→同じpreflight→`commit -F`→full監査。自動message/`--no-edit`は禁止。correctionは両commitを含む
 rangeかfull監査だけが権威（`OLD_HEAD..HEAD`は補助）。検査rcをpipeへ渡さず赤で停止（F37）。複数preflightと
 commitを同じshellで行うなら先頭を`set -e`にし、無ければtool callを分ける。両親と異なる実装面と実装面のrevertはCodex
@@ -145,7 +146,7 @@ cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走�
 主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の
 使い捨て worktree で harness を走らせる。`--scratch-root` は既存 directory 必須で、
 全 registered worktree の外に置く。再走は `--out` と `--attempt-out` を新 path にする
-（既存は rc=2）。`--wrapper-attempt` は試行番号。
+（既存は rc=2）。
 
 ## DW-O20 — clean-tree gate
 
@@ -164,10 +165,11 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 ## DW-O23 — 並行 session の local main land
 
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、着地tip、監査commit列を渡す。
+監査列の範囲は`<tested main>..<tested tip>`で固定。着地tipで数え直すとrc=23。
 協調wave lock内で再照合し、着地tipへのff-onlyだけ行う。ff-only成功後は**同じlockを保持したまま**
 `docs/spool/`のfragmentをfoldし、T/D/Fの採番・canonical3台帳追記・worklogローテーションを
 一度だけ行う。foldが赤なら`landed`を返さない。0件foldはno-op。
-**wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
+tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは停止せず既存branchのまま
@@ -189,12 +191,12 @@ test file を足す走は file 集合列挙のメタテストも焦点走に含�
 所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 ## DW-O27 — acceptance は lease を待たない
 
-D662 により受入 lease の待ち行列は廃止し、待ち機構を実装から除去した。
-`tools/dev_wave_wait.py acceptance` は投入前 claim を 1 回だけ行い、`held` でも待たず
-wave digest の疑似 holder で投入する。待つ経路は無く flag でも戻せない。
-`--lease-optional` と `--poll-seconds` は後方互換の no-op。`stale-held`・`unavailable`
-は従来どおり fail-closed。integrity 検査と receipt の全 field は未取得でも不変。
-`--lease-dir` は省略せず専用 dir で迂回しない。未取得が確定した走行は `release` しない。
+D662 により lease 待ち行列は廃止。`acceptance`は投入前 claim を 1 回だけ行い`held`でも待たず
+wave digest の疑似 holder で投入する。待つ経路は flag でも戻らない。
+`--lease-optional`と`--poll-seconds`は no-op。`stale-held`・`unavailable`は fail-closed。
+integrity 検査と receipt 全 field は未取得でも不変。`--lease-dir`は省略せず専用 dir で迂回しない。
+未取得が確定した走行は`release`しない。`--wave`は branch 名の末尾一致を要求 (codex の wave slug
+とは別でよい)。不一致は`preflight-branch` rc=2。
 
 `tools/check_docs.py` の dispatch 契約へ新節を登録する際は、
 `orchestrator/tests/test_check_docs.py` の合成 fixture との整合性を同じ

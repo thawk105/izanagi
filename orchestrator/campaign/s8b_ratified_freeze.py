@@ -606,7 +606,10 @@ def _unique_introduction(intro: Tuple[str, ...], path: str) -> str:
 
 def _added_paths(commit: str, root: Path) -> Tuple[frozenset, Tuple[Tuple[str, str], ...]]:
     """非 merge commit の diff-tree name-status から (追加 path 集合, 非追加 (status,path))。"""
-    out = _git_text(["diff-tree", "--no-commit-id", "--name-status", "-r", commit], root)
+    out = _git_text(
+        ["diff-tree", "--no-commit-id", "--no-renames", "--name-status", "-r", commit],
+        root,
+    )
     added: set = set()
     other: List[Tuple[str, str]] = []
     for line in out.splitlines():
@@ -1273,25 +1276,41 @@ def _verify_generation_chain(generations: Dict[int, _Generation]) -> None:
 def _verify_pairing(
     approval: _Approval, pointer: _Pointer, generation: _Generation, root: Path,
 ) -> None:
-    """approval と active pointer が同一 commit A で導入され、A の diff がこの 2 record の
-    追加のみであること (C1-4)。G ≠ A も検査する。"""
-    if approval.intro != pointer.intro:
-        raise RatifiedFreezeError(
-            "pairing-commit",
-            f"approval と pointer の導入 commit 不一致: {approval.intro} vs {pointer.intro}",
-        )
+    """approval A と active pointer X が別 commit A→X で導入されたことを検査する。"""
     commit_a = approval.intro
+    commit_x = pointer.intro
+    if commit_a == commit_x:
+        # 診断専用。A の exact diff 検査も同一 commit の A+X を必ず拒否するため、
+        # この guard 自体は受理集合を狭めない。
+        raise RatifiedFreezeError(
+            "approval-pointer-same-commit",
+            f"approval commit A と pointer commit X が同一: {commit_a}",
+        )
     if commit_a == generation.commit:
         raise RatifiedFreezeError(
             "generation-approval-same-commit",
             f"世代導入 commit G と approval commit A が同一: {commit_a}",
         )
     added, other = _added_paths(commit_a, root)
-    if added != frozenset({approval.path, pointer.path}) or other:
+    if added != frozenset({approval.path}) or other:
         raise RatifiedFreezeError(
             "approval-commit-diff",
-            f"approval commit {commit_a} の diff が {{approval, pointer}} の追加のみでない: "
+            f"approval commit {commit_a} の diff が approval 1 件の追加のみでない: "
             f"added={sorted(added)} other={list(other)}",
+        )
+    added, other = _added_paths(commit_x, root)
+    if added != frozenset({pointer.path}) or other:
+        raise RatifiedFreezeError(
+            "pointer-commit-diff",
+            f"pointer commit {commit_x} の diff が pointer 1 件の追加のみでない: "
+            f"added={sorted(added)} other={list(other)}",
+        )
+    parents = _parents_of(commit_x, root)
+    if parents != (commit_a,):
+        raise RatifiedFreezeError(
+            "pointer-approval-parent",
+            f"pointer commit X の parent が selected approval commit A ちょうど 1 件でない: "
+            f"parents={parents} approval={commit_a}",
         )
 
 

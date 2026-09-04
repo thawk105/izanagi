@@ -86,12 +86,19 @@ def _require_condition_gate(source_root: str, macro: str) -> dict:
         requested_value=1,
         default_value=0,
     )
-    supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+    with condition_meaning_gate._configured_define_compile_commands(
         captured, request=request, cxx=buildcache.DEFAULT_CXX, cmake="cmake",
-    )
-    meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
-        captured, request=request, declaration=None, cxx=buildcache.DEFAULT_CXX,
-    )
+    ) as configured_commands:
+        supply = condition_meaning_gate.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=buildcache.DEFAULT_CXX, cmake="cmake",
+            configured_commands=configured_commands,
+        )
+        meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
+            captured, request=request,
+            declaration=condition_meaning_gate.declare_define_runtime_meaning(request),
+            cxx=buildcache.DEFAULT_CXX, cmake="cmake",
+            configured_commands=configured_commands,
+        )
     admission = condition_meaning_gate.require_condition_gate_family(
         [supply], [meaning], use_class="raw-measurement",
     )
@@ -184,7 +191,11 @@ def _oracle_cross_check(p_reasons: dict, details: dict) -> bool:
 
 def _verify(trace_dir: str) -> dict:
     """verifier を別プロセスで実走し permutation_violations 込みで構造化して返す。"""
-    cmd = [sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet"]
+    cmd = [
+        sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet",
+        "--protocol", "silo", "--ccbench-root",
+        os.path.join(_repo_root(), "external", "ccbench"),
+    ]
     proc = subprocess.run(cmd, capture_output=True, text=True,
                           timeout=VERIFIER_TIMEOUT_S,
                           cwd=os.path.join(_repo_root(), "orchestrator"))

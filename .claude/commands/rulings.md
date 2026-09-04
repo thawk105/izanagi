@@ -17,13 +17,13 @@ argument-hint: [件数 (既定 5) / "all" / ID 指定]
    手番が残る項は拾う。前エントリとの ID 差分も見る。裁定なく消えた・降格した ID は
    fragment 上書きの退行を疑い原文へ遡る
 2. insights の裁定パッケージ節と `docs/decisions.md` / `docs/failures.md` の同語検索。**T-ID 無しは台帳側にしか無い**。
-   **索引へ載せる前に各項を decisions で主題照合する — 項本文の「裁定待ち」は台帳より古いことがある** (D1335)
+   **索引へ載せる前に各項を decisions で主題照合する — 項・未 land fragment の「裁定待ち」は台帳より古い** (D1335)
 3. `docs/handoff/` の着手条件。残置は生死不明 (ID 終端で判定)。生きた handoff・未記録 inbox・稼働 wave の
    裁定パッケージは repo 外 (所在は runbook)。稼働 branch の未 land worklog / decisions fragment も
    未採番のまま索引する。inbox / handoff も台帳実体へ遡り、裁定済みは控えに済みを記して除外する。
    handoff だけが正本の未採番候補は消失前に rulings-inbox へ控える
 4. `docs/phase3.md` の現行チェックポイント・着手順にあるユーザー gate
-5. `docs/phase3.md` 見送り台帳で、発火を確認できた項。全件でなく前回裁定後に新設・変更された gate / validator /
+5. 見送り台帳と decisions 再訪条件で、発火を確認できた項。全件でなく前回裁定後に新設・変更された gate / validator /
    producer / 検査に触れる述語を照合し、時間・件数・サイズは worklog 実測値で見る。前回の未発火を
    今回へ流用しない
 6. 条件付き追認・段階裁定は条件成立と後段起票も照合する。未成立で後続が塞がるなら条件見直しを立て、

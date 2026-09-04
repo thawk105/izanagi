@@ -1,0 +1,52 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-drop-len4-unconditional",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "            nodes = self._shortest_cycle(scc_set)\n            edges: List[CycleEdge] = []",
+          "new": "            nodes = self._shortest_cycle(scc_set)\n            if len(nodes) >= 4:\n                total -= 1\n                continue\n            edges: List[CycleEdge] = []"
+        }
+      ]
+    },
+    {
+      "id": "M2-drop-len4-when-clean",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "            nodes = self._shortest_cycle(scc_set)\n            edges: List[CycleEdge] = []",
+          "new": "            nodes = self._shortest_cycle(scc_set)\n            if len(nodes) >= 4 and self.integrity.clean():\n                total -= 1\n                continue\n            edges: List[CycleEdge] = []"
+        }
+      ]
+    },
+    {
+      "id": "M3-equivalent-sort-key",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        sccs.sort(key=len)",
+          "new": "        sccs.sort(key=lambda comp: len(comp))"
+        }
+      ]
+    }
+  ]
+}

@@ -2252,6 +2252,7 @@ def _build_v2_impl(
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         backoff_grammar_version: Optional[int] = None,
+        sort_oracle_contract_id: Optional[str] = None,
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
@@ -2595,6 +2596,7 @@ def _build_v2_impl(
                     genome, ccbench_commit, sub, cxx, source_evidence, bdir,
                     built_fresh=False,
                     backoff_grammar_version=backoff_grammar_version,
+                    sort_oracle_contract_id=sort_oracle_contract_id,
                 )
                 _assert_trace_diff(
                     genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
@@ -2837,6 +2839,7 @@ def _build_v2_impl(
                 genome, ccbench_commit, sub, cxx, source_evidence, staging,
                 built_fresh=True,
                 backoff_grammar_version=backoff_grammar_version,
+                sort_oracle_contract_id=sort_oracle_contract_id,
             )
             _assert_trace_diff(
                 genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
@@ -2943,6 +2946,7 @@ def build_v2(
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         backoff_grammar_version: Optional[int] = None,
+        sort_oracle_contract_id: Optional[str] = None,
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
@@ -3007,6 +3011,8 @@ def build_v2(
     }
     if backoff_grammar_version is not None:
         common["backoff_grammar_version"] = backoff_grammar_version
+    if sort_oracle_contract_id is not None:
+        common["sort_oracle_contract_id"] = sort_oracle_contract_id
     if expected_materialization_descriptor is None:
         return _build_v2_impl(
             genome,
@@ -3101,7 +3107,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
           src_token: Optional[str] = None, *, admission: BuildAdmission,
           build_context: BuildRunContext, source_evidence: SourceEvidence,
           site: Optional[str] = None,
-          backoff_grammar_version: Optional[int] = None) -> BuildResult:
+          backoff_grammar_version: Optional[int] = None,
+          sort_oracle_contract_id: Optional[str] = None) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     ``build_context`` / ``source_evidence`` / evidence-derived ``admission`` を exact
@@ -3177,6 +3184,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                             genome, ccbench_commit, sub, cxx, source_evidence,
                             bdir, built_fresh=False,
                             backoff_grammar_version=backoff_grammar_version,
+                            sort_oracle_contract_id=sort_oracle_contract_id,
                         )
                         _assert_trace_diff(
                             genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
@@ -3242,6 +3250,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                 genome, ccbench_commit, sub, cxx, source_evidence,
                 staging, built_fresh=True,
                 backoff_grammar_version=backoff_grammar_version,
+                sort_oracle_contract_id=sort_oracle_contract_id,
             )
             _assert_trace_diff(
                 genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
@@ -3309,6 +3318,7 @@ def _recheck_source_evidence(
         genome: Genome, ccbench_commit: str, sub: str, cxx: str,
         expected: SourceEvidence, bdir: str, built_fresh: bool, *,
         backoff_grammar_version: Optional[int] = None,
+        sort_oracle_contract_id: Optional[str] = None,
 ) -> None:
     """build 出口で current SourceEvidence 全体を exact 再照合する。
 
@@ -3322,6 +3332,10 @@ def _recheck_source_evidence(
             source_options["backoff_grammar_version"] = (
                 backoff_grammar_version
             )
+        if sort_oracle_contract_id is not None:
+            source_options["sort_oracle_contract_id"] = (
+                sort_oracle_contract_id
+            )
         actual = source_digest.resolve_evidence(
             genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,
             **source_options,
@@ -3334,7 +3348,9 @@ def _recheck_source_evidence(
         if built_fresh:
             _discard_build_dir(bdir)
         raise
-    if actual != expected:
+    if (actual != expected
+            or actual.proof_source_snapshot != expected.proof_source_snapshot
+            or actual.verification_variant != expected.verification_variant):
         if built_fresh:
             _discard_build_dir(bdir)
         raise RuntimeError(

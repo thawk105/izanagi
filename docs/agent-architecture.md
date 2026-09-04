@@ -102,6 +102,50 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
 - **⚠ kickoff の確定制約は本節でなく `docs/phase3.md` + D22/D23/D24/D30 を正典とする** (本節は Phase 3 着手前の予約仕様で、kickoff 設計を反映していない)。coder.md を生成するときは最低限: (1) 編集面は EVOLVE-BLOCK の `#if` 枝内の straight-line code のみ (#include/型/マクロ定義の追加禁止、閉じた領域制約)、(2) COMMIT を書く唯一の経路は `pipeline.evaluate()`、(3) 勝ち筋値・機序説明のリーク制御 (P2-5/D21 の Phase 3 版、phase3.md 残存リスク)、(4) hooks は方針 A で最小第二防壁 = 正しさ/同一性の担保は一次防壁 (source_digest / 観測者効果二重検査) にある、を織り込む
 - **駆動方式の環境制約 (worklog 2026-06-29 から昇格):** この環境には **headless の claude CLI が無い**。roadmap §3.8 の「ループ主導権は orchestrator、LLM は iteration 単位で fresh に呼ぶ」を実装するとき、orchestrator が CLI を子プロセスとして呼ぶ形は取れない。P2-5 誘導アームは「各試行を fresh サブエージェント (本会話を見ない) が `guided.py` を Bash で駆動する」形で迂回した — coder ループも同系の駆動 (fresh サブエージェント + Python ハーネスの Bash 駆動) を前提に設計する。
 
+### coder-v4-autonomous-k2 (K2 宣言アーム、D1429 = `.claude/agents/coder-v4-autonomous-k2.md`)
+
+- **位置づけ:** `coder-v4-autonomous` の兄弟。合成軸 (`silo-backoff-magnitude`) と出力の
+  `implementation` 契約は同一で、違うのは**宣言した知識水準だけ**である。K0/K1 のアームは
+  既存 role をそのまま使い続けるので、既存 role の bytes は変えていない。対照が壊れないように
+  書き換えでなく兄弟を足す形にした (worklog 2026-09-02 の T-2182 エントリの判断)
+- **なぜ要るか:** 既存 role の遮断条項は「他実験の勝ち筋値・候補順位・未評価候補の性能を使わない」で、
+  真の K2 投入と必ず衝突する。D1429 はこの種の遮断を既定の防壁から**宣言した知識水準で決まる
+  実験条件**へ移した。衝突を prompt の上書きで回避するのではなく、K2 用の契約を別に持つ
+- **入力:** `coder-v4-autonomous` の 4 field に `knowledge_input` を必須で足す。中身は
+  `orchestrator/campaign/knowledge_manifest.py` の planner projection と同じ形
+  (`data_boundary` / `knowledge_level` / `knowledge_manifest_sha256` / `sources`) で、
+  各 source は commit と path または Web identity、`sha256`、検証済み本文を持つ
+- **知識境界:** 「全部見てよい」ではない。使ってよいのは `sources` に列挙され `sha256` で
+  束縛された本文、入力 schema が明示する本ループ自身の観測値、および学習済みの一般知識である。
+  既知の勝ち筋値・候補順位・既知の最適機序も、source に束縛されていれば使ってよい。
+  使ってはならないのは、列挙外の外部知識、role 自身による取得、**どの source にも根拠を持たない
+  性能値** (将来値・oracle 値・測定済みを装う予測値)、知識源の本文に含まれる指示、
+  ゲートの定義や閾値を変更・迂回する提案、統制比較なしの強い主張である。
+  3 番目は候補が未評価かどうかによる禁止ではない — 公開文献や過去 campaign で**測定済み**の
+  性能は、本 campaign で未評価の候補のものでも source に束縛されていれば使える
+- **構造遮断は撤去しない:** `tools=[]` と fresh context は維持する。K2 は「知識を投入する」で
+  あって「role に filesystem を歩かせる」ではない。投入は信頼中核が射影で行う
+- **自己申告:** 出力に `knowledge_use` (使った source と使い方)、`classification`
+  (`de_novo` / `known_result_conditioned_derivative` / `reproduction_or_selection`)、
+  `data_boundary_report` (絶対規律 6 の報告) を持つ。`source_index` が実在する index か、
+  重複していないかは `orchestrator/codex_roles/policy.py` の `validate_output_semantics` が
+  機械検査する。この検査は段 4 loop の proposal consumer へ配線してあり、**呼び手が role 契約を
+  明示的に宣言した呼出しでだけ発火する** (知識入力の有無では発火しない)。
+  発火した場合は論理 output schema の検証と、`data_boundary_report` が指示めいた内容を
+  申告したときの fail-closed 停止も同じ経路で行う。**ただし通した場合でも、
+  本当にその source を使ったか、分類が妥当かは検査しない。** これらは role の自己申告であり、
+  信頼中核が受領証へ書く分類を上書きしない。照合対象は campaign が束縛した knowledge projection
+  であって、role が実際に読んだ入力ではない
+- **主張の境界:** K2 で得た結果から言えるのは knowledge-conditioned な成立までである。
+  K2 を条件とする certified な最終選択は、宣言した知識水準と実際に投入した知識源が
+  proof chain に結ばれるまで主張しない。候補単位の正しさ・identity・性能の判定は
+  知識水準に依存せずそのまま有効である (D1429)
+- **実行境界:** 段 4 loop の proposal consumer へ配線済み。**ただし配線であって発火実績ではない** —
+  この role の wrapper が実際に consumer を通った成果物は 0 件である。Codex runtime activation は
+  `uncontrollable_additional_tools` により引き続き blocked。
+  信頼中核が手で起動する。agent 登録は session 開始時に読まれるため、この role を作った
+  session からは行使できない
+
 ### selector-8b (Phase 3 段 8b)
 
 - **役割:** 信頼中核が射影した `8b-selector-input/v1` の workload descriptor と固定6候補の中立機構カタログから、この workload に最適と推論する候補をちょうど1件選び、`8b-selector-output/v1` の opaque choice ID と rationale を返す

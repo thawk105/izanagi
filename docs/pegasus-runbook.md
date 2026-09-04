@@ -489,6 +489,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | path | class | evidence |
 |---|---|---|
 | `tools/claude_session_ledger.py` | `unknown` | `compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB` |
+| `tools/pegasus/a5_second_boot_backoff_sweep.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/acceptance_nproc_study.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/b10_backoff_grid.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/b10_backoff_shape_campaign.sh` | `dispatch-required` | `static job-body classification` |
@@ -517,6 +518,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/probes/t1403_walltime_sigterm_probe.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t1683_rr5_cost_probe.pbs` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/probes/t1683_rr5_cost_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/probes/t2187_adaptive_const_probe.pbs` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/probes/t2187_adaptive_const_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t293_perf_site_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t293_perf_site_probe.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t316_sandbox_backend_probe.pbs` | `dispatch-required` | `static job-body classification` |
@@ -533,6 +536,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/silo_ladder_rung1.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/ss2pl_lock_study.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/smoke_probe.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/submit_a5_second_boot_backoff_sweep.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_b10_backoff_grid.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_b10_backoff_shape.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |

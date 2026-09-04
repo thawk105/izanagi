@@ -20,6 +20,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -37,6 +38,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import backoff_hole_grammar as BHG                    # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
     ident,
+    knowledge_manifest as KM,
     p3_kickoff as P3_KICKOFF,
     p3_b4_closed_critic as B4_CLOSED,
     p3_b4_launcher as B4_LAUNCHER,
@@ -46,6 +48,8 @@ from orchestrator.campaign import (                                            #
 from orchestrator.campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
+    env_contract,
+    execution_guard,
     site_policy,
     source_digest,
     trigger_gate_binding,
@@ -80,10 +84,11 @@ def _avoid_condition_compiler_work_in_mechanical_tests(monkeypatch):
 
 
 def test_condition_gate_precedes_run_campaign_in_build_path():
-    source = inspect.getsource(L.run_one_iteration)
+    source = inspect.getsource(L._run_one_iteration_resolved)
     assert source.index("_require_condition_gate(sub, genome)") < source.index(
         "summary = run_campaign("
     )
+    assert "_run_one_iteration_resolved(" in inspect.getsource(L.run_one_iteration)
     helper = inspect.getsource(_REAL_CONDITION_GATE)
     assert "evaluate_define_supply_effectuation" in helper
     assert "evaluate_define_runtime_meaning" in helper
@@ -100,6 +105,379 @@ def test_condition_gate_precedes_run_campaign_in_build_path():
     )
     assert "p3_kickoff_condition_gate.json" in kickoff
     assert "s4_condition_gate.json" in red
+
+
+def _site_contract(
+    *,
+    env_tag: str = "sentinel-env",
+    clocks_per_us: int = 4242,
+    numactl: tuple[str, ...] = ("numactl", "--sentinel"),
+):
+    reference = env_contract.GENERATIONS["linux-baremetal"][0].contract
+    return env_contract.ExecutionEnvironmentContract(
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+        attestation_mode="none",
+        isolation_policy=env_contract.IsolationPolicy(
+            single_process=False,
+            allow_resume=True,
+        ),
+        calibration_ref=reference.calibration_ref,
+    )
+
+
+def _site_test_proposals():
+    return (
+        L.PlannerProposal(
+            axis=L.MARKER_ID,
+            direction="increase",
+            magnitude="small",
+        ),
+        L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=20,
+            implementation="double now_backoff = 20;",
+        ),
+    )
+
+
+def test_base_site_admission_is_exact_two_site_set():
+    candidates = (
+        site_policy.OTHER,
+        site_policy.PEGASUS_COMPUTE,
+        site_policy.PEGASUS_LOGIN,
+        site_policy.PEGASUS_SUSPECT,
+        "UNKNOWN_SITE",
+    )
+    admitted = {site for site in candidates if L._site_admits_measurement(site)}
+    assert admitted == {site_policy.OTHER, site_policy.PEGASUS_COMPUTE}
+
+
+def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
+    raw = L.default_cfg()
+    linux_contract = env_contract.lookup(L.ENV_TAG)
+    pegasus_contract = env_contract.lookup("pegasus")
+
+    assert raw.bound_environment_contract is None
+    other = L._campaign_cfg_for_site(
+        raw, site_policy.OTHER, _contract=linux_contract,
+    )
+    compute = L._campaign_cfg_for_site(
+        raw, site_policy.PEGASUS_COMPUTE, _contract=pegasus_contract,
+    )
+
+    assert other.bound_environment_contract is linux_contract
+    assert compute.bound_environment_contract is pegasus_contract
+    assert "measurement_env" not in other.search_config
+    assert str(ident.campaign_id(other)) == (
+        "p3-s4-loop-s4-autonomous-8ee68c0c"
+    )
+    assert ident.campaign_id(compute) != ident.campaign_id(other)
+    assert compute.search_config["measurement_env"] == "pegasus"
+
+    raw_off = L.default_cfg(reflux=False)
+    other_off = L._campaign_cfg_for_site(
+        raw_off, site_policy.OTHER, _contract=linux_contract,
+    )
+    assert raw_off.bound_environment_contract is None
+    assert other_off.bound_environment_contract is linux_contract
+    assert "measurement_env" not in other_off.search_config
+    assert str(ident.campaign_id(other_off)) == (
+        "p3-s4-loop-s4-autonomous-95a32c3e"
+    )
+
+
+@pytest.mark.parametrize(
+    "site",
+    (site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT),
+)
+def test_base_public_run_one_iteration_rejects_ambient_unadmitted_site(
+    monkeypatch, site,
+):
+    planner, coder = _site_test_proposals()
+    monkeypatch.setattr(L, "_current_site", lambda: site)
+
+    with pytest.raises(execution_guard.ExecutionGuardError, match="生成できない"):
+        L.run_one_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            L.LoopState(start_wall=time.time()),
+            "unused-by-site-admission-negative",
+            do_build=False,
+        )
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_base_automatic_compute_resolution_flows_one_projected_cfg_to_campaign(
+    monkeypatch,
+):
+    import contextlib
+
+    from orchestrator.campaign import patchharness
+
+    contract = _site_contract()
+    current_site_calls = []
+    lookup_calls = []
+    admitted = []
+    projected = []
+    authorization_tags = []
+    campaign_calls = []
+    real_admit = L._admit_env_contract
+    real_project = L._campaign_cfg_for_site
+
+    def current_site():
+        current_site_calls.append(True)
+        return site_policy.PEGASUS_COMPUTE
+
+    def lookup(env_tag):
+        lookup_calls.append(env_tag)
+        return contract
+
+    def admit(site):
+        result = real_admit(site)
+        admitted.append((site, result))
+        return result
+
+    def project(cfg, site, *, _contract=None):
+        result = real_project(cfg, site, _contract=_contract)
+        projected.append((cfg, site, _contract, result))
+        return result
+
+    def authorize(env_tag):
+        authorization_tags.append(env_tag)
+        return object()
+
+    def run_spy(
+        cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs,
+    ):
+        campaign_calls.append({
+            "cfg": cfg,
+            "env_tag": env_tag,
+            "clocks_per_us": clocks_per_us,
+            "numactl": numactl,
+            "env_contract": kwargs.get("env_contract"),
+            "dependency_prefix": kwargs.get("dependency_prefix"),
+        })
+        return CampaignSummary(
+            campaign_id=str(ident.campaign_id(cfg)),
+            layout_root=layout.root,
+            total=1,
+        )
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_base_site_compute_")
+    ).ensure()
+    raw_cfg = L.default_cfg()
+    planner, coder = _site_test_proposals()
+    monkeypatch.setattr(L, "_current_site", current_site)
+    monkeypatch.setattr(L, "_lookup", lookup)
+    monkeypatch.setattr(L, "_admit_env_contract", admit)
+    monkeypatch.setattr(L, "_campaign_cfg_for_site", project)
+    monkeypatch.setattr(L.env_contract, "authorize", authorize)
+    monkeypatch.setattr(L, "run_campaign", run_spy)
+    monkeypatch.setattr(
+        L, "exploration_campaign_layout", lambda *_args, **_kwargs: layout,
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        patchharness,
+        "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+
+    L.run_one_iteration(
+        raw_cfg,
+        L.default_perf(),
+        planner,
+        coder,
+        L.LoopState(start_wall=time.time()),
+        _mk_template_dir(L.SOURCE_REL),
+        do_build=True,
+        layout=layout,
+        dependency_prefix="/sentinel/dependency-prefix",
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        log=lambda *_args: None,
+    )
+
+    assert current_site_calls == [True]
+    assert lookup_calls == ["pegasus"]
+    assert admitted == [(site_policy.PEGASUS_COMPUTE, contract)]
+    assert len(projected) == 1
+    assert projected[0][0] is raw_cfg
+    assert projected[0][1:3] == (site_policy.PEGASUS_COMPUTE, contract)
+    campaign_cfg = projected[0][3]
+    assert campaign_cfg is not raw_cfg
+    assert campaign_cfg.bound_environment_contract is contract
+    assert campaign_cfg.search_config["measurement_env"] == "pegasus"
+    assert len(campaign_calls) == 1
+    actual_cfg = campaign_calls[0].pop("cfg")
+    assert actual_cfg == campaign_cfg
+    assert actual_cfg.bound_environment_contract is contract
+    assert actual_cfg.search_config["measurement_env"] == "pegasus"
+    assert campaign_calls[0] == {
+        "env_tag": contract.env_tag,
+        "clocks_per_us": contract.clocks_per_us,
+        "numactl": list(contract.numactl),
+        "env_contract": contract,
+        "dependency_prefix": "/sentinel/dependency-prefix",
+    }
+    assert authorization_tags == [contract.env_tag]
+
+
+def test_base_drive_iteration_rejects_one_sided_site_contract_injection(
+    monkeypatch, tmp_path,
+):
+    contract = env_contract.lookup(L.ENV_TAG)
+    real_site_admission = L._site_admits_measurement
+    monkeypatch.setattr(
+        L,
+        "_site_admits_measurement",
+        lambda site: site is None or real_site_admission(site),
+    )
+    monkeypatch.setattr(
+        L, "_SITE_ENV_TAGS", {**L._SITE_ENV_TAGS, None: contract.env_tag},
+    )
+    runner = unittest.mock.Mock(
+        side_effect=AssertionError("one-sided injection reached iteration"),
+    )
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda _campaign_id: CampaignLayout(str(tmp_path / "one-sided")),
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    planner, coder = _site_test_proposals()
+
+    with pytest.raises(TypeError, match="同時に渡す"):
+        L.drive_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            "unused",
+            False,
+            _contract=contract,
+        )
+
+    runner.assert_not_called()
+
+
+def test_base_drive_iteration_rejects_injected_unadmitted_site_only_at_site_gate(
+    monkeypatch, tmp_path,
+):
+    contract = _site_contract(env_tag="login-sentinel")
+    monkeypatch.setattr(
+        L,
+        "_SITE_ENV_TAGS",
+        {**L._SITE_ENV_TAGS, site_policy.PEGASUS_LOGIN: contract.env_tag},
+    )
+    runner = unittest.mock.Mock(
+        side_effect=AssertionError("unadmitted site reached iteration"),
+    )
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda _campaign_id: CampaignLayout(str(tmp_path / "unadmitted")),
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    planner, coder = _site_test_proposals()
+
+    with pytest.raises(execution_guard.ExecutionGuardError, match="生成できない"):
+        L.drive_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            "unused",
+            False,
+            _resolved_site=site_policy.PEGASUS_LOGIN,
+            _contract=contract,
+        )
+
+    runner.assert_not_called()
+
+
+def test_base_drive_iteration_rejects_only_injected_contract_tag_mismatch(
+    monkeypatch, tmp_path,
+):
+    runner = unittest.mock.Mock(
+        side_effect=AssertionError("mismatched contract reached iteration"),
+    )
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda _campaign_id: CampaignLayout(str(tmp_path / "tag-mismatch")),
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    planner, coder = _site_test_proposals()
+
+    with pytest.raises(execution_guard.ExecutionGuardError, match="env_tag"):
+        L.drive_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            "unused",
+            False,
+            _resolved_site=site_policy.OTHER,
+            _contract=env_contract.lookup("pegasus"),
+        )
+
+    runner.assert_not_called()
+
+
+def test_base_resolved_rejection_calls_use_contract_env_tag_exactly_three_times():
+    tree = ast.parse(inspect.getsource(L._run_one_iteration_resolved))
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "record_diff_reject"
+    ]
+    assert len(calls) == 3
+    expected = ast.dump(
+        ast.Attribute(
+            value=ast.Name(id="contract", ctx=ast.Load()),
+            attr="env_tag",
+            ctx=ast.Load(),
+        ),
+        include_attributes=False,
+    )
+    for call in calls:
+        env_keywords = [
+            keyword.value for keyword in call.keywords if keyword.arg == "env_tag"
+        ]
+        assert len(env_keywords) == 1
+        assert ast.dump(env_keywords[0], include_attributes=False) == expected
+
+
+def test_base_site_injection_is_private_to_drive_iteration():
+    assert "_resolved_site" in inspect.signature(L.drive_iteration).parameters
+    assert "_contract" in inspect.signature(L.drive_iteration).parameters
+    assert "_resolved_site" not in inspect.signature(L.run_one_iteration).parameters
+    assert "_contract" not in inspect.signature(L.run_one_iteration).parameters
+    assert "_resolved_site" not in inspect.signature(L.main).parameters
+    assert "_contract" not in inspect.signature(L.main).parameters
+
+
 from orchestrator.campaign.projection_guard import (                            # noqa: E402
     AbilityProbeMaterialError,
     ProjectionPolicyError,
@@ -217,6 +595,87 @@ def _seed_versioned_lock(layout: CampaignLayout) -> None:
     ))
 
 
+def _git_fixture(repo: Path, *args: str) -> bytes:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    ).stdout
+
+
+def _resolved_knowledge_fixture(tmp_path: Path, *, name: str = "source"):
+    repo = tmp_path / f"{name}-repo"
+    repo.mkdir()
+    _git_fixture(repo, "init", "--quiet")
+    _git_fixture(repo, "config", "user.name", "Izanagi Test")
+    _git_fixture(repo, "config", "user.email", "izanagi-test@example.invalid")
+    raw = f"{name} knowledge bytes\n".encode("utf-8")
+    (repo / "knowledge.txt").write_bytes(raw)
+    _git_fixture(repo, "add", "--", "knowledge.txt")
+    _git_fixture(repo, "commit", "--quiet", "-m", "knowledge fixture")
+    commit = _git_fixture(repo, "rev-parse", "HEAD").decode("ascii").strip()
+    value = {
+        "knowledge_level": "K2",
+        "sources": [{
+            "kind": "repo_artifact",
+            "identity": {"commit": commit, "path": "knowledge.txt"},
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }],
+    }
+    manifest_path = tmp_path / f"{name}-manifest.json"
+    manifest_path.write_text(
+        json.dumps(value, ensure_ascii=False), encoding="utf-8",
+    )
+    resolved = KM.load_and_resolve_manifest(manifest_path, repo_root=repo)
+    return repo, manifest_path, resolved
+
+
+def _resolved_empty_knowledge_fixture(tmp_path: Path):
+    value = {
+        "knowledge_level": "K2",
+        "declared_scope": {
+            "retrieval": [{
+                "kind": "repo_artifact",
+                "selector": "output/insights/2026-09-03_*",
+            }],
+            "injection": [{
+                "kind": "repo_artifact",
+                "selector": "all-successfully-retrieved-sources",
+            }],
+        },
+        "retrieval_result": {
+            "status": "completed_empty",
+            "result_count": 0,
+        },
+        "sources": [],
+    }
+    manifest = KM.parse_manifest_bytes(
+        json.dumps(value, ensure_ascii=False).encode("utf-8")
+    )
+    return KM.resolve_live_sources(manifest, repo_root=tmp_path)
+
+
+def _seed_knowledge_campaign(
+    layout: CampaignLayout,
+    resolved: KM.ResolvedKnowledgeManifest,
+) -> None:
+    cfg = replace(L.default_cfg(), search_config={
+        **L.default_cfg().search_config,
+        wal.KNOWLEDGE_LEVEL_SEARCH_KEY: "K2",
+        wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY:
+            resolved.knowledge_manifest_sha256,
+    })
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    KM.write_receipt(
+        layout.root,
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
+
+
 def _mk_template_dir(source_rel: str = _SRC_REL):
     d = tempfile.mkdtemp(prefix="izanagi_s4loop_")
     path = os.path.join(d, source_rel)
@@ -320,6 +779,8 @@ def test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_w
 
 
 def test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes():
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
     d = _mk_sort_template_dir()
     path = os.path.join(d, _SRC_REL)
     from orchestrator.campaign.diff_quarantine import parse_template_file
@@ -331,12 +792,9 @@ def test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_by
     harness_indent = original_hole_line[
         :len(original_hole_line) - len(original_hole_line.lstrip())
     ]
-    implementation = (
-        "double now_backoff = 23.0;\n"
-        "  now_backoff *= 2.0;\n"
-        "\n"
-        "\tif (now_backoff > 100.0) now_backoff = 100.0;"
-    )
+    implementation = oracle.render_sort_ir(oracle.SortComparatorIr((
+        (oracle.SortIrField.KEY, oracle.SortIrDirection.ASC),
+    )))
     real_scan = L.coder_effect_gate.scan_host_effects
     real_render = L.render_hole
 
@@ -1254,7 +1712,9 @@ def test_backoff_grammar_dispatch_is_exact_marker_only():
         _mk_sort_template_dir(), "int harmless = 1;",
         marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
     )
-    assert sort_result.passed
+    assert sort_result.passed is False
+    assert sort_result.subtype is DiffRejectSubtype.SORT_SWO_ORACLE
+    assert sort_result.reason == "sort-ir.envelope.v1"
 
     predicate = emit_predicate(TriggerGateIR(20))
     trigger_result, *_ = L.quarantine(
@@ -1423,28 +1883,45 @@ def test_trigger_quarantine_materializes_all_outer_whitespace_identically():
         assert diff.encode("utf-8") == exact_diff.encode("utf-8"), name
 
 
-def test_sort_quarantine_preserves_outer_whitespace_bytes():
+def test_sort_quarantine_canonicalizes_outer_whitespace_bytes():
+    from orchestrator.campaign import sort_swo_oracle as oracle
+    from orchestrator.campaign.diff_quarantine import parse_template_file
+
     d = tempfile.mkdtemp(prefix="izanagi_sort_verbatim_")
     path = os.path.join(d, _SRC_REL)
     with open(path, "w", encoding="utf-8") as stream:
         stream.write(_TEMPLATE.replace(
             "silo-backoff-magnitude", "silo-writeset-sort",
         ))
-    comparator = "int harmless = 1;"
+    marker_id = "silo-writeset-sort"
+    marker = parse_template_file(path, marker_id)
+    assert marker is not None
+    template_lines = Path(path).read_text(encoding="utf-8").split("\n")
+    hole_line = template_lines[marker.hole_first - 1]
+    harness_indent = hole_line[:len(hole_line) - len(hole_line.lstrip())]
+    assert harness_indent
+    comparator = oracle.render_sort_ir(oracle.SortComparatorIr((
+        (oracle.SortIrField.KEY, oracle.SortIrDirection.ASC),
+    )))
     exact_result, _base, exact_edited, exact_diff = L.quarantine(
         d, comparator,
-        marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
+        marker_id=marker_id, source_rel=_SRC_REL, write=False,
     )
-    padded = f"\n  {comparator}  \n"
+    padded = " \n\t".join(oracle._sort_ir_tokens(comparator))
     padded_result, _base, padded_edited, padded_diff = L.quarantine(
         d, padded,
-        marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
+        marker_id=marker_id, source_rel=_SRC_REL, write=False,
     )
 
     assert exact_result.passed and padded_result.passed
-    assert exact_edited.encode("utf-8") != padded_edited.encode("utf-8")
-    assert exact_diff.encode("utf-8") != padded_diff.encode("utf-8")
-    assert "\n      int harmless = 1;  \n" in padded_edited
+    assert exact_edited.encode("utf-8") == padded_edited.encode("utf-8")
+    assert exact_diff.encode("utf-8") == padded_diff.encode("utf-8")
+    materialized_hole = oracle.extract_materialized_hole(
+        padded_edited, marker_id,
+    )
+    assert oracle.canonicalize_sort_implementation(materialized_hole) == comparator
+    for line in materialized_hole.splitlines():
+        assert line.startswith(harness_indent)
 
 
 def test_trigger_quarantine_rejects_noncanonical_text_before_structure_inspection():
@@ -1484,7 +1961,9 @@ def test_trigger_membership_does_not_change_sort_or_backoff_markers():
         sort_dir, "int harmless = 1;",
         marker_id="silo-writeset-sort", source_rel=_SRC_REL, write=False,
     )
-    assert sort_result.passed
+    assert sort_result.passed is False
+    assert sort_result.subtype is DiffRejectSubtype.SORT_SWO_ORACLE
+    assert sort_result.digest["subtype"] != "membership"
 
 
 # ==== WAL 往復 (record_diff_reject → load_diff_rejections、片肺の両端) =========
@@ -1635,6 +2114,73 @@ def test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it():
     )
 
 
+def test_manifest_absent_production_build_start_bytes_are_exactly_pinned(
+    tmp_path, monkeypatch,
+):
+    """A5: grammar と admission を持つ production 形の挿入順まで固定する。"""
+    layout = CampaignLayout(root=str(tmp_path / "production-wal")).ensure()
+    _seed_versioned_lock(layout)
+    source_bytes_sha = hashlib.sha256(b"production-source-bytes").hexdigest()
+    src_token = hashlib.sha256(b"production-source-token").hexdigest()
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root="/var/lib/izanagi/ccbench",
+        ccbench_commit=L.PIN,
+        genome_sha256=hashlib.sha256(_G.canonical().encode("utf-8")).hexdigest(),
+        src_token=src_token,
+        source_bytes_sha256=source_bytes_sha,
+        tracked_clean=False,
+        tracked_diff_sha256=hashlib.sha256(b"production-diff").hexdigest(),
+        tracked_paths=("include/backoff.hh",),
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context,
+        evidence,
+        generator_input_sha256=hashlib.sha256(b"production-input").hexdigest(),
+    )
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=capability,
+    )
+    receipt = admission.as_wal_receipt()
+    attempt_id = "12" * 16
+    variant = variant_id(_G, src_token)
+    start_payload = {
+        "genome": _G.canonical(),
+        "src_token": src_token,
+        "build_attempt_id": attempt_id,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+    }
+
+    def receipt_must_not_open(_layout):
+        raise AssertionError("manifest 不在 campaign が knowledge receipt を開いた")
+
+    monkeypatch.setattr(wal, "_read_knowledge_receipt", receipt_must_not_open)
+    monkeypatch.setattr(wal.time, "time", lambda: 1234.5)
+    wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG, start_payload)
+
+    expected_payload = {
+        "genome": _G.canonical(),
+        "src_token": src_token,
+        "build_attempt_id": attempt_id,
+        "build_admission": receipt,
+        "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        BHG.BACKOFF_GRAMMAR_VERSION_KEY: BHG.BACKOFF_GRAMMAR_VERSION,
+    }
+    expected = (json.dumps({
+        "variant": variant,
+        "stage": STAGE_BUILD_START,
+        "env_tag": L.ENV_TAG,
+        "ts": 1234.5,
+        "payload": expected_payload,
+    }, ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n").encode(
+        "utf-8"
+    )
+    assert Path(layout.wal_file).read_bytes() == expected
+    assert wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY not in expected_payload
+
+
 def test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version():
     implementation = "double now_backoff = 20; (void)0;"
     result, *_ = L.quarantine(
@@ -1683,6 +2229,289 @@ def test_versioned_wal_topology_rejects_missing_or_skewed_build_start_version():
         admission_policy=policy,
         campaign_lock=wal._campaign_lock_value(legacy_layout),
     )
+
+
+def _knowledge_diff_reject_records(tmp_path: Path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "knowledge-campaign")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    implementation = "double now_backoff = 20; (void)0;"
+    result, *_ = L.quarantine(
+        _mk_template_dir(), implementation, source_rel=_SRC_REL, write=False,
+    )
+    L.record_diff_reject(
+        layout,
+        _G,
+        implementation,
+        result,
+        backoff_grammar_version=BHG.BACKOFF_GRAMMAR_VERSION,
+    )
+    return layout, resolved, wal.read_records(layout)
+
+
+def test_knowledge_writer_binds_build_start_only(tmp_path):
+    layout, resolved, records = _knowledge_diff_reject_records(tmp_path)
+    start, abort = records
+    assert start.stage == STAGE_BUILD_START
+    assert abort.stage == STAGE_ABORT
+    assert wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY not in abort.payload
+    provenance = start.payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY]
+    assert provenance == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "sources": [item.source.canonical_value() for item in resolved.sources],
+    }
+    lock = wal._campaign_lock_value(layout)
+    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
+    wal._validate_attempt_topology(
+        records, admission_policy=policy, campaign_lock=lock,
+    )
+
+
+def test_extended_empty_receipt_binds_lock_wal_and_material_projection(tmp_path):
+    """Rejects a v2 empty receipt if scope or retrieval result is dropped from its digest-bound manifest. Accepts the complete v2 receipt through lock binding, BUILD_START replay validation, and material projection."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "empty-knowledge-campaign")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    appended = wal.log(
+        layout,
+        "empty-knowledge-variant",
+        STAGE_BUILD_START,
+        L.ENV_TAG,
+        {"build_attempt_id": "empty-knowledge-attempt"},
+        ts=1.0,
+    )
+    expected_provenance = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "sources": [],
+        "declared_scope": resolved.manifest.declared_scope.canonical_value(),
+        "retrieval_result": resolved.manifest.retrieval_result.canonical_value(),
+    }
+    assert appended.payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY] == (
+        expected_provenance
+    )
+    records = wal.read_records(layout)
+    lock = wal._campaign_lock_value(layout)
+    wal.validate_knowledge_provenance_bindings(records, campaign_lock=lock)
+    projection = wal.knowledge_provenance_for_material_report(
+        layout, records, campaign_lock=lock,
+    )
+    assert projection == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_sources": [],
+        "injected_sources": [],
+        "declared_scope": expected_provenance["declared_scope"],
+        "retrieval_result": expected_provenance["retrieval_result"],
+    }
+
+    receipt_path = Path(layout.root, KM.RECEIPT_FILENAME)
+    incomplete = json.loads(receipt_path.read_bytes())
+    del incomplete["canonical_manifest"]["declared_scope"]
+    receipt_path.write_bytes(KM.canonical_json_bytes(incomplete) + b"\n")
+    with pytest.raises(wal.AttemptTopologyError):
+        wal.knowledge_provenance_for_material_report(
+            layout, records, campaign_lock=lock,
+        )
+
+
+def test_knowledge_material_report_reader_projects_verified_receipt_sources(
+    tmp_path,
+):
+    """Fails only when the new reader does not reuse the verified receipt path."""
+    layout, resolved, records = _knowledge_diff_reject_records(tmp_path)
+    projection = wal.knowledge_provenance_for_material_report(
+        layout,
+        records,
+        campaign_lock=wal._campaign_lock_value(layout),
+    )
+    expected_sources = [
+        item.source.canonical_value() for item in resolved.sources
+    ]
+
+    assert projection == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_sources": expected_sources,
+        "injected_sources": expected_sources,
+    }
+
+
+def test_validated_receipt_keeps_both_source_origins_distinct(tmp_path):
+    """FX1 positive: canonical and verified fields survive as separate lists."""
+    layout, resolved, _records = _knowledge_diff_reject_records(tmp_path)
+    provenance, verified_sources = wal._validated_knowledge_receipt(
+        wal._read_knowledge_receipt(layout),
+        expected_level="K2",
+        expected_digest=resolved.knowledge_manifest_sha256,
+    )
+    expected_sources = [
+        item.source.canonical_value() for item in resolved.sources
+    ]
+
+    assert provenance["sources"] == expected_sources
+    assert verified_sources == expected_sources
+    assert provenance["sources"] is not verified_sources
+    assert provenance["sources"][0] is not verified_sources[0]
+
+
+def test_knowledge_material_report_reader_rejects_verified_canonical_skew(
+    tmp_path,
+):
+    """FX2: only verified/canonical equality rejects this exact valid shape."""
+    layout, _resolved, records = _knowledge_diff_reject_records(tmp_path)
+    receipt_path = Path(layout.root, KM.RECEIPT_FILENAME)
+    receipt = json.loads(receipt_path.read_bytes())
+    verified_only_sha256 = hashlib.sha256(b"verified-only-skew").hexdigest()
+    receipt["sources"][0]["sha256"] = verified_only_sha256
+    receipt["sources"][0]["verification"]["observed_sha256"] = (
+        verified_only_sha256
+    )
+    receipt_path.write_bytes(KM.canonical_json_bytes(receipt) + b"\n")
+
+    with pytest.raises(
+        wal.AttemptTopologyError,
+        match="canonical manifest と verified sources が不一致",
+    ):
+        wal.knowledge_provenance_for_material_report(
+            layout,
+            records,
+            campaign_lock=wal._campaign_lock_value(layout),
+        )
+
+
+def test_nonknowledge_material_report_reader_does_not_read_receipt(tmp_path):
+    """Fails only when a knowledge-unaware campaign touches a receipt artifact."""
+    layout = CampaignLayout(root=str(tmp_path / "nonknowledge-campaign")).ensure()
+    _seed_legacy_lock(layout)
+    Path(layout.root, KM.RECEIPT_FILENAME).write_bytes(b"not-json\n")
+
+    assert wal.knowledge_provenance_for_material_report(
+        layout,
+        [],
+        campaign_lock=wal._campaign_lock_value(layout),
+    ) is None
+
+
+def test_knowledge_writer_rejects_missing_receipt_before_wal_effect(tmp_path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "missing-receipt")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    Path(layout.root, KM.RECEIPT_FILENAME).unlink()
+    with pytest.raises(wal.AttemptTopologyError, match="receipt"):
+        wal.log(layout, "variant", STAGE_BUILD_START, L.ENV_TAG, {
+            "genome": _G.canonical(),
+            "src_token": "",
+            "build_attempt_id": "34" * 16,
+        })
+    assert not Path(layout.wal_file).exists()
+
+
+def test_knowledge_writer_rejects_receipt_digest_tamper_before_wal_effect(tmp_path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "tampered-receipt")).ensure()
+    _seed_knowledge_campaign(layout, resolved)
+    receipt_path = Path(layout.root, KM.RECEIPT_FILENAME)
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["knowledge_manifest_sha256"] = "0" * 64
+    receipt_path.write_bytes(KM.canonical_json_bytes(receipt) + b"\n")
+    with pytest.raises(wal.AttemptTopologyError, match="binding"):
+        wal.log(layout, "variant", STAGE_BUILD_START, L.ENV_TAG, {
+            "genome": _G.canonical(),
+            "src_token": "",
+            "build_attempt_id": "56" * 16,
+        })
+    assert not Path(layout.wal_file).exists()
+
+
+def test_knowledge_reader_rejects_partial_lock_binding_without_wal_dependency():
+    for partial in (
+        {wal.KNOWLEDGE_LEVEL_SEARCH_KEY: "K2"},
+        {wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY: "0" * 64},
+    ):
+        with pytest.raises(wal.AttemptTopologyError, match="片方だけ"):
+            wal.validate_knowledge_provenance_bindings(
+                [], campaign_lock={"search_config": partial},
+            )
+
+
+def test_knowledge_reader_rejects_build_start_binding_absence_as_only_failure(
+    tmp_path,
+):
+    layout, _resolved, records = _knowledge_diff_reject_records(tmp_path)
+    start_payload = dict(records[0].payload)
+    start_payload.pop(wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY)
+    changed = [replace(records[0], payload=start_payload), records[1]]
+    lock = wal._campaign_lock_value(layout)
+    wal.validate_backoff_grammar_bindings(changed, campaign_lock=lock)
+    wal.validate_commit_contract_bindings(changed, campaign_lock=lock)
+    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
+    with pytest.raises(wal.AttemptTopologyError, match="binding が欠落"):
+        wal._validate_attempt_topology(
+            changed, admission_policy=policy, campaign_lock=lock,
+        )
+
+
+def test_knowledge_reader_rederives_manifest_digest_from_wal_source_set(tmp_path):
+    layout, _resolved, records = _knowledge_diff_reject_records(tmp_path)
+    provenance = dict(records[0].payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY])
+    sources = [dict(source) for source in provenance["sources"]]
+    sources[0] = {**sources[0], "sha256": "0" * 64}
+    provenance["sources"] = sources
+    start_payload = {
+        **records[0].payload,
+        wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY: provenance,
+    }
+    changed = [replace(records[0], payload=start_payload), records[1]]
+    lock = wal._campaign_lock_value(layout)
+    wal.validate_backoff_grammar_bindings(changed, campaign_lock=lock)
+    wal.validate_commit_contract_bindings(changed, campaign_lock=lock)
+    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
+    with pytest.raises(wal.AttemptTopologyError, match="source 集合"):
+        wal._validate_attempt_topology(
+            changed, admission_policy=policy, campaign_lock=lock,
+        )
+
+
+def test_knowledge_consumer_rejects_nul_path_as_only_failure():
+    source = {
+        "kind": "repo_artifact",
+        "identity": {"commit": "1" * 40, "path": "a\x00b"},
+        "sha256": "2" * 64,
+    }
+    digest = hashlib.sha256(KM.canonical_json_bytes({
+        "knowledge_level": "K2",
+        "sources": [source],
+    })).hexdigest()
+    provenance = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": digest,
+        "sources": [source],
+    }
+    record = wal.parse_line(KM.canonical_json_bytes({
+        "variant": "nul-path",
+        "stage": STAGE_BUILD_START,
+        "env_tag": L.ENV_TAG,
+        "ts": 1.0,
+        "payload": {wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY: provenance},
+    }).decode("utf-8"))
+    assert record.payload[wal.KNOWLEDGE_PROVENANCE_PAYLOAD_KEY][
+        "sources"
+    ][0]["identity"]["path"] == "a\x00b"
+    lock = {"search_config": {
+        wal.KNOWLEDGE_LEVEL_SEARCH_KEY: "K2",
+        wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY: digest,
+    }}
+
+    with pytest.raises(wal.AttemptTopologyError, match="canonical repo-relative"):
+        wal.validate_knowledge_provenance_bindings([record], campaign_lock=lock)
+
+
+def test_nonstock_source_token_keeps_candidate_identity_distinct_from_stock():
+    nonstock = hashlib.sha256(b"knowledge-conditioned-source-bytes").hexdigest()
+    assert nonstock != source_digest.STOCK
+    assert variant_id(_G, nonstock) != variant_id(_G, source_digest.STOCK)
 
 
 def test_duplicate_snapshot_rejects_pre_version_record_under_versioned_lock():
@@ -2258,6 +3087,8 @@ def test_both_auditor_drivers_route_combination_through_mandatory_veto():
 
 def test_both_real_auditor_drivers_reject_post_generation_contradiction():
     """M8 behavioral kill: old ``verdict != 'pass'`` branches return None and allow build."""
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
     sort_planner = L.PlannerProposal(
         axis=SORT_LOOP.MARKER_ID,
         direction="explore_both",
@@ -2271,7 +3102,9 @@ def test_both_real_auditor_drivers_reject_post_generation_contradiction():
         ),
         encoding="utf-8",
     )
-    sort_impl = "int harmless = 1;"
+    sort_impl = oracle.render_sort_ir(oracle.SortComparatorIr((
+        (oracle.SortIrField.KEY, oracle.SortIrDirection.ASC),
+    )))
     machine, _base, _edited, sort_diff = L.quarantine(
         sort_sub, sort_impl, marker_id=SORT_LOOP.MARKER_ID,
         source_rel=SORT_LOOP.SOURCE_REL, write=False,
@@ -3211,7 +4044,7 @@ def test_sanctioned_cli_stdout_omits_red_detail_fields(
         fixture_returned.update(result)
         return result
 
-    monkeypatch.setattr(L, "run_one_iteration", fake_run_one_iteration)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", fake_run_one_iteration)
 
     assert L.main(["--no-build"]) == 0
     stdout = capsys.readouterr().out
@@ -3583,7 +4416,7 @@ def _exercise_b4_history_driver(
             return_value={"outcome": "dry-pass", "variant": None}
         )
         monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
-        monkeypatch.setattr(L, "run_one_iteration", run_spy)
+        monkeypatch.setattr(L, "_run_one_iteration_resolved", run_spy)
 
         def invoke():
             return L.drive_iteration(
@@ -3877,14 +4710,16 @@ def test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress(
         L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
     )
     observed_iterations = []
-    real_run_one_iteration = L.run_one_iteration
+    real_run_one_iteration = L._run_one_iteration_resolved
 
     def observing_run_one_iteration(*args, **kwargs):
         observed_iterations.append(args[4].iteration)
         return real_run_one_iteration(*args, **kwargs)
 
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
-    monkeypatch.setattr(L, "run_one_iteration", observing_run_one_iteration)
+    monkeypatch.setattr(
+        L, "_run_one_iteration_resolved", observing_run_one_iteration,
+    )
     with pytest.raises(B4_LAUNCHER.B4LauncherAuthorizationError) as caught:
         L.drive_iteration(
             cfg,
@@ -4046,7 +4881,7 @@ def test_production_context_does_not_weaken_six_receipt_rejections(
     runner = unittest.mock.Mock(
         side_effect=AssertionError("candidate synthesis reached")
     )
-    monkeypatch.setattr(L, "run_one_iteration", runner)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
     planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
     coder = L.CoderProposal(
         L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
@@ -4148,7 +4983,7 @@ def test_b4_bound_decision_reaches_synthesis_and_writes_exact_consumption(
 
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
-    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", fake_run)
     monkeypatch.setattr(
         B4_CLOSED,
         "require_b4_closed_critic_receipt",
@@ -4206,7 +5041,7 @@ def test_b4_same_terminal_receipt_hash_is_consumed_at_most_once(
 
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
-    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", fake_run)
     monkeypatch.setattr(
         B4_CLOSED,
         "require_b4_closed_critic_receipt",
@@ -4324,7 +5159,7 @@ def test_b4_bootstrap_rejects_receipt_but_allows_none_to_reach_synthesis(
     run_spy = unittest.mock.Mock(
         return_value={"outcome": "dry-pass", "variant": None}
     )
-    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", run_spy)
     common = dict(
         cfg=cfg,
         perf=L.default_perf(),
@@ -4386,7 +5221,7 @@ def test_b4_fixture_main_rejects_run_one_iteration_bypass_m13(monkeypatch):
     )
     pinned_spy = unittest.mock.Mock()
     single_tenant_spy = unittest.mock.Mock()
-    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", run_spy)
     monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
     monkeypatch.setattr(p2_2, "_assert_single_tenant", single_tenant_spy)
     with pytest.raises(
@@ -5164,6 +5999,215 @@ def test_planner_context_payload_rejects_non_string_policy_hint(hint):
         L.planner_context_payload(L.LoopState(), cfg)
 
 
+@pytest.mark.parametrize(
+    ("reflux", "expected_hash"),
+    ((True, "8ee68c0c"), (False, "95a32c3e")),
+)
+def test_knowledge_manifest_absence_preserves_exact_cfg_hashes(
+    reflux, expected_hash, tmp_path, monkeypatch,
+):
+    base = L.default_cfg(reflux=reflux)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda campaign_id: CampaignLayout(root=str(tmp_path / campaign_id)),
+    )
+    prepared, _layout, projection = L._prepare_knowledge_campaign(
+        base,
+        None,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
+    assert prepared == base
+    assert projection is None
+    assert wal.KNOWLEDGE_LEVEL_SEARCH_KEY not in prepared.search_config
+    assert wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY not in prepared.search_config
+    assert hashlib.sha256(
+        ident.canonical_preimage(prepared).encode("utf-8")
+    ).hexdigest()[:8] == expected_hash
+    assert str(ident.campaign_id(prepared)) == (
+        "p3-s4-loop-s4-autonomous-" + expected_hash
+    )
+
+
+def test_knowledge_input_is_sibling_of_whiteboard_and_policy_hint(tmp_path):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(tmp_path)
+    hint = "caller policy declaration"
+    cfg = replace(L.default_cfg(), search_config={
+        **L.default_cfg().search_config,
+        "policy_hint": hint,
+    })
+    projection = KM.planner_projection(resolved)
+    payload = L.planner_context_payload(
+        L.LoopState(), cfg, knowledge_input=projection,
+    )
+    assert set(payload) == {"whiteboard", "policy_hint", "knowledge_input"}
+    assert payload["policy_hint"] == hint
+    assert payload["knowledge_input"] == projection
+    assert "knowledge_input" not in payload["policy_hint"]
+
+
+def test_manifest_digest_changes_campaign_identity_and_layout(
+    tmp_path, monkeypatch,
+):
+    _repo_a, _path_a, resolved_a = _resolved_knowledge_fixture(
+        tmp_path, name="alpha",
+    )
+    _repo_b, _path_b, resolved_b = _resolved_knowledge_fixture(
+        tmp_path, name="beta",
+    )
+    root = tmp_path / "campaigns"
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda campaign_id: CampaignLayout(root=str(root / campaign_id)),
+    )
+    cfg_a, layout_a, _ = L._prepare_knowledge_campaign(
+        L.default_cfg(), resolved_a,
+        classification="reproduction_or_selection", de_novo_claim=False,
+    )
+    cfg_b, layout_b, _ = L._prepare_knowledge_campaign(
+        L.default_cfg(), resolved_b,
+        classification="reproduction_or_selection", de_novo_claim=False,
+    )
+    assert resolved_a.knowledge_manifest_sha256 != resolved_b.knowledge_manifest_sha256
+    assert ident.campaign_id(cfg_a) != ident.campaign_id(cfg_b)
+    assert layout_a.root != layout_b.root
+
+
+def test_emit_context_and_run_iteration_share_manifest_campaign_identity(
+    tmp_path, monkeypatch,
+):
+    repo, manifest_path, _resolved = _resolved_knowledge_fixture(
+        tmp_path, name="shared-route",
+    )
+    layouts: dict[str, CampaignLayout] = {}
+    observed_ids: list[str] = []
+
+    def layout_for(campaign_id):
+        observed_ids.append(campaign_id)
+        return layouts.setdefault(
+            campaign_id,
+            CampaignLayout(root=str(tmp_path / "outputs" / campaign_id)),
+        )
+
+    monkeypatch.setattr(L, "_repo_root", lambda: str(repo))
+    monkeypatch.setattr(L, "exploration_campaign_layout", layout_for)
+    context_path = tmp_path / "planner-context.json"
+    common = [
+        "--knowledge-manifest", str(manifest_path),
+        "--knowledge-classification", "reproduction_or_selection",
+        "--knowledge-de-novo-claim", "false",
+        "--reflux", "on",
+    ]
+    assert L.main([
+        *common, "--emit-planner-context", str(context_path),
+    ]) == 0
+    context_ids = set(observed_ids)
+    assert len(context_ids) == 1
+    context_payload = json.loads(context_path.read_text(encoding="utf-8"))
+    assert "knowledge_input" in context_payload
+
+    from orchestrator.campaign import patchharness
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="explore_both",
+        magnitude="small",
+        justification="route fixture",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20,
+        implementation="double now_backoff = 20;",
+        justification="route fixture",
+        confidence="low",
+    )
+    monkeypatch.setattr(L, "load_proposal_file", lambda *_a, **_k: (planner, coder, None))
+
+    def fake_drive(cfg, *_args, **_kwargs):
+        campaign_id = str(ident.campaign_id(cfg))
+        layout = layouts[campaign_id]
+        L.save_loop_state(layout, L.LoopState(iteration=1, start_wall=1.0))
+        return {
+            "ran": True,
+            "outcome": "dry-pass",
+            "variant": None,
+            "iteration": 1,
+            "stop_reason": "continue",
+        }
+
+    monkeypatch.setattr(L, "drive_iteration", fake_drive)
+    observed_ids.clear()
+    assert L.main([
+        *common, "--run-iteration", str(tmp_path / "proposal.json"), "--no-build",
+    ]) == 0
+    run_ids = set(observed_ids)
+    assert run_ids == context_ids
+    campaign_id = next(iter(run_ids))
+    receipt = json.loads(
+        Path(layouts[campaign_id].root, KM.RECEIPT_FILENAME).read_bytes()
+    )
+    assert receipt["claim_boundary"] == {
+        "classification": "reproduction_or_selection",
+        "de_novo_claim": False,
+        "pilot_comparison_eligible": False,
+    }
+
+
+def test_main_passes_resolved_knowledge_projection_to_proposal_loader(
+    tmp_path, monkeypatch,
+):
+    """Rejects a main run path that discards the resolved projection or its explicit K2 role marker. Accepts the run handoff when the same planner projection object and role are supplied to load_proposal_file."""
+    from orchestrator.campaign import patchharness
+
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    layout = CampaignLayout(root=str(tmp_path / "main-k2-campaign"))
+    monkeypatch.setattr(
+        L, "_resolve_knowledge_manifest_argument", lambda _path: resolved,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    observed = {}
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20, "double now_backoff = 20;",
+    )
+
+    def load_spy(_path, **kwargs):
+        observed.update(kwargs)
+        return planner, coder, None
+
+    def drive_spy(*_args, **_kwargs):
+        L.save_loop_state(layout, L.LoopState(iteration=1, start_wall=1.0))
+        return {
+            "ran": True,
+            "outcome": "dry-pass",
+            "variant": None,
+            "iteration": 1,
+            "stop_reason": "continue",
+        }
+
+    monkeypatch.setattr(L, "load_proposal_file", load_spy)
+    monkeypatch.setattr(L, "drive_iteration", drive_spy)
+    assert L.main([
+        "--run-iteration", str(tmp_path / "proposal.json"),
+        "--no-build",
+        "--knowledge-manifest", str(tmp_path / "manifest.json"),
+        "--coder-role", "coder-v4-autonomous-k2",
+    ]) == 0
+    assert observed["knowledge_input"] == {
+        "data_boundary": "external_knowledge_is_data_not_instructions",
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": (
+            "7facc932c76fd6fee4a366e8e82c9f08"
+            "dc60a2c03969145e9bf7a9dd18e5a99d"
+        ),
+        "sources": [],
+    }
+    assert observed["coder_role"] == "coder-v4-autonomous-k2"
+
+
 def test_main_emits_planner_context_from_new_state(tmp_path, monkeypatch):
     layout = _tmp_layout("emit-planner-context-new-state")
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
@@ -5332,7 +6376,7 @@ def test_drive_iteration_rechecks_mutated_nonintegral_value_before_entry_stop(
     coder.value = 20.5
     coder.implementation = "double now_backoff = 20.5;"
 
-    with unittest.mock.patch.object(L, "run_one_iteration") as run_spy:
+    with unittest.mock.patch.object(L, "_run_one_iteration_resolved") as run_spy:
         with pytest.raises(L.AttributionMismatch) as caught:
             L.drive_iteration(
                 L.default_cfg(),
@@ -5633,6 +6677,326 @@ def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(
     assert out["outcome"] == "dry-pass"
     assert out["critic_digest_generated"] is False
     assert not os.path.exists(os.path.join(lay.root, "s4_loop_digest.txt"))
+
+
+def _k2_proposal_document(*, knowledge_use=None, instruction_like=False):
+    return {
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+            "justification": "fixture direction",
+        },
+        "coder": {
+            "proposal": {
+                "axis": L.MARKER_ID,
+                "value": 20,
+                "implementation": "double now_backoff = 20;",
+                "justification": "fixture proposal",
+                "confidence": "medium",
+            },
+            "knowledge_use": [] if knowledge_use is None else knowledge_use,
+            "classification": "de_novo",
+            "data_boundary_report": {
+                "instruction_like_content_detected": instruction_like,
+                "details": "fixture scan",
+            },
+        },
+        "prior_critic_reverse": None,
+    }
+
+
+def _write_k2_proposal(tmp_path: Path, value: dict, name: str) -> Path:
+    path = tmp_path / name
+    path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def _run_main_with_actual_proposal_loader(
+    tmp_path: Path,
+    monkeypatch,
+    *,
+    resolved: KM.ResolvedKnowledgeManifest,
+    proposal_path: Path,
+    coder_role: str | None,
+) -> dict[str, object]:
+    from orchestrator.campaign import patchharness
+
+    layout = CampaignLayout(root=str(tmp_path / "main-loader-campaign"))
+    monkeypatch.setattr(
+        L, "_resolve_knowledge_manifest_argument", lambda _path: resolved,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(
+        patchharness, "assert_pinned_clean", lambda *_a, **_k: None,
+    )
+    observed: dict[str, object] = {}
+
+    def drive_spy(_cfg, _perf, planner, coder, prior, _sub, **_kwargs):
+        observed.update({
+            "planner": planner,
+            "coder": coder,
+            "prior": prior,
+        })
+        L.save_loop_state(layout, L.LoopState(iteration=1, start_wall=1.0))
+        return {
+            "ran": True,
+            "outcome": "dry-pass",
+            "variant": None,
+            "iteration": 1,
+            "stop_reason": "continue",
+        }
+
+    monkeypatch.setattr(L, "drive_iteration", drive_spy)
+    argv = [
+        "--run-iteration", str(proposal_path),
+        "--no-build",
+        "--knowledge-manifest", str(tmp_path / "manifest.json"),
+    ]
+    if coder_role is not None:
+        argv.extend(["--coder-role", coder_role])
+    assert L.main(argv) == 0
+    return observed
+
+
+def test_main_manifest_only_accepts_legacy_flattened_proposal(
+    tmp_path, monkeypatch,
+):
+    """A manifest alone preserves the historically exercised flattened route."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    document = {
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+        },
+        "coder": {
+            "axis": L.MARKER_ID,
+            "value": 20,
+            "implementation": "double now_backoff = 20;",
+            "justification": "",
+            "confidence": "medium",
+        },
+        "prior_critic_reverse": None,
+    }
+    proposal_path = _write_k2_proposal(
+        tmp_path, document, "main-flattened.json",
+    )
+
+    observed = _run_main_with_actual_proposal_loader(
+        tmp_path,
+        monkeypatch,
+        resolved=resolved,
+        proposal_path=proposal_path,
+        coder_role=None,
+    )
+
+    assert vars(observed["coder"]) == document["coder"]
+    assert observed["prior"] is None
+
+
+def test_main_manifest_and_k2_role_accept_k2_wrapper(
+    tmp_path, monkeypatch,
+):
+    """An explicit manifest plus K2 role selects and accepts the K2 wrapper."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    document = _k2_proposal_document()
+    proposal_path = _write_k2_proposal(
+        tmp_path, document, "main-k2-wrapper.json",
+    )
+
+    observed = _run_main_with_actual_proposal_loader(
+        tmp_path,
+        monkeypatch,
+        resolved=resolved,
+        proposal_path=proposal_path,
+        coder_role="coder-v4-autonomous-k2",
+    )
+
+    assert vars(observed["coder"]) == document["coder"]["proposal"]
+    assert observed["prior"] is None
+
+
+def test_k2_load_proposal_accepts_declared_role_output_with_empty_sources(tmp_path):
+    """Rejects routing the declared K2 wrapper through the legacy flattened coder contract. Accepts the exact role output with confidence and empty knowledge_use against an empty bound source projection."""
+    knowledge_input = KM.planner_projection(
+        _resolved_empty_knowledge_fixture(tmp_path)
+    )
+    path = _write_k2_proposal(
+        tmp_path, _k2_proposal_document(), "k2-empty.json",
+    )
+    with pytest.raises((KeyError, ValueError)):
+        L.load_proposal_file(str(path))
+
+    planner, coder, prior = L.load_proposal_file(
+        str(path),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )
+    assert vars(planner) == {
+        **_k2_proposal_document()["planner"],
+        "uncertainty": "",
+    }
+    assert vars(coder) == _k2_proposal_document()["coder"]["proposal"]
+    assert prior is None
+
+
+def test_k2_load_proposal_rejects_out_of_range_knowledge_use(tmp_path):
+    """Rejects source_index 1 when the bound knowledge projection has only source index 0. Accepts the same declared role output when source_index is changed to 0."""
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(
+        tmp_path, name="k2-index",
+    )
+    knowledge_input = KM.planner_projection(resolved)
+    invalid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{
+            "source_index": 1, "use": "out of range",
+        }]),
+        "k2-index-invalid.json",
+    )
+    with pytest.raises(ValueError, match="source_index"):
+        L.load_proposal_file(
+            str(invalid),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{
+            "source_index": 0, "use": "valid reference",
+        }]),
+        "k2-index-valid.json",
+    )
+    _planner, coder, _prior = L.load_proposal_file(
+        str(valid),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )
+    assert coder.value == 20
+
+
+def test_k2_load_proposal_rejects_knowledge_use_item_without_use_field(tmp_path):
+    """Rejects a knowledge_use item that omits the role schema's required use field. Accepts the otherwise identical item after a string use field is supplied."""
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(
+        tmp_path, name="k2-use-field",
+    )
+    knowledge_input = KM.planner_projection(resolved)
+    invalid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{"source_index": 0}]),
+        "k2-use-missing.json",
+    )
+    with pytest.raises(ValueError, match="schema"):
+        L.load_proposal_file(
+            str(invalid),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(knowledge_use=[{
+            "source_index": 0, "use": "valid use",
+        }]),
+        "k2-use-present.json",
+    )
+    assert L.load_proposal_file(
+        str(valid),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )[1].value == 20
+
+
+def test_k2_load_proposal_rejects_declared_instruction_like_content(tmp_path):
+    """Rejects a schema-valid K2 output when its data boundary report declares instruction-like content. Accepts the same role output when the declaration is false."""
+    knowledge_input = KM.planner_projection(
+        _resolved_empty_knowledge_fixture(tmp_path)
+    )
+    invalid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(instruction_like=True),
+        "k2-instruction-like.json",
+    )
+    with pytest.raises(ValueError, match="instruction-like"):
+        L.load_proposal_file(
+            str(invalid),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid = _write_k2_proposal(
+        tmp_path,
+        _k2_proposal_document(instruction_like=False),
+        "k2-no-instruction-like.json",
+    )
+    assert L.load_proposal_file(
+        str(valid),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )[1].confidence == "medium"
+
+
+def test_k2_load_proposal_rejects_duplicate_instruction_like_content_key(
+    tmp_path,
+):
+    """K2 rejects an overwritten anomaly flag and accepts its unique-key form."""
+    knowledge_input = KM.planner_projection(
+        _resolved_empty_knowledge_fixture(tmp_path)
+    )
+    valid_text = json.dumps(
+        _k2_proposal_document(instruction_like=False), ensure_ascii=False,
+    )
+    duplicate_text = valid_text.replace(
+        '"instruction_like_content_detected": false',
+        '"instruction_like_content_detected": true, '
+        '"instruction_like_content_detected": false',
+    )
+    assert duplicate_text != valid_text
+    duplicate_path = tmp_path / "k2-duplicate-anomaly-key.json"
+    duplicate_path.write_text(duplicate_text, encoding="utf-8")
+
+    with pytest.raises(
+        KM.DuplicateKnowledgeManifestKeyError, match="duplicate key",
+    ):
+        L.load_proposal_file(
+            str(duplicate_path),
+            knowledge_input=knowledge_input,
+            coder_role="coder-v4-autonomous-k2",
+        )
+
+    valid_path = tmp_path / "k2-unique-anomaly-key.json"
+    valid_path.write_text(valid_text, encoding="utf-8")
+    assert L.load_proposal_file(
+        str(valid_path),
+        knowledge_input=knowledge_input,
+        coder_role="coder-v4-autonomous-k2",
+    )[1].value == 20
+
+
+@pytest.mark.parametrize(
+    ("knowledge_input", "coder_role"),
+    (({"sources": []}, None), (None, "coder-v4-autonomous-k2")),
+)
+def test_k2_load_proposal_requires_role_and_knowledge_marker_together(
+    tmp_path, knowledge_input, coder_role,
+):
+    """Rejects either half of the explicit K2 contract marker when supplied alone. Accepts the legacy flattened proposal when both marker arguments are absent."""
+    k2_path = _write_k2_proposal(
+        tmp_path, _k2_proposal_document(), "k2-partial-marker.json",
+    )
+    with pytest.raises(ValueError, match="両方"):
+        L.load_proposal_file(
+            str(k2_path),
+            knowledge_input=knowledge_input,
+            coder_role=coder_role,
+        )
+
+    legacy = _clean_proposals()["backoff"]
+    legacy_path = _write_k2_proposal(
+        tmp_path, legacy, "legacy-no-marker.json",
+    )
+    assert L.load_proposal_file(str(legacy_path))[1].value == 20.0
 
 
 def test_load_proposal_file_rejects_nonbool_prior_reverse():

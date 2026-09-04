@@ -1,0 +1,8 @@
+{"dir_entries": ["acceptance.lease"], "lease_unchanged": true, "log_exists": false, "rc": 70, "receipt_exists": false}
+----- stdout -----
+
+----- stderr -----
+acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します
+IZANAGI_ACCEPTANCE_ATTEMPT_V1 {"archived_log_path":null,"attempt":1,"claimed_main":null,"classification":"claim-state","log_sha256":null,"normalized_child_rc":null,"raw_child_rc":null,"reason":"terminal-claim-state","retry":false}
+error: stage=claim-state rc=70
+

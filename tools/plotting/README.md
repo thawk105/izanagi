@@ -12,12 +12,16 @@
 python plot_backoff.py [--baselines LIST] OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
 ```
 
-`--baselines` は `no-backoff` / `stock-adaptive` の comma 区切り部分集合。既定は
-`no-backoff,stock-adaptive` で、従来の 2 基準線を保つ。`no-backoff` だけを描くときは
-次のように明示する。未知の値はエラーになる。
+`--baselines` は `no-backoff` / `stock-adaptive` の comma 区切り部分集合。**既定は
+`no-backoff` の 1 本**である (2026-09-02 に `no-backoff,stock-adaptive` から狭めた、D1506)。
+`stock-adaptive` は **CCBench 既定 3 定数** (刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs) の
+適応 backoff であり、調整済み adaptive ではない。D1506 は既定 adaptive を測ること自体を
+禁じないので、明示すれば今も描ける。**禁じているのは、既定 adaptive を単独の適応基準線に置いた
+比較から機構の優劣を言うことである。**未知の値はエラーになる。
+既定 adaptive も併記したいときは次のように明示する。
 
 ```
-python plot_backoff.py --baselines no-backoff OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
+python plot_backoff.py --baselines no-backoff,stock-adaptive OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
 ```
 
 例 (3 workload を 1 枚に統合):
@@ -65,9 +69,18 @@ campaign を複数指定するとその順で横並び (workload 比較) にな�
 
 ## B-10 extended backoff figure
 
-`plot_b10_extended_backoff.py` は、完走済み B-10 拡張格子専用の生成器である。既存 fig2b が
-source hash を pin するため `plot_backoff.py` 自体は変更せず、その WAL admission、style、
-campaign condition 抽出を依存として再利用する。
+`plot_b10_extended_backoff.py` は、完走済み B-10 拡張格子専用の生成器である。
+B-10 対応を `plot_backoff.py` 側へ足すのではなく、その WAL admission、style、
+campaign condition 抽出を**依存として再利用する**形にした。
+
+**この分離は「`plot_backoff.py` を今後も変更してはならない」という意味ではない**
+(2026-09-02 訂正)。fig2b と fig2c の provenance が持つ `plot_backoff.py` の SHA-256 は
+**その図を生成した時点の bytes**の記録であり、現行 bytes を縛る pin ではない。
+実際、現行 bytes は記録値と既に異なり、それでも
+`orchestrator/tests/test_backoff_figure_provenance.py` と
+`test_b10_extended_figure_provenance.py` は緑である — 両テストは記録された生成時定数どうしを
+照合し、live source を再 hash しないためである。凍結図の bytes・数値・provenance は
+`plot_backoff.py` を編集しても変わらない。
 
 ```
 python3 tools/plotting/plot_b10_extended_backoff.py OUT_PREFIX MEASUREMENT_ROOT
@@ -83,6 +96,41 @@ python3 tools/plotting/plot_b10_extended_backoff.py OUT_PREFIX MEASUREMENT_ROOT
 
 論文図の再現コマンド、caption、job/campaign 表は
 `docs/paper-story/figures/README.md` の fig2c 節を正本とする。
+
+## A-2 4-cell certification figure
+
+`plot_a2_certification.py` は、完走済み attempt `t2022-20260828c` の 4 cell を
+2 workload × 2 段 (throughput / abort rate) で描く専用生成器である。
+
+```bash
+python3 tools/plotting/plot_a2_certification.py \
+    [--measurement-root PATH] \
+    [--certification PATH] [--raw-manifest PATH] OUT_PREFIX
+```
+
+measurement root は option、`IZANAGI_A2_CERTIFICATION_MEASUREMENT_ROOT`、既定の
+durable authority の順で決まる。入力は root 配下の WAL 2 本と raw cell JSON 4 本、
+tracked `certification.json` と `raw-manifest.json` の計 6 + 2 本である。外部 6 本は
+manifest の root-relative path と SHA-256、tracked 2 本は canonical SHA-256 で束縛する。
+
+WAL では `bench_done.payload.tps` だけを標本として読み、raw JSON と順序込みで照合する。
+各 cell は n=5 を必須とし、median、sample mean、sample standard deviation、CV、
+`t_(0.975,4) * s / sqrt(5)` の 95% CI 半幅を生値から計算する。abort rate は
+`leading_indicators.abort_rate` の集約 1 点であり、CI と因果機序の主張を持たない。
+
+outer protocol status と effects は hash 束縛された certification からコピーする。
+生成器は `reject`、効果、研究上の成功・失敗を導出・昇格・書換えしない。再計算した
+median / CV / effect は authority との fail-closed な相互検算にだけ使う。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。保存前に実寸 4 axis の
+renderer-backed layout check を実行し、text の重なり・逸脱・隣 panel 侵入があれば
+成果物を publish しない。provenance は外部入力、測定条件、4 cell の生値と統計、
+artist と genome の対応、caption、展開済み再現 argv を記録する。
+再現 argv は repo 配下の certification、raw manifest、出力 prefix を repo-relative で、measurement root を絶対 path で記録する。
+
+provenance の generator SHA-256 は**図を生成した時点の bytes の記録**であり、後日の
+現行 source を縛る pin ではない。landed artifact の検査も live generator の再 hash を
+要求せず、生成時記録として扱う。
 
 ## S-1a 9 対 (失敗報告図) command example
 
@@ -106,6 +154,36 @@ python3 tools/plotting/plot_s1_9pair.py \
 `caption` にキャプション正文を持つ。図と入力の対応・版差・文脈セルの扱いは
 `docs/paper-story/figures/README.md` の該当節が正本。
 
+## Cicada adaptive backoff の 3 定数 (T-2187)
+
+`plot_t2187_adaptive_consts.py` は、`tools/pegasus/probes/t2187_adaptive_const_probe.py` が出す
+`izanagi-cicada-adaptive-3const-probe/v1` の結果 JSON を描く。**入力は 1 file = 1 ノード = 1 rep**
+なので、同じ段の全 rep を並べて渡す。集約は生値から計算し、集約済みの値を孫引きしない。
+
+```bash
+python3 tools/plotting/plot_t2187_adaptive_consts.py grid OUT_PREFIX \
+    /path/to/results/stage1-rep0-*.json /path/to/results/stage1-rep1-*.json ...
+
+python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX \
+    /path/to/results/stage2-rep0-*.json /path/to/results/stage2-rep1-*.json ...
+```
+
+- `grid` は刻み × 更新間隔の 2 次元 (対数×対数) を 3 workload 分並べ、**上段 throughput /
+  下段 abort 率**の縦積みで描く。2 次元図に誤差棒は描けないので、各セルの 95% CI 半幅を
+  相対値 (%) で注記する。陽性対照 (stock adaptive) のセルは枠線で明示する。
+- `threads` はスレッド数を横軸に、系列をセルにして同じ縦積みで描く。95% CI はエラーバー。
+  `no backoff` と `stock adaptive` は役割語でなくそれが何かで名指した系列として必ず描く。
+- **95% CI は t 分布** (`t_{0.975,n-1}·s/√n`)。t 分位点は正則化不完全ベータ関数から自前で求め、
+  `scipy` に依存しない。`1.96` の正規近似は小 n では使わない。n=1 のセルは CI を描かず
+  `CI n/a` と明記する。
+- 保存後にレイアウトを機械検査し、テキストの重なり・スパイン外へのはみ出し・隣パネルへの
+  被りがあれば **rc 非 0 で落ちる**。
+- provenance の schema は `izanagi-t2187-adaptive-const-figure-provenance/v1`。入力全 file の
+  絶対パスと SHA256、`ccbench_commit`、`patch_sha256`、全 `pbs_jobid`、測定条件、
+  図に出した主要数値、そして**認証されていない旨**を記録する。
+- **この図の数値は認証されていない** — trace-disabled の性能測定のみで直列性の検査を通しておらず、
+  variant 採用の根拠にしてはならない (規律 2)。図中にもその旨を出す。
+
 ## SS2PL lock study command example
 
 ```bash
@@ -115,3 +193,42 @@ python3 tools/plotting/plot_ss2pl_lock_study.py \
     --replication /path/to/replication.json \
     --output-dir /path/to/figures
 ```
+
+## T-2216 event-driven backoff walk
+
+`plot_t2216_backoff_walk.py` は、静的 fixed-backoff セルだけで校正した
+event-driven walk model の JSON と、その元になった Pegasus probe 結果 JSON を描く。
+図は計測機の外で生成する。3 mode は同じ入力契約を持つ。
+
+```bash
+python3 tools/t2216_backoff_walk_model.py \
+    /path/to/measured.json /path/to/backoff.hh.txt /path/to/t2216-model.json
+
+python3 tools/plotting/plot_t2216_backoff_walk.py prediction OUT_PREFIX \
+    /path/to/t2216-model.json /path/to/measured.json /path/to/backoff.hh.txt
+
+python3 tools/plotting/plot_t2216_backoff_walk.py residence OUT_PREFIX \
+    /path/to/t2216-model.json /path/to/measured.json /path/to/backoff.hh.txt
+
+python3 tools/plotting/plot_t2216_backoff_walk.py mechanism OUT_PREFIX \
+    /path/to/t2216-model.json /path/to/measured.json /path/to/backoff.hh.txt
+```
+
+- `prediction` は更新間隔ごとの観測 raw 反復と model 反復を別系列にし、いずれも
+  Student-t 95% CI を付ける。stage1 と D1475 は別 dataset として表示し、順位判定では混ぜない。
+- `residence` は時間重み付き survivor と `P(Backoff > 100 us)` を表示する。
+- `mechanism` は source-exact、切り捨て除去、tail 感度、勾配符号の中間量を 2x2 で表示する。
+- 出力は `<OUT_PREFIX>.{png,pdf,provenance.json}`。provenance は model、probe JSON、
+  pinned backoff copy の絶対パスと SHA256、PBS job id、seed、条件順、raw 反復から再計算した
+  主要値、PNG/PDF hash、再現 argv を持つ。入力が作図中に変わった場合は非0で終了する。
+- 数値は認証されていない。trace-disabled の Silo 性能測定を使う純解析であり、
+  直列性検査を通しておらず、variant 採用の根拠には使えない。
+
+段 6 fix 後の入力契約では、model generator の live SHA256 と、8 反復・3 秒を含む固定 config を
+loader が照合し、不一致を fail-closed にする。model 側も元測定 JSON の期待 SHA256 を literal に
+固定する。status の到達上限は write-heavy の `shape_match` であり、H1、balanced / read-heavy、
+中間量は status とは独立した整合検査または予測として出力する。
+
+現行の作図規約に合わせ、prediction 図の水平参照線は raw 反復から再計算した Student-t 95% CI 帯を
+伴う。適応機構との比較用に、no backoff と調整済み adaptive (刻み 1 µs / 更新間隔 2560 µs /
+上限 1000 µs) をともに表示し、10 µs panel は 8 点格子固有の tick も省略しない。

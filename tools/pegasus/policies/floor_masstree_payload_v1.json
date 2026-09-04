@@ -1,6 +1,8 @@
 {
-  "schema_version": "s8b-floor-masstree-payload/v2",
+  "archive_nondebug_sha256": "844334920db6592852abaa36b2320929bbaf16a7323a7b011ec821dfed7bd514",
+  "archive_projection": "gnu-ar-elf-nondebug/v1",
+  "config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
   "name": "masstree",
   "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
-  "config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a"
+  "schema_version": "s8b-floor-masstree-payload/v3"
 }

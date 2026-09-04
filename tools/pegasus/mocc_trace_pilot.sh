@@ -791,10 +791,28 @@ readarray -t policy_values < <(python3 - "$POLICY" <<'PY'
 import json
 import sys
 
+
+def reject_duplicate_keys(pairs):
+    document = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"duplicate JSON key: {key}")
+        document[key] = value
+    return document
+
+
 with open(sys.argv[1], encoding="utf-8") as handle:
-    policy = json.load(handle)
+    policy = json.load(handle, object_pairs_hook=reject_duplicate_keys)
 trace = policy["mocc_trace"]
 workload = trace["workload"]
+expected_compilers = policy["expected_compiler_version_body_sha256"]
+if type(expected_compilers) is not dict or set(expected_compilers) != {"gcc", "g++"}:
+    raise SystemExit("expected compiler mapping keys differ")
+for role, digest in expected_compilers.items():
+    if type(digest) is not str or len(digest) != 64 or any(
+        char not in "0123456789abcdef" for char in digest
+    ):
+        raise SystemExit(f"expected compiler digest is invalid: {role}")
 if set(workload) != {
     "records", "threads", "zipf_skew", "ycsb_rratio", "ycsb_rmw",
     "ycsb_max_ope", "extime_s"
@@ -826,13 +844,14 @@ print(policy["gflags_expected_head"])
 print(policy["glog_source_path"])
 print(policy["glog_expected_head"])
 print(policy["third_party_cache_env"])
+print(json.dumps(expected_compilers, sort_keys=True, separators=(",", ":")))
 print(trace["base_oid"])
 print(trace["new_oid"])
 print(trace["cmake_target"])
 print(json.dumps(workload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
 PY
 )
-if [[ ${#policy_values[@]} -ne 16 ]]; then
+if [[ ${#policy_values[@]} -ne 17 ]]; then
   write_failure 2 policy "Mocc trace policy parse failed"
   exit 2
 fi
@@ -848,10 +867,11 @@ GFLAGS_EXPECTED_HEAD=${policy_values[8]}
 GLOG_SOURCE_PATH=${policy_values[9]}
 GLOG_EXPECTED_HEAD=${policy_values[10]}
 THIRD_PARTY_CACHE_ENV=${policy_values[11]}
-BASE_OID=${policy_values[12]}
-NEW_OID=${policy_values[13]}
-CMAKE_TARGET=${policy_values[14]}
-WORKLOAD_JSON=${policy_values[15]}
+EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON=${policy_values[12]}
+BASE_OID=${policy_values[13]}
+NEW_OID=${policy_values[14]}
+CMAKE_TARGET=${policy_values[15]}
+WORKLOAD_JSON=${policy_values[16]}
 if [[ "$T1943_G2" -eq 1 ]]; then
   python3 - "$WORKLOAD_JSON" <<'PY_T1943_WORKLOAD'
 import json
@@ -1230,15 +1250,70 @@ if [[ "$module_rc" -ne 0 ]]; then
   exit "$module_rc"
 fi
 
-CC_PATH=$(realpath "$(command -v gcc)")
-CXX_PATH=$(realpath "$(command -v g++)")
+if ! CC_COMMAND=$(command -v gcc) || [[ -z "$CC_COMMAND" ]] ||
+    ! CC_PATH=$(realpath -- "$CC_COMMAND"); then
+  write_failure 2 compiler "gcc compiler version body mismatch/probe failed"
+  exit 2
+fi
+if ! CXX_COMMAND=$(command -v g++) || [[ -z "$CXX_COMMAND" ]] ||
+    ! CXX_PATH=$(realpath -- "$CXX_COMMAND"); then
+  write_failure 2 compiler "g++ compiler version body mismatch/probe failed"
+  exit 2
+fi
 CMAKE_PATH=$(realpath "$(command -v cmake)")
 printf '%s\n' "$CC_PATH" >"$ATTEMPT_DIR/compiler-gcc.path"
 printf '%s\n' "$CXX_PATH" >"$ATTEMPT_DIR/compiler-gxx.path"
 printf '%s\n' "$CMAKE_PATH" >"$ATTEMPT_DIR/cmake.path"
-"$CC_PATH" --version >"$ATTEMPT_DIR/compiler-gcc.version" 2>&1
-"$CXX_PATH" --version >"$ATTEMPT_DIR/compiler-gxx.version" 2>&1
+if ! "$CC_PATH" --version >"$ATTEMPT_DIR/compiler-gcc.version" 2>&1; then
+  write_failure 2 compiler "gcc compiler version body mismatch/probe failed"
+  exit 2
+fi
+if ! "$CXX_PATH" --version >"$ATTEMPT_DIR/compiler-gxx.version" 2>&1; then
+  write_failure 2 compiler "g++ compiler version body mismatch/probe failed"
+  exit 2
+fi
 "$CMAKE_PATH" --version >"$ATTEMPT_DIR/cmake.version" 2>&1
+
+# BEGIN T1718 COMPILER VERSION BODY GATE
+# この gate が検出するのは、承認 policy と実行時 archive の非 debug 射影の差、および
+# `tool_version_body(--version)` の差である。同じ射影を出す道具の置換、debug 情報だけの差、
+# 同じ version body を保った compiler binary の置換、gcc と g++ の role 混成は検出しない。
+# 適用範囲は S8b `sort_best` の masstree prebuild と mocc trace pilot の compiler であり、
+# 全 CCBench consumer を覆うものではない。
+if ! compiler_gate_error=$(python3 - \
+    "$REPO_ROOT" "$EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON" \
+    "$ATTEMPT_DIR/compiler-gcc.version" \
+    "$ATTEMPT_DIR/compiler-gxx.version" 2>&1 <<'PY_T1718_COMPILER_GATE'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+repo_root = Path(sys.argv[1])
+sys.path.insert(0, str(repo_root))
+from orchestrator.campaign.toolchain_binding import tool_version_body
+
+expected = json.loads(sys.argv[2])
+for role, version_path in (("gcc", Path(sys.argv[3])), ("g++", Path(sys.argv[4]))):
+    try:
+        raw = version_path.read_text(encoding="utf-8", errors="strict")
+        observed = hashlib.sha256(
+            tool_version_body(raw).encode("utf-8")
+        ).hexdigest()
+        if observed != expected[role]:
+            raise ValueError(
+                f"expected={expected[role]} observed={observed}"
+            )
+    except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
+        raise SystemExit(
+            f"{role} compiler version body mismatch/probe failed: {exc}"
+        )
+PY_T1718_COMPILER_GATE
+); then
+  write_failure 2 compiler "$compiler_gate_error"
+  exit 2
+fi
+# END T1718 COMPILER VERSION BODY GATE
 
 if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
   write_failure 2 gflags "gflags source path missing"
@@ -1259,6 +1334,7 @@ fi
 GFLAGS_BUILD_DIR="$TMPDIR/gflags-build"
 GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"
 mkdir "$GFLAGS_BUILD_DIR"
+unset CMAKE_C_COMPILER_LAUNCHER CMAKE_CXX_COMPILER_LAUNCHER RULE_LAUNCH_COMPILE
 gflags_configure_argv=(
   cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
   -DCMAKE_BUILD_TYPE=Release
@@ -1268,6 +1344,10 @@ gflags_configure_argv=(
   "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
   "-DCMAKE_C_COMPILER=$CC_PATH"
   "-DCMAKE_CXX_COMPILER=$CXX_PATH"
+  -DCMAKE_C_COMPILER_LAUNCHER=
+  -DCMAKE_CXX_COMPILER_LAUNCHER=
+  -DRULE_LAUNCH_COMPILE=
+  -DCMAKE_TOOLCHAIN_FILE=
 )
 gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
 gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
@@ -1314,6 +1394,10 @@ glog_configure_argv=(
   "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
   "-DCMAKE_C_COMPILER=$CC_PATH"
   "-DCMAKE_CXX_COMPILER=$CXX_PATH"
+  -DCMAKE_C_COMPILER_LAUNCHER=
+  -DCMAKE_CXX_COMPILER_LAUNCHER=
+  -DRULE_LAUNCH_COMPILE=
+  -DCMAKE_TOOLCHAIN_FILE=
 )
 glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
 glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
@@ -1927,7 +2011,8 @@ PY_T1943_WITNESS_MANIFEST
   (
     cd "$REPO_ROOT" &&
     "$VERIFIER_PY" -m orchestrator.verifier "$TRACE_DIR" --json \
-      --expected-commits "$COMMIT_COUNT"
+      --expected-commits "$COMMIT_COUNT" --protocol mocc \
+      --ccbench-root "$CCBENCH_BASE"
   ) >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
   VERIFIER_RC=$verifier_rc
   printf '%s\n' "$VERIFIER_RC" >"$ATTEMPT_DIR/verifier.rc"

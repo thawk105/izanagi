@@ -360,10 +360,11 @@ def test_real_prebuilt_masstree_material_is_pinned_when_explicitly_configured(
             compiler=compiler,
             dependency_root=created.root,
         )
-        statement = (
-            "    sort(write_set_.begin(), write_set_.end(),\n"
-            "         [](const auto& a, const auto& b) { "
-            "return a.key_ < b.key_; });"
+        statement = sort_swo_oracle.render_sort_ir(
+            sort_swo_oracle.SortComparatorIr((
+                (sort_swo_oracle.SortIrField.KEY,
+                 sort_swo_oracle.SortIrDirection.ASC),
+            ))
         )
         materialized_source = (
             "// EVOLVE-BLOCK-BEGIN silo-writeset-sort\n"

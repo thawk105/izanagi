@@ -1,0 +1,366 @@
+{
+  "schema": "izanagi-verbatim-normalization/v1",
+  "method": "各行の行末空白 (space / tab) を除去した。可視文字は不変。復元は removed_trailing_whitespace の各 [行番号, 除去文字列] を当該行末へ戻す。復元結果は original_sha256 と一致する (本 script が検算済み)。",
+  "files": {
+    "s3-lens-a-sol.md": {
+      "original_sha256": "4138d8d70dcc3f6b3d2e296597a22c616d52d6b635b42a37e49b5c199a630a8f",
+      "original_bytes": 10580,
+      "normalized_sha256": "f77a2cb545ef05ab7010f9bb1450c13b5a8aab1a2bee6efd4540d3a4a9de5126",
+      "normalized_bytes": 10572,
+      "removed_trailing_whitespace": [
+        [
+          64,
+          "  "
+        ],
+        [
+          65,
+          "  "
+        ],
+        [
+          66,
+          "  "
+        ],
+        [
+          67,
+          "  "
+        ]
+      ]
+    },
+    "s3-lens-b-luna.md": {
+      "original_sha256": "240ca8bdfbafd530854de7b94b704bfca9cabc7a916e533d2f07ee92213b8eed",
+      "original_bytes": 15548,
+      "normalized_sha256": "ffd5ec1834668578b16c684fa54116891d5bfd8699d95e1acda5eaf0aac39a74",
+      "normalized_bytes": 15480,
+      "removed_trailing_whitespace": [
+        [
+          3,
+          "  "
+        ],
+        [
+          4,
+          "  "
+        ],
+        [
+          5,
+          "  "
+        ],
+        [
+          6,
+          "  "
+        ],
+        [
+          7,
+          "  "
+        ],
+        [
+          10,
+          "  "
+        ],
+        [
+          11,
+          "  "
+        ],
+        [
+          12,
+          "  "
+        ],
+        [
+          13,
+          "  "
+        ],
+        [
+          14,
+          "  "
+        ],
+        [
+          17,
+          "  "
+        ],
+        [
+          18,
+          "  "
+        ],
+        [
+          19,
+          "  "
+        ],
+        [
+          20,
+          "  "
+        ],
+        [
+          21,
+          "  "
+        ],
+        [
+          24,
+          "  "
+        ],
+        [
+          25,
+          "  "
+        ],
+        [
+          26,
+          "  "
+        ],
+        [
+          27,
+          "  "
+        ],
+        [
+          28,
+          "  "
+        ],
+        [
+          31,
+          "  "
+        ],
+        [
+          32,
+          "  "
+        ],
+        [
+          33,
+          "  "
+        ],
+        [
+          34,
+          "  "
+        ],
+        [
+          35,
+          "  "
+        ],
+        [
+          38,
+          "  "
+        ],
+        [
+          39,
+          "  "
+        ],
+        [
+          40,
+          "  "
+        ],
+        [
+          41,
+          "  "
+        ],
+        [
+          42,
+          "  "
+        ],
+        [
+          75,
+          "  "
+        ],
+        [
+          76,
+          "  "
+        ],
+        [
+          77,
+          "  "
+        ],
+        [
+          78,
+          "  "
+        ]
+      ]
+    },
+    "s5-author.md": {
+      "original_sha256": "f7a9ed4b2151171817451876bed05d6a5b7ec65a63dd62a7de6bb499ddbe8818",
+      "original_bytes": 5539,
+      "normalized_sha256": "af4209290f861e7ce0797940944aa72652a7d1c60cb2c468b4995b9a0fd3d6e5",
+      "normalized_bytes": 5531,
+      "removed_trailing_whitespace": [
+        [
+          60,
+          "  "
+        ],
+        [
+          61,
+          "  "
+        ],
+        [
+          62,
+          "  "
+        ],
+        [
+          63,
+          "  "
+        ]
+      ]
+    },
+    "s6-fix.md": {
+      "original_sha256": "f35698f5761d3bded529d13189523fbae3d12af6797dd418bef9269ad9a4250f",
+      "original_bytes": 1938,
+      "normalized_sha256": "02f19d1b9dbe5fb314f1a412eb5c70aed1f80f5f9a6cb7f9cde1e893039467e1",
+      "normalized_bytes": 1930,
+      "removed_trailing_whitespace": [
+        [
+          22,
+          "  "
+        ],
+        [
+          23,
+          "  "
+        ],
+        [
+          24,
+          "  "
+        ],
+        [
+          25,
+          "  "
+        ]
+      ]
+    },
+    "s6-focus.md": {
+      "original_sha256": "b9f216975f881b533ca64384d1f34d0a5266e591cc72ada7bcec1cdd778c7e7d",
+      "original_bytes": 1582,
+      "normalized_sha256": "ebdf8fd5b2f63d99c463aedc2dc341eb06d20a3797e4d4d23e0d8fd2561ff2ad",
+      "normalized_bytes": 1576,
+      "removed_trailing_whitespace": [
+        [
+          15,
+          "  "
+        ],
+        [
+          16,
+          "  "
+        ],
+        [
+          17,
+          "  "
+        ]
+      ]
+    },
+    "s6-review-a.md": {
+      "original_sha256": "62a68a5865280e3f45dfcf4c6e4570656b7e1b79f50b2f0176561f381237e500",
+      "original_bytes": 5168,
+      "normalized_sha256": "aa19cd2f47ec7762fccc20575a11eb6574230848c8b73894b0ff4b404246c8c6",
+      "normalized_bytes": 5162,
+      "removed_trailing_whitespace": [
+        [
+          24,
+          "  "
+        ],
+        [
+          25,
+          "  "
+        ],
+        [
+          26,
+          "  "
+        ]
+      ]
+    },
+    "s6-review-b.md": {
+      "original_sha256": "faf9e891f9136b3827633f5aa0510c313794851a695fba1c6cbf8b9002497ce2",
+      "original_bytes": 8404,
+      "normalized_sha256": "06efff827fae2beed474902433d9fb9c5b82ef8f333403654f5147c9a94de62c",
+      "normalized_bytes": 8356,
+      "removed_trailing_whitespace": [
+        [
+          3,
+          "  "
+        ],
+        [
+          4,
+          "  "
+        ],
+        [
+          5,
+          "  "
+        ],
+        [
+          8,
+          "  "
+        ],
+        [
+          9,
+          "  "
+        ],
+        [
+          10,
+          "  "
+        ],
+        [
+          21,
+          "  "
+        ],
+        [
+          22,
+          "  "
+        ],
+        [
+          23,
+          "  "
+        ],
+        [
+          24,
+          "  "
+        ],
+        [
+          25,
+          "  "
+        ],
+        [
+          28,
+          "  "
+        ],
+        [
+          29,
+          "  "
+        ],
+        [
+          31,
+          "  "
+        ],
+        [
+          32,
+          "  "
+        ],
+        [
+          33,
+          "  "
+        ],
+        [
+          38,
+          "  "
+        ],
+        [
+          39,
+          "  "
+        ],
+        [
+          40,
+          "  "
+        ],
+        [
+          41,
+          "  "
+        ],
+        [
+          64,
+          "  "
+        ],
+        [
+          65,
+          "  "
+        ],
+        [
+          66,
+          "  "
+        ],
+        [
+          67,
+          "  "
+        ]
+      ]
+    }
+  }
+}

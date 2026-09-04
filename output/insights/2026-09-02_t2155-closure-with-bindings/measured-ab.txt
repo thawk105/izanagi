@@ -1,0 +1,34 @@
+=== baseline (現行 main) ===
+totals: {'deferred': 89, 'proven-unreachable': 947, 'covered': 130}
+cross-product failures: 0
+=== 欠陥 (a) だけ修正 ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+cross-product failures: 0
+
+=== 分類が動いた sink ===
+('orchestrator/campaign/s1_direct_comparison.py', '<module>.run_role', 1215, 'campaign')
+   before: {'proven-unreachable': 22}
+   after : {'covered': 4, 'proven-unreachable': 18}
+
+=== (a) だけ修正したときの failure 一覧 ===
+=== baseline (現行 main) ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+cross-product failures: 0
+=== (a) のみ ===
+totals: {'deferred': 89, 'proven-unreachable': 943, 'covered': 134}
+cross-product failures: 0
+=== (a) + (b) ===
+totals: {'deferred': 67, 'proven-unreachable': 943, 'covered': 156}
+cross-product failures: 0
+=== (b) のみ ===
+totals: {'deferred': 67, 'proven-unreachable': 947, 'covered': 152}
+cross-product failures: 0
+
+=== 分類が動いた sink (baseline -> (a)+(b)) ===
+('orchestrator/campaign/s8b_oracle_driver.py', '<module>.run_block', 1788, 'campaign')
+   baseline: {'deferred': 22}
+   (a)only : {'deferred': 22}
+   (b)only : {'covered': 22}
+   (a)+(b) : {'covered': 22}
+
+=== (a)+(b) の failure 一覧 ===

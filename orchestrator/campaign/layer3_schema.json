@@ -25,6 +25,99 @@
     "meta": {"type": "object", "additionalProperties": false, "required": ["campaign_id", "campaign_path", "ccbench_commit", "generated_from_head", "generator"], "properties": {"campaign_id": {"type": "string", "minLength": 1}, "campaign_path": {"type": "string", "minLength": 1}, "ccbench_commit": {"type": "string"}, "generated_from_head": {"type": "string", "minLength": 1, "description": "provenance only; excluded from deterministic comparison because HEAD can move"}, "generator": {"type": "object", "additionalProperties": false, "required": ["identity", "sha256"], "properties": {"identity": {"const": "orchestrator.campaign.layer3_report"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}},
     "workload": {"type": "object"},
     "policy_hint": {"type": ["string", "null"]},
+    "knowledge_provenance": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["knowledge_level", "knowledge_manifest_sha256", "declared_sources", "injected_sources"],
+          "properties": {
+            "knowledge_level": {"const": "K2"},
+            "knowledge_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "declared_sources": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"$ref": "#/definitions/knowledge_source"}
+            },
+            "injected_sources": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"$ref": "#/definitions/knowledge_source"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["knowledge_level", "knowledge_manifest_sha256", "declared_sources", "injected_sources"],
+          "anyOf": [
+            {"required": ["declared_scope"]},
+            {"required": ["retrieval_result"]}
+          ],
+          "allOf": [
+            {
+              "if": {
+                "required": ["declared_sources"],
+                "properties": {"declared_sources": {"maxItems": 0}}
+              },
+              "then": {
+                "required": ["declared_scope", "retrieval_result"],
+                "properties": {
+                  "injected_sources": {"maxItems": 0},
+                  "retrieval_result": {
+                    "type": "object",
+                    "required": ["status", "result_count"],
+                    "properties": {
+                      "status": {"const": "completed_empty"},
+                      "result_count": {"const": 0}
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": ["injected_sources"],
+                "properties": {"injected_sources": {"maxItems": 0}}
+              },
+              "then": {
+                "required": ["declared_scope", "retrieval_result"],
+                "properties": {
+                  "declared_sources": {"maxItems": 0},
+                  "retrieval_result": {
+                    "type": "object",
+                    "required": ["status", "result_count"],
+                    "properties": {
+                      "status": {"const": "completed_empty"},
+                      "result_count": {"const": 0}
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "knowledge_level": {"const": "K2"},
+            "knowledge_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "declared_scope": {"$ref": "#/definitions/declared_knowledge_scope"},
+            "retrieval_result": {"$ref": "#/definitions/knowledge_retrieval_result"},
+            "declared_sources": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {"$ref": "#/definitions/knowledge_source"}
+            },
+            "injected_sources": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {"$ref": "#/definitions/knowledge_source"}
+            }
+          }
+        }
+      ]
+    },
     "variants": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "genome", "src_token", "events"], "properties": {"variant": {"type": "string"}, "genome": {"type": "array", "items": {"type": "string"}}, "src_token": {"type": "array", "items": {"type": "string"}}, "events": {"type": "array", "items": {"type": "object"}}}}},
     "runs": {
       "type": "array",
@@ -250,11 +343,79 @@
     "mechanism_hypotheses": {"type": "array", "maxItems": 0, "description": "原料配線設計 = docs/ 側の設計文書に従い、実装時に v3 へ上げる"}
   },
   "definitions": {
+    "knowledge_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identity", "sha256"],
+      "properties": {
+        "kind": {"const": "repo_artifact"},
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "path"],
+          "properties": {
+            "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "path": {"type": "string", "minLength": 1}
+          }
+        },
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "knowledge_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "selector"],
+      "properties": {
+        "kind": {"enum": ["repo_artifact", "web"]},
+        "selector": {"type": "string", "minLength": 1}
+      }
+    },
+    "declared_knowledge_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retrieval", "injection"],
+      "properties": {
+        "retrieval": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/definitions/knowledge_scope_entry"}
+        },
+        "injection": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/definitions/knowledge_scope_entry"}
+        }
+      }
+    },
+    "knowledge_retrieval_result": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "result_count"],
+          "properties": {
+            "status": {"const": "completed_empty"},
+            "result_count": {"const": 0}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "result_count"],
+          "properties": {
+            "status": {"const": "completed_nonempty"},
+            "result_count": {"type": "integer", "minimum": 1}
+          }
+        }
+      ]
+    },
     "wal_ref": {"type": "string", "pattern": "^wal:[0-9a-f]{64}$"},
     "floor_source": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
     "floor_result": {
       "oneOf": [
-        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "object"}, "provenance": {"const": "env-record"}, "protocol": {"type": "string", "minLength": 1}, "protocol_match_basis": {"const": "genome-absent-legacy-record"}, "source": {"$ref": "#/definitions/floor_source"}, "search": {"type": "null"}}},
+        {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "object"}, "provenance": {"const": "env-record"}, "protocol": {"type": "string", "minLength": 1}, "protocol_match_basis": {"enum": ["genome-absent-legacy-record", "receipt-derived-build-argv", "canonical-floor-genome"]}, "source": {"$ref": "#/definitions/floor_source"}, "search": {"type": "null"}}},
         {"type": "object", "additionalProperties": false, "required": ["value", "provenance", "source", "search"], "properties": {"value": {"type": "null"}, "provenance": {"const": "no-matching-env-record"}, "protocol": {"type": "string", "minLength": 1}, "source": {"type": "null"}, "search": {"type": "object"}}}
       ]
     }

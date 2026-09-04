@@ -14,7 +14,7 @@ import sys
 import textwrap
 from collections.abc import Mapping
 from types import SimpleNamespace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import jsonschema
 import pytest
@@ -27,7 +27,10 @@ from orchestrator.campaign import (  # noqa: E402
     autonomous_trial_completeness,
     campaign_lock,
     contract_loader_binding,
+    env_attestation,
     env_contract,
+    execution_guard,
+    knowledge_manifest,
     layer3_report,
     model,
     p3_autonomous_workload_trial,
@@ -204,21 +207,44 @@ def _admission_bound_records(
 
 
 def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
-              ycsb=None, policy_hint=_UNSET,
-              protocol: str | None = None) -> tuple[Path, Path]:
+              ycsb=None, policy_hint=_UNSET, knowledge=None,
+              protocol: str | None = None,
+              authorization: env_contract.AuthorizedContract | None = None,
+              records_count: int = 100000,
+              threads: int = 4,
+              exploration_root: bool = False,
+              copy_contract_calibration: bool = True) -> tuple[Path, Path]:
     output_root = tmp_path / "repo" / "output"
+    if exploration_root:
+        output_root = output_root / "exploration"
+    effective_authorization = (
+        authorization
+        if authorization is not None
+        else env_contract.authorize("linux-baremetal")
+    )
+    if authorization is None:
+        fixture_env = output_root / "env/test-env"
+        fixture_env.mkdir(parents=True)
+        (output_root / "env/linux-baremetal").symlink_to(
+            "test-env", target_is_directory=True,
+        )
     records, admission_policy = _admission_bound_records(
         tmp_path, records, protocol=protocol,
     )
     search_config = {
-        "records": 100000,
-        "threads": 4,
+        "records": records_count,
+        "threads": threads,
         "build_admission": admission_policy,
     }
     if ycsb is not None:
         search_config["ycsb"] = ycsb
     if policy_hint is not _UNSET:
         search_config["policy_hint"] = policy_hint
+    if knowledge is not None:
+        search_config[wal.KNOWLEDGE_LEVEL_SEARCH_KEY] = "K2"
+        search_config[wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY] = (
+            knowledge.knowledge_manifest_sha256
+        )
     identity_preimage = campaign_lock.canonical_json({
         "ccbench_commit": CURRENT_PIN, "search_config": search_config,
         "search_tag": "test", "spec_content": "test", "trial": "trial",
@@ -231,15 +257,210 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     )
     (root / "runs").mkdir(parents=True)
     (root / "campaign.lock").write_text(
-        build_v2_campaign_lock(identity_preimage), encoding="utf-8",
+        build_v2_campaign_lock(
+            identity_preimage, authorization=effective_authorization,
+        ),
+        encoding="utf-8",
     )
+    if knowledge is not None:
+        knowledge_manifest.write_receipt(
+            root,
+            knowledge,
+            classification="reproduction_or_selection",
+            de_novo_claim=False,
+        )
     if loop_state:
         (root / "loop_state.json").write_text(
             json.dumps({"whiteboard": whiteboard if whiteboard is not None else []}),
             encoding="utf-8")
-    (root / "runs/wal.jsonl").write_text(
-        "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+    if knowledge is None:
+        (root / "runs/wal.jsonl").write_text(
+            "".join(json.dumps(record) + "\n" for record in records),
+            encoding="utf-8",
+        )
+    else:
+        layout = CampaignLayout(root=str(root))
+        for record in records:
+            wal.log(
+                layout,
+                record["variant"],
+                record["stage"],
+                record["env_tag"],
+                record["payload"],
+                ts=record["ts"],
+            )
+    if copy_contract_calibration:
+        _copy_contract_calibration(output_root, effective_authorization)
     return root, output_root
+
+
+def _resolved_knowledge_fixture(tmp_path: Path):
+    repo = tmp_path / "knowledge-source-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.name", "Izanagi Test"],
+        cwd=repo,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "izanagi-test@example.invalid"],
+        cwd=repo,
+        check=True,
+    )
+    content = b"material report knowledge source\n"
+    (repo / "knowledge.txt").write_bytes(content)
+    subprocess.run(["git", "add", "--", "knowledge.txt"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "commit", "--quiet", "-m", "knowledge fixture"],
+        cwd=repo,
+        check=True,
+    )
+    commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+    ).strip()
+    manifest_path = tmp_path / "knowledge-manifest.json"
+    manifest_path.write_text(
+        json.dumps({
+            "knowledge_level": "K2",
+            "sources": [{
+                "kind": "repo_artifact",
+                "identity": {"commit": commit, "path": "knowledge.txt"},
+                "sha256": hashlib.sha256(content).hexdigest(),
+            }],
+        }),
+        encoding="utf-8",
+    )
+    return knowledge_manifest.load_and_resolve_manifest(
+        manifest_path, repo_root=repo,
+    )
+
+
+def _resolved_empty_knowledge_fixture(tmp_path: Path):
+    manifest = knowledge_manifest.parse_manifest_bytes(json.dumps({
+        "knowledge_level": "K2",
+        "declared_scope": {
+            "retrieval": [{
+                "kind": "repo_artifact",
+                "selector": "output/insights/2026-09-03_*",
+            }],
+            "injection": [{
+                "kind": "repo_artifact",
+                "selector": "all-successfully-retrieved-sources",
+            }],
+        },
+        "retrieval_result": {
+            "status": "completed_empty",
+            "result_count": 0,
+        },
+        "sources": [],
+    }, ensure_ascii=False).encode("utf-8"))
+    return knowledge_manifest.resolve_live_sources(
+        manifest, repo_root=tmp_path,
+    )
+
+
+def _knowledge_campaign(tmp_path: Path):
+    resolved = _resolved_knowledge_fixture(tmp_path)
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        knowledge=resolved,
+    )
+    return campaign, output_root, resolved
+
+
+def _knowledge_schema_specimen() -> dict:
+    """Return a schema-valid report assembled without the report producer."""
+    source = {
+        "kind": "repo_artifact",
+        "identity": {"commit": "a" * 40, "path": "knowledge.txt"},
+        "sha256": "b" * 64,
+    }
+    absent_floor = {
+        "value": None,
+        "provenance": "no-matching-env-record",
+        "source": None,
+        "search": {},
+    }
+    return {
+        "schema_version": "layer3-material-report/v3",
+        "meta": {
+            "campaign_id": "schema-fixture",
+            "campaign_path": "output/campaigns/schema-fixture",
+            "ccbench_commit": "fixture",
+            "generated_from_head": "fixture",
+            "generator": {
+                "identity": "orchestrator.campaign.layer3_report",
+                "sha256": "c" * 64,
+            },
+        },
+        "workload": {},
+        "policy_hint": None,
+        "knowledge_provenance": {
+            "knowledge_level": "K2",
+            "knowledge_manifest_sha256": "d" * 64,
+            "declared_sources": [json.loads(json.dumps(source))],
+            "injected_sources": [json.loads(json.dumps(source))],
+        },
+        "variants": [],
+        "runs": [],
+        "verifications": [],
+        "rejects": [],
+        "aborts": [],
+        "noise_floor": {
+            "within_run": dict(absent_floor),
+            "between_run": dict(absent_floor),
+        },
+        "env_tags": [],
+        "whiteboard": [],
+        "whiteboard_provenance": "absent",
+        "artifact_refs": [],
+        "source_refs": [],
+        "admission_decision": {
+            "schema_version": "campaign-artifact-admission-decision/v1",
+            "classification": "admitted-new-schema",
+            "admission_status": "admitted",
+            "verification_status": "not-evaluated-by-overlay",
+            "campaign_id": "schema-fixture",
+            "campaign_path": "output/campaigns/schema-fixture",
+            "campaign_lock_sha256": "e" * 64,
+            "wal_sha256": "f" * 64,
+            "policy_sha256": None,
+            "attempt_receipt_sha256s": [],
+            "validator": {
+                "identity": "orchestrator.campaign.artifact_admission",
+                "sha256": "1" * 64,
+            },
+            "overlay": {"ledger_sha256": "2" * 64, "record_key": None},
+        },
+        "mechanism_hypotheses": [],
+    }
+
+
+def _completed_empty_knowledge_schema_specimen() -> dict:
+    report = _knowledge_schema_specimen()
+    report["knowledge_provenance"] = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": "d" * 64,
+        "declared_scope": {
+            "retrieval": [{
+                "kind": "repo_artifact",
+                "selector": "output/insights/2026-09-03_*",
+            }],
+            "injection": [{
+                "kind": "repo_artifact",
+                "selector": "all-successfully-retrieved-sources",
+            }],
+        },
+        "retrieval_result": {
+            "status": "completed_empty",
+            "result_count": 0,
+        },
+        "declared_sources": [],
+        "injected_sources": [],
+    }
+    return report
 
 
 def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
@@ -309,6 +530,25 @@ def _assert_external_campaign_without_git_head(campaign: Path) -> None:
     assert not resolved.is_relative_to(source_repo)
     with pytest.raises(layer3_report.Layer3ReportError):
         layer3_report._git_head(campaign)
+
+
+def _copy_contract_calibration(
+        output_root: Path,
+        authorization: env_contract.AuthorizedContract) -> Path:
+    ref = authorization.contract.calibration_ref
+    source = ROOT / ref.path
+    env_tag = authorization.contract.env_tag
+    relative_pin = PurePosixPath(ref.path)
+    calibration_prefix = PurePosixPath(
+        "output", "env", env_tag, "calibration",
+    )
+    suffix = relative_pin.relative_to(calibration_prefix)
+    target = (
+        output_root / "env" / env_tag / "calibration" / Path(*suffix.parts)
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(source.read_bytes())
+    return target
 
 
 def _historical_admitted_campaign(campaign: Path):
@@ -536,8 +776,8 @@ def test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding(tmp_p
     assert '"mask"' not in rendered
 
 
-def _record(stage, variant="v1", **payload):
-    return {"ts": 1.0, "stage": stage, "variant": variant, "env_tag": "test-env", "payload": payload}
+def _record(stage, variant="v1", *, env_tag="linux-baremetal", **payload):
+    return {"ts": 1.0, "stage": stage, "variant": variant, "env_tag": env_tag, "payload": payload}
 
 
 def _bench(variant="v1", **extra):
@@ -1187,6 +1427,7 @@ def test_v2_and_v3_reports_with_legacy_run_without_screening_remain_valid(
     layer3_report._validate_schema(report)
 
     report["schema_version"] = "layer3-material-report/v2"
+    del report["knowledge_provenance"]
     del report["admission_decision"]
     del report["acceptance_receipt"]
     del report["certifying_input"]
@@ -1200,6 +1441,7 @@ def test_v2_report_rejects_invalid_screening_value_with_legacy_schema():
         output_root=ROOT / "output",
     )
     report["schema_version"] = "layer3-material-report/v2"
+    del report["knowledge_provenance"]
     del report["admission_decision"]
     del report["acceptance_receipt"]
     del report["certifying_input"]
@@ -1498,7 +1740,7 @@ def test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_re
     ).identity_preimage
     v2_text = build_v2_campaign_lock(
         identity_preimage,
-        authorization=env_contract.authorize("pegasus"),
+        authorization=env_contract.authorize("linux-baremetal"),
     )
     lock_path.write_text(v2_text, encoding="utf-8")
     v2_admitted = dataclasses.replace(
@@ -1556,6 +1798,245 @@ def test_report_uses_null_for_absent_policy_hint(tmp_path):
     assert "policy_hint" not in report["workload"]
 
 
+def test_nonknowledge_report_emits_null_knowledge_provenance(tmp_path):
+    """Fails only when the producer omits or populates the nonknowledge field."""
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert "knowledge_provenance" in report
+    assert report["knowledge_provenance"] is None
+
+
+def test_knowledge_report_projects_verified_receipt_sources(tmp_path):
+    """M1: fails only when a knowledge-aware report does not expose provenance."""
+    campaign, output_root, resolved = _knowledge_campaign(tmp_path)
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    expected_sources = [
+        item.source.canonical_value() for item in resolved.sources
+    ]
+
+    assert report["knowledge_provenance"] == {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_sources": expected_sources,
+        "injected_sources": expected_sources,
+    }
+
+
+def test_knowledge_report_projects_completed_empty_retrieval(tmp_path):
+    """Rejects a report path that drops the v2 scope or retrieval result while retaining empty sources. Accepts the complete empty retrieval projection without fabricating declared or injected sources."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        knowledge=resolved,
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    expected = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_scope": resolved.manifest.declared_scope.canonical_value(),
+        "retrieval_result": resolved.manifest.retrieval_result.canonical_value(),
+        "declared_sources": [],
+        "injected_sources": [],
+    }
+    assert report["knowledge_provenance"] == expected
+
+    del report["knowledge_provenance"]["retrieval_result"]
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
+def test_schema_accepts_independent_knowledge_provenance_specimen():
+    """FX4/FX5 positive: the standalone exact-shape specimen is schema-valid."""
+    layer3_report._validate_schema(_knowledge_schema_specimen())
+
+
+def test_schema_accepts_completed_empty_knowledge_provenance_specimen():
+    """Rejects the legacy four-key provenance object when either source array is empty. Accepts an independent tagged extended specimen with completed_empty, count zero, and both source arrays empty."""
+    legacy = _knowledge_schema_specimen()
+    legacy["knowledge_provenance"]["declared_sources"] = []
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(legacy)
+
+    layer3_report._validate_schema(
+        _completed_empty_knowledge_schema_specimen()
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-scope",
+        "missing-result",
+        "completed-nonempty",
+        "positive-empty-count",
+        "only-declared-empty",
+    ),
+)
+def test_extended_schema_rejects_empty_sources_without_completed_empty_result(
+    mutation,
+):
+    """Rejects partial, contradictory, or one-sided empty extended provenance. Accepts the unchanged legacy nonempty shape and the complete extended completed-empty shape."""
+    report = _completed_empty_knowledge_schema_specimen()
+    provenance = report["knowledge_provenance"]
+    if mutation == "missing-scope":
+        del provenance["declared_scope"]
+    elif mutation == "missing-result":
+        del provenance["retrieval_result"]
+    elif mutation == "completed-nonempty":
+        provenance["retrieval_result"] = {
+            "status": "completed_nonempty", "result_count": 1,
+        }
+    elif mutation == "positive-empty-count":
+        provenance["retrieval_result"]["result_count"] = 1
+    else:
+        provenance["injected_sources"] = [
+            _knowledge_schema_specimen()["knowledge_provenance"]
+            ["injected_sources"][0]
+        ]
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+    layer3_report._validate_schema(_knowledge_schema_specimen())
+    layer3_report._validate_schema(
+        _completed_empty_knowledge_schema_specimen()
+    )
+
+
+def test_schema_rejects_unknown_nested_knowledge_key():
+    """M3: fails only when the nested provenance object permits an unknown key."""
+    report = _knowledge_schema_specimen()
+    layer3_report._validate_schema(report)
+    report["knowledge_provenance"]["unexpected"] = True
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
+def test_schema_rejects_missing_injected_sources():
+    """M4: fails only when injected_sources is not nested-required."""
+    report = _knowledge_schema_specimen()
+    layer3_report._validate_schema(report)
+    del report["knowledge_provenance"]["injected_sources"]
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "source-unknown-key",
+        "identity-unknown-key",
+        "empty-array",
+        "duplicate-array",
+    ),
+)
+def test_schema_rejects_invalid_knowledge_source_shapes(case):
+    """FX5: each case fails only at its named existing schema constraint."""
+    report = _knowledge_schema_specimen()
+    layer3_report._validate_schema(report)
+    provenance = report["knowledge_provenance"]
+    if case == "source-unknown-key":
+        provenance["declared_sources"][0]["unexpected"] = True
+    elif case == "identity-unknown-key":
+        provenance["declared_sources"][0]["identity"]["unexpected"] = True
+    elif case == "empty-array":
+        provenance["declared_sources"] = []
+    else:
+        duplicate = json.loads(json.dumps(provenance["injected_sources"][0]))
+        provenance["injected_sources"].append(duplicate)
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
+def test_report_rejects_receipt_replaced_after_build_start(tmp_path):
+    """M7: fails only if verified WAL projection replaces the live receipt read."""
+    campaign, output_root, _resolved = _knowledge_campaign(tmp_path)
+    receipt_path = campaign / knowledge_manifest.RECEIPT_FILENAME
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["knowledge_manifest_sha256"] = "0" * 64
+    receipt_path.write_bytes(
+        knowledge_manifest.canonical_json_bytes(receipt) + b"\n"
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="knowledge provenance 検証に失敗",
+    ):
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+
+
+def test_artifact_refs_accept_validated_knowledge_receipt_digest(tmp_path):
+    """FX3 positive: the real artifact scan accepts the same receipt bytes."""
+    campaign, _output_root, _resolved = _knowledge_campaign(tmp_path)
+    checked = (
+        wal.knowledge_provenance_and_receipt_sha256_for_material_report(
+            CampaignLayout(root=str(campaign)),
+            wal.read_records(CampaignLayout(root=str(campaign))),
+            campaign_lock=layer3_report._read_campaign_lock(
+                campaign / "campaign.lock"
+            ),
+        )
+    )
+    assert checked is not None
+    _projection, receipt_sha256 = checked
+
+    assert {
+        "path": knowledge_manifest.RECEIPT_FILENAME,
+        "sha256": receipt_sha256,
+    } in layer3_report._artifact_refs(
+        campaign, knowledge_receipt_sha256=receipt_sha256,
+    )
+
+
+def test_artifact_refs_reject_receipt_changed_after_provenance_read(tmp_path):
+    """FX3: only the validated-read/artifact-ref digest mismatch rejects."""
+    campaign, _output_root, _resolved = _knowledge_campaign(tmp_path)
+    layout = CampaignLayout(root=str(campaign))
+    records = wal.read_records(layout)
+    decoded_lock = layer3_report._read_campaign_lock(campaign / "campaign.lock")
+    checked = (
+        wal.knowledge_provenance_and_receipt_sha256_for_material_report(
+            layout, records, campaign_lock=decoded_lock,
+        )
+    )
+    assert checked is not None
+    projection, receipt_sha256 = checked
+
+    receipt_path = campaign / knowledge_manifest.RECEIPT_FILENAME
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["claim_boundary"]["classification"] = "alternate-valid-claim"
+    receipt_path.write_bytes(
+        knowledge_manifest.canonical_json_bytes(receipt) + b"\n"
+    )
+    assert wal.knowledge_provenance_for_material_report(
+        layout, records, campaign_lock=decoded_lock,
+    ) == projection
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="knowledge receipt bytes changed after provenance validation",
+    ):
+        layer3_report._artifact_refs(
+            campaign, knowledge_receipt_sha256=receipt_sha256,
+        )
+
+
 def test_legacy_v2_report_schema_remains_readable(tmp_path):
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
@@ -1564,6 +2045,7 @@ def test_legacy_v2_report_schema_remains_readable(tmp_path):
         campaign, generated_from_head="fixed", output_root=output_root,
     )
     legacy["schema_version"] = "layer3-material-report/v2"
+    del legacy["knowledge_provenance"]
     del legacy["admission_decision"]
     del legacy["acceptance_receipt"]
     del legacy["certifying_input"]
@@ -1587,6 +2069,7 @@ def test_saved_report_without_current_verifier_conformance_remains_readable(
     del report["current_verifier_conformance"]
     if schema_version == "layer3-material-report/v2":
         report["schema_version"] = schema_version
+        del report["knowledge_provenance"]
         del report["admission_decision"]
         del report["acceptance_receipt"]
         del report["certifying_input"]
@@ -1602,12 +2085,43 @@ def test_legacy_v2_without_policy_hint_remains_readable(tmp_path):
         campaign, generated_from_head="fixed", output_root=output_root,
     )
     legacy["schema_version"] = "layer3-material-report/v2"
+    legacy.pop("knowledge_provenance")
     legacy.pop("policy_hint", None)
     del legacy["admission_decision"]
     del legacy["acceptance_receipt"]
     del legacy["certifying_input"]
 
     layer3_report._validate_schema(legacy)
+
+
+def test_legacy_v2_rejects_forward_knowledge_provenance_property(tmp_path):
+    """Fails only when the legacy v2 schema accidentally admits the forward field."""
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    legacy = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    legacy["schema_version"] = "layer3-material-report/v2"
+    del legacy["admission_decision"]
+    del legacy["acceptance_receipt"]
+    del legacy["certifying_input"]
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(legacy)
+
+
+def test_saved_v3_without_knowledge_provenance_remains_readable(tmp_path):
+    """Fails only when the optional top-level field breaks legacy v3 reading."""
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    del report["knowledge_provenance"]
+
+    layer3_report._validate_schema(report)
 
 
 def test_report_policy_hint_rejects_non_string_top_level(tmp_path):
@@ -2856,7 +3370,7 @@ def test_floor_kinds_match_independently_and_classification_records_skips(tmp_pa
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     within = {"cv": 0.01, "median": 12.0}
     between = {"max_delta_pct": 2.0}
     (calibration / "within.json").write_text(json.dumps({
@@ -2897,7 +3411,7 @@ def test_between_run_schema_version_does_not_change_floor_classification(tmp_pat
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     between = {"max_delta_pct": 2.0}
     (calibration / "between.json").write_text(json.dumps({
         "schema_version": "between-run-noise-floor/v1",
@@ -2925,7 +3439,7 @@ def test_floor_match_uses_protocol_records_threads_and_workload(tmp_path):
         protocol="mocc",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     for protocol, cv in (("silo", 0.02), ("mocc", 0.07)):
         (calibration / f"between-{protocol}.json").write_text(json.dumps({
             "records": 100000,
@@ -2952,7 +3466,7 @@ def test_wrong_protocol_floor_is_reported_as_mismatch(tmp_path):
         protocol="mocc",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "between-silo.json").write_text(json.dumps({
         "records": 100000,
         "threads": 4,
@@ -2977,7 +3491,7 @@ def test_mixed_protocol_campaign_cannot_receive_report_level_floor(tmp_path):
         _record("build_start", variant="v2", genome="h", src_token="t"),
     ], ycsb=YCSB)
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "threads": 4,
         "saturation": {"records": 100000},
@@ -3035,7 +3549,7 @@ def test_legacy_silo_within_floor_without_genome_states_match_basis(tmp_path):
         protocol="silo",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "threads": 4,
         "saturation": {"records": 100000},
@@ -3060,7 +3574,7 @@ def test_legacy_within_floor_without_genome_does_not_match_mocc(tmp_path):
         protocol="mocc",
     )
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "threads": 4,
         "saturation": {"records": 100000},
@@ -3076,6 +3590,496 @@ def test_legacy_within_floor_without_genome_does_not_match_mocc(tmp_path):
     assert floor["protocol"] == "mocc"
     assert floor["search"]["mismatches"][0]["protocol_match_basis"] == (
         "genome-absent-legacy-record"
+    )
+
+
+def test_pegasus_v2_adds_only_contract_pin_not_registered_glob(tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    _copy_contract_calibration(output_root, authorization)
+    second_relative = Path(
+        "output/env/pegasus/calibration/registered/"
+        "calibration-94a4b79fa31bba3c.json"
+    )
+    second_target = output_root.parent / second_relative
+    second_target.parent.mkdir(parents=True, exist_ok=True)
+    second_target.write_bytes((ROOT / second_relative).read_bytes())
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"] is None
+    assert floor["provenance"] == "no-matching-env-record"
+    assert floor["source"] is None
+    assert floor["search"]["candidate_files"] == []
+    assert floor["search"]["scanned_files"] == 1
+    assert floor["search"]["contract_pin"] == {
+        "status": "validated",
+        "path": authorization.contract.calibration_ref.path,
+        "sha256": authorization.contract.calibration_ref.sha256,
+        "within_run_exclusion": "self-inconsistent-calibration",
+    }
+    between_pin = report["noise_floor"]["between_run"]["search"][
+        "contract_pin"
+    ]
+    assert between_pin["status"] == "validated"
+    assert "within_run_exclusion" not in between_pin
+
+
+def test_pegasus_g1_direct_copy_does_not_restore_within_run_match(tmp_path):
+    """Fails if exclusion regresses from the g1 series to only its pinned path."""
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+        copy_contract_calibration=False,
+    )
+    pin_path = _copy_contract_calibration(output_root, authorization)
+    direct_copy = pin_path.parents[1] / "direct-copy.json"
+    direct_copy.write_bytes(
+        (ROOT / authorization.contract.calibration_ref.path).read_bytes()
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"] is None
+    assert floor["provenance"] == "no-matching-env-record"
+    assert floor["source"] is None
+    assert floor["search"]["candidate_files"] == []
+
+
+def test_pegasus_g1_series_excludes_direct_within_but_keeps_between(tmp_path):
+    """Fails if g1 admits a direct within floor or suppresses between-run too."""
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    calibration = output_root / "env/pegasus/calibration"
+    (calibration / "within.json").write_text(json.dumps({
+        "records": 1_000_000,
+        "threads": 48,
+        "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
+        "noise_floor": {"cv": 0.01},
+    }), encoding="utf-8")
+    between = {"max_delta_pct": 2.0}
+    (calibration / "between.json").write_text(json.dumps({
+        "records": 1_000_000,
+        "threads": 48,
+        "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
+        "between_run": between,
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    within = report["noise_floor"]["within_run"]
+    assert within["value"] is None
+    assert within["provenance"] == "no-matching-env-record"
+    assert within["search"]["candidate_files"] == []
+    assert within["search"]["contract_pin"]["status"] == "validated"
+    assert within["search"]["contract_pin"]["within_run_exclusion"] == (
+        "self-inconsistent-calibration"
+    )
+    between_floor = report["noise_floor"]["between_run"]
+    assert between_floor["value"] == between
+    assert between_floor["provenance"] == "env-record"
+    assert between_floor["source"]["path"].endswith("/between.json")
+
+
+def test_registered_healthy_pegasus_g2_pin_remains_selectable(tmp_path):
+    g2 = env_contract.GENERATIONS["pegasus"][1]
+    ref = g2.contract.calibration_ref
+    output_root = tmp_path / "repo/output"
+    calibration = output_root / "env/pegasus/calibration"
+    target = calibration / Path(*PurePosixPath(ref.path).parts[4:])
+    target.parent.mkdir(parents=True)
+    target.write_bytes((ROOT / ref.path).read_bytes())
+
+    floors, search_details = layer3_report._calibration_floors(
+        calibration,
+        1_000_000,
+        48,
+        YCSB,
+        protocol="silo",
+        contract_pin=ref,
+    )
+
+    floor = floors["within_run"]
+    assert floor["provenance"] == "env-record"
+    assert floor["value"] is not None
+    assert floor["source"]["path"] == ref.path.removeprefix("output/")
+    assert floor["source"]["sha256"] == ref.sha256
+    pin_search = search_details["within_run"]["contract_pin"]
+    assert pin_search["status"] == "validated"
+    assert "within_run_exclusion" not in pin_search
+
+
+def test_within_run_exclusion_declaration_matches_real_self_failures():
+    self_failures = set()
+    for sequence in env_contract.GENERATIONS.values():
+        for entry in sequence:
+            contract = entry.contract
+            if contract.attestation_mode != "required":
+                continue
+            verified = env_attestation.load_verified_calibration(contract, ROOT)
+            assert verified.calibration is not None
+            profile = verified.calibration.attestation_profile
+            expected = env_attestation.expected_comparison_values(profile)[
+                "effective_clock.samples_mhz"
+            ]
+            observed = {"samples_mhz": list(expected["samples_mhz"])}
+            if not execution_guard.effective_clock_comparison_passes(
+                expected, observed,
+            ):
+                self_failures.add((
+                    contract.calibration_ref.path,
+                    contract.calibration_ref.sha256,
+                ))
+
+    assert layer3_report.SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS == (
+        frozenset(self_failures)
+    )
+
+
+def test_contract_pin_resolution_keeps_v1_none_and_marks_v2_env_mismatch():
+    identity_preimage = campaign_lock.canonical_json({
+        "ccbench_commit": CURRENT_PIN,
+        "search_config": {"records": 1_000_000, "threads": 48},
+        "search_tag": "test",
+        "spec_content": "test",
+        "trial": "trial",
+    })
+    decoded_v1 = campaign_lock.decode_campaign_lock(identity_preimage)
+    assert layer3_report._contract_calibration_pin(
+        decoded_v1, "unregistered-v1-env",
+    ) == (None, None)
+
+    decoded_v2 = campaign_lock.decode_campaign_lock(build_v2_campaign_lock(
+        identity_preimage,
+        authorization=env_contract.authorize("pegasus"),
+    ))
+    pin, search = layer3_report._contract_calibration_pin(
+        decoded_v2, "linux-baremetal",
+    )
+    assert pin is None
+    assert search == {
+        "status": "authority-env-tag-mismatch",
+        "authority_env_tag": "pegasus",
+        "campaign_env_tag": "linux-baremetal",
+    }
+
+
+def test_contract_pin_env_mismatch_is_recorded_without_blocking_report(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="test-env",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=env_contract.authorize("linux-baremetal"),
+        copy_contract_calibration=False,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    for floor in report["noise_floor"].values():
+        assert floor["value"] is None
+        assert floor["search"]["contract_pin"] == {
+            "status": "authority-env-tag-mismatch",
+            "authority_env_tag": "linux-baremetal",
+            "campaign_env_tag": "test-env",
+        }
+
+
+def test_contract_pin_sha_mismatch_fails_closed_before_floor_use(tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    pin_path = _copy_contract_calibration(output_root, authorization)
+    pin_path.write_bytes(pin_path.read_bytes() + b"\n")
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="SHA-256.*不一致",
+    ):
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+
+
+def test_contract_pin_rejects_other_env_directory_and_nonfile(tmp_path):
+    repo_root = tmp_path / "repo"
+    calibration = repo_root / "output/env/pegasus/calibration"
+    calibration.mkdir(parents=True, exist_ok=True)
+    other_env = repo_root / "output/env/linux-baremetal/calibration/pin.json"
+    other_env.parent.mkdir(parents=True)
+    other_env.write_text("{}\n", encoding="utf-8")
+    other_ref = env_contract.CalibrationRef(
+        path="output/env/linux-baremetal/calibration/pin.json",
+        sha256=hashlib.sha256(other_env.read_bytes()).hexdigest(),
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="当該 env の calibration directory 外",
+    ):
+        layer3_report._validated_pin_path(calibration, other_ref)
+
+    directory_ref = env_contract.CalibrationRef(
+        path="output/env/pegasus/calibration",
+        sha256="0" * 64,
+    )
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="通常 file",
+    ):
+        layer3_report._validated_pin_path(calibration, directory_ref)
+
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}\n", encoding="utf-8")
+    escape = calibration / "escape.json"
+    escape.symlink_to(outside)
+    escape_ref = env_contract.CalibrationRef(
+        path="output/env/pegasus/calibration/escape.json",
+        sha256=hashlib.sha256(outside.read_bytes()).hexdigest(),
+    )
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="calibration directory 外",
+    ):
+        layer3_report._validated_pin_path(calibration, escape_ref)
+
+    parent_ref = env_contract.CalibrationRef(
+        path="output/env/pegasus/calibration/../pin.json",
+        sha256="0" * 64,
+    )
+    with pytest.raises(layer3_report.Layer3ReportError, match=r"\.\. 成分"):
+        layer3_report._validated_pin_path(calibration, parent_ref)
+
+    absolute_ref = env_contract.CalibrationRef(
+        path="/output/env/pegasus/calibration/pin.json",
+        sha256="0" * 64,
+    )
+    with pytest.raises(layer3_report.Layer3ReportError, match="repo 相対"):
+        layer3_report._validated_pin_path(calibration, absolute_ref)
+
+
+def test_linux_v2_keeps_direct_skew_zero_floor_in_addition_to_pin(tmp_path):
+    authorization = env_contract.authorize("linux-baremetal")
+    skew_zero = {
+        "ycsb_zipf_skew": "0", "ycsb_rratio": "50", "ycsb_rmw": "0",
+    }
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s",
+            env_tag="linux-baremetal",
+        )],
+        ycsb=skew_zero,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    _copy_contract_calibration(output_root, authorization)
+    skew_zero_relative = Path(
+        "output/env/linux-baremetal/calibration/"
+        "calibration_t48_skew0_rr50_rmw0.json"
+    )
+    skew_zero_target = output_root.parent / skew_zero_relative
+    skew_zero_target.write_bytes((ROOT / skew_zero_relative).read_bytes())
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"]["cv"] == 0.004726195977018071
+    assert floor["source"]["path"] == (
+        "env/linux-baremetal/calibration/"
+        "calibration_t48_skew0_rr50_rmw0.json"
+    )
+    assert floor["protocol_match_basis"] == "genome-absent-legacy-record"
+
+
+def test_nested_exploration_root_resolves_contract_pin_by_suffix(tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+        exploration_root=True,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert output_root == tmp_path / "repo/output/exploration"
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"] is None
+    assert floor["provenance"] == "no-matching-env-record"
+    assert floor["source"] is None
+    assert floor["search"]["candidate_files"] == []
+    assert floor["search"]["contract_pin"]["status"] == "validated"
+    assert floor["search"]["contract_pin"]["within_run_exclusion"] == (
+        "self-inconsistent-calibration"
+    )
+
+
+def test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing(
+        tmp_path):
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        exploration_root=True,
+        copy_contract_calibration=False,
+    )
+    calibration = output_root / "env/pegasus/calibration"
+    calibration.mkdir(parents=True)
+    (calibration / "within.json").write_text(json.dumps({
+        "threads": 4,
+        "saturation": {"records": 100000},
+        "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
+        "noise_floor": {"cv": 0.01},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    within = report["noise_floor"]["within_run"]
+    assert within["value"] is None
+    assert within["provenance"] == "no-matching-env-record"
+    assert within["source"] is None
+    assert within["search"]["candidate_files"] == []
+    assert within["search"]["contract_pin"]["status"] == "pin-file-missing"
+    assert within["search"]["contract_pin"]["within_run_exclusion"] == (
+        "self-inconsistent-calibration"
+    )
+    missing_search = report["noise_floor"]["between_run"]["search"][
+        "contract_pin"
+    ]
+    assert missing_search["status"] == "pin-file-missing"
+    assert missing_search["path"] == authorization.contract.calibration_ref.path
+    assert missing_search["sha256"] == (
+        authorization.contract.calibration_ref.sha256
+    )
+
+
+def test_floor_protocol_basis_distinguishes_receipt_from_producer_genome():
+    receipt_protocol, receipt_basis = layer3_report._floor_protocol_and_basis(
+        {
+            "genome": "mocc|BACK_OFF=0,KEY_SORT=1,TEMPERATURE_RESET_OPT=0",
+            "acquisition_receipt": {"ccbench": {"build_argv": []}},
+        },
+        "within_run",
+        Path("certified-mocc.json"),
+    )
+    producer_protocol, producer_basis = layer3_report._floor_protocol_and_basis(
+        {"genome": "silo|BACK_OFF=0,WAL=0"},
+        "between_run",
+        Path("between-run-silo.json"),
+    )
+
+    assert receipt_protocol == "mocc"
+    assert receipt_basis == "receipt-derived-build-argv"
+    assert producer_protocol == "silo"
+    assert producer_basis == "canonical-floor-genome"
+
+
+def test_report_projects_both_nonlegacy_protocol_match_bases(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        ycsb=YCSB,
+        protocol="mocc",
+    )
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True, exist_ok=True)
+    (calibration / "certified-mocc.json").write_text(json.dumps({
+        "records": 100000,
+        "threads": 4,
+        "workload": YCSB,
+        "genome": "mocc|BACK_OFF=0,KEY_SORT=1,TEMPERATURE_RESET_OPT=0",
+        "acquisition_receipt": {"ccbench": {"build_argv": []}},
+        "noise_floor": {"cv": 0.03},
+    }), encoding="utf-8")
+    (calibration / "between-mocc.json").write_text(json.dumps({
+        "schema_version": "between-run-noise-floor/v1",
+        "records": 100000,
+        "threads": 4,
+        "workload": YCSB,
+        "genome": "mocc|BACK_OFF=0,KEY_SORT=1,TEMPERATURE_RESET_OPT=0",
+        "between_run": {"cv": 0.04},
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["noise_floor"]["within_run"]["value"] == {"cv": 0.03}
+    assert report["noise_floor"]["within_run"]["protocol_match_basis"] == (
+        "receipt-derived-build-argv"
+    )
+    assert report["noise_floor"]["between_run"]["value"] == {"cv": 0.04}
+    assert report["noise_floor"]["between_run"]["protocol_match_basis"] == (
+        "canonical-floor-genome"
     )
 
 
@@ -3144,7 +4148,7 @@ def test_duplicate_matching_floor_of_same_kind_fails_closed(tmp_path):
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     for name, cv in (("first.json", 0.01), ("second.json", 0.02)):
         (calibration / name).write_text(json.dumps({
             "records": 100000, "threads": 4, "workload": YCSB,
@@ -3160,7 +4164,7 @@ def test_floor_candidate_without_workload_fails_closed(tmp_path):
         tmp_path, [_record("build_start", genome="g", src_token="s")],
         ycsb=YCSB, protocol="silo")
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "broken.json").write_text(json.dumps({
         "records": 100000, "threads": 4, "noise_floor": {"cv": 0.01},
     }), encoding="utf-8")
@@ -3173,7 +4177,7 @@ def test_campaign_without_ycsb_has_honest_null_for_both_floor_kinds(tmp_path):
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")])
     calibration = output_root / "env/test-env/calibration"
-    calibration.mkdir(parents=True)
+    calibration.mkdir(parents=True, exist_ok=True)
     (calibration / "within.json").write_text(json.dumps({
         "records": 100000, "threads": 4, "workload": YCSB,
         "noise_floor": {"cv": 0.01},

@@ -1,0 +1,59 @@
+"""M-A: controller 側で test report の start/stop/worker を JSONL に記録する使い捨て plugin。
+
+repo には入れない。IZ_TL_OUT が指す file へ追記する。
+"""
+import json
+import os
+import time
+
+_OUT = os.environ.get("IZ_TL_OUT")
+_IS_CONTROLLER = False
+
+
+def _write(obj):
+    if not _OUT:
+        return
+    with open(_OUT, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(obj, sort_keys=True) + "\n")
+
+
+def pytest_configure(config):
+    global _IS_CONTROLLER
+    _IS_CONTROLLER = not hasattr(config, "workerinput")
+    if _IS_CONTROLLER:
+        _write({"ev": "configure", "t": time.time(), "pid": os.getpid()})
+
+
+def pytest_collection_finish(session):
+    if _IS_CONTROLLER:
+        _write({"ev": "collection_finish", "t": time.time(), "items": len(session.items)})
+
+
+def pytest_xdist_node_collection_finished(node, ids):
+    if _IS_CONTROLLER:
+        _write({"ev": "worker_collected", "t": time.time(), "worker": node.gateway.id, "items": len(ids)})
+
+
+def pytest_runtest_logreport(report):
+    if not _IS_CONTROLLER:
+        return
+    node = getattr(report, "node", None)
+    worker = None
+    if node is not None:
+        worker = getattr(getattr(node, "gateway", None), "id", None)
+    _write({
+        "ev": "report",
+        "nodeid": report.nodeid,
+        "when": report.when,
+        "worker": worker,
+        "start": getattr(report, "start", None),
+        "stop": getattr(report, "stop", None),
+        "duration": report.duration,
+        "outcome": report.outcome,
+        "t": time.time(),
+    })
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if _IS_CONTROLLER:
+        _write({"ev": "sessionfinish", "t": time.time(), "exitstatus": int(exitstatus)})

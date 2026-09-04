@@ -551,14 +551,18 @@ def test_floor_masstree_policy_generator_is_independent_and_has_both_cli_inputs(
     source = GENERATOR.read_text(encoding="utf-8")
     assert '"--source-dir"' in source
     assert '"--output"' in source
-    assert 'SCHEMA_VERSION = "s8b-floor-masstree-payload/v2"' in source
+    assert 'SCHEMA_VERSION = "s8b-floor-masstree-payload/v3"' in source
     assert "s8b_floor_campaign" not in source
     assert "buildcache" not in source
     assert '"config_sha256"' in source
     assert '"archive_sha256"' not in source
-    assert '["make"' not in source
-    assert '["ar"' not in source
-    assert '["ranlib"' not in source
+    assert '"archive_nondebug_sha256"' in source
+    assert '["make", "-j", "CXXFLAGS=-g -W -Wall -O3 -fPIC"]' in source
+    assert '["ar", "cr", archive.name, *MASSTREE_MEMBERS]' in source
+    assert '["ranlib", archive.name]' in source
+    assert '["objcopy"' not in source
+    assert '["strip"' not in source
+    assert "readelf" not in source
 
 
 def test_floor_masstree_policy_generator_requires_force_to_replace_output(
@@ -579,9 +583,9 @@ def test_floor_masstree_policy_generator_requires_force_to_replace_output(
     monkeypatch.setattr(
         generator, "_prepare_source", lambda source_dir, **_kwargs: source_dir,
     )
-    monkeypatch.setattr(
-        generator, "_configure_and_hash", lambda _source: "b" * 64,
-    )
+    monkeypatch.setattr(generator, "_build_and_hash", lambda _source: (
+        generator._BuildDigests("b" * 64, "c" * 64, "d" * 64)
+    ))
 
     assert generator.main([
         "--source-dir", str(source), "--output", str(output),
@@ -592,9 +596,168 @@ def test_floor_masstree_policy_generator_requires_force_to_replace_output(
         "--source-dir", str(source), "--output", str(output), "--force",
     ]) == 0
     generated = json.loads(output.read_text(encoding="utf-8"))
-    assert set(generated) == {"schema_version", "name", "pin", "config_sha256"}
-    assert generated["schema_version"] == "s8b-floor-masstree-payload/v2"
+    assert set(generated) == {
+        "schema_version", "name", "pin", "config_sha256",
+        "archive_projection", "archive_nondebug_sha256",
+    }
+    assert generated["schema_version"] == "s8b-floor-masstree-payload/v3"
     assert generated["config_sha256"] == "b" * 64
+    assert generated["archive_projection"] == "gnu-ar-elf-nondebug/v1"
+    assert generated["archive_nondebug_sha256"] == "d" * 64
+
+
+def _fixture_generator_source_repo(tmp_path: Path) -> tuple[Path, str]:
+    source = (tmp_path / "generator-source").resolve()
+    source.mkdir()
+    (source / "bootstrap.sh").write_text(
+        "#!/bin/sh\nset -eu\nexit 0\n", encoding="utf-8",
+    )
+    (source / "configure").write_text(
+        """#!/bin/sh
+set -eu
+value=7
+if [ -n "${MASSTREE_FIXTURE_COUNTER:-}" ]; then
+  count=0
+  if [ -f "$MASSTREE_FIXTURE_COUNTER" ]; then read count < "$MASSTREE_FIXTURE_COUNTER"; fi
+  count=$((count + 1))
+  printf '%s\n' "$count" > "$MASSTREE_FIXTURE_COUNTER"
+  value=$count
+fi
+printf '#define FIXTURE_CONFIG 1\n' > config.h
+sed "s/@VALUE@/$value/g" GNUmakefile.in > GNUmakefile
+printf '%s\n' "$PWD" >> "$MASSTREE_FIXTURE_BUILD_LOG"
+""",
+        encoding="utf-8",
+    )
+    (source / "GNUmakefile.in").write_text(
+        """CXX = g++
+OBJECTS = json.o string.o straccum.o str.o msgpack.o clp.o kvrandom.o compiler.o memdebug.o kvthread.o misc.o
+.PHONY: all
+all: $(OBJECTS)
+%.o: fixture.cc config.h
+	$(CXX) $(CXXFLAGS) -DFIXTURE_VALUE=@VALUE@ -c -o $@ $<
+""",
+        encoding="utf-8",
+    )
+    (source / "fixture.cc").write_text(
+        """#ifndef FIXTURE_VALUE
+#error FIXTURE_VALUE is required
+#endif
+extern "C" int fixture_symbol(void) { return FIXTURE_VALUE; }
+""",
+        encoding="utf-8",
+    )
+    for executable in (source / "bootstrap.sh", source / "configure"):
+        executable.chmod(0o755)
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid", "commit", "-qm", "pin",
+        ],
+        check=True,
+    )
+    pin = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    return source, pin
+
+
+def _load_floor_masstree_generator(module_name: str):
+    spec = importlib.util.spec_from_file_location(module_name, GENERATOR)
+    assert spec is not None and spec.loader is not None
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    return generator
+
+
+def _write_generator_shared_policy(path: Path, *, source: Path, pin: str) -> None:
+    path.write_text(
+        json.dumps({
+            "silo_ladder_rung1": {
+                "third_party_sources": [
+                    {"name": "masstree", "url": str(source), "pin": pin},
+                ],
+            },
+        }),
+        encoding="utf-8",
+    )
+
+
+def test_floor_masstree_generator_direct_cli_bootstraps_repo_root(
+        tmp_path: Path,
+) -> None:
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = subprocess.run(
+        [sys.executable, str(GENERATOR), "--help"],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--source-dir" in result.stdout
+
+
+def test_floor_masstree_generator_main_builds_two_distinct_clones_before_write(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generator = _load_floor_masstree_generator(
+        "floor_masstree_payload_generator_two_build_fixture"
+    )
+    source, pin = _fixture_generator_source_repo(tmp_path)
+    shared_policy = tmp_path / "shared-policy.json"
+    _write_generator_shared_policy(shared_policy, source=source, pin=pin)
+    output = tmp_path / "policy.json"
+    build_log = tmp_path / "build-roots.log"
+    monkeypatch.setenv("MASSTREE_FIXTURE_BUILD_LOG", str(build_log))
+    monkeypatch.delenv("MASSTREE_FIXTURE_COUNTER", raising=False)
+    monkeypatch.setattr(generator, "_policy_path", lambda: shared_policy)
+
+    assert generator.main([
+        "--source-dir", str(source), "--output", str(output),
+    ]) == 0
+    roots = build_log.read_text(encoding="utf-8").splitlines()
+    assert len(roots) == 2
+    assert roots[0] != roots[1]
+    assert {Path(root).parent.name for root in roots} == {"build-a", "build-b"}
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert set(document) == {
+        "schema_version", "name", "pin", "config_sha256",
+        "archive_projection", "archive_nondebug_sha256",
+    }
+    assert document["archive_projection"] == "gnu-ar-elf-nondebug/v1"
+    assert re.fullmatch(r"[0-9a-f]{64}", document["archive_nondebug_sha256"])
+
+
+def test_floor_masstree_generator_main_preserves_output_when_two_builds_differ(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generator = _load_floor_masstree_generator(
+        "floor_masstree_payload_generator_mismatch_fixture"
+    )
+    source, pin = _fixture_generator_source_repo(tmp_path)
+    shared_policy = tmp_path / "shared-policy.json"
+    _write_generator_shared_policy(shared_policy, source=source, pin=pin)
+    output = tmp_path / "policy.json"
+    output.write_bytes(b"existing approved policy\n")
+    build_log = tmp_path / "build-roots.log"
+    counter = tmp_path / "build-counter"
+    monkeypatch.setenv("MASSTREE_FIXTURE_BUILD_LOG", str(build_log))
+    monkeypatch.setenv("MASSTREE_FIXTURE_COUNTER", str(counter))
+    monkeypatch.setattr(generator, "_policy_path", lambda: shared_policy)
+
+    assert generator.main([
+        "--source-dir", str(source), "--output", str(output), "--force",
+    ]) == 2
+    assert output.read_bytes() == b"existing approved policy\n"
+    roots = build_log.read_text(encoding="utf-8").splitlines()
+    assert len(roots) == 2 and roots[0] != roots[1]
 
 
 def test_floor_masstree_policy_generator_clones_source_before_configure(
@@ -1104,7 +1267,6 @@ def test_floor_job_hardens_interpreter() -> None:
     )
     assert normal_checkpoint_stages == [
         "static-admission", "attempt-setup", "policy", "submit-binding",
-        "fetchcontent-staging",
         "source-identity", "allocation-reservation", "gflags-build",
         "glog-build", "protocol-resolution", "floor-driver", "job-result",
     ]
@@ -2114,8 +2276,6 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
         "pilot",
         "--protocol",
         str(tmp_path / "repo/output/s8b-freeze/floor_protocol.json"),
-        "--fetchcontent-base-dir",
-        "/tmp/izanagi-floor-fetchcontent",
     ]
     assert "--confirm-irreversible-pilot-holdout" not in actual_argv
 
@@ -2426,17 +2586,12 @@ def test_submit_floor_copies_and_reverifies_all_floor_third_party_sources(
         assert status == ""
 
 
-def test_floor_job_stages_payload_before_driver_and_passes_base_dir() -> None:
+def test_floor_job_leaves_fetchcontent_staging_to_driver_default() -> None:
     source = JOB.read_text(encoding="utf-8")
-    assert 'FETCHCONTENT_STAGING="$TMPDIR/izanagi-floor-fetchcontent"' in source
-    assert 'FLOOR_THIRD_PARTY_PAYLOAD_ROOT="$SUBMISSION_DIR/masstree-payload"' in source
-    assert source.index("stage_floor_fetchcontent_payload") < source.index(
-        "driver_argv=("
-    )
-    assert (
-        'driver_argv+=(--fetchcontent-base-dir "$FETCHCONTENT_STAGING")'
-        in source
-    )
+    assert "stage_floor_fetchcontent_payload" not in source
+    assert "FETCHCONTENT_STAGING" not in source
+    assert "fetchcontent-staging" not in source
+    assert "--fetchcontent-base-dir" not in source
 
 
 def test_submit_floor_probes_and_indexes_explicit_external_evidence_root(
@@ -3565,10 +3720,7 @@ def test_floor_job_qstat_value_drives_policy_check(
 def _receipt_validator_fragment() -> str:
     source = JOB.read_text(encoding="utf-8")
     start = source.index("receipt_rc=0")
-    # The staging phase now sits between receipt validation and source
-    # identity.  Keep its checkpoint/TMPDIR prerequisites out of this
-    # receipt-only fragment; the phase has its own integration coverage.
-    end = source.index("CURRENT_STAGE=fetchcontent-staging", start)
+    end = source.index("CURRENT_STAGE=source-identity", start)
     return source[start:end]
 
 
@@ -3612,7 +3764,6 @@ def _driver_tail() -> str:
     source = JOB.read_text(encoding="utf-8")
     return (
         "CHECKPOINT_PATH=${CHECKPOINT_PATH:-}\n"
-        "FETCHCONTENT_STAGING=${FETCHCONTENT_STAGING:-/tmp/izanagi-floor-fetchcontent}\n"
         + source[
         source.index("protocol_resolution_rc=0") :
         ]
@@ -3766,8 +3917,6 @@ def test_floor_protocol_resolution_is_shared_by_all_consumers(
             "pilot",
             "--protocol",
             str(tmp_path / "repo" / protocol_path),
-            "--fetchcontent-base-dir",
-            "/tmp/izanagi-floor-fetchcontent",
         ],
     ]
     job_result = json.loads(

@@ -1,0 +1,47 @@
+"""M-B phase JSONL の解析: test ごとに呼び出しの self time を name/arg で集計する。"""
+import json
+import sys
+from collections import defaultdict
+
+path = sys.argv[1]
+ev = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+calls = [e for e in ev if e["ev"] == "call"]
+reports = [e for e in ev if e["ev"] == "report"]
+print("module found:", [e for e in ev if e["ev"] == "module"])
+# self time: dur minus children dur
+children = defaultdict(float)
+for c in calls:
+    if c["parent"] is not None:
+        children[c["parent"]] += c["dur"]
+by_test_top = defaultdict(lambda: defaultdict(float))
+by_test_self = defaultdict(lambda: defaultdict(float))
+for c in calls:
+    t = c["test"] or "<collection>"
+    key = c["name"] + (" " + c["arg"] if c["name"] in ("subprocess.run", "_run_git", "shutil.copytree") and c["arg"] else "")
+    if c["name"] == "shutil.copytree":
+        key = "shutil.copytree " + ("orchestrator" if c["arg"].endswith("/orchestrator") else "output" if c["arg"].endswith("/output") else "base->test" if "t080-stub-free-e2e" in c["arg"] else c["arg"][-40:])
+    if c["name"] in ("_run_git", "subprocess.run"):
+        key = c["name"] + " " + " ".join(c["arg"].split()[:2])
+    self_t = c["dur"] - children.get(c["seq"], 0.0)
+    by_test_self[t][key] += self_t
+    if c["depth"] == 0:
+        by_test_top[t][c["name"] + (" " + c["arg"][:50] if c["name"] == "shutil.copytree" else "")] += c["dur"]
+for r in reports:
+    if r["when"] == "call":
+        print(f"\n== {r['nodeid'].split('::',1)[1][:90]} call={r['duration']:.1f}s")
+        t = r["nodeid"]
+        tops = sorted(by_test_top[t].items(), key=lambda x: -x[1])[:8]
+        print("  top-level:", ", ".join(f"{k}={v:.1f}" for k, v in tops))
+        selfs = sorted(by_test_self[t].items(), key=lambda x: -x[1])[:12]
+        for k, v in selfs:
+            if v >= 0.5:
+                print(f"    self {v:6.1f}  {k[:90]}")
+# global self by key
+g = defaultdict(float)
+for t, d in by_test_self.items():
+    for k, v in d.items():
+        g[k] += v
+print("\n== global self time by key:")
+for k, v in sorted(g.items(), key=lambda x: -x[1])[:20]:
+    print(f"  {v:7.1f} {k[:100]}")
+print("total call dur:", sum(r["duration"] for r in reports if r["when"] == "call"))

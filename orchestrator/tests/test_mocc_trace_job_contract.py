@@ -14,6 +14,7 @@ import shlex
 import stat
 import subprocess
 import shutil
+import sys
 import textwrap
 
 import pytest
@@ -28,11 +29,24 @@ VERIFIER = REPO_ROOT / "orchestrator/verifier/__main__.py"
 FETCH_THIRD_PARTY = REPO_ROOT / "tools/pegasus/fetch_third_party.py"
 NEW_OID = "e9e477ca1b55348ab4530de0b1cf663ce4555290"
 BASE_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+EXPECTED_COMPILER_BODY_SHA256 = (
+    "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+)
+FIXTURE_COMPILER_BODY_SHA256 = (
+    "40d20db9b7dd268057a5354e49e3f36d483be42b493ee7fa23a4d50c23d278ee"
+)
 
 
 def _make_executable(path: Path, contents: str) -> None:
     path.write_text(textwrap.dedent(contents).lstrip(), encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+
+def test_mocc_trace_pilot_shell_syntax() -> None:
+    result = subprocess.run(
+        ["bash", "-n", str(PILOT)], capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def _fake_git(
@@ -86,6 +100,205 @@ def _fake_git(
         exit 97
         """,
     )
+
+
+def _pilot_policy_parser_source() -> str:
+    source = PILOT.read_text(encoding="utf-8")
+    prefix = 'readarray -t policy_values < <(python3 - "$POLICY" <<\'PY\'\n'
+    start = source.index(prefix) + len(prefix)
+    end = source.index("\nPY\n)\nif [[ ${#policy_values[@]} -ne ", start)
+    return source[start:end]
+
+
+def test_mocc_trace_policy_compiler_mapping_is_exact() -> None:
+    document = json.loads(POLICY.read_text(encoding="utf-8"))
+    expected = document["expected_compiler_version_body_sha256"]
+    assert set(expected) == {"gcc", "g++"}
+    assert expected == {
+        "gcc": EXPECTED_COMPILER_BODY_SHA256,
+        "g++": EXPECTED_COMPILER_BODY_SHA256,
+    }
+
+
+def test_mocc_trace_policy_parser_emits_17_values_and_rejects_duplicates(
+        tmp_path: Path,
+) -> None:
+    parser = tmp_path / "policy_parser.py"
+    parser.write_text(_pilot_policy_parser_source(), encoding="utf-8")
+    assert "if [[ ${#policy_values[@]} -ne 17 ]]; then" in (
+        PILOT.read_text(encoding="utf-8")
+    )
+    accepted = subprocess.run(
+        [sys.executable, str(parser), str(POLICY)],
+        capture_output=True, text=True, check=False,
+    )
+    assert accepted.returncode == 0, accepted.stderr
+    values = accepted.stdout.splitlines()
+    assert len(values) == 17
+    assert json.loads(values[12]) == {
+        "gcc": EXPECTED_COMPILER_BODY_SHA256,
+        "g++": EXPECTED_COMPILER_BODY_SHA256,
+    }
+
+    raw = POLICY.read_text(encoding="utf-8")
+    duplicate = tmp_path / "duplicate-policy.json"
+    duplicate.write_text(
+        '{"expected_cpu_model":"duplicate",' + raw[1:], encoding="utf-8",
+    )
+    rejected = subprocess.run(
+        [sys.executable, str(parser), str(duplicate)],
+        capture_output=True, text=True, check=False,
+    )
+    assert rejected.returncode != 0
+    assert "duplicate JSON key: expected_cpu_model" in rejected.stderr
+
+
+def _compiler_gate_fragment() -> str:
+    source = PILOT.read_text(encoding="utf-8")
+    start = source.index("# BEGIN T1718 COMPILER VERSION BODY GATE")
+    end_marker = "# END T1718 COMPILER VERSION BODY GATE"
+    end = source.index(end_marker, start) + len(end_marker)
+    return source[start:end]
+
+
+def _run_compiler_gate(
+        tmp_path: Path, *, gcc_version: str, gxx_version: str,
+) -> tuple[subprocess.CompletedProcess[str], Path]:
+    tmp_path.mkdir(parents=True)
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    (attempt / "compiler-gcc.version").write_text(gcc_version, encoding="utf-8")
+    (attempt / "compiler-gxx.version").write_text(gxx_version, encoding="utf-8")
+    failure = tmp_path / "failure.txt"
+    expected = json.dumps(
+        {"gcc": FIXTURE_COMPILER_BODY_SHA256, "g++": FIXTURE_COMPILER_BODY_SHA256},
+        sort_keys=True, separators=(",", ":"),
+    )
+    wrapper = tmp_path / "compiler-gate.sh"
+    wrapper.write_text(
+        "#!/bin/bash\nset -Eeuo pipefail\n"
+        "write_failure() { printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > \"$FAILURE\"; }\n"
+        f"REPO_ROOT={shlex.quote(str(REPO_ROOT))}\n"
+        f"ATTEMPT_DIR={shlex.quote(str(attempt))}\n"
+        f"FAILURE={shlex.quote(str(failure))}\n"
+        "EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON="
+        f"{shlex.quote(expected)}\n"
+        + _compiler_gate_fragment()
+        + "\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["bash", str(wrapper)], capture_output=True, text=True, check=False,
+    )
+    return result, failure
+
+
+@pytest.mark.parametrize("role", ("gcc", "g++"))
+def test_mocc_trace_pilot_rejects_expected_compiler_version_body_mismatch(
+        tmp_path: Path, role: str,
+) -> None:
+    matching = {
+        "gcc": "gcc fixture compiler 11.4\nCopyright fixture\n",
+        "g++": "g++ fixture compiler 11.4\nCopyright fixture\n",
+    }
+    accepted, accepted_failure = _run_compiler_gate(tmp_path / "accepted", **{
+        "gcc_version": matching["gcc"], "gxx_version": matching["g++"],
+    })
+    assert accepted.returncode == 0, accepted.stderr
+    assert not accepted_failure.exists()
+
+    rejected_versions = dict(matching)
+    rejected_versions[role] += "different body\n"
+    rejected, rejected_failure = _run_compiler_gate(
+        tmp_path / role.replace("+", "x"), **{
+        "gcc_version": rejected_versions["gcc"],
+        "gxx_version": rejected_versions["g++"],
+    })
+    assert rejected.returncode == 2
+    failure = rejected_failure.read_text(encoding="utf-8")
+    assert failure.startswith(f"2|compiler|{role} compiler version body mismatch")
+
+
+def test_mocc_trace_gflags_and_glog_clear_compiler_launchers(
+        tmp_path: Path,
+) -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    unset_line = (
+        "unset CMAKE_C_COMPILER_LAUNCHER CMAKE_CXX_COMPILER_LAUNCHER "
+        "RULE_LAUNCH_COMPILE"
+    )
+    assert unset_line in source
+    assert source.count("  -DCMAKE_C_COMPILER_LAUNCHER=\n") == 3
+    assert source.count("  -DCMAKE_CXX_COMPILER_LAUNCHER=\n") == 3
+    assert source.count("  -DRULE_LAUNCH_COMPILE=\n") == 3
+    probe = tmp_path / "launcher-env-probe.sh"
+    probe.write_text(
+        "#!/bin/bash\nset -Eeuo pipefail\n"
+        "export CMAKE_C_COMPILER_LAUNCHER=attacker-c\n"
+        "export CMAKE_CXX_COMPILER_LAUNCHER=attacker-cxx\n"
+        "export RULE_LAUNCH_COMPILE=attacker-rule\n"
+        f"{unset_line}\n"
+        "[[ -z ${CMAKE_C_COMPILER_LAUNCHER+x} ]]\n"
+        "[[ -z ${CMAKE_CXX_COMPILER_LAUNCHER+x} ]]\n"
+        "[[ -z ${RULE_LAUNCH_COMPILE+x} ]]\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["bash", str(probe)], capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_mocc_gflags_and_glog_toolchain_guards_block_environment_adoption(
+        tmp_path: Path,
+) -> None:
+    pilot_source = PILOT.read_text(encoding="utf-8")
+
+    def configured_toolchain_args(array_name: str) -> list[str]:
+        start = pilot_source.index(f"{array_name}=(")
+        end = pilot_source.index("\n)", start)
+        return [
+            line.strip()
+            for line in pilot_source[start:end].splitlines()
+            if line.strip().startswith("-DCMAKE_TOOLCHAIN_FILE=")
+        ]
+
+    project = tmp_path / "project"
+    project.mkdir()
+    marker = tmp_path / "attacker-toolchain-loaded"
+    toolchain = tmp_path / "attacker-toolchain.cmake"
+    toolchain.write_text(
+        f'file(WRITE "{marker.as_posix()}" "loaded\\n")\n'
+        'set(CMAKE_C_COMPILER_LAUNCHER "attacker-c" CACHE STRING "" FORCE)\n'
+        'set(CMAKE_CXX_COMPILER_LAUNCHER "attacker-cxx" CACHE STRING "" FORCE)\n',
+        encoding="utf-8",
+    )
+    (project / "CMakeLists.txt").write_text(
+        "cmake_minimum_required(VERSION 3.16)\nproject(toolchain_probe NONE)\n",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    environment["CMAKE_TOOLCHAIN_FILE"] = str(toolchain)
+
+    unguarded = subprocess.run(
+        ["cmake", "-S", str(project), "-B", str(tmp_path / "unguarded")],
+        env=environment, capture_output=True, text=True, check=False,
+    )
+    assert unguarded.returncode == 0, unguarded.stderr
+    assert marker.is_file()
+    marker.unlink()
+
+    for array_name in ("gflags_configure_argv", "glog_configure_argv"):
+        guarded = subprocess.run(
+            [
+                "cmake", "-S", str(project),
+                "-B", str(tmp_path / f"guarded-{array_name}"),
+                *configured_toolchain_args(array_name),
+            ],
+            env=environment, capture_output=True, text=True, check=False,
+        )
+        assert guarded.returncode == 0, guarded.stderr
+        assert not marker.exists(), f"{array_name} adopted the environment toolchain"
 
 
 def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:

@@ -1,0 +1,353 @@
+{
+ "new": {
+  "baseline": {
+   "duration_s": 93.629,
+   "rc": 0,
+   "status": "PASSED"
+  },
+  "mutations": [
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_preflight_skips_worktree_git_and_aggregates"
+    ],
+    "id": "MUT-T2111-HEAD-PIN",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required"
+    ],
+    "id": "MUT-T2111-SYMBOLIC-HEAD",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_snapshot_mode_change"
+    ],
+    "id": "MUT-T2111-TRACKED-MODE",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[NEG-focus2.md]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[POS-focus1.md]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[POS-focus2.md]"
+    ],
+    "id": "MUT-T2111-FORBIDDEN-FOCUS-ARTIFACT",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected"
+    ],
+    "id": "MUT-T2111-FORBIDDEN-OBJECT-REACHABLE",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch"
+    ],
+    "id": "MUT-T2111-ATTEMPT-UPPER-BOUND",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment"
+    ],
+    "id": "MUT-T2111-GIT-ENV-LEAK-BOTH-LAYERS",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive"
+    ],
+    "id": "MUT-T2111-GRAFTS-CLOSURE",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_f3_m15_append_verdicts_rejects_existing_log_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_append_verdicts_rejects_packet_state_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_freeze_verdicts_rejects_log_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_make_packets_rejects_schedule_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[aggregate]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[verify]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_packet_consumer_requires_exact_task_manifest_digest_once",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_packet_state_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_private_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_supervise_pair_rejects_schedule_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m20_render_prompt_binds_external_task_manifest",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_rejects_task_manifest_exchange_before_publication",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_schedule_task_manifest_exchange_at_digest_consumers",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_slice_material_digest_mismatch_full_cli_is_incomplete"
+    ],
+    "id": "MUT-T2111-MANIFEST-DIGEST-BINDING",
+    "status": "KILLED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess[0]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess[10]"
+    ],
+    "id": "MUT-T2111-PROMPT-REPLACEMENT-COUNT",
+    "status": "KILLED"
+   }
+  ],
+  "repo_head": "31d5e336b1784646cb984d84ffcf576e39c3ce14",
+  "spec_sha256": "b240ae4ac5a82ccf65e1f522dd7939a57bb81989f1a8a27a1f332bc60efd1a77",
+  "summary": {
+   "KILLED": 10,
+   "MISMATCH": 0,
+   "PARSE_ERROR": 0,
+   "SURVIVED": 0,
+   "TIMEOUT": 0,
+   "completed": 10,
+   "matching": 10,
+   "recorded": 10,
+   "registered": 10
+  }
+ },
+ "old": {
+  "baseline": {
+   "duration_s": 52.604,
+   "rc": 0,
+   "status": "PASSED"
+  },
+  "mutations": [
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_preflight_skips_worktree_git_and_aggregates"
+    ],
+    "id": "MUT-T2111-HEAD-PIN",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-SYMBOLIC-HEAD",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-TRACKED-MODE",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-FORBIDDEN-FOCUS-ARTIFACT",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-FORBIDDEN-OBJECT-REACHABLE",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-ATTEMPT-UPPER-BOUND",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-GIT-ENV-LEAK-BOTH-LAYERS",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-GRAFTS-CLOSURE",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_f3_m15_append_verdicts_rejects_existing_log_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_append_verdicts_rejects_packet_state_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_freeze_verdicts_rejects_log_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_make_packets_rejects_schedule_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[aggregate]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[verify]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_packet_consumer_requires_exact_task_manifest_digest_once",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_packet_state_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_private_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_supervise_pair_rejects_schedule_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m20_render_prompt_binds_external_task_manifest",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_rejects_task_manifest_exchange_before_publication",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_schedule_task_manifest_exchange_at_digest_consumers",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_slice_material_digest_mismatch_full_cli_is_incomplete"
+    ],
+    "id": "MUT-T2111-MANIFEST-DIGEST-BINDING",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-PROMPT-REPLACEMENT-COUNT",
+    "status": "SURVIVED"
+   }
+  ],
+  "repo_head": "adec65e567f8ea104615c2b46584334e39bd4f16",
+  "spec_sha256": "bb74762fabf3546a6814a1c8bd9392901f3f7335e19337c5516fc3941b3a0cba",
+  "summary": {
+   "KILLED": 0,
+   "MISMATCH": 2,
+   "PARSE_ERROR": 0,
+   "SURVIVED": 8,
+   "TIMEOUT": 0,
+   "completed": 10,
+   "matching": 8,
+   "recorded": 10,
+   "registered": 10
+  }
+ },
+ "probe1": {
+  "baseline": {
+   "duration_s": 78.274,
+   "rc": 0,
+   "status": "PASSED"
+  },
+  "mutations": [
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_preflight_skips_worktree_git_and_aggregates"
+    ],
+    "id": "MUT-T2111-HEAD-PIN",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required"
+    ],
+    "id": "MUT-T2111-SYMBOLIC-HEAD",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_snapshot_mode_change"
+    ],
+    "id": "MUT-T2111-TRACKED-MODE",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[NEG-focus2.md]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[POS-focus1.md]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[POS-focus2.md]"
+    ],
+    "id": "MUT-T2111-FORBIDDEN-FOCUS-ARTIFACT",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected"
+    ],
+    "id": "MUT-T2111-FORBIDDEN-OBJECT-REACHABLE",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch"
+    ],
+    "id": "MUT-T2111-ATTEMPT-UPPER-BOUND",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [],
+    "id": "MUT-T2111-GIT-ENV-SCRUB-GUARD",
+    "status": "SURVIVED"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive"
+    ],
+    "id": "MUT-T2111-GRAFTS-CLOSURE",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_supervise_pair_rejects_schedule_manifest_exchange"
+    ],
+    "id": "MUT-T2111-SCHEDULE-MANIFEST-DIGEST",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess[0]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess[10]"
+    ],
+    "id": "MUT-T2111-PROMPT-REPLACEMENT-COUNT",
+    "status": "MISMATCH"
+   }
+  ],
+  "repo_head": "31d5e336b1784646cb984d84ffcf576e39c3ce14",
+  "spec_sha256": "25e880abb9ebcaaa4f266e5d49edc1fb0df345f8cab726b9796b75374003e7ec",
+  "summary": {
+   "KILLED": 0,
+   "MISMATCH": 9,
+   "PARSE_ERROR": 0,
+   "SURVIVED": 1,
+   "TIMEOUT": 0,
+   "completed": 10,
+   "matching": 1,
+   "recorded": 10,
+   "registered": 10
+  }
+ },
+ "probe2": {
+  "baseline": {
+   "duration_s": 84.467,
+   "rc": 0,
+   "status": "PASSED"
+  },
+  "mutations": [
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment"
+    ],
+    "id": "MUT-T2111-GIT-ENV-LEAK-BOTH-LAYERS",
+    "status": "MISMATCH"
+   },
+   {
+    "failed_nodes": [
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_f3_m15_append_verdicts_rejects_existing_log_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_append_verdicts_rejects_packet_state_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_freeze_verdicts_rejects_log_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_make_packets_rejects_schedule_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[aggregate]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[verify]",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_packet_consumer_requires_exact_task_manifest_digest_once",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_packet_state_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_private_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_supervise_pair_rejects_schedule_manifest_exchange",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_m20_render_prompt_binds_external_task_manifest",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_rejects_task_manifest_exchange_before_publication",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_schedule_task_manifest_exchange_at_digest_consumers",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
+     "orchestrator/tests/test_codex_reasoning_ab.py::test_slice_material_digest_mismatch_full_cli_is_incomplete"
+    ],
+    "id": "MUT-T2111-MANIFEST-DIGEST-BINDING",
+    "status": "MISMATCH"
+   }
+  ],
+  "repo_head": "31d5e336b1784646cb984d84ffcf576e39c3ce14",
+  "spec_sha256": "1bbdce6166236a2dfbc90485929a6787e6612bc3d6d63b2e5758a16035e6163d",
+  "summary": {
+   "KILLED": 0,
+   "MISMATCH": 2,
+   "PARSE_ERROR": 0,
+   "SURVIVED": 0,
+   "TIMEOUT": 0,
+   "completed": 2,
+   "matching": 0,
+   "recorded": 2,
+   "registered": 2
+  }
+ }
+}

@@ -12,7 +12,7 @@ Claims bound to caller input:
 | --- | --- |
 | ``acceptance_wave`` | exact equality with caller input |
 | ``tested_main`` / ``tested_tip`` | caller-bound and Git-existing; no independent selection |
-| ``lease_generation`` | caller-supplied schema slot; not derived from a production lease |
+| ``lease_generation`` | caller-supplied identifier for one acquisition, or ``"not-acquired"`` when none was acquired; neither is independently derived from or checked against a live lease |
 
 Expectations independently derived or read by this issuer:
 
@@ -66,6 +66,7 @@ except ImportError as exc:  # pragma: no cover - absence must stop issuance
 try:
     from tools.acceptance_receipt_signature import (
         ReceiptSignatureError,
+        _require_lease_generation,
         attach_signature,
         canonical_json_bytes,
         canonical_signed_payload_bytes,
@@ -77,6 +78,7 @@ try:
 except ModuleNotFoundError:  # external colocated copies may not have a tools package
     from acceptance_receipt_signature import (  # type: ignore[no-redef]
         ReceiptSignatureError,
+        _require_lease_generation,
         attach_signature,
         canonical_json_bytes,
         canonical_signed_payload_bytes,
@@ -97,7 +99,6 @@ _RUNNER_PATH = "tools/run_tests.py"
 _CHECKER_PATH = "tools/check_acceptance_reds.py"
 _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
-_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_RECEIPT_BYTES = 64 * 1024
 _MAX_PRIVATE_KEY_BYTES = 16 * 1024
 _GIT_EXE = "/usr/bin/git"
@@ -460,8 +461,10 @@ def issue_signed_receipt(
     _verify_commit(canonical_repo, tested_tip, "tested_tip")
     if not isinstance(acceptance_wave, str) or not acceptance_wave:
         raise IssuerFailure("invalid acceptance_wave")
-    if _SHA256_RE.fullmatch(lease_generation) is None:
-        raise IssuerFailure("invalid lease_generation")
+    try:
+        _require_lease_generation(lease_generation, "lease_generation")
+    except ReceiptSignatureError as exc:
+        raise IssuerFailure(str(exc)) from exc
     if not log_file.is_absolute():
         raise IssuerFailure("launcher log path must be absolute")
 
