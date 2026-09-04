@@ -1,0 +1,7 @@
+merge(main): [T-2231] 受入前に固定 SHA 396dc89887b18477cfd665f88c5f93c95fcdae3f を wave へ取り込む
+
+merge base c7ed56589 から、main は B-4 配線 probe の AST source segment 抽出を事前分割 helper へ移し、wave は未束縛になった p3_s4_loop.default_cfg の戻り値へ probe 側で linux-baremetal 環境契約を bind してから contract hash を読むようにした。両 hunk は別の関数と実行段階にあり、main は default_cfg、bind_environment_contract、probe の cfg 供給元を変更していないため両立することを確認した。
+
+AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=xhigh; role=author; scope=merge
+AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=default; role=manager; scope=wave
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
