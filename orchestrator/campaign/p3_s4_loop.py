@@ -1766,7 +1766,16 @@ def load_proposal_file(
     (勝ち筋値・機序を harness へ運ぶ経路にしない)。value 値域は CoderProposal
     構築時、value↔literal 整合は run_one_iteration が機械強制する (D39 決定7)。"""
     with open(path, encoding="utf-8") as f:
-        d = json.load(f)
+        if (
+            knowledge_input is not None
+            and coder_role == "coder-v4-autonomous-k2"
+        ):
+            d = json.load(
+                f,
+                object_pairs_hook=knowledge_manifest._reject_duplicate_keys,
+            )
+        else:
+            d = json.load(f)
     schema_document = d
     if b4_reflux_ablation:
         if "prior_critic_reverse" in d:
@@ -2138,7 +2147,9 @@ def main(
             a.run_iteration,
             b4_reflux_ablation=a.b4_reflux_ablation,
             b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
-            knowledge_input=knowledge_input,
+            knowledge_input=(
+                knowledge_input if a.coder_role is not None else None
+            ),
             coder_role=a.coder_role,
         )
         print(f"=== 段 4b iteration (proposal={a.run_iteration}, "

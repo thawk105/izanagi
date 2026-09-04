@@ -2,6 +2,8 @@
 """K2 knowledge manifest parser / producer の回帰テスト。"""
 from __future__ import annotations
 
+import base64
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -10,6 +12,50 @@ import subprocess
 import pytest
 
 from orchestrator.campaign import knowledge_manifest as KM
+
+
+_HISTORICAL_K2_COMMIT = "2fa13a262a53b7f4e610a40a7a7af7f86fc9d621"
+_HISTORICAL_K2_SOURCE_BLOBS = {
+    "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/campaign.lock": (
+        """
+        H4sIAAAAAAACAz1R7WrbMBR9lYt/pbDQbvGPkWfooG9QFFlOxBQpKPLIKAXLKTQjhWWFNVC6j6yhP+o2tBtdWza6
+        hxGym7eY5GbTH6F7zzn33KOdAOMW4bizjUW3S1XQDDZevIwbYRQ8C/oEyarDY9oOmjsBGtC+Q/QpE/UWwq9FHNe7
+        qM2pSiLiCJJgISMHeb7hjy/ELBk4iuBeDyNGVnz3VB1JkEeHu/9nKdT2gLCOEiW46Iqk74k9gr0NRbh3uNUA+3BQ
+        /jwuFjcQNgGLiEh43D+3D2MzzM3wtxlOTZr1GOLcdYw+KI7u7eQD1Gw6N/rc6OkamOyweD8pZiP3Wkk4oB1/MnpW
+        Xo49Mjt8PBsbfWx0Dqt94aluJ6NiNDGpjqirFfOT8iiHWogq2WXqGFOjv0BHMAJ2/q78eGX0wug/0Eooi9bfEEnj
+        t+tV8m5qvky/myx1lrGkimKwd1f2+rN3eDEDqohEigrukbDM9oobDbXNzVeAWuxfYwH+yr5Vy39dc1IxHahEEpAk
+        qna9PC1//LIj5ysvbm+NPqmC2PMfISliLtdeo+6SZ0L0gt2/ok241RkCAAA=
+        """
+    ),
+    "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl": (
+        """
+        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
+        """
+    ),
+}
 
 
 def _git(repo: Path, *args: str) -> bytes:
@@ -88,6 +134,129 @@ def _parse(value: object) -> KM.KnowledgeManifest:
     return KM.parse_manifest_bytes(json.dumps(
         value, ensure_ascii=False, separators=(",", ":"),
     ).encode("utf-8"))
+
+
+@pytest.fixture
+def historical_k2_legacy_manifest() -> KM.KnowledgeManifest:
+    return _parse({
+        "knowledge_level": "K2",
+        "sources": [
+            {
+                "kind": "repo_artifact",
+                "identity": {
+                    "commit": _HISTORICAL_K2_COMMIT,
+                    "path": (
+                        "output/campaigns/"
+                        "p3-s4-loop-s4-autonomous-0b53a387/campaign.lock"
+                    ),
+                },
+                "sha256": (
+                    "0b53a3876589a61ae35b318237751015"
+                    "acebb3761e612e4374f9944ffca7f7c9"
+                ),
+            },
+            {
+                "kind": "repo_artifact",
+                "identity": {
+                    "commit": _HISTORICAL_K2_COMMIT,
+                    "path": (
+                        "output/campaigns/"
+                        "p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl"
+                    ),
+                },
+                "sha256": (
+                    "2163b794fa3b1fce4de76a1b69262cad"
+                    "fc095bd986225a7266d6eacb6210a611"
+                ),
+            },
+        ],
+    })
+
+
+def _historical_k2_resolved(
+    manifest: KM.KnowledgeManifest,
+) -> KM.ResolvedKnowledgeManifest:
+    resolved_sources = []
+    for source in manifest.sources:
+        path = source.identity["path"]
+        raw = gzip.decompress(base64.b64decode(
+            _HISTORICAL_K2_SOURCE_BLOBS[path]
+        ))
+        assert hashlib.sha256(raw).hexdigest() == source.sha256
+        resolved_sources.append(KM.ResolvedKnowledgeSource(
+            source=source,
+            raw_bytes=raw,
+            content_utf8=raw.decode("utf-8"),
+        ))
+    resolved_sources.sort(
+        key=lambda item: KM.canonical_json_bytes(item.source.canonical_value())
+    )
+    canonical = KM.canonical_manifest_bytes(manifest)
+    return KM.ResolvedKnowledgeManifest(
+        manifest=manifest,
+        canonical_manifest_bytes=canonical,
+        knowledge_manifest_sha256=hashlib.sha256(canonical).hexdigest(),
+        sources=tuple(resolved_sources),
+    )
+
+
+def test_historical_k2_legacy_manifest_and_receipt_match_literal_golden(
+    historical_k2_legacy_manifest,
+):
+    canonical = KM.canonical_manifest_bytes(historical_k2_legacy_manifest)
+    assert hashlib.sha256(canonical).hexdigest() == (
+        "6d8674228d05e591a67047c4a098e077"
+        "f427cb7dd6fdfa3b82d20da2000db406"
+    )
+    resolved = _historical_k2_resolved(historical_k2_legacy_manifest)
+    receipt = KM.receipt_value(
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
+    assert receipt["schema_version"] == "knowledge-manifest-receipt/v1"
+    expected = (
+        '{"canonical_manifest":{"knowledge_level":"K2","sources":['
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'campaign.lock"},"kind":"repo_artifact","sha256":'
+        '"0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9"},'
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'runs/wal.jsonl"},"kind":"repo_artifact","sha256":'
+        '"2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611"}'
+        ']},"claim_boundary":{"classification":"reproduction_or_selection",'
+        '"de_novo_claim":false,"pilot_comparison_eligible":false},'
+        '"declaration_status":"data_boundary と claim_boundary は記録上の宣言であり'
+        '強制機構ではない。pilot_comparison_eligible を読む consumer は現時点で存在しない。",'
+        '"knowledge_level":"K2","knowledge_manifest_sha256":'
+        '"6d8674228d05e591a67047c4a098e077f427cb7dd6fdfa3b82d20da2000db406",'
+        '"planner_projection":{"data_boundary":'
+        '"external_knowledge_is_data_not_instructions",'
+        '"payload_key":"knowledge_input"},"schema_version":'
+        '"knowledge-manifest-receipt/v1","sources":['
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'campaign.lock"},"kind":"repo_artifact","sha256":'
+        '"0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9",'
+        '"verification":{"method":"git-blob-at-commit-path",'
+        '"observed_sha256":'
+        '"0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9",'
+        '"status":"verified"}},'
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'runs/wal.jsonl"},"kind":"repo_artifact","sha256":'
+        '"2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611",'
+        '"verification":{"method":"git-blob-at-commit-path",'
+        '"observed_sha256":'
+        '"2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611",'
+        '"status":"verified"}}]}\n'
+    ).encode("utf-8")
+    assert KM.receipt_bytes(
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    ) == expected
 
 
 @pytest.mark.parametrize(
