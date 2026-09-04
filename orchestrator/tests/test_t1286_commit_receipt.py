@@ -36,6 +36,7 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout  # noqa: E402
 from orchestrator.campaign.model import (  # noqa: E402
     CampaignConfig,
+    Genome,
     STAGE_ABORT,
     STAGE_BENCH_DONE,
     STAGE_BUILD_DONE,
@@ -71,7 +72,11 @@ from orchestrator.verifier import (  # noqa: E402
     verify_trace_dir_with_capability,
 )
 from orchestrator.verifier import core as verifier_core  # noqa: E402
-from orchestrator.verifier.model import Integrity, VerifyResult  # noqa: E402
+from orchestrator.verifier.model import (  # noqa: E402
+    Integrity,
+    VerifyResult,
+    capture_compiled_protocol_source_snapshot,
+)
 from orchestrator.verifier.parse import (  # noqa: E402
     SortPermutationClass,
     SortPermutationViolation,
@@ -79,11 +84,23 @@ from orchestrator.verifier.parse import (  # noqa: E402
 )
 
 
+_CCBENCH_ROOT = receipt_support.proof_source_root()
 _CANON = "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
 _TEST_BUILD_CONTEXT = build_run_context(
     generator_id=GeneratorId.BACKOFF_SWEEP,
 )
 _TEST_ADMISSION_POLICY = _TEST_BUILD_CONTEXT.policy
+
+
+def _verification_source_binding(variant: str) -> dict:
+    genome, source_evidence, build_admission = receipt_support._proof_build_binding(
+        variant,
+    )
+    return {
+        "genome": genome,
+        "source_evidence": source_evidence,
+        "build_admission": build_admission,
+    }
 
 
 def _v1_layout(tmp_path: Path, name: str = "campaign") -> CampaignLayout:
@@ -218,6 +235,7 @@ def test_uncertified_verifier_capability_cannot_issue_receipt(
     trace_dir = _HERE / "fixtures" / fixture
     result, capability = verify_trace_dir_with_capability(
         str(trace_dir),
+        **_verification_source_binding("v"),
         receipt_sink_kind=CAMPAIGN_WAL_SINK,
         receipt_lock_identity_sha256="a" * 64,
         receipt_variant="v",
@@ -232,6 +250,95 @@ def test_uncertified_verifier_capability_cannot_issue_receipt(
             sink_kind="campaign-wal", lock_identity_sha256="a" * 64,
             variant="v", operation_identity="op",
             terminal_payload={"fitness_tps": 1.0},
+        )
+
+
+def test_capability_uses_build_bound_snapshot_after_live_source_changes(
+        tmp_path: Path,
+) -> None:
+    root = tmp_path / "ccbench"
+    protocol_root = root / "cc/mocc"
+    protocol_root.mkdir(parents=True)
+    (protocol_root / "CMakeLists.txt").write_text(
+        "ccbench_add_protocol(mocc SOURCES transaction.cc WORKLOADS ycsb)\n",
+        encoding="utf-8",
+    )
+    transaction = protocol_root / "transaction.cc"
+    transaction.write_text(
+        "#if TRACE\nizanagi_trace::emit_write(0, 0, {}, {}, 0, 0);\n#endif\n",
+        encoding="utf-8",
+    )
+    genome = Genome("mocc", {})
+    variant = "mocc-snapshot-fixture"
+    source = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(root),
+        ccbench_commit=CURRENT_PIN,
+        genome_sha256=hashlib.sha256(
+            genome.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=STOCK,
+        source_bytes_sha256=hashlib.sha256(
+            b"mocc snapshot fixture"
+        ).hexdigest(),
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+        proof_source_snapshot=capture_compiled_protocol_source_snapshot(
+            "mocc", root,
+        ),
+        verification_variant=variant,
+    )
+    admission = derive_build_admission(_TEST_BUILD_CONTEXT, source)
+
+    # A post-build live-tree injection must not change the assessment input.
+    transaction.write_text(
+        "#if TRACE\n"
+        "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+        "izanagi_trace::stream(0) << \"P \";\n"
+        "#endif\n",
+        encoding="utf-8",
+    )
+    result, capability = verify_trace_dir_with_capability(
+        str(_HERE / "fixtures/g1_serial"),
+        genome=genome,
+        source_evidence=source,
+        build_admission=admission,
+        receipt_sink_kind=CAMPAIGN_WAL_SINK,
+        receipt_lock_identity_sha256="a" * 64,
+        receipt_variant=variant,
+        receipt_operation_identity="snapshot-op",
+        receipt_workload_tag="legacy",
+    )
+    assert result.integrity.proof_surfaces.as_record() == {
+        "protocol": "mocc",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+    assert not result.certified
+    with pytest.raises(CommitReceiptError, match="not certified"):
+        issue_commit_receipt(
+            [capability], workload_tags=["legacy"],
+            sink_kind=CAMPAIGN_WAL_SINK,
+            lock_identity_sha256="a" * 64,
+            variant=variant,
+            operation_identity="snapshot-op",
+            terminal_payload={"fitness_tps": 1.0},
+        )
+
+
+def test_capability_rejects_receipt_variant_outside_source_binding() -> None:
+    binding = _verification_source_binding("bound-v")
+    with pytest.raises(CommitReceiptError, match="binding mismatch"):
+        verify_trace_dir_with_capability(
+            str(_HERE / "fixtures/g1_serial"),
+            **binding,
+            receipt_sink_kind=CAMPAIGN_WAL_SINK,
+            receipt_lock_identity_sha256="a" * 64,
+            receipt_variant="other-v",
+            receipt_operation_identity="op",
+            receipt_workload_tag="legacy",
         )
 
 
@@ -300,10 +407,10 @@ def test_verification_capability_hash_ignores_framing_violation_details(
     }
 
     _first_result, first = verify_trace_dir_with_capability(
-        "ignored", **binding,
+        "ignored", **_verification_source_binding("v"), **binding,
     )
     _second_result, second = verify_trace_dir_with_capability(
-        "ignored", **binding,
+        "ignored", **_verification_source_binding("v"), **binding,
     )
 
     assert first._result_sha256 == second._result_sha256
@@ -336,7 +443,7 @@ def test_verification_capability_is_operation_bound_and_single_use() -> None:
         "receipt_workload_tag": "legacy",
     }
     result, capability = verify_trace_dir_with_capability(
-        str(trace_dir), **binding,
+        str(trace_dir), **_verification_source_binding("v"), **binding,
     )
     assert result.certified
     assert not hasattr(capability, "_issuer_token")
@@ -353,7 +460,7 @@ def test_verification_capability_is_operation_bound_and_single_use() -> None:
         issue_commit_receipt([capability], **issue_args)
 
     _result, copy_source = verify_trace_dir_with_capability(
-        str(trace_dir), **binding,
+        str(trace_dir), **_verification_source_binding("v"), **binding,
     )
     shallow_clone = copy(copy_source)
     deep_clone = deepcopy(copy_source)
@@ -364,7 +471,7 @@ def test_verification_capability_is_operation_bound_and_single_use() -> None:
         issue_commit_receipt([deep_clone], **issue_args)
 
     _result, other_capability = verify_trace_dir_with_capability(
-        str(trace_dir), **binding,
+        str(trace_dir), **_verification_source_binding("v"), **binding,
     )
     mutated_clone = copy(other_capability)
     object.__setattr__(mutated_clone, "_variant", "other-v")

@@ -317,9 +317,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    **残課題 (現役):** (a) D36 決定 4-2 の「AND 共通ヘルパ」は W (STAGE_COMMIT.verify_configs への書き込み)
    のみ実装 — 読み手 consumer が出た時点で追加 (規律 5)、(b) backoff 軸 driver (`p3_s4_loop.SOURCE_REL`)
    は引き続き backoff.hh 単一マーカーのみを駆動 (sort 軸は兄弟 driver 側)、(c) auditor ギャラリー型 14
-   (非 SWO comparator) は **[T-316] R2-b の独立 oracle が build 前に反例探索する**
-   (`orchestrator/campaign/sort_swo_oracle.py`、有限 corpus 上の反例発見器であり全入力の証明ではない。
-   型 15 fairness の機械観測点は依然として未実装)。実走手順 =
+   (非 SWO comparator) は **[T-316] R2-b の独立 oracle が build 前に閉じた IR への membership で塞ぐ**
+   (`orchestrator/campaign/sort_swo_oracle.py`、[T-2145] で受理言語を閉じた 79 値 IR へ縮めた。
+   保証は構成的 SWO + 実 TU conformance であり、動的な反例発見器ではなく全入力の証明でもない。
+   この縮小は D39 の raw C++ 独立合成の実証点を別実験へ移すが、D344 の実験同一性の論点は
+   supersede されていない (D1451)。型 15 fairness の機械観測点は依然として未実装)。実走手順 =
    `docs/phase3-s5-sort-runbook.md`。正本 = D40〜D43・`orchestrator/campaign/p3_s4_loop_sort.py`。
    campaign `p3-s5-sort-loop-s5-sort-autonomous-3be89e0d` は oracle 導入前の歴史成果物で再開不可。
 6. **(完了 2026-07-16) 旧主実験の縮小主張 S' を閉じる** — D52 で旧 headline を主張 S に再構成したが、
@@ -1052,6 +1054,20 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   判定している。粗い provenance 方針と防御的堅牢化の既定見送りに従う。**親の初版は
   「安価だから足す」だった。** 再訪条件 = 実際の epoch 取り違えを観測したとき。
 
+- [T-2270] 承認 commit の predecessor 無制約の穴 — 理由: 裁定 2026-09-03 第 6 回 (推奨どおり):
+  D1578 のとおり正本の部分適合に留め、`A^ == Q` の代替述語は発明しない。Q は permanent family
+  の構成要素で未実装であり、世代導入 commit を代替に据えると正本どおりの完全列を逆に拒否する。
+  再訪条件 = Q を含む permanent family の実装。
+- [T-2274] repo 外束縛の全数走査 gate の新設 — 理由: 裁定 2026-09-03 第 6 回 (推奨どおり):
+  D1583 が既に新設せず局所修復に留めると決めており、本項はその再確認である。構造が
+  `O(file 数)` で D335 に触れる。全数性は人手の走査に依存し続ける。
+  再訪条件 = 一括読み出しへの設計変更が別の理由で入ったとき。
+- [T-2281] 承認済み CMake identity の権威の新設 — 理由: 裁定 2026-09-03 第 6 回
+  (D1600、推奨どおり): 登録簿・更新手順・機体差の扱いは新設せず、
+  判定器が解決した実体の identity を green record へ束縛する現行形 (記録であって拒否ではない、
+  D1586) を維持する。2026-08-12 の粗い provenance 方針に従う。
+  再訪条件 = 未承認の CMake による測定が実害を出した 1 件。
+
 ### 研究・計測系
 
 - [T-021] **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
@@ -1247,6 +1263,18 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   統合は自明でない。共通化は既にユーザー指示で scope 外とされており、現在の主経路に
   統合の利益が示されていない。重複範囲の記録だけを維持する。
   再訪条件 = 二重保守が実際の契約乖離を生んだ 1 件。
+
+- [T-2196] archive の独立期待権威の他 consumer への展開 — 理由: 裁定 2026-09-03 第 6 回
+  (推奨どおり): D1469 が既に対象 file の所有解消まで保留と決めており、本項はその再確認である。
+  実害の観測がない。再訪条件 = D1469 と同じく対象 file の所有解消、または実害 1 件。
+- [T-2282] calibration の依存道具の内容 hash を receipt へ束縛する — 理由: 裁定 2026-09-03
+  第 6 回 (推奨どおり): D320 の粗い provenance 方針と、同じ面で cmake の realpath 束縛を
+  見送った先例に従う。絶対 path 固定と path / version の記録までで止める。
+  再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
+- [T-2286] 集約が全ジョブの終端を機械的に確かめる経路の新設 — 理由: 裁定 2026-09-03 第 6 回
+  (D1601、推奨どおり): D1590 の「完全性は開示であって
+  受理規則にしない」境界を維持する。block record 側の検査は現に効いている。
+  再訪条件 = 未終端ジョブの部分結果が集約へ入った実害 1 件。
 
 ### プロセス文書系
 

@@ -41,6 +41,9 @@ from ..verifier.commit_receipt import (                          # noqa: E402
     campaign_lock_sha256_or_absent,
 )
 from ..verifier.parse import ParseError                           # noqa: E402
+from ..verifier.model import (                                   # noqa: E402
+    capture_compiled_protocol_source_snapshot,
+)
 
 from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
                source_digest, wal)  # noqa: E402
@@ -1105,7 +1108,23 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 raise BuildAdmissionError(
                     "caller の SourceEvidence が current source と不一致"
                 )
-        evidence = current_evidence
+        # Mock/legacy in-process evidence can lack the new non-wire fields.  Bind
+        # them once before either build; production resolve_evidence() already
+        # returns the same immutable snapshot and variant identity.
+        proof_snapshot = capture_compiled_protocol_source_snapshot(
+            genome.protocol, current_evidence.source_root,
+        )
+        try:
+            evidence = current_evidence._bind_runtime_verification(
+                proof_source_snapshot=proof_snapshot,
+                verification_variant=variant_id(
+                    genome, current_evidence.src_token,
+                ),
+            )
+        except ValueError as exc:
+            raise BuildAdmissionError(
+                "SourceEvidence resolve 中に proof source binding が変化した"
+            ) from exc
         if src_token is not None and src_token != evidence.src_token:
             raise BuildAdmissionError("src_token が current SourceEvidence と不一致")
         capability = capability_resolver(evidence) if capability_resolver is not None else None
@@ -1472,6 +1491,9 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 vr, verification_capability = verify_trace_dir_with_capability(
                     tdir,
                     expected_commits=trace_result.commit_count_witness,
+                    genome=genome,
+                    source_evidence=evidence,
+                    build_admission=admission,
                     receipt_sink_kind=receipt_sink_kind,
                     receipt_lock_identity_sha256=receipt_lock_identity,
                     receipt_variant=v,
@@ -1488,6 +1510,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 "commits": ncommit, "aborts": aborts,
                 "commit_witness": commit_witness,
                 "anomalies": len(vr.anomalies), "workload": {"tag": tag},
+                "proof_surfaces": vr.integrity.proof_surfaces.as_record(),
             }
             if qualification_policy is not None:
                 verify_payload.update({

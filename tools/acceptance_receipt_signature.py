@@ -12,6 +12,14 @@ path.  A signature proves approval by the corresponding private key and
 protects the signed bytes from later modification.  It does not prove that a
 particular issuer program ran, nor does it make the waiter's self-reported
 observations independently true.
+
+A 64-lowercase-hex ``lease_generation`` corresponds to one acquisition of the
+lease and must not be reused for another acquisition.  ``LEASE_NOT_ACQUIRED``
+represents a run that did not acquire the lease.  Both values are caller
+self-reports: this module neither reads the live lease nor checks whether the
+lease was acquired.  A matching marker proves only consistency with the state
+reported by the caller, not that a lease check passed.  Production landing
+tools do not call this verifier, so this gate is not unavoidable.
 """
 
 from __future__ import annotations
@@ -42,6 +50,7 @@ CONFIGURED_PUBLIC_KEY_PATH = Path(
 
 V5_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v5"
 SIGNED_V6_SCHEMA_VERSION = "dev-wave-acceptance-receipt/signed-v6"
+LEASE_NOT_ACQUIRED = "not-acquired"
 
 _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
@@ -129,6 +138,13 @@ def _require_sha256(value: object, label: str) -> None:
         raise ReceiptSignatureError(f"invalid {label}")
 
 
+def _require_lease_generation(value: object, field_name: str) -> None:
+    if not isinstance(value, str) or (
+        value != LEASE_NOT_ACQUIRED and _SHA256_RE.fullmatch(value) is None
+    ):
+        raise ReceiptSignatureError(f"invalid {field_name}")
+
+
 def _validate_v5_projection_source(receipt: Mapping[str, object]) -> None:
     if set(receipt) != V5_ROOT_FIELDS:
         raise ReceiptSignatureError("v5 receipt has unexpected root fields")
@@ -174,15 +190,16 @@ def project_v5_receipt(
 ) -> dict[str, object]:
     """Build the complete signed-v6 payload (without its signature field).
 
-    ``lease_generation`` is only a schema slot here.  The caller must supply an
-    already-defined generation; this module neither reads nor changes the live
+    A SHA-256-shaped ``lease_generation`` identifies one lease acquisition;
+    ``LEASE_NOT_ACQUIRED`` identifies a run without one.  The caller supplies
+    this claim, and this module neither derives it nor reads or changes the live
     production lease payload.
     """
 
     if not isinstance(receipt, Mapping):
         raise ReceiptSignatureError("v5 receipt must be an object")
     _validate_v5_projection_source(receipt)
-    _require_sha256(lease_generation, "lease_generation")
+    _require_lease_generation(lease_generation, "lease_generation")
     _require_sha256(checker_content_sha256, "checker_content_sha256")
     _require_sha256(issuer_key_id, "issuer_key_id")
     payload = dict(receipt)
@@ -209,7 +226,7 @@ def canonical_signed_payload_bytes(payload: Mapping[str, object]) -> bytes:
     v5_source = {key: payload[key] for key in V5_ROOT_FIELDS}
     v5_source["schema_version"] = V5_SCHEMA_VERSION
     _validate_v5_projection_source(v5_source)
-    _require_sha256(payload.get("lease_generation"), "lease_generation")
+    _require_lease_generation(payload.get("lease_generation"), "lease_generation")
     _require_sha256(
         payload.get("checker_content_sha256"), "checker_content_sha256"
     )
@@ -348,7 +365,9 @@ def verify_signed_receipt_signature(
         )
     _require_sha1(expected_tested_main, "expected_tested_main")
     _require_sha1(expected_tested_tip, "expected_tested_tip")
-    _require_sha256(expected_lease_generation, "expected_lease_generation")
+    _require_lease_generation(
+        expected_lease_generation, "expected_lease_generation"
+    )
     if (
         not isinstance(expected_acceptance_wave, str)
         or not expected_acceptance_wave

@@ -1,0 +1,111 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "M-A1-CHAR-SLICE-NOT-BYTE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "old": "        return lines[lineno].encode(\"utf-8\")[\n            col_offset:end_col_offset\n        ].decode(\"utf-8\")\n",
+          "new": "        return lines[lineno][col_offset:end_col_offset]\n"
+        }
+      ]
+    },
+    {
+      "id": "M-A2-SPLIT-ON-FORM-FEED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "old": "        elif character == \"\\r\":\n",
+          "new": "        elif character in \"\\r\\f\":\n"
+        }
+      ]
+    },
+    {
+      "id": "M-A3-MULTILINE-JOIN-DROPS-NEWLINE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_for_all_static_ifs",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_segment_helper_matches_stdlib_at_boundaries"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "old": "    return \"\".join((first, *lines[lineno + 1:end_lineno], last))\n",
+          "new": "    return \"\".join((first.rstrip(\"\\n\"), *lines[lineno + 1:end_lineno], last))\n"
+        }
+      ]
+    },
+    {
+      "id": "M-A4-ANALYZE-REVERTS-TO-STDLIB-PER-IF",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "old": "    source_lines = _split_source_lines(source)\n",
+          "new": "    source_lines = source\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n",
+          "new": "        guard = ast.get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n"
+        }
+      ]
+    },
+    {
+      "id": "M-A5-SPLIT-PER-IF-NOT-PER-MODULE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_splits_each_module_exactly_once"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n",
+          "new": "        guard = _get_source_segment(_split_source_lines(\"\".join(self.source_lines)), node.test) or ast.unparse(node.test)\n"
+        }
+      ]
+    },
+    {
+      "id": "M-A6-FALLBACK-DROPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_analyze_source_preserves_guard_wiring_and_fallback"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "old": "        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)\n",
+          "new": "        guard = _get_source_segment(self.source_lines, node.test) or \"\"\n"
+        }
+      ]
+    }
+  ]
+}

@@ -2409,6 +2409,15 @@ def test_collect_fixture_bundle_publishes_without_self_rejection(
     correctness_json.write_text(
         json.dumps(document["correctness_leg"]), encoding="utf-8",
     )
+    ccbench_fixture = repo / "external/ccbench"
+    ccbench_fixture.parent.mkdir(parents=True)
+    subprocess.run(
+        [
+            "git", "clone", "--quiet", "--shared",
+            str(ROOT / "external/ccbench"), str(ccbench_fixture),
+        ],
+        check=True,
+    )
     source_raw = job_staging / "attempt-1/raw"
     shutil.copytree(materialized / "attempts/1", source_raw)
     for relative in (
