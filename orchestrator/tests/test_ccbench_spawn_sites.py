@@ -905,27 +905,28 @@ _DEFERRED_GATE_MEMBERS = (
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-        "wave t2189",
+        "wave dynamic-backoff-mechanism",
         (
-            "明示 certify mode の tuned adaptive trace build。exact cell / "
+            "明示 certify mode の A+B stack、exact 2 cell の各一値 build。"
             "workload contract、実 verifier 陽性対照、target gate、closure "
             "identity に束縛される。condition-gate family admission は本 wave "
             "の scope 外"
         ),
         "buildcache",
         "<module>._certify_main._build_trace_binary",
-        1821,
+        2486,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-        "wave t2187",
+        "wave dynamic-backoff-mechanism",
         (
-            "既定 performance mode の trace-disabled build。成果物は従来どおり "
-            "performance-only / not_certified であり、認証 mode と分離される"
+            "A+B stack の performance / diagnostic build。performance は "
+            "trace-disabled、diagnostic は別 schema / headline 不適格であり、"
+            "certify の exact 2 cell contract と分離される"
         ),
         "buildcache",
         "<module>.main",
-        2124,
+        2831,
     ),
 )
 
@@ -2669,15 +2670,35 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2189", "buildcache",
-            "<module>._certify_main._build_trace_binary", 1821,
+            "wave dynamic-backoff-mechanism", "buildcache",
+            "<module>._certify_main._build_trace_binary", 2486,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2187", "buildcache", "<module>.main", 2124,
+            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 2831,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
+    assert [
+        (item.sink_scope, item.reason)
+        for item in _DEFERRED_GATE_MEMBERS
+        if item.relative_path
+        == "tools/pegasus/probes/t2187_adaptive_const_probe.py"
+    ] == [
+        (
+            "<module>._certify_main._build_trace_binary",
+            "明示 certify mode の A+B stack、exact 2 cell の各一値 build。"
+            "workload contract、実 verifier 陽性対照、target gate、closure "
+            "identity に束縛される。condition-gate family admission は本 wave "
+            "の scope 外",
+        ),
+        (
+            "<module>.main",
+            "A+B stack の performance / diagnostic build。performance は "
+            "trace-disabled、diagnostic は別 schema / headline 不適格であり、"
+            "certify の exact 2 cell contract と分離される",
+        ),
+    ]
     assert all(
         item.sink_kind and item.sink_scope
         for item in _DEFERRED_GATE_MEMBERS
@@ -2890,9 +2911,11 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     )
     assert classifications[s1_sink] == Counter({
         "covered": 4,
-        "proven-unreachable": 21,
+        # Patch B adds seven define interfaces that cannot reach this sink.
+        "proven-unreachable": 28,
     })
-    assert classifications[s8b_sink] == Counter({"covered": 25})
+    # Patch B's seven define interfaces are also covered by the s8b sink.
+    assert classifications[s8b_sink] == Counter({"covered": 32})
     assert failures == []
 
 

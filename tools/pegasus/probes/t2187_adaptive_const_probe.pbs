@@ -5,6 +5,8 @@
 #PBS -l elapstim_req=00:40:00
 #PBS -N izanagi-t2187
 # qsub -v 'IZANAGI_T2187_CELLS=none:0:100:1000:10+stock:1:100:1000:10,IZANAGI_T2187_WORKLOADS=write-heavy+balanced+read-heavy,IZANAGI_T2187_THREADS=24+48' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
+# diagnostic example:
+# qsub -v 'IZANAGI_T2187_BACKOFF_TRACE=1,IZANAGI_T2187_OUT_DIR=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace,IZANAGI_T2187_CELLS=cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1,IZANAGI_T2187_WORKLOADS=write-heavy+balanced+read-heavy,IZANAGI_T2187_THREADS=24+48' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
 # certify pilot example (the parent submits it and supplies shared artifact paths):
 # qsub -l elapstim_req=02:15:00 -v 'IZANAGI_T2187_MODE=certify,IZANAGI_T2187_CELLS=tuned:1:1:1000:2560,IZANAGI_T2187_WORKLOADS=read-heavy,IZANAGI_T2187_THREADS=48,IZANAGI_T2187_REP_INDEX=0,IZANAGI_T2187_OUTER_WALLTIME_S=8100,...' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
 
@@ -12,6 +14,10 @@ set -Eeuo pipefail
 umask 077
 
 DEFAULT_OUT_DIR=/work/1/SFC/tanab/izanagi-job-evidence/t2187-adaptive-3const/results
+DYNAMIC_OUT_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/
+TRACE_CELLS_RAW='cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
+CERT_TUNED_CELL='tuned:1:1:1000:2560'
+CERT_DYNAMIC_CELL='cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
 
 if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
   echo "PBS_JOBID and PBS_O_WORKDIR are required" >&2
@@ -33,6 +39,12 @@ if [[ "$REPO_ROOT" != "$PBS_O_WORKDIR" ]]; then
   echo "PBS_O_WORKDIR must be the canonical repository root" >&2
   exit 2
 fi
+REPO_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD)
+if [[ ! "$REPO_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "repository HEAD must be an exact commit" >&2
+  exit 2
+fi
+export IZANAGI_T2187_REPO_HEAD="$REPO_HEAD"
 DRIVER="$REPO_ROOT/tools/pegasus/probes/t2187_adaptive_const_probe.py"
 POLICY="$REPO_ROOT/tools/pegasus/policy.json"
 if [[ ! -f "$DRIVER" || -L "$DRIVER" || ! -f "$POLICY" || -L "$POLICY" ]]; then
@@ -45,6 +57,8 @@ fi
 # are not shell metacharacters, and are restored here.
 CELLS_RAW=${IZANAGI_T2187_CELLS:-}
 MODE=${IZANAGI_T2187_MODE:-performance}
+BACKOFF_TRACE=${IZANAGI_T2187_BACKOFF_TRACE:-0}
+OUT_DIR_RAW=${IZANAGI_T2187_OUT_DIR:-}
 WORKLOADS_RAW=${IZANAGI_T2187_WORKLOADS:-write-heavy+balanced+read-heavy}
 THREADS_RAW=${IZANAGI_T2187_THREADS:-48}
 REP_INDEX=${IZANAGI_T2187_REP_INDEX:-0}
@@ -63,6 +77,14 @@ EXPECTED_VERIFIER_IDENTITY=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY:-}
 EXPECTED_VERIFIER_IDENTITY_SHA256=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY_SHA256:-}
 if [[ "$MODE" != performance && "$MODE" != certify ]]; then
   echo "IZANAGI_T2187_MODE must be performance or certify" >&2
+  exit 2
+fi
+if [[ "$BACKOFF_TRACE" != 0 && "$BACKOFF_TRACE" != 1 ]]; then
+  echo "IZANAGI_T2187_BACKOFF_TRACE must be 0 or 1" >&2
+  exit 2
+fi
+if [[ "$MODE" == certify && "$BACKOFF_TRACE" == 1 ]]; then
+  echo "certify mode cannot be combined with backoff trace mode" >&2
   exit 2
 fi
 if [[ -z "$CELLS_RAW" || "$CELLS_RAW" == *","* || "$CELLS_RAW" == *";"* || "$CELLS_RAW" == *$'\n'* ]]; then
@@ -85,9 +107,23 @@ if [[ ! "$STAGE" =~ ^[123]$ ]]; then
   echo "IZANAGI_T2187_STAGE must be 1, 2 or 3" >&2
   exit 2
 fi
+HAS_EXTENDED_CELL=0
+IFS='+' read -r -a CELL_ITEMS <<< "$CELLS_RAW"
+for raw_cell in "${CELL_ITEMS[@]}"; do
+  colon_text=${raw_cell//[^:]/}
+  if [[ ${#colon_text} -eq 10 ]]; then
+    HAS_EXTENDED_CELL=1
+  fi
+done
+if [[ "$BACKOFF_TRACE" == 1 ]]; then
+  if [[ "$CELLS_RAW" != "$TRACE_CELLS_RAW" || "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy || "$THREADS_RAW" != 24+48 ]]; then
+    echo "backoff trace mode requires the exact diagnostic axes" >&2
+    exit 2
+  fi
+fi
 if [[ "$MODE" == certify ]]; then
-  if [[ "$CELLS_RAW" != tuned:1:1:1000:2560 ]]; then
-    echo "certify mode requires the exact tuned adaptive cell" >&2
+  if [[ "$CELLS_RAW" != tuned:1:1:1000:2560 && "$CELLS_RAW" != "$CERT_DYNAMIC_CELL" ]]; then
+    echo "certify mode requires exactly one of the two registered cells" >&2
     exit 2
   fi
   if [[ "$WORKLOADS_RAW" != write-heavy && "$WORKLOADS_RAW" != balanced && "$WORKLOADS_RAW" != read-heavy ]]; then
@@ -114,6 +150,20 @@ if [[ "$MODE" == certify ]]; then
     echo "certify mode time budgets must be positive decimal seconds" >&2
     exit 2
   fi
+fi
+NEEDS_DYNAMIC_OUT=0
+if [[ "$HAS_EXTENDED_CELL" == 1 || "$BACKOFF_TRACE" == 1 || "$MODE" == certify && "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
+  NEEDS_DYNAMIC_OUT=1
+fi
+if [[ "$NEEDS_DYNAMIC_OUT" == 1 && -z "$OUT_DIR_RAW" ]]; then
+  echo "IZANAGI_T2187_OUT_DIR is required for dynamic-backoff output" >&2
+  exit 2
+fi
+OUT_DIR=${OUT_DIR_RAW:-$DEFAULT_OUT_DIR}
+OUT_DIR=$(realpath -m -- "$OUT_DIR")
+if [[ "$NEEDS_DYNAMIC_OUT" == 1 && "$OUT_DIR" != "$DYNAMIC_OUT_PREFIX"* ]]; then
+  echo "IZANAGI_T2187_OUT_DIR must use the dynamic-backoff prefix" >&2
+  exit 2
 fi
 CELLS=${CELLS_RAW//+/,}
 WORKLOADS=${WORKLOADS_RAW//+/,}
@@ -254,7 +304,6 @@ if [[ ! -d "$IZANAGI_PEGASUS_THIRDPARTY_CACHE" ]]; then
   exit 2
 fi
 
-OUT_DIR=${IZANAGI_T2187_OUT_DIR:-$DEFAULT_OUT_DIR}
 mkdir -p -m 700 -- "$OUT_DIR"
 
 GROUP_RESULT_ARGS=()
@@ -276,7 +325,13 @@ fi
 cd "$REPO_ROOT"
 if [[ "$MODE" == performance ]]; then
 OUT="$OUT_DIR/stage${STAGE}-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
+BACKOFF_TRACE_ARGS=()
+if [[ "$BACKOFF_TRACE" == 1 ]]; then
+  BACKOFF_TRACE_ARGS=(--backoff-trace)
+fi
 exec "$PY" -B -u "$DRIVER" \
+  "${BACKOFF_TRACE_ARGS[@]}" \
+  --repo-head "$REPO_HEAD" \
   --cells "$CELLS" \
   --workloads "$WORKLOADS" \
   --threads "$THREADS" \
@@ -288,6 +343,7 @@ fi
 OUT="$OUT_DIR/certify-${WORKLOADS}-slot${REP_INDEX}-${ATTEMPT_ID}.json"
 exec "$PY" -B -u "$DRIVER" \
   --mode certify \
+  --repo-head "$REPO_HEAD" \
   --cells "$CELLS" \
   --workloads "$WORKLOADS" \
   --threads "$THREADS" \

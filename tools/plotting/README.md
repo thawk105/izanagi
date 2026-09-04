@@ -184,6 +184,28 @@ python3 tools/plotting/plot_t2187_adaptive_consts.py threads OUT_PREFIX \
 - **この図の数値は認証されていない** — trace-disabled の性能測定のみで直列性の検査を通しておらず、
   variant 採用の根拠にしてはならない (規律 2)。図中にもその旨を出す。
 
+## 動的 adaptive backoff (dynamic-backoff-mechanism)
+
+`plot_dynamic_backoff.py` は、拡張 cell 書式の probe (`t2187_adaptive_const_probe.py`、結果 schema
+`izanagi-cicada-adaptive-3const-probe/v2`) が出す性能 JSON 7 file (1 file = 1 ノード = 1 block) と、
+`--backoff-trace` の診断 JSON 1 file (`izanagi-dynamic-backoff-trace/v2`) から 3 図を描く。
+事前登録は `docs/dynamic-backoff-preregistration.md`。
+
+```bash
+python3 tools/plotting/plot_dynamic_backoff.py OUT_PREFIX --trace-json DIAG.json PERF_REP0.json ... PERF_REP6.json
+```
+
+- `OUT_PREFIX-thread-axis.*` — スレッド軸 7 系列 (none / stock / tuned / tuned-u10240 / cw / cw-as / cw-as-dyn)、
+  上段 throughput / 下段 abort 率、t 分布 95% CI。基準線は D1506 の `none` と `tuned`。`stock` は陽性対照。
+- `OUT_PREFIX-contrasts.*` — 事前登録 §4 の対比 (対内 log 比、t 分布 95% CI、±3% の等価域) の forest plot。
+  判定語と H1〜H7 の複合判定は provenance に書く (閾値は CLI で変えられない)。
+- `OUT_PREFIX-diagnostic.*` — 診断 build の `Backoff_` 軌跡と方向的中率。**診断 build の throughput は描かない**
+  (headline 不適格)。
+- `OUT_PREFIX.provenance.json` (`izanagi-dynamic-backoff-figure-provenance/v1`) — 全 8 入力の sha256、
+  対比ごとの 24 点 (平均・CI・判定語)、`repo_head` / `prereg_sha256` / patch stack、認証されていない旨。
+
+**この図の数値は認証されていない** (規律 2)。計測機の外で走らせる。
+
 ## SS2PL lock study command example
 
 ```bash
