@@ -62,6 +62,8 @@
 - `related-work/` — 関連研究 (README.md が本体 — 7.7 が主張軸別の調査状態と不在主張の成立条件の規則 +
   claim-survey/ 主張軸別の凍結棚卸し・監査 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
+- `paper-story-backoff/` — adaptive backoff 単独論文 (2 本目) のストーリー。`paper-story/` と同じ凍結契約、
+  正典は decisions / worklog / insights。本体論文との境界は同 README
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-t189-model-routing-preregistration.md` — model 経路 (sol / luna) 比較実験の事前登録。
   未解決点の処遇は D674 で確定済み。素材の到達状況 (task catalog・price snapshot) は同書 §13 と総括が正本
