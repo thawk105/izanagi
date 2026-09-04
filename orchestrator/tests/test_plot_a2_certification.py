@@ -441,3 +441,7 @@ def test_landed_fig5_repo_closure_and_caption_when_present():
     provenance = json.loads(paths[-1].read_text(encoding="utf-8"))
     plot.validate_repo_closure(provenance, REPO)
     assert provenance["caption"] in readme
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))
