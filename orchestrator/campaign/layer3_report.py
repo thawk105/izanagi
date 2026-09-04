@@ -22,6 +22,10 @@ report にすぎないことを機械可読に示す。既存 v3 reader では�
 非認証入力として受理する。
 ``generated_from_head`` は provenance であり、決定論比較の対象外である（HEAD が動けば
 変わる）。
+D1537 の ``SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS`` は consumer-local な
+exact identity 集合であり、T-419 U-1/U-2 で登録簿から外れたときに削除する。
+契約 ref がこの集合に完全一致する campaign では within-run 候補をすべて空にする。
+これは samples/tolerance を読んで自己整合性述語を再検査するものではない。
 """
 from __future__ import annotations
 
@@ -72,6 +76,13 @@ from .model import WalRecord  # noqa: E402
 
 _SCHEMA_PATH = _HERE / "layer3_schema.json"
 _DEFAULT_OUTPUT_ROOT = _HERE.parents[1] / "output"
+SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS: frozenset[tuple[str, str]] = frozenset({
+    (
+        "output/env/pegasus/calibration/registered/"
+        "calibration-753f535a8d024727.json",
+        "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+    ),
+})
 
 
 class Layer3ReportError(RuntimeError):
@@ -525,6 +536,11 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
         else:
             pin_search["status"] = "validated"
             path_sources[pin_path] = path_sources.get(pin_path, False)
+    exclude_within_run = (
+        contract_pin is not None
+        and (contract_pin.path, contract_pin.sha256)
+        in SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS
+    )
     paths = sorted(path_sources)
     block_for_kind = {"within_run": "noise_floor", "between_run": "between_run"}
     candidates: Dict[str, List[Tuple[
@@ -563,6 +579,8 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
         doc_protocol, protocol_match_basis = _floor_protocol_and_basis(
             doc, kind, path,
         )
+        if kind == "within_run" and exclude_within_run:
+            continue
         candidates[kind].append(
             (path, doc[block_for_kind[kind]], doc_records, doc["threads"],
              doc["workload"], doc_protocol, protocol_match_basis))
@@ -606,7 +624,12 @@ def _calibration_floors(calibration_dir: Path, records: Any, threads: Any,
             "mismatches": mismatches,
         }
         if pin_search is not None:
-            detail["contract_pin"] = dict(pin_search)
+            detail_pin = dict(pin_search)
+            if kind == "within_run" and exclude_within_run:
+                detail_pin["within_run_exclusion"] = (
+                    "self-inconsistent-calibration"
+                )
+            detail["contract_pin"] = detail_pin
         search_details[kind] = detail
         if matches:
             path, floor, protocol_match_basis = matches[0]

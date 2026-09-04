@@ -2,7 +2,7 @@
 #PBS -A SFC
 #PBS -q gen_S
 #PBS -b 1
-#PBS -l elapstim_req=12:00:00
+#PBS -l elapstim_req=24:00:00
 #PBS -N izanagi-b10-shape
 #PBS --accept-sigterm=yes
 set -Eeuo pipefail
@@ -21,9 +21,10 @@ bootstrap_fail() {
 [[ "${IZANAGI_B10_NONCE:-}" =~ ^[0-9a-f]{32}$ ]] || bootstrap_fail "submission nonce missing"
 [[ "${IZANAGI_B10_SOURCE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "source commit missing"
 [[ "${IZANAGI_B10_PREREG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "prereg commit missing"
-[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe|verify-perf)$ ]] || bootstrap_fail "phase missing"
-if [[ "$IZANAGI_B10_PHASE" == build || "$IZANAGI_B10_PHASE" == probe ]]; then
-  [[ -z "${IZANAGI_B10_WORKLOAD:-}" ]] || bootstrap_fail "build/probe phase has workload"
+[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe|verify-perf|report)$ ]] || bootstrap_fail "phase missing"
+if [[ "$IZANAGI_B10_PHASE" == build || "$IZANAGI_B10_PHASE" == probe \
+    || "$IZANAGI_B10_PHASE" == report ]]; then
+  [[ -z "${IZANAGI_B10_WORKLOAD:-}" ]] || bootstrap_fail "build/probe/report phase has workload"
 else
   [[ "${IZANAGI_B10_WORKLOAD:-}" =~ ^(write-heavy|balanced|read-heavy)$ ]] \
     || bootstrap_fail "verify/perf/verify-perf workload missing"
@@ -58,6 +59,28 @@ for candidate in python3 python3.10 python3.11 python3.12 /usr/bin/python3.10 /b
   fi
 done
 [[ -n "$PY" ]] || bootstrap_fail "Python >=3.10 unavailable"
+B10_WALLTIME_S=$(
+  "$PY" -I -B - "$REPO_ROOT/tools/pegasus/policy.json" <<'PY'
+import json
+import sys
+
+def no_duplicates(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON key")
+        value[key] = item
+    return value
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    policy = json.load(stream, object_pairs_hook=no_duplicates)
+walltime_s = policy.get("b10_backoff_shape_walltime_s") if type(policy) is dict else None
+if type(walltime_s) is not int or walltime_s <= 0:
+    raise SystemExit("invalid b10_backoff_shape_walltime_s")
+print(walltime_s)
+PY
+) || bootstrap_fail "B10 walltime policy invalid"
+[[ "$B10_WALLTIME_S" =~ ^[1-9][0-9]*$ ]] || bootstrap_fail "B10 walltime policy invalid"
 
 ATTEMPTS_ROOT="$SUBMISSION_DIR/job-attempts"
 mkdir -p -m 0700 -- "$ATTEMPTS_ROOT" || bootstrap_fail "cannot create attempt parent"
@@ -127,7 +150,7 @@ fi
 receipt_values=$(
   "$PY" -I -B - "$SUBMIT_RECEIPT" "$IZANAGI_B10_NONCE" "$PBS_JOBID" \
     "$IZANAGI_B10_SOURCE_COMMIT" "$IZANAGI_B10_PREREG_COMMIT" \
-    "$IZANAGI_B10_PHASE" "${IZANAGI_B10_WORKLOAD:-}" <<'PY'
+    "$IZANAGI_B10_PHASE" "${IZANAGI_B10_WORKLOAD:-}" "$B10_WALLTIME_S" <<'PY'
 import json
 import re
 import sys
@@ -140,7 +163,7 @@ def no_duplicates(pairs):
         value[key] = item
     return value
 
-(path, nonce, pbs_jobid, source, prereg, phase, workload) = sys.argv[1:]
+(path, nonce, pbs_jobid, source, prereg, phase, workload, walltime_s) = sys.argv[1:]
 with open(path, encoding="utf-8") as stream:
     doc = json.load(stream, object_pairs_hook=no_duplicates)
 expected_keys = {
@@ -167,7 +190,7 @@ if type(doc["submitted_epoch"]) is not int or doc["submitted_epoch"] <= 0:
     raise SystemExit("receipt timestamp invalid")
 request = doc["request"]
 if request != {"project": "SFC", "queue": "gen_S", "nodes": 1,
-               "elapstim_req_s": 43200}:
+               "elapstim_req_s": int(walltime_s)}:
     raise SystemExit("receipt PBS request mismatch")
 def normalize(value):
     return value.removeprefix("0:").rstrip(".")
@@ -258,7 +281,7 @@ readarray -t QSTAT_VALUES <<<"$qstat_values"
 SCHEDULER_STARTED_EPOCH=${QSTAT_VALUES[1]}
 SCHEDULER_ELAPSE_LIMIT_S=${QSTAT_VALUES[2]}
 SCHEDULER_REMAINING_ELAPSE_S=${QSTAT_VALUES[3]}
-[[ "$SCHEDULER_ELAPSE_LIMIT_S" -eq 43200 ]] \
+[[ "$SCHEDULER_ELAPSE_LIMIT_S" -eq "$B10_WALLTIME_S" ]] \
   || { write_failure 2 allocation "actual scheduler Elapse limit differs from receipt"; exit 2; }
 
 CURRENT_STAGE=reservation
@@ -282,7 +305,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ "$IZANAGI_B10_PHASE" != probe ]]; then
+if [[ "$IZANAGI_B10_PHASE" != probe && "$IZANAGI_B10_PHASE" != report ]]; then
   CURRENT_STAGE=dependencies
   readarray -t DEPENDENCY_VALUES < <("$PY" -I -B - "$REPO_ROOT/tools/pegasus/policy.json" <<'PY'
 import json

@@ -15,7 +15,9 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import functools
 import hashlib
+import io
 import json
 import os
 import random
@@ -26,6 +28,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 from typing import Any, Iterable, Mapping, Sequence
@@ -1886,36 +1889,100 @@ def _expected_patched_source_hashes(
     base: Path, patch: Path, raw: Path | None = None,
 ) -> dict[str, str]:
     """pin blobs + patch bytes だけから期待 patched source SHA を独立計算する。"""
-    with tempfile.TemporaryDirectory(prefix="rung1-patch-model-") as temp:
-        model = Path(temp)
-        for relative in SOURCE_FILES:
-            target = model / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shown = _run(
-                ["git", "-C", str(base), "show", f"{PIN}:{relative}"], timeout=60,
-            )
-            if shown.returncode != 0:
-                raise DriverError(f"cannot read pinned blob: {relative}")
-            target.write_text(shown.stdout, encoding="utf-8")
-        applied = _run(
-            ["git", "apply", "--unsafe-paths", "--directory", str(model), str(patch)],
-            cwd=base, timeout=60,
-        )
-        if applied.returncode != 0:
-            # git --directory prefixes paths relative to cwd inconsistently across
-            # versions; the hermetic cwd form is the canonical fallback.
-            initialized = _run(["git", "init", "-q"], cwd=model, timeout=30)
-            if initialized.returncode != 0:
-                raise DriverError("cannot initialize patched-source model")
-            applied = _run(["git", "apply", str(patch)], cwd=model, timeout=60)
-        if applied.returncode != 0:
-            raise DriverError("cannot independently apply patch to pinned blobs")
-        result = {
-            relative: sha256_file(model / relative) for relative in SOURCE_FILES
-        }
+    _snapshot, immutable_hashes = _pinned_patched_source_model(
+        os.path.realpath(base), PIN, patch.read_bytes(),
+    )
+    result = dict(immutable_hashes)
     if raw is not None:
         _write_raw_json(raw / "expected-patched-source-sha256.json", result)
     return result
+
+
+@functools.lru_cache(maxsize=4)
+def _pinned_patched_source_model(
+        base: str, pin: str, patch_bytes: bytes,
+) -> tuple[Any, tuple[tuple[str, str], ...]]:
+    """Build one immutable Silo source snapshot from Git objects, never checkout.
+
+    The exact ``pin`` subtree is exported to a disposable directory and the
+    frozen patch is applied only to that copy.  The result is cached by Git
+    repository, full pin, and exact patch bytes so repeated raw validation in
+    one process does not repeat archive extraction or patch application.
+    """
+    from orchestrator.verifier.model import (
+        capture_compiled_protocol_source_snapshot,
+    )
+
+    try:
+        archived = subprocess.run(
+            ["git", "-C", base, "archive", "--format=tar", pin, "cc/silo"],
+            env=scrub_environment(), capture_output=True, timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise DriverError(f"cannot archive pinned Silo source: {exc}") from exc
+    if archived.returncode != 0:
+        detail = archived.stderr.decode("utf-8", errors="replace").strip()[-500:]
+        raise DriverError(
+            f"cannot archive pinned Silo source: rc={archived.returncode}: {detail}"
+        )
+
+    with tempfile.TemporaryDirectory(prefix="rung1-pinned-source-") as temp:
+        model = Path(temp)
+        try:
+            with tarfile.open(
+                fileobj=io.BytesIO(archived.stdout), mode="r:",
+            ) as tar:
+                for member in tar.getmembers():
+                    relative = Path(member.name)
+                    if (relative.is_absolute()
+                            or ".." in relative.parts
+                            or member.issym()
+                            or member.islnk()):
+                        raise DriverError(
+                            f"unsafe path in pinned Silo archive: {member.name}"
+                        )
+                    target = model / relative
+                    if member.isdir():
+                        target.mkdir(parents=True, exist_ok=True)
+                        continue
+                    if not member.isfile():
+                        raise DriverError(
+                            f"non-file in pinned Silo archive: {member.name}"
+                        )
+                    source = tar.extractfile(member)
+                    if source is None:
+                        raise DriverError(
+                            f"cannot read pinned Silo archive member: {member.name}"
+                        )
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with source, target.open("xb") as destination:
+                        shutil.copyfileobj(source, destination)
+            applied = subprocess.run(
+                ["git", "apply", "--whitespace=nowarn", "-"],
+                cwd=model, input=patch_bytes, env=scrub_environment(),
+                capture_output=True, timeout=60, check=False,
+            )
+        except (OSError, subprocess.SubprocessError, tarfile.TarError) as exc:
+            raise DriverError(
+                f"cannot materialize pinned patched Silo source: {exc}"
+            ) from exc
+        if applied.returncode != 0:
+            detail = applied.stderr.decode(
+                "utf-8", errors="replace",
+            ).strip()[-500:]
+            raise DriverError(
+                "cannot apply frozen patch to pinned Silo source copy: "
+                f"rc={applied.returncode}: {detail}"
+            )
+        snapshot = capture_compiled_protocol_source_snapshot("silo", model)
+        if snapshot.normalized_sources is None:
+            raise DriverError("pinned patched Silo proof source is unavailable")
+        hashes = tuple(
+            (relative, sha256_file(model / relative))
+            for relative in SOURCE_FILES
+        )
+    return snapshot, hashes
 
 
 def _solo_check(
@@ -2985,7 +3052,15 @@ def validate_raw_bundle(
             raise DriverError("raw correctness trace count is not four")
         from orchestrator.verifier.core import verify_trace_dir
         from orchestrator.verifier.report import result_to_dict
-        recomputed_result = result_to_dict(verify_trace_dir(str(trace_root)))
+        repo = _repo_root()
+        proof_snapshot, _source_hashes = _pinned_patched_source_model(
+            os.path.realpath(repo / "external/ccbench"),
+            PIN,
+            (repo / patch_contract.PATCH_PATH).read_bytes(),
+        )
+        recomputed_result = result_to_dict(verify_trace_dir(
+            str(trace_root), _proof_source_snapshot=proof_snapshot,
+        ))
         # trace_dir is a storage location, not a verifier predicate.
         recomputed_result["trace_dir"] = verifier["results"][0]["trace_dir"]
         recomputed = {
@@ -3653,7 +3728,7 @@ def validate_raw_bundle(
             accounting.read_text(encoding="utf-8", errors="replace"),
             document["gap_leg"]["attempts"][-1]["job_id"],
         )
-    except (DriverError, OSError, KeyError, TypeError, ValueError,
+    except (DriverError, OSError, KeyError, RuntimeError, TypeError, ValueError,
             env_attestation.AttestationError) as exc:
         return (EvidenceFailure("raw_bundle", str(exc)),)
     return ()
@@ -4089,7 +4164,11 @@ def _correctness_command(attempt_dir: Path) -> dict[str, Any]:
             if run_result.returncode:
                 raise DriverError(f"correctness run rc={run_result.returncode}")
             verifier_result = _run(
-                [sys.executable, "-m", "orchestrator.verifier", "--json", str(run_dir)],
+                [
+                    sys.executable, "-m", "orchestrator.verifier", "--json",
+                    "--protocol", "silo", "--ccbench-root", str(source_path),
+                    str(run_dir),
+                ],
                 cwd=repo, timeout=600, stdout_path=raw / "verifier.json",
                 stderr_path=raw / "verifier.stderr",
             )

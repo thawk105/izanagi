@@ -10,11 +10,11 @@ The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
 Claim boundary: the supply domain contains the 25 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Eight
-positive-control macros additionally have a bounded compile-time witness: it
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Nine
+registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
-guarded branch for the requested value and omits it for the default value.  It
+guarded branch for value 1 and omits it for value 0.  It
 does not prove the branch body's semantics, dynamic reachability, an expected
 runtime anomaly, or correctness.  Supply preprocessing separately proves that
 a define changes the selected owner TU's compile-command input.
@@ -40,6 +40,7 @@ import struct
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
+from itertools import zip_longest
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Iterable, Iterator, Mapping, Sequence
@@ -178,6 +179,9 @@ _DEFINE_SPECS = {
 DEFINE_SPECS: Mapping[str, DefineSpec] = MappingProxyType(_DEFINE_SPECS)
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
+    "BACKOFF_NOINLINE": (
+        "include/backoff.hh", "#if BACKOFF_NOINLINE",
+    ),
     "IZANAGI_BREAK_PERMUTATION": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_PERMUTATION",
     ),
@@ -403,7 +407,7 @@ class BranchMeaningEvidence:
 
 @dataclass(frozen=True, slots=True)
 class CompileTimeBranchSelectionObservation:
-    """One requested/default compiler observation of the declared branch."""
+    """One requested or default/contrast observation of the declared branch."""
 
     define_value: str
     selected_count: int
@@ -414,6 +418,10 @@ class CompileTimeBranchSelectionObservation:
 @dataclass(frozen=True, slots=True)
 class CompileTimeBranchSelectionEvidence:
     """Bounded owner-TU proof that one preprocessor branch distinguishes 1/0.
+
+    ``requested`` contains the requested-value observation.  ``default``
+    contains the default-value observation, or the opposite-value contrast
+    when the requested value is itself the default.
 
     Configure argv fields are the exact outer argv this gate executed; they do
     not claim to observe argv inside a delegating CMake wrapper.
@@ -876,10 +884,15 @@ def declare_define_runtime_meaning(
     """Declare the registry witness only for its exact requested/default pair."""
     spec, requested, default, _companions = _validate_define_request(request)
     registered = CONDITIONAL_BRANCH_WITNESSES.get(request.macro)
-    if registered is None or requested != "1" or default != "0":
+    if registered is None:
         return None
     source_rel, start_directive = registered
-    if source_rel not in spec.owner_tus:
+    if request.macro == "BACKOFF_NOINLINE":
+        if requested not in {"0", "1"} or default != "0" \
+                or source_rel != "include/backoff.hh":
+            return None
+    elif requested != "1" or default != "0" \
+            or source_rel not in spec.owner_tus:
         return None
     return ConditionalBranchMeaningDeclaration(
         macro=request.macro,
@@ -1757,16 +1770,12 @@ def _configured_define_compile_commands(
             requested_build = base / "requested"
             shared_branch_build = (
                 not stock_identity
+                and request.route == ROUTE_CMAKE_CXX_FLAGS
                 and request.macro in CONDITIONAL_BRANCH_WITNESSES
             )
-            if shared_branch_build and request.route != ROUTE_CMAKE_CXX_FLAGS:
-                raise ConditionMeaningGateError(
-                    "compile-command-unavailable",
-                    "shared branch commands require the CMAKE_CXX_FLAGS route",
-                )
-            # These registry entries are CMAKE_CXX_FLAGS-only.  Capture the
-            # requested argv before reconfiguring the same build root so the
-            # two raw meaning argv differ only in the tested define.
+            # CMAKE_CXX_FLAGS registry entries must share a build root so the
+            # two raw meaning argv differ only in the tested define.  Cache
+            # entries retain the ordinary separate requested/default roots.
             control_build = requested_build if shared_branch_build else \
                 base / ("stock" if stock_identity else "default")
             requested_configure = _configure_compile_commands(
@@ -2246,6 +2255,105 @@ def _preprocess_evidence(
     }
 
 
+def _classify_stock_inert_root_location_difference(
+    requested: bytes,
+    control: bytes,
+    *,
+    requested_source_root: bytes,
+    control_source_root: bytes,
+    requested_dependency_identities: frozenset[str],
+    requested_root_dependent_builtin_paths: tuple[str, ...],
+    control_root_dependent_builtin_paths: tuple[str, ...],
+) -> tuple[bool, int, int, bool]:
+    """Classify an inert mismatch using only closure-bound source paths."""
+    invalid_root = any(
+        separator in root
+        for root in (requested_source_root, control_source_root)
+        for separator in (b"\n", b"\r")
+    ) or not requested_source_root or not control_source_root
+    if invalid_root:
+        differing_line_count = sum(
+            requested_line != control_line
+            for requested_line, control_line in zip_longest(
+                requested.split(b"\n"), control.split(b"\n"), fillvalue=None,
+            )
+        )
+        return False, differing_line_count, 0, True
+
+    requested_lines = requested.split(b"\n")
+    control_lines = control.split(b"\n")
+    differing_line_count = sum(
+        requested_line != control_line
+        for requested_line, control_line in zip_longest(
+            requested_lines, control_lines, fillvalue=None,
+        )
+    )
+    source_prefix = requested_source_root + b"/"
+    path_bytes = frozenset(b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                           b"abcdefghijklmnopqrstuvwxyz._+-/")
+    replacement_count = 0
+    has_residual = False
+    for requested_line, control_line in zip_longest(
+        requested_lines, control_lines, fillvalue=None,
+    ):
+        if requested_line is None or control_line is None:
+            has_residual = True
+            continue
+        if requested_line == control_line:
+            continue
+
+        transformed = bytearray()
+        index = 0
+        while index < len(requested_line):
+            if requested_line.startswith(source_prefix, index) \
+                    and (index == 0 or requested_line[index - 1] not in path_bytes):
+                relative_start = index + len(source_prefix)
+                relative_end = relative_start
+                while relative_end < len(requested_line) \
+                        and requested_line[relative_end] in path_bytes:
+                    relative_end += 1
+                relative_bytes = requested_line[relative_start:relative_end]
+                components: list[bytes] = []
+                escapes_root = False
+                for component in relative_bytes.split(b"/"):
+                    if component in {b"", b"."}:
+                        continue
+                    if component == b"..":
+                        if not components:
+                            escapes_root = True
+                            break
+                        components.pop()
+                    else:
+                        components.append(component)
+                if not escapes_root:
+                    relative = b"/".join(components).decode("ascii")
+                    if f"source/{relative}" in requested_dependency_identities:
+                        transformed.extend(control_source_root)
+                        index += len(requested_source_root)
+                        replacement_count += 1
+                        continue
+            transformed.append(requested_line[index])
+            index += 1
+        if bytes(transformed) != control_line:
+            has_residual = True
+
+    has_root_dependent_builtin = bool(
+        requested_root_dependent_builtin_paths
+        or control_root_dependent_builtin_paths
+    )
+    location_only = (
+        not has_residual
+        and replacement_count >= 1
+        and has_root_dependent_builtin
+    )
+    return (
+        location_only,
+        differing_line_count,
+        replacement_count,
+        has_residual,
+    )
+
+
 def _collect_supply_preprocess_pair(
     configured: _ConfiguredDefineCompileCommands,
     *,
@@ -2406,32 +2514,27 @@ def evaluate_define_supply_effectuation(
             reason_code="compile-command-drift", request=request,
             request_digest=request_digest, evidence=evidence,
         )
-    root_builtin_paths = (
-        requested_result.root_dependent_builtin_paths
-        + control_result.root_dependent_builtin_paths
-    )
-    assert configured.requested is not None and configured.control is not None
-    requested_build = Path(configured.requested.build_root)
-    control_build = Path(configured.control.build_root)
-    root_needles = [
-        (os.fsencode(requested_build), requested_result.preprocessed_bytes),
-        (os.fsencode(control_build), control_result.preprocessed_bytes),
-    ]
-    if stock_identity:
-        root_needles.extend((
-            (os.fsencode(source_root), requested_result.preprocessed_bytes),
-            (os.fsencode(control_root), control_result.preprocessed_bytes),
-        ))
-    unsafe_root_builtin = bool(root_builtin_paths) and any(
-        needle in output for needle, output in root_needles
-    )
-    if unsafe_root_builtin:
-        return _issue_arm_record(
-            arm="supply-effectuation", terminal_status="red",
-            reason_code="preprocess-root-dependent-builtin", request=request,
-            request_digest=request_digest, evidence=evidence,
-        )
     if not stock_identity:
+        root_builtin_paths = (
+            requested_result.root_dependent_builtin_paths
+            + control_result.root_dependent_builtin_paths
+        )
+        assert configured.requested is not None and configured.control is not None
+        requested_build = Path(configured.requested.build_root)
+        control_build = Path(configured.control.build_root)
+        root_needles = [
+            (os.fsencode(requested_build), requested_result.preprocessed_bytes),
+            (os.fsencode(control_build), control_result.preprocessed_bytes),
+        ]
+        unsafe_root_builtin = bool(root_builtin_paths) and any(
+            needle in output for needle, output in root_needles
+        )
+        if unsafe_root_builtin:
+            return _issue_arm_record(
+                arm="supply-effectuation", terminal_status="red",
+                reason_code="preprocess-root-dependent-builtin", request=request,
+                request_digest=request_digest, evidence=evidence,
+            )
         if requested_result.dependency_closure != control_result.dependency_closure:
             return _issue_arm_record(
                 arm="supply-effectuation", terminal_status="red",
@@ -2449,15 +2552,47 @@ def evaluate_define_supply_effectuation(
             reason_code="requested-default-preprocess-different", request=request,
             request_digest=request_digest, evidence=evidence,
         )
-    if requested_result.preprocessed_bytes != control_result.preprocessed_bytes:
+    if requested_result.preprocessed_bytes == control_result.preprocessed_bytes:
         return _issue_arm_record(
-            arm="supply-effectuation", terminal_status="red",
-            reason_code="stock-inert-mismatch", request=request,
+            arm="supply-effectuation", terminal_status="green",
+            reason_code="stock-inert-preprocess-identical", request=request,
+            request_digest=request_digest, evidence=evidence,
+        )
+    location_only, line_count, replacement_count, has_residual = \
+        _classify_stock_inert_root_location_difference(
+            requested_result.preprocessed_bytes,
+            control_result.preprocessed_bytes,
+            requested_source_root=os.fsencode(source_root),
+            control_source_root=os.fsencode(control_root),
+            requested_dependency_identities=frozenset(
+                identity for identity, _digest
+                in requested_result.dependency_closure
+            ),
+            requested_root_dependent_builtin_paths=(
+                requested_result.root_dependent_builtin_paths
+            ),
+            control_root_dependent_builtin_paths=(
+                control_result.root_dependent_builtin_paths
+            ),
+        )
+    evidence.update({
+        "root_diff_line_count": line_count,
+        "root_diff_replacement_count": replacement_count,
+        "root_diff_source_roots": (
+            os.fspath(source_root), os.fspath(control_root),
+        ),
+        "root_diff_has_residual": has_residual,
+    })
+    if location_only:
+        evidence["comparison"] = "stock-inert-root-location-only"
+        return _issue_arm_record(
+            arm="supply-effectuation", terminal_status="green",
+            reason_code="stock-inert-preprocess-root-location-only", request=request,
             request_digest=request_digest, evidence=evidence,
         )
     return _issue_arm_record(
-        arm="supply-effectuation", terminal_status="green",
-        reason_code="stock-inert-preprocess-identical", request=request,
+        arm="supply-effectuation", terminal_status="red",
+        reason_code="stock-inert-mismatch", request=request,
         request_digest=request_digest, evidence=evidence,
     )
 
@@ -2718,35 +2853,68 @@ def _write_shadow_owner_source(
     source_rel: str,
     instrumented_source: str,
     shadow_root: Path,
+    *,
+    owner_tu: str,
 ) -> Path:
-    """Mirror owner ancestors with symlinks and write only the instrumented TU."""
+    """Write an instrumented source and return the shadow owner-TU operand."""
     relative = Path(source_rel)
-    original_directory = source_root
-    shadow_directory = shadow_root
     try:
-        for component in relative.parent.parts:
+        if source_rel == owner_tu:
+            original_directory = source_root
+            shadow_directory = shadow_root
+            for component in relative.parent.parts:
+                shadow_directory.mkdir()
+                for child in original_directory.iterdir():
+                    if child.name != component:
+                        (shadow_directory / child.name).symlink_to(
+                            child, target_is_directory=child.is_dir(),
+                        )
+                original_directory /= component
+                shadow_directory /= component
             shadow_directory.mkdir()
             for child in original_directory.iterdir():
-                if child.name != component:
+                if child.name != relative.name:
                     (shadow_directory / child.name).symlink_to(
                         child, target_is_directory=child.is_dir(),
                     )
-            original_directory /= component
-            shadow_directory /= component
-        shadow_directory.mkdir()
-        for child in original_directory.iterdir():
-            if child.name != relative.name:
-                (shadow_directory / child.name).symlink_to(
-                    child, target_is_directory=child.is_dir(),
-                )
-        instrumented_path = shadow_directory / relative.name
+            instrumented_path = shadow_directory / relative.name
+            instrumented_path.write_text(instrumented_source, encoding="utf-8")
+            return instrumented_path
+
+        def traversal_failed(error: OSError) -> None:
+            raise error
+
+        shadow_root.mkdir()
+        for original_text, directory_names, file_names in os.walk(
+            source_root, topdown=True, onerror=traversal_failed,
+            followlinks=False,
+        ):
+            original_directory = Path(original_text)
+            tree_relative = original_directory.relative_to(source_root)
+            shadow_directory = shadow_root / tree_relative
+            for name in tuple(directory_names):
+                original = original_directory / name
+                shadow = shadow_directory / name
+                if original.is_symlink() or name == ".git":
+                    shadow.symlink_to(original, target_is_directory=True)
+                    directory_names.remove(name)
+                else:
+                    shadow.mkdir()
+            for name in file_names:
+                original = original_directory / name
+                file_relative = tree_relative / name
+                if file_relative != relative:
+                    (shadow_directory / name).symlink_to(
+                        original, target_is_directory=False,
+                    )
+        instrumented_path = shadow_root / relative
         instrumented_path.write_text(instrumented_source, encoding="utf-8")
-    except OSError as exc:
+        return shadow_root / owner_tu
+    except (OSError, RuntimeError) as exc:
         raise ConditionMeaningGateError(
             "compile-time-branch-instrumentation-failed",
             "instrumented owner TU shadow cannot be created",
         ) from exc
-    return instrumented_path
 
 
 def _replace_owner_compile_input(
@@ -2863,7 +3031,7 @@ def _assert_compile_time_branch_selection(
     cmake: str,
     configured_commands: _ConfiguredDefineCompileCommands | None = None,
 ) -> CompileTimeBranchSelectionEvidence:
-    """Observe requested/default selection in the complete instrumented owner TU."""
+    """Observe requested/contrast selection in the complete instrumented owner TU."""
     _validate_captured_define_inputs(captured)
     _spec, requested, default, companions = _validate_define_request(request)
     expected_declaration = declare_define_runtime_meaning(request)
@@ -2879,6 +3047,7 @@ def _assert_compile_time_branch_selection(
         captured, declaration.source_rel,
     )
     instrumented_source = _instrument_declared_owner_source(source_text, declaration)
+    comparison = "1" if requested == "0" else default
     configured_pair: tuple[
         _ConfiguredOwnerCompileCommand, _ConfiguredOwnerCompileCommand,
     ] | None = None
@@ -2898,7 +3067,7 @@ def _assert_compile_time_branch_selection(
                 or requested_command.owner != os.fspath(expected_owner) \
                 or control_command.owner != os.fspath(expected_owner) \
                 or requested_command.define_value != requested \
-                or control_command.define_value != default:
+                or control_command.define_value != comparison:
             raise ConditionMeaningGateError(
                 "compile-command-drift",
                 "configured owner command pair differs from the meaning request",
@@ -2935,12 +3104,12 @@ def _assert_compile_time_branch_selection(
         instrumented_root = base / "instrumented-source"
         instrumented_owner = _write_shadow_owner_source(
             source_root, declaration.source_rel, instrumented_source,
-            instrumented_root,
+            instrumented_root, owner_tu=request.owner_tu,
         )
         entries: list[tuple[str, Mapping[str, Any], Path, Path]] = []
         if configured_pair is None:
             assert cmake_path is not None
-            for label, value in (("requested", requested), ("default", default)):
+            for label, value in (("requested", requested), ("default", comparison)):
                 configure = _configure_compile_commands(
                     captured=captured, request=request, source_root=source_root,
                     build_root=build_root, value=value, companions=companions,
@@ -2972,7 +3141,7 @@ def _assert_compile_time_branch_selection(
         )
         comparables: list[tuple[str, ...]] = []
         for (label, entry, owner, entry_build_root), value in zip(
-            entries, (requested, default), strict=True,
+            entries, (requested, comparison), strict=True,
         ):
             observation, comparable = _compile_time_observation(
                 entry=entry, owner=owner, instrumented_owner=instrumented_owner,
@@ -3002,18 +3171,25 @@ def _assert_compile_time_branch_selection(
         default_observation.selected_count,
         default_observation.completed_count,
     )
+    requested_expected = (int(requested), 1)
+    default_expected = (int(comparison), 1)
+    expected_observations = (
+        f"requested=({requested_expected[0]},{requested_expected[1]}),"
+        f"default=({default_expected[0]},{default_expected[1]})"
+    )
     if requested_counts == default_counts:
         raise ConditionMeaningGateError(
             "compile-time-branch-selection-not-discriminating",
             "requested and default values produced the same branch observation",
-            expected="requested=(1,1),default=(0,1)",
+            expected=expected_observations,
             observed=f"requested={requested_counts},default={default_counts}",
         )
-    if requested_counts != (1, 1) or default_counts != (0, 1):
+    if requested_counts != requested_expected \
+            or default_counts != default_expected:
         raise ConditionMeaningGateError(
             "compile-time-branch-selection-mismatch",
             "requested/default branch observations do not match the declaration",
-            expected="requested=(1,1),default=(0,1)",
+            expected=expected_observations,
             observed=f"requested={requested_counts},default={default_counts}",
         )
     return CompileTimeBranchSelectionEvidence(
@@ -3314,6 +3490,16 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
         "requested_root_dependent_builtin_paths",
         "control_root_dependent_builtin_paths",
     }
+    root_location_only = (
+        record.reason_code == "stock-inert-preprocess-root-location-only"
+    )
+    if root_location_only:
+        required.update({
+            "root_diff_line_count",
+            "root_diff_replacement_count",
+            "root_diff_source_roots",
+            "root_diff_has_residual",
+        })
     missing = required - set(evidence)
     unexpected = set(evidence) - required
     if missing or unexpected:
@@ -3341,12 +3527,12 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
     cmake_path = evidence["cmake_path"]
     if type(cmake_path) is not str or not cmake_path:
         _invalid_record("green supply evidence has an empty CMake path")
-    _validate_record_configure_argv(
+    requested_configure_argv = _validate_record_configure_argv(
         evidence["requested_configure_argv"],
         "requested_configure_argv",
         cmake_path=cmake_path,
     )
-    _validate_record_configure_argv(
+    control_configure_argv = _validate_record_configure_argv(
         evidence["control_configure_argv"],
         "control_configure_argv",
         cmake_path=cmake_path,
@@ -3396,12 +3582,53 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
             _invalid_record(
                 f"{prefix}_root_dependent_builtin_paths has the wrong exact type",
             )
+    if root_location_only:
+        line_count = evidence["root_diff_line_count"]
+        if type(line_count) is not int or line_count < 1:
+            _invalid_record("root_diff_line_count must be a positive exact integer")
+        replacement_count = evidence["root_diff_replacement_count"]
+        if type(replacement_count) is not int or replacement_count < 1:
+            _invalid_record(
+                "root_diff_replacement_count must be a positive exact integer",
+            )
+        source_roots = evidence["root_diff_source_roots"]
+        if type(source_roots) is not tuple or len(source_roots) != 2 \
+                or any(type(root) is not str or not root for root in source_roots) \
+                or source_roots[0] == source_roots[1]:
+            _invalid_record(
+                "root_diff_source_roots must contain two distinct non-empty strings",
+            )
+        if evidence["root_diff_has_residual"] is not False:
+            _invalid_record("root_diff_has_residual must be exact false")
+        if not (
+            evidence["requested_root_dependent_builtin_paths"]
+            or evidence["control_root_dependent_builtin_paths"]
+        ):
+            _invalid_record(
+                "root-location-only evidence lacks a root-dependent builtin",
+            )
+        if len(requested_configure_argv) < 3 \
+                or len(control_configure_argv) < 3 \
+                or requested_configure_argv[1] != "-S" \
+                or control_configure_argv[1] != "-S":
+            _invalid_record(
+                "root-location-only configure argv lacks an exact -S source root",
+            )
+        if source_roots != (
+            requested_configure_argv[2], control_configure_argv[2],
+        ):
+            _invalid_record(
+                "root_diff_source_roots is not bound to configure argv",
+            )
     status_contract = {
         "requested-default-preprocess-different": (
             "requested-default-difference", False,
         ),
         "stock-inert-preprocess-identical": (
             "stock-inert-identity", True,
+        ),
+        "stock-inert-preprocess-root-location-only": (
+            "stock-inert-root-location-only", False,
         ),
     }
     expected = status_contract.get(record.reason_code)
@@ -3622,23 +3849,43 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
         if source_file.before != source_file.after \
                 or source_file.after != source_file.path_after:
             _invalid_record("green compile-time branch source changed during capture")
+        requested_value = "1"
+        default_value = "0"
+        if record.macro == "BACKOFF_NOINLINE":
+            raw_requested = evidence["requested"]
+            raw_default = evidence["default"]
+            if type(raw_requested) is not CompileTimeBranchSelectionObservation \
+                    or type(raw_default) is not CompileTimeBranchSelectionObservation \
+                    or raw_requested.define_value not in {"0", "1"} \
+                    or raw_default.define_value != (
+                        "1" if raw_requested.define_value == "0" else "0"
+                    ):
+                _invalid_record(
+                    "green compile-time noinline observations do not bind opposite values",
+                )
+            requested_value = raw_requested.define_value
+            default_value = raw_default.define_value
         requested = _validate_compile_time_branch_observation(
             evidence["requested"], "requested", compiler_path=compiler_path,
-            macro=record.macro, define_value="1", selected_count=1,
+            macro=record.macro, define_value=requested_value,
+            selected_count=int(requested_value),
         )
         default = _validate_compile_time_branch_observation(
             evidence["default"], "default", compiler_path=compiler_path,
-            macro=record.macro, define_value="0", selected_count=0,
+            macro=record.macro, define_value=default_value,
+            selected_count=int(default_value),
         )
         normalized_requested_argv = tuple(
             "<TESTED_DEFINE>" if argument in {
-                f"-D{record.macro}=1", f"{record.macro}=1",
+                f"-D{record.macro}={requested.define_value}",
+                f"{record.macro}={requested.define_value}",
             } else argument
             for argument in requested.preprocess_argv
         )
         normalized_default_argv = tuple(
             "<TESTED_DEFINE>" if argument in {
-                f"-D{record.macro}=0", f"{record.macro}=0",
+                f"-D{record.macro}={default.define_value}",
+                f"{record.macro}={default.define_value}",
             } else argument
             for argument in default.preprocess_argv
         )

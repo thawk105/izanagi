@@ -8,6 +8,7 @@ import copy
 import contextlib
 import errno
 import functools
+import hashlib
 import importlib.util
 import inspect
 import json
@@ -45,6 +46,7 @@ from s1_expected_goldens import (  # noqa: E402
     EXPECTED_SORT,
 )
 from campaign_lock_test_support import build_v2_lock              # noqa: E402
+import commit_receipt_support as receipt_support                   # noqa: E402
 
 _REAL_CONDITION_RECORDS_FOR_GENOME = S._condition_records_for_genome
 
@@ -62,6 +64,30 @@ def test_prepare_cell_condition_family_uses_real_two_arm_api():
     assert "evaluate_define_supply_effectuation" in source
     assert "evaluate_define_runtime_meaning" in source
     assert "require_condition_gate_family" in source
+    assert "declare_define_runtime_meaning" in source
+
+
+def test_noinline_inert_meaning_record_comes_from_registry_factory():
+    driver_id = "test.s1_direct_comparison.noinline-factory"
+    genome = Genome("silo", {"BACKOFF_NOINLINE": 0})
+    supply_records, meaning_records = _issued_condition_records(
+        tuple(sorted(genome.flags.items())), driver_id,
+    )
+    request = S._condition_requests_for_flags(
+        genome.flags, driver_id=driver_id,
+    )[0]
+    declaration = condition_meaning_gate.declare_define_runtime_meaning(request)
+    admission = _assert_promotion_admission_contract(
+        supply_records, meaning_records,
+    )
+
+    assert type(declaration) is \
+        condition_meaning_gate.ConditionalBranchMeaningDeclaration
+    assert S._condition_meaning_declaration("BACKOFF_NOINLINE", 0) is None
+    assert [record.terminal_status for record in meaning_records] == ["green"]
+    assert meaning_records[0].evidence["source_rel"] == declaration.source_rel
+    assert admission.unestablished_meaning_macros == ()
+
 
 _OUTER_WHITESPACE = (
     ("space", " "),
@@ -151,10 +177,15 @@ def _pin_s1_perf_available(monkeypatch):
     )
 
 
-def _evidence(*, stock=True, commit=None):
+def _evidence(*, stock=True, commit=None, genome_value=None):
+    genome_value = genome_value or Genome("silo", {"BACK_OFF": 1})
     return SourceEvidence(
-        schema_version="source-evidence/v1", source_root="/ccbench",
-        ccbench_commit=commit or _freeze()["ccbench_pin"], genome_sha256="1" * 64,
+        schema_version="source-evidence/v1",
+        source_root=str(receipt_support.proof_source_root()),
+        ccbench_commit=commit or _freeze()["ccbench_pin"],
+        genome_sha256=hashlib.sha256(
+            genome_value.canonical().encode("utf-8")
+        ).hexdigest(),
         src_token=STOCK if stock else "2" * 64, source_bytes_sha256="3" * 64,
         tracked_clean=stock,
         tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256 if stock else "4" * 64,

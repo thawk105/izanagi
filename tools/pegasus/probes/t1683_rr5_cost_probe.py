@@ -127,7 +127,7 @@ def _run_once(binary: str, workload_id: str, workload_argv: list[str]) -> tuple[
         shutil.rmtree(trace_dir, ignore_errors=True); raise
 
 def _verifier_run(trace_dir: str, expected_commits: int) -> dict:
-    argv = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet", "--expected-commits", str(expected_commits)]
+    argv = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet", "--expected-commits", str(expected_commits), "--protocol", "silo", "--ccbench-root", str(ROOT / "external" / "ccbench")]
     env = dict(os.environ); env["LC_ALL"] = "C"; started = time.monotonic()
     proc = subprocess.run(argv, cwd=ROOT / "orchestrator", env=env, capture_output=True, text=True, timeout=VERIFIER_TIMEOUT_S); wall = time.monotonic() - started
     rss = re.search(r"Maximum resident set size \(kbytes\):\s*(\d+)", proc.stderr)
@@ -140,7 +140,7 @@ def _verifier_run(trace_dir: str, expected_commits: int) -> dict:
 
 def _dry_run(out: Path, ccbench_head: str, cc: str, cxx: str, workload: dict) -> dict:
     genomes = [{"id": name, "defines": defines, "run_argv": _run_argv("<trace-enabled-ycsb_silo.exe>", workload["argv"])} for name, defines in workload["genomes"]]
-    verifier = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier", "<trace-dir>", "--json", "--quiet", "--expected-commits", "<commits>"]
+    verifier = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier", "<trace-dir>", "--json", "--quiet", "--expected-commits", "<commits>", "--protocol", "silo", "--ccbench-root", str(ROOT / "external" / "ccbench")]
     return {"mode": "dry-run", "env_tag": ENV_TAG, "workload": workload["id"], "rratio": workload["rratio"], "ccbench_commit": CURRENT_PIN, "ccbench_head": ccbench_head, "cc": cc, "cxx": cxx, "output": str(out), "output_exists": out.exists(), "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "numactl": NUMA, "workload_argv": workload["argv"], "genomes": genomes, "verifier_argv": verifier}
 
 def _condition_requests_by_genome(workload: dict) -> tuple:
@@ -164,7 +164,9 @@ def _condition_requests_by_genome(workload: dict) -> tuple:
                 default_value=default,
                 stock_comparison=inert,
             )
-            declaration = None
+            declaration = condition_meaning_gate.declare_define_runtime_meaning(
+                request,
+            )
             if macro == "BACKOFF_FIXED" and requested == -1:
                 declaration = condition_meaning_gate.MeaningWitnessDeclaration(
                     macro,

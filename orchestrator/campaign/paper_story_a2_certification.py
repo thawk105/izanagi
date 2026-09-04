@@ -627,7 +627,10 @@ def _condition_gate_family_context(
                             macro == "BACKOFF_FIXED" and value == -1
                         ),
                     )
-                    declaration = None
+                    declaration = (
+                        condition_meaning_gate.
+                        declare_define_runtime_meaning(request)
+                    )
                     if macro == "BACKOFF_FIXED" and value == -1:
                         declaration = (
                             condition_meaning_gate.

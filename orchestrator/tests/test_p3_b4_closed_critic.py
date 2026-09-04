@@ -2671,7 +2671,7 @@ def test_launcher_positive_uses_real_factory_and_real_base_main_for_commit(
     ``C.make_critic_identity_projection``, ``B4L.exploration_campaign_layout``,
     ``L.exploration_campaign_layout``, ``L.ident.ensure_resumable_attempts``,
     ``patchharness.assert_pinned_clean``, ``p2_2._assert_single_tenant``,
-    ``L.run_one_iteration``, ``L.require_admitted_campaign``,
+    ``L._run_one_iteration_resolved``, ``L.require_admitted_campaign``,
     ``L.make_critic_identity_projection``, and ``L.make_critic_digest``.
     This positive proves routing, not the substance of the scientific work.
     It is not a substitute for any M01-M18 negative.
@@ -2726,7 +2726,7 @@ def test_launcher_positive_uses_real_factory_and_real_base_main_for_commit(
 
     def fixture_synthesis(
         _cfg, _perf, planner, _coder, state, _sub, do_build,
-        *, layout, **_kwargs,
+        layout, _contract, _resolved_site, **_kwargs,
     ):
         assert do_build is True
         payload = {"launcher_positive": True}
@@ -2783,7 +2783,7 @@ def test_launcher_positive_uses_real_factory_and_real_base_main_for_commit(
     monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
     monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a: None)
     monkeypatch.setattr(p2_2, "_assert_single_tenant", lambda: None)
-    monkeypatch.setattr(L, "run_one_iteration", fixture_synthesis)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", fixture_synthesis)
     monkeypatch.setattr(L, "require_admitted_campaign", lambda *_a, **_k: object())
     monkeypatch.setattr(
         L, "make_critic_identity_projection", lambda _view: object(),
@@ -2917,7 +2917,7 @@ def test_public_b4_receipt_gate_accepts_live_certified_bound_receipt():
         ), unittest.mock.patch.object(
             L.ident, "ensure_resumable_attempts", return_value=None,
         ), unittest.mock.patch.object(
-            L, "run_one_iteration", side_effect=fake_synthesis,
+            L, "_run_one_iteration_resolved", side_effect=fake_synthesis,
         ):
             outcome = L.drive_iteration(
                 cfg,

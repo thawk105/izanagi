@@ -265,7 +265,7 @@ def _manifest(tmp_path: Path, *, campaign_id: str = "oracle-b0", n: int = 1) -> 
         generator_versions=generators,
     )
     _SPEC_FIXTURES[approved.sha256] = approved
-    return oracle_manifest.build_manifest(
+    return oracle_manifest._build_manifest(
         freeze_path=freeze_path,
         spec_sha256=approved.sha256,
         schedule=schedule,
@@ -388,7 +388,7 @@ def _ratified_cli_manifest(
     )
     spec_fixture.install_reviewed_spec(root, approved)
     with mock.patch.object(oracle_manifest, "ROOT", root):
-        document = oracle_manifest.build_manifest(
+        document = oracle_manifest._build_manifest(
             freeze_path=freeze_path,
             spec_sha256=approved.sha256,
             schedule=schedule,
@@ -399,7 +399,7 @@ def _ratified_cli_manifest(
             generator_versions=generator_versions,
         )
     manifest_path = tmp_path / "ratified-cli-manifest.json"
-    oracle_manifest.write_manifest(manifest_path, document)
+    oracle_manifest._write_manifest(manifest_path, document)
     return root, manifest_path, document, approved
 
 

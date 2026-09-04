@@ -1,0 +1,237 @@
+{
+  "absolute_candidates": [
+    "/usr/lib/linux-tools/5.15.0-101-generic/perf",
+    "/usr/lib/linux-tools/5.15.0-136-generic/perf",
+    "/usr/lib/linux-tools/5.15.0-173-generic/perf"
+  ],
+  "controls": {
+    "negative_absent_perf": {
+      "argv": [
+        "/usr/lib/linux-tools/izanagi-f241-no-such-kernel/perf",
+        "--version"
+      ],
+      "elapsed_s": 0.0002,
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: '/usr/lib/linux-tools/izanagi-f241-no-such-kernel/perf'",
+      "launched": false
+    },
+    "note": "同じ node・同じ run・同じ subprocess 実装で両側 control を取る。positive が失敗するなら測定機構自体が壊れており、negative が成功するなら不在の検出力が無い。",
+    "positive_plain_binary": {
+      "argv": [
+        "/bin/true"
+      ],
+      "elapsed_s": 0.0005,
+      "launched": true,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    }
+  },
+  "events_requested": [
+    "cycles",
+    "instructions",
+    "LLC-loads",
+    "LLC-load-misses"
+  ],
+  "literal_perf_resolution": {
+    "file_facts": {
+      "executable": true,
+      "exists": true,
+      "is_symlink": false,
+      "mode": "0o100755",
+      "path": "/usr/bin/perf",
+      "realpath": "/usr/bin/perf",
+      "size": 1622
+    },
+    "head": "#!/bin/bash\nfull_version=`uname -r`\n\n# First check for a fully qualified version.\nthis=\"/usr/lib/linux-tools/$full_version/`basename $0`\"\nif [ -f \"$this\" ]; then\n\texec \"$this\" \"$@\"\nfi\n\n# Removing flavour from version i.e. generic or server.\nflavour_abi=${full_version#*-}\nflavour=${flavour_abi#*-}\nversion=${full_version%-$flavour}\nthis=\"$0_$version\"\nif [ -f \"$this\" ]; then\n\texec \"$this\" \"$@\"\nfi\n\n# ",
+    "sha256": "2d0953085bf720a25efbe24f853e97d27b1f12f18a398255ff82cbafde254dad",
+    "shutil_which": "/usr/bin/perf"
+  },
+  "measurements": [
+    {
+      "command": "perf",
+      "counters": {},
+      "counters_obtained": false,
+      "file_facts": null,
+      "label": "literal-perf",
+      "launcher_kind": "PATH lookup",
+      "numeric_events": [],
+      "stat": {
+        "argv": [
+          "perf",
+          "stat",
+          "-e",
+          "cycles,instructions,LLC-loads,LLC-load-misses",
+          "--",
+          "/bin/true"
+        ],
+        "elapsed_s": 0.0295,
+        "launched": true,
+        "returncode": 2,
+        "stderr": "WARNING: perf not found for kernel 5.15.0-190\n\n  You may need to install the following packages for this specific kernel:\n    linux-tools-5.15.0-190-generic\n    linux-cloud-tools-5.15.0-190-generic\n\n  You may also want to install one of the following packages to keep up to date:\n    linux-tools-generic\n    linux-cloud-tools-generic\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "perf",
+          "--version"
+        ],
+        "elapsed_s": 0.0312,
+        "launched": true,
+        "returncode": 2,
+        "stderr": "WARNING: perf not found for kernel 5.15.0-190\n\n  You may need to install the following packages for this specific kernel:\n    linux-tools-5.15.0-190-generic\n    linux-cloud-tools-5.15.0-190-generic\n\n  You may also want to install one of the following packages to keep up to date:\n    linux-tools-generic\n    linux-cloud-tools-generic\n",
+        "stdout": ""
+      }
+    },
+    {
+      "command": "/usr/lib/linux-tools/5.15.0-101-generic/perf",
+      "counters": {},
+      "counters_obtained": false,
+      "file_facts": {
+        "executable": true,
+        "exists": true,
+        "is_symlink": true,
+        "mode": "0o100755",
+        "path": "/usr/lib/linux-tools/5.15.0-101-generic/perf",
+        "realpath": "/usr/lib/linux-tools-5.15.0-101/perf",
+        "size": 22367280,
+        "symlink_target": "../../linux-tools-5.15.0-101/perf"
+      },
+      "label": "absolute:/usr/lib/linux-tools/5.15.0-101-generic/perf",
+      "launcher_kind": "absolute path",
+      "numeric_events": [],
+      "stat": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-101-generic/perf",
+          "stat",
+          "-e",
+          "cycles,instructions,LLC-loads,LLC-load-misses",
+          "--",
+          "/bin/true"
+        ],
+        "elapsed_s": 0.096,
+        "launched": true,
+        "returncode": 255,
+        "stderr": "Error:\nAccess to performance monitoring and observability operations is limited.\nConsider adjusting /proc/sys/kernel/perf_event_paranoid setting to open\naccess to performance monitoring and observability operations for processes\nwithout CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN Linux capability.\nMore information can be found at 'Perf events and tool security' document:\nhttps://www.kernel.org/doc/html/latest/admin-guide/perf-security.html\nperf_event_paranoid setting is 4:\n  -1: Allow use of (almost) all events by all users\n      Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK\n>= 0: Disallow raw and ftrace function tracepoint access\n>= 1: Disallow CPU event access\n>= 2: Disallow kernel profiling\nTo make the adjusted perf_event_paranoid setting permanent preserve it\nin /etc/sysctl.conf (e.g. kernel.perf_event_paranoid = <setting>)\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-101-generic/perf",
+          "--version"
+        ],
+        "elapsed_s": 0.1131,
+        "launched": true,
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.143\n"
+      }
+    },
+    {
+      "command": "/usr/lib/linux-tools/5.15.0-136-generic/perf",
+      "counters": {},
+      "counters_obtained": false,
+      "file_facts": {
+        "executable": true,
+        "exists": true,
+        "is_symlink": true,
+        "mode": "0o100755",
+        "path": "/usr/lib/linux-tools/5.15.0-136-generic/perf",
+        "realpath": "/usr/lib/linux-tools-5.15.0-136/perf",
+        "size": 22376216,
+        "symlink_target": "../../linux-tools-5.15.0-136/perf"
+      },
+      "label": "absolute:/usr/lib/linux-tools/5.15.0-136-generic/perf",
+      "launcher_kind": "absolute path",
+      "numeric_events": [],
+      "stat": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-136-generic/perf",
+          "stat",
+          "-e",
+          "cycles,instructions,LLC-loads,LLC-load-misses",
+          "--",
+          "/bin/true"
+        ],
+        "elapsed_s": 0.0946,
+        "launched": true,
+        "returncode": 255,
+        "stderr": "Error:\nAccess to performance monitoring and observability operations is limited.\nConsider adjusting /proc/sys/kernel/perf_event_paranoid setting to open\naccess to performance monitoring and observability operations for processes\nwithout CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN Linux capability.\nMore information can be found at 'Perf events and tool security' document:\nhttps://www.kernel.org/doc/html/latest/admin-guide/perf-security.html\nperf_event_paranoid setting is 4:\n  -1: Allow use of (almost) all events by all users\n      Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK\n>= 0: Disallow raw and ftrace function tracepoint access\n>= 1: Disallow CPU event access\n>= 2: Disallow kernel profiling\nTo make the adjusted perf_event_paranoid setting permanent preserve it\nin /etc/sysctl.conf (e.g. kernel.perf_event_paranoid = <setting>)\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-136-generic/perf",
+          "--version"
+        ],
+        "elapsed_s": 0.1147,
+        "launched": true,
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.178\n"
+      }
+    },
+    {
+      "command": "/usr/lib/linux-tools/5.15.0-173-generic/perf",
+      "counters": {},
+      "counters_obtained": false,
+      "file_facts": {
+        "executable": true,
+        "exists": true,
+        "is_symlink": true,
+        "mode": "0o100755",
+        "path": "/usr/lib/linux-tools/5.15.0-173-generic/perf",
+        "realpath": "/usr/lib/linux-tools-5.15.0-173/perf",
+        "size": 22385608,
+        "symlink_target": "../../linux-tools-5.15.0-173/perf"
+      },
+      "label": "absolute:/usr/lib/linux-tools/5.15.0-173-generic/perf",
+      "launcher_kind": "absolute path",
+      "numeric_events": [],
+      "stat": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-173-generic/perf",
+          "stat",
+          "-e",
+          "cycles,instructions,LLC-loads,LLC-load-misses",
+          "--",
+          "/bin/true"
+        ],
+        "elapsed_s": 0.1029,
+        "launched": true,
+        "returncode": 255,
+        "stderr": "Error:\nAccess to performance monitoring and observability operations is limited.\nConsider adjusting /proc/sys/kernel/perf_event_paranoid setting to open\naccess to performance monitoring and observability operations for processes\nwithout CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN Linux capability.\nMore information can be found at 'Perf events and tool security' document:\nhttps://www.kernel.org/doc/html/latest/admin-guide/perf-security.html\nperf_event_paranoid setting is 4:\n  -1: Allow use of (almost) all events by all users\n      Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK\n>= 0: Disallow raw and ftrace function tracepoint access\n>= 1: Disallow CPU event access\n>= 2: Disallow kernel profiling\nTo make the adjusted perf_event_paranoid setting permanent preserve it\nin /etc/sysctl.conf (e.g. kernel.perf_event_paranoid = <setting>)\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-173-generic/perf",
+          "--version"
+        ],
+        "elapsed_s": 0.1169,
+        "launched": true,
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.198\n"
+      }
+    }
+  ],
+  "purpose": "F241 の「計算ノードに perf が無い」という帰属を、同一 node・同一 run で literal `perf` と絶対 path の対比により裏取りする。",
+  "sample_scope": "この結果は上記 hostname・observed_epoch・uname_release の 1 標本に限定され、gen_S の全 node や将来の allocation へ一般化しない。",
+  "schema_version": "izanagi-f241-perf-pairing/v1",
+  "site": {
+    "PATH": "/home/SFC/tanab/.local/bin:/work/SFC/tanab/scripts:/home/SFC/tanab/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/usr/local/bin:/system/tool/bin:/opt/nec/nqsv/bin:/home/SFC/tanab/.fzf/bin",
+    "PBS_JOBID": "",
+    "PBS_O_WORKDIR": "",
+    "hostname": "pegasus02",
+    "linux_tools_dir": [
+      "5.15.0-101-generic",
+      "5.15.0-136-generic",
+      "5.15.0-173-generic"
+    ],
+    "observed_epoch": 1788497295,
+    "observed_utc": "2026-09-04T04:48:15Z",
+    "perf_event_paranoid": "4",
+    "python": "/usr/bin/python3",
+    "uname_release": "5.15.0-190-generic"
+  }
+}

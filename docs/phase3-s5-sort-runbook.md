@@ -187,22 +187,34 @@ python3 -m orchestrator.campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.
 
 - 段4b runbook §4 と同じ限界 (delta_pct 常に None・dry-pass は whiteboard に載らない・
   有意性を主張しない・並行 driver は想定しない) に加えて:
-- **型14 (非 SWO comparator) は独立 oracle が build 前に反例探索する** ([T-316] R2-b、
-  `orchestrator/campaign/sort_swo_oracle.py`)。順序は hole 挿入 → diff 検疫 →
-  auditor deny-only veto → **独立 SWO oracle** → build。gate は
-  `PASS` / `REJECT` / `UNAVAILABLE` の閉じた結果を返し、抽出・候補 compile 失敗・CPU limit 超過・
-  観測された非決定性は `REJECT` へ倒す (判定不能を合格にしない)。環境故障は候補へ帰属せず
-  `UNAVAILABLE` として attempt を止める — 固定長 protocol の異常と compiler の起動・signal・
-  wall timeout はこちらであり、候補の finding にはならない。候補 compile が失敗したときは
-  trusted control を**事後にも** compile し、control も落ちれば `UNAVAILABLE` へ再分類する。
-  これは相関であって候補から独立した環境判定ではない (quota / cgroup / host 状態は共有)。**有限 corpus 上で SWO 公理の反例を探す gate であり、
-  任意 C++ の全入力に対する SWO の証明ではない。** 対象は coder 自律ループが合成する comparator で、
-  s6 sweep の列挙候補 (SWO-by-construction) は対象外。
+- **型14 (非 SWO comparator) は独立 oracle が build 前に閉じた IR への membership で塞ぐ**
+  ([T-316] R2-b、[T-2145]、`orchestrator/campaign/sort_swo_oracle.py`)。順序は hole 挿入 →
+  diff 検疫 → auditor deny-only veto → **独立 SWO oracle** → build。gate は
+  `PASS` / `REJECT` / `UNAVAILABLE` の閉じた結果を返す。
+  受理は**閉じた 79 値 sort IR の正準 token 列と完全一致すること**だけで、受理後は正準形へ
+  正準化して材へ再 materialize する。関係行列は trusted evaluator が出し、実
+  ``WriteElement<Tuple>`` TU の観測行列と byte exact で照合する。
+  `REJECT` は admission が候補テキストを受理しなかった場合に出る。
+  **IR が確定した評価経路では、compile 失敗・run 失敗・timeout・観測された非決定性・
+  実 TU と trusted evaluator の不一致は候補の finding にせず `UNAVAILABLE` へ帰属させる** —
+  compile するのは admitted IR から trusted renderer が作った正準形なので、その失敗は
+  候補の欠陥ではない。判定不能を `PASS` へ倒す経路は無い (規律 2)。
+  環境故障も同じく `UNAVAILABLE` として attempt を止める — 固定長 protocol の異常と
+  compiler の起動・signal・wall timeout はこちらである。
+  **これは「有限 corpus 上で SWO 公理の反例を探す gate」ではない。** 保証の種類は
+  **構成的 SWO + 実 TU conformance** であり、79 値は構成上すべて SWO を満たすので
+  `check_relation_matrix` は候補由来では発火しない (恒真化した)。provenance 面では強くなり、
+  任意 C++ に対する動的な反例探索能力は失っている。任意 C++ の全入力に対する SWO の証明でもない。
+  対象は coder 自律ループが合成する comparator で、s6 sweep の列挙候補
+  (SWO-by-construction) は対象外 (s6 からは呼ばれない)。
+  **この受理言語の縮小は D39 の raw C++ 独立合成の実証点を別実験へ移す。** D344 が却下理由に
+  挙げた実験同一性の論点は supersede されていない (D1451)。
   同一 process 内で任意 native comparator が観測経路へ干渉しうる残余は本 gate では閉じない
   (脅威 α 側の課題で、lexical 効果 gate と sandbox 系統が担当。扱いはユーザー裁定へ返した)。
   既存 timeout (`TRACE_TIMEOUT_S=120`/perf run の `timeout_s=120`) は defense-in-depth として残る。
   write_set_ サイズが小さい探索 (規律4の最小レコード数) では非 SWO comparator でもハングが
-  顕在化しない (D42 条件1の実機知見) — oracle はこのハング非顕在域でも反例を検出する。
+  顕在化しない (D42 条件1の実機知見) — 現行 gate はハングの有無によらず、非 IR の候補テキストを
+  admission で拒否する。
 - **oracle 導入で campaign identity が変わった。** 旧 campaign
   `p3-s5-sort-loop-s5-sort-autonomous-3be89e0d` は**歴史成果物であり再開不可**。
 - **型15 (fairness reward hack) の機械観測点も未実装** (規律5、D41 決定3・D42 条件3)。

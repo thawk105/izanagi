@@ -1,0 +1,200 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 600,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T2111-HEAD-PIN",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_preflight_skips_worktree_git_and_aggregates"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if head != expected[\"head\"]:\n        reasons.append(f\"HEAD mismatch: {head} != {expected['head']}\")\n",
+     "new": "    if False:\n        reasons.append(f\"HEAD mismatch: {head} != {expected['head']}\")\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-SYMBOLIC-HEAD",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if branch != expected[\"branch\"]:\n        reasons.append(f\"symbolic HEAD mismatch: {branch!r} != {expected['branch']!r}\")\n",
+     "new": "    if False:\n        reasons.append(f\"symbolic HEAD mismatch: {branch!r} != {expected['branch']!r}\")\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-TRACKED-MODE",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_snapshot_mode_change"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        if mode != expected[\"modes\"][relative]:\n            reasons.append(\n                f\"st_mode mismatch {relative}: {oct(mode)} != \"\n                f\"{oct(expected['modes'][relative])}\"\n            )\n",
+     "new": "        if False:\n            reasons.append(\n                f\"st_mode mismatch {relative}: {oct(mode)} != \"\n                f\"{oct(expected['modes'][relative])}\"\n            )\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-FORBIDDEN-FOCUS-ARTIFACT",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[NEG-focus2.md]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[POS-focus1.md]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m3_focus_artifact_directions[POS-focus2.md]"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for relative in expected[\"forbidden\"]:\n        if (snapshot / relative).exists() or (snapshot / relative).is_symlink():\n            reasons.append(f\"forbidden focus artifact exists: {relative}\")\n",
+     "new": "    for relative in expected[\"forbidden\"]:\n        if False:\n            reasons.append(f\"forbidden focus artifact exists: {relative}\")\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-FORBIDDEN-OBJECT-REACHABLE",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for forbidden in (INTEGRATED_COMMIT, ARTIFACT_COMMIT):\n        probe = _run((\"git\", \"cat-file\", \"-e\", forbidden), cwd=snapshot, check=False)\n        if probe.returncode == 0:\n            reasons.append(f\"forbidden git object is reachable: {forbidden}\")\n",
+     "new": "    for forbidden in (INTEGRATED_COMMIT, ARTIFACT_COMMIT):\n        probe = _run((\"git\", \"cat-file\", \"-e\", forbidden), cwd=snapshot, check=False)\n        if False:\n            reasons.append(f\"forbidden git object is reachable: {forbidden}\")\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-ATTEMPT-UPPER-BOUND",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if isinstance(attempt, bool) or not isinstance(attempt, int) or not 1 <= attempt <= 3:\n        raise ValidationError(\"attempt must be in 1..3\", RC_ROUTING)\n",
+     "new": "    if isinstance(attempt, bool) or not isinstance(attempt, int) or not 1 <= attempt <= 4:\n        raise ValidationError(\"attempt must be in 1..3\", RC_ROUTING)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-GIT-ENV-LEAK-BOTH-LAYERS",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            \"HOME\": \"/tmp/t181-home\",\n",
+     "new": "            \"GIT_DIR\": \"/tmp/t181-leak\",\n            \"HOME\": \"/tmp/t181-home\",\n"
+    },
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        if key.startswith(\"GIT_\") or key not in ENV_ALLOWLIST:\n",
+     "new": "        if key not in ENV_ALLOWLIST and not key.startswith(\"GIT_\"):\n"
+    },
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if any(key.startswith(\"GIT_\") for key in environment):\n        raise ValidationError(\"GIT_* survived supervisor environment scrub\", RC_ROUTING)\n",
+     "new": "    if False:\n        raise ValidationError(\"GIT_* survived supervisor environment scrub\", RC_ROUTING)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-GRAFTS-CLOSURE",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        \"grafts\": git_dir / \"info\" / \"grafts\",\n",
+     "new": ""
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-MANIFEST-DIGEST-BINDING",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_f3_m15_append_verdicts_rejects_existing_log_manifest_exchange",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_append_verdicts_rejects_packet_state_manifest_exchange",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_freeze_verdicts_rejects_log_manifest_exchange",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_make_packets_rejects_schedule_manifest_exchange",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[aggregate]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_material_entrypoints_reject_manifest_exchange[verify]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_packet_consumer_requires_exact_task_manifest_digest_once",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_packet_state_manifest_exchange",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_reveal_mapping_rejects_private_manifest_exchange",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m15_supervise_pair_rejects_schedule_manifest_exchange",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_m20_render_prompt_binds_external_task_manifest",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_rejects_task_manifest_exchange_before_publication",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_schedule_task_manifest_exchange_at_digest_consumers",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_slice_material_digest_mismatch_full_cli_is_incomplete"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if actual != expected:\n        raise ValidationError(\n            f\"{label} task_manifest_sha256 mismatch\", rc\n        )\n",
+     "new": "    if False:\n        raise ValidationError(\n            f\"{label} task_manifest_sha256 mismatch\", rc\n        )\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-PROMPT-REPLACEMENT-COUNT",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess[0]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess[10]"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if verify_source and count != pin[\"replacements\"]:\n        reasons.append(f\"replacement count mismatch: {count} != {pin['replacements']}\")\n",
+     "new": "    if False:\n        reasons.append(f\"replacement count mismatch: {count} != {pin['replacements']}\")\n"
+    }
+   ]
+  }
+ ]
+}

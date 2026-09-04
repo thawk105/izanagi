@@ -278,9 +278,13 @@ def _condition_records_for_genome(
     supply_records = []
     meaning_records = []
     for request in requests:
-        declaration = _condition_meaning_declaration(
-            request.macro, request.requested_value,
+        declaration = condition_meaning_gate.declare_define_runtime_meaning(
+            request,
         )
+        if declaration is None:
+            declaration = _condition_meaning_declaration(
+                request.macro, request.requested_value,
+            )
         supply_records.append(
             condition_meaning_gate.evaluate_define_supply_effectuation(
                 captured, request=request, cxx=cxx, cmake="cmake",

@@ -46,10 +46,11 @@ fix 後の最終 commit で変異 spec の anchor（old 逐語）と期待 node 
 mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 本走は `--runner-mode dispatch` を既定とし、runner argv へ `--force-dispatch` を入れる。
 runner の実行経路を変異させる local は runner が自壊し収集段が `rc=16` になる。
-`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペアで、片方のみ・local
-指定は中止する。後者は整数、実走は `--detached` 必須。再投入は両方を前回と変える（F453）。
-KILLED 期待で期待 node が空の spec も起動前に中止するため、probe は全件 SURVIVED 期待で登録して
-観測 node を集める。
+`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペア。片方のみ・local は
+中止。後者は整数、実走は `--detached` 必須。再投入は両方を変え、`--resume` は前回 sidecar を
+新 path へ複写して渡す（F453。空 file は中止）。
+KILLED 期待で node 空の spec は起動前に中止するため、probe は全件 SURVIVED で登録し観測 node を
+集める。
 `--out` は `--scratch-root` と同一 device に置く（別 device は evidence 退避の rename が落ちる）。
 
 ## DW-M08 — 失敗 node と検出力
