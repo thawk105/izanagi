@@ -151,6 +151,13 @@ F241 の実 campaign ノードの片方である **bnode049**、および
 (request `974207.nqsv`、`verify-perf balanced`、および 13.7〜17.5 時間の read-heavy 走行が予定)、
 1 byte の追記でも残り phase が `prereg-blob` で停止する。
 
+> **但し書き (D1529、2026-09-04)。** 括弧内の「13.7〜17.5 時間」は
+> `output/insights/2026-09-02_t2191-verifier-parallel/README.md` の見積りの再掲である。その入力帯
+> (1 反復 1346.9-1465.6 秒) は read-heavy で commit 数が飽和した 3 変種の本規模反復 (反復数 5・5・3)
+> から出ていて、そのうち 3 反復は、campaign 記録上 commit (取引の確定ではなく変種の認証確定) に
+> 到達しないまま打ち切られた実行 (欠測 attempt、`constant-mu2` 変種 `292d58f1dad8`) の観測分で
+> ある。値を無効にするものではなく、欠測 attempt を除いた再計算は行っていない。
+
 適用が安全になる条件は次のいずれかである。
 
 1. `dev-wave-t1905-b10-continuation` の B-10 正式走 (balanced + read-heavy + report) がすべて
