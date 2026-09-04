@@ -900,6 +900,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
              backoff_grammar_version: Optional[int] = None,
+             sort_oracle_contract_id: Optional[str] = None,
              expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
              declared_use_class: Optional[str] = None,
              trigger_gate_binding=None,
@@ -1092,6 +1093,10 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             source_options["backoff_grammar_version"] = (
                 backoff_grammar_version
             )
+        if sort_oracle_contract_id is not None:
+            source_options["sort_oracle_contract_id"] = (
+                sort_oracle_contract_id
+            )
         current_evidence = source_digest.resolve_evidence(
             genome,
             ccbench_commit,
@@ -1251,6 +1256,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 common["declared_use_class"] = declared_use_class
             if backoff_grammar_version is not None:
                 common["backoff_grammar_version"] = backoff_grammar_version
+            if sort_oracle_contract_id is not None:
+                common["sort_oracle_contract_id"] = sort_oracle_contract_id
 
         def _build_one(*, trace: bool):
             build_kind = "trace" if trace else "perf"
@@ -1263,6 +1270,10 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 if backoff_grammar_version is not None:
                     build_options["backoff_grammar_version"] = (
                         backoff_grammar_version
+                    )
+                if sort_oracle_contract_id is not None:
+                    build_options["sort_oracle_contract_id"] = (
+                        sort_oracle_contract_id
                     )
                 return buildcache.build(
                     genome, ccbench_commit, trace=trace, src_token=src_tok,
@@ -1816,6 +1827,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
              backoff_grammar_version: Optional[int] = None,
+             sort_oracle_contract_id: Optional[str] = None,
              expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
              declared_use_class: Optional[str] = None,
              trigger_gate_binding=None,
@@ -1868,6 +1880,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         capability_resolver=capability_resolver,
         source_evidence=source_evidence,
         backoff_grammar_version=backoff_grammar_version,
+        sort_oracle_contract_id=sort_oracle_contract_id,
         expected_toolchain_manifest=expected_toolchain_manifest,
         declared_use_class=declared_use_class,
         trigger_gate_binding=trigger_gate_binding,

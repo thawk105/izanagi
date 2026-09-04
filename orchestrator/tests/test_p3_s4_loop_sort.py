@@ -1249,6 +1249,729 @@ def test_b4_sort_cli_receipt_is_continuation_only(tmp_path):
         ])
 
 
+def _sort_contract_evidence(source_root, *, raw_token, bound_token):
+    from orchestrator.campaign.source_digest import SourceEvidence
+
+    return SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(source_root.resolve()),
+        ccbench_commit=S.PIN,
+        genome_sha256=hashlib.sha256(
+            _G.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token=bound_token,
+        source_bytes_sha256=raw_token,
+        tracked_clean=False,
+        tracked_diff_sha256="c" * 64,
+        tracked_paths=(S.SOURCE_REL,),
+    )
+
+
+def _sort_cache_request(tmp_path, monkeypatch):
+    from orchestrator.campaign import buildcache, source_digest
+    from orchestrator.campaign.build_admission import (
+        attest_generator_output,
+        derive_build_admission,
+    )
+    from test_buildcache_v2 import _fake_build_environment, _install_toolchain
+
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path, payload=b"sort-bound-build")
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    raw_token = "a" * 64
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    bound_token = source_digest._bind_sort_oracle_contract_id(
+        raw_token, contract_id,
+    )
+    evidence = _sort_contract_evidence(
+        source_root, raw_token=raw_token, bound_token=bound_token,
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context, evidence, generator_input_sha256="d" * 64,
+    )
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=capability,
+    )
+    return SimpleNamespace(
+        buildcache=buildcache,
+        source_root=source_root,
+        raw_token=raw_token,
+        contract_id=contract_id,
+        bound_token=bound_token,
+        evidence=evidence,
+        context=context,
+        admission=admission,
+        cache_root=tmp_path / "cache",
+    )
+
+
+def test_require_sort_oracle_contract_accepts_only_running_contract():
+    from dataclasses import replace
+
+    cfg = S.default_cfg()
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    assert S._require_sort_oracle_contract(cfg) == contract_id
+
+    missing = dict(cfg.search_config)
+    missing.pop("sort_swo_oracle")
+    with pytest.raises(ValueError):
+        S._require_sort_oracle_contract(replace(
+            cfg, search_config=missing,
+        ))
+
+    invalid_values = (None, 1, "", contract_id + "-other")
+    for invalid in invalid_values:
+        search_config = dict(cfg.search_config)
+        search_config["sort_swo_oracle"] = invalid
+        with pytest.raises(ValueError):
+            S._require_sort_oracle_contract(replace(
+                cfg, search_config=search_config,
+            ))
+
+
+def test_sort_driver_forwards_producer_contract_to_run_campaign(
+    tmp_path, monkeypatch,
+):
+    import contextlib
+    from orchestrator.campaign import patchharness
+
+    sentinel = "sort-contract-producer-sentinel"
+    observed = {}
+    monkeypatch.setattr(
+        S, "_require_sort_oracle_contract", lambda _cfg: sentinel,
+    )
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(S, "_quarantine_and_audit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(S.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None)
+    layout = CampaignLayout(str(tmp_path / "layout"))
+    monkeypatch.setattr(S, "exploration_campaign_layout", lambda _cid: layout)
+
+    def fake_run_campaign(*_args, **kwargs):
+        observed.update(kwargs)
+        return SimpleNamespace(
+            results=[SimpleNamespace(
+                variant=None, certified=False, aborted=True, verdict="fixture",
+            )],
+            skipped=0,
+        )
+
+    monkeypatch.setattr(S, "run_campaign", fake_run_campaign)
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    S.run_one_iteration(
+        S.default_cfg(), S.default_perf(), _planner(),
+        S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL),
+        S.AuditorVerdict("pass", "a" * 64),
+        L.LoopState(start_wall=time.time()), str(tmp_path / "source"), True,
+        layout=layout,
+        build_context=context,
+        log=lambda *_args: None,
+    )
+
+    assert observed["sort_oracle_contract_id"] is sentinel
+
+
+def test_sort_oracle_contract_call_seams_are_keyword_only_default_none():
+    from orchestrator.campaign import buildcache, loop, pipeline, source_digest
+
+    for callable_obj in (
+        loop.run_campaign,
+        pipeline.evaluate,
+        pipeline._prepare_evaluation_core,
+        source_digest.resolve_evidence,
+        buildcache.build,
+        buildcache.build_v2,
+        buildcache._build_v2_impl,
+        buildcache._recheck_source_evidence,
+    ):
+        parameter = inspect.signature(callable_obj).parameters[
+            "sort_oracle_contract_id"
+        ]
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameter.default is None
+
+
+def test_resolved_src_token_rejects_both_bindings():
+    from orchestrator.campaign import source_digest
+
+    current = "a" * 64
+    baseline = "b" * 64
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        source_digest._resolved_src_token(
+            current,
+            baseline,
+            1,
+            sort_oracle_contract_id=contract_id,
+        )
+    assert source_digest._resolved_src_token(
+        current,
+        baseline,
+        None,
+        sort_oracle_contract_id=contract_id,
+    ) == source_digest._bind_sort_oracle_contract_id(current, contract_id)
+    assert source_digest._resolved_src_token(
+        current, baseline, 1,
+    ) == source_digest._bind_backoff_grammar_version(current, 1)
+
+
+def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(
+    tmp_path,
+):
+    from orchestrator.campaign import env_contract, loop, pipeline, source_digest
+
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    raw_token = "a" * 64
+    bound_token = source_digest._bind_sort_oracle_contract_id(
+        raw_token, contract_id,
+    )
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    evidence = _sort_contract_evidence(
+        source_root, raw_token=raw_token, bound_token=bound_token,
+    )
+    evaluated = pipeline.EvalResult(
+        genome=_G,
+        variant=source_digest.verification_variant_id(_G, bound_token),
+        certified=False,
+        aborted=True,
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+
+    with mock.patch.object(
+        loop.source_digest,
+        "resolve_evidence",
+        autospec=True,
+        return_value=evidence,
+    ) as resolve_spy, mock.patch.object(
+        loop,
+        "evaluate",
+        autospec=True,
+        return_value=evaluated,
+    ) as evaluate_spy:
+        summary = loop.run_campaign(
+            S.default_cfg(),
+            [_G],
+            S.default_perf(),
+            S.ENV_TAG,
+            S.CLK,
+            numactl=S.NUMA,
+            do_bench=False,
+            output_root=str(tmp_path / "output"),
+            ccbench_dir=str(source_root),
+            authorization_contract=env_contract.authorize(S.ENV_TAG),
+            build_context=context,
+            declared_use_class=S.DECLARED_USE_CLASS,
+            sort_oracle_contract_id=contract_id,
+            log=lambda *_args: None,
+        )
+
+    assert summary.results == [evaluated]
+    assert resolve_spy.call_args.kwargs["sort_oracle_contract_id"] == contract_id
+    assert evaluate_spy.call_args.kwargs["sort_oracle_contract_id"] == contract_id
+    assert evaluate_spy.call_args.kwargs["source_evidence"] is evidence
+
+
+@pytest.mark.parametrize("build_mode", ("legacy", "v2"), ids=("legacy", "v2"))
+def test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api(
+    tmp_path, build_mode,
+):
+    from orchestrator.campaign import buildcache, env_contract, pipeline, source_digest
+    from orchestrator.campaign.build_admission import attest_generator_output
+
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    raw_token = "a" * 64
+    bound_token = source_digest._bind_sort_oracle_contract_id(
+        raw_token, contract_id,
+    )
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    evidence = _sort_contract_evidence(
+        source_root, raw_token=raw_token, bound_token=bound_token,
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context, evidence, generator_input_sha256="d" * 64,
+    )
+
+    def capability_resolver(observed):
+        assert observed is evidence
+        return capability
+
+    layout = CampaignLayout(root=str(tmp_path / "layout")).ensure()
+    wal.write_lock(layout, build_v2_lock(
+        ident.canonical_preimage(S.default_cfg())
+    ))
+    common = {
+        "numactl": S.NUMA,
+        "do_bench": False,
+        "do_settle": False,
+        "ccbench_dir": str(source_root),
+        "cache_root": str(tmp_path / "cache"),
+        "authorization_contract": env_contract.authorize(S.ENV_TAG),
+        "build_context": context,
+        "capability_resolver": capability_resolver,
+        "source_evidence": evidence,
+        "sort_oracle_contract_id": contract_id,
+        "log": lambda *_args: None,
+    }
+    if build_mode == "v2":
+        common["env_contract"] = env_contract.lookup(S.ENV_TAG)
+        common["declared_use_class"] = S.DECLARED_USE_CLASS
+        selected = "build_v2"
+    else:
+        selected = "build"
+
+    with mock.patch.object(
+        pipeline.source_digest,
+        "resolve_evidence",
+        autospec=True,
+        return_value=evidence,
+    ) as resolve_spy, mock.patch.object(
+        buildcache,
+        selected,
+        autospec=True,
+        side_effect=RuntimeError("stop after selected build seam"),
+    ) as build_spy:
+        result = pipeline.evaluate(
+            _G,
+            layout,
+            S.ENV_TAG,
+            S.PIN,
+            S.default_perf(),
+            S.CLK,
+            **common,
+        )
+
+    assert result.aborted
+    assert resolve_spy.call_args.kwargs["sort_oracle_contract_id"] == contract_id
+    assert build_spy.call_args.kwargs["sort_oracle_contract_id"] == contract_id
+
+
+def test_build_v2_wrapper_forwards_sort_contract_to_impl():
+    from orchestrator.campaign import buildcache
+
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    result_sentinel = object()
+    with mock.patch.object(
+        buildcache,
+        "_build_v2_impl",
+        autospec=True,
+        return_value=result_sentinel,
+    ) as impl_spy:
+        result = buildcache.build_v2(
+            _G,
+            admission=object(),
+            build_context=object(),
+            source_evidence=object(),
+            contract=object(),
+            ccbench_commit=S.PIN,
+            trace=False,
+            cc="cc",
+            cxx="cxx",
+            cache_root="cache",
+            sort_oracle_contract_id=contract_id,
+        )
+
+    assert result is result_sentinel
+    assert impl_spy.call_args.kwargs["sort_oracle_contract_id"] == contract_id
+
+
+@pytest.mark.parametrize(
+    "build_mode,warm_first,expected_fresh",
+    (
+        ("legacy", False, True),
+        ("legacy", True, False),
+        ("v2", False, True),
+        ("v2", True, False),
+    ),
+    ids=("legacy-fresh", "legacy-hit", "v2-fresh", "v2-hit"),
+)
+def test_build_exits_recheck_with_sort_contract(
+    tmp_path, monkeypatch, build_mode, warm_first, expected_fresh,
+):
+    from test_buildcache_v2 import _contract
+
+    request = _sort_cache_request(tmp_path, monkeypatch)
+    if build_mode == "legacy":
+        build_api = request.buildcache.build
+        kwargs = {
+            "genome": _G,
+            "ccbench_commit": S.PIN,
+            "trace": False,
+            "cache_root": str(request.cache_root),
+            "ccbench_dir": str(request.source_root),
+            "admission": request.admission,
+            "build_context": request.context,
+            "source_evidence": request.evidence,
+            "sort_oracle_contract_id": request.contract_id,
+        }
+    else:
+        build_api = request.buildcache.build_v2
+        kwargs = {
+            "genome": _G,
+            "admission": request.admission,
+            "build_context": request.context,
+            "source_evidence": request.evidence,
+            "contract": _contract(551),
+            "ccbench_commit": S.PIN,
+            "trace": False,
+            "cc": "test-cc",
+            "cxx": "test-cxx",
+            "cache_root": str(request.cache_root),
+            "ccbench_dir": str(request.source_root),
+            "sort_oracle_contract_id": request.contract_id,
+        }
+
+    with mock.patch.object(
+        request.buildcache,
+        "_recheck_source_evidence",
+        autospec=True,
+    ) as recheck_spy:
+        if warm_first:
+            build_api(**kwargs)
+            recheck_spy.reset_mock()
+        build_api(**kwargs)
+
+    assert recheck_spy.call_args.kwargs["built_fresh"] is expected_fresh
+    assert recheck_spy.call_args.kwargs[
+        "sort_oracle_contract_id"
+    ] == request.contract_id
+
+
+def test_recheck_source_evidence_forwards_sort_contract_to_resolver(tmp_path):
+    from orchestrator.campaign import buildcache, source_digest
+
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    raw_token = "a" * 64
+    bound_token = source_digest._bind_sort_oracle_contract_id(
+        raw_token, contract_id,
+    )
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    evidence = _sort_contract_evidence(
+        source_root, raw_token=raw_token, bound_token=bound_token,
+    )
+    with mock.patch.object(
+        buildcache.source_digest,
+        "resolve_evidence",
+        autospec=True,
+        return_value=evidence,
+    ) as resolve_spy:
+        buildcache._recheck_source_evidence(
+            _G,
+            S.PIN,
+            str(source_root),
+            "test-cxx",
+            evidence,
+            str(tmp_path / "build"),
+            False,
+            sort_oracle_contract_id=contract_id,
+        )
+
+    assert resolve_spy.call_args.kwargs["sort_oracle_contract_id"] == contract_id
+
+
+def test_sort_binder_exact_preimage_and_rejections():
+    from orchestrator.campaign import source_digest
+
+    raw_token = "a" * 64
+    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    expected = hashlib.sha256(
+        b"sort-src-token/v1\0contract="
+        + contract_id.encode("ascii")
+        + b"\0source="
+        + raw_token.encode("ascii")
+    ).hexdigest()
+    bound = source_digest._bind_sort_oracle_contract_id(raw_token, contract_id)
+    assert bound != raw_token
+    assert bound == expected
+    assert bound != source_digest._bind_backoff_grammar_version(raw_token, 1)
+    assert source_digest._bind_sort_oracle_contract_id(raw_token, None) == raw_token
+
+    for invalid in (1, True, "", "contract\0id", "contract-nonascii-\N{SNOWMAN}"):
+        with pytest.raises(ValueError):
+            source_digest._bind_sort_oracle_contract_id(raw_token, invalid)
+
+
+def test_sort_contract_none_preserves_preexisting_identities(tmp_path):
+    from orchestrator.campaign import buildcache, source_digest
+    from orchestrator.campaign.build_admission import (
+        attest_generator_output,
+        derive_build_admission,
+    )
+
+    raw_token = "a" * 64
+    baseline = "b" * 64
+    omitted = source_digest._resolved_src_token(raw_token, baseline, None)
+    explicit_none = source_digest._resolved_src_token(
+        raw_token, baseline, None, sort_oracle_contract_id=None,
+    )
+    assert omitted == explicit_none == raw_token
+    assert source_digest._resolved_src_token(
+        raw_token, raw_token, None,
+    ) == source_digest._resolved_src_token(
+        raw_token, raw_token, None, sort_oracle_contract_id=None,
+    ) == "stock"
+
+    expected_variant = hashlib.sha256(
+        f"{_G.canonical()}|src={raw_token}".encode("utf-8")
+    ).hexdigest()[:12]
+    assert source_digest.verification_variant_id(_G, omitted) == expected_variant
+
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    evidence = _sort_contract_evidence(
+        source_root, raw_token=raw_token, bound_token=raw_token,
+    )
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    capability = attest_generator_output(
+        context, evidence, generator_input_sha256="d" * 64,
+    )
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=capability,
+    )
+    legacy_raw = (
+        f"{_G.canonical()}|{S.PIN}|trace=0|src={raw_token}"
+        f"|adm={admission.receipt_sha256}"
+    )
+    expected_legacy = (
+        f"{_G.protocol}_{hashlib.sha256(legacy_raw.encode('utf-8')).hexdigest()[:10]}_t0"
+    )
+    assert buildcache.cache_key(
+        _G, S.PIN, False, omitted, admission=admission,
+    ) == expected_legacy
+
+    toolchain = {}
+    admission_identity = dict(admission.as_cache_identity())
+    expected_preimage = {
+        "genome_canonical": _G.canonical(),
+        "ccbench_commit": S.PIN,
+        "trace": False,
+        "src_token": raw_token,
+        "cc": buildcache.DEFAULT_CC,
+        "cxx": buildcache.DEFAULT_CXX,
+        "toolchain_manifest_sha256": hashlib.sha256(b"{}").hexdigest(),
+        "site": "other",
+        "dependency_prefix": [],
+        "admission": admission_identity,
+    }
+    preimage, digest = buildcache._v2_identity(
+        _G,
+        S.PIN,
+        False,
+        omitted,
+        buildcache.DEFAULT_CC,
+        buildcache.DEFAULT_CXX,
+        toolchain,
+        site="other",
+        dependency_prefix=[],
+        admission=admission_identity,
+    )
+    assert preimage == expected_preimage
+    expected_v2 = hashlib.sha256(json.dumps(
+        expected_preimage,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+    assert digest == expected_v2
+
+
+def test_bound_evidence_token_is_the_cache_authority(tmp_path, monkeypatch):
+    from orchestrator.campaign import buildcache
+    from test_buildcache_v2 import _contract
+
+    request = _sort_cache_request(tmp_path, monkeypatch)
+    legacy = buildcache.build(
+        _G,
+        S.PIN,
+        False,
+        cache_root=str(request.cache_root),
+        ccbench_dir=str(request.source_root),
+        src_token=None,
+        admission=request.admission,
+        build_context=request.context,
+        source_evidence=request.evidence,
+        sort_oracle_contract_id=request.contract_id,
+    )
+    bound_legacy_key = buildcache.cache_key(
+        _G, S.PIN, False, request.bound_token, admission=request.admission,
+    )
+    raw_legacy_key = buildcache.cache_key(
+        _G, S.PIN, False, request.raw_token, admission=request.admission,
+    )
+    assert Path(legacy.build_dir).name == bound_legacy_key
+    assert Path(legacy.build_dir).name != raw_legacy_key
+
+    contract = _contract(552)
+    v2 = buildcache.build_v2(
+        _G,
+        admission=request.admission,
+        build_context=request.context,
+        source_evidence=request.evidence,
+        contract=contract,
+        ccbench_commit=S.PIN,
+        trace=False,
+        src_token=None,
+        cc="test-cc",
+        cxx="test-cxx",
+        cache_root=str(request.cache_root),
+        ccbench_dir=str(request.source_root),
+        sort_oracle_contract_id=request.contract_id,
+    )
+    toolchain = buildcache._toolchain_manifest("test-cc", "test-cxx")
+    identity_args = {
+        "genome": _G,
+        "ccbench_commit": S.PIN,
+        "trace": False,
+        "cc": "test-cc",
+        "cxx": "test-cxx",
+        "toolchain": toolchain,
+        "site": buildcache.site_policy.OTHER,
+        "dependency_prefix": [],
+        "admission": dict(request.admission.as_cache_identity()),
+    }
+    _bound_preimage, bound_digest = buildcache._v2_identity(
+        src_token=request.bound_token, **identity_args,
+    )
+    _raw_preimage, raw_digest = buildcache._v2_identity(
+        src_token=request.raw_token, **identity_args,
+    )
+    assert Path(v2.build_dir).name == bound_digest
+    assert Path(v2.build_dir).name != raw_digest
+
+    with mock.patch.object(
+        buildcache,
+        "_open_or_create_directory_path",
+        side_effect=AssertionError("cache opened before token mismatch rejection"),
+    ) as open_spy:
+        with pytest.raises(buildcache.BuildCacheError, match="src_token"):
+            buildcache.build(
+                _G,
+                S.PIN,
+                False,
+                cache_root=str(request.cache_root),
+                ccbench_dir=str(request.source_root),
+                src_token=request.raw_token,
+                admission=request.admission,
+                build_context=request.context,
+                source_evidence=request.evidence,
+                sort_oracle_contract_id=request.contract_id,
+            )
+        with pytest.raises(buildcache.BuildCacheError, match="src_token"):
+            buildcache.build_v2(
+                _G,
+                admission=request.admission,
+                build_context=request.context,
+                source_evidence=request.evidence,
+                contract=contract,
+                ccbench_commit=S.PIN,
+                trace=False,
+                src_token=request.raw_token,
+                cc="test-cc",
+                cxx="test-cxx",
+                cache_root=str(request.cache_root),
+                ccbench_dir=str(request.source_root),
+                sort_oracle_contract_id=request.contract_id,
+            )
+    assert open_spy.call_count == 0
+
+
+def test_bound_sort_requests_never_open_raw_token_entries(tmp_path, monkeypatch):
+    from orchestrator.campaign import buildcache
+    from test_buildcache_v2 import _contract
+
+    request = _sort_cache_request(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        buildcache.source_digest,
+        "resolve_evidence",
+        lambda *_args, **_kwargs: request.evidence,
+    )
+    opened_names = []
+    real_open_checked = buildcache._open_checked_directory_at
+
+    def observe_open(parent_fd, name, *, label):
+        opened_names.append(name)
+        return real_open_checked(parent_fd, name, label=label)
+
+    monkeypatch.setattr(buildcache, "_open_checked_directory_at", observe_open)
+    legacy_raw_key = buildcache.cache_key(
+        _G,
+        S.PIN,
+        False,
+        request.raw_token,
+        admission=request.admission,
+    )
+    legacy_poison = (
+        request.cache_root / legacy_raw_key / "cc" / "silo" / "ycsb_silo.exe"
+    )
+    legacy_poison.parent.mkdir(parents=True)
+    legacy_poison.write_bytes(b"raw-token-legacy-poison")
+
+    legacy = buildcache.build(
+        _G,
+        S.PIN,
+        False,
+        cache_root=str(request.cache_root),
+        ccbench_dir=str(request.source_root),
+        src_token=request.bound_token,
+        admission=request.admission,
+        build_context=request.context,
+        source_evidence=request.evidence,
+        sort_oracle_contract_id=request.contract_id,
+    )
+    assert legacy.cached is False
+    assert Path(legacy.build_dir).name != legacy_raw_key
+    assert legacy_raw_key not in opened_names
+    assert legacy_poison.read_bytes() == b"raw-token-legacy-poison"
+
+    opened_names.clear()
+    contract = _contract(553)
+    toolchain = buildcache._toolchain_manifest("test-cc", "test-cxx")
+    _raw_preimage, raw_digest = buildcache._v2_identity(
+        _G,
+        S.PIN,
+        False,
+        request.raw_token,
+        "test-cc",
+        "test-cxx",
+        toolchain,
+        site=buildcache.site_policy.OTHER,
+        dependency_prefix=[],
+        admission=dict(request.admission.as_cache_identity()),
+    )
+    v2_poison = (
+        request.cache_root / "contracts" / contract.contract_sha256 / raw_digest
+        / "cc" / "silo" / "ycsb_silo.exe"
+    )
+    v2_poison.parent.mkdir(parents=True)
+    v2_poison.write_bytes(b"raw-token-v2-poison")
+
+    v2 = buildcache.build_v2(
+        _G,
+        admission=request.admission,
+        build_context=request.context,
+        source_evidence=request.evidence,
+        contract=contract,
+        ccbench_commit=S.PIN,
+        trace=False,
+        src_token=request.bound_token,
+        cc="test-cc",
+        cxx="test-cxx",
+        cache_root=str(request.cache_root),
+        ccbench_dir=str(request.source_root),
+        sort_oracle_contract_id=request.contract_id,
+    )
+    assert v2.cached is False
+    assert Path(v2.build_dir).name != raw_digest
+    assert raw_digest not in opened_names
+    assert v2_poison.read_bytes() == b"raw-token-v2-poison"
+
+
 if __name__ == "__main__":
     import pytest as _pytest
     raise SystemExit(_pytest.main([__file__, "-v"]))

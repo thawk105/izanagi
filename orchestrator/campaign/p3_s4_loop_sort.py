@@ -65,7 +65,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import buildcache, condition_meaning_gate, env_contract, ident, pin, wal  # noqa: E402
+from . import (buildcache, condition_meaning_gate, env_contract, ident, pin,  # noqa: E402
+               sort_swo_oracle, wal)
 from . import p3_s4_loop as L                              # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -331,6 +332,19 @@ def default_cfg(
 default_perf = L.default_perf   # 軸非依存 (kickoff 規模、有意性を主張しない配線規模)
 
 
+def _require_sort_oracle_contract(cfg: CampaignConfig) -> str:
+    """Return the single campaign-declared sort oracle contract or fail closed."""
+
+    declared = cfg.search_config.get("sort_swo_oracle")
+    expected = sort_swo_oracle.ORACLE_CONTRACT_ID
+    if type(declared) is not str or declared != expected:
+        raise ValueError(
+            "cfg.search_config.sort_swo_oracle must exactly equal "
+            f"{expected}"
+        )
+    return declared
+
+
 # ==== 1 iteration の機械 E2E ==================================================
 
 # 重複提案の解決は backoff 版と単一実装 ([T-157])。旧 sort 版は revert 後の tree へ
@@ -371,6 +385,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    sort_oracle_contract_id = _require_sort_oracle_contract(cfg)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     genome = Genome("silo", {**_BASE, "SORT_VARIANT": 1})
@@ -398,7 +413,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                               ccbench_dir=sub, cache_root=cache_root,
                               authorization_contract=env_contract.authorize(ENV_TAG),
                               build_context=build_context,
-                              declared_use_class=DECLARED_USE_CLASS)
+                              declared_use_class=DECLARED_USE_CLASS,
+                              sort_oracle_contract_id=sort_oracle_contract_id)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
