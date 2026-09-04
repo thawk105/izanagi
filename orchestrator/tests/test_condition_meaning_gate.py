@@ -145,6 +145,21 @@ def _copied_fixture(tmp_path: Path) -> Path:
     return destination
 
 
+def _append_inert_header_lines(
+    root: Path,
+    requested_lines: tuple[str, ...],
+    control_lines: tuple[str, ...] | None = None,
+) -> None:
+    if control_lines is None:
+        control_lines = requested_lines
+    for header, lines in (
+        (root / "include" / "backoff.hh", requested_lines),
+        (root / "stock" / "include" / "backoff.hh", control_lines),
+    ):
+        content = header.read_text(encoding="utf-8")
+        header.write_text(content + "".join(lines), encoding="utf-8")
+
+
 def _replace_source(root: Path, old: str, new: str) -> None:
     source = root / G.SOURCE_REL
     text = source.read_text(encoding="utf-8")
@@ -594,6 +609,229 @@ def test_backoff_fixed_minus_one_stock_preprocess_identity_is_green():
         "green", "stock-inert-preprocess-identical",
     )
     assert evidence["requested_digest"] == evidence["control_digest"]
+
+
+@pytest.mark.parametrize(
+    ("macro", "requested", "default"),
+    (
+        pytest.param("BACKOFF_FIXED", -1, None, id="BACKOFF_FIXED=-1"),
+        pytest.param("BACKOFF_NOINLINE", 0, 0, id="BACKOFF_NOINLINE=0"),
+    ),
+)
+def test_inert_root_location_only_difference_is_green(
+    tmp_path: Path,
+    macro: str,
+    requested: int,
+    default: int | None,
+):
+    root = _copied_fixture(tmp_path).resolve()
+    _append_inert_header_lines(
+        root,
+        ('    static constexpr const char *condition_gate_file = __FILE__;\n',),
+    )
+    request = G.make_define_request(
+        driver_id="test-condition-meaning-gate",
+        macro=macro,
+        requested_value=requested,
+        default_value=default,
+    )
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=root / "stock"),
+        request=request,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "green", "stock-inert-preprocess-root-location-only",
+    )
+    assert evidence["comparison"] == "stock-inert-root-location-only"
+    assert evidence["requested_digest"] != evidence["control_digest"]
+    assert type(evidence["root_diff_line_count"]) is int
+    assert evidence["root_diff_line_count"] >= 1
+    assert type(evidence["root_diff_replacement_count"]) is int
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_source_roots"] == (
+        os.fspath(root), os.fspath(root / "stock"),
+    )
+    assert evidence["root_diff_has_residual"] is False
+    G._validate_arm_record_integrity(record)
+
+
+def test_inert_semantic_difference_on_root_line_is_red(tmp_path: Path):
+    root = _copied_fixture(tmp_path).resolve()
+    requested_header = root / "include" / "backoff.hh"
+    control_header = root / "stock" / "include" / "backoff.hh"
+    requested_text = requested_header.read_text(encoding="utf-8")
+    control_text = control_header.read_text(encoding="utf-8")
+    old = "    double now_backoff = Backoff_.load(std::memory_order_acquire);\n"
+    requested_new = (
+        "    double now_backoff = Backoff_.load(std::memory_order_acquire); "
+        "static constexpr const char *condition_gate_file = __FILE__;\n"
+    )
+    control_new = (
+        "    double now_backoff = Backoff_.load(std::memory_order_acquire) + 1; "
+        "static constexpr const char *condition_gate_file = __FILE__;\n"
+    )
+    assert requested_text.count(old) == 1
+    assert control_text.count(old) == 1
+    requested_header.write_text(
+        requested_text.replace(old, requested_new), encoding="utf-8",
+    )
+    control_header.write_text(
+        control_text.replace(old, control_new), encoding="utf-8",
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=root / "stock"),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is True
+
+
+def test_inert_root_shaped_literal_outside_closure_is_red(tmp_path: Path):
+    root = _copied_fixture(tmp_path).resolve()
+    control_root = root / "stock"
+    _append_inert_header_lines(
+        root,
+        (
+            f'    static constexpr const char *condition_gate_literal = "{root}'
+            '/not-a-dependency.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+        (
+            f'    static constexpr const char *condition_gate_literal = "{control_root}'
+            '/not-a-dependency.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=control_root),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["requested_root_dependent_builtin_paths"]
+    assert evidence["control_root_dependent_builtin_paths"]
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is True
+
+
+def test_inert_root_prefixed_by_path_byte_is_red(tmp_path: Path):
+    root = _copied_fixture(tmp_path).resolve()
+    control_root = root / "stock"
+    _append_inert_header_lines(
+        root,
+        (
+            f'    static constexpr const char *condition_gate_literal = "xyz{root}'
+            '/include/backoff.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+        (
+            f'    static constexpr const char *condition_gate_literal = "xyz{control_root}'
+            '/include/backoff.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=control_root),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["requested_root_dependent_builtin_paths"]
+    assert evidence["control_root_dependent_builtin_paths"]
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is True
+
+
+def test_inert_root_difference_without_code_owned_file_builtin_is_red(
+    tmp_path: Path,
+):
+    root = _copied_fixture(tmp_path).resolve()
+    control_root = root / "stock"
+    _append_inert_header_lines(
+        root,
+        (
+            f'    static constexpr const char *condition_gate_literal = "{root}'
+            '/include/backoff.hh";\n',
+        ),
+        (
+            f'    static constexpr const char *condition_gate_literal = "{control_root}'
+            '/include/backoff.hh";\n',
+        ),
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=control_root),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["requested_root_dependent_builtin_paths"] == ()
+    assert evidence["control_root_dependent_builtin_paths"] == ()
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is False
+
+
+def test_inert_root_location_evidence_binds_configure_source_roots(
+    tmp_path: Path,
+):
+    root = _copied_fixture(tmp_path).resolve()
+    _append_inert_header_lines(
+        root,
+        ('    static constexpr const char *condition_gate_file = __FILE__;\n',),
+    )
+    request = _request(-1, default=None, stock=True)
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=root / "stock"),
+        request=request,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert record.terminal_status == "green"
+
+    evidence = dict(record.evidence)
+    evidence["root_diff_source_roots"] = (
+        "/forged/requested-source", "/forged/control-source",
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=record.reason_code,
+        request=request,
+        request_digest=record.request_digest,
+        evidence=evidence,
+    )
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
 
 
 def test_requested_default_inert_reaches_tu_and_matches_stock():
