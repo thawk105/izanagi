@@ -560,6 +560,371 @@ def _assert_condition_gate_rejection(monkeypatch):
         "BACKOFF_NOINLINE:runtime-meaning:meaning-witness-undeclared:"
         "detail=None"
     ) in message
+
+
+def test_condition_gate_family_real_records_positive_then_issued_red_negative(
+    monkeypatch,
+):
+    """Exercise a family/wiring negative, not a real configure failure."""
+    import struct
+
+    from orchestrator.campaign import condition_meaning_gate as G
+    from orchestrator.tests import condition_gate_test_support as gate_support
+
+    supplied = gate_support._FIXTURE_ROOT
+    compilers = gate_support.condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate test compilers are not installed")
+    _cc, cxx = compilers
+    cmake = "cmake"
+    defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
+    real_family = G.require_condition_gate_family
+
+    def request_for(index, macro, value):
+        return G.make_define_request(
+            driver_id=(
+                "orchestrator.campaign.paper_story_a2_certification:"
+                f"cell-{index}"
+            ),
+            macro=macro,
+            requested_value=value,
+            default_value=defaults[macro],
+            stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
+        )
+
+    def declaration_for(macro, value):
+        if macro == "BACKOFF_FIXED" and value == -1:
+            return G.MeaningWitnessDeclaration(
+                macro,
+                (G.MeaningCase(
+                    -1,
+                    None,
+                    expected_selected_branch=G.STOCK_ADAPTIVE_BRANCH,
+                ),),
+            )
+        if macro == "BACKOFF_FIXED" and value >= 0:
+            bits = struct.pack(">d", float(value)).hex()
+            return G.MeaningWitnessDeclaration(
+                macro,
+                (G.MeaningCase(value, (bits, bits)),),
+            )
+        return None
+
+    captured = G.capture_define_inputs(
+        supplied, stock_root=supplied / "stock",
+    )
+    positive_flags = (
+        {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0},
+        {"BACKOFF_FIXED": 10, "BACKOFF_NOINLINE": 0},
+    )
+    expected_supply_outcomes = {
+        (0, "BACKOFF_FIXED"): (
+            "green", "stock-inert-preprocess-identical",
+        ),
+        (0, "BACKOFF_NOINLINE"): (
+            "green", "stock-inert-preprocess-identical",
+        ),
+        (1, "BACKOFF_FIXED"): (
+            "green", "requested-default-preprocess-different",
+        ),
+        (1, "BACKOFF_NOINLINE"): (
+            "green", "stock-inert-preprocess-identical",
+        ),
+    }
+    expected_meaning_outcomes = {
+        (0, "BACKOFF_FIXED"): ("green", "declared-meaning-observed"),
+        (0, "BACKOFF_NOINLINE"): (
+            "unestablished", "meaning-witness-undeclared",
+        ),
+        (1, "BACKOFF_FIXED"): ("green", "declared-meaning-observed"),
+        (1, "BACKOFF_NOINLINE"): (
+            "unestablished", "meaning-witness-undeclared",
+        ),
+    }
+    positive_cells = []
+    positive_rows = []
+    for index, flags in enumerate(positive_flags):
+        cell_supply = []
+        cell_meaning = []
+        for macro in sorted(set(flags) & set(defaults)):
+            value = flags[macro]
+            request = request_for(index, macro, value)
+            declaration = declaration_for(macro, value)
+            supply = G.evaluate_define_supply_effectuation(
+                captured, request=request, cxx=cxx, cmake=cmake,
+            )
+            meaning = G.evaluate_define_runtime_meaning(
+                captured,
+                request=request,
+                declaration=declaration,
+                cxx=cxx,
+                cmake=cmake,
+            )
+            assert type(supply) is G.ConditionArmRecord
+            assert type(meaning) is G.ConditionArmRecord
+            G._validate_arm_record_integrity(supply)
+            G._validate_arm_record_integrity(meaning)
+            assert (supply.terminal_status, supply.reason_code) \
+                == expected_supply_outcomes[(index, macro)]
+            assert (meaning.terminal_status, meaning.reason_code) \
+                == expected_meaning_outcomes[(index, macro)]
+            positive_rows.append((
+                index, macro, request, declaration, supply, meaning,
+            ))
+            cell_supply.append(supply)
+            cell_meaning.append(meaning)
+        admission = real_family(
+            cell_supply, cell_meaning, use_class="paper",
+        )
+        assert admission.admitted is True
+        assert admission.record_ids == tuple(
+            record.record_id for record in (*cell_supply, *cell_meaning)
+        )
+        assert admission.unestablished_meaning_macros == (
+            "BACKOFF_NOINLINE",
+        )
+        positive_cells.append((cell_supply, cell_meaning, admission))
+
+    negative_request = request_for(0, "BACKOFF_FIXED", 10)
+    negative_declaration = declaration_for("BACKOFF_FIXED", 10)
+    negative_meaning = G.evaluate_define_runtime_meaning(
+        captured,
+        request=negative_request,
+        declaration=negative_declaration,
+        cxx=cxx,
+        cmake=cmake,
+    )
+    _spec, _requested, _default, companions = (
+        G._validate_define_request(negative_request)
+    )
+    negative_supply = G._issue_arm_record(
+        arm="supply-effectuation",
+        terminal_status="red",
+        reason_code="configure-failed",
+        request=negative_request,
+        request_digest=G._request_digest(negative_request, companions),
+        evidence={
+            "detail": "cmake emitted an unused-variable warning",
+        },
+    )
+    assert type(negative_supply) is G.ConditionArmRecord
+    assert type(negative_meaning) is G.ConditionArmRecord
+    G._validate_arm_record_integrity(negative_supply)
+    G._validate_arm_record_integrity(negative_meaning)
+    assert (
+        negative_meaning.terminal_status,
+        negative_meaning.reason_code,
+    ) == ("green", "declared-meaning-observed")
+
+    source_root = supplied
+    dependency_prefix = Path("/dependency")
+    current_pin = "abc1234"
+    expected_toolchain_manifest = {"fixture": "toolchain"}
+
+    def install_leaf_stubs(label, expected_rows):
+        variant_root = Path(f"/scratch/{label}-job-variant")
+        fetchcontent_base = Path(f"/scratch/{label}-fetchcontent")
+        calls = []
+        supply_index = 0
+        meaning_index = 0
+
+        @contextlib.contextmanager
+        def checkout(pin_commit, *, base_dir):
+            assert pin_commit == current_pin
+            assert base_dir == os.fspath(source_root)
+            calls.append("checkout")
+            yield os.fspath(variant_root)
+
+        @contextlib.contextmanager
+        def applied(patch_path, pin_commit, *, ccbench_dir):
+            assert patch_path == os.fspath(
+                Path(A2.__file__).resolve().parents[2]
+                / "patches/silo-backoff-fixed.patch"
+            )
+            assert pin_commit == current_pin
+            assert ccbench_dir == os.fspath(variant_root)
+            calls.append("applied")
+            yield None
+
+        @contextlib.contextmanager
+        def temporary_directory(*, prefix):
+            assert prefix == "izanagi-a2-condition-gate-"
+            calls.append("temporary-directory")
+            yield os.fspath(fetchcontent_base)
+
+        def prepare_masstree_fetchcontent(
+            *,
+            ccbench_dir,
+            fetchcontent_base_dir,
+            expected_toolchain_manifest,
+            configure_timeout_s,
+            target_timeout_s,
+            dependency_prefix,
+        ):
+            assert ccbench_dir == os.fspath(variant_root.resolve())
+            assert fetchcontent_base_dir == os.fspath(fetchcontent_base)
+            assert expected_toolchain_manifest is expected_manifest
+            assert configure_timeout_s == 900
+            assert target_timeout_s == 900
+            assert dependency_prefix == os.fspath(expected_dependency_prefix)
+            calls.append("prebuild")
+
+        def capture(source, *, stock_root, configure_args):
+            assert source == variant_root
+            assert stock_root == source_root
+            assert configure_args == (
+                f"-DCMAKE_PREFIX_PATH={expected_dependency_prefix}",
+                f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+            )
+            calls.append("capture")
+            return captured
+
+        def evaluate_supply(_captured, *, request, cxx, cmake):
+            nonlocal supply_index
+            assert supply_index < len(expected_rows)
+            index, macro, expected_request, _declaration, record, _meaning = (
+                expected_rows[supply_index]
+            )
+            assert _captured is captured
+            assert request == expected_request
+            assert cxx == expected_cxx
+            assert cmake == expected_cmake
+            calls.append(f"supply:cell-{index}:{macro}")
+            supply_index += 1
+            return record
+
+        def evaluate_meaning(
+            _captured, *, request, declaration, cxx,
+        ):
+            nonlocal meaning_index
+            assert meaning_index < len(expected_rows)
+            index, macro, expected_request, expected_declaration, _supply, record = (
+                expected_rows[meaning_index]
+            )
+            assert _captured is captured
+            assert request == expected_request
+            assert declaration == expected_declaration
+            assert cxx == expected_cxx
+            calls.append(f"meaning:cell-{index}:{macro}")
+            meaning_index += 1
+            return record
+
+        expected_cxx = cxx
+        expected_cmake = cmake
+        expected_dependency_prefix = dependency_prefix
+        expected_manifest = expected_toolchain_manifest
+        monkeypatch.setattr(A2.patchharness, "checkout", checkout)
+        monkeypatch.setattr(A2.patchharness, "applied", applied)
+        monkeypatch.setattr(
+            A2.tempfile, "TemporaryDirectory", temporary_directory,
+        )
+        monkeypatch.setattr(
+            A2.buildcache,
+            "prepare_masstree_fetchcontent",
+            prepare_masstree_fetchcontent,
+        )
+        monkeypatch.setattr(
+            A2.condition_meaning_gate, "capture_define_inputs", capture,
+        )
+        monkeypatch.setattr(
+            A2.condition_meaning_gate,
+            "evaluate_define_supply_effectuation",
+            evaluate_supply,
+        )
+        monkeypatch.setattr(
+            A2.condition_meaning_gate,
+            "evaluate_define_runtime_meaning",
+            evaluate_meaning,
+        )
+        return variant_root, calls
+
+    positive_variant, positive_calls = install_leaf_stubs(
+        "positive", positive_rows,
+    )
+    positive_genomes = [
+        A2.SimpleNamespace(flags=dict(flags)) for flags in positive_flags
+    ]
+    with _REAL_CONDITION_GATE_FAMILY(
+        source_root,
+        positive_genomes,
+        cxx=cxx,
+        dependency_prefix=dependency_prefix,
+        current_pin=current_pin,
+        expected_toolchain_manifest=expected_toolchain_manifest,
+    ) as (observed_variant, receipts):
+        assert observed_variant == positive_variant
+        assert len(receipts) == 2
+        for receipt, (supply, meaning, admission) in zip(
+            receipts, positive_cells, strict=True,
+        ):
+            assert receipt == {
+                "supply_records": [
+                    json.loads(record.canonical_json()) for record in supply
+                ],
+                "meaning_records": [
+                    json.loads(record.canonical_json()) for record in meaning
+                ],
+                "admission": json.loads(admission.canonical_json()),
+            }
+    assert positive_calls == [
+        "checkout",
+        "applied",
+        "temporary-directory",
+        "prebuild",
+        "capture",
+        "supply:cell-0:BACKOFF_FIXED",
+        "meaning:cell-0:BACKOFF_FIXED",
+        "supply:cell-0:BACKOFF_NOINLINE",
+        "meaning:cell-0:BACKOFF_NOINLINE",
+        "supply:cell-1:BACKOFF_FIXED",
+        "meaning:cell-1:BACKOFF_FIXED",
+        "supply:cell-1:BACKOFF_NOINLINE",
+        "meaning:cell-1:BACKOFF_NOINLINE",
+    ]
+
+    negative_admission = real_family(
+        [negative_supply], [negative_meaning], use_class="paper",
+    )
+    assert negative_admission.admitted is False
+    negative_rows = [(
+        0,
+        "BACKOFF_FIXED",
+        negative_request,
+        negative_declaration,
+        negative_supply,
+        negative_meaning,
+    )]
+    _negative_variant, negative_calls = install_leaf_stubs(
+        "negative", negative_rows,
+    )
+    negative_genome = A2.SimpleNamespace(flags={"BACKOFF_FIXED": 10})
+    with pytest.raises(A2.CertificationError) as error:
+        with _REAL_CONDITION_GATE_FAMILY(
+            source_root,
+            [negative_genome],
+            cxx=cxx,
+            dependency_prefix=dependency_prefix,
+            current_pin=current_pin,
+            expected_toolchain_manifest=expected_toolchain_manifest,
+        ):
+            pass
+    message = str(error.value)
+    assert (
+        "BACKOFF_FIXED:supply-effectuation:configure-failed:"
+        "detail='cmake emitted an unused-variable warning'"
+    ) in message
+    assert "BACKOFF_FIXED:runtime-meaning:" not in message
+    assert negative_calls == [
+        "checkout",
+        "applied",
+        "temporary-directory",
+        "prebuild",
+        "capture",
+        "supply:cell-0:BACKOFF_FIXED",
+        "meaning:cell-0:BACKOFF_FIXED",
+    ]
+
+
 from orchestrator.tests import commit_receipt_support as receipt_support
 
 
