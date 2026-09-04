@@ -1,0 +1,121 @@
+{
+ "estimated_run_seconds": 300,
+ "hang_timeout_seconds": 5400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2228.m1-family-accepts-red-supply",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "    supply_green = all(record.terminal_status in {\"green\", \"red\"} for record in supply_records)\n",
+     "old": "    supply_green = all(record.terminal_status == \"green\" for record in supply_records)\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2228.m2-receipt-meaning-records-empty",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "                    \"meaning_records\": [\n                        json.loads(record.canonical_json())\n                        for record in meaning_records[:0]\n                    ],\n",
+     "old": "                    \"meaning_records\": [\n                        json.loads(record.canonical_json())\n                        for record in meaning_records\n                    ],\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2228.m3-receipt-admission-fabricated",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "                    \"admission\": {\"admitted\": True},\n",
+     "old": "                    \"admission\": json.loads(admission.canonical_json()),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2228.m4-rejection-lists-green-records",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "                        if True or record.terminal_status != \"green\"\n",
+     "old": "                        if record.terminal_status != \"green\"\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2228.m5-macro-order-reversed",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "                for macro in sorted(set(genome.flags) & set(defaults), reverse=True):\n",
+     "old": "                for macro in sorted(set(genome.flags) & set(defaults)):\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2228.m6-request-driver-id-not-per-cell",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "                            f\"cell-{0 * index}\"\n",
+     "old": "                            f\"cell-{index}\"\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_family_real_records_positive_then_issued_red_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2228.m7-only-first-cell-gated",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "            for index, genome in enumerate(genomes[:1]):\n",
+     "old": "            for index, genome in enumerate(genomes):\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 5400
+}

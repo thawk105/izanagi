@@ -1,0 +1,620 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/929226ffbbd9af4377ca2c29f06121bf/izdw-929226ffbb.o977673",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/929226ffbbd9af4377ca2c29f06121bf/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 63%]\n.........................................                                [100%]\n113 passed in 4.83s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "c8d325438da56104b36456c74a9be2ed72c7af43fdc41be5e3eb603c531437f5"
+    },
+    "artifact_error": null,
+    "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+    "duration_s": 27.041,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f8c783564704d93fe3beeb4d07ab624b9eae900b5648a0d90ff799d759f2cbb3",
+    "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+    "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+    "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+    "status": "PASSED",
+    "test_output_sha256": "c8d325438da56104b36456c74a9be2ed72c7af43fdc41be5e3eb603c531437f5",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+  },
+  "date": "2026-09-04T16:47:31.398693+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/c9bc2f78ba342009192b6ecd9477f283/izdw-c9bc2f78ba.o977675",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/c9bc2f78ba342009192b6ecd9477f283/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 63%]\n.........................................                                [100%]\n113 passed in 4.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "a733531c6471e12cb18ff6596b7aff7f5f986b62d4a63022eb0b373a974d8028"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+      "duration_s": 32.297,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2228.m1-family-accepts-red-supply",
+      "injection_diff_sha256": "e872c4b2ed5c4ad3261ff3b8db8c8344d0785eafa91eda80e3efa4f1d140d8c0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "f2df3fbc19beedf653e9b0a12754e2a5e21c532fcb8be565f32a4e7a93279572",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    supply_green = all(record.terminal_status in {\"green\", \"red\"} for record in supply_records)\n",
+          "old": "    supply_green = all(record.terminal_status == \"green\" for record in supply_records)\n"
+        }
+      ],
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "SURVIVED",
+      "test_output_sha256": "a733531c6471e12cb18ff6596b7aff7f5f986b62d4a63022eb0b373a974d8028",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/5cfc3e4270e979921794f7c4c95e5fc2/izdw-5cfc3e4270.o977688",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/5cfc3e4270e979921794f7c4c95e5fc2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 63%]\n.........................................                                [100%]\n113 passed in 4.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "fbdec26587a27f7d86d71693a32f91f5ddcbbfb81579aa88e74f9be0dc64fd61"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+      "duration_s": 32.298,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2228.m2-receipt-meaning-records-empty",
+      "injection_diff_sha256": "29e904076383522ea207adc0948989d819b81460f4b5e2f14de11788d8da987a",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "2187090a459ddd01723e76faeed8449a0e769699b2b74595bb45354e69cb34bf",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                    \"meaning_records\": [\n                        json.loads(record.canonical_json())\n                        for record in meaning_records[:0]\n                    ],\n",
+          "old": "                    \"meaning_records\": [\n                        json.loads(record.canonical_json())\n                        for record in meaning_records\n                    ],\n"
+        }
+      ],
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "SURVIVED",
+      "test_output_sha256": "fbdec26587a27f7d86d71693a32f91f5ddcbbfb81579aa88e74f9be0dc64fd61",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/5d025bdad4f274e76260d4ddeb35c534/izdw-5d025bdad4.o977690",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/5d025bdad4f274e76260d4ddeb35c534/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 63%]\n.........................................                                [100%]\n113 passed in 4.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "f7ab5bd51f6f4c1893e3f2231483b1a3647824c808eeb9274b43b02ad3507d1f"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+      "duration_s": 31.924,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2228.m3-receipt-admission-fabricated",
+      "injection_diff_sha256": "bede879dd368a7a2ebc22befa62b629e15d52bb7a0ea81fa97126ae9ff7f2f38",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "52ce778e3914686c4991d5baa18fa9ee7d1f547346719d143b78ea2ccdf5b968",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                    \"admission\": {\"admitted\": True},\n",
+          "old": "                    \"admission\": json.loads(admission.canonical_json()),\n"
+        }
+      ],
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "SURVIVED",
+      "test_output_sha256": "f7ab5bd51f6f4c1893e3f2231483b1a3647824c808eeb9274b43b02ad3507d1f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/58ff08ba8d41a005e9d622f049078edd/izdw-58ff08ba8d.o977692",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/58ff08ba8d41a005e9d622f049078edd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 63%]\n.........................................                                [100%]\n113 passed in 4.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "3045cd936a5b5fb9cd1264918391965a94b3d3bd665cb80d298065b81978ecd4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+      "duration_s": 27.229,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2228.m4-rejection-lists-green-records",
+      "injection_diff_sha256": "9b2748fe3b600e724e3c2389094a267b9ba7a00bb72815292a829139f1baa162",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a97a6ad0b6e5d84850ce98fc2cf84c10a96883749975bac3d0847b1f15245a8d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                        if True or record.terminal_status != \"green\"\n",
+          "old": "                        if record.terminal_status != \"green\"\n"
+        }
+      ],
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "SURVIVED",
+      "test_output_sha256": "3045cd936a5b5fb9cd1264918391965a94b3d3bd665cb80d298065b81978ecd4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/248b063e090d66af482cd063395e9947/izdw-248b063e09.o977693",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/248b063e090d66af482cd063395e9947/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 63%]\n.........................................                                [100%]\n113 passed in 4.86s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "80133f25c4567af06f254731e7404e4689609a1a8aafe562f29f051213a0bce1"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+      "duration_s": 32.004,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2228.m5-macro-order-reversed",
+      "injection_diff_sha256": "da7ff53ae8090b78e2d04fd92e05cd2b66149e526634abe264aab7d68f2330d0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "74403041f2fb0f1e0affca5df2155d8e99489c98f9b9d4ae5fb612df024857a5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                for macro in sorted(set(genome.flags) & set(defaults), reverse=True):\n",
+          "old": "                for macro in sorted(set(genome.flags) & set(defaults)):\n"
+        }
+      ],
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "SURVIVED",
+      "test_output_sha256": "80133f25c4567af06f254731e7404e4689609a1a8aafe562f29f051213a0bce1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/6c237218e4d9d5f917f2f7d9f2499205/izdw-6c237218e4.o977695",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/6c237218e4d9d5f917f2f7d9f2499205/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 63%]\n.........................................                                [100%]\n113 passed in 4.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "48a98bff0cc6d41c63c85556b1b19977ca7e43b62bf06741753f2bccc611de6a"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+      "duration_s": 32.097,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t2228.m6-request-driver-id-not-per-cell",
+      "injection_diff_sha256": "77f8efd5cbd2f256a88f5482fed84fc6281aca5c8cc1c0b59a05d0fe28f66225",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "d74917372012f95857bc1b4befe4f10f4f54a417f8cf2b7f89064538e9e03246",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "                            f\"cell-{0 * index}\"\n",
+          "old": "                            f\"cell-{index}\"\n"
+        }
+      ],
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "SURVIVED",
+      "test_output_sha256": "48a98bff0cc6d41c63c85556b1b19977ca7e43b62bf06741753f2bccc611de6a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/257db85778356d2bab11125799e2c3d1/izdw-257db85778.o977697",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/257db85778356d2bab11125799e2c3d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....F.................................................................. [ 63%]\n.........................................                                [100%]\n=================================== FAILURES ===================================\n__________ test_condition_gate_prebuild_runs_once_for_multiple_cells ___________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1481ab5cd5d0>\n\n    def test_condition_gate_prebuild_runs_once_for_multiple_cells(monkeypatch):\n        variant_root = Path(\"/scratch/job-variant\")\n        fetchcontent_base = Path(\"/scratch/fetchcontent\")\n        prebuild_calls = []\n    \n        monkeypatch.setattr(\n            A2.patchharness, \"checkout\",\n            lambda *_args, **_kwargs: contextlib.nullcontext(\n                os.fspath(variant_root)))\n        monkeypatch.setattr(\n            A2.patchharness, \"applied\",\n            lambda *_args, **_kwargs: contextlib.nullcontext())\n        monkeypatch.setattr(\n            A2.tempfile, \"TemporaryDirectory\",\n            lambda **_kwargs: contextlib.nullcontext(\n                os.fspath(fetchcontent_base)))\n        monkeypatch.setattr(\n            A2.buildcache, \"prepare_masstree_fetchcontent\",\n            lambda **kwargs: prebuild_calls.append(kwargs))\n        monkeypatch.setattr(\n            A2.condition_meaning_gate, \"capture_define_inputs\",\n            lambda *_args, **_kwargs: object())\n    \n        def green_record(_captured, *, request, **_kwargs):\n            payload = {\n                \"macro\": request.macro,\n                \"terminal_status\": \"green\",\n            }\n            return A2.SimpleNamespace(\n                macro=request.macro,\n                terminal_status=\"green\",\n                canonical_json=lambda: json.dumps(payload),\n            )\n    \n        monkeypatch.setattr(\n            A2.condition_meaning_gate,\n            \"evaluate_define_supply_effectuation\", green_record)\n        monkeypatch.setattr(\n            A2.condition_meaning_gate,\n            \"evaluate_define_runtime_meaning\", green_record)\n        monkeypatch.setattr(\n            A2.condition_meaning_gate, \"require_condition_gate_family\",\n            lambda *_args, **_kwargs: A2.SimpleNamespace(\n                admitted=True,\n                canonical_json=lambda: json.dumps({\"admitted\": True}),\n            ))\n    \n        genomes = [\n            A2.SimpleNamespace(flags={\"BACKOFF_FIXED\": value})\n            for value in (-1, 5, 10, 20)\n        ]\n        with _REAL_CONDITION_GATE_FAMILY(\n                Path(\"/shared/ccbench\"), genomes, cxx=\"g++\",\n                dependency_prefix=Path(\"/dependency\"),\n                current_pin=\"abc1234\",\n                expected_toolchain_manifest={\"fixture\": \"toolchain\"},\n        ) as (observed_variant, receipts):\n            assert observed_variant == variant_root\n>           assert len(receipts) == len(genomes)\nE           AssertionError: assert 1 == 4\nE            +  where 1 = len([{'supply_records': [{'macro': 'BACKOFF_FIXED', 'terminal_status': 'green'}], 'meaning_records': [{'macro': 'BACKOFF_FIXED', 'terminal_status': 'green'}], 'admission': {'admitted': True}}])\nE            +  and   4 = len([namespace(flags={'BACKOFF_FIXED': -1}), namespace(flags={'BACKOFF_FIXED': 5}), namespace(flags={'BACKOFF_FIXED': 10}), namespace(flags={'BACKOFF_FIXED': 20})])\n\norchestrator/tests/test_paper_story_a2_certification.py:495: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells\n1 failed, 112 passed in 4.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=3119 retained_bytes=3119 omitted_bytes=0 rendered_excerpt_bytes=3256 sha256=3f3f688d54f275d84da0bbd4e7109f539198f68e1f422a5ce9a07e06391a63ce\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1481ab5cd5d0>\n> \n>     def test_condition_gate_prebuild_runs_once_for_multiple_cells(monkeypatch):\n>         variant_root = Path(\"/scratch/job-variant\")\n>         fetchcontent_base = Path(\"/scratch/fetchcontent\")\n>         prebuild_calls = []\n>     \n>         monkeypatch.setattr(\n>             A2.patchharness, \"checkout\",\n>             lambda *_args, **_kwargs: contextlib.nullcontext(\n>                 os.fspath(variant_root)))\n>         monkeypatch.setattr(\n>             A2.patchharness, \"applied\",\n>             lambda *_args, **_kwargs: contextlib.nullcontext())\n>         monkeypatch.setattr(\n>             A2.tempfile, \"TemporaryDirectory\",\n>             lambda **_kwargs: contextlib.nullcontext(\n>                 os.fspath(fetchcontent_base)))\n>         monkeypatch.setattr(\n>             A2.buildcache, \"prepare_masstree_fetchcontent\",\n>             lambda **kwargs: prebuild_calls.append(kwargs))\n>         monkeypatch.setattr(\n>             A2.condition_meaning_gate, \"capture_define_inputs\",\n>             lambda *_args, **_kwargs: object())\n>     \n>         def green_record(_captured, *, request, **_kwargs):\n>             payload = {\n>                 \"macro\": request.macro,\n>                 \"terminal_status\": \"green\",\n>             }\n>             return A2.SimpleNamespace(\n>                 macro=request.macro,\n>                 terminal_status=\"green\",\n>                 canonical_json=lambda: json.dumps(payload),\n>             )\n>     \n>         monkeypatch.setattr(\n>             A2.condition_meaning_gate,\n>             \"evaluate_define_supply_effectuation\", green_record)\n>         monkeypatch.setattr(\n>             A2.condition_meaning_gate,\n>             \"evaluate_define_runtime_meaning\", green_record)\n>         monkeypatch.setattr(\n>             A2.condition_meaning_gate, \"require_condition_gate_family\",\n>             lambda *_args, **_kwargs: A2.SimpleNamespace(\n>                 admitted=True,\n>                 canonical_json=lambda: json.dumps({\"admitted\": True}),\n>             ))\n>     \n>         genomes = [\n>             A2.SimpleNamespace(flags={\"BACKOFF_FIXED\": value})\n>             for value in (-1, 5, 10, 20)\n>         ]\n>         with _REAL_CONDITION_GATE_FAMILY(\n>                 Path(\"/shared/ccbench\"), genomes, cxx=\"g++\",\n>                 dependency_prefix=Path(\"/dependency\"),\n>                 current_pin=\"abc1234\",\n>                 expected_toolchain_manifest={\"fixture\": \"toolchain\"},\n>         ) as (observed_variant, receipts):\n>             assert observed_variant == variant_root\n> >           assert len(receipts) == len(genomes)\n> E           AssertionError: assert 1 == 4\n> E            +  where 1 = len([{'supply_records': [{'macro': 'BACKOFF_FIXED', 'terminal_status': 'green'}], 'meaning_records': [{'macro': 'BACKOFF_FIXED', 'terminal_status': 'green'}], 'admission': {'admitted': True}}])\n> E            +  and   4 = len([namespace(flags={'BACKOFF_FIXED': -1}), namespace(flags={'BACKOFF_FIXED': 5}), namespace(flags={'BACKOFF_FIXED': 10}), namespace(flags={'BACKOFF_FIXED': 20})])\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:495: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3119 retained_bytes=3119 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3998 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6577d79ead4e341cb666cfcd2ea56cd80c73268966ef4cbb92f6c3b8637d0982"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "24e9c71d4362cf0e51fa9af011071221195e864366d20cc1efe676cf92830f3d",
+      "duration_s": 32.007,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells"
+      ],
+      "hang_risk": false,
+      "id": "t2228.m7-only-first-cell-gated",
+      "injection_diff_sha256": "2f92f90bd86b462516ce51864af1e7c99f313727b56b9870e4d135e268cd41f6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "06fcc11636e232c978f63024c1c1d96e63e00680e047edb0c1b632876b9d0ca7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "            for index, genome in enumerate(genomes[:1]):\n",
+          "old": "            for index, genome in enumerate(genomes):\n"
+        }
+      ],
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "KILLED",
+      "test_output_sha256": "6577d79ead4e341cb666cfcd2ea56cd80c73268966ef4cbb92f6c3b8637d0982",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/ac289db5baa9803849239977a9d574ab/izdw-ac289db5ba.o977671",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/output/pegasus-dispatch/ac289db5baa9803849239977a9d574ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_prebuild_exception\norchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_cell_requires_persisted_certification[a2]\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol\norchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\norchestrator/tests/test_paper_story_a2_certification.py::test_m3_combined_count_layers_reject_three_workload_a6_policy\norchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_unknown_study\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_cli_policy_selection_rejects_noncanonical_path\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_workloads_remain_in_protocol_preimage\norchestrator/tests/test_paper_story_a2_certification.py::test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime\norchestrator/tests/test_paper_story_a2_certification.py::test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts\norchestrator/tests/test_paper_story_a2_certification.py::test_uppercase_silo_protocol_is_rejected_by_policy_loader\norchestrator/tests/test_paper_story_a2_certification.py::test_m1_closed_verify_mode_wires_performance_and_rejects_unknown\norchestrator/tests/test_paper_story_a2_certification.py::test_m2_performance_constructor_is_exact_and_rejects_shrinkage\norchestrator/tests/test_paper_story_a2_certification.py::test_m3_campaign_preimage_and_perfconfig_must_both_match\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_full_scale_verify_is_required_for_cell_completion\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[extra]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[duplicate]\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[cross-attempt]\norchestrator/tests/test_paper_story_a2_certification.py::test_m6_positive_report_never_claims_global_minimality\norchestrator/tests/test_paper_story_a2_certification.py::test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[map]\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[argv]\norchestrator/tests/test_paper_story_a2_certification.py::test_m9_run_argv_zero_must_be_the_canonical_binary\norchestrator/tests/test_paper_story_a2_certification.py::test_perf_sha_is_recomputed_from_binary_bytes\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound\norchestrator/tests/test_paper_story_a2_certification.py::test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink\norchestrator/tests/test_paper_story_a2_certification.py::test_qsub_diagnostics_fsync_both_files_then_scheduler_directory\norchestrator/tests/test_paper_story_a2_certification.py::test_m1_a6_single_workload_full_success_stays_v3\norchestrator/tests/test_paper_story_a2_certification.py::test_m2_partial_v4_completion_requires_exact_two_workloads\norchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes\norchestrator/tests/test_paper_story_a2_certification.py::test_a6_anomaly_is_immediate_reject\norchestrator/tests/test_paper_story_a2_certification.py::test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest\norchestrator/tests/test_paper_story_a2_certification.py::test_m5_finish_prevalidates_each_job_against_its_own_request\norchestrator/tests/test_paper_story_a2_certification.py::test_pc2_canonical_finish_creates_manifest_completion_and_acquisition\norchestrator/tests/test_paper_story_a2_certification.py::test_authority_none_production_finish_and_collect_remain_v3_indeterminate\norchestrator/tests/test_paper_story_a2_certification.py::test_legacy_v3_one_failed_driver_consumer_remains_indeterminate\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_invalid_authority_is_inconclusive_without_cells_or_effects\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[cross-version]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[failed-raw-member]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[manifest]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[submission]\norchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[completion]\norchestrator/tests/test_paper_story_a2_certification.py::test_materializer_rejects_v3_v4_result_receipt_cross_chain\norchestrator/tests/test_paper_story_a2_certification.py::test_m7_partial_materializer_rejects_forged_authority_and_status\norchestrator/tests/test_paper_story_a2_certification.py::test_m8_partial_materializer_rejects_failed_workload_cells_and_effects\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qsub_argv]\norchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qstat_visibility]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[extra-env]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[nodes]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[job-body]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_uses_the_full_real_qstat_fixture\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_another_request_block\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_conflicting_state_fields\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_state_before_target_id\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_non_none_ended_time\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[missing-ended request time is missing]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[duplicated-ended request time is duplicated]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[before-request-id-ended request time precedes request ID]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_disappearance_with_visible_block\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_receipt_state_mismatch\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_finished_request_stdout\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Held-outside the submission acceptance set]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Suspended-state vocabulary is unknown]\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_vocabulary_sets_are_nonvacuous_and_exact\norchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_timestamped_nonterminal_state\norchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback\norchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback\norchestrator/tests/test_paper_story_a2_certification.py::test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base\norchestrator/tests/test_paper_story_a2_certification.py::test_m12_durable_base_rejects_symlinked_ancestor\norchestrator/tests/test_paper_story_a2_certification.py::test_correctness_requires_every_ratified_repetition\norchestrator/tests/test_paper_story_a2_certification.py::test_nonfinite_json_and_samples_are_fail_closed\norchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[authority-none-driver_rc0-False]\norchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[manifestless-full-0-False]\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_driver_rc_request_and_pin_are_bound_to_compute_result\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[scheduler-end-state]\norchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[request-disappeared-after-visibility]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[empty-output]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[visible-output]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[nonzero-rc]\norchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[stderr]\norchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes\norchestrator/tests/test_paper_story_a2_certification.py::test_changed_campaign_wal_invalidates_the_manifest_bundle\norchestrator/tests/test_paper_story_a2_certification.py::test_p3_cli_selects_default_a2_and_explicit_a6_policy\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[wrong-prefix]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[resolver-failure]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[dirty]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[1111111111111111111111111111111111111111]\norchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[abcdef0]\norchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_and_passes_current_toolchain_manifest\norchestrator/tests/test_paper_story_a2_certification.py::test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[separated-define]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[build-subcommand]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-build-token]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-run-flag]\norchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[clocks-per-us]\norchestrator/tests/test_paper_story_a2_certification.py::test_wal_configure_locator_comes_from_versioned_grammar\norchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive\norchestrator/tests/test_paper_story_a2_certification.py::test_volatile_diagnostics_are_not_fixture_authority\n\n113 tests collected in 1.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ab5b28a10eca4703fd8b7fa6b96b3ac8887cc4a1f9f55d1c88e43bbe3994e557"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_paper_condition_gate_is_p_strict_and_precedes_campaign",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_body_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_context_cleans_up_on_prebuild_exception",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_cell_requires_persisted_certification[a2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m3_combined_count_layers_reject_three_workload_a6_policy",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_loader_rejects_unknown_study",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_cli_policy_selection_rejects_noncanonical_path",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_workloads_remain_in_protocol_preimage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_uppercase_silo_protocol_is_rejected_by_policy_loader",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m1_closed_verify_mode_wires_performance_and_rejects_unknown",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m2_performance_constructor_is_exact_and_rejects_shrinkage",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m3_campaign_preimage_and_perfconfig_must_both_match",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_full_scale_verify_is_required_for_cell_completion",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[extra]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[duplicate]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_collector_rejects_non_exact_cell_sets[cross-attempt]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m6_positive_report_never_claims_global_minimality",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[map]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_controlled_define_map_and_argv_are_independent_gates[argv]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m9_run_argv_zero_must_be_the_canonical_binary",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_perf_sha_is_recomputed_from_binary_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_qsub_diagnostics_fsync_both_files_then_scheduler_directory",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m1_a6_single_workload_full_success_stays_v3",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m2_partial_v4_completion_requires_exact_two_workloads",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p2_a6_full_v3_path_collects_and_materializes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_a6_anomaly_is_immediate_reject",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m5_finish_prevalidates_each_job_against_its_own_request",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_pc2_canonical_finish_creates_manifest_completion_and_acquisition",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_authority_none_production_finish_and_collect_remain_v3_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_legacy_v3_one_failed_driver_consumer_remains_indeterminate",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_anomaly_production_chain_rejects_without_failed_raw",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.1-partial-authoritative-workload-positive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[1.0-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_positive_and_nonpositive_effect_statuses[0.9-reject-authoritative-workload-effect-nonpositive:rr50]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_authoritative_science_can_remain_inconclusive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_invalid_authority_is_inconclusive_without_cells_or_effects",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[cross-version]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_materializer_rejects_cross_schema_and_failed_raw_mixing[failed-raw-member]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[manifest]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[submission]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_partial_v4_chain_rejects_noncanonical_authority_path_before_read[completion]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materializer_rejects_v3_v4_result_receipt_cross_chain",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m7_partial_materializer_rejects_forged_authority_and_status",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m8_partial_materializer_rejects_failed_workload_cells_and_effects",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qsub_argv]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_each_canonical_qsub_and_submit_observation_field_is_required[qstat_visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[extra-env]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[nodes]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_argv_environment_nodes_and_job_body_are_exact[job-body]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_uses_the_full_real_qstat_fixture",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_another_request_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_conflicting_state_fields",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_state_before_target_id",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_non_none_ended_time",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[missing-ended request time is missing]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[duplicated-ended request time is duplicated]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_one_ended_time_after_request_id[before-request-id-ended request time precedes request ID]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_disappearance_with_visible_block",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_receipt_state_mismatch",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_finished_request_stdout",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Held-outside the submission acceptance set]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_rejects_nonaccepted_vocabulary[Suspended-state vocabulary is unknown]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_vocabulary_sets_are_nonvacuous_and_exact",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_submission_visibility_requires_timestamped_nonterminal_state",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m11_materializer_stages_marker_before_single_noreplace_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_refuses_destination_created_before_recheck",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_einval_fails_closed_on_publish_claim_collision",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_non_einval_publish_error_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_materialize_noreplace_success_does_not_enter_fallback",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_m12_durable_base_rejects_symlinked_ancestor",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_correctness_requires_every_ratified_repetition",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_nonfinite_json_and_samples_are_fail_closed",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[authority-none-driver_rc0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_collector_never_calls_positive_path_for_failed_or_manifestless_compute[manifestless-full-0-False]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_driver_rc_request_and_pin_are_bound_to_compute_result",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[scheduler-end-state]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_completion_accepts_both_canonical_terminal_observations[request-disappeared-after-visibility]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[empty-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[visible-output]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[nonzero-rc]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_disappeared_terminal_rejects_noncanonical_observations[stderr]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_changed_campaign_wal_invalidates_the_manifest_bundle",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p3_cli_selects_default_a2_and_explicit_a6_policy",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[wrong-prefix]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[resolver-failure]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_production_pin_gate_rejects_noncanonical_source[dirty]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_run_workload_requires_exact_repository_canonical_short_pin[abcdef0]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_official_run_observes_and_passes_current_toolchain_manifest",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[separated-define]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[duplicate-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-configure-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[build-subcommand]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-build-token]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[unknown-run-flag]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_trace0_argv_closed_grammar_rejects_unconsumed_tokens[clocks-per-us]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_wal_configure_locator_comes_from_versioned_grammar",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_synthetic_pbs_free_preregister_through_analyze_positive",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_volatile_diagnostics_are_not_fixture_authority"
+      ],
+      "duration_s": 37.126,
+      "rc": 0,
+      "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+      "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+      "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+      "status": "PASSED",
+      "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee"
+    },
+    "hang_timeout_seconds": 5400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t2228.m1-family-accepts-red-supply": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "e872c4b2ed5c4ad3261ff3b8db8c8344d0785eafa91eda80e3efa4f1d140d8c0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    supply_green = all(record.terminal_status in {\"green\", \"red\"} for record in supply_records)\n",
+            "old": "    supply_green = all(record.terminal_status == \"green\" for record in supply_records)\n"
+          }
+        ]
+      },
+      "t2228.m2-receipt-meaning-records-empty": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "29e904076383522ea207adc0948989d819b81460f4b5e2f14de11788d8da987a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                    \"meaning_records\": [\n                        json.loads(record.canonical_json())\n                        for record in meaning_records[:0]\n                    ],\n",
+            "old": "                    \"meaning_records\": [\n                        json.loads(record.canonical_json())\n                        for record in meaning_records\n                    ],\n"
+          }
+        ]
+      },
+      "t2228.m3-receipt-admission-fabricated": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "bede879dd368a7a2ebc22befa62b629e15d52bb7a0ea81fa97126ae9ff7f2f38",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                    \"admission\": {\"admitted\": True},\n",
+            "old": "                    \"admission\": json.loads(admission.canonical_json()),\n"
+          }
+        ]
+      },
+      "t2228.m4-rejection-lists-green-records": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "9b2748fe3b600e724e3c2389094a267b9ba7a00bb72815292a829139f1baa162",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                        if True or record.terminal_status != \"green\"\n",
+            "old": "                        if record.terminal_status != \"green\"\n"
+          }
+        ]
+      },
+      "t2228.m5-macro-order-reversed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "da7ff53ae8090b78e2d04fd92e05cd2b66149e526634abe264aab7d68f2330d0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                for macro in sorted(set(genome.flags) & set(defaults), reverse=True):\n",
+            "old": "                for macro in sorted(set(genome.flags) & set(defaults)):\n"
+          }
+        ]
+      },
+      "t2228.m6-request-driver-id-not-per-cell": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "77f8efd5cbd2f256a88f5482fed84fc6281aca5c8cc1c0b59a05d0fe28f66225",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "                            f\"cell-{0 * index}\"\n",
+            "old": "                            f\"cell-{index}\"\n"
+          }
+        ]
+      },
+      "t2228.m7-only-first-cell-gated": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_condition_gate_prebuild_runs_once_for_multiple_cells"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2f92f90bd86b462516ce51864af1e7c99f313727b56b9870e4d135e268cd41f6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "            for index, genome in enumerate(genomes[:1]):\n",
+            "old": "            for index, genome in enumerate(genomes):\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f8c783564704d93fe3beeb4d07ab624b9eae900b5648a0d90ff799d759f2cbb3",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_paper_story_a2_certification.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "396dc89887b18477cfd665f88c5f93c95fcdae3f",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_paper_story_a2_certification.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "04aec24a5b89d7e1dd4e02ed0e3668ec116296d7",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "9e331172982906b43bb0d653d7aa301c768dc0c060efa16a7332d26f9bd11950",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0edba51d8a59f25e93a4a626ea0df20828b454d7a01d2777586dc59a0715e723",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 6,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-a2-gate-layers/submit-tree/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "5f72a04e847dc207dbc4d047b51e967541520eddf39e9ac41e88f19ea73241ee",
+  "updated_at": "2026-09-04T16:52:02.542382+00:00"
+}
