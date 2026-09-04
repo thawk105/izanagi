@@ -1,0 +1,211 @@
+{
+  "absolute_candidates": [
+    "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "/usr/lib/linux-tools/5.15.0-135-generic/perf"
+  ],
+  "controls": {
+    "negative_absent_perf": {
+      "argv": [
+        "/usr/lib/linux-tools/izanagi-f241-no-such-kernel/perf",
+        "--version"
+      ],
+      "elapsed_s": 0.0002,
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: '/usr/lib/linux-tools/izanagi-f241-no-such-kernel/perf'",
+      "launched": false
+    },
+    "note": "同じ node・同じ run・同じ subprocess 実装で両側 control を取る。positive が失敗するなら測定機構自体が壊れており、negative が成功するなら不在の検出力が無い。",
+    "positive_plain_binary": {
+      "argv": [
+        "/bin/true"
+      ],
+      "elapsed_s": 0.0004,
+      "launched": true,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    }
+  },
+  "events_requested": [
+    "cycles",
+    "instructions",
+    "LLC-loads",
+    "LLC-load-misses"
+  ],
+  "literal_perf_resolution": {
+    "file_facts": {
+      "executable": true,
+      "exists": true,
+      "is_symlink": false,
+      "mode": "0o100755",
+      "path": "/bin/perf",
+      "realpath": "/usr/bin/perf",
+      "size": 1622
+    },
+    "head": "#!/bin/bash\nfull_version=`uname -r`\n\n# First check for a fully qualified version.\nthis=\"/usr/lib/linux-tools/$full_version/`basename $0`\"\nif [ -f \"$this\" ]; then\n\texec \"$this\" \"$@\"\nfi\n\n# Removing flavour from version i.e. generic or server.\nflavour_abi=${full_version#*-}\nflavour=${flavour_abi#*-}\nversion=${full_version%-$flavour}\nthis=\"$0_$version\"\nif [ -f \"$this\" ]; then\n\texec \"$this\" \"$@\"\nfi\n\n# ",
+    "sha256": "2d0953085bf720a25efbe24f853e97d27b1f12f18a398255ff82cbafde254dad",
+    "shutil_which": "/bin/perf"
+  },
+  "measurements": [
+    {
+      "command": "perf",
+      "counters": {},
+      "counters_obtained": false,
+      "file_facts": null,
+      "label": "literal-perf",
+      "launcher_kind": "PATH lookup",
+      "numeric_events": [],
+      "stat": {
+        "argv": [
+          "perf",
+          "stat",
+          "-e",
+          "cycles,instructions,LLC-loads,LLC-load-misses",
+          "--",
+          "/bin/true"
+        ],
+        "elapsed_s": 0.0276,
+        "launched": true,
+        "returncode": 2,
+        "stderr": "WARNING: perf not found for kernel 5.15.0-173\n\n  You may need to install the following packages for this specific kernel:\n    linux-tools-5.15.0-173-generic\n    linux-cloud-tools-5.15.0-173-generic\n\n  You may also want to install one of the following packages to keep up to date:\n    linux-tools-generic\n    linux-cloud-tools-generic\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "perf",
+          "--version"
+        ],
+        "elapsed_s": 0.0282,
+        "launched": true,
+        "returncode": 2,
+        "stderr": "WARNING: perf not found for kernel 5.15.0-173\n\n  You may need to install the following packages for this specific kernel:\n    linux-tools-5.15.0-173-generic\n    linux-cloud-tools-5.15.0-173-generic\n\n  You may also want to install one of the following packages to keep up to date:\n    linux-tools-generic\n    linux-cloud-tools-generic\n",
+        "stdout": ""
+      }
+    },
+    {
+      "command": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+      "counters": {
+        "LLC-load-misses": "93",
+        "LLC-loads": "1391",
+        "cycles": "736072",
+        "instructions": "610133"
+      },
+      "counters_obtained": true,
+      "file_facts": {
+        "executable": true,
+        "exists": true,
+        "is_symlink": true,
+        "mode": "0o100755",
+        "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+        "realpath": "/usr/lib/linux-tools-5.15.0-100/perf",
+        "size": 22367280,
+        "symlink_target": "../../linux-tools-5.15.0-100/perf"
+      },
+      "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+      "launcher_kind": "absolute path",
+      "numeric_events": [
+        "LLC-load-misses",
+        "LLC-loads",
+        "cycles",
+        "instructions"
+      ],
+      "stat": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+          "stat",
+          "-e",
+          "cycles,instructions,LLC-loads,LLC-load-misses",
+          "--",
+          "/bin/true"
+        ],
+        "elapsed_s": 0.1323,
+        "launched": true,
+        "returncode": 0,
+        "stderr": "\n Performance counter stats for '/bin/true':\n\n            736072      cycles                                                      \n            610133      instructions              #    0.83  insn per cycle         \n              1391      LLC-loads                                                   \n                93      LLC-load-misses           #    6.69% of all LL-cache accesses\n\n       0.000554855 seconds time elapsed\n\n       0.000603000 seconds user\n       0.000000000 seconds sys\n\n\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+          "--version"
+        ],
+        "elapsed_s": 0.0052,
+        "launched": true,
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.143\n"
+      }
+    },
+    {
+      "command": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+      "counters": {
+        "LLC-load-misses": "16",
+        "LLC-loads": "1586",
+        "cycles": "771633",
+        "instructions": "611450"
+      },
+      "counters_obtained": true,
+      "file_facts": {
+        "executable": true,
+        "exists": true,
+        "is_symlink": true,
+        "mode": "0o100755",
+        "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+        "realpath": "/usr/lib/linux-tools-5.15.0-135/perf",
+        "size": 22376216,
+        "symlink_target": "../../linux-tools-5.15.0-135/perf"
+      },
+      "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+      "launcher_kind": "absolute path",
+      "numeric_events": [
+        "LLC-load-misses",
+        "LLC-loads",
+        "cycles",
+        "instructions"
+      ],
+      "stat": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "stat",
+          "-e",
+          "cycles,instructions,LLC-loads,LLC-load-misses",
+          "--",
+          "/bin/true"
+        ],
+        "elapsed_s": 0.0831,
+        "launched": true,
+        "returncode": 0,
+        "stderr": "\n Performance counter stats for '/bin/true':\n\n            771633      cycles                                                      \n            611450      instructions              #    0.79  insn per cycle         \n              1586      LLC-loads                                                   \n                16      LLC-load-misses           #    1.01% of all LL-cache accesses\n\n       0.000586828 seconds time elapsed\n\n       0.000645000 seconds user\n       0.000000000 seconds sys\n\n\n",
+        "stdout": ""
+      },
+      "version": {
+        "argv": [
+          "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "--version"
+        ],
+        "elapsed_s": 0.006,
+        "launched": true,
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "perf version 5.15.178\n"
+      }
+    }
+  ],
+  "purpose": "F241 の「計算ノードに perf が無い」という帰属を、同一 node・同一 run で literal `perf` と絶対 path の対比により裏取りする。",
+  "sample_scope": "この結果は上記 hostname・observed_epoch・uname_release の 1 標本に限定され、gen_S の全 node や将来の allocation へ一般化しない。",
+  "schema_version": "izanagi-f241-perf-pairing/v1",
+  "site": {
+    "PATH": "/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+    "PBS_JOBID": "0:975575.nqsv",
+    "PBS_O_WORKDIR": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-f241-perf-attribution",
+    "hostname": "bnode101",
+    "linux_tools_dir": [
+      "5.15.0-100-generic",
+      "5.15.0-135-generic"
+    ],
+    "observed_epoch": 1788497437,
+    "observed_utc": "2026-09-04T04:50:37Z",
+    "perf_event_paranoid": "0",
+    "python": "/bin/python3.10",
+    "uname_release": "5.15.0-173-generic"
+  }
+}

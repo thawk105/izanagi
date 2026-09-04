@@ -148,6 +148,22 @@
   恒久対応は memory `stage1-closure-must-list-recent-insight-dirs` を新設して閉じる。
   `DW-S01` への統合は、同節が既に実測で予算超過 (L1 unique footprint 10656 bytes >
   予算 10625 bytes) と記録されているため行わない。
+
+- **再発: 2026-09-04** — F241 (2026-08-12) が、観測 (`perf stat` の rc=2) から**推論した**
+  「計算ノードに perf が無い」を根本原因として記録し、「環境側 (管理者手番) に linux-tools を
+  入れてもらう以外に道はない」まで一般化した。一次資料を 2 つ確認していない —
+  `/usr/bin/perf` の実物 (完全一致する版が無ければ他版へ fallback せず exit 2 する**振り分け役**)
+  と、**同じ台帳の F89** (9 日前の 2026-08-03 に bnode005 / bnode009 で候補実体が rc=0 で動くことを
+  実測済み) である。`docs/pegasus-runbook.md` の環境事実も同じ機構を既に書いていた。
+  転写対象が日付・機構の実在状態・推測の確度から、**観測した非 0 rc の帰属先**へ広がった顕在化で
+  ある。振り分け役の rc は「その kernel 版の実体が無い」ことしか言わず、その先に動く実体が
+  あるかどうかについては何も言わない。相反する根本原因が同じ台帳に併存したまま、
+  F501 と `output/insights/2026-08-26_b10-balanced-profile/README.md` が独立に正しい機構を
+  書いた後も F241 は訂正されなかった。検出はユーザーの指摘と、同日の同一 node・同一 run 対測定
+  23 run。恒久対応は memory `nonzero-rc-of-a-dispatcher-is-not-absence` —
+  非 0 rc を「対象の不在」と読む前に、rc を返した実体が振り分け役でないかを確かめ、
+  推論の否定側を同じ台帳の中でも検索する (worklog 2026-09-04、
+  `output/insights/2026-09-04_f241-perf-attribution/`)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -8158,6 +8174,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   12 セル分の build を終えてから 120 回続けて失敗する)。
   **`driver_rc` と `status` だけを見て成功と判定しない** — 成果物の `floors` が
   実数を持つことまで確かめる。本件は rc=0 で 2 回返っている。
+- **supersede: 2026-09-04** — 恒久対応の 3 点を訂正する。(1)「計算ノードに現行 kernel 用 perf が無い」は kernel 一致の linux-tools が無いという意味では真だが、既設の `/usr/lib/linux-tools/5.15.0-100-generic/perf` と `/usr/lib/linux-tools/5.15.0-135-generic/perf` は実在して動く。(2)「環境側 (管理者手番) に linux-tools を入れてもらう以外に道はない」は成り立たない。rc=2 を返すのは `/usr/bin/perf` という振り分け役で、完全一致する版が無ければ他版へ fallback せず exit 2 するだけである。(3)「perf を外す回避を採ってはならない」は D352 と矛盾する — 正式系列は perf 不在で進み `use_perf=false` の測定は eligible である。2026-09-04 の実測: gen_S へ 24 job 投入し 23 job が返却 (request 975613 のみ scheduler 出力・probe 出力とも戻らず除外)、6 distinct bnode (049 / 074 / 075 / 076 / 092 / 101、うち 092 と 101 で 17 run)、全 node が kernel 5.15.0-173-generic・`perf_event_paranoid=0`。同一 node・同一 run の対比で literal `perf` は 23/23 が `stat` rc=2 で 4 event 0/4、絶対 path 2 本は 46/46 が rc=0 で 4/4、両側 control は全 run で成立した。示したのは候補実体の直接 smoke までであり、production argv (`-x,` と `-o <csv>`) の完走は示していない。受理集合は経路ごとに違う — shell の `certify_calibration.sh` は `[[ -x ]]` で候補を受理して既に選定しており、Python の `submission._executable` は symlink を拒み (F89、未裁定)、床値 preflight は literal だけを probe する (D348)。したがって本追記は絶対 path の採用を認可せず、[T-970] の見送りと D352 を動かさない。distinct node は 6 であり本項の 8 node と同等の標本ではない。全数記録は `output/insights/2026-09-04_f241-perf-attribution/`。
 
 ### F242. 実装子が全員テストを実走できない wave では、静的レビュー 4 本を通った欠陥が初回実測で出る [テスト代表性]
 
@@ -21856,3 +21873,44 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 設定 file の中の 1 値を変える wave では、段 0 の閉包に
   `git grep -n "<変更する file の repo 相対 path>"` の出力を残す。
   この出力が無いまま段 5 へ進んだら閉包未了とする。
+
+### F843. 材料文書が「1 点も測っていない」と書いたが、その測定は執筆時点で既に存在していた [検証漏れ] [一次資料未確認]
+
+- 事象: `output/insights/2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md` §5 が
+  「b > 100 µs の静的 `T(b)` は 1 点も測っていない」と書き、§7 がそれを次の作業の根拠にした。
+  この記述を正本として [T-2266] が起票され、依頼として投げられた。
+  **実際には B-10 拡張格子が 2026-08-26 に b = 0〜900 µs の有効 28 点を 3 workload 分すべて
+  完走させており、依頼が挙げた 6 点のうち 4 点は依頼どおりの条件で既に測られていた**
+  (job 951689 / 951690 / 951691)。
+- 根本原因: **成果物が repo 外 (`/work/1/SFC/tanab/b10-backoff-grid-runs5/`) にあり、
+  repo 内の grep では見つからない。** 一方で同じ bytes は
+  `docs/paper-story/figures/fig2c_b10_extended_backoff.provenance.json` が図 2c の入力として
+  束縛しており、repo 内から辿る経路は存在した。執筆者は「未測定」を、
+  自分が参照した材料の範囲で判断し、既存成果物の全数確認を行わなかった。
+- 恒久対応: `docs/dev-wave/core.md` の `DW-S01` が既に
+  「依頼・対象 vector の既存被覆を性質で decisions / archive worklog まで検索し、純増だけ書く」
+  を求めている。本件はこの義務が **repo 外の測定成果物にも及ぶ**ことを示す実例である。
+  measurement 系の「未測定」主張は、`docs/paper-story/figures/*.provenance.json` の
+  `root_at_generation` が指す repo 外 root を列挙して反証を試みてから書く。
+- 再発検知: 「未測定」「1 点も測っていない」と書く段で、
+  対象量を出力する producer (`orchestrator/campaign/*.py`) を名指しし、
+  その成果物 root を実際に `ls` した記録を残す。記録の無い未測定主張を根拠に起票しない。
+
+### F844. 焦点走の rc=16 を test の赤と読みかけた [誤帰属] [infra]
+
+- 事象: fix 後の焦点走が rc=16 で戻った。log 末尾は
+  `Pegasus dispatch infrastructure failure: queue-wait-timeout` /
+  `IZANAGI_DISPATCH_OUTCOME_V1 {"child_rc":null,"child_started":false,...}` で、
+  **子は 1 度も起動しておらず test は 1 件も走っていない。**
+  他 wave の job が 5 本 queue に並ぶ混雑下だった。
+- 根本原因: 既定の queue 待ち上限 (900 秒) が、実際の混雑 (数十分〜時間オーダー) に足りない。
+  D612 が opt-in 上書きを用意しているが、既定のまま投げると infra 失敗が test 結果の位置に現れる。
+- 恒久対応: `docs/decisions.md` D612 の
+  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` / `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`
+  を混雑時に明示して投げる (本 wave では 3600 / 600 で通った)。
+  併せて `IZANAGI_DISPATCH_OUTCOME_V1` の `child_started` を rc の解釈より先に読む。
+- 再発検知: 非 0 rc を赤と分類する前に、log 末尾の `IZANAGI_DISPATCH_OUTCOME_V1` 行を読み、
+  `child_started` が false なら infra として扱い、赤の内訳へ数えない。
+  失敗後は `output/pegasus-dispatch/orphan-hold.json` と
+  `output/pegasus-dispatch/orphan-holds/<request>.json` の 2 file を、
+  `qstat -f <request>` で job の不在を確認してから撤去する。

@@ -40,6 +40,7 @@ import struct
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
+from itertools import zip_longest
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Iterable, Iterator, Mapping, Sequence
@@ -2254,6 +2255,105 @@ def _preprocess_evidence(
     }
 
 
+def _classify_stock_inert_root_location_difference(
+    requested: bytes,
+    control: bytes,
+    *,
+    requested_source_root: bytes,
+    control_source_root: bytes,
+    requested_dependency_identities: frozenset[str],
+    requested_root_dependent_builtin_paths: tuple[str, ...],
+    control_root_dependent_builtin_paths: tuple[str, ...],
+) -> tuple[bool, int, int, bool]:
+    """Classify an inert mismatch using only closure-bound source paths."""
+    invalid_root = any(
+        separator in root
+        for root in (requested_source_root, control_source_root)
+        for separator in (b"\n", b"\r")
+    ) or not requested_source_root or not control_source_root
+    if invalid_root:
+        differing_line_count = sum(
+            requested_line != control_line
+            for requested_line, control_line in zip_longest(
+                requested.split(b"\n"), control.split(b"\n"), fillvalue=None,
+            )
+        )
+        return False, differing_line_count, 0, True
+
+    requested_lines = requested.split(b"\n")
+    control_lines = control.split(b"\n")
+    differing_line_count = sum(
+        requested_line != control_line
+        for requested_line, control_line in zip_longest(
+            requested_lines, control_lines, fillvalue=None,
+        )
+    )
+    source_prefix = requested_source_root + b"/"
+    path_bytes = frozenset(b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                           b"abcdefghijklmnopqrstuvwxyz._+-/")
+    replacement_count = 0
+    has_residual = False
+    for requested_line, control_line in zip_longest(
+        requested_lines, control_lines, fillvalue=None,
+    ):
+        if requested_line is None or control_line is None:
+            has_residual = True
+            continue
+        if requested_line == control_line:
+            continue
+
+        transformed = bytearray()
+        index = 0
+        while index < len(requested_line):
+            if requested_line.startswith(source_prefix, index) \
+                    and (index == 0 or requested_line[index - 1] not in path_bytes):
+                relative_start = index + len(source_prefix)
+                relative_end = relative_start
+                while relative_end < len(requested_line) \
+                        and requested_line[relative_end] in path_bytes:
+                    relative_end += 1
+                relative_bytes = requested_line[relative_start:relative_end]
+                components: list[bytes] = []
+                escapes_root = False
+                for component in relative_bytes.split(b"/"):
+                    if component in {b"", b"."}:
+                        continue
+                    if component == b"..":
+                        if not components:
+                            escapes_root = True
+                            break
+                        components.pop()
+                    else:
+                        components.append(component)
+                if not escapes_root:
+                    relative = b"/".join(components).decode("ascii")
+                    if f"source/{relative}" in requested_dependency_identities:
+                        transformed.extend(control_source_root)
+                        index += len(requested_source_root)
+                        replacement_count += 1
+                        continue
+            transformed.append(requested_line[index])
+            index += 1
+        if bytes(transformed) != control_line:
+            has_residual = True
+
+    has_root_dependent_builtin = bool(
+        requested_root_dependent_builtin_paths
+        or control_root_dependent_builtin_paths
+    )
+    location_only = (
+        not has_residual
+        and replacement_count >= 1
+        and has_root_dependent_builtin
+    )
+    return (
+        location_only,
+        differing_line_count,
+        replacement_count,
+        has_residual,
+    )
+
+
 def _collect_supply_preprocess_pair(
     configured: _ConfiguredDefineCompileCommands,
     *,
@@ -2414,32 +2514,27 @@ def evaluate_define_supply_effectuation(
             reason_code="compile-command-drift", request=request,
             request_digest=request_digest, evidence=evidence,
         )
-    root_builtin_paths = (
-        requested_result.root_dependent_builtin_paths
-        + control_result.root_dependent_builtin_paths
-    )
-    assert configured.requested is not None and configured.control is not None
-    requested_build = Path(configured.requested.build_root)
-    control_build = Path(configured.control.build_root)
-    root_needles = [
-        (os.fsencode(requested_build), requested_result.preprocessed_bytes),
-        (os.fsencode(control_build), control_result.preprocessed_bytes),
-    ]
-    if stock_identity:
-        root_needles.extend((
-            (os.fsencode(source_root), requested_result.preprocessed_bytes),
-            (os.fsencode(control_root), control_result.preprocessed_bytes),
-        ))
-    unsafe_root_builtin = bool(root_builtin_paths) and any(
-        needle in output for needle, output in root_needles
-    )
-    if unsafe_root_builtin:
-        return _issue_arm_record(
-            arm="supply-effectuation", terminal_status="red",
-            reason_code="preprocess-root-dependent-builtin", request=request,
-            request_digest=request_digest, evidence=evidence,
-        )
     if not stock_identity:
+        root_builtin_paths = (
+            requested_result.root_dependent_builtin_paths
+            + control_result.root_dependent_builtin_paths
+        )
+        assert configured.requested is not None and configured.control is not None
+        requested_build = Path(configured.requested.build_root)
+        control_build = Path(configured.control.build_root)
+        root_needles = [
+            (os.fsencode(requested_build), requested_result.preprocessed_bytes),
+            (os.fsencode(control_build), control_result.preprocessed_bytes),
+        ]
+        unsafe_root_builtin = bool(root_builtin_paths) and any(
+            needle in output for needle, output in root_needles
+        )
+        if unsafe_root_builtin:
+            return _issue_arm_record(
+                arm="supply-effectuation", terminal_status="red",
+                reason_code="preprocess-root-dependent-builtin", request=request,
+                request_digest=request_digest, evidence=evidence,
+            )
         if requested_result.dependency_closure != control_result.dependency_closure:
             return _issue_arm_record(
                 arm="supply-effectuation", terminal_status="red",
@@ -2457,15 +2552,47 @@ def evaluate_define_supply_effectuation(
             reason_code="requested-default-preprocess-different", request=request,
             request_digest=request_digest, evidence=evidence,
         )
-    if requested_result.preprocessed_bytes != control_result.preprocessed_bytes:
+    if requested_result.preprocessed_bytes == control_result.preprocessed_bytes:
         return _issue_arm_record(
-            arm="supply-effectuation", terminal_status="red",
-            reason_code="stock-inert-mismatch", request=request,
+            arm="supply-effectuation", terminal_status="green",
+            reason_code="stock-inert-preprocess-identical", request=request,
+            request_digest=request_digest, evidence=evidence,
+        )
+    location_only, line_count, replacement_count, has_residual = \
+        _classify_stock_inert_root_location_difference(
+            requested_result.preprocessed_bytes,
+            control_result.preprocessed_bytes,
+            requested_source_root=os.fsencode(source_root),
+            control_source_root=os.fsencode(control_root),
+            requested_dependency_identities=frozenset(
+                identity for identity, _digest
+                in requested_result.dependency_closure
+            ),
+            requested_root_dependent_builtin_paths=(
+                requested_result.root_dependent_builtin_paths
+            ),
+            control_root_dependent_builtin_paths=(
+                control_result.root_dependent_builtin_paths
+            ),
+        )
+    evidence.update({
+        "root_diff_line_count": line_count,
+        "root_diff_replacement_count": replacement_count,
+        "root_diff_source_roots": (
+            os.fspath(source_root), os.fspath(control_root),
+        ),
+        "root_diff_has_residual": has_residual,
+    })
+    if location_only:
+        evidence["comparison"] = "stock-inert-root-location-only"
+        return _issue_arm_record(
+            arm="supply-effectuation", terminal_status="green",
+            reason_code="stock-inert-preprocess-root-location-only", request=request,
             request_digest=request_digest, evidence=evidence,
         )
     return _issue_arm_record(
-        arm="supply-effectuation", terminal_status="green",
-        reason_code="stock-inert-preprocess-identical", request=request,
+        arm="supply-effectuation", terminal_status="red",
+        reason_code="stock-inert-mismatch", request=request,
         request_digest=request_digest, evidence=evidence,
     )
 
@@ -3363,6 +3490,16 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
         "requested_root_dependent_builtin_paths",
         "control_root_dependent_builtin_paths",
     }
+    root_location_only = (
+        record.reason_code == "stock-inert-preprocess-root-location-only"
+    )
+    if root_location_only:
+        required.update({
+            "root_diff_line_count",
+            "root_diff_replacement_count",
+            "root_diff_source_roots",
+            "root_diff_has_residual",
+        })
     missing = required - set(evidence)
     unexpected = set(evidence) - required
     if missing or unexpected:
@@ -3390,12 +3527,12 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
     cmake_path = evidence["cmake_path"]
     if type(cmake_path) is not str or not cmake_path:
         _invalid_record("green supply evidence has an empty CMake path")
-    _validate_record_configure_argv(
+    requested_configure_argv = _validate_record_configure_argv(
         evidence["requested_configure_argv"],
         "requested_configure_argv",
         cmake_path=cmake_path,
     )
-    _validate_record_configure_argv(
+    control_configure_argv = _validate_record_configure_argv(
         evidence["control_configure_argv"],
         "control_configure_argv",
         cmake_path=cmake_path,
@@ -3445,12 +3582,53 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
             _invalid_record(
                 f"{prefix}_root_dependent_builtin_paths has the wrong exact type",
             )
+    if root_location_only:
+        line_count = evidence["root_diff_line_count"]
+        if type(line_count) is not int or line_count < 1:
+            _invalid_record("root_diff_line_count must be a positive exact integer")
+        replacement_count = evidence["root_diff_replacement_count"]
+        if type(replacement_count) is not int or replacement_count < 1:
+            _invalid_record(
+                "root_diff_replacement_count must be a positive exact integer",
+            )
+        source_roots = evidence["root_diff_source_roots"]
+        if type(source_roots) is not tuple or len(source_roots) != 2 \
+                or any(type(root) is not str or not root for root in source_roots) \
+                or source_roots[0] == source_roots[1]:
+            _invalid_record(
+                "root_diff_source_roots must contain two distinct non-empty strings",
+            )
+        if evidence["root_diff_has_residual"] is not False:
+            _invalid_record("root_diff_has_residual must be exact false")
+        if not (
+            evidence["requested_root_dependent_builtin_paths"]
+            or evidence["control_root_dependent_builtin_paths"]
+        ):
+            _invalid_record(
+                "root-location-only evidence lacks a root-dependent builtin",
+            )
+        if len(requested_configure_argv) < 3 \
+                or len(control_configure_argv) < 3 \
+                or requested_configure_argv[1] != "-S" \
+                or control_configure_argv[1] != "-S":
+            _invalid_record(
+                "root-location-only configure argv lacks an exact -S source root",
+            )
+        if source_roots != (
+            requested_configure_argv[2], control_configure_argv[2],
+        ):
+            _invalid_record(
+                "root_diff_source_roots is not bound to configure argv",
+            )
     status_contract = {
         "requested-default-preprocess-different": (
             "requested-default-difference", False,
         ),
         "stock-inert-preprocess-identical": (
             "stock-inert-identity", True,
+        ),
+        "stock-inert-preprocess-root-location-only": (
+            "stock-inert-root-location-only", False,
         ),
     }
     expected = status_contract.get(record.reason_code)
