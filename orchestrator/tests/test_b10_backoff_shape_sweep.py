@@ -420,6 +420,97 @@ def _legacy_adapter_records(
     return prereg, records
 
 
+def _legacy_balanced_adapter_records(
+    tmp_path: Path,
+) -> tuple[B.Preregistration, list[dict[str, object]]]:
+    prereg, template = _prior_block_record(tmp_path)
+    template["execution_host"] = "bnode015"
+    template["workload"] = "balanced"
+    template["source_commit"] = B.LEGACY_BALANCED_ANALYSIS_COMMIT
+    template["preregistration_binding"] = {
+        "prereg_commit": prereg.binding.prereg_commit,
+        "prereg_blob_sha": prereg.binding.prereg_blob_sha,
+        "spec_sha256": prereg.binding.spec_sha256,
+        "patch_sha256": prereg.binding.patch_sha256,
+        "formula_sha256": prereg.binding.formula_sha256,
+        "analysis_code_sha256": B.LEGACY_BALANCED_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_BALANCED_BINDING_SHA256,
+    }
+    template["analysis_commit"] = B.LEGACY_BALANCED_ANALYSIS_COMMIT
+    template["analysis_code_sha256"] = B.LEGACY_BALANCED_ANALYSIS_SHA256
+    template["correctness_certified"] = True
+    template["build_attempt_id"] = "attempt-balanced"
+    template["performance_binary_sha256"] = "7" * 64
+    template["missing"] = False
+    template["median_tps"] = 10.0
+    records = []
+    for block_id, order in prereg.spec.block_orders:
+        for schedule_index, point in enumerate(order):
+            shape, mean_us, encoded = B._name_metadata(point)
+            content = {
+                **template,
+                "block_id": block_id,
+                "schedule_index": schedule_index,
+                "point": point,
+                "shape": shape,
+                "mean_us": mean_us,
+                "encoded": encoded,
+                "genome": dict(B.named_genomes())[point].canonical(),
+                "variant_id": hashlib.sha256(point.encode("utf-8")).hexdigest()[:12],
+            }
+            records.append({**content, "record_sha256": B._sha256_json(content)})
+    return prereg, records
+
+
+def _rehash_record(record: dict[str, object]) -> None:
+    content = dict(record)
+    content.pop("record_sha256", None)
+    record["record_sha256"] = B._sha256_json(content)
+
+
+def _trial_predicate_fixture(
+    tmp_path: Path,
+) -> tuple[
+    B.Preregistration,
+    B.SubmissionIdentity,
+    dict[str, object],
+    dict[str, B.CertificationAttempt],
+]:
+    prereg, row = _prior_block_record(tmp_path, point="constant-mu2")
+    block_id, schedule_index, point = B._trial_cell(prereg.spec)
+    variant = "1" * 12
+    perf_sha = "2" * 64
+    attempt = B.CertificationAttempt("attempt-trial", perf_sha)
+    row.update({
+        "workload": "read-heavy",
+        "block_id": block_id,
+        "schedule_index": schedule_index,
+        "point": point,
+        "shape": "constant",
+        "mean_us": 2,
+        "encoded": B.encode("constant", 2),
+        "genome": dict(B.named_genomes())[point].canonical(),
+        "variant_id": variant,
+        "correctness_certified": True,
+        "build_attempt_id": attempt.attempt_id,
+        "performance_binary_sha256": perf_sha,
+        "missing": False,
+    })
+    _rehash_record(row)
+    submission = B.SubmissionIdentity(
+        receipt_path=str(row["submission_receipt"]),
+        receipt_sha256=str(row["submission_receipt_sha256"]),
+        request_id=str(row["request_id"]),
+        nonce=str(row["submission_nonce"]),
+        source_commit=str(row["source_commit"]),
+        prereg_commit=prereg.binding.prereg_commit,
+        job_script_sha256=str(row["job_script_sha256"]),
+        phase=B.TRIAL_CELL_PHASE,
+        workload="read-heavy",
+    )
+    return prereg, submission, row, {variant: attempt}
+
+
 def _probe_result() -> dict[str, object]:
     clocks_per_us = 2100
     calls = B.PROBE_CALLS_PER_CELL
@@ -1192,7 +1283,68 @@ def test_run_phase_closed_set_is_build_verify_perf_probe():
 
 
 def test_verify_perf_phase_is_additive_to_the_legacy_phase_set():
-    assert B.FORMAL_PHASES == (*B.RUN_PHASES, "verify-perf", "report")
+    assert B.FORMAL_PHASES == (
+        *B.RUN_PHASES, "verify-perf", "trial-cell", "report",
+    )
+
+
+@pytest.mark.parametrize("workload", tuple(B.WORKLOADS))
+def test_trial_cell_requires_and_accepts_each_registered_workload(workload):
+    B._validate_phase_workload(B.TRIAL_CELL_PHASE, workload)
+    _expect_code(
+        "phase", lambda: B._validate_phase_workload(B.TRIAL_CELL_PHASE, None),
+    )
+
+
+def test_trial_cell_is_derived_as_first_registered_shape_cell():
+    spec = _spec()
+    assert B._trial_cell(spec) == ("block-1", 3, "constant-mu2")
+
+
+def test_trial_run_uses_one_genome_and_summary_contract_is_one_vs_fifteen():
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    run_formal = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_formal"
+    )
+    assignments = {
+        target.id: node.value
+        for node in ast.walk(run_formal)
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+        and target.id in {"selected_genomes", "expected_variants"}
+    }
+    selected = assignments["selected_genomes"]
+    assert isinstance(selected, ast.IfExp)
+    assert isinstance(selected.body, ast.Tuple) and len(selected.body.elts) == 1
+    assert isinstance(selected.orelse, ast.Call)
+    assert isinstance(selected.orelse.func, ast.Name)
+    assert selected.orelse.func.id == "genomes"
+    expected = assignments["expected_variants"]
+    assert isinstance(expected, ast.IfExp)
+    assert isinstance(expected.body, ast.Constant) and expected.body.value == 1
+    assert isinstance(expected.orelse, ast.Name)
+    assert expected.orelse.id == "POINTS_PER_BLOCK"
+    run_call = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_campaign"
+    )
+    assert isinstance(run_call.args[1], ast.Name)
+    assert run_call.args[1].id == "selected_genomes"
+    config_call = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "config_for"
+    )
+    keywords = {keyword.arg: keyword.value for keyword in config_call.keywords}
+    assert ast.unparse(keywords["search_tag"]) \
+        == "TRIAL_SEARCH_TAG if phase == TRIAL_CELL_PHASE else 'formal'"
+    assert ast.unparse(keywords["submission_nonce"]) \
+        == "submission.nonce if phase == TRIAL_CELL_PHASE else None"
 
 
 def test_report_phase_is_the_only_report_writer_caller():
@@ -1278,7 +1430,8 @@ def test_verify_perf_reuses_one_checkout_and_stops_before_perf_on_abort():
     verify_branch = next(
         node for node in ast.walk(run_formal)
         if isinstance(node, ast.If)
-        and ast.unparse(node.test) == "phase in {'verify', 'verify-perf'}"
+        and ast.unparse(node.test)
+        == "phase in {'verify', 'verify-perf', 'trial-cell'}"
     )
     abort_guard = verify_branch.body[-1]
     assert isinstance(abort_guard, ast.If)
@@ -1449,6 +1602,147 @@ def test_current_v2_block_record_requires_well_formed_variant_id(tmp_path: Path)
         )
 
 
+def test_trial_exact_cell_gate_accepts_only_derived_logical_key(tmp_path: Path):
+    prereg, _submission, row, _attempts = _trial_predicate_fixture(tmp_path)
+    indexed = {(str(row["block_id"]), str(row["point"])): row}
+    B._require_exact_trial_cell(indexed, prereg=prereg)
+    _expect_code(
+        "trial-cell", lambda: B._require_exact_trial_cell({}, prereg=prereg),
+    )
+    _expect_code(
+        "trial-cell",
+        lambda: B._require_exact_trial_cell(
+            {**indexed, ("block-1", "adaptive"): row}, prereg=prereg,
+        ),
+    )
+
+
+def test_trial_success_predicate_matches_same_submission_certification(
+    tmp_path: Path,
+):
+    prereg, submission, row, attempts = _trial_predicate_fixture(tmp_path)
+    assert B._trial_execution_succeeded(
+        [row], prereg=prereg, attempts=attempts, submission=submission,
+    )
+    assert not B._trial_execution_succeeded(
+        [], prereg=prereg, attempts=attempts, submission=submission,
+    )
+    assert not B._trial_execution_succeeded(
+        [row, row], prereg=prereg, attempts=attempts, submission=submission,
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "host-missing", "perf-sha-missing", "perf-sha-malformed",
+        "perf-sha-mismatch", "attempt-id-mismatch", "missing",
+        "uncertified", "certified-attempt-missing", "request-id-mismatch",
+        "nonce-mismatch", "receipt-sha-mismatch",
+    ),
+)
+def test_trial_success_predicate_rejects_each_incomplete_binding(
+    tmp_path: Path, mutation: str,
+):
+    prereg, submission, row, attempts = _trial_predicate_fixture(tmp_path)
+    if mutation == "host-missing":
+        del row["execution_host"]
+    elif mutation == "perf-sha-missing":
+        row["performance_binary_sha256"] = None
+    elif mutation == "perf-sha-malformed":
+        row["performance_binary_sha256"] = "not-a-sha"
+    elif mutation == "perf-sha-mismatch":
+        row["performance_binary_sha256"] = "3" * 64
+    elif mutation == "attempt-id-mismatch":
+        row["build_attempt_id"] = "other-attempt"
+    elif mutation == "missing":
+        row["missing"] = True
+    elif mutation == "uncertified":
+        row["correctness_certified"] = False
+    elif mutation == "certified-attempt-missing":
+        attempts = {}
+    elif mutation == "request-id-mismatch":
+        row["request_id"] = "old-request"
+        row["trial"] = f"old-request-{str(row['submission_nonce'])[:12]}"
+    elif mutation == "nonce-mismatch":
+        row["submission_nonce"] = "e" * 32
+        row["trial"] = f"{row['request_id']}-{'e' * 12}"
+    else:
+        old_receipt = tmp_path / "old-submit-receipt.json"
+        old_receipt.write_bytes(b"old fixture submission receipt\n")
+        row["submission_receipt"] = str(old_receipt)
+        row["submission_receipt_sha256"] = _sha(old_receipt.read_bytes())
+    _rehash_record(row)
+    assert not B._trial_execution_succeeded(
+        [row], prereg=prereg, attempts=attempts, submission=submission,
+    )
+
+
+def test_trial_report_is_create_only_and_contains_bound_outcome(tmp_path: Path):
+    prereg, submission, row, attempts = _trial_predicate_fixture(tmp_path)
+    attempt = attempts[str(row["variant_id"])]
+    path = B._write_trial_report_create_only(
+        tmp_path / "trial-campaign",
+        campaign_id="trial-campaign-id",
+        submission=submission,
+        record=row,
+        certified_attempt=attempt,
+        succeeded=True,
+        preregistration_binding=prereg.binding.as_dict(),
+    )
+    assert path == (
+        tmp_path / "trial-campaign" / "reports" / "trial"
+        / f"{submission.nonce}.json"
+    )
+    report = json.loads(path.read_text(encoding="utf-8"))
+    assert report == {
+        "schema_version": "b10-backoff-shape-trial-report/v1",
+        "campaign_id": "trial-campaign-id",
+        "submission_identity": {
+            "request_id": submission.request_id,
+            "nonce": submission.nonce,
+            "receipt_path": submission.receipt_path,
+            "receipt_sha256": submission.receipt_sha256,
+            "source_commit": submission.source_commit,
+        },
+        "record_sha256": row["record_sha256"],
+        "execution_host": "compute-fixture",
+        "certified_attempt": {
+            "build_attempt_id": attempt.attempt_id,
+            "performance_binary_sha256": attempt.perf_bin_sha256,
+        },
+        "measurement_succeeded": True,
+        "success_predicate": True,
+        "preregistration_binding": prereg.binding.as_dict(),
+    }
+    with pytest.raises(FileExistsError):
+        B._write_trial_report_create_only(
+            tmp_path / "trial-campaign",
+            campaign_id="trial-campaign-id",
+            submission=submission,
+            record=row,
+            certified_attempt=attempt,
+            succeeded=True,
+            preregistration_binding=prereg.binding.as_dict(),
+        )
+
+
+@pytest.mark.parametrize(("execution_complete", "expected_rc"), ((True, 0), (False, 1)))
+def test_trial_main_return_code_is_exact_success_predicate(
+    monkeypatch: pytest.MonkeyPatch, execution_complete: bool, expected_rc: int,
+):
+    monkeypatch.setattr(
+        B, "run_formal",
+        lambda **_kwargs: (Path("trial-report.json"), None, execution_complete),
+    )
+    assert B.main([
+        "--phase", B.TRIAL_CELL_PHASE,
+        "--workload", "balanced",
+        "--prereg-commit", "a" * 40,
+        "--submission-receipt", "/fixture/submit-receipt.json",
+    ]) == expected_rc
+
+
 def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
     tmp_path: Path,
 ):
@@ -1494,6 +1788,134 @@ def test_e3de15eb_legacy_adapter_rejects_other_campaign_id():
         lambda: B._validate_legacy_write_heavy_records(
             [], campaign_id="b10-backoff-shape-silo-write-heavy-formal-other",
             prereg=B.Preregistration(_binding(), B.PREREG_REL, _spec()),
+        ),
+    )
+
+
+def test_143a3f74_balanced_adapter_accepts_only_pinned_series(tmp_path: Path):
+    prereg, records = _legacy_balanced_adapter_records(tmp_path)
+    expected_digests = frozenset(row["record_sha256"] for row in records)
+    frozen = sorted(B.LEGACY_BALANCED_RECORD_SHA256S)
+    assert B.LEGACY_BALANCED_CAMPAIGN_ID \
+        == "b10-backoff-shape-silo-balanced-formal-143a3f74"
+    assert B.LEGACY_BALANCED_ANALYSIS_COMMIT \
+        == "c7ed565892cd4aba52d7fa47a7d1da17b117c005"
+    assert B.LEGACY_BALANCED_ANALYSIS_SHA256 \
+        == "f6246360c784813a581d7e104f116c07838106022fb9245f5de50b338e9ea0ec"
+    assert B.LEGACY_BALANCED_BINDING_SHA256 \
+        == "588aaa9cd5eb844eeef48251777bb1d682d3b4993bae0e1b9bac94d893d7ae8f"
+    assert len(frozen) == len(set(frozen)) == 45
+    meta_digest = hashlib.sha256(
+        ("\n".join(frozen) + "\n").encode("ascii"),
+    ).hexdigest()
+    assert meta_digest \
+        == "8e5f0b48ba9e635e3d0e4e6c9c312c7436008dbe1a34f91a5763300920c37bad"
+    binding = B._legacy_balanced_binding(prereg)
+    assert set(binding) == {
+        "prereg_commit", "prereg_blob_sha", "spec_sha256", "patch_sha256",
+        "formula_sha256", "analysis_code_sha256", "binding_sha256",
+    }
+    assert "analysis_commit" not in binding
+    indexed = B._validate_legacy_balanced_records(
+        records,
+        campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
+        prereg=prereg,
+        expected_record_digests=expected_digests,
+    )
+    assert len(indexed) == 45
+    assert {row["execution_host"] for row in indexed.values()} == {"bnode015"}
+
+
+def test_balanced_legacy_content_change_is_outside_frozen_digest_set(
+    tmp_path: Path,
+):
+    prereg, records = _legacy_balanced_adapter_records(tmp_path)
+    expected = frozenset(row["record_sha256"] for row in records)
+    records[0]["correctness_certified"] = False
+    _rehash_record(records[0])
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_balanced_records(
+            records,
+            campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests=expected,
+        ),
+    )
+
+
+def test_balanced_legacy_rejects_other_campaign_id(tmp_path: Path):
+    prereg, records = _legacy_balanced_adapter_records(tmp_path)
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_balanced_records(
+            records,
+            campaign_id="b10-backoff-shape-silo-balanced-formal-other",
+            prereg=prereg,
+            expected_record_digests={row["record_sha256"] for row in records},
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("execution-host-missing", "workload-wrong", "binding-analysis-sha-wrong"),
+)
+def test_balanced_legacy_semantic_gate_rejects_even_with_mutated_digest_injected(
+    tmp_path: Path, mutation: str,
+):
+    prereg, records = _legacy_balanced_adapter_records(tmp_path)
+    expected = {row["record_sha256"] for row in records}
+    changed = records[0]
+    old_digest = changed["record_sha256"]
+    if mutation == "execution-host-missing":
+        del changed["execution_host"]
+    elif mutation == "workload-wrong":
+        changed["workload"] = "read-heavy"
+    else:
+        changed["preregistration_binding"] = prereg.binding.as_dict()
+    _rehash_record(changed)
+    expected.remove(old_digest)
+    expected.add(changed["record_sha256"])
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_balanced_records(
+            records,
+            campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests=expected,
+        ),
+    )
+
+
+def test_balanced_legacy_46th_record_belongs_to_exact_cell_gate(tmp_path: Path):
+    prereg, records = _legacy_balanced_adapter_records(tmp_path)
+    # This mutation is owned by the record-count/cell gate, not digest equality.
+    extra = copy.deepcopy(records[0])
+    _expect_code(
+        "report-completeness",
+        lambda: B._validate_legacy_balanced_records(
+            [*records, extra],
+            campaign_id=B.LEGACY_BALANCED_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests={row["record_sha256"] for row in records},
+        ),
+    )
+
+
+@pytest.mark.parametrize("mutation", ("missing", "additional", "replacement"))
+def test_legacy_digest_helper_rejects_nonexact_sets_directly(mutation: str):
+    expected = sorted(B.LEGACY_BALANCED_RECORD_SHA256S)
+    if mutation == "missing":
+        observed = expected[:-1]
+    elif mutation == "additional":
+        observed = [*expected, "0" * 64]
+    else:
+        observed = [*expected[:-1], "0" * 64]
+    _expect_code(
+        "legacy-record",
+        lambda: B._require_legacy_record_digests(
+            observed, B.LEGACY_BALANCED_RECORD_SHA256S,
         ),
     )
 
@@ -1563,6 +1985,118 @@ def test_report_admission_rejects_same_size_unique_nonregistered_grid():
         "report-completeness",
         lambda: B._require_exact_report_cells(records, prereg),
     )
+
+
+def test_report_collector_calls_each_series_specific_legacy_validator_once():
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    collector = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_collect_report_inputs"
+    )
+    calls = [
+        node.func.id for node in ast.walk(collector)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    ]
+    assert calls.count("_validate_legacy_write_heavy_records") == 1
+    assert calls.count("_validate_legacy_balanced_records") == 1
+    assert {
+        name for name in calls if name.startswith("_validate_legacy_")
+    } == {
+        "_validate_legacy_write_heavy_records",
+        "_validate_legacy_balanced_records",
+    }
+
+
+def test_report_collector_reads_only_three_formal_series_and_discloses_sources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    calibration = B.CalibrationSelection(
+        path="calibration.json", sha256="e" * 64,
+        schema_version="calibration/v2", records=100,
+        threads=48, env_tag="pegasus", clocks_per_us=2100,
+        saturated=True, lower_bound_selected=False, cache_floor_warning=False,
+    )
+    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
+    contract = B.env_contract.GENERATIONS["pegasus"][-1].contract
+    formal_cfg = B.config_for(
+        "read-heavy", prereg, calibration, context, contract,
+    )
+    formal_read_id = str(B.ident.campaign_id(formal_cfg))
+    trial_read_id = str(B.ident.campaign_id(B.config_for(
+        "read-heavy", prereg, calibration, context, contract,
+        search_tag=B.TRIAL_SEARCH_TAG, submission_nonce="0" * 32,
+    )))
+
+    def indexed(workload: str):
+        return {
+            (block_id, point): {
+                "workload": workload, "block_id": block_id, "point": point,
+            }
+            for block_id, order in prereg.spec.block_orders
+            for point in order
+        }
+
+    monkeypatch.setattr(B, "_read_block_records", lambda _root: [])
+    monkeypatch.setattr(
+        B, "_validate_legacy_write_heavy_records",
+        lambda *_args, **_kwargs: indexed("write-heavy"),
+    )
+    monkeypatch.setattr(
+        B, "_validate_legacy_balanced_records",
+        lambda *_args, **_kwargs: indexed("balanced"),
+    )
+    monkeypatch.setattr(
+        B, "_validate_prior_block_records",
+        lambda *_args, workload, **_kwargs: indexed(workload),
+    )
+    monkeypatch.setattr(B, "_assert_report_lock_binding", lambda *_args: None)
+    monkeypatch.setattr(
+        B, "_verification_source_disclosure",
+        lambda _layout, *, workload, campaign_id, indexed: (
+            {
+                "workload": workload, "campaign_id": campaign_id,
+                "raw_verify_done_records": 0,
+            },
+            {},
+        ),
+    )
+    requested = []
+
+    def layout_for_campaign(campaign_id: str) -> CampaignLayout:
+        requested.append(campaign_id)
+        return CampaignLayout(str(tmp_path / campaign_id))
+
+    _records, performance, _verification = B._collect_report_inputs(
+        str(tmp_path), prereg=prereg, calibration=calibration,
+        context=context, contract=contract,
+        layout_for_campaign=layout_for_campaign,
+    )
+    assert requested == [
+        B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+        B.LEGACY_BALANCED_CAMPAIGN_ID,
+        formal_read_id,
+    ]
+    assert trial_read_id not in requested
+    measured = {
+        source["workload"]: source["measured_with"]
+        for source in performance["source_campaigns"]
+    }
+    assert measured["write-heavy"] == {
+        "analysis_commit": B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT,
+        "analysis_code_sha256": B.LEGACY_WRITE_HEAVY_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_WRITE_HEAVY_BINDING_SHA256,
+    }
+    assert measured["balanced"] == {
+        "analysis_commit": B.LEGACY_BALANCED_ANALYSIS_COMMIT,
+        "analysis_code_sha256": B.LEGACY_BALANCED_ANALYSIS_SHA256,
+        "binding_sha256": B.LEGACY_BALANCED_BINDING_SHA256,
+    }
+    assert measured["read-heavy"] == {
+        "analysis_commit": prereg.binding.analysis_commit,
+        "analysis_code_sha256": prereg.binding.analysis_code_sha256,
+        "binding_sha256": prereg.binding.binding_sha256,
+    }
 
 
 def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
@@ -2008,6 +2542,50 @@ def test_config_uses_calibration_records_and_binds_preregistration():
     assert "15 genomes" in cfg.spec_content
 
 
+def test_trial_config_is_separate_from_formal_and_nonce_specific():
+    spec = _spec()
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, spec)
+    calibration = B.CalibrationSelection(
+        path="artifact.json", sha256="e" * 64, schema_version="calibration/v2",
+        records=765432, threads=48, env_tag="pegasus", clocks_per_us=2100,
+        saturated=False, lower_bound_selected=True, cache_floor_warning=False,
+    )
+    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
+    contract = B.env_contract.GENERATIONS["pegasus"][-1].contract
+    formal = B.config_for(
+        "read-heavy", prereg, calibration, context, contract,
+    )
+    first = B.config_for(
+        "read-heavy", prereg, calibration, context, contract,
+        search_tag=B.TRIAL_SEARCH_TAG, submission_nonce="0" * 32,
+    )
+    second = B.config_for(
+        "read-heavy", prereg, calibration, context, contract,
+        search_tag=B.TRIAL_SEARCH_TAG, submission_nonce="1" * 32,
+    )
+    assert formal.search_tag == "formal"
+    assert formal.trial == f"{B.TRIAL}-{spec.spec_sha256[:16]}"
+    assert first.search_tag == second.search_tag == "trial"
+    assert formal.search_config == first.search_config == second.search_config
+    assert len({
+        str(B.ident.campaign_id(formal)),
+        str(B.ident.campaign_id(first)),
+        str(B.ident.campaign_id(second)),
+    }) == 3
+    assert first.trial != second.trial
+    for workload in B.WORKLOADS:
+        cfg = B.config_for(
+            workload, prereg, calibration, context, contract,
+            search_tag=B.TRIAL_SEARCH_TAG, submission_nonce="2" * 32,
+        )
+        assert cfg.search_tag == "trial"
+    with pytest.raises(ValueError, match="validated submission nonce"):
+        B.config_for(
+            "read-heavy", prereg, calibration, context, contract,
+            search_tag=B.TRIAL_SEARCH_TAG,
+        )
+
+
 @pytest.mark.parametrize(
     ("quality", "saturation"),
     (
@@ -2376,7 +2954,8 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
     ]
     assert '"$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep' in job_text
     assert '"$PY" -I -B -m orchestrator.campaign.b10_backoff_shape_sweep' not in job_text
-    assert "build|verify|perf|probe|verify-perf|report" in submit_text + job_text
+    assert "build|verify|perf|probe|verify-perf|trial-cell|report" \
+        in submit_text + job_text
     assert '[[ "$IZANAGI_B10_PHASE" != probe && "$IZANAGI_B10_PHASE" != report ]]' in job_text
 
 
@@ -2493,7 +3072,7 @@ def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Pat
     ]
 
     for text in (submit_text, job_text):
-        assert "build|verify|perf|probe|verify-perf|report" in text
+        assert "build|verify|perf|probe|verify-perf|trial-cell|report" in text
     for duplicated_walltime in ("43200", "86400"):
         assert duplicated_walltime not in job_text + submit_text + driver_text
     assert "21600" not in submit_text + job_text + driver_text
@@ -2543,24 +3122,41 @@ def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(
         "FAKE_COMMON": os.fspath(common),
         "FAKE_JOB": os.fspath(job),
     }
-    for phase in ("probe", "report"):
+    phase_workloads = [
+        ("probe", None),
+        ("report", None),
+        *((B.TRIAL_CELL_PHASE, workload) for workload in B.WORKLOADS),
+    ]
+    for phase, workload in phase_workloads:
+        argv = [
+            str(submit), "--dry-run", "--durable-root", str(durable),
+            "--prereg-commit", "a" * 40, "--phase", phase,
+        ]
+        if workload is not None:
+            argv.extend(("--workload", workload))
         completed = subprocess.run(
-            [
-                str(submit), "--dry-run", "--durable-root", str(durable),
-                "--prereg-commit", "a" * 40, "--phase", phase,
-            ],
+            argv,
             cwd=repo, env=env, capture_output=True, text=True,
         )
         assert completed.returncode == 0, completed.stdout + completed.stderr
+    missing_workload = subprocess.run(
+        [
+            str(submit), "--dry-run", "--durable-root", str(durable),
+            "--prereg-commit", "a" * 40, "--phase", B.TRIAL_CELL_PHASE,
+        ],
+        cwd=repo, env=env, capture_output=True, text=True,
+    )
+    assert missing_workload.returncode == 2
     after = {path.relative_to(repo) for path in repo.rglob("*")}
     assert after == before
     receipts = list(durable.glob("*/submit-receipt.json"))
-    assert len(receipts) == 2
+    assert len(receipts) == 5
     receipt_docs = [json.loads(path.read_text(encoding="utf-8")) for path in receipts]
-    assert {receipt["phase"] for receipt in receipt_docs} == {"probe", "report"}
+    assert {
+        (receipt["phase"], receipt["workload"]) for receipt in receipt_docs
+    } == set(phase_workloads)
     for receipt in receipt_docs:
         assert receipt["dry_run"] is True
-        assert receipt["workload"] is None
         assert receipt["request"]["elapstim_req_s"] \
             == json.loads(policy.read_text(encoding="utf-8"))["b10_backoff_shape_walltime_s"]
 

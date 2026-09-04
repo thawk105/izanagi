@@ -7,7 +7,7 @@ unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
 usage() {
   cat >&2 <<'EOF'
 usage: submit_b10_backoff_shape.sh --prereg-commit COMMIT
-       --phase {build|verify|perf|probe|verify-perf|report} [--workload {write-heavy|balanced|read-heavy}]
+       --phase {build|verify|perf|probe|verify-perf|trial-cell|report} [--workload {write-heavy|balanced|read-heavy}]
        [--dry-run] [--durable-root PATH]
 EOF
 }
@@ -58,15 +58,15 @@ done
   echo "--prereg-commit must be a full lowercase commit ID" >&2
   exit 2
 }
-[[ "$PHASE" =~ ^(build|verify|perf|probe|verify-perf|report)$ ]] || {
-  echo "--phase must be build, verify, perf, probe, verify-perf, or report" >&2
+[[ "$PHASE" =~ ^(build|verify|perf|probe|verify-perf|trial-cell|report)$ ]] || {
+  echo "--phase must be build, verify, perf, probe, verify-perf, trial-cell, or report" >&2
   exit 2
 }
 if [[ "$PHASE" == build || "$PHASE" == probe || "$PHASE" == report ]]; then
   [[ -z "$WORKLOAD" ]] || { echo "build/probe/report phase must not select a workload" >&2; exit 2; }
 else
   [[ "$WORKLOAD" =~ ^(write-heavy|balanced|read-heavy)$ ]] || {
-    echo "verify/perf/verify-perf phase requires one registered workload" >&2
+    echo "verify/perf/verify-perf/trial-cell phase requires one registered workload" >&2
     exit 2
   }
 fi
