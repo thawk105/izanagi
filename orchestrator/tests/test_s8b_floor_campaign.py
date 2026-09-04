@@ -4642,6 +4642,15 @@ def test_default_staging_and_claim_seam_basis_keep_raw_argument_separate(
         if isinstance(call.func, ast.Name)
         and call.func.id == "_nondefault_campaign_seams"
     )
+    classifier_position = (classifier.lineno, classifier.col_offset)
+    raw_argument_rebindings = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Name)
+        and isinstance(node.ctx, ast.Store)
+        and node.id == "fetchcontent_base_dir"
+        and (node.lineno, node.col_offset) < classifier_position
+    ]
+    assert raw_argument_rebindings == []
     assert ast.unparse(next(
         keyword.value for keyword in classifier.keywords
         if keyword.arg == "fetchcontent_base_dir"
