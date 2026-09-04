@@ -176,6 +176,39 @@ def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
     assert ident.campaign_id(compute) != ident.campaign_id(other)
     assert compute.search_config["measurement_env"] == "pegasus"
 
+    raw_off = L.default_cfg(reflux=False)
+    other_off = L._campaign_cfg_for_site(
+        raw_off, site_policy.OTHER, _contract=linux_contract,
+    )
+    assert raw_off.bound_environment_contract is None
+    assert other_off.bound_environment_contract is linux_contract
+    assert "measurement_env" not in other_off.search_config
+    assert str(ident.campaign_id(other_off)) == (
+        "p3-s4-loop-s4-autonomous-95a32c3e"
+    )
+
+
+@pytest.mark.parametrize(
+    "site",
+    (site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT),
+)
+def test_base_public_run_one_iteration_rejects_ambient_unadmitted_site(
+    monkeypatch, site,
+):
+    planner, coder = _site_test_proposals()
+    monkeypatch.setattr(L, "_current_site", lambda: site)
+
+    with pytest.raises(execution_guard.ExecutionGuardError, match="生成できない"):
+        L.run_one_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            L.LoopState(start_wall=time.time()),
+            "unused-by-site-admission-negative",
+            do_build=False,
+        )
+
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_base_automatic_compute_resolution_flows_one_projected_cfg_to_campaign(

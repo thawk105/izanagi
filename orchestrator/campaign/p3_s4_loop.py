@@ -1443,7 +1443,7 @@ def _run_one_iteration_resolved(
             ),
             expected_campaign_id=str(ident.campaign_id(cfg)),
             expected_arm=cfg.search_config.get("reflux"),
-            boundary="base run_one_iteration",
+            boundary="base resolved run_one_iteration",
         )
     from .patchharness import applied
     if type(build_context) is not BuildRunContext:
@@ -1574,7 +1574,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
             ),
             expected_campaign_id=str(ident.campaign_id(cfg)),
             expected_arm=cfg.search_config.get("reflux"),
-            boundary="base public run_one_iteration",
+            boundary="base run_one_iteration",
         )
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
