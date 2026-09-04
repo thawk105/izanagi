@@ -1,0 +1,125 @@
+{
+  "estimated_run_seconds": 600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_staging_and_claim_seam_basis_keep_raw_argument_separate",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_default_transport_dirty_payload_reaches_pristine_pin_gate",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_default_transport_passes_three_verified_source_dirs",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_base_creation_failure_persists_before_oracle_or_build",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_disappearance_race_persists_closed_detail_before_oracle[base-stat]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_disappearance_race_persists_closed_detail_before_oracle[source-stat]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_head_mismatch_outranks_source_stat_failure_before_oracle",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_fetchcontent_default_rejects_repo_destination_before_copy",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_fetchcontent_default_rejects_symlinked_fixed_prefix_ancestor",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_fetchcontent_default_uses_bound_nonce_and_preserves_copy_semantics",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[base]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[checkout]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[configure]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[source-missing]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU1-NONCE-AUTHORITY-AMBIENT",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "            nonce=os.environ.get(\"IZANAGI_SUBMISSION_NONCE\", \"\"),\n        )\n    except (AttributeError, TypeError, OSError, RuntimeError,\n",
+          "old": "            nonce=reservation_binding.nonce,\n        )\n    except (AttributeError, TypeError, OSError, RuntimeError,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_fetchcontent_default_rejects_symlinked_fixed_prefix_ancestor",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_fetchcontent_default_rejects_unsafe_layout[payload-symlink]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_fetchcontent_default_rejects_unsafe_layout[source-symlink]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU2-ANCESTOR-SYMLINK-CHECK-DISABLED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "        if False:\n            raise _FloorOraclePreflightError(\n                \"floor submission payload の固定 path component が実 directory でない\",\n",
+          "old": "        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):\n            raise _FloorOraclePreflightError(\n                \"floor submission payload の固定 path component が実 directory でない\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_fetchcontent_default_rejects_missing_binding_without_ambient_fallback"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU3-BINDING-ABSENT-FALLS-BACK-TO-AMBIENT",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    _fallback_nonce = (\n        reservation_binding.nonce\n        if isinstance(reservation_binding, reservation.ReservationBinding)\n        else os.environ.get(\"IZANAGI_SUBMISSION_NONCE\", \"\")\n    )\n    try:\n        canonical_repo = Path(repo_root).resolve(strict=True)\n        receipt = floor_submit_receipt.receipt_path(\n            canonical_repo,\n            env_tag=contract.env_tag,\n            nonce=_fallback_nonce,\n        )\n",
+          "old": "    if not isinstance(reservation_binding, reservation.ReservationBinding):\n        raise _FloorOraclePreflightError(\n            \"default floor transport に検証済み reservation binding がない\",\n            detail_code=\"floor-dependency-base-unavailable\",\n            origin=\"reservation-binding:floor-fetchcontent\",\n            outcome=\"not-configured\",\n        )\n    try:\n        canonical_repo = Path(repo_root).resolve(strict=True)\n        receipt = floor_submit_receipt.receipt_path(\n            canonical_repo,\n            env_tag=contract.env_tag,\n            nonce=reservation_binding.nonce,\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_default_transport_dirty_payload_reaches_pristine_pin_gate",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_prebuild_captures_shared_policy_pins_once",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU4-PIN-VERIFICATION-REMOVED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    effective_base = Path(fetchcontent_base)\n    staged_sources = {\n        name: effective_base / f\"{name}-src\"\n        for name in _FLOOR_THIRD_PARTY_SOURCE_NAMES\n    }\n",
+          "old": "    effective_base = Path(fetchcontent_base)\n    staged_sources = _verify_pristine_floor_dependency_sources(\n        effective_base, repo_root=Path(repo_root),\n        expected_pins=captured_policy_pins,\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_default_transport_passes_three_verified_source_dirs",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_source_dir_reads_and_binds_payload_policy",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[source-missing]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU5-SOURCE-DIRS-NOT-FORWARDED",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "                prepare_kwargs.update({})\n",
+          "old": "                prepare_kwargs.update({\n                    \"masstree_source_dir\": str(staged_sources[\"masstree\"]),\n                    \"mimalloc_source_dir\": str(staged_sources[\"mimalloc\"]),\n                    \"googletest_source_dir\": str(staged_sources[\"googletest\"]),\n                })\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_default_staging_and_claim_seam_basis_keep_raw_argument_separate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU6-DERIVED-BASE-REBOUND-INTO-RAW-ARGUMENT",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    if resume_dir is not None:\n        external_checkpoint_binding = None\n    mode = _validate_mode(mode)\n    fetchcontent_base_dir = fetchcontent_base_dir\n    nondefault_seams = _nondefault_campaign_seams(\n",
+          "old": "    if resume_dir is not None:\n        external_checkpoint_binding = None\n    mode = _validate_mode(mode)\n    nondefault_seams = _nondefault_campaign_seams(\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 3600
+}
