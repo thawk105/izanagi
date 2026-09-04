@@ -146,7 +146,7 @@ cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走�
 主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の
 使い捨て worktree で harness を走らせる。`--scratch-root` は既存 directory 必須で、
 全 registered worktree の外に置く。再走は `--out` と `--attempt-out` を新 path にする
-（既存は rc=2）。`--wrapper-attempt` は試行番号。
+（既存は rc=2）。
 
 ## DW-O20 — clean-tree gate
 
@@ -165,10 +165,11 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 ## DW-O23 — 並行 session の local main land
 
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、着地tip、監査commit列を渡す。
+監査列の範囲は`<tested main>..<tested tip>`で固定。着地tipで数え直すとrc=23。
 協調wave lock内で再照合し、着地tipへのff-onlyだけ行う。ff-only成功後は**同じlockを保持したまま**
 `docs/spool/`のfragmentをfoldし、T/D/Fの採番・canonical3台帳追記・worklogローテーションを
 一度だけ行う。foldが赤なら`landed`を返さない。0件foldはno-op。
-**wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
+tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは停止せず既存branchのまま
