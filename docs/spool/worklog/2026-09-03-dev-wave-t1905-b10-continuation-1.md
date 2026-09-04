@@ -54,6 +54,16 @@ title: [T-1905] B-10 の balanced を投入し read-heavy の道を確定した 
   1 セルだけ通す実行面が無い。**足すと driver の bytes が変わり、走行中 balanced の
   45 セルが最終集約から外れる。** 条件 2 を字義どおり満たすことと D1509 決定 3 が守ろうとした
   完走分を残すことが正面から衝突する。**ユーザー裁定へ返した** ({{F:d1480-cond2-unsatisfiable}})。
+- **balanced が 45 セル完走した** (`driver_rc=0`、実所要 3.6 時間)。
+  45 件すべてが測定成功かつ `correctness_certified=true` で、実行ノード名も 45 件に入った。
+  前回の write-heavy が 45 セル全部「性能 binary の SHA 不一致」で終わった型は 1 件も出ていない。
+- **受入全走が real な赤を 2 件出した。親の pin 閉包漏れである** ({{F:policy-bytes-pin-missed-by-key-and-value-search}})。
+  `tools/pegasus/policy.json` の現行 bytes は sha256 で明示 pin されており、壁時計を変えたので外れた。
+  **key 名と値の字面で閉包を取ったので、file 全体の hash を持つ pin に掛からなかった。**
+  段 2 のプランと段 3・段 6 の 4 レンズも全員が同じ探し方をして誰も見つけず、
+  20300 件の受入全走だけが見つけた。段 6 の焦点走も b10 の test file だけで、
+  DW-O26 が求める consumer test を引いていなかった。
+  直しは golden 1 行の更新で、歴史 binding と凍結 evidence は据え置き。test の緩和ではない。
 - **read-heavy の投入は本 wave で行っていない。** 依頼は「§5.1 の測定・道の選択・balanced の
   投入」であり read-heavy の投入を含まない。段 3 の両レンズも現行裁定を保つ限り
   qsub の前に停止すべきと判定した。

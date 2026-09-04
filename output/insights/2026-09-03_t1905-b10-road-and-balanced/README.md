@@ -205,6 +205,62 @@ DW-M03 に従い単独変異の証拠から外す。
 これは**検査自身の弱体化を検査自身は検出できない**という構造的な限界であり、
 CLAUDE.md 規律 7 が D387 として明記している型の実例である。事前登録どおり SURVIVED で記録する。
 
+## 8b. balanced が 45 セル完走した — 前回全滅した経路を 1 件も落とさずに通った
+
+`974207.nqsv` は `driver_rc=0` で終端した。12 時間枠に対して実所要は約 3.6 時間。
+
+| 項目 | 結果 |
+|---|---|
+| block record | **45 件** |
+| `performance_unmeasurable=true` | **0 件** |
+| `correctness_certified=true` | **45 件** |
+| `execution_host` | `bnode015` (45 件すべてに記録) |
+| median_tps | 45 件、1.23M-4.23M |
+| 検査相 | 15 変種 11343 秒 (3.15 時間)、40.88us/commit |
+
+前回の write-heavy (`068fd2cd`) は 45 セル全部が
+`performance-measurement-failed:PreflightError:[perf-binary-binding]` で終わっていた。
+**今回はその型が 1 件も出ていない。**
+§6 (5) の実行ノード名記録も現物として効いている。
+
+**これは D1480 条件 2 の代替として親が段 4 で挙げた選択肢 1 の現物である** —
+分散後の形 (workload ごとの build cache 置き場・実行ノード名の記録・job 側の集約抑止・
+認証済み binary との SHA 照合・セル記録の書き出し) が実際に通った。
+通っていないのは集約レポートだけで、それは 135 セルが揃うまで原理的に通せない。
+**採否はユーザー裁定に属する。**
+
+## 8c. 受入全走が real な赤を 2 件出した — 親の pin 閉包漏れ
+
+`2 failed, 20298 passed, 92 skipped`。infra ではなく本物の赤で、**親の変更に帰属する。**
+
+- `test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys`
+- `test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head`
+
+根本原因は 1 つ。**`tools/pegasus/policy.json` の現行 bytes は sha256 で明示 pin されている**
+(`orchestrator/tests/pegasus_policy_expected_goldens.py` の
+`EXPECTED_CURRENT_PEGASUS_POLICY_SHA256`)。壁時計を変えたので pin が外れた。
+
+| 対象 | 値 |
+|---|---|
+| golden (変更前) | `b991c7499fb43802f2910b9f2cfa476643753e929e395877437e7307f07b667e` |
+| 変更後 | `a8806c4a4da81f2cbadcb5cbeee54ce7c1106bd0d291c1a2725f86b8b8a8032a` |
+| 歴史 binding (据え置き) | `b1c42e493148517cf4adc055999c5706eb3f15500c57bfcb0dbfc2a36ac961ac` |
+
+**なぜ段 0 で見つけられなかったか。** 親は key 名 (`b10_backoff_shape_walltime_s`) と
+値の字面 (`43200` / `12:00:00`) で閉包を取った。**file 全体の hash を持つ pin は、
+key 名も値も本文に持たないので、どちらの検索にも掛からない。**
+DW-O09 が指示する `git grep -n "<成果物パス>"` を走らせていれば出た。
+段 2 のプランと段 3・段 6 の 4 レンズも全員が同じ探し方をしたので誰も見つけず、
+**20300 件の受入全走だけが見つけた。**
+
+**段 6 の焦点走も不足していた。** 親は変更後に b10 の test file だけを走らせて 103 passed とした。
+DW-O26 は「変更した production file を参照する consumer test も焦点走に含める」と定めている。
+
+**直し方は golden の更新であって test の緩和ではない。** 両 test の assertion message 自身が
+そう指示している。歴史 binding と凍結 evidence は変えておらず、
+test が要求する「歴史値と現行値が一致しないこと」も保たれる。
+fix 後、対象 2 件は計算ノードで `2 passed` / `child_rc=0` になった。
+
 ## 9. 非帰属赤を推測でなく再現で判定した
 
 実装後の初回全走で 1 件赤になった

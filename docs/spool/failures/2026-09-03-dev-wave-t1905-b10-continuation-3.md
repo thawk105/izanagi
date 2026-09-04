@@ -45,3 +45,28 @@ seq: 3
   同 §9 へ明記した。実体は `docs/b10-multinode-formal-run-design.md` §9 の問い 6。
 - 再発検知: 投入前条件を持つ設計を書くとき、その条件を満たす操作が
   現行 CLI に存在するかを設計文書へ file:line で書く。書けなければ条件として採らない。
+
+### {{F:policy-bytes-pin-missed-by-key-and-value-search}}. 設定 1 値の変更が、file 全体の hash pin を外して受入で赤になった [手順漏れ]
+
+- 事象: `tools/pegasus/policy.json` の `b10_backoff_shape_walltime_s` を 43200 から 86400 へ
+  変えたところ、受入全走が 20300 件中 2 件の赤を返した。
+  `test_shared_pegasus_policy_owns_no_t126_qualification_keys` と
+  `test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head` である。
+  原因は同 file の**現行 bytes を sha256 で明示 pin する golden**
+  (`orchestrator/tests/pegasus_policy_expected_goldens.py` の
+  `EXPECTED_CURRENT_PEGASUS_POLICY_SHA256`) が外れたことだった。
+- 根本原因: 親は pin 閉包を **key 名** (`b10_backoff_shape_walltime_s`) と
+  **値の字面** (`43200` / `12:00:00` / `12 * 60 * 60`) で取った。
+  **file 全体の hash を持つ pin は key 名も値も本文に持たないので、どちらの検索にも掛からない。**
+  DW-O09 が指示する `git grep -n "<成果物パス>"` を走らせていなかった。
+  段 2 のプランと段 3・段 6 の 4 レンズも全員が同じ探し方をしたので誰も見つけず、
+  受入全走だけが見つけた。段 6 の焦点走も変更 file と同名の test file だけで、
+  DW-O26 が求める「変更した production file を参照する consumer test」を引いていなかった。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O09` が既に
+  「`git grep -n "<成果物パス>"` を使い bytes を pin する台帳・test・trust root を全列挙する」
+  と定めており、規約側の不足ではない。**規約どおりに引かなかったことが原因である。**
+  再発防止は既存 `DW-O09` の遵守と、`DW-O26` の焦点走拡張の遵守に閉じる。
+  新しい節は足さない。
+- 再発検知: 設定 file の中の 1 値を変える wave では、段 0 の閉包に
+  `git grep -n "<変更する file の repo 相対 path>"` の出力を残す。
+  この出力が無いまま段 5 へ進んだら閉包未了とする。
