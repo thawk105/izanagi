@@ -72,9 +72,20 @@ probe (全件 SURVIVED 期待で観測 node を集める) → 本走 (KILLED 期
 - 採らなかった所見: trial-cell を read-heavy 限定にする (D1480 条件 2 は残り workload 一般の条件。
   report の workload 明示と投入手順で誤認経路を塞ぐ)、試し打ち用の短い壁時計枠 (pin が広がる)。
 
-## 4. 投入と待ち
+## 4. 投入と結果
 
-- 2026-09-05 00:25 JST、trial-cell / read-heavy を 977483.nqsv として投入 (QUE、gen_S は QUE 275 / RUN 65)。
-- read-heavy (verify-perf、24 時間枠) は試し打ちの `job-result.json` (driver_rc=0) と trial report
-  (`success_predicate=true`、workload=read-heavy、host 実在、certified attempt と perf SHA の一致) を
-  確認した後に、同じ固定 checkout から投入する。
+- 2026-09-05 00:05 JST、trial-cell / read-heavy を 977483.nqsv として投入 (gen_S は QUE 275 / RUN 65、
+  queue 待ち 2 分)。00:07 開始、01:00 終了、Elapse 3,177 秒 (bnode094)。
+- 試し打ちの結果 (一次資料は submissions/b7539bc8…/job-attempts/977483.nqsv/ と
+  campaigns/b10-backoff-shape-silo-read-heavy-trial-6cef7cf6/):
+  `job-result.json` driver_rc=0、失敗記録なし、campaign done 1 committed / 0 aborted、
+  verify[legacy] 1 回 + verify[performance] 5 回すべて serializable (0 anomalies)、
+  record `block-1--03--constant-mu2.json` は correctness_certified・missing=false・
+  perf SHA `139edad3…` = certified attempt `e738e04f…` の perf_bin_sha256・execution_host bnode094、
+  trial report `reports/trial/b7539bc8….json` は `success_predicate=true`、`phase=trial-cell`、
+  `workload=read-heavy`、record digest `89498e54…`。**D1480 条件 2 を満たした。**
+- 固定 checkout は試し打ち後も superproject・submodule とも status 0 行 (build cache は ignored)。
+- 2026-09-05 01:06 JST、verify-perf / read-heavy を **977647.nqsv** として投入
+  (nonce `4537eb096a8ded8119e0bc92944f3171`、source `2a338449b`、24 時間枠)。01:06 に RUN 開始。
+  完走待ち。**判定は書かない。**
+- report phase は 3 campaign が揃った後、同じ driver bytes (sha256 b15c3548…) の checkout から 1 回だけ走らせる。

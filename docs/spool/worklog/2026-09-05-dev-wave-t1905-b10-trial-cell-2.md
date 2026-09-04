@@ -49,9 +49,16 @@ title: [T-1905] B-10 の 1 セル試し打ち phase を driver へ足し、balan
   `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1905-b10-trial-cell/submit-tree` (detached、clean、
   submodule 初期化済み)。**受入が wave branch へ main を merge して HEAD を動かすため、wave worktree からは
   投入できない。** docs commit は driver bytes を変えないので、この tip の driver blob がそのまま land する。
-  投入時の gen_S は QUE 275 / RUN 65 で、queue 待ちは既知リスク。read-heavy (verify-perf) は試し打ちの
-  `job-result.json` (driver_rc=0) と trial report (`success_predicate=true`、workload=read-heavy) を
-  確認した後に同じ固定 checkout から投入する。
+  投入時の gen_S は QUE 275 / RUN 65 だったが、queue 待ちは 2 分で済んだ。
+- **試し打ちは通った。** 977483.nqsv は 00:07 開始・01:00 終了 (所要 3,177 秒、うち検証は 1 変種で
+  legacy 1 回 + performance 5 回すべて serializable)。`job-result.json` は driver_rc=0、失敗記録なし、
+  trial campaign `read-heavy-trial-6cef7cf6` に record 1 件 (block-1 index 3 `constant-mu2`、
+  correctness_certified、perf SHA 139edad3… が certified attempt e738e04f… と一致、host bnode094)、
+  trial report は `success_predicate=true`・`workload=read-heavy`。固定 checkout は試し打ち後も clean
+  (submodule の build cache は `build*/` で ignored)。**D1480 条件 2 を文字どおり満たした。**
+- **read-heavy 本走を投入した** — 2026-09-05 01:06 JST、request `977647.nqsv` (verify-perf / read-heavy、
+  24 時間枠、prereg `77b33e37d`、source `2a338449b`、nonce `4537eb09…`)。同じ固定 checkout から投入し、
+  job 完了まで触らない。判定は書かない。
 - **段 2 の初回子が成果物ゼロで終わった** (同名 wave の並行起動、{{F:duplicate-wave-artifact-root-moved}})。
   新 job-id で再投入して回復。F841 は本 wave で supersede した。
 - 事前登録文書 `docs/b10-backoff-shape-preregistration.md` は 1 byte も変えていない ([T-2311] の erratum は
@@ -62,13 +69,13 @@ title: [T-1905] B-10 の 1 セル試し打ち phase を driver へ足し、balan
 
 ### 更新
 
-- [T-1905] **P1・試し打ち実行面は着地、試し打ち 977483.nqsv は投入済み → 完了確認後に read-heavy を投入**:
-  試し打ちの job-result (driver_rc=0) と trial report (success_predicate=true、workload=read-heavy) を
-  確認したら、同じ固定 checkout (`dev-wave-jobs/dev-wave-t1905-b10-trial-cell/submit-tree`、
-  detached 2a338449b) から `verify-perf read-heavy` (24 時間枠) を投入する。job 完了まで固定 checkout を
-  触らない。report phase は 3 campaign (write-heavy e3de15eb、balanced 143a3f74、read-heavy 現行 formal) が
-  揃った後、同じ driver bytes の checkout から 1 回だけ走らせる。試し打ちが失敗したら、その理由
-  (trial report と driver.stdout) を読んでから直し、新しい nonce で投げ直す。
+- [T-1905] **P1・試し打ち 977483.nqsv は成功、read-heavy 本走 977647.nqsv を投入済み → 完走待ち**:
+  固定 checkout (`dev-wave-jobs/dev-wave-t1905-b10-trial-cell/submit-tree`、detached 2a338449b、
+  driver sha256 b15c3548…) は job 完了まで触らない。完走 (job-result driver_rc=0、45 record) を確認したら、
+  3 campaign (write-heavy e3de15eb、balanced 143a3f74、read-heavy 現行 formal) が揃うので、同じ driver bytes の
+  checkout から `report` phase を 1 回だけ投入して 135 セルの最終集約と 3 族 Holm 判定を出す。
+  打ち切られたら理由 (failure.json / driver.stdout) を読んでから、D1509 決定 4 の差し替え規則に従う。
+  その後に [T-2311] の事前登録 erratum を当てる。
   base: 31c81d4755d99600c58e56c36773b216f84c7caa5f18c27643ac209824dc97c5
 
 ### 新規
