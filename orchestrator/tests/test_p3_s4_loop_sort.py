@@ -1273,6 +1273,7 @@ def _sort_cache_request(tmp_path, monkeypatch):
         attest_generator_output,
         derive_build_admission,
     )
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
     from test_buildcache_v2 import _fake_build_environment, _install_toolchain
 
     _install_toolchain(tmp_path, monkeypatch)
@@ -1280,7 +1281,7 @@ def _sort_cache_request(tmp_path, monkeypatch):
     source_root = tmp_path / "ccbench"
     source_root.mkdir()
     raw_token = "a" * 64
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     bound_token = source_digest._bind_sort_oracle_contract_id(
         raw_token, contract_id,
     )
@@ -1309,9 +1310,10 @@ def _sort_cache_request(tmp_path, monkeypatch):
 
 def test_require_sort_oracle_contract_accepts_only_running_contract():
     from dataclasses import replace
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
 
     cfg = S.default_cfg()
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     assert S._require_sort_oracle_contract(cfg) == contract_id
 
     missing = dict(cfg.search_config)
@@ -1396,10 +1398,11 @@ def test_sort_oracle_contract_call_seams_are_keyword_only_default_none():
 
 def test_resolved_src_token_rejects_both_bindings():
     from orchestrator.campaign import source_digest
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
 
     current = "a" * 64
     baseline = "b" * 64
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     with pytest.raises(ValueError, match="mutually exclusive"):
         source_digest._resolved_src_token(
             current,
@@ -1422,8 +1425,9 @@ def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(
     tmp_path,
 ):
     from orchestrator.campaign import env_contract, loop, pipeline, source_digest
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
 
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     raw_token = "a" * 64
     bound_token = source_digest._bind_sort_oracle_contract_id(
         raw_token, contract_id,
@@ -1481,8 +1485,9 @@ def test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api(
 ):
     from orchestrator.campaign import buildcache, env_contract, pipeline, source_digest
     from orchestrator.campaign.build_admission import attest_generator_output
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
 
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     raw_token = "a" * 64
     bound_token = source_digest._bind_sort_oracle_contract_id(
         raw_token, contract_id,
@@ -1553,8 +1558,9 @@ def test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api(
 
 def test_build_v2_wrapper_forwards_sort_contract_to_impl():
     from orchestrator.campaign import buildcache
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
 
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     result_sentinel = object()
     with mock.patch.object(
         buildcache,
@@ -1644,8 +1650,9 @@ def test_build_exits_recheck_with_sort_contract(
 
 def test_recheck_source_evidence_forwards_sort_contract_to_resolver(tmp_path):
     from orchestrator.campaign import buildcache, source_digest
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
 
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     raw_token = "a" * 64
     bound_token = source_digest._bind_sort_oracle_contract_id(
         raw_token, contract_id,
@@ -1677,9 +1684,10 @@ def test_recheck_source_evidence_forwards_sort_contract_to_resolver(tmp_path):
 
 def test_sort_binder_exact_preimage_and_rejections():
     from orchestrator.campaign import source_digest
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
 
     raw_token = "a" * 64
-    contract_id = S.sort_swo_oracle.ORACLE_CONTRACT_ID
+    contract_id = ORACLE_CONTRACT_ID
     expected = hashlib.sha256(
         b"sort-src-token/v1\0contract="
         + contract_id.encode("ascii")
@@ -1786,6 +1794,11 @@ def test_bound_evidence_token_is_the_cache_authority(tmp_path, monkeypatch):
     from test_buildcache_v2 import _contract
 
     request = _sort_cache_request(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        buildcache.source_digest,
+        "resolve_evidence",
+        lambda *_args, **_kwargs: request.evidence,
+    )
     legacy = buildcache.build(
         _G,
         S.PIN,

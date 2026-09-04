@@ -65,8 +65,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import (buildcache, condition_meaning_gate, env_contract, ident, pin,  # noqa: E402
-               sort_swo_oracle, wal)
+from . import buildcache, condition_meaning_gate, env_contract, ident, pin, wal  # noqa: E402
 from . import p3_s4_loop as L                              # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -335,8 +334,10 @@ default_perf = L.default_perf   # 軸非依存 (kickoff 規模、有意性を主
 def _require_sort_oracle_contract(cfg: CampaignConfig) -> str:
     """Return the single campaign-declared sort oracle contract or fail closed."""
 
+    from .sort_swo_oracle import ORACLE_CONTRACT_ID
+
     declared = cfg.search_config.get("sort_swo_oracle")
-    expected = sort_swo_oracle.ORACLE_CONTRACT_ID
+    expected = ORACLE_CONTRACT_ID
     if type(declared) is not str or declared != expected:
         raise ValueError(
             "cfg.search_config.sort_swo_oracle must exactly equal "
