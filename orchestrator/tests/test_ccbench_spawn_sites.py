@@ -858,7 +858,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "buildcache",
         "<module>._build_binary",
-        3114,
+        3131,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
@@ -866,7 +866,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_formal",
-        3873,
+        3890,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
@@ -2633,11 +2633,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     } == {
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "buildcache", "<module>._build_binary", 3114,
+            "wave t1905", "buildcache", "<module>._build_binary", 3131,
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "campaign", "<module>.run_formal", 3873,
+            "wave t1905", "campaign", "<module>.run_formal", 3890,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",

@@ -1345,6 +1345,51 @@ def test_trial_run_uses_one_genome_and_summary_contract_is_one_vs_fifteen():
         == "TRIAL_SEARCH_TAG if phase == TRIAL_CELL_PHASE else 'formal'"
     assert ast.unparse(keywords["submission_nonce"]) \
         == "submission.nonce if phase == TRIAL_CELL_PHASE else None"
+    writer_assignment = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "_write_block_record_create_only"
+    )
+    assert [ast.unparse(target) for target in writer_assignment.targets] \
+        == ["written_record_sha256"]
+    predicate_call = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_trial_execution_succeeded"
+    )
+    predicate_keywords = {
+        keyword.arg: keyword.value for keyword in predicate_call.keywords
+    }
+    assert ast.unparse(predicate_keywords["written_record_sha256"]) \
+        == "written_record_sha256"
+    prior_read = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "prior"
+            for target in node.targets
+        )
+    )
+    reject_call = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_reject_trial_prior_records"
+    )
+    validator_calls = sorted(
+        (
+            node for node in ast.walk(run_formal)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_validate_prior_block_records"
+        ),
+        key=lambda node: node.lineno,
+    )
+    assert len(validator_calls) == 2
+    assert prior_read.lineno < reject_call.lineno < validator_calls[0].lineno
 
 
 def test_report_phase_is_the_only_report_writer_caller():
@@ -1617,18 +1662,54 @@ def test_trial_exact_cell_gate_accepts_only_derived_logical_key(tmp_path: Path):
     )
 
 
+def test_trial_rejects_preexisting_self_hashed_record_even_with_matching_wal(
+    tmp_path: Path,
+):
+    prereg, submission, row, attempts = _trial_predicate_fixture(tmp_path)
+    indexed = B._validate_prior_block_records(
+        [row], workload="read-heavy", prereg=prereg,
+    )
+    assert indexed == {(str(row["block_id"]), str(row["point"])): row}
+    assert B._trial_execution_succeeded(
+        [row], prereg=prereg, attempts=attempts, submission=submission,
+        written_record_sha256=str(row["record_sha256"]),
+    )
+    _expect_code(
+        "trial-cell",
+        lambda: B._reject_trial_prior_records(B.TRIAL_CELL_PHASE, [row]),
+    )
+    B._reject_trial_prior_records("perf", [row])
+
+
 def test_trial_success_predicate_matches_same_submission_certification(
     tmp_path: Path,
 ):
     prereg, submission, row, attempts = _trial_predicate_fixture(tmp_path)
     assert B._trial_execution_succeeded(
         [row], prereg=prereg, attempts=attempts, submission=submission,
+        written_record_sha256=str(row["record_sha256"]),
     )
     assert not B._trial_execution_succeeded(
         [], prereg=prereg, attempts=attempts, submission=submission,
+        written_record_sha256=str(row["record_sha256"]),
     )
     assert not B._trial_execution_succeeded(
         [row, row], prereg=prereg, attempts=attempts, submission=submission,
+        written_record_sha256=str(row["record_sha256"]),
+    )
+
+
+def test_trial_success_predicate_requires_this_invocations_written_record_digest(
+    tmp_path: Path,
+):
+    prereg, submission, row, attempts = _trial_predicate_fixture(tmp_path)
+    assert not B._trial_execution_succeeded(
+        [row], prereg=prereg, attempts=attempts, submission=submission,
+        written_record_sha256="f" * 64,
+    )
+    assert B._trial_execution_succeeded(
+        [row], prereg=prereg, attempts=attempts, submission=submission,
+        written_record_sha256=str(row["record_sha256"]),
     )
 
 
@@ -1675,6 +1756,7 @@ def test_trial_success_predicate_rejects_each_incomplete_binding(
     _rehash_record(row)
     assert not B._trial_execution_succeeded(
         [row], prereg=prereg, attempts=attempts, submission=submission,
+        written_record_sha256=str(row["record_sha256"]),
     )
 
 
@@ -1684,6 +1766,8 @@ def test_trial_report_is_create_only_and_contains_bound_outcome(tmp_path: Path):
     path = B._write_trial_report_create_only(
         tmp_path / "trial-campaign",
         campaign_id="trial-campaign-id",
+        phase=B.TRIAL_CELL_PHASE,
+        workload="read-heavy",
         submission=submission,
         record=row,
         certified_attempt=attempt,
@@ -1698,6 +1782,8 @@ def test_trial_report_is_create_only_and_contains_bound_outcome(tmp_path: Path):
     assert report == {
         "schema_version": "b10-backoff-shape-trial-report/v1",
         "campaign_id": "trial-campaign-id",
+        "phase": B.TRIAL_CELL_PHASE,
+        "workload": "read-heavy",
         "submission_identity": {
             "request_id": submission.request_id,
             "nonce": submission.nonce,
@@ -1719,6 +1805,8 @@ def test_trial_report_is_create_only_and_contains_bound_outcome(tmp_path: Path):
         B._write_trial_report_create_only(
             tmp_path / "trial-campaign",
             campaign_id="trial-campaign-id",
+            phase=B.TRIAL_CELL_PHASE,
+            workload="read-heavy",
             submission=submission,
             record=row,
             certified_attempt=attempt,
@@ -1824,6 +1912,28 @@ def test_143a3f74_balanced_adapter_accepts_only_pinned_series(tmp_path: Path):
     )
     assert len(indexed) == 45
     assert {row["execution_host"] for row in indexed.values()} == {"bnode015"}
+
+
+def test_balanced_legacy_validator_default_is_the_frozen_balanced_set():
+    defaults = B._validate_legacy_balanced_records.__kwdefaults__
+    assert defaults is not None
+    assert defaults["expected_record_digests"] \
+        is B.LEGACY_BALANCED_RECORD_SHA256S
+
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    collector = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_collect_report_inputs"
+    )
+    balanced_call = next(
+        node for node in ast.walk(collector)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_validate_legacy_balanced_records"
+    )
+    assert "expected_record_digests" not in {
+        keyword.arg for keyword in balanced_call.keywords
+    }
 
 
 def test_balanced_legacy_content_change_is_outside_frozen_digest_set(
@@ -2554,6 +2664,7 @@ def test_trial_config_is_separate_from_formal_and_nonce_specific():
     contract = B.env_contract.GENERATIONS["pegasus"][-1].contract
     formal = B.config_for(
         "read-heavy", prereg, calibration, context, contract,
+        search_tag="formal",
     )
     first = B.config_for(
         "read-heavy", prereg, calibration, context, contract,
@@ -2563,9 +2674,14 @@ def test_trial_config_is_separate_from_formal_and_nonce_specific():
         "read-heavy", prereg, calibration, context, contract,
         search_tag=B.TRIAL_SEARCH_TAG, submission_nonce="1" * 32,
     )
+    assert formal.spec_slug == "b10-backoff-shape-silo-read-heavy"
+    assert formal.search_config["scale"] == "silo-b10-backoff-shape"
     assert formal.search_tag == "formal"
     assert formal.trial == f"{B.TRIAL}-{spec.spec_sha256[:16]}"
     assert first.search_tag == second.search_tag == "trial"
+    assert first.trial \
+        == f"{B.TRIAL}-{spec.spec_sha256[:16]}-{'0' * 32}"
+    assert "0" * 32 in first.trial
     assert formal.search_config == first.search_config == second.search_config
     assert len({
         str(B.ident.campaign_id(formal)),

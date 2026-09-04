@@ -2685,12 +2685,24 @@ def _require_exact_report_cells(
         )
 
 
+def _reject_trial_prior_records(
+    phase: str,
+    prior: Sequence[Mapping[str, object]],
+) -> None:
+    """Require every trial submission to start with a fresh campaign root."""
+    if phase == TRIAL_CELL_PHASE and prior:
+        raise PreflightError(
+            "trial-cell", "trial campaign に既存 block record がある",
+        )
+
+
 def _trial_execution_succeeded(
     records: Sequence[Mapping[str, object]],
     *,
     prereg: Preregistration,
     attempts: Mapping[str, CertificationAttempt],
     submission: SubmissionIdentity,
+    written_record_sha256: Optional[str],
 ) -> bool:
     """Return the exact, side-effect-free trial completion predicate."""
     if len(records) != 1:
@@ -2704,6 +2716,7 @@ def _trial_execution_succeeded(
         row.get("block_id") == block_id
         and row.get("schedule_index") == schedule_index
         and row.get("point") == point
+        and row.get("record_sha256") == written_record_sha256
         and row.get("correctness_certified") is True
         and row.get("missing") is False
         and type(row.get("execution_host")) is str
@@ -2723,6 +2736,8 @@ def _write_trial_report_create_only(
     campaign_root: Path,
     *,
     campaign_id: str,
+    phase: str,
+    workload: str,
     submission: SubmissionIdentity,
     record: Mapping[str, object],
     certified_attempt: Optional[CertificationAttempt],
@@ -2744,6 +2759,8 @@ def _write_trial_report_create_only(
     report = {
         "schema_version": "b10-backoff-shape-trial-report/v1",
         "campaign_id": campaign_id,
+        "phase": phase,
+        "workload": workload,
         "submission_identity": {
             "request_id": submission.request_id,
             "nonce": submission.nonce,
@@ -3906,6 +3923,7 @@ def run_formal(
             )
             block_root = Path(layout.runs_dir) / "b10-backoff-shape-blocks"
             prior = _read_block_records(block_root)
+            _reject_trial_prior_records(phase, prior)
             completed = _validate_prior_block_records(
                 prior, workload=workload, prereg=prereg,
             )
@@ -3949,6 +3967,7 @@ def run_formal(
                     for schedule_index, name in enumerate(order)
                 )
             )
+            written_record_sha256: Optional[str] = None
             for block_id, schedule_index, name in schedule:
                 if (block_id, name) in completed:
                     continue
@@ -4016,7 +4035,9 @@ def run_formal(
                 record_path = block_root / _block_record_filename(
                     block_id, schedule_index, name,
                 )
-                _write_block_record_create_only(record_path, row)
+                written_record_sha256 = _write_block_record_create_only(
+                    record_path, row,
+                )
 
             current_records = _read_block_records(block_root)
             current_indexed = _validate_prior_block_records(
@@ -4029,6 +4050,7 @@ def run_formal(
                     prereg=prereg,
                     attempts=attempts,
                     submission=submission,
+                    written_record_sha256=written_record_sha256,
                 )
                 trial_record = current_records[0]
                 variant = trial_record.get("variant_id")
@@ -4038,6 +4060,8 @@ def run_formal(
                 trial_report = _write_trial_report_create_only(
                     Path(layout.root),
                     campaign_id=campaign_id,
+                    phase=phase,
+                    workload=workload,
                     submission=submission,
                     record=trial_record,
                     certified_attempt=certified_attempt,
