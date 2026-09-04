@@ -1267,7 +1267,6 @@ def test_floor_job_hardens_interpreter() -> None:
     )
     assert normal_checkpoint_stages == [
         "static-admission", "attempt-setup", "policy", "submit-binding",
-        "fetchcontent-staging",
         "source-identity", "allocation-reservation", "gflags-build",
         "glog-build", "protocol-resolution", "floor-driver", "job-result",
     ]
@@ -2277,8 +2276,6 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
         "pilot",
         "--protocol",
         str(tmp_path / "repo/output/s8b-freeze/floor_protocol.json"),
-        "--fetchcontent-base-dir",
-        "/tmp/izanagi-floor-fetchcontent",
     ]
     assert "--confirm-irreversible-pilot-holdout" not in actual_argv
 
@@ -2589,17 +2586,12 @@ def test_submit_floor_copies_and_reverifies_all_floor_third_party_sources(
         assert status == ""
 
 
-def test_floor_job_stages_payload_before_driver_and_passes_base_dir() -> None:
+def test_floor_job_leaves_fetchcontent_staging_to_driver_default() -> None:
     source = JOB.read_text(encoding="utf-8")
-    assert 'FETCHCONTENT_STAGING="$TMPDIR/izanagi-floor-fetchcontent"' in source
-    assert 'FLOOR_THIRD_PARTY_PAYLOAD_ROOT="$SUBMISSION_DIR/masstree-payload"' in source
-    assert source.index("stage_floor_fetchcontent_payload") < source.index(
-        "driver_argv=("
-    )
-    assert (
-        'driver_argv+=(--fetchcontent-base-dir "$FETCHCONTENT_STAGING")'
-        in source
-    )
+    assert "stage_floor_fetchcontent_payload" not in source
+    assert "FETCHCONTENT_STAGING" not in source
+    assert "fetchcontent-staging" not in source
+    assert "--fetchcontent-base-dir" not in source
 
 
 def test_submit_floor_probes_and_indexes_explicit_external_evidence_root(
@@ -3728,10 +3720,7 @@ def test_floor_job_qstat_value_drives_policy_check(
 def _receipt_validator_fragment() -> str:
     source = JOB.read_text(encoding="utf-8")
     start = source.index("receipt_rc=0")
-    # The staging phase now sits between receipt validation and source
-    # identity.  Keep its checkpoint/TMPDIR prerequisites out of this
-    # receipt-only fragment; the phase has its own integration coverage.
-    end = source.index("CURRENT_STAGE=fetchcontent-staging", start)
+    end = source.index("CURRENT_STAGE=source-identity", start)
     return source[start:end]
 
 
@@ -3775,7 +3764,6 @@ def _driver_tail() -> str:
     source = JOB.read_text(encoding="utf-8")
     return (
         "CHECKPOINT_PATH=${CHECKPOINT_PATH:-}\n"
-        "FETCHCONTENT_STAGING=${FETCHCONTENT_STAGING:-/tmp/izanagi-floor-fetchcontent}\n"
         + source[
         source.index("protocol_resolution_rc=0") :
         ]
@@ -3929,8 +3917,6 @@ def test_floor_protocol_resolution_is_shared_by_all_consumers(
             "pilot",
             "--protocol",
             str(tmp_path / "repo" / protocol_path),
-            "--fetchcontent-base-dir",
-            "/tmp/izanagi-floor-fetchcontent",
         ],
     ]
     job_result = json.loads(

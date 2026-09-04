@@ -694,32 +694,6 @@ if [[ "$receipt_rc" -ne 0 ]]; then
   exit 2
 fi
 
-stage_floor_fetchcontent_payload() {
-  local name source destination
-  [[ -d "$FLOOR_THIRD_PARTY_PAYLOAD_ROOT" \
-      && ! -L "$FLOOR_THIRD_PARTY_PAYLOAD_ROOT" ]] || return 1
-  [[ ! -e "$FETCHCONTENT_STAGING" && ! -L "$FETCHCONTENT_STAGING" ]] || return 1
-  mkdir "$FETCHCONTENT_STAGING" || return 1
-  for name in masstree mimalloc googletest; do
-    source="$FLOOR_THIRD_PARTY_PAYLOAD_ROOT/${name}-src"
-    destination="$FETCHCONTENT_STAGING/${name}-src"
-    [[ -d "$source" && ! -L "$source" ]] || return 1
-    [[ ! -e "$destination" && ! -L "$destination" ]] || return 1
-    cp -a -- "$source" "$destination" || return 1
-    [[ -d "$destination" && ! -L "$destination" ]] || return 1
-  done
-}
-
-CURRENT_STAGE=fetchcontent-staging
-if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
-FETCHCONTENT_STAGING="$TMPDIR/izanagi-floor-fetchcontent"
-FLOOR_THIRD_PARTY_PAYLOAD_ROOT="$SUBMISSION_DIR/masstree-payload"
-if ! stage_floor_fetchcontent_payload; then
-  write_failure 2 fetchcontent_staging \
-    "staged floor third-party payload is missing or unsafe"
-  exit 2
-fi
-
 # 出典: certify_calibration.sh:174-208 @ e9b6f69
 CURRENT_STAGE=source-identity
 if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
@@ -1228,7 +1202,6 @@ driver_argv=(
   --mode pilot
   --protocol "$REPO_ROOT/$PROTOCOL_PATH"
 )
-driver_argv+=(--fetchcontent-base-dir "$FETCHCONTENT_STAGING")
 driver_rc=0
 "${driver_argv[@]}" \
   >&"$DRIVER_STDOUT_FD" 2>&"$DRIVER_STDERR_FD" || driver_rc=$?

@@ -1,0 +1,59 @@
+Traceback (most recent call last):
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 261, in applied
+    yield files
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 363, in run_workload
+    _require_backoff_condition_gate(
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 163, in _require_backoff_condition_gate
+    raise RuntimeError(
+RuntimeError: condition gate rejected the driver before build/measurement: BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 372, in checkout
+    yield path
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 362, in run_workload
+    with patchharness.applied(patch_path, CCBENCH_COMMIT, ccbench_dir):
+  File "/usr/lib/python3.10/contextlib.py", line 153, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 263, in applied
+    revert_worktree(sub, files)
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 224, in revert_worktree
+    raise RuntimeError(
+RuntimeError: patchharness: revert (git checkout -- .) 失敗 (rc=128) — working-tree が汚染されたまま。人間が復旧すること。
+  fatal: not a git repository: /work/1/SFC/tanab/izanagi/.git/worktrees/dev-wave-t2211-a5-resubmit/modules/external/ccbench/worktrees/ccbench1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 457, in <module>
+    sys.exit(main(sys.argv))
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 433, in main
+    summaries = [(tag, run_workload(
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 433, in <listcomp>
+    summaries = [(tag, run_workload(
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/backoff_sweep.py", line 361, in run_workload
+    with patchharness.checkout(CCBENCH_COMMIT, base_dir=ccbench_dir) as stock_root:
+  File "/usr/lib/python3.10/contextlib.py", line 153, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 379, in checkout
+    remaining = {os.path.realpath(p) for p in _worktree_paths(base)}
+  File "/scr/0_977067.nqsv-a5-second-boot-balanced/job-repo/orchestrator/campaign/patchharness.py", line 338, in _worktree_paths
+    raise RuntimeError(
+RuntimeError: patchharness: git worktree list 失敗 (rc=128) → fails-closed。
+  fatal: not a git repository: /work/1/SFC/tanab/izanagi/.git/worktrees/dev-wave-t2211-a5-resubmit/modules/external/ccbench/worktrees/ccbench1
+
+============================================================
+Request ID:             977067.nqsv
+Request Name:           a5_second_boot_backoff_sweep.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Fri Sep  4 21:55:36 2026
+Started Request Time:   Fri Sep  4 21:58:58 2026
+Ended Request Time:     Fri Sep  4 22:01:11 2026
+Resources Information:
+  Elapse:               138S
+  Remaining Elapse:     7062S
+============================================================
