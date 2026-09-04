@@ -1,0 +1,64 @@
+module found: [{'ev': 'module', 'found': True, 'name': 'test_s8b_oracle_driver'}]
+
+== test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_ax call=67.5s
+  top-level: _t080_stub_free_e2e_repo=62.7, migration.verify_receipt=4.9, _assert_exact_t080_live_held_markers=0.0
+    self   30.2  subprocess.run <python> -I
+    self    7.0  subprocess.run git add
+    self    4.7  migration.verify_receipt
+    self    3.8  _copy_git_visible_output
+    self    3.0  shutil.copytree <DirEntry 'raw'>
+    self    2.5  shutil.copytree <DirEntry 'verbatim'>
+    self    1.2  subprocess.run git ls-files
+    self    1.0  shutil.copytree <DirEntry 'insights'>
+    self    0.6  shutil.copytree <DirEntry 'pages'>
+    self    0.6  shutil.copytree <DirEntry 'ledgers'>
+
+== test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdou call=4.8s
+  top-level: migration.verify_receipt=2.5, _t080_stub_free_e2e_repo=2.3, _assert_exact_t080_live_held_markers=0.0
+    self    2.3  migration.verify_receipt
+
+== test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_a call=15.5s
+  top-level: migration.verify_receipt=11.7, _t080_stub_free_e2e_repo=2.4, _run_git=1.4, subprocess.run=0.0, _assert_exact_t080_live_held_markers=0.0
+    self   11.2  migration.verify_receipt
+    self    1.3  subprocess.run git commit
+
+== test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-hold call=5.3s
+  top-level: _t080_stub_free_e2e_repo=2.8, migration.verify_receipt=2.5
+    self    2.3  migration.verify_receipt
+    self    0.7  shutil.copytree <DirEntry 'insights'>
+
+== test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5 call=86.5s
+  top-level: _t080_stub_free_e2e_repo=77.0, migration.verify_receipt=7.2, migration.inspect_receipt_history=0.1, subprocess.run=0.1, _run_git=0.0, _assert_exact_t080_live_held_markers=0.0
+    self   30.0  subprocess.run <python> -I
+    self    8.0  _copy_git_visible_output
+    self    7.0  subprocess.run git add
+    self    6.9  migration.verify_receipt
+    self    4.7  shutil.copytree <DirEntry 'raw'>
+    self    3.9  shutil.copytree <DirEntry 'verbatim'>
+    self    2.5  subprocess.run git ls-files
+    self    1.3  shutil.copytree <DirEntry 'insights'>
+    self    0.9  shutil.copytree <DirEntry 'pages'>
+    self    0.8  shutil.copytree <DirEntry 'ledgers'>
+
+== global self time by key:
+     60.2 subprocess.run <python> -I
+     27.4 migration.verify_receipt
+     14.0 subprocess.run git add
+     11.8 _copy_git_visible_output
+      8.3 shutil.copytree <DirEntry 'raw'>
+      6.8 shutil.copytree <DirEntry 'verbatim'>
+      4.0 subprocess.run git ls-files
+      4.0 shutil.copytree <DirEntry 'insights'>
+      1.7 subprocess.run git commit
+      1.6 shutil.copytree <DirEntry 'pages'>
+      1.5 shutil.copytree <DirEntry 'ledgers'>
+      1.2 subprocess.run git -c
+      0.8 shutil.copytree <DirEntry 'runs'>
+      0.7 shutil.copytree <DirEntry 'tests'>
+      0.6 subprocess.run git show
+      0.5 shutil.copytree <DirEntry '0_892042.nqsv'>
+      0.5 shutil.copytree <DirEntry 'campaign'>
+      0.4 shutil.copytree <DirEntry 'wal'>
+      0.4 shutil.copytree <DirEntry 'mutation'>
+      0.4 shutil.copytree <DirEntry 'checkpoints'>
+total call dur: 179.5782923558727

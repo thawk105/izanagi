@@ -97,6 +97,41 @@ python3 tools/plotting/plot_b10_extended_backoff.py OUT_PREFIX MEASUREMENT_ROOT
 論文図の再現コマンド、caption、job/campaign 表は
 `docs/paper-story/figures/README.md` の fig2c 節を正本とする。
 
+## A-2 4-cell certification figure
+
+`plot_a2_certification.py` は、完走済み attempt `t2022-20260828c` の 4 cell を
+2 workload × 2 段 (throughput / abort rate) で描く専用生成器である。
+
+```bash
+python3 tools/plotting/plot_a2_certification.py \
+    [--measurement-root PATH] \
+    [--certification PATH] [--raw-manifest PATH] OUT_PREFIX
+```
+
+measurement root は option、`IZANAGI_A2_CERTIFICATION_MEASUREMENT_ROOT`、既定の
+durable authority の順で決まる。入力は root 配下の WAL 2 本と raw cell JSON 4 本、
+tracked `certification.json` と `raw-manifest.json` の計 6 + 2 本である。外部 6 本は
+manifest の root-relative path と SHA-256、tracked 2 本は canonical SHA-256 で束縛する。
+
+WAL では `bench_done.payload.tps` だけを標本として読み、raw JSON と順序込みで照合する。
+各 cell は n=5 を必須とし、median、sample mean、sample standard deviation、CV、
+`t_(0.975,4) * s / sqrt(5)` の 95% CI 半幅を生値から計算する。abort rate は
+`leading_indicators.abort_rate` の集約 1 点であり、CI と因果機序の主張を持たない。
+
+outer protocol status と effects は hash 束縛された certification からコピーする。
+生成器は `reject`、効果、研究上の成功・失敗を導出・昇格・書換えしない。再計算した
+median / CV / effect は authority との fail-closed な相互検算にだけ使う。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。保存前に実寸 4 axis の
+renderer-backed layout check を実行し、text の重なり・逸脱・隣 panel 侵入があれば
+成果物を publish しない。provenance は外部入力、測定条件、4 cell の生値と統計、
+artist と genome の対応、caption、展開済み再現 argv を記録する。
+再現 argv は repo 配下の certification、raw manifest、出力 prefix を repo-relative で、measurement root を絶対 path で記録する。
+
+provenance の generator SHA-256 は**図を生成した時点の bytes の記録**であり、後日の
+現行 source を縛る pin ではない。landed artifact の検査も live generator の再 hash を
+要求せず、生成時記録として扱う。
+
 ## S-1a 9 対 (失敗報告図) command example
 
 `plot_s1_9pair.py` は、縮小主張 S' の登録 9 対を凍結 report と admission 済み WAL から描く。

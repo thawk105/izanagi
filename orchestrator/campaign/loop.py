@@ -254,6 +254,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  bench_max_rounds: int = 3,
                  balanced_schedule: Optional[BalancedScheduleConfig] = None,
                  backoff_grammar_version: Optional[int] = None,
+                 sort_oracle_contract_id: Optional[str] = None,
                  holdout_observation_admission: Optional[
                      HoldoutObservationAdmission
                  ] = None,
@@ -479,6 +480,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     source_options["backoff_grammar_version"] = (
                         backoff_grammar_version
                     )
+                if sort_oracle_contract_id is not None:
+                    source_options["sort_oracle_contract_id"] = (
+                        sort_oracle_contract_id
+                    )
                 source_evidence = source_digest.resolve_evidence(
                     g, cfg.ccbench_commit, ccbench_dir=ccbench_dir,
                     cxx=evidence_cxx, **source_options,
@@ -558,6 +563,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 if backoff_grammar_version is not None:
                     evaluate_options["backoff_grammar_version"] = (
                         backoff_grammar_version
+                    )
+                if sort_oracle_contract_id is not None:
+                    evaluate_options["sort_oracle_contract_id"] = (
+                        sort_oracle_contract_id
                     )
                 if holdout_observation_admission is not None:
                     evaluate_options["holdout_observation_admission"] = (

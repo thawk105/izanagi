@@ -1,0 +1,24 @@
+events=20456 reports=20406 workers_collected=48
+configure->collection_finish: None
+configure->first worker_collected: 55.6  ->last: 56.1
+configure->sessionfinish (wall): 250.5
+first test start after configure: 56.1; last stop after configure: 245.8
+worker  span  busy  inner_gap  lead  tail  items
+ gw28   189.7  189.6      0.1    0.0    0.0     3
+ gw22   180.5  180.5      0.0    0.0    9.1     2
+ gw46   155.1  126.0     28.8    0.0   34.6   215
+ gw40   155.1  126.4     28.6    0.0   34.6   170
+ gw38   155.0  126.6     28.1    0.0   34.6   171
+ gw27   155.0  155.0      0.0    0.0   34.6     2
+ gw16   152.1  152.1      0.0    0.0   37.6     2
+  gw9   147.3  147.3      0.0    0.0   42.4     2
+ gw24   145.2  145.2      0.0    0.0   44.5     2
+ gw10   143.7  143.7      0.0    0.0   46.0     2
+ gw17   141.2  141.2      0.0    0.0   48.5     2
+ gw23   138.6  138.6      0.0    0.0   51.0     2
+sum busy=6380 sum inner_gap=342 workers=48
+top gaps (> 2.0s) attributed to the node that started after the gap:
+     20.1  gw40 orchestrator/tests/test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configu
+     20.1  gw46 orchestrator/tests/test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configurat
+     20.1  gw38 orchestrator/tests/test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2
+top hidden time inside a test (span - phases):

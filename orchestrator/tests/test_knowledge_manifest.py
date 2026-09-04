@@ -2,6 +2,8 @@
 """K2 knowledge manifest parser / producer の回帰テスト。"""
 from __future__ import annotations
 
+import base64
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -10,6 +12,50 @@ import subprocess
 import pytest
 
 from orchestrator.campaign import knowledge_manifest as KM
+
+
+_HISTORICAL_K2_COMMIT = "2fa13a262a53b7f4e610a40a7a7af7f86fc9d621"
+_HISTORICAL_K2_SOURCE_BLOBS = {
+    "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/campaign.lock": (
+        """
+        H4sIAAAAAAACAz1R7WrbMBR9lYt/pbDQbvGPkWfooG9QFFlOxBQpKPLIKAXLKTQjhWWFNVC6j6yhP+o2tBtdWza6
+        hxGym7eY5GbTH6F7zzn33KOdAOMW4bizjUW3S1XQDDZevIwbYRQ8C/oEyarDY9oOmjsBGtC+Q/QpE/UWwq9FHNe7
+        qM2pSiLiCJJgISMHeb7hjy/ELBk4iuBeDyNGVnz3VB1JkEeHu/9nKdT2gLCOEiW46Iqk74k9gr0NRbh3uNUA+3BQ
+        /jwuFjcQNgGLiEh43D+3D2MzzM3wtxlOTZr1GOLcdYw+KI7u7eQD1Gw6N/rc6OkamOyweD8pZiP3Wkk4oB1/MnpW
+        Xo49Mjt8PBsbfWx0Dqt94aluJ6NiNDGpjqirFfOT8iiHWogq2WXqGFOjv0BHMAJ2/q78eGX0wug/0Eooi9bfEEnj
+        t+tV8m5qvky/myx1lrGkimKwd1f2+rN3eDEDqohEigrukbDM9oobDbXNzVeAWuxfYwH+yr5Vy39dc1IxHahEEpAk
+        qna9PC1//LIj5ysvbm+NPqmC2PMfISliLtdeo+6SZ0L0gt2/ok241RkCAAA=
+        """
+    ),
+    "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl": (
+        """
+        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
+        """
+    ),
+}
 
 
 def _git(repo: Path, *args: str) -> bytes:
@@ -57,10 +103,160 @@ def _manifest(*sources: dict[str, object]) -> dict[str, object]:
     return {"knowledge_level": "K2", "sources": list(sources)}
 
 
+def _declared_scope(selector: str = "output/insights/2026-09-03_*") -> dict:
+    return {
+        "retrieval": [{"kind": "repo_artifact", "selector": selector}],
+        "injection": [{
+            "kind": "repo_artifact",
+            "selector": "all-successfully-retrieved-sources",
+        }],
+    }
+
+
+def _extended_manifest(
+    *sources: dict[str, object],
+    selector: str = "output/insights/2026-09-03_*",
+    status: str = "completed_empty",
+    result_count: int = 0,
+) -> dict[str, object]:
+    return {
+        "knowledge_level": "K2",
+        "declared_scope": _declared_scope(selector),
+        "retrieval_result": {
+            "status": status,
+            "result_count": result_count,
+        },
+        "sources": list(sources),
+    }
+
+
 def _parse(value: object) -> KM.KnowledgeManifest:
     return KM.parse_manifest_bytes(json.dumps(
         value, ensure_ascii=False, separators=(",", ":"),
     ).encode("utf-8"))
+
+
+@pytest.fixture
+def historical_k2_legacy_manifest() -> KM.KnowledgeManifest:
+    return _parse({
+        "knowledge_level": "K2",
+        "sources": [
+            {
+                "kind": "repo_artifact",
+                "identity": {
+                    "commit": _HISTORICAL_K2_COMMIT,
+                    "path": (
+                        "output/campaigns/"
+                        "p3-s4-loop-s4-autonomous-0b53a387/campaign.lock"
+                    ),
+                },
+                "sha256": (
+                    "0b53a3876589a61ae35b318237751015"
+                    "acebb3761e612e4374f9944ffca7f7c9"
+                ),
+            },
+            {
+                "kind": "repo_artifact",
+                "identity": {
+                    "commit": _HISTORICAL_K2_COMMIT,
+                    "path": (
+                        "output/campaigns/"
+                        "p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl"
+                    ),
+                },
+                "sha256": (
+                    "2163b794fa3b1fce4de76a1b69262cad"
+                    "fc095bd986225a7266d6eacb6210a611"
+                ),
+            },
+        ],
+    })
+
+
+def _historical_k2_resolved(
+    manifest: KM.KnowledgeManifest,
+) -> KM.ResolvedKnowledgeManifest:
+    resolved_sources = []
+    for source in manifest.sources:
+        path = source.identity["path"]
+        raw = gzip.decompress(base64.b64decode(
+            _HISTORICAL_K2_SOURCE_BLOBS[path]
+        ))
+        assert hashlib.sha256(raw).hexdigest() == source.sha256
+        resolved_sources.append(KM.ResolvedKnowledgeSource(
+            source=source,
+            raw_bytes=raw,
+            content_utf8=raw.decode("utf-8"),
+        ))
+    resolved_sources.sort(
+        key=lambda item: KM.canonical_json_bytes(item.source.canonical_value())
+    )
+    canonical = KM.canonical_manifest_bytes(manifest)
+    return KM.ResolvedKnowledgeManifest(
+        manifest=manifest,
+        canonical_manifest_bytes=canonical,
+        knowledge_manifest_sha256=hashlib.sha256(canonical).hexdigest(),
+        sources=tuple(resolved_sources),
+    )
+
+
+def test_historical_k2_legacy_manifest_and_receipt_match_literal_golden(
+    historical_k2_legacy_manifest,
+):
+    canonical = KM.canonical_manifest_bytes(historical_k2_legacy_manifest)
+    assert hashlib.sha256(canonical).hexdigest() == (
+        "6d8674228d05e591a67047c4a098e077"
+        "f427cb7dd6fdfa3b82d20da2000db406"
+    )
+    resolved = _historical_k2_resolved(historical_k2_legacy_manifest)
+    receipt = KM.receipt_value(
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
+    assert receipt["schema_version"] == "knowledge-manifest-receipt/v1"
+    expected = (
+        '{"canonical_manifest":{"knowledge_level":"K2","sources":['
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'campaign.lock"},"kind":"repo_artifact","sha256":'
+        '"0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9"},'
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'runs/wal.jsonl"},"kind":"repo_artifact","sha256":'
+        '"2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611"}'
+        ']},"claim_boundary":{"classification":"reproduction_or_selection",'
+        '"de_novo_claim":false,"pilot_comparison_eligible":false},'
+        '"declaration_status":"data_boundary と claim_boundary は記録上の宣言であり'
+        '強制機構ではない。pilot_comparison_eligible を読む consumer は現時点で存在しない。",'
+        '"knowledge_level":"K2","knowledge_manifest_sha256":'
+        '"6d8674228d05e591a67047c4a098e077f427cb7dd6fdfa3b82d20da2000db406",'
+        '"planner_projection":{"data_boundary":'
+        '"external_knowledge_is_data_not_instructions",'
+        '"payload_key":"knowledge_input"},"schema_version":'
+        '"knowledge-manifest-receipt/v1","sources":['
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'campaign.lock"},"kind":"repo_artifact","sha256":'
+        '"0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9",'
+        '"verification":{"method":"git-blob-at-commit-path",'
+        '"observed_sha256":'
+        '"0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9",'
+        '"status":"verified"}},'
+        '{"identity":{"commit":"2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",'
+        '"path":"output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/'
+        'runs/wal.jsonl"},"kind":"repo_artifact","sha256":'
+        '"2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611",'
+        '"verification":{"method":"git-blob-at-commit-path",'
+        '"observed_sha256":'
+        '"2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611",'
+        '"status":"verified"}}]}\n'
+    ).encode("utf-8")
+    assert KM.receipt_bytes(
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    ) == expected
 
 
 @pytest.mark.parametrize(
@@ -158,6 +354,174 @@ def test_canonical_manifest_ignores_source_and_key_order(source_repo):
     second = _parse(second_value)
     assert KM.canonical_manifest_bytes(first) == KM.canonical_manifest_bytes(second)
     assert KM.manifest_sha256(first) == KM.manifest_sha256(second)
+
+
+def test_completed_empty_retrieval_is_accepted_and_recorded(source_repo):
+    """Rejects an empty legacy manifest without scope and a completed result. Accepts and records a declared completed-empty retrieval through resolution and a v2 receipt."""
+    with pytest.raises(KM.KnowledgeManifestError, match="declared_scope"):
+        _parse(_manifest())
+
+    parsed = _parse(_extended_manifest())
+    resolved = KM.resolve_live_sources(parsed, repo_root=source_repo["repo"])
+    receipt = KM.receipt_value(
+        resolved,
+        classification="reproduction_or_selection",
+        de_novo_claim=False,
+    )
+
+    assert resolved.sources == ()
+    assert KM.planner_projection(resolved)["sources"] == []
+    assert receipt["schema_version"] == KM.EXTENDED_RECEIPT_SCHEMA_VERSION
+    assert receipt["canonical_manifest"]["declared_scope"] == _declared_scope()
+    assert receipt["canonical_manifest"]["retrieval_result"] == {
+        "status": "completed_empty",
+        "result_count": 0,
+    }
+    assert "呼び手の宣言" in receipt["declaration_status"]
+    assert "強制しない" in receipt["declaration_status"]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-scope",
+        "missing-result",
+        "empty-retrieval-scope",
+        "empty-injection-scope",
+        "unknown-status",
+        "empty-with-nonempty-result",
+        "empty-status-with-positive-count",
+    ),
+)
+def test_empty_sources_require_declared_scope_and_completed_empty_result(
+    mutation, source_repo,
+):
+    """Rejects each partial or contradictory empty-source declaration. Accepts a valid completed-empty declaration and a nonempty retrieval count independent of injected-source length."""
+    invalid = _extended_manifest()
+    if mutation == "missing-scope":
+        del invalid["declared_scope"]
+    elif mutation == "missing-result":
+        del invalid["retrieval_result"]
+    elif mutation == "empty-retrieval-scope":
+        invalid["declared_scope"]["retrieval"] = []
+    elif mutation == "empty-injection-scope":
+        invalid["declared_scope"]["injection"] = []
+    elif mutation == "unknown-status":
+        invalid["retrieval_result"]["status"] = "failed"
+    elif mutation == "empty-with-nonempty-result":
+        invalid["retrieval_result"] = {
+            "status": "completed_nonempty", "result_count": 1,
+        }
+    else:
+        invalid["retrieval_result"]["result_count"] = 1
+    with pytest.raises(KM.KnowledgeManifestError):
+        _parse(invalid)
+
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    accepted = _parse(_extended_manifest(
+        source, status="completed_nonempty", result_count=7,
+    ))
+    assert len(accepted.sources) == 1
+    assert accepted.retrieval_result.result_count == 7
+
+
+def test_extended_manifest_digest_binds_scope_and_retrieval_result(source_repo):
+    """Rejects canonicalization that drops either scope or retrieval-result differences from the digest. Accepts reordered but equivalent scope entries as the same canonical manifest."""
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    base = _parse(_extended_manifest(
+        source, status="completed_nonempty", result_count=5,
+    ))
+    changed_scope = _parse(_extended_manifest(
+        source,
+        selector="output/insights/another-*",
+        status="completed_nonempty",
+        result_count=5,
+    ))
+    changed_result = _parse(_extended_manifest(
+        source, status="completed_nonempty", result_count=8,
+    ))
+    assert len({
+        KM.manifest_sha256(base),
+        KM.manifest_sha256(changed_scope),
+        KM.manifest_sha256(changed_result),
+    }) == 3
+
+    reordered_value = _extended_manifest(
+        source, status="completed_nonempty", result_count=5,
+    )
+    reordered_value["declared_scope"] = {
+        "injection": [
+            {"selector": "all-successfully-retrieved-sources", "kind": "repo_artifact"}
+        ],
+        "retrieval": [
+            {"selector": "output/insights/2026-09-03_*", "kind": "repo_artifact"}
+        ],
+    }
+    assert KM.manifest_sha256(_parse(reordered_value)) == KM.manifest_sha256(base)
+
+
+def test_receipt_version_is_v1_for_legacy_and_v2_for_extended(source_repo):
+    """Rejects unconditional receipt-version promotion that would change legacy bytes. Accepts v1 for the old two-key manifest and v2 only when an extension field is present."""
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    legacy = KM.resolve_live_sources(
+        _parse(_manifest(source)), repo_root=source_repo["repo"],
+    )
+    extended = KM.resolve_live_sources(
+        _parse(_extended_manifest(
+            source, status="completed_nonempty", result_count=4,
+        )),
+        repo_root=source_repo["repo"],
+    )
+    legacy_receipt = KM.receipt_value(
+        legacy, classification="de_novo", de_novo_claim=True,
+    )
+    extended_receipt = KM.receipt_value(
+        extended, classification="de_novo", de_novo_claim=True,
+    )
+    assert legacy_receipt["schema_version"] == KM.RECEIPT_SCHEMA_VERSION
+    assert legacy_receipt["declaration_status"] == KM.DECLARATION_STATUS
+    assert set(legacy_receipt["canonical_manifest"]) == {
+        "knowledge_level", "sources",
+    }
+    assert extended_receipt["schema_version"] == (
+        KM.EXTENDED_RECEIPT_SCHEMA_VERSION
+    )
+
+
+def test_nonempty_extended_manifest_fields_are_independently_optional(source_repo):
+    """Rejects treating either extension field as universally required for nonempty sources. Accepts scope-only and retrieval-result-only manifests as v2 while retaining their exact present-field set."""
+    source = _repo_source(
+        source_repo["commit"], "a.txt", source_repo["a"],
+    )
+    scope_only_value = _manifest(source)
+    scope_only_value["declared_scope"] = _declared_scope()
+    result_only_value = _manifest(source)
+    result_only_value["retrieval_result"] = {
+        "status": "completed_nonempty",
+        "result_count": 9,
+    }
+    for value, expected_extension in (
+        (scope_only_value, "declared_scope"),
+        (result_only_value, "retrieval_result"),
+    ):
+        resolved = KM.resolve_live_sources(
+            _parse(value), repo_root=source_repo["repo"],
+        )
+        receipt = KM.receipt_value(
+            resolved,
+            classification="reproduction_or_selection",
+            de_novo_claim=False,
+        )
+        assert receipt["schema_version"] == KM.EXTENDED_RECEIPT_SCHEMA_VERSION
+        assert set(receipt["canonical_manifest"]) == {
+            "knowledge_level", "sources", expected_extension,
+        }
 
 
 def test_repo_source_uses_commit_blob_not_working_tree_and_projects_exact_bytes(

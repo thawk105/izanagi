@@ -494,8 +494,8 @@ def validate_output_semantics(role: Any, projected_input: Any, result: Any) -> N
             if (isinstance(value, bool) or not isinstance(value, (int, float))
                     or not math.isfinite(value) or not 1 <= value <= 1000):
                 raise RolePolicyError("result.proposal.valueは1..1000の有限数")
-            # 現行の実働 gate ではなく dormant role adapter の parity 検査。
-            # production の強制点は p3_s4_loop と quarantine の consumer 側にある。
+            # K2 は p3_s4_loop の明示 role consumer からも到達する。その他の
+            # role は従来どおり dormant adapter parity と各 loop consumer が強制点である。
             implementation = proposal.get("implementation")
             decision = backoff_hole_grammar.validate_backoff_implementation(
                 implementation
