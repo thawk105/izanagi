@@ -33,14 +33,22 @@ seq: 3
 
 ### F273
 
-- **再発: 2026-09-04** — 受入全走を 2 回投入し、いずれも `test_codex_worker_launch.py` の
-  1 件だけが落ちた。**落ちた node は 2 回で異なる** (`test_sigterm_ignoring_child_is_killed` →
-  `test_limit_stop_is_never_accepted`)。中身は前者が `actual rc timeout != expected rc 1`
-  (`communicate(timeout=10)` 超過、`loadavg=45.9` / `bnode082`)、後者が `assert -9 == 0`
-  (`max_wall="11"` の watchdog が子を SIGKILL)。いずれも launcher の壁時計上限である。
+- **再発: 2026-09-04** — 受入全走を 3 回投入し、いずれも `test_codex_worker_launch.py` の
+  1 件だけが落ちた (毎回 20341 passed / 68 skipped / 1 failed)。**落ちた node は
+  `test_sigterm_ignoring_child_is_killed` → `test_limit_stop_is_never_accepted` →
+  `test_sigterm_ignoring_child_is_killed` と揺れた。** 中身は前者が
+  `actual rc timeout != expected rc 1` (`communicate(timeout=10)` 超過、`loadavg=45.9` /
+  `bnode082`)、後者が `assert -9 == 0` (`max_wall="11"` の watchdog が子を SIGKILL)。
+  いずれも launcher の壁時計上限である。
   同エントリの再発検知手順を実行した — 並行 launcher は **8 本** (F273 の 2 回目と同水準)、
-  同 file の単独走は **211 passed / rc=0 / 8.87 秒**で緑。前者の単独再走も 7.44 秒で緑。
+  同 file の単独走は **211 passed / rc=0 / 8.87 秒**で緑。落ちた node の単独再走も 7.44 秒で緑。
   本 wave の差分は `orchestrator/tests/test_codex_reasoning_ab.py` 1 本だけで production は
   無変更のため、同 file への到達経路が無い。**差分へ帰属させない。**
-  受入 lease が他 wave の codex 子を排除しない構造は同エントリの記載どおり未解決で、
-  本 wave では機構を新設しない。
+- **再発: 2026-09-04** — 同じ窓で、受入が**テストに到達せず** infra で 2 回落ちた。
+  1 回は同一 worktree から provenance 監査と受入を並行投入したことによる orphan hold
+  (`DW-O26` の直列化義務違反、親の操作ミス)、1 回は `queue-wait-timeout` (scheduler は
+  QUE 8 本 / RUN 0 本)。後者は D612 の opt-in 上書き (queue-wait 3600 秒) を当てて解消した。
+  **受入 lease が他 wave の codex 子を排除しない構造は同エントリの記載どおり未解決で、
+  本 wave では機構を新設せず、hold 登録による迂回も採らない。**
+  他 wave 所有のテストを hold へ入れて自分の wave を通すことは、共有の正しさ関門を
+  弱める方向であり、本 wave の scope 外である。land を保留してユーザー裁定へ返す。
