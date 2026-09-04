@@ -6396,6 +6396,7 @@ def test_main_manifest_only_accepts_legacy_flattened_proposal(
             "axis": L.MARKER_ID,
             "value": 20,
             "implementation": "double now_backoff = 20;",
+            "justification": "",
             "confidence": "medium",
         },
         "prior_critic_reverse": None,
