@@ -116,13 +116,14 @@ def _signed_control(
     *,
     issuer_key_id: str | None = None,
     private_key: Ed25519PrivateKey | None = None,
+    lease_generation: str = _LEASE_GENERATION,
 ) -> tuple[dict[str, object], signing.ConfiguredPublicKey]:
     signing_key = private_key or Ed25519PrivateKey.generate()
     public_key = signing_key.public_key()
     key_id = issuer_key_id or signing.public_key_id(public_key)
     payload = signing.project_v5_receipt(
         _production_v5(),
-        lease_generation=_LEASE_GENERATION,
+        lease_generation=lease_generation,
         checker_content_sha256=_CHECKER_CONTENT_SHA256,
         issuer_key_id=key_id,
     )
@@ -288,6 +289,150 @@ def test_valid_test_signature_and_exact_context_pass():
     payload = _verify(receipt, configured_key)
     assert payload["tested_tip"] == _PRODUCTION_TIP
     assert payload["lease_generation"] == _LEASE_GENERATION
+
+
+def test_not_acquired_marker_is_signed_and_exact_context_passes():
+    signing_key = Ed25519PrivateKey.generate()
+    public_key = signing_key.public_key()
+    key_id = signing.public_key_id(public_key)
+    payload = signing.project_v5_receipt(
+        _production_v5(),
+        lease_generation="not-acquired",
+        checker_content_sha256=_CHECKER_CONTENT_SHA256,
+        issuer_key_id=key_id,
+    )
+    assert payload["lease_generation"] == "not-acquired"
+    canonical = signing.canonical_signed_payload_bytes(payload)
+    assert b'"lease_generation":"not-acquired"' in canonical
+    signature = signing_key.sign(canonical)
+    receipt = signing.attach_signature(payload, signature)
+    configured_key = signing.ConfiguredPublicKey(key_id, public_key)
+
+    verified = signing.verify_signed_receipt_signature(
+        receipt,
+        configured_key,
+        expected_acceptance_wave=_PRODUCTION_WAVE,
+        expected_tested_main=_PRODUCTION_MAIN,
+        expected_tested_tip=_PRODUCTION_TIP,
+        expected_lease_generation="not-acquired",
+    )
+    assert verified == payload
+
+
+def test_not_acquired_receipt_is_rejected_for_acquired_expected_context():
+    receipt, configured_key = _signed_control(lease_generation="not-acquired")
+    _assert_rejected_for(
+        lambda: signing.verify_signed_receipt_signature(
+            receipt,
+            configured_key,
+            expected_acceptance_wave=_PRODUCTION_WAVE,
+            expected_tested_main=_PRODUCTION_MAIN,
+            expected_tested_tip=_PRODUCTION_TIP,
+            expected_lease_generation=_LEASE_GENERATION,
+        ),
+        "signed receipt context mismatch",
+    )
+
+
+def test_acquired_receipt_is_rejected_for_not_acquired_expected_context():
+    receipt, configured_key = _signed_control()
+    _assert_rejected_for(
+        lambda: signing.verify_signed_receipt_signature(
+            receipt,
+            configured_key,
+            expected_acceptance_wave=_PRODUCTION_WAVE,
+            expected_tested_main=_PRODUCTION_MAIN,
+            expected_tested_tip=_PRODUCTION_TIP,
+            expected_lease_generation="not-acquired",
+        ),
+        "signed receipt context mismatch",
+    )
+
+
+def test_unreserved_non_sha_lease_generation_is_rejected_on_all_paths():
+    receipt, configured_key = _signed_control()
+    payload = {
+        key: value for key, value in receipt.items() if key != "issuer_signature"
+    }
+    for invalid in ("none", "NOT-ACQUIRED", "not-acquired ", " not-acquired", ""):
+        _assert_rejected_for(
+            lambda invalid=invalid: signing.project_v5_receipt(
+                _production_v5(),
+                lease_generation=invalid,
+                checker_content_sha256=_CHECKER_CONTENT_SHA256,
+                issuer_key_id=_PROJECTION_KEY_ID,
+            ),
+            "invalid lease_generation",
+        )
+        invalid_payload = dict(payload)
+        invalid_payload["lease_generation"] = invalid
+        _assert_rejected_for(
+            lambda invalid_payload=invalid_payload: (
+                signing.canonical_signed_payload_bytes(invalid_payload)
+            ),
+            "invalid lease_generation",
+        )
+        _assert_rejected_for(
+            lambda invalid=invalid: signing.verify_signed_receipt_signature(
+                receipt,
+                configured_key,
+                expected_acceptance_wave=_PRODUCTION_WAVE,
+                expected_tested_main=_PRODUCTION_MAIN,
+                expected_tested_tip=_PRODUCTION_TIP,
+                expected_lease_generation=invalid,
+            ),
+            "invalid expected_lease_generation",
+        )
+
+
+def test_reference_issuer_accepts_only_reserved_not_acquired_marker():
+    parsed = issuer._parser().parse_args(
+        [
+            "--repo-root",
+            str(_ROOT),
+            "--acceptance-wave",
+            _PRODUCTION_WAVE,
+            "--tested-main",
+            _PRODUCTION_MAIN,
+            "--tested-tip",
+            _PRODUCTION_TIP,
+            "--lease-generation",
+            "not-acquired",
+            "--log-file",
+            "/tmp/issuer-input-check.log",
+            "--output",
+            "/tmp/issuer-input-check.json",
+        ]
+    )
+    assert parsed.lease_generation == "not-acquired"
+
+    arguments = {
+        "repo_root": _ROOT.resolve(strict=True),
+        "acceptance_wave": _PRODUCTION_WAVE,
+        "tested_main": _PRODUCTION_MAIN,
+        "tested_tip": _PRODUCTION_TIP,
+        "log_file": Path("relative.log"),
+        "launcher_argv": (),
+    }
+    try:
+        issuer.issue_signed_receipt(
+            lease_generation="not-acquired",
+            **arguments,
+        )
+    except issuer.IssuerFailure as exc:
+        assert str(exc) == "launcher log path must be absolute"
+    else:
+        raise AssertionError("marker did not reach validation after lease generation")
+
+    try:
+        issuer.issue_signed_receipt(
+            lease_generation="none",
+            **arguments,
+        )
+    except issuer.IssuerFailure as exc:
+        assert str(exc) == "invalid lease_generation"
+    else:
+        raise AssertionError("unreserved lease generation unexpectedly passed")
 
 
 def test_missing_issuer_signature_is_rejected():

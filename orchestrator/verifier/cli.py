@@ -47,6 +47,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="1 run あたり報告する witness cycle の最大本数 (default 20)")
     p.add_argument("--expected-commits", type=_nonnegative_int, default=None,
                    help="単一 run の trace 外 commit counter witness")
+    p.add_argument("--protocol", default=None,
+                   help="proof-surface assessment 対象 protocol")
+    p.add_argument("--ccbench-root", default=None,
+                   help="対象 protocol の cc/ を含む CCBench source root")
     p.add_argument("--lenient", action="store_true",
                    help="integrity 不良 (indeterminate) を失敗扱いにしない "
                         "(グラフ判定のみ見たいとき。既定は安全側=失敗)")
@@ -66,6 +70,8 @@ def main(argv: List[str] | None = None) -> int:
             results.append(verify_trace_dir(
                 d, max_report=args.max_report,
                 expected_commits=args.expected_commits,
+                protocol=args.protocol,
+                ccbench_root=args.ccbench_root,
             ))
     except ParseError as e:
         print(f"parse error: {e}", file=sys.stderr)

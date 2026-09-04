@@ -289,7 +289,11 @@ def _parse_early_aborts(stdout: str) -> int:
 
 def _verify(trace_dir: str) -> dict:
     """verifier を別プロセスで実走し abort_reasons (A 行集計) 込みで返す。"""
-    cmd = [sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet"]
+    cmd = [
+        sys.executable, "-m", "verifier", trace_dir, "--json", "--quiet",
+        "--protocol", "silo", "--ccbench-root",
+        os.path.join(_repo_root(), "external", "ccbench"),
+    ]
     proc = subprocess.run(cmd, capture_output=True, text=True,
                           timeout=VERIFIER_TIMEOUT_S,
                           cwd=os.path.join(_repo_root(), "orchestrator"))
