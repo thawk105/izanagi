@@ -2195,11 +2195,45 @@ def _bind_backoff_grammar_version(
     return hashlib.sha256(preimage).hexdigest()
 
 
+def _bind_sort_oracle_contract_id(
+    raw_digest: str, sort_oracle_contract_id: Optional[str],
+) -> str:
+    """Domain-separate a non-stock source digest for one sort oracle contract."""
+
+    if sort_oracle_contract_id is None:
+        return raw_digest
+    if (type(sort_oracle_contract_id) is not str
+            or not sort_oracle_contract_id
+            or "\0" in sort_oracle_contract_id
+            or not sort_oracle_contract_id.isascii()):
+        raise ValueError(
+            "sort_oracle_contract_id must be None or a non-empty ASCII str "
+            "without NUL"
+        )
+    preimage = (
+        b"sort-src-token/v1\0contract="
+        + sort_oracle_contract_id.encode("ascii")
+        + b"\0source="
+        + raw_digest.encode("ascii")
+    )
+    return hashlib.sha256(preimage).hexdigest()
+
+
 def _resolved_src_token(
     current: str, baseline_digest: str, backoff_grammar_version: Optional[int],
+    *, sort_oracle_contract_id: Optional[str] = None,
 ) -> str:
+    if (backoff_grammar_version is not None
+            and sort_oracle_contract_id is not None):
+        raise ValueError(
+            "backoff_grammar_version and sort_oracle_contract_id are mutually exclusive"
+        )
     if current == baseline_digest:
         return STOCK
+    if sort_oracle_contract_id is not None:
+        return _bind_sort_oracle_contract_id(
+            current, sort_oracle_contract_id,
+        )
     return _bind_backoff_grammar_version(current, backoff_grammar_version)
 
 
@@ -2298,6 +2332,7 @@ def resolve_evidence(
     ccbench_dir: str = "",
     cxx: str = "g++-13",
     backoff_grammar_version: Optional[int] = None,
+    sort_oracle_contract_id: Optional[str] = None,
 ) -> SourceEvidence:
     """Resolve build evidence and bind it to the inspected source root.
 
@@ -2320,7 +2355,12 @@ def resolve_evidence(
     assert_conditional_macros_covered(genome, sub, cxx)
     current = compute(genome, sub, cxx)
     base = baseline(genome, ccbench_commit, sub, cxx)
-    token = _resolved_src_token(current, base, backoff_grammar_version)
+    token = _resolved_src_token(
+        current,
+        base,
+        backoff_grammar_version,
+        sort_oracle_contract_id=sort_oracle_contract_id,
+    )
     genome_sha256 = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
     return SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA,

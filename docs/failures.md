@@ -1902,6 +1902,14 @@
   で解消、340 passed 確認。
 
 - **再発: 2026-08-28** — 新production process site `condition_meaning_gate._run_process` を実装したが、親の焦点走は新test・直接consumer・plain-runner/duration metaまでで、repo-wide `test_ccbench_spawn_sites.py` のreviewed inventoryを落とした。最終受入で18,326 passed / 61 skipped後に2赤となり露出し、explicit non-CCBench siteへexact 1件を追加して2 node緑を確認した。
+
+- **再発: 2026-09-04** — wave dev-wave-a2-reject-results-section で発生。新設した `orchestrator/tests/test_plot_a2_certification.py` が
+  自走 harness も allowlist 記載も持たず、受入全走 1 回目 (20420 passed / 68 skipped) を `test_plain_runner_coverage.py` の 1 件赤にした。
+  実装子 prompt には DW-S05-C の F42 由来の指示を逐語で入れ、実装子は F42 の検索で `test_pytest_collection_config.py` を見つけて通したが、
+  `test_plain_runner_coverage.py` は洗い出しから漏れた。親の焦点走 2 回 (新 test file + collection meta-test) も横断メタ検査を含めていなかった
+  (2026-08-11 の再発と同じ degrade 経路)。fix 子 2 本目が `__main__` + `pytest.main` の 4 行を足し、焦点走 (meta-test + 新 test、26 件) の後に閉じた。
+  費用は受入全走 1 回分 + fix 子 1 本 + 焦点走 1 回。**新設 test file がある wave では、親の焦点走の集合に `test_plain_runner_coverage.py` を必ず入れる**
+  (2026-08-11 の恒久対応の逐語を親が守らなかった再発)。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -4748,6 +4756,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   親は「待ち時間を記録の起草で埋める」つもりでいたが、起草先が repo 内だったことに気づいていなかった。
   **待ち時間に進めてよい独立作業は repo 外に置くものだけである。**
   今回の記録は最終的に受入より前へ commit し直した。
+
+- **再発: 2026-09-04** — [T-2253] wave の段 6 fix 後、親が sort test file の単独走を投入した直後に、レビュー逐語を
+  worktree の insight へ写した。runner は login node の bounded local を選び MemoryMax に当たったうえ、走行前後で
+  tree の状態 (untracked の増加) が変わったため自動 fallback せず rc=16 で止まった。偽の赤ではなく fail-closed で止まり、
+  実害は再走 1 回。根本原因は既存の再発と同じで、走行を待ち時間とみなして worktree 内で別段の作業を進めたこと。
+  今回の新しい点は、受入全走・変異走行だけでなく runner の bounded local 経路も tree の前後照合を持つため、
+  焦点走のような短い走行でも同じ型で止まることである。恒久対応は F106 のまま (投入から結果取得までは worktree を触らない)。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -10637,6 +10652,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   なお `--runner-mode local` は PEGASUS_LOGIN で禁止され、runner argv の先頭は harness と
   同じ Python 実行体に束縛されるため `env VAR=... python3 ...` の前置もできない。
   harness は**完全な clean tree を要求する** — docs の untracked fragment 2 件だけでも停止した。
+
+- **再発: 2026-09-04** — [T-2202] の受入全走 attempt 1 (背景投入、`tools/dev_wave_wait.py acceptance`)
+  が `stage=acceptance-command rc=70 source_rc=16 reason=dispatch-attestation-missing` で戻り、
+  テストは 1 件も走らなかった。3 shard のうち 1 本が既定 900 秒の `queue-wait-timeout`、起動済みの
+  2 本は launcher の `signal-abort` で、shard-1 の request `977101.nqsv` が
+  `state-not-cancellable` のまま孤児として走り続けた (hold は
+  `output/pegasus-dispatch/orphan-holds/977101.nqsv.json` と `output/pegasus-dispatch/orphan-hold.json`
+  の 2 path)。既載の型どおり qdel せず終端を待ち、clean tree と HEAD を確認してから両 path を
+  撤去し、D612 の上書き (queue-wait 3600 / grace 600) を付けて attempt 2 を投入した。
+  **本件が足す事実: 前景 timeout ではなく、shard 間の queue 待ちのばらつきだけで同じ孤児が生まれる。**
+  gen_S が混む時間帯の受入全走は、最初から D612 の上書きを付けて投入する方が 1 走分安い。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -21955,3 +21981,30 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   共有契約が新しい運用知見を吸収できない状態にあることを併せて記録する。
 - 再発検知: 変異走の baseline が `PARSE_ERROR` または `submodule is not initialized` を含んだら
   実装差分へ帰属せず container の初期化状態を先に見る (同 memory の How to apply)。
+
+### F846. 焦点走の runner が pytest 完走後の後処理で 23 時間ハングし、`.done` 待ちの待ち手が永遠に返らなかった [セッション死・救出] [手順漏れ]
+
+- 事象: `python3 tools/run_tests.py orchestrator/tests/test_pegasus_floor_tools.py -q` を
+  login node で起動した。pytest 自体は完走し、log には失敗 digest まで完全に出力されていた
+  (`IZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 ...` と `=== IZANAGI FAILURE DIGEST v1 END ===`)。
+  しかし runner process は終了せず `.done` file も書かれなかった。
+  `ps -o etime,stat,wchan` の実測は `23:14:17 SNl futex_wait_queue_me` で、
+  `pgrep -P <pid>` は 0 件、子 process を持たないまま futex で待っていた。
+- 影響: `.done` の実在で完了を判定する待ち手は返らない。
+  **log には結果が全部出ているのに wave は止まったままになる。**
+  親は「まだ走っている」と誤認し、待たずに次の走行を重ねて同一 worktree からの並行 dispatch を招き、
+  `queue-wait-timeout` の rc=16 と孤児 hold を発生させた。
+- 根本原因: 未特定。同じ夜の同じ login node で `floor_job_checkpoint` の時間制限つき操作を使う
+  テスト 5 件も落ちており、単独再走では 7 passed (rc=0) で再現しなかった。実行環境側の要因を疑う。
+  runner のどの段で futex を待っていたかまでは特定していない。
+- 恒久対応: 二次事故の側は既存規律 `DW-O26`「同一 worktree からの dispatch は全種を直列にする」で
+  塞がる。本件はその規律を守らなかった違反であり、規律自体の不足ではない。
+  ハング検知の側は `docs/dev-wave/` へ足そうとしたが、L1 の byte 予算 (10625) と
+  `DW-O18` の単節予算・exact 契約に収まらなかった。上限を上げず、
+  **AI 作業者の永続メモリ (`liveness-of-a-hung-runner-is-not-done-file-absence`) へ置いた** —
+  待ちが長いときは `.done` の不在を稼働中と読まず、`ps -o etime,stat,wchan <pid>` と
+  `pgrep -P <pid>` を実測する。pytest の結果行が log に出ているのに `.done` が無い状態は
+  ハングであり、親が止めて `git status` で作業ツリーの復元を確認してから先へ進む。
+- 再発検知: 孤児 hold の発生そのものが検知になる。
+  `output/pegasus-dispatch/orphan-hold.json` が立ったら、直前に完了を待たずに投入した走行が
+  無かったかを必ず遡って確認する。

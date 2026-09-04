@@ -49803,3 +49803,230 @@ D1594 が却下した「読み手だけを group から外す」形を採らな�
 - 例外を与えて gate を新設する — 上記のとおり検出できない型が残ったまま防護済みと読まれうる。
 
 **再訪条件:** 同型の repo 外束縛の欠落が異なる producer / consumer で独立に 2 件観測されたとき。
+
+## D1623. 軸 1 の条件 4・5 を改訂しない決定を追認し、U11 は免除を与えず現契約どおり未完走とする (2026-09-04)
+
+**決定 (ユーザー裁定):** D1607 が「ユーザー裁定に残る」とした 2 点を確定する。
+(1) 軸 1 (関連研究の検索) の条件 4 と条件 5 を改訂しないという D1607 の決定を**追認する**。
+(2) 再改訂契約 §8 の U11 (索引が同じ work ID を頁境界で 2 回返しつつ総件数では 1 回と数える場合の
+条件 5 の扱い) は、**免除を与えず、現契約どおり `未完走` のまま**とする。
+
+**理由:**
+- 同一 request の独立 2 走で返却集合が食い違った事実 (D1607) がある以上、1 走を完全と見なす形は
+  採れない。U11 の場合に免除を与えると、食い違う 2 走の一方を `完走` として受理しうる。
+  取得完全性のゲートを緩めない (絶対規律 2)。
+- **U11 を免除しない根拠は「緩めない」方針であって、D1607 の 32 件の頁境界重複の実測ではない。**
+  別系統モデルの相談が、その実測は「同一 ID を 2 回返し総件数では 1 回」という U11 の場合分けの
+  直接証拠になっていないと指摘した (根拠不足)。親はこれを採り、根拠を方針側に置き直した。
+- D1331 (distinct 化の却下) と D1564 (許容幅の却下) の既裁定と同じ向きである。
+
+**却下した選択肢:**
+- 条件 5 に許容幅や頁境界重複の吸収を入れる — D1564 / D1331 が却下済み。再改訂契約と新 epoch、
+  全枝の再実行を伴う。
+- U11 だけを免除する — 上記のとおり 2 走の食い違いを隠す経路になる。
+
+## D1624. 軸 1 OpenAlex の取得は現 epoch を維持し、無償枠は未走 leaf の初回取得に使う (2026-09-04)
+
+**決定 (ユーザー裁定):** D1607 が返した取得 program の 4 択のうち、**(1) 現 epoch のまま続ける**を
+採る。無償枠の窓は未走 66 leaf の初回取得に使い、条件 5 で `未完走` の 3 leaf の再取得は
+**1 回を上限**とし、それでも `未完走` のまま残ることを受け入れる。
+現 epoch の継続が選ばれたので、未走 leaf と独立 2 走目の取得は進めてよい。
+`axis_complete` を production で真にする経路の不在は、取得とは別の作業として起票する。
+
+**理由:**
+- (2) 並び順の鍵の追加と (3) 非 shard 4 leaf の固定 shard 化は、新 epoch・新 ID・全枝の再実行を
+  伴い、14 run / 93 頁の証拠を捨てる費用が確実である。一方、ずれを止める効果は D1607 でも
+  未確定 (機序未確定) で、効果が無い証拠も無い。費用が確実で効果が不確実なら、安く可逆な側を先に採る。
+- (4) 現状で止めると 66 leaf の証拠が論文の関連研究に入らない。取得済み証拠の論文上の価値を否定する
+  資料は無い。
+- 別系統モデルの相談は「(1) の優位は推測を含む」と根拠不足を指摘した。親は推測を含むことを認めた
+  うえで、上記の費用対効果の非対称を理由に (1) を維持した。主目的 (CC 自動合成) からの距離は遠い。
+
+**却下した選択肢:**
+- (2) 登録 request へ安定した並び順の鍵を足す — 全枝の再実行。効果の証拠が無い。
+- (3) 非 shard の 4 leaf も固定 shard 化 — 同上。既存の shard 方針 (`adaptive_split: forbidden`) とも
+  緊張する。
+- (4) 現状のまま止める — 関連研究の証拠が手作業の survey だけに依存する。
+
+**再訪条件:** 失敗 3 leaf の再取得 1 回でもずれが再現し、かつ論文が当該 3 leaf を要するとき。
+
+## D1625. sandbox backend の probe は inert 比較の緑を理由コードと comparison の組 2 つのどちらか 1 つで受理する (2026-09-04)
+
+**決定 (ユーザー裁定):** `tools/pegasus/probes/t316_sandbox_backend_probe.py` の条件関門の検査を、
+inert 比較の緑について **(A) 新旧 2 契約を明示許可する**形へ変える。許可するのは
+condition meaning gate 自身の表が定める 2 つの組
+(`stock-inert-preprocess-identical` と `stock-inert-identity`、
+`stock-inert-preprocess-root-location-only` と `stock-inert-root-location-only`) の**どちらか 1 つに
+exact 一致**することだけであり、どちらの組が発火したかを probe の記録に残す。理由コードだけを
+二択にして comparison を旧値のままにする形は採らない。それ以外の緩和はしない。
+
+**理由:**
+- D1611 が production の緑を 2 経路に確定した以上、probe が旧 1 契約しか読まないのは probe と
+  production のずれである。probe を production の表に揃える局所修正で、受理集合は gate の表を
+  超えて広がらない。
+- 別系統モデルの相談が、probe は理由コードに加えて `evidence["comparison"]` も exact 要求しており
+  (実測: 同 file の 2 条件)、新経路では comparison も変わるため理由コードだけの二択では通らないと
+  指摘した。親が現物 (gate の理由コード表) で検算し、決定に組み込んだ。
+- (B) raw bytes 一致専用に据え置くと、`__FILE__` が置き場所で変わる環境では probe が構造的に赤の
+  ままになり、守る対象と無関係な理由で関門が閉じ続ける。
+
+**却下した選択肢:**
+- (B) raw bytes 一致専用として据え置く — 上記。
+- 理由コードだけを二択化する — 新経路は comparison の不一致で通らない。
+- probe の exact 一致検査を外す — 受理集合を gate の表より広げる。
+
+## D1626. inert 比較の置換 span は compiler の `__FILE__` 展開へ束縛しない — D1611 の追認 (2026-09-04)
+
+**決定 (ユーザー裁定):** D1611 (wave の決定) の「置換した span が `__FILE__` / `__BASE_FILE__` の
+展開であったことは証明せず、限界として明記する」を**追認する**。`-fmacro-prefix-map` による追加
+preprocess で byte 完全一致を要求する案は採らない。
+
+**理由:**
+- 追加 preprocess は生成の時点で情報を畳む形で、D1523 が却下した「比較の前に情報を捨てる」形に
+  当たる。inert arm ごとに preprocess が 1 回増え、compiler 未対応時の fail-closed 枝を発火させる
+  実在の成果物を名指しできない。
+- D1611 の判定が通す差は「相対 path が同じで root だけが違う行」に限られ、規律 2 の向きで狭い。
+- 別系統モデルの相談 2 本は「同意」と「既に D1611 で決まっており裁定不要」に分かれた。
+  worklog の項が「ユーザー裁定待ち」と明記していたため、追認で閉じる。研究最優先・防御的堅牢化は
+  既定で見送りの方針にも沿う。
+
+**却下した選択肢:**
+- `-fmacro-prefix-map` で root を正規化して追加 preprocess し byte 完全一致を要求する — 上記。
+
+## D1627. B-10 事前登録の erratum は正式走 (read-heavy + report) の完了後に当てる (2026-09-04)
+
+**決定 (ユーザー裁定):** `docs/b10-backoff-shape-preregistration.md` §7 の括弧書き
+「この計算ノードに perf は無い」への erratum (本文は
+`output/insights/2026-09-04_f241-perf-attribution/README.md` の「未適用の訂正」節) は、
+**(a) B-10 正式走の read-heavy と report が完了し、登録 commit を指す残り phase が無くなってから
+当てる**。(b) 今当てて残り phase を追記を含まない固定 checkout からだけ走らせる案は採らない。
+
+**理由:**
+- 正式走の driver は report を含む全 phase で事前登録文書の bytes が登録 commit と完全一致することを
+  要求する。1 byte 足すと残り phase が止まる。(b) は report phase も同じ検査を通るため危険が残る。
+- この選択は 2026-09-04 の別セッションで既にユーザーが下していたが、台帳に記録が無く memory の控え
+  だけだった。別系統モデルの相談が「控えだけから台帳へ転記せず再確認せよ」と反対し、親は本回の
+  裁定で (a) を再確認する形にした。ユーザーは推奨どおりと裁定した。
+- 適用時の検査 (canonical machine spec block が 1 個のまま、`as_dict()` / `spec_sha256` 不変) は
+  当該 worklog 項のとおり。
+
+**却下した選択肢:**
+- (b) 固定 checkout で先に当てる — report phase に危険が残る。
+
+## D1628. 床値の既定 payload は検証済み予約束縛から導き、環境変数を authority にしない (2026-09-04)
+
+**決定:** 床値 campaign の既定 (production) FetchContent transport は、payload の所在を
+**検証済みの `reservation_binding` の nonce** と canonical な submit receipt path 関数から導く。
+生の環境変数 (`IZANAGI_SUBMISSION_NONCE` 等) を導出の authority にしない。
+検証済み束縛が存在しない環境では fail-closed で拒否し、環境変数にも外部取得経路にも落ちない。
+
+staging 先は repo 外の固定 leaf とし、repo 外であることをコピー前に確定させる。
+固定 prefix から payload までの全 path component と 3 依存 source を no-follow で検査する。
+複製は in-process で行い、新しい process 起動点を作らない。
+
+`REFREEZE_DISQUALIFYING_SEAM_NAMES` の 18 名集合と `_derive_refreeze_eligibility` の判定式は
+literal のまま変えない。既定経路は raw 引数が `None` のまま seam 分類を通り、導出は分類より後で
+起きるため、「official・fresh・非既定 seam ゼロだけを適格にする」という意味は変わらない。
+
+**理由:**
+
+- D1562 が解消案 1 を裁定し、導出規則を明示的に固定して発見による暗黙の入力経路を作らないことを
+  設計論点として名指ししている。
+- 生の環境変数を authority にすると、core が検証する submit receipt を選ぶ nonce と、payload を
+  選ぶ nonce を別々に設定できる。両者の等値を保証するのは正規 job script だけで、driver API 自身には
+  等値検査がない。32 桁 hex の形式検査は traversal を防ぐだけで、両者が同じ submission を指すことを
+  証明しない。段 3 の敵対レンズが独立に構成し、親がコードで裏を取った。
+- 検証済み `reservation_binding` は submit receipt の `job_id` / `job_script_sha256` / `nonce` の
+  一致検査を通っており、payload をその束縛から導けば追加の権威を新設せずに束縛できる。
+  D1586 が「承認済み identity の権威が repo に無いなら記録に留める」と定めた状況とは異なり、
+  本件は権威が repo 内に実在するため拒否できる。
+- 束縛の確定は staging より前に起きる。順序は実測で確かめた。
+- 固定 prefix の ancestor 検査は、正規 job script が全 path component について行っていた検査である。
+  driver へ移す以上、移した先で再現しなければ検査そのものが消える。
+
+**却下した選択肢:**
+
+- **新しい環境変数を導入する** — 既存の検証済み束縛から導けるため不要であり、
+  検証されない入力経路を 1 本増やすことになる。
+- **生の環境変数をそのまま読む** — 上記のとおり submit receipt の束縛と切り離される。
+- **directory 走査や候補探索で payload を見つける** — 発見による暗黙の入力経路であり D1562 に反する。
+- **複製を `cp -a` の子 process で行う** — 意味は保てるが、審査済み process 起動点の台帳を
+  変更することになり、同台帳を編集中の別 wave と編集面が交わる。in-process 複製で同じ意味
+  (symlink の保存、mode bit、`.git` を含む木全体) を保てることを実測した。
+
+## D1629. seam basis を変える変更を跨ぐ resume は認めず、新しい世代 ID での再投入を既定とする (2026-09-04)
+
+**決定:** 床値の測定世代 claim に記録される非既定 seam の集合が変わる変更について、
+**移行機構・backfill 機構を新設しない。** 変更を跨いで既存の部分 claim を resume することは
+できないものとし、運用は**新しい `campaign_run_id` での再投入**を既定とする。
+
+**理由:**
+
+- 既存 claim は旧い seam basis を保持し、変更後に補完される claim は新しい basis になる。
+  混在は claim 由来の適格性検査が拒否する。これは fail-closed の正しい向きである。
+- 実測時点で `measurement-generation-claims` は repo 内に存在せず、生きた部分 claim は 0 件だった。
+  直す対象が存在しない機構を先に作ることになる。
+- 回復機構を足すと、claim の内容を後から書き換える経路を作ることになる。
+  create-only の記録に書き換え経路を持ち込むより、新しい世代として発行し直すほうが小さい。
+
+**却下した選択肢:**
+
+- **旧 basis を新 claim へ backfill する** — create-only の記録へ書き換え経路を持ち込む。
+- **basis の混在を許容する述語へ緩める** — 正しさ防壁を緩める向きである。
+- **移行機構を先に用意しておく** — 発火条件を満たす既存 artifact が無く、`DW-G04` に反する。
+
+## D1630. sort 軸の契約束縛は単一 producer と binder のドメイン分離だけで閉じ、入口 gate と public seam の拡張は足さない (2026-09-05)
+
+**決定:** D1548 の局所適用は、(1) `p3_s4_loop_sort.py` の単一 producer `_require_sort_oracle_contract(cfg)` が
+campaign 宣言と実行中の `ORACLE_CONTRACT_ID` の exact 一致を identity 束縛より前に要求すること、(2) `run_campaign` /
+`evaluate` / `resolve_evidence` / `build` / `build_v2` / `_recheck_source_evidence` の keyword-only 引数 (既定 `None`)、
+(3) `source_digest` の sort 専用 binder (preimage `sort-src-token/v1\0contract=<id>\0source=<digest>`) と backoff 版との
+相互排他、の 3 点で閉じる。`loop.run_campaign` 入口の三者 gate、`loop.py` への `sort_swo_oracle` import、
+`resolve()` / `src_token()` の public seam への引数追加は実装しない。driver 側の `sort_swo_oracle` 参照も関数内 import にする。
+
+**理由:**
+- 単一 producer が `layout.ensure()` と WAL 作成より前に照合する限り、入口 gate が無いことで変わる in-scope の成果物は無い。
+  gate が守るのは producer を迂回して `run_campaign` を直接呼ぶ経路だけで、repo にその caller は無い。
+- `loop.py` は全 campaign の共通経路であり、`sort_swo_oracle` は import 時に `inspect.getsource` を実行して失敗を
+  fail-closed にする。import を足すと sort を使わない campaign まで import 段階で止まりうる。driver の module-level import も
+  B-4 launcher など driver を先に読む経路へ同じ失敗面を広げるので、関数内 import に限る。
+- 段 5 sort loop の実経路は `resolve_evidence → _resolved_src_token` であり、`resolve()` / `src_token()` は通らない。
+  局所適用の原則に従い、実経路外の seam へは引数を足さない。
+- 相互排他 (両方非 `None` → `ValueError`) は binder を選ぶ `_resolved_src_token` の 1 箇所に置く。登録済み producer は
+  片方しか渡さないので受理集合は変わらない。
+
+**却下した選択肢:**
+- `run_campaign` 入口の三者 gate (backoff の `loop.py` gate の写し) — 仮想リスク向けの防壁新設に当たり、import の失敗面も広げる。
+- `SORT_IR_GRAMMAR_VERSION` (int) を既存の `backoff_grammar_version` 経路へ流す — backoff の gate が module 定数と照合するので
+  両立せず、corpus / checker / TU template の改版で contract ID が変わっても IR 版だけ据え置きのとき旧 binary を再利用する。
+- `resolve()` / `src_token()` まで引数を足す — 実経路外で、変更面と変異の owner を不要に広げる。
+
+## D1631. paper-story に完走済み個別結果の結果節材料を置く `results/` 系列を設ける (2026-09-05)
+
+**決定:** `docs/paper-story/results/` を、版 (時点ごとの凍結スナップショット) とも `claim-evidence/` (主張ごとの作業表) とも別の
+第 3 の系列として設ける。1 file = 完走した 1 つの protocol または campaign 群の結果を、論文の結果節・表・図・限定の形へ
+落とした執筆者向けの統制稿とする。規則の正本は `docs/paper-story/README.md` の「results 系列」節とし、次を課す。
+
+1. append-only。書いた後は更新せず、誤りは新しい日付の file で改める。
+2. 新しい日付を足すときは、その結果の一次資料全体 (権威 bytes、raw manifest、WAL、裁定) から作り直す。
+3. 「版の履歴」表に登録しない。版か結果材料かはディレクトリで判別する。
+4. 数値・日付・protocol status の出所は一次資料だけとし、版や claim-evidence の記述を出所にしない。
+   図を伴うときは figures の凍結物と provenance JSON を指し、表の数値は provenance から転記して転記元の SHA-256 を書く。
+5. protocol status は protocol の出力として書き、研究としての成功・失敗・新規性の宣告へ拡張しない (D12)。
+   この系列は D12 の機械射影の材料レポートではなく、一次資料に束縛した執筆者向け統制稿である。
+
+最初の file は A-2 正式 certification (outer `reject`) の結果節である。
+
+**理由:**
+- 完走した個別結果を「版の A 群の 1 行」から結果節へ落とすとき、版へ書くと全面再導出が要り (版の契約)、claim-evidence へ書くと
+  入力 5 節全体の再導出が要る (D1013 規則 2)。どちらも 1 結果の材料化には過大で、部分改訂を許せば「その日付時点でそう主張した」
+  という新しい嘘が生まれる。結果 1 件を単位にした系列なら、append-only と全体再導出の両方を結果の粒度で成立させられる。
+- ディレクトリで分けるのは D1013 と同じ理由による。自己申告の見出しだけで「これは版ではない」を担わせると、同形式の文書が増えたとき
+  判別できなくなる。
+- 執筆者向け統制稿と D12 の機械射影を混同すると、散文の解釈が一次事実として下流へ流れる。系列の規則として区別を明記する。
+
+**却下した選択肢:**
+- claim-evidence へ新しい日付を足す — 入力 5 節全体の再導出が要り、1 結果の材料化に対して過大である。
+- 新しい版を足す — 全面再導出が要り、科学的主張が動いていない時点では版を増やす理由にならない。
+- README の stale 注記だけで済ませる — stale 注記は最新版の記述が古くなった箇所を指す入口であり、結果節・表・図の材料を置く場所ではない。
+- 本 wave の insight に置いて README から指す — 作業記録と論文材料が混ざり、append-only と再導出単位の規則を持てない。

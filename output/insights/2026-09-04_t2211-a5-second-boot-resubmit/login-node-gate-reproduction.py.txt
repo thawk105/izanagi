@@ -1,0 +1,65 @@
+"""Login-node diagnostic: reproduce the backoff_sweep condition-gate supply arm
+for BACKOFF_FIXED and dump the full arm record (reason_code + evidence.detail).
+
+Read-only with respect to the repository: scratch worktrees are created by
+patchharness.checkout under TMPDIR and removed on exit.  Not committed.
+"""
+import json
+import os
+import sys
+
+REPO = "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2211-a5-resubmit"
+JOBTMP = "/home/SFC/tanab/.claude/jobs/0807dc76/tmp"
+OUT = os.path.join(JOBTMP, "repro_gate_detail.json")
+DEPS = "/work/1/SFC/tanab/izanagi-a2-deps"
+
+sys.path.insert(0, REPO)
+os.environ["TMPDIR"] = os.path.join(JOBTMP, "repro-tmp")
+os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+if os.path.isdir(DEPS):
+    os.environ["CMAKE_PREFIX_PATH"] = DEPS
+
+from orchestrator.campaign import condition_meaning_gate as cmg  # noqa: E402
+from orchestrator.campaign import patchharness, pin  # noqa: E402
+
+ccbench = os.path.join(REPO, "external", "ccbench")
+patch = os.path.join(REPO, "patches", "silo-backoff-fixed.patch")
+cxx = sys.argv[1] if len(sys.argv) > 1 else "g++"
+values = [int(v) for v in sys.argv[2:]] or [10, -1]
+
+records = []
+with patchharness.checkout(pin.CURRENT_PIN, base_dir=ccbench) as stock_root:
+    with patchharness.checkout(pin.CURRENT_PIN, base_dir=ccbench) as variant_root:
+        with patchharness.applied(patch, pin.CURRENT_PIN, ccbench_dir=variant_root):
+            captured = cmg.capture_define_inputs(variant_root, stock_root=stock_root)
+            for value in values:
+                stock_comparison = value == -1
+                request = cmg.make_define_request(
+                    driver_id="orchestrator/campaign/backoff_sweep.py",
+                    macro="BACKOFF_FIXED",
+                    requested_value=value,
+                    default_value=None if stock_comparison else -1,
+                    stock_comparison=stock_comparison,
+                )
+                record = cmg.evaluate_define_supply_effectuation(
+                    captured, request=request, cxx=cxx, cmake="cmake",
+                )
+                records.append({
+                    "requested_value": value,
+                    "stock_comparison": stock_comparison,
+                    "arm": record.arm,
+                    "terminal_status": record.terminal_status,
+                    "reason_code": record.reason_code,
+                    "evidence": record.evidence,
+                })
+                print(f"BACKOFF_FIXED={value}: {record.terminal_status}/{record.reason_code}")
+
+with open(OUT, "w", encoding="utf-8") as handle:
+    json.dump({
+        "note": "login-node diagnostic reproduction of the backoff_sweep supply arm; "
+                "not a measurement, not the job's own record",
+        "repo": REPO, "ccbench_pin": pin.CURRENT_PIN, "cxx": cxx,
+        "cmake_prefix_path": os.environ.get("CMAKE_PREFIX_PATH", ""),
+        "records": records,
+    }, handle, indent=1, default=str, ensure_ascii=False)
+print("wrote", OUT)
