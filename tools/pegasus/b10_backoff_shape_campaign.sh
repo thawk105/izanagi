@@ -21,13 +21,13 @@ bootstrap_fail() {
 [[ "${IZANAGI_B10_NONCE:-}" =~ ^[0-9a-f]{32}$ ]] || bootstrap_fail "submission nonce missing"
 [[ "${IZANAGI_B10_SOURCE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "source commit missing"
 [[ "${IZANAGI_B10_PREREG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "prereg commit missing"
-[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe|verify-perf|report)$ ]] || bootstrap_fail "phase missing"
+[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe|verify-perf|trial-cell|report)$ ]] || bootstrap_fail "phase missing"
 if [[ "$IZANAGI_B10_PHASE" == build || "$IZANAGI_B10_PHASE" == probe \
     || "$IZANAGI_B10_PHASE" == report ]]; then
   [[ -z "${IZANAGI_B10_WORKLOAD:-}" ]] || bootstrap_fail "build/probe/report phase has workload"
 else
   [[ "${IZANAGI_B10_WORKLOAD:-}" =~ ^(write-heavy|balanced|read-heavy)$ ]] \
-    || bootstrap_fail "verify/perf/verify-perf workload missing"
+    || bootstrap_fail "verify/perf/verify-perf/trial-cell workload missing"
 fi
 
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || bootstrap_fail "cannot resolve repository"

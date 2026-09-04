@@ -68,6 +68,7 @@ def test_paper_condition_gate_is_p_strict_and_precedes_campaign(monkeypatch):
     assert 'use_class="paper"' in helper_source
     assert '"BACKOFF_FIXED"' in helper_source
     assert '"BACKOFF_NOINLINE"' in helper_source
+    assert "declare_define_runtime_meaning" in helper_source
     assert "stock_root=source_root" in helper_source
     assert "STOCK_ADAPTIVE_BRANCH" in helper_source
     assert "condition_gate_receipts" in run_source
@@ -525,20 +526,28 @@ def _assert_condition_gate_rejection(monkeypatch):
         macro="BACKOFF_FIXED", arm="runtime-meaning",
         reason_code="established", terminal_status="green", evidence={},
     )
-    unestablished = A2.SimpleNamespace(
-        macro="BACKOFF_NOINLINE", arm="runtime-meaning",
-        reason_code="meaning-witness-undeclared",
-        terminal_status="unestablished",
-        evidence={"witness_declared": False},
-    )
+    noinline_declaration = object()
+    factory_calls = []
+
+    def declare(request):
+        factory_calls.append(request)
+        return noinline_declaration \
+            if request.macro == "BACKOFF_NOINLINE" else None
+
+    def evaluate_meaning(_captured, *, request, declaration, **_kwargs):
+        if request.macro == "BACKOFF_NOINLINE":
+            assert declaration is noinline_declaration
+        return green
+
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "declare_define_runtime_meaning", declare)
     monkeypatch.setattr(
         A2.condition_meaning_gate, "evaluate_define_supply_effectuation",
         lambda _captured, *, request, **_kwargs: (
             red if request.macro == "BACKOFF_FIXED" else green))
     monkeypatch.setattr(
         A2.condition_meaning_gate, "evaluate_define_runtime_meaning",
-        lambda _captured, *, request, **_kwargs: (
-            unestablished if request.macro == "BACKOFF_NOINLINE" else green))
+        evaluate_meaning)
     monkeypatch.setattr(
         A2.condition_meaning_gate, "require_condition_gate_family",
         lambda *_args, **_kwargs: A2.SimpleNamespace(admitted=False))
@@ -555,11 +564,14 @@ def _assert_condition_gate_rejection(monkeypatch):
             pass
 
     message = str(error.value)
+    assert [
+        (request.macro, request.requested_value, request.default_value)
+        for request in factory_calls if request.macro == "BACKOFF_NOINLINE"
+    ] == [("BACKOFF_NOINLINE", 0, 0)]
     assert "cmake emitted an unused-variable warning" in message
     assert (
-        "BACKOFF_NOINLINE:runtime-meaning:meaning-witness-undeclared:"
-        "detail=None"
-    ) in message
+        "BACKOFF_NOINLINE:runtime-meaning:meaning-witness-undeclared"
+    ) not in message
 
 
 def test_condition_gate_family_real_records_positive_then_issued_red_negative(
@@ -592,7 +604,10 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
             stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
         )
 
-    def declaration_for(macro, value):
+    def declaration_for(request):
+        macro = request.macro
+        value = request.requested_value
+        declaration = G.declare_define_runtime_meaning(request)
         if macro == "BACKOFF_FIXED" and value == -1:
             return G.MeaningWitnessDeclaration(
                 macro,
@@ -608,7 +623,7 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
                 macro,
                 (G.MeaningCase(value, (bits, bits)),),
             )
-        return None
+        return declaration
 
     captured = G.capture_define_inputs(
         supplied, stock_root=supplied / "stock",
@@ -634,11 +649,11 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
     expected_meaning_outcomes = {
         (0, "BACKOFF_FIXED"): ("green", "declared-meaning-observed"),
         (0, "BACKOFF_NOINLINE"): (
-            "unestablished", "meaning-witness-undeclared",
+            "green", "declared-compile-time-branch-selection-observed",
         ),
         (1, "BACKOFF_FIXED"): ("green", "declared-meaning-observed"),
         (1, "BACKOFF_NOINLINE"): (
-            "unestablished", "meaning-witness-undeclared",
+            "green", "declared-compile-time-branch-selection-observed",
         ),
     }
     positive_cells = []
@@ -649,7 +664,7 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
         for macro in sorted(set(flags) & set(defaults)):
             value = flags[macro]
             request = request_for(index, macro, value)
-            declaration = declaration_for(macro, value)
+            declaration = declaration_for(request)
             supply = G.evaluate_define_supply_effectuation(
                 captured, request=request, cxx=cxx, cmake=cmake,
             )
@@ -680,13 +695,11 @@ def test_condition_gate_family_real_records_positive_then_issued_red_negative(
         assert admission.record_ids == tuple(
             record.record_id for record in (*cell_supply, *cell_meaning)
         )
-        assert admission.unestablished_meaning_macros == (
-            "BACKOFF_NOINLINE",
-        )
+        assert admission.unestablished_meaning_macros == ()
         positive_cells.append((cell_supply, cell_meaning, admission))
 
     negative_request = request_for(0, "BACKOFF_FIXED", 10)
-    negative_declaration = declaration_for("BACKOFF_FIXED", 10)
+    negative_declaration = declaration_for(negative_request)
     negative_meaning = G.evaluate_define_runtime_meaning(
         captured,
         request=negative_request,

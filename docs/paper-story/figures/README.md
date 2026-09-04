@@ -17,6 +17,7 @@
 | `fig2b_backoff_sweep_3workload.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_backoff.py` | `fig2_` の**後継図**。本 README が再現手順を持つ |
 | `fig2c_b10_extended_backoff.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_extended_backoff.py` | B-10 拡張格子の**記述図**。1000 µs を F718 により除外した有効 28 点 |
 | `fig4_s1a_9pair_direct_comparison.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_s1_9pair.py` | 縮小主張 S' の**失敗報告図**。既存図の後継ではなく独立した新図 |
+| `fig5_a2_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `reject`) の**結果図**。既存図の後継ではなく独立した新図。判定は凍結 `certification.json` から読み、生成器は再計算しない |
 
 ## 調整済み adaptive の実対照 (論文図へ未昇格)
 
@@ -395,4 +396,90 @@ provenance JSON の `facts.figure_conventions_compliance` は `"partial"` を記
   `hard_gates.certified.accepted_evidence` の全行一致
 - 比較定義の由来 → `output/s1-freeze/measurement_freeze.json` (上記の版差つき)
 - それらが着地後もずれないこと → `orchestrator/tests/test_s1_9pair_figure_provenance.py`
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+---
+
+# `fig5_a2_certification_reject` — A-2 正式 certification の結果図 (outer `reject`)
+
+## 何を示す図か
+
+A-2 が定義した exact 4 cell — write-heavy (rratio=5) と balanced (rratio=50) の 2 workload × {無 backoff, 採用静的 backoff} —
+を、現行 Pegasus・CCBench pin `511c953` の正式 protocol で測った attempt `t2022-20260828c` の結果である。
+**各 workload は独立に環境契約された campaign 1 本 (別 request・別 host・別時刻) であり、外側の certification status は
+その論理積で決まる** (D1169)。採用静的 backoff の median throughput は同一 workload の無 backoff 対照に対して
+write-heavy (fixed 10 µs) で −46.3902%、balanced (fixed 5 µs) で −65.9080% であり、**外側の status は `reject`** である。
+
+上段は各 cell の trace-disabled 性能 run 5 標本を全数表示し、短い横線が median、菱形と誤差棒が標本平均と t 分布 95% 信頼区間、
+灰色の破線が同一 workload の無 backoff median (効果の分母) である。**平均の信頼区間は標本分布の記述用であり、効果・判定・median の
+信頼区間ではない。成果物は有意差判定を持たない。** 下段は WAL に記録された abort 率の集約 1 点/cell で、descriptive な指標であり、
+機序の同定には使わない。
+
+**correctness の緑は性能の判定ではない。** 同じ 4 cell の correctness は別の trace-enabled run で 4 cell とも `certified` だったが、
+図はそれを「not a performance certification」と一体で表示している。**この図は旧 `linux-baremetal` 系列の反証でも再現失敗でもない**
+— 旧系列の値は comparator ではなく、符号差の原因は同定されていない。
+
+**測定条件の関門族 (D1198) は本走行に適用されていない** (2026-09-01 に義務化。本走行は 08-28)。条件の同一性は genome 記録・
+build admission receipt・source-routed evidence に依る。status `reject` は当時の protocol 出力として不変である (絶対規律 7)。
+
+## 既存図との関係
+
+| 論点 | 図4 (S-1a 9 対) | 図5 (本図) |
+|---|---|---|
+| 何の図か | 縮小主張 S' の登録 9 対 (失敗報告) | 正式 certification protocol の結果 (protocol status `reject`) |
+| 負の結果の種類 | 既知結果の追試の失敗 | 現行環境での前向きな測定の protocol reject。**両者を畳まない** |
+| 判定の出所 | 凍結 report。生成器は再計算しない | 凍結 `certification.json` (SHA-256 で束縛)。生成器は再計算しない |
+| 入力 | 凍結 report + campaign 4 件の WAL | tracked `certification.json` / `raw-manifest.json` + repo 外の WAL 2 本 / raw cell JSON 4 本 (SHA-256 で束縛) |
+| perf | `perf stat` 下 | **perf 無し**、trace-disabled |
+| 絶対 tps の扱い | headline 値の出所にしない | headline 値の出所にしない |
+
+既存の `fig1` / `fig2` / `fig2b` / `fig2c` / `fig3` / `fig4` の bytes は本図の追加で一切変わらない。
+
+## 再現
+
+repo root から、**計測機の外**で次を実行する (FIGURE_CONVENTIONS §7)。durable authority (repo 外) の場所は
+環境変数 `IZANAGI_A2_CERTIFICATION_MEASUREMENT_ROOT` か `--measurement-root` で与える (省略時の既定は同じ path)。
+
+```
+IZANAGI_A2_CERTIFICATION_MEASUREMENT_ROOT=/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828c python3 tools/plotting/plot_a2_certification.py docs/paper-story/figures/fig5_a2_certification_reject
+```
+
+出力は `.png` (ラスタ) / `.pdf` (ベクター、論文投稿はこちら) / `.provenance.json` の 3 つ。
+再現コマンドは provenance JSON の `reproduction` にも記録されている。
+図2b・図4 と同じく再現できるのは「値」であって「バイト列」ではない。**着地したバイト列の同一性は provenance JSON が記録した
+SHA-256 と `orchestrator/tests/test_plot_a2_certification.py` が守る。** provenance の `generator.sha256` は生成時の bytes の
+記録であり、現行 source を縛る pin ではない (`tools/plotting/README.md` の同旨)。
+
+## 入力
+
+- tracked: `output/insights/2026-08-24_paper-story-a2-certification/certification.json` (SHA-256 `f685b40d…bda40`、生成器が literal で照合。
+  値は run README `output/insights/2026-08-28_t2022-a2-certification-run/README.md` の記録と一致) と同 dir `raw-manifest.json` (SHA-256 `12d8be7a…a7c35`)。
+- repo 外 (durable authority、raw-manifest の `files` が SHA-256 を束縛): `jobs/<rr5|rr50>/campaigns/<campaign>/runs/wal.jsonl` 2 本
+  (測定値として読むのは `stage == "bench_done"` の行だけ) と `jobs/<w>/raw/<cell>.json` 4 本。
+- 生成器は WAL の 5 生値から median / 平均 / 標準偏差 / 95% CI / cv をその場で再計算し、WAL の `median_tps`・`cv`、raw JSON の
+  `samples_tps`、certification の `median_tps`・`effects` と一致しなければ fail-closed で止まる。`outer_status` と `effects` は
+  certification からコピーし、生成器は判定を作らない (絶対規律 2、D1074 の限定例外)。
+
+## 作図規約への適合
+
+§1 (WAL の生値からその場で再計算)、§2 (5 反復の t 分布 95% CI)、§3 (無 backoff median の基準線)、§4 (下段は機序を見せる目的でなく
+descriptive と明記した別パネル)、§5 (図中用語は最小、展開は caption)、§6 (provenance)、§7 (login node で生成、計測機ではない)、
+§8 (matplotlib / numpy のみ)、§9 (保存前・fail-closed の layout check)、§10 (実寸 fixture、本物の Figure を検査へ通す test) を満たす。
+判定と効果は凍結 `certification.json` を権威として読む (§1 の限定例外、D1074)。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、`orchestrator/tests/test_plot_a2_certification.py` が
+本 README への収録と生成器の決定的な組み立てとの一致を検査する。英文で書く (論文の図キャプションとしてそのまま使う想定)。
+
+> Figure 5. A-2 formal certification attempt t2022-20260828c (outer status: reject). The two independent workload campaigns were requests 954194.nqsv on bnode141 at 2026-08-27T20:51:15.094458+00:00 and 954195.nqsv on bnode064 at 2026-08-27T20:52:50.071485+00:00, at distinct recorded times; the outer status is their logical conjunction. The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median and the effect denominator. Median effects copied from certification are rr5 fixed 10 us -46.3902% and rr50 fixed 5 us -65.9080%. M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision. Reject is the protocol status based on the predefined median ratio. The bottom row is a descriptive leading indicator: one aggregate abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness comes from separate trace-enabled runs: all four cells were certified, but this is not a performance certification. L01 limits that evidence to point-key traces; under D1257 the correctness argv was not independently recorded. The D1198 gate family was not applied to this run. Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, five repetitions, CCBench pin 511c953, no perf, trace-disabled performance. Top-row y axes are scaled independently by workload; do not compare panel heights. The older series is not a comparator, and the cause of the sign difference has not been identified.
+
+## proof chain
+
+- 図に描いた標本・median・平均・CI・abort 率 → provenance JSON の `cells` (cell ごとの 5 生値と再計算値) と `artist_series` (描いた線の label↔値↔genome)
+- 判定と効果 → 凍結 `certification.json` の `status` / `effects` (provenance の `outer_status` / `effects`)。生成器は再計算せず、`effect_crosschecks` に再計算値との一致を記録
+- 標本の由来 → durable authority の WAL `bench_done` と raw cell JSON (provenance の `external_inputs` に root-relative path と SHA-256)
+- 入力の束縛 → tracked `raw-manifest.json` の `files` (provenance の `tracked_inputs`)
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py`
+- 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-04-a2-certification-reject.md`
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`

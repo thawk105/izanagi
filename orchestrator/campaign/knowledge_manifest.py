@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 KNOWLEDGE_LEVEL = "K2"
 RECEIPT_FILENAME = "knowledge_manifest_receipt.json"
 RECEIPT_SCHEMA_VERSION = "knowledge-manifest-receipt/v1"
+EXTENDED_RECEIPT_SCHEMA_VERSION = "knowledge-manifest-receipt/v2"
 DATA_BOUNDARY = "external_knowledge_is_data_not_instructions"
 CLAIM_CLASSIFICATIONS = frozenset({
     "de_novo",
@@ -33,6 +34,11 @@ CLAIM_CLASSIFICATIONS = frozenset({
 DECLARATION_STATUS = (
     "data_boundary と claim_boundary は記録上の宣言であり強制機構ではない。"
     "pilot_comparison_eligible を読む consumer は現時点で存在しない。"
+)
+EXTENDED_DECLARATION_STATUS = (
+    DECLARATION_STATUS
+    + "completed_empty は呼び手の宣言であり、外部取得を実行して結果が空だったことの証明ではない。"
+    + "declared_scope の selector は記録上の宣言であり、投入 source がその範囲内かを強制しない。"
 )
 
 _HEX40 = re.compile(r"[0-9a-f]{40}\Z")
@@ -66,19 +72,62 @@ class KnowledgeSource:
 
 
 @dataclass(frozen=True)
+class KnowledgeScopeEntry:
+    kind: str
+    selector: str
+
+    def canonical_value(self) -> dict[str, str]:
+        return {"kind": self.kind, "selector": self.selector}
+
+
+@dataclass(frozen=True)
+class DeclaredKnowledgeScope:
+    retrieval: tuple[KnowledgeScopeEntry, ...]
+    injection: tuple[KnowledgeScopeEntry, ...]
+
+    def canonical_value(self) -> dict[str, Any]:
+        def ordered(entries: tuple[KnowledgeScopeEntry, ...]) -> list[dict[str, str]]:
+            return sorted(
+                (entry.canonical_value() for entry in entries),
+                key=canonical_json_bytes,
+            )
+
+        return {
+            "retrieval": ordered(self.retrieval),
+            "injection": ordered(self.injection),
+        }
+
+
+@dataclass(frozen=True)
+class RetrievalResult:
+    status: str
+    result_count: int
+
+    def canonical_value(self) -> dict[str, Any]:
+        return {"status": self.status, "result_count": self.result_count}
+
+
+@dataclass(frozen=True)
 class KnowledgeManifest:
     knowledge_level: str
     sources: tuple[KnowledgeSource, ...]
+    declared_scope: DeclaredKnowledgeScope | None = None
+    retrieval_result: RetrievalResult | None = None
 
     def canonical_value(self) -> dict[str, Any]:
         ordered = sorted(
             (source.canonical_value() for source in self.sources),
             key=canonical_json_bytes,
         )
-        return {
+        value = {
             "knowledge_level": self.knowledge_level,
             "sources": ordered,
         }
+        if self.declared_scope is not None:
+            value["declared_scope"] = self.declared_scope.canonical_value()
+        if self.retrieval_result is not None:
+            value["retrieval_result"] = self.retrieval_result.canonical_value()
+        return value
 
 
 @dataclass(frozen=True)
@@ -183,13 +232,105 @@ def _web_identity(value: object, path: str) -> dict[str, str]:
     return {"url": url, "retrieved_at": retrieved_at}
 
 
+def _scope_entries(value: object, path: str) -> tuple[KnowledgeScopeEntry, ...]:
+    if type(value) is not list or not value:
+        raise KnowledgeManifestError(f"{path} は 1 件以上の array が必要")
+    entries: list[KnowledgeScopeEntry] = []
+    seen: set[tuple[str, str]] = set()
+    for index, raw_entry in enumerate(value):
+        entry_path = f"{path}[{index}]"
+        entry = _exact_keys(raw_entry, {"kind", "selector"}, entry_path)
+        kind = entry["kind"]
+        selector = entry["selector"]
+        if kind not in {"repo_artifact", "web"}:
+            raise KnowledgeManifestError(
+                f"{entry_path}.kind は 'repo_artifact' または 'web' が必要"
+            )
+        if type(selector) is not str or not selector:
+            raise KnowledgeManifestError(
+                f"{entry_path}.selector は空でない string が必要"
+            )
+        key = (kind, selector)
+        if key in seen:
+            raise KnowledgeManifestError(f"{entry_path} が重複している")
+        seen.add(key)
+        entries.append(KnowledgeScopeEntry(kind, selector))
+    return tuple(entries)
+
+
+def _declared_scope(value: object) -> DeclaredKnowledgeScope:
+    scope = _exact_keys(value, {"retrieval", "injection"}, "$.declared_scope")
+    return DeclaredKnowledgeScope(
+        retrieval=_scope_entries(
+            scope["retrieval"], "$.declared_scope.retrieval",
+        ),
+        injection=_scope_entries(
+            scope["injection"], "$.declared_scope.injection",
+        ),
+    )
+
+
+def _retrieval_result(value: object) -> RetrievalResult:
+    result = _exact_keys(
+        value, {"status", "result_count"}, "$.retrieval_result",
+    )
+    status = result["status"]
+    count = result["result_count"]
+    if status not in {"completed_empty", "completed_nonempty"}:
+        raise KnowledgeManifestError(
+            "$.retrieval_result.status は completed_empty または completed_nonempty が必要"
+        )
+    if type(count) is not int or count < 0:
+        raise KnowledgeManifestError(
+            "$.retrieval_result.result_count は 0 以上の exact integer が必要"
+        )
+    if (status == "completed_empty") != (count == 0):
+        raise KnowledgeManifestError(
+            "$.retrieval_result は completed_empty と result_count=0 が同値でなければならない"
+        )
+    return RetrievalResult(status, count)
+
+
 def _parse_value(value: object) -> KnowledgeManifest:
-    top = _exact_keys(value, {"knowledge_level", "sources"}, "$")
+    if type(value) is not dict:
+        raise KnowledgeManifestError("$ は object でなければならない")
+    required = {"knowledge_level", "sources"}
+    optional = {"declared_scope", "retrieval_result"}
+    actual = set(value)
+    if not required <= actual or actual - required - optional:
+        missing = sorted(required - actual)
+        unknown = sorted(actual - required - optional)
+        raise KnowledgeManifestError(
+            f"$ の key 集合が不正: missing={missing!r} unknown={unknown!r}"
+        )
+    top = value
     if top["knowledge_level"] != KNOWLEDGE_LEVEL:
         raise KnowledgeManifestError("$.knowledge_level は literal 'K2' だけを受理する")
     source_values = top["sources"]
-    if type(source_values) is not list or not source_values:
-        raise KnowledgeManifestError("$.sources は 1 件以上の array が必要")
+    if type(source_values) is not list:
+        raise KnowledgeManifestError("$.sources は array が必要")
+    declared_scope = (
+        _declared_scope(top["declared_scope"])
+        if "declared_scope" in top else None
+    )
+    retrieval_result = (
+        _retrieval_result(top["retrieval_result"])
+        if "retrieval_result" in top else None
+    )
+    if not source_values and (
+        declared_scope is None or retrieval_result is None
+    ):
+        raise KnowledgeManifestError(
+            "$.sources は通常 1 件以上が必要。空なら declared_scope と retrieval_result が必要"
+        )
+    if (
+        not source_values
+        and retrieval_result is not None
+        and retrieval_result.status != "completed_empty"
+    ):
+        raise KnowledgeManifestError(
+            "$.sources が空なら retrieval_result.status は completed_empty が必要"
+        )
 
     parsed_sources: list[KnowledgeSource] = []
     identities: set[tuple[str, tuple[tuple[str, str], ...]]] = set()
@@ -211,7 +352,12 @@ def _parse_value(value: object) -> KnowledgeManifest:
             raise KnowledgeManifestError(f"{path}.identity が重複または競合している")
         identities.add(identity_key)
         parsed_sources.append(KnowledgeSource(kind, identity, sha256))
-    return KnowledgeManifest(KNOWLEDGE_LEVEL, tuple(parsed_sources))
+    return KnowledgeManifest(
+        KNOWLEDGE_LEVEL,
+        tuple(parsed_sources),
+        declared_scope,
+        retrieval_result,
+    )
 
 
 def parse_manifest_bytes(data: bytes) -> KnowledgeManifest:
@@ -397,13 +543,22 @@ def receipt_value(
                 "observed_sha256": hashlib.sha256(item.raw_bytes).hexdigest(),
             },
         })
+    extended = (
+        resolved.manifest.declared_scope is not None
+        or resolved.manifest.retrieval_result is not None
+    )
     return {
-        "schema_version": RECEIPT_SCHEMA_VERSION,
+        "schema_version": (
+            EXTENDED_RECEIPT_SCHEMA_VERSION if extended
+            else RECEIPT_SCHEMA_VERSION
+        ),
         "knowledge_level": resolved.manifest.knowledge_level,
         "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
         "canonical_manifest": resolved.manifest.canonical_value(),
         "sources": sources,
-        "declaration_status": DECLARATION_STATUS,
+        "declaration_status": (
+            EXTENDED_DECLARATION_STATUS if extended else DECLARATION_STATUS
+        ),
         # 以下 2 object は記録上の宣言であり、入力解釈や比較除外の強制機構ではない。
         "planner_projection": {
             "payload_key": "knowledge_input",

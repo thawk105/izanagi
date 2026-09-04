@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import ast
 import contextlib
 import copy
 from dataclasses import dataclass, replace
+import errno
 import fcntl
 import functools
 import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import sys
+import tempfile
 from unittest import mock
 
 import pytest
@@ -150,6 +154,10 @@ def _write_campaign_lock_with_writer(target: CampaignLayout, target_cfg) -> None
     authority = _writer_authority()
     binding = authority.binding
     activation_state = authority.activation_state
+    if target_cfg.bound_environment_contract is None:
+        target_cfg = ident.bind_environment_contract(
+            target_cfg, env_contract.lookup(L.ENV_TAG),
+        )
     contract = target_cfg.bound_environment_contract
     assert contract is not None
     wal.write_lock(
@@ -1171,38 +1179,110 @@ def test_unresolved_absence_retains_current_reason_non_guarantee(
     )
 
 
-@pytest.fixture
-def certified_evidence(tmp_path_factory):
-    """Build one real pair per pytest run and serialize cross-worker consumers."""
-
+def _certified_evidence_shared_root(tmp_path_factory) -> Path:
     base = Path(tmp_path_factory.getbasetemp())
     shared_parent = base.parent if base.name.startswith("popen-") else base
-    shared = shared_parent / "b4-producer-certified-shared"
+    return shared_parent / "b4-producer-certified-shared"
+
+
+def _write_certified_evidence_metadata(
+    metadata_path: Path,
+    metadata: dict[str, object],
+) -> None:
+    payload = json.dumps(
+        metadata,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    temp_fd, temp_name = tempfile.mkstemp(
+        dir=metadata_path.parent,
+        prefix=f".{metadata_path.name}.",
+        suffix=".tmp",
+    )
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(temp_fd, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_path, metadata_path)
+    except BaseException:
+        temp_path.unlink(missing_ok=True)
+        raise
+
+
+@contextlib.contextmanager
+def _certified_evidence_lock_scope(
+    shared: Path,
+    *,
+    access_mode: str,
+    seed,
+):
+    """Seed under EX, then hold the requested lock through the caller scope."""
+
     shared.mkdir(parents=True, exist_ok=True)
     lock_fd = os.open(shared / "fixture.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    locked = False
     try:
-        fcntl.flock(lock_fd, fcntl.LOCK_EX)
         metadata_path = shared / "evidence.json"
         if not metadata_path.exists():
-            with _evidence_scope(
-                shared / "evidence",
-                iteration=1,
-                assignment=("off", "on"),
-                terminal="commit",
-            ) as created:
-                metadata = {
-                    "admission_repository": str(created.admission.repository),
-                    "admission_role_file": str(created.admission.role_file),
-                    "admission_record_path": str(created.admission.record_path),
-                    "on_root": created.on_layout.root,
-                    "off_root": created.off_layout.root,
-                    "on_receipt": str(created.on_receipt),
-                    "off_receipt": str(created.off_receipt),
-                    "iteration": created.iteration,
-                }
-            metadata_path.write_bytes(
-                json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            )
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            locked = True
+            if not metadata_path.exists():
+                evidence_root = shared / "evidence"
+                if evidence_root.is_symlink() or evidence_root.is_file():
+                    evidence_root.unlink()
+                elif evidence_root.exists():
+                    shutil.rmtree(evidence_root)
+                seed()
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            locked = False
+
+        body_operation = {
+            "read": fcntl.LOCK_SH,
+            "write": fcntl.LOCK_EX,
+        }[access_mode]
+        fcntl.flock(lock_fd, body_operation)
+        locked = True
+        yield metadata_path
+    finally:
+        try:
+            if locked:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
+
+
+@contextlib.contextmanager
+def _certified_evidence_fixture_scope(tmp_path_factory, *, access_mode: str):
+    """Build one real pair per pytest run and hold its read or write lock."""
+
+    shared = _certified_evidence_shared_root(tmp_path_factory)
+
+    def seed() -> None:
+        with _evidence_scope(
+            shared / "evidence",
+            iteration=1,
+            assignment=("off", "on"),
+            terminal="commit",
+        ) as created:
+            metadata = {
+                "admission_repository": str(created.admission.repository),
+                "admission_role_file": str(created.admission.role_file),
+                "admission_record_path": str(created.admission.record_path),
+                "on_root": created.on_layout.root,
+                "off_root": created.off_layout.root,
+                "on_receipt": str(created.on_receipt),
+                "off_receipt": str(created.off_receipt),
+                "iteration": created.iteration,
+            }
+        _write_certified_evidence_metadata(shared / "evidence.json", metadata)
+
+    with _certified_evidence_lock_scope(
+        shared,
+        access_mode=access_mode,
+        seed=seed,
+    ) as metadata_path:
         metadata = json.loads(metadata_path.read_bytes())
         on_cfg, off_cfg = _marked_driver_configs()
         evidence = _Evidence(
@@ -1234,9 +1314,617 @@ def certified_evidence(tmp_path_factory):
             stack.enter_context(mock.patch.object(C, "exploration_campaign_layout", side_effect=layout_for))
             stack.enter_context(mock.patch.object(L, "exploration_campaign_layout", side_effect=layout_for))
             yield evidence
-    finally:
-        fcntl.flock(lock_fd, fcntl.LOCK_UN)
-        os.close(lock_fd)
+
+
+@pytest.fixture
+def certified_evidence(tmp_path_factory):
+    """Provide shared certified evidence under a reader lock."""
+
+    with _certified_evidence_fixture_scope(
+        tmp_path_factory,
+        access_mode="read",
+    ) as evidence:
+        yield evidence
+
+
+@pytest.fixture
+def certified_evidence_writer(tmp_path_factory):
+    """Provide shared certified evidence under a writer lock."""
+
+    with _certified_evidence_fixture_scope(
+        tmp_path_factory,
+        access_mode="write",
+    ) as evidence:
+        yield evidence
+
+
+def _seeded_certified_evidence_lock_root(tmp_path: Path) -> Path:
+    shared = tmp_path / "certified-lock"
+    shared.mkdir()
+    (shared / "evidence.json").write_bytes(b"{}")
+    return shared
+
+
+def test_certified_evidence_lock_allows_two_readers(tmp_path: Path) -> None:
+    """Without this check, an exclusive reader lock can pass while serializing all consumers."""
+
+    shared = _seeded_certified_evidence_lock_root(tmp_path)
+    seed = mock.Mock()
+    with _certified_evidence_lock_scope(
+        shared,
+        access_mode="read",
+        seed=seed,
+    ):
+        competing_fd = os.open(shared / "fixture.lock", os.O_RDWR)
+        try:
+            fcntl.flock(competing_fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+            fcntl.flock(competing_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(competing_fd)
+    seed.assert_not_called()
+
+
+def test_certified_evidence_seeded_reader_never_requests_exclusive(
+    tmp_path: Path,
+) -> None:
+    """Without this check, a seeded reader can briefly take EX and rebuild a serial chain."""
+
+    shared = _seeded_certified_evidence_lock_root(tmp_path)
+    operations: list[int] = []
+    real_flock = fcntl.flock
+
+    def observed_flock(fd: int, operation: int) -> None:
+        operations.append(operation)
+        real_flock(fd, operation)
+
+    with mock.patch.object(fcntl, "flock", side_effect=observed_flock):
+        with _certified_evidence_lock_scope(
+            shared,
+            access_mode="read",
+            seed=mock.Mock(),
+        ):
+            pass
+
+    assert fcntl.LOCK_SH in operations
+    assert fcntl.LOCK_EX not in operations
+    assert operations[-1] == fcntl.LOCK_UN
+
+
+def test_certified_evidence_reader_blocks_nonblocking_writer(
+    tmp_path: Path,
+) -> None:
+    """Without this check, an unlocked reader can observe a writer's temporary damage."""
+
+    shared = _seeded_certified_evidence_lock_root(tmp_path)
+    with _certified_evidence_lock_scope(
+        shared,
+        access_mode="read",
+        seed=mock.Mock(),
+    ):
+        competing_fd = os.open(shared / "fixture.lock", os.O_RDWR)
+        try:
+            with pytest.raises(OSError) as exc_info:
+                fcntl.flock(
+                    competing_fd,
+                    fcntl.LOCK_EX | fcntl.LOCK_NB,
+                )
+            assert exc_info.value.errno in {
+                errno.EWOULDBLOCK,
+                errno.EAGAIN,
+            }
+        finally:
+            os.close(competing_fd)
+
+
+def test_certified_evidence_writer_blocks_nonblocking_reader(
+    tmp_path: Path,
+) -> None:
+    """Without this check, a shared writer lock can expose temporary damage to readers."""
+
+    shared = _seeded_certified_evidence_lock_root(tmp_path)
+    with _certified_evidence_lock_scope(
+        shared,
+        access_mode="write",
+        seed=mock.Mock(),
+    ):
+        competing_fd = os.open(shared / "fixture.lock", os.O_RDWR)
+        try:
+            with pytest.raises(OSError) as exc_info:
+                fcntl.flock(
+                    competing_fd,
+                    fcntl.LOCK_SH | fcntl.LOCK_NB,
+                )
+            assert exc_info.value.errno in {
+                errno.EWOULDBLOCK,
+                errno.EAGAIN,
+            }
+        finally:
+            os.close(competing_fd)
+
+
+def test_certified_evidence_seed_double_check_observes_competing_seed(
+    tmp_path: Path,
+) -> None:
+    """Without this check, two workers can both seed and split metadata from evidence."""
+
+    shared = tmp_path / "certified-lock"
+    shared.mkdir()
+    metadata_path = shared / "evidence.json"
+    real_exists = Path.exists
+    real_flock = fcntl.flock
+    first_metadata_check = True
+    operations: list[int] = []
+    seed = mock.Mock()
+
+    def staged_exists(path: Path) -> bool:
+        nonlocal first_metadata_check
+        if path == metadata_path and first_metadata_check:
+            first_metadata_check = False
+            return False
+        return real_exists(path)
+
+    def competing_flock(fd: int, operation: int) -> None:
+        real_flock(fd, operation)
+        operations.append(operation)
+        if operation == fcntl.LOCK_EX:
+            metadata_path.write_bytes(b"{}")
+
+    with (
+        mock.patch.object(
+            Path,
+            "exists",
+            autospec=True,
+            side_effect=staged_exists,
+        ),
+        mock.patch.object(fcntl, "flock", side_effect=competing_flock),
+    ):
+        with _certified_evidence_lock_scope(
+            shared,
+            access_mode="read",
+            seed=seed,
+        ):
+            pass
+
+    seed.assert_not_called()
+    assert operations[:3] == [
+        fcntl.LOCK_EX,
+        fcntl.LOCK_UN,
+        fcntl.LOCK_SH,
+    ]
+
+
+def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(
+    tmp_path_factory,
+) -> None:
+    """Without this check, the real fixture can lose its mode or unlock before yield."""
+
+    shared = _certified_evidence_shared_root(tmp_path_factory)
+
+    def assert_competing_lock_is_blocked(operation: int) -> None:
+        competing_fd = os.open(shared / "fixture.lock", os.O_RDWR)
+        try:
+            with pytest.raises(OSError) as exc_info:
+                fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)
+            assert exc_info.value.errno in {
+                errno.EWOULDBLOCK,
+                errno.EAGAIN,
+            }
+        finally:
+            os.close(competing_fd)
+
+    with _certified_evidence_fixture_scope(
+        tmp_path_factory,
+        access_mode="read",
+    ):
+        competing_reader_fd = os.open(shared / "fixture.lock", os.O_RDWR)
+        try:
+            fcntl.flock(
+                competing_reader_fd,
+                fcntl.LOCK_SH | fcntl.LOCK_NB,
+            )
+            fcntl.flock(competing_reader_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(competing_reader_fd)
+        assert_competing_lock_is_blocked(fcntl.LOCK_EX)
+
+    with _certified_evidence_fixture_scope(
+        tmp_path_factory,
+        access_mode="write",
+    ):
+        assert_competing_lock_is_blocked(fcntl.LOCK_SH)
+
+
+def test_certified_evidence_fixture_scope_yield_is_inside_lock_ast() -> None:
+    """Without this check, scopes can drop mode forwarding or yield outside locks."""
+
+    module = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    scope = functions["_certified_evidence_fixture_scope"]
+    yields = [node for node in ast.walk(scope) if isinstance(node, ast.Yield)]
+    lock_withs = [
+        node
+        for node in ast.walk(scope)
+        if isinstance(node, ast.With)
+        and any(
+            isinstance(item.context_expr, ast.Call)
+            and isinstance(item.context_expr.func, ast.Name)
+            and item.context_expr.func.id == "_certified_evidence_lock_scope"
+            for item in node.items
+        )
+    ]
+
+    assert len(yields) == 1
+    assert len(lock_withs) == 1
+    lock_call = next(
+        item.context_expr
+        for item in lock_withs[0].items
+        if isinstance(item.context_expr, ast.Call)
+        and isinstance(item.context_expr.func, ast.Name)
+        and item.context_expr.func.id == "_certified_evidence_lock_scope"
+    )
+    mode_keywords = [
+        keyword
+        for keyword in lock_call.keywords
+        if keyword.arg == "access_mode"
+    ]
+    assert len(mode_keywords) == 1
+    assert isinstance(mode_keywords[0].value, ast.Name)
+    assert mode_keywords[0].value.id == "access_mode"
+    assert any(
+        yields[0] in tuple(ast.walk(statement))
+        for statement in lock_withs[0].body
+    )
+
+    for fixture_name, expected_mode in {
+        "certified_evidence": "read",
+        "certified_evidence_writer": "write",
+    }.items():
+        wrapper = functions[fixture_name]
+        wrapper_yields = [
+            node for node in ast.walk(wrapper) if isinstance(node, ast.Yield)
+        ]
+        fixture_withs = [
+            node
+            for node in ast.walk(wrapper)
+            if isinstance(node, ast.With)
+            and any(
+                isinstance(item.context_expr, ast.Call)
+                and isinstance(item.context_expr.func, ast.Name)
+                and item.context_expr.func.id
+                == "_certified_evidence_fixture_scope"
+                for item in node.items
+            )
+        ]
+        assert len(wrapper_yields) == 1
+        assert len(fixture_withs) == 1
+        fixture_call = next(
+            item.context_expr
+            for item in fixture_withs[0].items
+            if isinstance(item.context_expr, ast.Call)
+            and isinstance(item.context_expr.func, ast.Name)
+            and item.context_expr.func.id == "_certified_evidence_fixture_scope"
+        )
+        wrapper_mode_keywords = [
+            keyword
+            for keyword in fixture_call.keywords
+            if keyword.arg == "access_mode"
+        ]
+        assert len(wrapper_mode_keywords) == 1
+        assert isinstance(wrapper_mode_keywords[0].value, ast.Constant)
+        assert wrapper_mode_keywords[0].value.value == expected_mode
+        assert any(
+            wrapper_yields[0] in tuple(ast.walk(statement))
+            for statement in fixture_withs[0].body
+        )
+
+
+def test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast(
+) -> None:
+    """Without this check, production seed can bypass the atomic metadata helper."""
+
+    module = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    scope = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_certified_evidence_fixture_scope"
+    )
+    seeds = [
+        node
+        for node in scope.body
+        if isinstance(node, ast.FunctionDef) and node.name == "seed"
+    ]
+    assert len(seeds) == 1
+    seed = seeds[0]
+
+    def is_direct_metadata_path(expression: ast.expr) -> bool:
+        return (
+            isinstance(expression, ast.BinOp)
+            and isinstance(expression.op, ast.Div)
+            and isinstance(expression.left, ast.Name)
+            and expression.left.id == "shared"
+            and isinstance(expression.right, ast.Constant)
+            and expression.right.value == "evidence.json"
+        )
+
+    calls = [node for node in ast.walk(seed) if isinstance(node, ast.Call)]
+    helper_calls = [
+        call
+        for call in calls
+        if isinstance(call.func, ast.Name)
+        and call.func.id == "_write_certified_evidence_metadata"
+    ]
+    assert len(helper_calls) == 1
+    assert helper_calls[0].args
+    assert is_direct_metadata_path(helper_calls[0].args[0])
+
+    forbidden_file_calls = [
+        call
+        for call in calls
+        if (
+            isinstance(call.func, ast.Name)
+            and call.func.id == "open"
+        )
+        or (
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr
+            in {"write_bytes", "write_text", "open", "replace", "rename"}
+        )
+    ]
+    assert forbidden_file_calls == []
+
+
+def test_certified_evidence_metadata_is_fsynced_and_atomically_replaced(
+    tmp_path: Path,
+) -> None:
+    """Without this check, a direct metadata write can publish a partial seed as ready."""
+
+    metadata_path = tmp_path / "evidence.json"
+    metadata = {"iteration": 1, "on_root": "on", "off_root": "off"}
+    expected_payload = json.dumps(
+        metadata,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    operations: list[tuple[object, ...]] = []
+    allocations: list[tuple[int, Path]] = []
+    real_mkstemp = tempfile.mkstemp
+    real_fdopen = os.fdopen
+    real_fsync = os.fsync
+    real_replace = os.replace
+
+    class ObservedStream:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            self.stream.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.stream.__exit__(*args)
+
+        def write(self, payload: bytes) -> int:
+            written = self.stream.write(payload)
+            operations.append(("write", self.stream.fileno(), payload))
+            return written
+
+        def flush(self) -> None:
+            self.stream.flush()
+            operations.append(("flush", self.stream.fileno()))
+
+        def fileno(self) -> int:
+            return self.stream.fileno()
+
+    def observed_mkstemp(*args, **kwargs):
+        fd, name = real_mkstemp(*args, **kwargs)
+        allocations.append((fd, Path(name)))
+        return fd, name
+
+    def observed_fdopen(*args, **kwargs):
+        return ObservedStream(real_fdopen(*args, **kwargs))
+
+    def observed_fsync(fd: int) -> None:
+        temp_path = next(
+            path
+            for allocated_fd, path in allocations
+            if allocated_fd == fd
+        )
+        operations.append(("fsync", fd, temp_path.read_bytes()))
+        real_fsync(fd)
+
+    def observed_replace(source, target) -> None:
+        operations.append(("replace", Path(source), Path(target)))
+        real_replace(source, target)
+
+    with (
+        mock.patch.object(tempfile, "mkstemp", side_effect=observed_mkstemp),
+        mock.patch.object(os, "fdopen", side_effect=observed_fdopen),
+        mock.patch.object(os, "fsync", side_effect=observed_fsync),
+        mock.patch.object(os, "replace", side_effect=observed_replace),
+    ):
+        _write_certified_evidence_metadata(metadata_path, metadata)
+
+    assert len(allocations) == 1
+    assert [operation[0] for operation in operations] == [
+        "write",
+        "flush",
+        "fsync",
+        "replace",
+    ]
+    temp_fd, temp_path = allocations[0]
+    assert [operation[1] for operation in operations[:3]] == [temp_fd] * 3
+    assert operations[0][2] == expected_payload
+    assert operations[2][2] == expected_payload
+    source, target = operations[3][1:]
+    assert source == temp_path
+    assert source != target
+    assert source.parent == target.parent == metadata_path.parent
+    assert source.name.startswith(f".{target.name}.")
+    assert source.name.endswith(".tmp")
+    assert target == metadata_path
+    assert metadata_path.read_bytes() == expected_payload
+
+
+def test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers() -> None:
+    """Without this direct test-file path-mutation closure, excluding called helper writes, undeclared shared writers can pass."""
+
+    expected_modes = {
+        "test_m01_assembly_rederives_precursor_from_the_sealed_registry": "read",
+        "test_m02_planned_path_lookup_and_publish_use_the_issuer_leaf": "read",
+        "test_m03_assignment_comes_from_attempt_wal_first_record_timestamps": "read",
+        "test_m04_final_assembly_rejects_different_on_off_pair_ids": "read",
+        "test_m05_campaign_lock_classification_and_receipt_share_one_byte_buffer": "read",
+        "test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit": "read",
+        "test_m07_non_binary_exact_decimal_lexeme_is_preserved": "read",
+        "test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple": "read",
+        "test_m10_certified_off_digest_absence_sets_treatment_fired_true": "read",
+        "test_m12_nonterminating_reference_ratio_has_only_named_rejection": "read",
+        "test_m13_integer_reference_is_the_only_integer_acceptance_control": "read",
+        "test_m16_judgment_fields_are_unknown_request_fields": "read",
+        "test_m17_terminal_receipt_validation_survives_original_replacement": "write",
+        "test_m18_symlinked_evidence_is_rejected_with_regular_control": "write",
+        "test_assembly_rederives_judgments_and_requires_non_guarantees": "read",
+        "test_manifest_driver_must_match_campaign_and_receipt_driver_kind": "read",
+        "test_non_guarantees_name_the_residual_lock_and_closure_limits": "read",
+    }
+    fixture_modes = {
+        "certified_evidence": "read",
+        "certified_evidence_writer": "write",
+    }
+    mutators = {
+        "write_bytes",
+        "write_text",
+        "rename",
+        "replace",
+        "unlink",
+        "symlink_to",
+        "hardlink_to",
+        "mkdir",
+        "rmdir",
+        "touch",
+        "chmod",
+    }
+    module = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef)
+    }
+
+    wrapper_modes = {}
+    for fixture_name in fixture_modes:
+        calls = [
+            node
+            for node in ast.walk(functions[fixture_name])
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_certified_evidence_fixture_scope"
+        ]
+        assert len(calls) == 1
+        mode_keyword = next(
+            keyword
+            for keyword in calls[0].keywords
+            if keyword.arg == "access_mode"
+        )
+        assert isinstance(mode_keyword.value, ast.Constant)
+        wrapper_modes[fixture_name] = mode_keyword.value.value
+    assert wrapper_modes == fixture_modes
+
+    declared_modes = {}
+    fixture_arguments = {}
+    for function_name, function in functions.items():
+        arguments = [
+            argument.arg
+            for argument in function.args.args
+            if argument.arg in fixture_modes
+        ]
+        if arguments:
+            assert len(arguments) == 1
+            fixture_arguments[function_name] = arguments[0]
+            declared_modes[function_name] = fixture_modes[arguments[0]]
+    assert declared_modes == expected_modes
+
+    def is_tainted(expression: ast.expr, tainted_names: set[str]) -> bool:
+        if isinstance(expression, ast.Name):
+            return expression.id in tainted_names
+        if isinstance(expression, ast.Attribute):
+            return is_tainted(expression.value, tainted_names)
+        if isinstance(expression, ast.Call):
+            if (
+                isinstance(expression.func, ast.Name)
+                and expression.func.id == "Path"
+                and expression.args
+            ):
+                return is_tainted(expression.args[0], tainted_names)
+            if (
+                isinstance(expression.func, ast.Attribute)
+                and expression.func.attr == "with_name"
+            ):
+                return is_tainted(expression.func.value, tainted_names)
+        return False
+
+    def assigned_names(target: ast.expr) -> set[str]:
+        if isinstance(target, ast.Name):
+            return {target.id}
+        if isinstance(target, (ast.Tuple, ast.List)):
+            return {
+                name
+                for element in target.elts
+                for name in assigned_names(element)
+            }
+        return set()
+
+    mutation_functions = set()
+    for function_name in expected_modes:
+        function = functions[function_name]
+        tainted_names = {fixture_arguments[function_name]}
+        changed = True
+        while changed:
+            changed = False
+            for node in ast.walk(function):
+                targets: list[ast.expr] = []
+                value = None
+                if isinstance(node, ast.Assign):
+                    targets = node.targets
+                    value = node.value
+                elif isinstance(node, ast.AnnAssign):
+                    targets = [node.target]
+                    value = node.value
+                if value is None or not is_tainted(value, tainted_names):
+                    continue
+                discovered = {
+                    name
+                    for target in targets
+                    for name in assigned_names(target)
+                }
+                if not discovered.issubset(tainted_names):
+                    tainted_names.update(discovered)
+                    changed = True
+
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in mutators
+            and is_tainted(node.func.value, tainted_names)
+            for node in ast.walk(function)
+        ):
+            mutation_functions.add(function_name)
+
+    expected_writers = {
+        "test_m17_terminal_receipt_validation_survives_original_replacement",
+        "test_m18_symlinked_evidence_is_rejected_with_regular_control",
+    }
+    declared_writers = {
+        function_name
+        for function_name, mode in declared_modes.items()
+        if mode == "write"
+    }
+    assert mutation_functions == declared_writers == expected_writers
 
 
 def _build_full_publication_evidence(
@@ -1600,57 +2288,62 @@ def test_m16_judgment_fields_are_unknown_request_fields(
 
 def test_m17_terminal_receipt_validation_survives_original_replacement(
     tmp_path: Path,
-    certified_evidence: _Evidence,
+    certified_evidence_writer: _Evidence,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Every later validator consumes the first terminal-receipt snapshot bytes."""
     publication = _publication(tmp_path)
     real = P._snapshot_regular
-    receipt_path = str(certified_evidence.on_receipt)
-    original = certified_evidence.on_receipt.read_bytes()
+    receipt_path = str(certified_evidence_writer.on_receipt)
+    original = certified_evidence_writer.on_receipt.read_bytes()
     replaced = False
 
     def replace_after_snapshot(path, **kwargs):
         nonlocal replaced
         snapshot = real(path, **kwargs)
         if os.fspath(path) == receipt_path and not replaced:
-            certified_evidence.on_receipt.write_bytes(b"not-the-snapshotted-receipt")
+            certified_evidence_writer.on_receipt.write_bytes(
+                b"not-the-snapshotted-receipt"
+            )
             replaced = True
         return snapshot
 
     monkeypatch.setattr(P, "_snapshot_regular", replace_after_snapshot)
     try:
-        _assert_write(_publish(publication, certified_evidence))
+        _assert_write(_publish(publication, certified_evidence_writer))
     finally:
-        certified_evidence.on_receipt.write_bytes(original)
+        certified_evidence_writer.on_receipt.write_bytes(original)
     assert replaced
 
 
 def test_m18_symlinked_evidence_is_rejected_with_regular_control(
     tmp_path: Path,
-    certified_evidence: _Evidence,
+    certified_evidence_writer: _Evidence,
 ) -> None:
     """Acceptance would follow a replaceable receipt leaf. Rejection preserves the regular-file control and rejects the symlinked locator."""
     control = _publication(tmp_path / "control")
-    _assert_write(_publish(control, certified_evidence))
+    _assert_write(_publish(control, certified_evidence_writer))
     link = tmp_path / "terminal-link.json"
-    link.symlink_to(certified_evidence.on_receipt)
+    link.symlink_to(certified_evidence_writer.on_receipt)
     publication = _publication(tmp_path / "attack")
-    request = _request(certified_evidence, publication.manifest.rows[0].attempt_id)
+    request = _request(
+        certified_evidence_writer,
+        publication.manifest.rows[0].attempt_id,
+    )
     request["on_terminal_receipt_path"] = str(link)
     _assert_rejection(
         P.publish_b4_attempt_result(publication=publication, request=request),
         P.B4RawRecordIssueCode.EVIDENCE_SYMLINK,
     )
 
-    role_file = Path(certified_evidence.admission.role_file)
+    role_file = Path(certified_evidence_writer.admission.role_file)
     held_role = role_file.with_name("critic-held.md")
     role_file.rename(held_role)
     role_file.symlink_to(held_role)
     try:
         role_publication = _publication(tmp_path / "role-attack")
         _assert_rejection(
-            _publish(role_publication, certified_evidence),
+            _publish(role_publication, certified_evidence_writer),
             P.B4RawRecordIssueCode.EVIDENCE_SYMLINK,
         )
     finally:

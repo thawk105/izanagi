@@ -1,0 +1,274 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 1500,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "t1905tc.m01",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "    if len(digests) != len(expected_digests) \\\n            or set(digests) != set(expected_digests):\n",
+     "new": "    if not set(digests) <= set(expected_digests):\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m02",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "    if campaign_id != LEGACY_BALANCED_CAMPAIGN_ID:\n",
+     "new": "    if campaign_id != campaign_id:\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m03",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "                or row.get(\"workload\") != \"balanced\" \\\n                or type(row.get(\"execution_host\")) is not str \\\n                or not row.get(\"execution_host\") \\\n",
+     "new": "                or row.get(\"workload\") != \"balanced\" \\\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m04",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "                or row.get(\"workload\") != \"balanced\" \\\n",
+     "new": "                or row.get(\"workload\") not in WORKLOADS \\\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m05",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "        \"formula_sha256\": prereg.binding.formula_sha256,\n        \"analysis_code_sha256\": LEGACY_BALANCED_ANALYSIS_SHA256,\n",
+     "new": "        \"formula_sha256\": prereg.binding.formula_sha256,\n        \"analysis_code_sha256\": prereg.binding.analysis_code_sha256,\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m06",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "        elif workload == \"balanced\":\n            indexed = _validate_legacy_balanced_records(\n                records,\n                campaign_id=campaign_id,\n                prereg=prereg,\n            )\n",
+     "new": "        elif workload == \"balanced\":\n            indexed = _validate_prior_block_records(\n                records, workload=workload, prereg=prereg,\n            )\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m07",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "                search_tag=(\n                    TRIAL_SEARCH_TAG if phase == TRIAL_CELL_PHASE else \"formal\"\n                ),\n                submission_nonce=(\n                    submission.nonce if phase == TRIAL_CELL_PHASE else None\n                ),\n",
+     "new": "                search_tag=\"formal\",\n                submission_nonce=None,\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m08",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "                (all_named[trial_cell[2]],) if trial_cell is not None else genomes()\n",
+     "new": "                genomes()\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m09",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "        and performance_sha == certified.perf_bin_sha256\n",
+     "new": "        and True\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m10",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "        and row.get(\"submission_nonce\") == submission.nonce\n",
+     "new": "        and True\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m11",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "    return 0 if execution_complete else 1\n",
+     "new": "    return 0\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m12",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+     "old": "[[ \"${IZANAGI_B10_PHASE:-}\" =~ ^(build|verify|perf|probe|verify-perf|trial-cell|report)$ ]] || bootstrap_fail \"phase missing\"\n",
+     "new": "[[ \"${IZANAGI_B10_PHASE:-}\" =~ ^(build|verify|perf|probe|verify-perf|report)$ ]] || bootstrap_fail \"phase missing\"\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m13",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "    \"feca4c67fab4c018596ad2fb9a10604275d56b0bfdb9ad06a5c9517303067107\",\n})\n",
+     "new": "    \"feca4c67fab4c018596ad2fb9a10604275d56b0bfdb9ad06a5c9517303067107\",\n    \"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\n})\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m14",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "            return \"block-1\", schedule_index, point\n",
+     "new": "            return \"block-1\", 0, order[0]\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m16",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "    expected_record_digests: Collection[str] = LEGACY_BALANCED_RECORD_SHA256S,\n",
+     "new": "    expected_record_digests: Collection[str] = LEGACY_WRITE_HEAVY_RECORD_SHA256S,\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m17",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "        \"scale\": \"silo-b10-backoff-shape\",\n",
+     "new": "        \"scale\": \"silo-b10-backoff-shape-trial\",\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m18",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "    if phase == TRIAL_CELL_PHASE and prior:\n",
+     "new": "    if False and prior:\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m19",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "        and row.get(\"record_sha256\") == written_record_sha256\n",
+     "new": "        and True\n"
+    }
+   ]
+  },
+  {
+   "id": "t1905tc.m15",
+   "category": "positive",
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+     "old": "    references = {name for name, _back_off, _fixed in spec.references}\n",
+     "new": "    references = set(name for name, _back_off, _fixed in spec.references)\n"
+    }
+   ]
+  }
+ ]
+}

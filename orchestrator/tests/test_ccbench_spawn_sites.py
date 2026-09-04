@@ -858,7 +858,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "buildcache",
         "<module>._build_binary",
-        2787,
+        3131,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
@@ -866,7 +866,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_formal",
-        3513,
+        3890,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
@@ -882,7 +882,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
-        4543,
+        4705,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -890,7 +890,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8457,
+        8625,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -905,17 +905,27 @@ _DEFERRED_GATE_MEMBERS = (
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+        "wave t2189",
+        (
+            "明示 certify mode の tuned adaptive trace build。exact cell / "
+            "workload contract、実 verifier 陽性対照、target gate、closure "
+            "identity に束縛される。condition-gate family admission は本 wave "
+            "の scope 外"
+        ),
+        "buildcache",
+        "<module>._certify_main._build_trace_binary",
+        1821,
+    ),
+    _DeferredGateMember(
+        "tools/pegasus/probes/t2187_adaptive_const_probe.py",
         "wave t2187",
         (
-            "この probe は性能測定専用で直列性検査を通さず、成果物は認証されない。"
-            "BACKOFF_INCR_MILLI、BACKOFF_MAX_US、BACKOFF_UPDATE_US の既定値は"
-            "stock と同値で inert であり、既定では build 出力を変えない。"
-            "backoff_sweep.py 型の supply effectuation、runtime meaning、"
-            "family admission の正配線は後続タスクで行う"
+            "既定 performance mode の trace-disabled build。成果物は従来どおり "
+            "performance-only / not_certified であり、認証 mode と分離される"
         ),
         "buildcache",
         "<module>.main",
-        414,
+        2124,
     ),
 )
 
@@ -2633,11 +2643,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     } == {
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "buildcache", "<module>._build_binary", 2787,
+            "wave t1905", "buildcache", "<module>._build_binary", 3131,
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "campaign", "<module>.run_formal", 3513,
+            "wave t1905", "campaign", "<module>.run_formal", 3890,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
@@ -2646,11 +2656,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build", 4543,
+            "<module>.build_cells.invoke_build", 4705,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8457,
+            "wave t2027", "campaign", "<module>.main", 8625,
         ),
         (
             "orchestrator/campaign/s8b_oracle_n_pilot.py",
@@ -2659,7 +2669,12 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2187", "buildcache", "<module>.main", 414,
+            "wave t2189", "buildcache",
+            "<module>._certify_main._build_trace_binary", 1821,
+        ),
+        (
+            "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "wave t2187", "buildcache", "<module>.main", 2124,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
@@ -2864,7 +2879,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s1_sink = _BuildSink(
         "orchestrator/campaign/s1_direct_comparison.py",
         "<module>.run_role",
-        1215,
+        1219,
         "campaign",
     )
     s8b_sink = _BuildSink(
