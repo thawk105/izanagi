@@ -1,0 +1,260 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+          "old": "    if type(declared) is not str or declared != expected:\n",
+          "new": "    if type(declared) is not str:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+          "old": "                              declared_use_class=DECLARED_USE_CLASS,\n                              sort_oracle_contract_id=sort_oracle_contract_id)\n",
+          "new": "                              declared_use_class=DECLARED_USE_CLASS)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if sort_oracle_contract_id is not None:\n                    source_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "                if False:\n                    source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if sort_oracle_contract_id is not None:\n                    evaluate_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "                if False:\n                    evaluate_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            source_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "        if False:\n            source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                if sort_oracle_contract_id is not None:\n                    build_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "                if False:\n                    build_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            if sort_oracle_contract_id is not None:\n                common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n",
+          "new": "            if False:\n                common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        + sort_oracle_contract_id.encode(\"ascii\")\n        + b\"\\0source=\"\n        + raw_digest.encode(\"ascii\")\n    )\n    return hashlib.sha256(preimage).hexdigest()\n",
+          "new": "        + sort_oracle_contract_id.encode(\"ascii\")\n        + b\"\\0source=\"\n        + raw_digest.encode(\"ascii\")\n    )\n    return raw_digest\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        b\"sort-src-token/v1\\0contract=\"\n",
+          "new": "        b\"sort-src-token/v2\\0contract=\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "    if (backoff_grammar_version is not None\n            and sort_oracle_contract_id is not None):\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    if sort_oracle_contract_id is not None:\n        common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n",
+          "new": "    if False:\n        common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                    built_fresh=False,\n                    backoff_grammar_version=backoff_grammar_version,\n                    sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                    built_fresh=False,\n                    backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                staging, built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n                sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                staging, built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "            or not sort_oracle_contract_id\n",
+          "new": "            or sort_oracle_contract_id == \"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            source_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "        if False:\n            source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "            or \"\\0\" in sort_oracle_contract_id\n",
+          "new": "            or False\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                genome, ccbench_commit, sub, cxx, source_evidence, staging,\n                built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n                sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                genome, ccbench_commit, sub, cxx, source_evidence, staging,\n                built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M18",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                            bdir, built_fresh=False,\n                            backoff_grammar_version=backoff_grammar_version,\n                            sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                            bdir, built_fresh=False,\n                            backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

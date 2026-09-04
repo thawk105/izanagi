@@ -1,0 +1,587 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+          "old": "    if type(declared) is not str or declared != expected:\n",
+          "new": "    if type(declared) is not str:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_require_sort_oracle_contract_accepts_only_running_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+          "old": "                              declared_use_class=DECLARED_USE_CLASS,\n                              sort_oracle_contract_id=sort_oracle_contract_id)\n",
+          "new": "                              declared_use_class=DECLARED_USE_CLASS)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_driver_forwards_producer_contract_to_run_campaign"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if sort_oracle_contract_id is not None:\n                    source_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "                if False:\n                    source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if sort_oracle_contract_id is not None:\n                    evaluate_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "                if False:\n                    evaluate_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            source_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "        if False:\n            source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[legacy]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[v2]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                if sort_oracle_contract_id is not None:\n                    build_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "                if False:\n                    build_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[legacy]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            if sort_oracle_contract_id is not None:\n                common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n",
+          "new": "            if False:\n                common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[v2]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        + sort_oracle_contract_id.encode(\"ascii\")\n        + b\"\\0source=\"\n        + raw_digest.encode(\"ascii\")\n    )\n    return hashlib.sha256(preimage).hexdigest()\n",
+          "new": "        + sort_oracle_contract_id.encode(\"ascii\")\n        + b\"\\0source=\"\n        + raw_digest.encode(\"ascii\")\n    )\n    return raw_digest\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_bound_evidence_token_is_the_cache_authority",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_bound_sort_requests_never_open_raw_token_entries",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_binder_exact_preimage_and_rejections"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        b\"sort-src-token/v1\\0contract=\"\n",
+          "new": "        b\"sort-src-token/v2\\0contract=\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_binder_exact_preimage_and_rejections"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "    if (backoff_grammar_version is not None\n            and sort_oracle_contract_id is not None):\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_resolved_src_token_rejects_both_bindings"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    if sort_oracle_contract_id is not None:\n        common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n",
+          "new": "    if False:\n        common[\"sort_oracle_contract_id\"] = sort_oracle_contract_id\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_build_exits_recheck_with_sort_contract[v2-fresh]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_build_exits_recheck_with_sort_contract[v2-hit]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_build_v2_wrapper_forwards_sort_contract_to_impl"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                    built_fresh=False,\n                    backoff_grammar_version=backoff_grammar_version,\n                    sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                    built_fresh=False,\n                    backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_build_exits_recheck_with_sort_contract[v2-hit]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                staging, built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n                sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                staging, built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_build_exits_recheck_with_sort_contract[legacy-fresh]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "            or not sort_oracle_contract_id\n",
+          "new": "            or sort_oracle_contract_id == \"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "        if sort_oracle_contract_id is not None:\n            source_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "        if False:\n            source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_recheck_source_evidence_forwards_sort_contract_to_resolver"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "            or \"\\0\" in sort_oracle_contract_id\n",
+          "new": "            or False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_binder_exact_preimage_and_rejections"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M17",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                genome, ccbench_commit, sub, cxx, source_evidence, staging,\n                built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n                sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                genome, ccbench_commit, sub, cxx, source_evidence, staging,\n                built_fresh=True,\n                backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_build_exits_recheck_with_sort_contract[v2-fresh]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M18",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "                            bdir, built_fresh=False,\n                            backoff_grammar_version=backoff_grammar_version,\n                            sort_oracle_contract_id=sort_oracle_contract_id,\n",
+          "new": "                            bdir, built_fresh=False,\n                            backoff_grammar_version=backoff_grammar_version,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_build_exits_recheck_with_sort_contract[legacy-hit]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

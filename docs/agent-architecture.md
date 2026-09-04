@@ -129,15 +129,20 @@ Phase 3 のロールは、本ドキュメントに仕様を予約しておき、
   (`de_novo` / `known_result_conditioned_derivative` / `reproduction_or_selection`)、
   `data_boundary_report` (絶対規律 6 の報告) を持つ。`source_index` が実在する index か、
   重複していないかは `orchestrator/codex_roles/policy.py` の `validate_output_semantics` が
-  機械検査する。**ただし現時点でこの role に自動 consumer は無く (`consumer: null`)、
-  信頼中核が手で起動するため、この検査は自動では発火しない。** また通した場合でも、
-  **本当にその source を使ったか、分類が妥当かは検査しない。** これらは role の自己申告であり、
-  信頼中核が受領証へ書く分類を上書きしない
+  機械検査する。この検査は段 4 loop の proposal consumer へ配線してあり、**呼び手が role 契約を
+  明示的に宣言した呼出しでだけ発火する** (知識入力の有無では発火しない)。
+  発火した場合は論理 output schema の検証と、`data_boundary_report` が指示めいた内容を
+  申告したときの fail-closed 停止も同じ経路で行う。**ただし通した場合でも、
+  本当にその source を使ったか、分類が妥当かは検査しない。** これらは role の自己申告であり、
+  信頼中核が受領証へ書く分類を上書きしない。照合対象は campaign が束縛した knowledge projection
+  であって、role が実際に読んだ入力ではない
 - **主張の境界:** K2 で得た結果から言えるのは knowledge-conditioned な成立までである。
   K2 を条件とする certified な最終選択は、宣言した知識水準と実際に投入した知識源が
   proof chain に結ばれるまで主張しない。候補単位の正しさ・identity・性能の判定は
   知識水準に依存せずそのまま有効である (D1429)
-- **実行境界:** 現時点で自動 consumer は無く (`consumer: null`)、段 4 loop へは配線していない。
+- **実行境界:** 段 4 loop の proposal consumer へ配線済み。**ただし配線であって発火実績ではない** —
+  この role の wrapper が実際に consumer を通った成果物は 0 件である。Codex runtime activation は
+  `uncontrollable_additional_tools` により引き続き blocked。
   信頼中核が手で起動する。agent 登録は session 開始時に読まれるため、この role を作った
   session からは行使できない
 

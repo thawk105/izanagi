@@ -336,6 +336,30 @@ def _resolved_knowledge_fixture(tmp_path: Path):
     )
 
 
+def _resolved_empty_knowledge_fixture(tmp_path: Path):
+    manifest = knowledge_manifest.parse_manifest_bytes(json.dumps({
+        "knowledge_level": "K2",
+        "declared_scope": {
+            "retrieval": [{
+                "kind": "repo_artifact",
+                "selector": "output/insights/2026-09-03_*",
+            }],
+            "injection": [{
+                "kind": "repo_artifact",
+                "selector": "all-successfully-retrieved-sources",
+            }],
+        },
+        "retrieval_result": {
+            "status": "completed_empty",
+            "result_count": 0,
+        },
+        "sources": [],
+    }, ensure_ascii=False).encode("utf-8"))
+    return knowledge_manifest.resolve_live_sources(
+        manifest, repo_root=tmp_path,
+    )
+
+
 def _knowledge_campaign(tmp_path: Path):
     resolved = _resolved_knowledge_fixture(tmp_path)
     campaign, output_root = _campaign(
@@ -412,6 +436,31 @@ def _knowledge_schema_specimen() -> dict:
         },
         "mechanism_hypotheses": [],
     }
+
+
+def _completed_empty_knowledge_schema_specimen() -> dict:
+    report = _knowledge_schema_specimen()
+    report["knowledge_provenance"] = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": "d" * 64,
+        "declared_scope": {
+            "retrieval": [{
+                "kind": "repo_artifact",
+                "selector": "output/insights/2026-09-03_*",
+            }],
+            "injection": [{
+                "kind": "repo_artifact",
+                "selector": "all-successfully-retrieved-sources",
+            }],
+        },
+        "retrieval_result": {
+            "status": "completed_empty",
+            "result_count": 0,
+        },
+        "declared_sources": [],
+        "injected_sources": [],
+    }
+    return report
 
 
 def _certifying_campaign(tmp_path: Path) -> tuple[Path, Path]:
@@ -1782,9 +1831,87 @@ def test_knowledge_report_projects_verified_receipt_sources(tmp_path):
     }
 
 
+def test_knowledge_report_projects_completed_empty_retrieval(tmp_path):
+    """Rejects a report path that drops the v2 scope or retrieval result while retaining empty sources. Accepts the complete empty retrieval projection without fabricating declared or injected sources."""
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        knowledge=resolved,
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    expected = {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": resolved.knowledge_manifest_sha256,
+        "declared_scope": resolved.manifest.declared_scope.canonical_value(),
+        "retrieval_result": resolved.manifest.retrieval_result.canonical_value(),
+        "declared_sources": [],
+        "injected_sources": [],
+    }
+    assert report["knowledge_provenance"] == expected
+
+    del report["knowledge_provenance"]["retrieval_result"]
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
 def test_schema_accepts_independent_knowledge_provenance_specimen():
     """FX4/FX5 positive: the standalone exact-shape specimen is schema-valid."""
     layer3_report._validate_schema(_knowledge_schema_specimen())
+
+
+def test_schema_accepts_completed_empty_knowledge_provenance_specimen():
+    """Rejects the legacy four-key provenance object when either source array is empty. Accepts an independent tagged extended specimen with completed_empty, count zero, and both source arrays empty."""
+    legacy = _knowledge_schema_specimen()
+    legacy["knowledge_provenance"]["declared_sources"] = []
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(legacy)
+
+    layer3_report._validate_schema(
+        _completed_empty_knowledge_schema_specimen()
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-scope",
+        "missing-result",
+        "completed-nonempty",
+        "positive-empty-count",
+        "only-declared-empty",
+    ),
+)
+def test_extended_schema_rejects_empty_sources_without_completed_empty_result(
+    mutation,
+):
+    """Rejects partial, contradictory, or one-sided empty extended provenance. Accepts the unchanged legacy nonempty shape and the complete extended completed-empty shape."""
+    report = _completed_empty_knowledge_schema_specimen()
+    provenance = report["knowledge_provenance"]
+    if mutation == "missing-scope":
+        del provenance["declared_scope"]
+    elif mutation == "missing-result":
+        del provenance["retrieval_result"]
+    elif mutation == "completed-nonempty":
+        provenance["retrieval_result"] = {
+            "status": "completed_nonempty", "result_count": 1,
+        }
+    elif mutation == "positive-empty-count":
+        provenance["retrieval_result"]["result_count"] = 1
+    else:
+        provenance["injected_sources"] = [
+            _knowledge_schema_specimen()["knowledge_provenance"]
+            ["injected_sources"][0]
+        ]
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+    layer3_report._validate_schema(_knowledge_schema_specimen())
+    layer3_report._validate_schema(
+        _completed_empty_knowledge_schema_specimen()
+    )
 
 
 def test_schema_rejects_unknown_nested_knowledge_key():
