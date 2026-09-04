@@ -1,0 +1,76 @@
+"""M-A timeline JSONL の解析。worker ごとの隙間 (report に無い時間) を node へ帰属する。"""
+import json
+import sys
+from collections import defaultdict
+
+path = sys.argv[1]
+gap_min = float(sys.argv[2]) if len(sys.argv) > 2 else 2.0
+ev = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+conf = next((e["t"] for e in ev if e["ev"] == "configure"), None)
+coll = next((e["t"] for e in ev if e["ev"] == "collection_finish"), None)
+fin = next((e["t"] for e in ev if e["ev"] == "sessionfinish"), None)
+wc = [e for e in ev if e["ev"] == "worker_collected"]
+reps = [e for e in ev if e["ev"] == "report"]
+print(f"events={len(ev)} reports={len(reps)} workers_collected={len(wc)}")
+if conf:
+    print(f"configure->collection_finish: {(coll - conf) if coll else None}")
+    if wc:
+        print(f"configure->first worker_collected: {min(e['t'] for e in wc) - conf:.1f}  ->last: {max(e['t'] for e in wc) - conf:.1f}")
+    if fin:
+        print(f"configure->sessionfinish (wall): {fin - conf:.1f}")
+# per test: setup start .. teardown stop
+by = defaultdict(dict)
+for r in reps:
+    by[(r["worker"], r["nodeid"])][r["when"]] = r
+per_worker = defaultdict(list)
+for (w, n), d in by.items():
+    s = d.get("setup"); t = d.get("teardown") or d.get("call") or s
+    if not s or s.get("start") is None:
+        continue
+    start = s["start"]; stop = (t.get("stop") or s.get("stop"))
+    dur = sum(x["duration"] for x in d.values())
+    per_worker[w].append((start, stop, dur, n))
+first_start = min(x[0] for v in per_worker.values() for x in v)
+last_stop = max(x[1] for v in per_worker.values() for x in v)
+print(f"first test start after configure: {first_start - conf:.1f}; last stop after configure: {last_stop - conf:.1f}")
+rows = []
+gaps = []
+for w, items in per_worker.items():
+    items.sort()
+    busy = sum(x[2] for x in items)
+    span = items[-1][1] - items[0][0]
+    lead = items[0][0] - first_start
+    tail = last_stop - items[-1][1]
+    inner = 0.0
+    prev_stop = None
+    for start, stop, dur, n in items:
+        if prev_stop is not None:
+            g = start - prev_stop
+            if g > gap_min:
+                gaps.append((g, w, n))
+            inner += max(0.0, g)
+        # gap inside the test not covered by phases
+        prev_stop = stop
+    rows.append((span, busy, inner, lead, tail, len(items), w))
+rows.sort(reverse=True)
+print("worker  span  busy  inner_gap  lead  tail  items")
+for span, busy, inner, lead, tail, n, w in rows[:12]:
+    print(f"{w:>5} {span:7.1f} {busy:6.1f} {inner:8.1f} {lead:6.1f} {tail:6.1f} {n:5d}")
+tot_busy = sum(r[1] for r in rows); tot_inner = sum(r[2] for r in rows)
+print(f"sum busy={tot_busy:.0f} sum inner_gap={tot_inner:.0f} workers={len(rows)}")
+gaps.sort(reverse=True)
+print(f"top gaps (> {gap_min}s) attributed to the node that started after the gap:")
+for g, w, n in gaps[:25]:
+    print(f"  {g:7.1f} {w:>5} {n[:110]}")
+# also: per-nodeid phase gap: (teardown.stop - setup.start) - sum(durations)
+hidden = []
+for (w, n), d in by.items():
+    s = d.get("setup"); t = d.get("teardown")
+    if s and t and s.get("start") is not None and t.get("stop") is not None:
+        h = (t["stop"] - s["start"]) - sum(x["duration"] for x in d.values())
+        if h > gap_min:
+            hidden.append((h, w, n))
+hidden.sort(reverse=True)
+print("top hidden time inside a test (span - phases):")
+for h, w, n in hidden[:15]:
+    print(f"  {h:7.1f} {w:>5} {n[:110]}")

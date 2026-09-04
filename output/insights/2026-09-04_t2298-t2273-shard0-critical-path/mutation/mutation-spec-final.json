@@ -1,0 +1,241 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "id": "A-WRITER-MODE-SH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n",
+          "new": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_SH,\n        }[access_mode]\n"
+        }
+      ]
+    },
+    {
+      "id": "A2-WRITER-WRAPPER-PASSES-READ",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "    \"\"\"Provide shared certified evidence under a writer lock.\"\"\"\n\n    with _certified_evidence_fixture_scope(\n        tmp_path_factory,\n        access_mode=\"write\",\n",
+          "new": "    \"\"\"Provide shared certified evidence under a writer lock.\"\"\"\n\n    with _certified_evidence_fixture_scope(\n        tmp_path_factory,\n        access_mode=\"read\",\n"
+        }
+      ]
+    },
+    {
+      "id": "B-READER-TAKES-NO-BODY-LOCK",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        fcntl.flock(lock_fd, body_operation)\n        locked = True\n        yield metadata_path\n",
+          "new": "        if access_mode == \"write\":\n            fcntl.flock(lock_fd, body_operation)\n            locked = True\n        yield metadata_path\n"
+        }
+      ]
+    },
+    {
+      "id": "C-M17-WRITER-DECLARATION-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "    certified_evidence_writer: _Evidence,\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    \"\"\"Every later validator consumes the first terminal-receipt snapshot bytes.\"\"\"\n",
+          "new": "    certified_evidence: _Evidence,\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    \"\"\"Every later validator consumes the first terminal-receipt snapshot bytes.\"\"\"\n    certified_evidence_writer = certified_evidence\n"
+        }
+      ]
+    },
+    {
+      "id": "C2-M18-WRITER-DECLARATION-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "    certified_evidence_writer: _Evidence,\n) -> None:\n    \"\"\"Acceptance would follow a replaceable receipt leaf.",
+          "new": "    certified_evidence: _Evidence,\n) -> None:\n    certified_evidence_writer = certified_evidence\n    \"\"\"Acceptance would follow a replaceable receipt leaf."
+        }
+      ]
+    },
+    {
+      "id": "D-SEED-DOUBLE-CHECK-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "            locked = True\n            if not metadata_path.exists():\n                evidence_root = shared / \"evidence\"\n",
+          "new": "            locked = True\n            if True:\n                evidence_root = shared / \"evidence\"\n"
+        }
+      ]
+    },
+    {
+      "id": "E-READER-MODE-EX-OLD-BEHAVIOUR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n",
+          "new": "        body_operation = {\n            \"read\": fcntl.LOCK_EX,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n"
+        }
+      ]
+    },
+    {
+      "id": "F-UNLOCK-BEFORE-YIELD",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        fcntl.flock(lock_fd, body_operation)\n        locked = True\n        yield metadata_path\n",
+          "new": "        fcntl.flock(lock_fd, body_operation)\n        fcntl.flock(lock_fd, fcntl.LOCK_UN)\n        locked = False\n        yield metadata_path\n"
+        }
+      ]
+    },
+    {
+      "id": "G-METADATA-DIRECT-WRITE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        os.replace(temp_path, metadata_path)\n",
+          "new": "        metadata_path.write_bytes(payload)\n        temp_path.unlink()\n"
+        }
+      ]
+    },
+    {
+      "id": "H-SCOPE-MODE-CONSTANT-WRITE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        access_mode=access_mode,\n        seed=seed,\n",
+          "new": "        access_mode=\"write\",\n        seed=seed,\n"
+        }
+      ]
+    },
+    {
+      "id": "G2-SEED-PUBLISHES-METADATA-DIRECTLY",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n",
+          "new": "        (shared / \"evidence.json\").write_bytes(json.dumps(metadata, sort_keys=True, separators=(\",\", \":\")).encode(\"utf-8\"))\n"
+        }
+      ]
+    },
+    {
+      "id": "I-SEED-DIRECT-PUBLISH-BESIDE-HELPER",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n",
+          "new": "        shared.joinpath(\"evidence.json\").write_bytes(b\"{\")\n        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n"
+        }
+      ]
+    },
+    {
+      "id": "J-FSYNC-BEFORE-WRITE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "            stream.write(payload)\n            stream.flush()\n            os.fsync(stream.fileno())\n",
+          "new": "            os.fsync(stream.fileno())\n            stream.write(payload)\n            stream.flush()\n"
+        }
+      ]
+    },
+    {
+      "id": "EQ-LOCKED-FALSE-SPELLING",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "old": "            fcntl.flock(lock_fd, fcntl.LOCK_UN)\n            locked = False\n\n        body_operation = {\n",
+          "new": "            fcntl.flock(lock_fd, fcntl.LOCK_UN)\n            locked = bool(0)\n\n        body_operation = {\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1009 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/6447c7c6098db4a1878aae1cd4bc3a0d/izdw-6447c7c609.o977455",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/6447c7c6098db4a1878aae1cd4bc3a0d/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n..........                                                               [100%]\n============================== 10 passed in 8.27s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "01473b4078b38abd0542b0223897af0779f44aca98b14012effa65ed26987c93"
+    },
+    "artifact_error": null,
+    "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+    "duration_s": 32.447,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "5ceffb3bc2ec21a0b5717d92c37a2752792f3e948121a120cbd4b7f97b1fc65a",
+    "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+    "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+    "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+    "status": "PASSED",
+    "test_output_sha256": "01473b4078b38abd0542b0223897af0779f44aca98b14012effa65ed26987c93",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+  },
+  "date": "2026-09-04T14:57:59.441755+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/bffbbc2eac78daee21eb48bf9d521edf/izdw-bffbbc2eac.o977459",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/bffbbc2eac78daee21eb48bf9d521edf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........FF                                                               [100%]\n=================================== FAILURES ===================================\n___________ test_certified_evidence_writer_blocks_nonblocking_reader ___________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_certified_evidence_writer0')\n\n    def test_certified_evidence_writer_blocks_nonblocking_reader(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, a shared writer lock can expose temporary damage to readers.\"\"\"\n    \n        shared = _seeded_certified_evidence_lock_root(tmp_path)\n        with _certified_evidence_lock_scope(\n            shared,\n            access_mode=\"write\",\n            seed=mock.Mock(),\n        ):\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n>               with pytest.raises(OSError) as exc_info:\nE               Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1432: Failed\n_____ test_certified_evidence_fixture_scope_holds_both_modes_through_yield _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...fe182170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n\n    def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n        tmp_path_factory,\n    ) -> None:\n        \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n    \n        shared = _certified_evidence_shared_root(tmp_path_factory)\n    \n        def assert_competing_lock_is_blocked(operation: int) -> None:\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                with pytest.raises(OSError) as exc_info:\n                    fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n                assert exc_info.value.errno in {\n                    errno.EWOULDBLOCK,\n                    errno.EAGAIN,\n                }\n            finally:\n                os.close(competing_fd)\n    \n        with _certified_evidence_fixture_scope(\n            tmp_path_factory,\n            access_mode=\"read\",\n        ):\n            competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                fcntl.flock(\n                    competing_reader_fd,\n                    fcntl.LOCK_SH | fcntl.LOCK_NB,\n                )\n                fcntl.flock(competing_reader_fd, fcntl.LOCK_UN)\n            finally:\n                os.close(competing_reader_fd)\n            assert_competing_lock_is_blocked(fcntl.LOCK_EX)\n    \n        with _certified_evidence_fixture_scope(\n            tmp_path_factory,\n            access_mode=\"write\",\n        ):\n>           assert_competing_lock_is_blocked(fcntl.LOCK_SH)\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1534: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\noperation = 1\n\n    def assert_competing_lock_is_blocked(operation: int) -> None:\n        competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n        try:\n>           with pytest.raises(OSError) as exc_info:\nE           Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1506: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\n========================= 2 failed, 8 passed in 8.83s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=2288 retained_bytes=2288 omitted_bytes=0 rendered_excerpt_bytes=2401 sha256=20748f254fd3d369c021f20106b9a35bf46d60f7c82cd8fb493b8eb25d6ffe24\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...fe182170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n> \n>     def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n>         tmp_path_factory,\n>     ) -> None:\n>         \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n>     \n>         shared = _certified_evidence_shared_root(tmp_path_factory)\n>     \n>         def assert_competing_lock_is_blocked(operation: int) -> None:\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 with pytest.raises(OSError) as exc_info:\n>                     fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n>                 assert exc_info.value.errno in {\n>                     errno.EWOULDBLOCK,\n>                     errno.EAGAIN,\n>                 }\n>             finally:\n>                 os.close(competing_fd)\n>     \n>         with _certified_evidence_fixture_scope(\n>             tmp_path_factory,\n>             access_mode=\"read\",\n>         ):\n>             competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 fcntl.flock(\n>                     competing_reader_fd,\n>                     fcntl.LOCK_SH | fcntl.LOCK_NB,\n>                 )\n>                 fcntl.flock(competing_reader_fd, fcntl.LOCK_UN)\n>             finally:\n>                 os.close(competing_reader_fd)\n>             assert_competing_lock_is_blocked(fcntl.LOCK_EX)\n>     \n>         with _certified_evidence_fixture_scope(\n>             tmp_path_factory,\n>             access_mode=\"write\",\n>         ):\n> >           assert_competing_lock_is_blocked(fcntl.LOCK_SH)\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1534: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> operation = 1\n> \n>     def assert_competing_lock_is_blocked(operation: int) -> None:\n>         competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>         try:\n> >           with pytest.raises(OSError) as exc_info:\n> E           Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1506: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=809 retained_bytes=809 omitted_bytes=0 rendered_excerpt_bytes=852 sha256=7095ac71ac3191e0c6f29dc1bc23b404c5b1388f10fb535a4331198b0321425d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_certified_evidence_writer0')\n> \n>     def test_certified_evidence_writer_blocks_nonblocking_reader(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, a shared writer lock can expose temporary damage to readers.\"\"\"\n>     \n>         shared = _seeded_certified_evidence_lock_root(tmp_path)\n>         with _certified_evidence_lock_scope(\n>             shared,\n>             access_mode=\"write\",\n>             seed=mock.Mock(),\n>         ):\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n> >               with pytest.raises(OSError) as exc_info:\n> E               Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1432: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3097 retained_bytes=3097 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4451 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6de7465878c6c529942a90676302208c938635d35afe3794d3aa508f4c437558"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.295,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield"
+      ],
+      "hang_risk": false,
+      "id": "A-WRITER-MODE-SH",
+      "injection_diff_sha256": "327233ad213a03327f10846211f4f6a83fbde87dbd1b39ace4f66471d9c17378",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4ed9d1d8a0383b246fadf1a0386e4c7bd3c57add27e6711eefdfb9a65fddd74b",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_SH,\n        }[access_mode]\n",
+          "old": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "6de7465878c6c529942a90676302208c938635d35afe3794d3aa508f4c437558",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/a8e87a46013aa8aa07d426428b346b99/izdw-a8e87a4601.o977461",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/a8e87a46013aa8aa07d426428b346b99/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n.......FF.                                                               [100%]\n=================================== FAILURES ===================================\n_ test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers _\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers() -> None:\n        \"\"\"Without this direct test-file path-mutation closure, excluding called helper writes, undeclared shared writers can pass.\"\"\"\n    \n        expected_modes = {\n            \"test_m01_assembly_rederives_precursor_from_the_sealed_registry\": \"read\",\n            \"test_m02_planned_path_lookup_and_publish_use_the_issuer_leaf\": \"read\",\n            \"test_m03_assignment_comes_from_attempt_wal_first_record_timestamps\": \"read\",\n            \"test_m04_final_assembly_rejects_different_on_off_pair_ids\": \"read\",\n            \"test_m05_campaign_lock_classification_and_receipt_share_one_byte_buffer\": \"read\",\n            \"test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit\": \"read\",\n            \"test_m07_non_binary_exact_decimal_lexeme_is_preserved\": \"read\",\n            \"test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple\": \"read\",\n            \"test_m10_certified_off_digest_absence_sets_treatment_fired_true\": \"read\",\n            \"test_m12_nonterminating_reference_ratio_has_only_named_rejection\": \"read\",\n            \"test_m13_integer_reference_is_the_only_integer_acceptance_control\": \"read\",\n            \"test_m16_judgment_fields_are_unknown_request_fields\": \"read\",\n            \"test_m17_terminal_receipt_validation_survives_original_replacement\": \"write\",\n            \"test_m18_symlinked_evidence_is_rejected_with_regular_control\": \"write\",\n            \"test_assembly_rederives_judgments_and_requires_non_guarantees\": \"read\",\n            \"test_manifest_driver_must_match_campaign_and_receipt_driver_kind\": \"read\",\n            \"test_non_guarantees_name_the_residual_lock_and_closure_limits\": \"read\",\n        }\n        fixture_modes = {\n            \"certified_evidence\": \"read\",\n            \"certified_evidence_writer\": \"write\",\n        }\n        mutators = {\n            \"write_bytes\",\n            \"write_text\",\n            \"rename\",\n            \"replace\",\n            \"unlink\",\n            \"symlink_to\",\n            \"hardlink_to\",\n            \"mkdir\",\n            \"rmdir\",\n            \"touch\",\n            \"chmod\",\n        }\n        module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n        functions = {\n            node.name: node\n            for node in module.body\n            if isinstance(node, ast.FunctionDef)\n        }\n    \n        wrapper_modes = {}\n        for fixture_name in fixture_modes:\n            calls = [\n                node\n                for node in ast.walk(functions[fixture_name])\n                if isinstance(node, ast.Call)\n                and isinstance(node.func, ast.Name)\n                and node.func.id == \"_certified_evidence_fixture_scope\"\n            ]\n            assert len(calls) == 1\n            mode_keyword = next(\n                keyword\n                for keyword in calls[0].keywords\n                if keyword.arg == \"access_mode\"\n            )\n            assert isinstance(mode_keyword.value, ast.Constant)\n            wrapper_modes[fixture_name] = mode_keyword.value.value\n>       assert wrapper_modes == fixture_modes\nE       AssertionError: assert {'certified_e...iter': 'read'} == {'certified_e...ter': 'write'}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'certified_evidence_writer': 'read'} != {'certified_evidence_writer': 'write'}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1836: AssertionError\n________ test_certified_evidence_fixture_scope_yield_is_inside_lock_ast ________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_evidence_fixture_scope_yield_is_inside_lock_ast() -> None:\n        \"\"\"Without this check, scopes can drop mode forwarding or yield outside locks.\"\"\"\n    \n        module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n        functions = {\n            node.name: node\n            for node in module.body\n            if isinstance(node, ast.FunctionDef)\n        }\n        scope = functions[\"_certified_evidence_fixture_scope\"]\n        yields = [node for node in ast.walk(scope) if isinstance(node, ast.Yield)]\n        lock_withs = [\n            node\n            for node in ast.walk(scope)\n            if isinstance(node, ast.With)\n            and any(\n                isinstance(item.context_expr, ast.Call)\n                and isinstance(item.context_expr.func, ast.Name)\n                and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n                for item in node.items\n            )\n        ]\n    \n        assert len(yields) == 1\n        assert len(lock_withs) == 1\n        lock_call = next(\n            item.context_expr\n            for item in lock_withs[0].items\n            if isinstance(item.context_expr, ast.Call)\n            and isinstance(item.context_expr.func, ast.Name)\n            and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n        )\n        mode_keywords = [\n            keyword\n            for keyword in lock_call.keywords\n            if keyword.arg == \"access_mode\"\n        ]\n        assert len(mode_keywords) == 1\n        assert isinstance(mode_keywords[0].value, ast.Name)\n        assert mode_keywords[0].value.id == \"access_mode\"\n        assert any(\n            yields[0] in tuple(ast.walk(statement))\n            for statement in lock_withs[0].body\n        )\n    \n        for fixture_name, expected_mode in {\n            \"certified_evidence\": \"read\",\n            \"certified_evidence_writer\": \"write\",\n        }.items():\n            wrapper = functions[fixture_name]\n            wrapper_yields = [\n                node for node in ast.walk(wrapper) if isinstance(node, ast.Yield)\n            ]\n            fixture_withs = [\n                node\n                for node in ast.walk(wrapper)\n                if isinstance(node, ast.With)\n                and any(\n                    isinstance(item.context_expr, ast.Call)\n                    and isinstance(item.context_expr.func, ast.Name)\n                    and item.context_expr.func.id\n                    == \"_certified_evidence_fixture_scope\"\n                    for item in node.items\n                )\n            ]\n            assert len(wrapper_yields) == 1\n            assert len(fixture_withs) == 1\n            fixture_call = next(\n                item.context_expr\n                for item in fixture_withs[0].items\n                if isinstance(item.context_expr, ast.Call)\n                and isinstance(item.context_expr.func, ast.Name)\n                and item.context_expr.func.id == \"_certified_evidence_fixture_scope\"\n            )\n            wrapper_mode_keywords = [\n                keyword\n                for keyword in fixture_call.keywords\n                if keyword.arg == \"access_mode\"\n            ]\n            assert len(wrapper_mode_keywords) == 1\n            assert isinstance(wrapper_mode_keywords[0].value, ast.Constant)\n>           assert wrapper_mode_keywords[0].value.value == expected_mode\nE           AssertionError: assert 'read' == 'write'\nE             \nE             - write\nE             + read\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1618: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast\n========================= 2 failed, 8 passed in 8.30s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=3610 retained_bytes=3610 omitted_bytes=0 rendered_excerpt_bytes=3791 sha256=a06bb5c0af7f11cee7eff8f479d95d15e0091f5f990d766458253f139aaeeee1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_evidence_fixture_scope_yield_is_inside_lock_ast() -> None:\n>         \"\"\"Without this check, scopes can drop mode forwarding or yield outside locks.\"\"\"\n>     \n>         module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n>         functions = {\n>             node.name: node\n>             for node in module.body\n>             if isinstance(node, ast.FunctionDef)\n>         }\n>         scope = functions[\"_certified_evidence_fixture_scope\"]\n>         yields = [node for node in ast.walk(scope) if isinstance(node, ast.Yield)]\n>         lock_withs = [\n>             node\n>             for node in ast.walk(scope)\n>             if isinstance(node, ast.With)\n>             and any(\n>                 isinstance(item.context_expr, ast.Call)\n>                 and isinstance(item.context_expr.func, ast.Name)\n>                 and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n>                 for item in node.items\n>             )\n>         ]\n>     \n>         assert len(yields) == 1\n>         assert len(lock_withs) == 1\n>         lock_call = next(\n>             item.context_expr\n>             for item in lock_withs[0].items\n>             if isinstance(item.context_expr, ast.Call)\n>             and isinstance(item.context_expr.func, ast.Name)\n>             and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n>         )\n>         mode_keywords = [\n>             keyword\n>             for keyword in lock_call.keywords\n>             if keyword.arg == \"access_mode\"\n>         ]\n>         assert len(mode_keywords) == 1\n>         assert isinstance(mode_keywords[0].value, ast.Name)\n>         assert mode_keywords[0].value.id == \"access_mode\"\n>         assert any(\n>             yields[0] in tuple(ast.walk(statement))\n>             for statement in lock_withs[0].body\n>         )\n>     \n>         for fixture_name, expected_mode in {\n>             \"certified_evidence\": \"read\",\n>             \"certified_evidence_writer\": \"write\",\n>         }.items():\n>             wrapper = functions[fixture_name]\n>             wrapper_yields = [\n>                 node for node in ast.walk(wrapper) if isinstance(node, ast.Yield)\n>             ]\n>             fixture_withs = [\n>                 node\n>                 for node in ast.walk(wrapper)\n>                 if isinstance(node, ast.With)\n>                 and any(\n>                     isinstance(item.context_expr, ast.Call)\n>                     and isinstance(item.context_expr.func, ast.Name)\n>                     and item.context_expr.func.id\n>                     == \"_certified_evidence_fixture_scope\"\n>                     for item in node.items\n>                 )\n>             ]\n>             assert len(wrapper_yields) == 1\n>             assert len(fixture_withs) == 1\n>             fixture_call = next(\n>                 item.context_expr\n>                 for item in fixture_withs[0].items\n>                 if isinstance(item.context_expr, ast.Call)\n>                 and isinstance(item.context_expr.func, ast.Name)\n>                 and item.context_expr.func.id == \"_certified_evidence_fixture_scope\"\n>             )\n>             wrapper_mode_keywords = [\n>                 keyword\n>                 for keyword in fixture_call.keywords\n>                 if keyword.arg == \"access_mode\"\n>             ]\n>             assert len(wrapper_mode_keywords) == 1\n>             assert isinstance(wrapper_mode_keywords[0].value, ast.Constant)\n> >           assert wrapper_mode_keywords[0].value.value == expected_mode\n> E           AssertionError: assert 'read' == 'write'\n> E             \n> E             - write\n> E             + read\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1618: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers\" nodeid_bytes=147 nodeid_omitted_bytes=0 source_bytes=3562 retained_bytes=3562 omitted_bytes=0 rendered_excerpt_bytes=3711 sha256=ad02db66c7dae954c1cbeffcf168655a93e5fc78e545c12cc5f8e3501709745c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers() -> None:\n>         \"\"\"Without this direct test-file path-mutation closure, excluding called helper writes, undeclared shared writers can pass.\"\"\"\n>     \n>         expected_modes = {\n>             \"test_m01_assembly_rederives_precursor_from_the_sealed_registry\": \"read\",\n>             \"test_m02_planned_path_lookup_and_publish_use_the_issuer_leaf\": \"read\",\n>             \"test_m03_assignment_comes_from_attempt_wal_first_record_timestamps\": \"read\",\n>             \"test_m04_final_assembly_rejects_different_on_off_pair_ids\": \"read\",\n>             \"test_m05_campaign_lock_classification_and_receipt_share_one_byte_buffer\": \"read\",\n>             \"test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit\": \"read\",\n>             \"test_m07_non_binary_exact_decimal_lexeme_is_preserved\": \"read\",\n>             \"test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple\": \"read\",\n>             \"test_m10_certified_off_digest_absence_sets_treatment_fired_true\": \"read\",\n>             \"test_m12_nonterminating_reference_ratio_has_only_named_rejection\": \"read\",\n>             \"test_m13_integer_reference_is_the_only_integer_acceptance_control\": \"read\",\n>             \"test_m16_judgment_fields_are_unknown_request_fields\": \"read\",\n>             \"test_m17_terminal_receipt_validation_survives_original_replacement\": \"write\",\n>             \"test_m18_symlinked_evidence_is_rejected_with_regular_control\": \"write\",\n>             \"test_assembly_rederives_judgments_and_requires_non_guarantees\": \"read\",\n>             \"test_manifest_driver_must_match_campaign_and_receipt_driver_kind\": \"read\",\n>             \"test_non_guarantees_name_the_residual_lock_and_closure_limits\": \"read\",\n>         }\n>         fixture_modes = {\n>             \"certified_evidence\": \"read\",\n>             \"certified_evidence_writer\": \"write\",\n>         }\n>         mutators = {\n>             \"write_bytes\",\n>             \"write_text\",\n>             \"rename\",\n>             \"replace\",\n>             \"unlink\",\n>             \"symlink_to\",\n>             \"hardlink_to\",\n>             \"mkdir\",\n>             \"rmdir\",\n>             \"touch\",\n>             \"chmod\",\n>         }\n>         module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n>         functions = {\n>             node.name: node\n>             for node in module.body\n>             if isinstance(node, ast.FunctionDef)\n>         }\n>     \n>         wrapper_modes = {}\n>         for fixture_name in fixture_modes:\n>             calls = [\n>                 node\n>                 for node in ast.walk(functions[fixture_name])\n>                 if isinstance(node, ast.Call)\n>                 and isinstance(node.func, ast.Name)\n>                 and node.func.id == \"_certified_evidence_fixture_scope\"\n>             ]\n>             assert len(calls) == 1\n>             mode_keyword = next(\n>                 keyword\n>                 for keyword in calls[0].keywords\n>                 if keyword.arg == \"access_mode\"\n>             )\n>             assert isinstance(mode_keyword.value, ast.Constant)\n>             wrapper_modes[fixture_name] = mode_keyword.value.value\n> >       assert wrapper_modes == fixture_modes\n> E       AssertionError: assert {'certified_e...iter': 'read'} == {'certified_e...ter': 'write'}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Differing items:\n> E         {'certified_evidence_writer': 'read'} != {'certified_evidence_writer': 'write'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1836: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=7172 retained_bytes=7172 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8734 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1a34550f39f6c30ac5306799b50fadb8d31fde9fe38996103c307bedc8905110"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.162,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast"
+      ],
+      "hang_risk": false,
+      "id": "A2-WRITER-WRAPPER-PASSES-READ",
+      "injection_diff_sha256": "b1d4aa2783a518073c0c6ed06ddc46d899632d956455eaa0b0126461197c0e73",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "45f4dbad6c0e1376d9d2c3a6122e6988c1b83877a3811ae2fe35a714734b7231",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "    \"\"\"Provide shared certified evidence under a writer lock.\"\"\"\n\n    with _certified_evidence_fixture_scope(\n        tmp_path_factory,\n        access_mode=\"read\",\n",
+          "old": "    \"\"\"Provide shared certified evidence under a writer lock.\"\"\"\n\n    with _certified_evidence_fixture_scope(\n        tmp_path_factory,\n        access_mode=\"write\",\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "1a34550f39f6c30ac5306799b50fadb8d31fde9fe38996103c307bedc8905110",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/39316f8a6e2c4c332a9049d500f1d960/izdw-39316f8a6e.o977463",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/39316f8a6e2c4c332a9049d500f1d960/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n......FFFF                                                               [100%]\n=================================== FAILURES ===================================\n___________ test_certified_evidence_reader_blocks_nonblocking_writer ___________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_certified_evidence_reader0')\n\n    def test_certified_evidence_reader_blocks_nonblocking_writer(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, an unlocked reader can observe a writer's temporary damage.\"\"\"\n    \n        shared = _seeded_certified_evidence_lock_root(tmp_path)\n        with _certified_evidence_lock_scope(\n            shared,\n            access_mode=\"read\",\n            seed=mock.Mock(),\n        ):\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n>               with pytest.raises(OSError) as exc_info:\nE               Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1407: Failed\n______ test_certified_evidence_seed_double_check_observes_competing_seed _______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_certified_evidence_seed_d0')\n\n    def test_certified_evidence_seed_double_check_observes_competing_seed(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, two workers can both seed and split metadata from evidence.\"\"\"\n    \n        shared = tmp_path / \"certified-lock\"\n        shared.mkdir()\n        metadata_path = shared / \"evidence.json\"\n        real_exists = Path.exists\n        real_flock = fcntl.flock\n        first_metadata_check = True\n        operations: list[int] = []\n        seed = mock.Mock()\n    \n        def staged_exists(path: Path) -> bool:\n            nonlocal first_metadata_check\n            if path == metadata_path and first_metadata_check:\n                first_metadata_check = False\n                return False\n            return real_exists(path)\n    \n        def competing_flock(fd: int, operation: int) -> None:\n            real_flock(fd, operation)\n            operations.append(operation)\n            if operation == fcntl.LOCK_EX:\n                metadata_path.write_bytes(b\"{}\")\n    \n        with (\n            mock.patch.object(\n                Path,\n                \"exists\",\n                autospec=True,\n                side_effect=staged_exists,\n            ),\n            mock.patch.object(fcntl, \"flock\", side_effect=competing_flock),\n        ):\n            with _certified_evidence_lock_scope(\n                shared,\n                access_mode=\"read\",\n                seed=seed,\n            ):\n                pass\n    \n        seed.assert_not_called()\n>       assert operations[:3] == [\n            fcntl.LOCK_EX,\n            fcntl.LOCK_UN,\n            fcntl.LOCK_SH,\n        ]\nE       assert [2, 8] == [2, 8, 1]\nE         \nE         Right contains one more item: 1\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1490: AssertionError\n________ test_certified_evidence_seeded_reader_never_requests_exclusive ________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_certified_evidence_seeded0')\n\n    def test_certified_evidence_seeded_reader_never_requests_exclusive(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, a seeded reader can briefly take EX and rebuild a serial chain.\"\"\"\n    \n        shared = _seeded_certified_evidence_lock_root(tmp_path)\n        operations: list[int] = []\n        real_flock = fcntl.flock\n    \n        def observed_flock(fd: int, operation: int) -> None:\n            operations.append(operation)\n            real_flock(fd, operation)\n    \n        with mock.patch.object(fcntl, \"flock\", side_effect=observed_flock):\n            with _certified_evidence_lock_scope(\n                shared,\n                access_mode=\"read\",\n                seed=mock.Mock(),\n            ):\n                pass\n    \n>       assert fcntl.LOCK_SH in operations\nE       assert 1 in []\nE        +  where 1 = fcntl.LOCK_SH\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1389: AssertionError\n_____ test_certified_evidence_fixture_scope_holds_both_modes_through_yield _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...7b2a2140>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n\n    def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n        tmp_path_factory,\n    ) -> None:\n        \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n    \n        shared = _certified_evidence_shared_root(tmp_path_factory)\n    \n        def assert_competing_lock_is_blocked(operation: int) -> None:\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                with pytest.raises(OSError) as exc_info:\n                    fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n                assert exc_info.value.errno in {\n                    errno.EWOULDBLOCK,\n                    errno.EAGAIN,\n                }\n            finally:\n                os.close(competing_fd)\n    \n        with _certified_evidence_fixture_scope(\n            tmp_path_factory,\n            access_mode=\"read\",\n        ):\n            competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                fcntl.flock(\n                    competing_reader_fd,\n                    fcntl.LOCK_SH | fcntl.LOCK_NB,\n                )\n                fcntl.flock(competing_reader_fd, fcntl.LOCK_UN)\n            finally:\n                os.close(competing_reader_fd)\n>           assert_competing_lock_is_blocked(fcntl.LOCK_EX)\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1529: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\noperation = 2\n\n    def assert_competing_lock_is_blocked(operation: int) -> None:\n        competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n        try:\n>           with pytest.raises(OSError) as exc_info:\nE           Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1507: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\n========================= 4 failed, 6 passed in 9.85s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=2101 retained_bytes=2101 omitted_bytes=0 rendered_excerpt_bytes=2202 sha256=382c8a6b219d9d9bd5af7cb122d0736982ffcc4ce36e483a02647e8d632b9de4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...7b2a2140>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n> \n>     def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n>         tmp_path_factory,\n>     ) -> None:\n>         \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n>     \n>         shared = _certified_evidence_shared_root(tmp_path_factory)\n>     \n>         def assert_competing_lock_is_blocked(operation: int) -> None:\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 with pytest.raises(OSError) as exc_info:\n>                     fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n>                 assert exc_info.value.errno in {\n>                     errno.EWOULDBLOCK,\n>                     errno.EAGAIN,\n>                 }\n>             finally:\n>                 os.close(competing_fd)\n>     \n>         with _certified_evidence_fixture_scope(\n>             tmp_path_factory,\n>             access_mode=\"read\",\n>         ):\n>             competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 fcntl.flock(\n>                     competing_reader_fd,\n>                     fcntl.LOCK_SH | fcntl.LOCK_NB,\n>                 )\n>                 fcntl.flock(competing_reader_fd, fcntl.LOCK_UN)\n>             finally:\n>                 os.close(competing_reader_fd)\n> >           assert_competing_lock_is_blocked(fcntl.LOCK_EX)\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1529: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> operation = 2\n> \n>     def assert_competing_lock_is_blocked(operation: int) -> None:\n>         competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>         try:\n> >           with pytest.raises(OSError) as exc_info:\n> E           Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1507: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1952 retained_bytes=1952 omitted_bytes=0 rendered_excerpt_bytes=2071 sha256=6ca765245e9fad49738c1c00e70a425405803b930b3378991d841bfc3d283e9d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_certified_evidence_seed_d0')\n> \n>     def test_certified_evidence_seed_double_check_observes_competing_seed(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, two workers can both seed and split metadata from evidence.\"\"\"\n>     \n>         shared = tmp_path / \"certified-lock\"\n>         shared.mkdir()\n>         metadata_path = shared / \"evidence.json\"\n>         real_exists = Path.exists\n>         real_flock = fcntl.flock\n>         first_metadata_check = True\n>         operations: list[int] = []\n>         seed = mock.Mock()\n>     \n>         def staged_exists(path: Path) -> bool:\n>             nonlocal first_metadata_check\n>             if path == metadata_path and first_metadata_check:\n>                 first_metadata_check = False\n>                 return False\n>             return real_exists(path)\n>     \n>         def competing_flock(fd: int, operation: int) -> None:\n>             real_flock(fd, operation)\n>             operations.append(operation)\n>             if operation == fcntl.LOCK_EX:\n>                 metadata_path.write_bytes(b\"{}\")\n>     \n>         with (\n>             mock.patch.object(\n>                 Path,\n>                 \"exists\",\n>                 autospec=True,\n>                 side_effect=staged_exists,\n>             ),\n>             mock.patch.object(fcntl, \"flock\", side_effect=competing_flock),\n>         ):\n>             with _certified_evidence_lock_scope(\n>                 shared,\n>                 access_mode=\"read\",\n>                 seed=seed,\n>             ):\n>                 pass\n>     \n>         seed.assert_not_called()\n> >       assert operations[:3] == [\n>             fcntl.LOCK_EX,\n>             fcntl.LOCK_UN,\n>             fcntl.LOCK_SH,\n>         ]\n> E       assert [2, 8] == [2, 8, 1]\n> E         \n> E         Right contains one more item: 1\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1490: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1076 retained_bytes=1076 omitted_bytes=0 rendered_excerpt_bytes=1137 sha256=34db5ea98ca2323d8535726bc43f0c43e3f846426771245d3cf226d5d30517b8\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_certified_evidence_seeded0')\n> \n>     def test_certified_evidence_seeded_reader_never_requests_exclusive(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, a seeded reader can briefly take EX and rebuild a serial chain.\"\"\"\n>     \n>         shared = _seeded_certified_evidence_lock_root(tmp_path)\n>         operations: list[int] = []\n>         real_flock = fcntl.flock\n>     \n>         def observed_flock(fd: int, operation: int) -> None:\n>             operations.append(operation)\n>             real_flock(fd, operation)\n>     \n>         with mock.patch.object(fcntl, \"flock\", side_effect=observed_flock):\n>             with _certified_evidence_lock_scope(\n>                 shared,\n>                 access_mode=\"read\",\n>                 seed=mock.Mock(),\n>             ):\n>                 pass\n>     \n> >       assert fcntl.LOCK_SH in operations\n> E       assert 1 in []\n> E        +  where 1 = fcntl.LOCK_SH\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1389: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=807 retained_bytes=807 omitted_bytes=0 rendered_excerpt_bytes=850 sha256=2ea1152c73f4ba921b7bcf2a2df221bf17b29100453b50a7facc75b6337d44ae\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_certified_evidence_reader0')\n> \n>     def test_certified_evidence_reader_blocks_nonblocking_writer(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, an unlocked reader can observe a writer's temporary damage.\"\"\"\n>     \n>         shared = _seeded_certified_evidence_lock_root(tmp_path)\n>         with _certified_evidence_lock_scope(\n>             shared,\n>             access_mode=\"read\",\n>             seed=mock.Mock(),\n>         ):\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n> >               with pytest.raises(OSError) as exc_info:\n> E               Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1407: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5936 retained_bytes=5936 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8375 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "69ace74027d6762b9984b3aa72371652332751d7ca05ae2ea6a145a041e17e6c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 38.263,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield"
+      ],
+      "hang_risk": false,
+      "id": "B-READER-TAKES-NO-BODY-LOCK",
+      "injection_diff_sha256": "d8e0a5ed2a5d77aa85280126050082a608e271f5bf922947b032ce4d71883ad7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "987718d17624681ea09aebfae587924ede5a19e9e97222b5e6e5b7fdf41dd0dd",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        if access_mode == \"write\":\n            fcntl.flock(lock_fd, body_operation)\n            locked = True\n        yield metadata_path\n",
+          "old": "        fcntl.flock(lock_fd, body_operation)\n        locked = True\n        yield metadata_path\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "69ace74027d6762b9984b3aa72371652332751d7ca05ae2ea6a145a041e17e6c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/daea06467c24cf4fe9cb79cbc05ca1fb/izdw-daea06467c.o977465",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/daea06467c24cf4fe9cb79cbc05ca1fb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_ test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers _\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers() -> None:\n        \"\"\"Without this direct test-file path-mutation closure, excluding called helper writes, undeclared shared writers can pass.\"\"\"\n    \n        expected_modes = {\n            \"test_m01_assembly_rederives_precursor_from_the_sealed_registry\": \"read\",\n            \"test_m02_planned_path_lookup_and_publish_use_the_issuer_leaf\": \"read\",\n            \"test_m03_assignment_comes_from_attempt_wal_first_record_timestamps\": \"read\",\n            \"test_m04_final_assembly_rejects_different_on_off_pair_ids\": \"read\",\n            \"test_m05_campaign_lock_classification_and_receipt_share_one_byte_buffer\": \"read\",\n            \"test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit\": \"read\",\n            \"test_m07_non_binary_exact_decimal_lexeme_is_preserved\": \"read\",\n            \"test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple\": \"read\",\n            \"test_m10_certified_off_digest_absence_sets_treatment_fired_true\": \"read\",\n            \"test_m12_nonterminating_reference_ratio_has_only_named_rejection\": \"read\",\n            \"test_m13_integer_reference_is_the_only_integer_acceptance_control\": \"read\",\n            \"test_m16_judgment_fields_are_unknown_request_fields\": \"read\",\n            \"test_m17_terminal_receipt_validation_survives_original_replacement\": \"write\",\n            \"test_m18_symlinked_evidence_is_rejected_with_regular_control\": \"write\",\n            \"test_assembly_rederives_judgments_and_requires_non_guarantees\": \"read\",\n            \"test_manifest_driver_must_match_campaign_and_receipt_driver_kind\": \"read\",\n            \"test_non_guarantees_name_the_residual_lock_and_closure_limits\": \"read\",\n        }\n        fixture_modes = {\n            \"certified_evidence\": \"read\",\n            \"certified_evidence_writer\": \"write\",\n        }\n        mutators = {\n            \"write_bytes\",\n            \"write_text\",\n            \"rename\",\n            \"replace\",\n            \"unlink\",\n            \"symlink_to\",\n            \"hardlink_to\",\n            \"mkdir\",\n            \"rmdir\",\n            \"touch\",\n            \"chmod\",\n        }\n        module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n        functions = {\n            node.name: node\n            for node in module.body\n            if isinstance(node, ast.FunctionDef)\n        }\n    \n        wrapper_modes = {}\n        for fixture_name in fixture_modes:\n            calls = [\n                node\n                for node in ast.walk(functions[fixture_name])\n                if isinstance(node, ast.Call)\n                and isinstance(node.func, ast.Name)\n                and node.func.id == \"_certified_evidence_fixture_scope\"\n            ]\n            assert len(calls) == 1\n            mode_keyword = next(\n                keyword\n                for keyword in calls[0].keywords\n                if keyword.arg == \"access_mode\"\n            )\n            assert isinstance(mode_keyword.value, ast.Constant)\n            wrapper_modes[fixture_name] = mode_keyword.value.value\n        assert wrapper_modes == fixture_modes\n    \n        declared_modes = {}\n        fixture_arguments = {}\n        for function_name, function in functions.items():\n            arguments = [\n                argument.arg\n                for argument in function.args.args\n                if argument.arg in fixture_modes\n            ]\n            if arguments:\n                assert len(arguments) == 1\n                fixture_arguments[function_name] = arguments[0]\n                declared_modes[function_name] = fixture_modes[arguments[0]]\n>       assert declared_modes == expected_modes\nE       AssertionError: assert {'test_m01_as...: 'read', ...} == {'test_m01_as...: 'read', ...}\nE         \nE         Omitting 16 identical items, use -vv to show\nE         Differing items:\nE         {'test_m17_terminal_receipt_validation_survives_original_replacement': 'read'} != {'test_m17_terminal_receipt_validation_survives_original_replacement': 'write'}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1850: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers\n========================= 1 failed, 9 passed in 8.69s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers\" nodeid_bytes=147 nodeid_omitted_bytes=0 source_bytes=4193 retained_bytes=3925 omitted_bytes=268 rendered_excerpt_bytes=4096 sha256=62c6268a0ffc0f7a232c818e2e5a500185ef7511bd36517aba61ec627481ae13\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> hared writers can pass.\"\"\"\n>     \n>         expected_modes = {\n>             \"test_m01_assembly_rederives_precursor_from_the_sealed_registry\": \"read\",\n>             \"test_m02_planned_path_lookup_and_publish_use_the_issuer_leaf\": \"read\",\n>             \"test_m03_assignment_comes_from_attempt_wal_first_record_timestamps\": \"read\",\n>             \"test_m04_final_assembly_rejects_different_on_off_pair_ids\": \"read\",\n>             \"test_m05_campaign_lock_classification_and_receipt_share_one_byte_buffer\": \"read\",\n>             \"test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit\": \"read\",\n>             \"test_m07_non_binary_exact_decimal_lexeme_is_preserved\": \"read\",\n>             \"test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple\": \"read\",\n>             \"test_m10_certified_off_digest_absence_sets_treatment_fired_true\": \"read\",\n>             \"test_m12_nonterminating_reference_ratio_has_only_named_rejection\": \"read\",\n>             \"test_m13_integer_reference_is_the_only_integer_acceptance_control\": \"read\",\n>             \"test_m16_judgment_fields_are_unknown_request_fields\": \"read\",\n>             \"test_m17_terminal_receipt_validation_survives_original_replacement\": \"write\",\n>             \"test_m18_symlinked_evidence_is_rejected_with_regular_control\": \"write\",\n>             \"test_assembly_rederives_judgments_and_requires_non_guarantees\": \"read\",\n>             \"test_manifest_driver_must_match_campaign_and_receipt_driver_kind\": \"read\",\n>             \"test_non_guarantees_name_the_residual_lock_and_closure_limits\": \"read\",\n>         }\n>         fixture_modes = {\n>             \"certified_evidence\": \"read\",\n>             \"certified_evidence_writer\": \"write\",\n>         }\n>         mutators = {\n>             \"write_bytes\",\n>             \"write_text\",\n>             \"rename\",\n>             \"replace\",\n>             \"unlink\",\n>             \"symlink_to\",\n>             \"hardlink_to\",\n>             \"mkdir\",\n>             \"rmdir\",\n>             \"touch\",\n>             \"chmod\",\n>         }\n>         module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n>         functions = {\n>             node.name: node\n>             for node in module.body\n>             if isinstance(node, ast.FunctionDef)\n>         }\n>     \n>         wrapper_modes = {}\n>         for fixture_name in fixture_modes:\n>             calls = [\n>                 node\n>                 for node in ast.walk(functions[fixture_name])\n>                 if isinstance(node, ast.Call)\n>                 and isinstance(node.func, ast.Name)\n>                 and node.func.id == \"_certified_evidence_fixture_scope\"\n>             ]\n>             assert len(calls) == 1\n>             mode_keyword = next(\n>                 keyword\n>                 for keyword in calls[0].keywords\n>                 if keyword.arg == \"access_mode\"\n>             )\n>             assert isinstance(mode_keyword.value, ast.Constant)\n>             wrapper_modes[fixture_name] = mode_keyword.value.value\n>         assert wrapper_modes == fixture_modes\n>     \n>         declared_modes = {}\n>         fixture_arguments = {}\n>         for function_name, function in functions.items():\n>             arguments = [\n>                 argument.arg\n>                 for argument in function.args.args\n>                 if argument.arg in fixture_modes\n>             ]\n>             if arguments:\n>                 assert len(arguments) == 1\n>                 fixture_arguments[function_name] = arguments[0]\n>                 declared_modes[function_name] = fixture_modes[arguments[0]]\n> >       assert declared_modes == expected_modes\n> E       AssertionError: assert {'test_m01_as...: 'read', ...} == {'test_m01_as...: 'read', ...}\n> E         \n> E         Omitting 16 identical items, use -vv to show\n> E         Differing items:\n> E         {'test_m17_terminal_receipt_validation_survives_original_replacement': 'read'} != {'test_m17_terminal_receipt_validation_survives_original_replacement': 'write'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1850: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4193 retained_bytes=3925 omitted_bytes=268 budget_bytes=49152 rendered_bytes=4875 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e0fea498620b0fabe0d86dda32f871de1d26d6bc40164929c8dd4772b059e0f1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.498,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "hang_risk": false,
+      "id": "C-M17-WRITER-DECLARATION-REMOVED",
+      "injection_diff_sha256": "f8ae5e87a3eb2f110b1518df9c1a2d54a4f8e68fe5830f8bb99f3a6bd565e0b4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0ac0e9499f5f7bbbe2665c03ec0be04582ff9bbe0539abdbc390b9af0f923ab8",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "    certified_evidence: _Evidence,\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    \"\"\"Every later validator consumes the first terminal-receipt snapshot bytes.\"\"\"\n    certified_evidence_writer = certified_evidence\n",
+          "old": "    certified_evidence_writer: _Evidence,\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    \"\"\"Every later validator consumes the first terminal-receipt snapshot bytes.\"\"\"\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "e0fea498620b0fabe0d86dda32f871de1d26d6bc40164929c8dd4772b059e0f1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/53638577bdc7152c68a732a2a1c4d1ce/izdw-53638577bd.o977477",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/53638577bdc7152c68a732a2a1c4d1ce/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_ test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers _\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers() -> None:\n        \"\"\"Without this direct test-file path-mutation closure, excluding called helper writes, undeclared shared writers can pass.\"\"\"\n    \n        expected_modes = {\n            \"test_m01_assembly_rederives_precursor_from_the_sealed_registry\": \"read\",\n            \"test_m02_planned_path_lookup_and_publish_use_the_issuer_leaf\": \"read\",\n            \"test_m03_assignment_comes_from_attempt_wal_first_record_timestamps\": \"read\",\n            \"test_m04_final_assembly_rejects_different_on_off_pair_ids\": \"read\",\n            \"test_m05_campaign_lock_classification_and_receipt_share_one_byte_buffer\": \"read\",\n            \"test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit\": \"read\",\n            \"test_m07_non_binary_exact_decimal_lexeme_is_preserved\": \"read\",\n            \"test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple\": \"read\",\n            \"test_m10_certified_off_digest_absence_sets_treatment_fired_true\": \"read\",\n            \"test_m12_nonterminating_reference_ratio_has_only_named_rejection\": \"read\",\n            \"test_m13_integer_reference_is_the_only_integer_acceptance_control\": \"read\",\n            \"test_m16_judgment_fields_are_unknown_request_fields\": \"read\",\n            \"test_m17_terminal_receipt_validation_survives_original_replacement\": \"write\",\n            \"test_m18_symlinked_evidence_is_rejected_with_regular_control\": \"write\",\n            \"test_assembly_rederives_judgments_and_requires_non_guarantees\": \"read\",\n            \"test_manifest_driver_must_match_campaign_and_receipt_driver_kind\": \"read\",\n            \"test_non_guarantees_name_the_residual_lock_and_closure_limits\": \"read\",\n        }\n        fixture_modes = {\n            \"certified_evidence\": \"read\",\n            \"certified_evidence_writer\": \"write\",\n        }\n        mutators = {\n            \"write_bytes\",\n            \"write_text\",\n            \"rename\",\n            \"replace\",\n            \"unlink\",\n            \"symlink_to\",\n            \"hardlink_to\",\n            \"mkdir\",\n            \"rmdir\",\n            \"touch\",\n            \"chmod\",\n        }\n        module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n        functions = {\n            node.name: node\n            for node in module.body\n            if isinstance(node, ast.FunctionDef)\n        }\n    \n        wrapper_modes = {}\n        for fixture_name in fixture_modes:\n            calls = [\n                node\n                for node in ast.walk(functions[fixture_name])\n                if isinstance(node, ast.Call)\n                and isinstance(node.func, ast.Name)\n                and node.func.id == \"_certified_evidence_fixture_scope\"\n            ]\n            assert len(calls) == 1\n            mode_keyword = next(\n                keyword\n                for keyword in calls[0].keywords\n                if keyword.arg == \"access_mode\"\n            )\n            assert isinstance(mode_keyword.value, ast.Constant)\n            wrapper_modes[fixture_name] = mode_keyword.value.value\n        assert wrapper_modes == fixture_modes\n    \n        declared_modes = {}\n        fixture_arguments = {}\n        for function_name, function in functions.items():\n            arguments = [\n                argument.arg\n                for argument in function.args.args\n                if argument.arg in fixture_modes\n            ]\n            if arguments:\n                assert len(arguments) == 1\n                fixture_arguments[function_name] = arguments[0]\n                declared_modes[function_name] = fixture_modes[arguments[0]]\n>       assert declared_modes == expected_modes\nE       AssertionError: assert {'test_m01_as...: 'read', ...} == {'test_m01_as...: 'read', ...}\nE         \nE         Omitting 16 identical items, use -vv to show\nE         Differing items:\nE         {'test_m18_symlinked_evidence_is_rejected_with_regular_control': 'read'} != {'test_m18_symlinked_evidence_is_rejected_with_regular_control': 'write'}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1850: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers\n========================= 1 failed, 9 passed in 8.04s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers\" nodeid_bytes=147 nodeid_omitted_bytes=0 source_bytes=4181 retained_bytes=3925 omitted_bytes=256 rendered_excerpt_bytes=4096 sha256=e0a78d00f8617f097e7e997c128de56ec8bfff2a6ea60879d00e367ac8de090c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> undeclared shared writers can pass.\"\"\"\n>     \n>         expected_modes = {\n>             \"test_m01_assembly_rederives_precursor_from_the_sealed_registry\": \"read\",\n>             \"test_m02_planned_path_lookup_and_publish_use_the_issuer_leaf\": \"read\",\n>             \"test_m03_assignment_comes_from_attempt_wal_first_record_timestamps\": \"read\",\n>             \"test_m04_final_assembly_rejects_different_on_off_pair_ids\": \"read\",\n>             \"test_m05_campaign_lock_classification_and_receipt_share_one_byte_buffer\": \"read\",\n>             \"test_m06_lowercase_wal_commit_maps_only_to_uppercase_raw_commit\": \"read\",\n>             \"test_m07_non_binary_exact_decimal_lexeme_is_preserved\": \"read\",\n>             \"test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple\": \"read\",\n>             \"test_m10_certified_off_digest_absence_sets_treatment_fired_true\": \"read\",\n>             \"test_m12_nonterminating_reference_ratio_has_only_named_rejection\": \"read\",\n>             \"test_m13_integer_reference_is_the_only_integer_acceptance_control\": \"read\",\n>             \"test_m16_judgment_fields_are_unknown_request_fields\": \"read\",\n>             \"test_m17_terminal_receipt_validation_survives_original_replacement\": \"write\",\n>             \"test_m18_symlinked_evidence_is_rejected_with_regular_control\": \"write\",\n>             \"test_assembly_rederives_judgments_and_requires_non_guarantees\": \"read\",\n>             \"test_manifest_driver_must_match_campaign_and_receipt_driver_kind\": \"read\",\n>             \"test_non_guarantees_name_the_residual_lock_and_closure_limits\": \"read\",\n>         }\n>         fixture_modes = {\n>             \"certified_evidence\": \"read\",\n>             \"certified_evidence_writer\": \"write\",\n>         }\n>         mutators = {\n>             \"write_bytes\",\n>             \"write_text\",\n>             \"rename\",\n>             \"replace\",\n>             \"unlink\",\n>             \"symlink_to\",\n>             \"hardlink_to\",\n>             \"mkdir\",\n>             \"rmdir\",\n>             \"touch\",\n>             \"chmod\",\n>         }\n>         module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n>         functions = {\n>             node.name: node\n>             for node in module.body\n>             if isinstance(node, ast.FunctionDef)\n>         }\n>     \n>         wrapper_modes = {}\n>         for fixture_name in fixture_modes:\n>             calls = [\n>                 node\n>                 for node in ast.walk(functions[fixture_name])\n>                 if isinstance(node, ast.Call)\n>                 and isinstance(node.func, ast.Name)\n>                 and node.func.id == \"_certified_evidence_fixture_scope\"\n>             ]\n>             assert len(calls) == 1\n>             mode_keyword = next(\n>                 keyword\n>                 for keyword in calls[0].keywords\n>                 if keyword.arg == \"access_mode\"\n>             )\n>             assert isinstance(mode_keyword.value, ast.Constant)\n>             wrapper_modes[fixture_name] = mode_keyword.value.value\n>         assert wrapper_modes == fixture_modes\n>     \n>         declared_modes = {}\n>         fixture_arguments = {}\n>         for function_name, function in functions.items():\n>             arguments = [\n>                 argument.arg\n>                 for argument in function.args.args\n>                 if argument.arg in fixture_modes\n>             ]\n>             if arguments:\n>                 assert len(arguments) == 1\n>                 fixture_arguments[function_name] = arguments[0]\n>                 declared_modes[function_name] = fixture_modes[arguments[0]]\n> >       assert declared_modes == expected_modes\n> E       AssertionError: assert {'test_m01_as...: 'read', ...} == {'test_m01_as...: 'read', ...}\n> E         \n> E         Omitting 16 identical items, use -vv to show\n> E         Differing items:\n> E         {'test_m18_symlinked_evidence_is_rejected_with_regular_control': 'read'} != {'test_m18_symlinked_evidence_is_rejected_with_regular_control': 'write'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1850: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4181 retained_bytes=3925 omitted_bytes=256 budget_bytes=49152 rendered_bytes=4875 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5e6fdb2c31102f38c120cb12924970f90cc8e52f742ac534fa6b04704acd9016"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 277.949,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "hang_risk": false,
+      "id": "C2-M18-WRITER-DECLARATION-REMOVED",
+      "injection_diff_sha256": "3d1a6a4cfc6d2c08a8e8ba0fb313fd1113639a0b9f22b267ea47dacf71e17dc4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "98c1c581154fff50c5d7184c94a62bad0c10ef742559d0d391b2d9de56e576dc",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "    certified_evidence: _Evidence,\n) -> None:\n    certified_evidence_writer = certified_evidence\n    \"\"\"Acceptance would follow a replaceable receipt leaf.",
+          "old": "    certified_evidence_writer: _Evidence,\n) -> None:\n    \"\"\"Acceptance would follow a replaceable receipt leaf."
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "5e6fdb2c31102f38c120cb12924970f90cc8e52f742ac534fa6b04704acd9016",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/51830afad7cf972f4912677800a85252/izdw-51830afad7.o977484",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/51830afad7cf972f4912677800a85252/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n______ test_certified_evidence_seed_double_check_observes_competing_seed _______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_certified_evidence_seed_d0')\n\n    def test_certified_evidence_seed_double_check_observes_competing_seed(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, two workers can both seed and split metadata from evidence.\"\"\"\n    \n        shared = tmp_path / \"certified-lock\"\n        shared.mkdir()\n        metadata_path = shared / \"evidence.json\"\n        real_exists = Path.exists\n        real_flock = fcntl.flock\n        first_metadata_check = True\n        operations: list[int] = []\n        seed = mock.Mock()\n    \n        def staged_exists(path: Path) -> bool:\n            nonlocal first_metadata_check\n            if path == metadata_path and first_metadata_check:\n                first_metadata_check = False\n                return False\n            return real_exists(path)\n    \n        def competing_flock(fd: int, operation: int) -> None:\n            real_flock(fd, operation)\n            operations.append(operation)\n            if operation == fcntl.LOCK_EX:\n                metadata_path.write_bytes(b\"{}\")\n    \n        with (\n            mock.patch.object(\n                Path,\n                \"exists\",\n                autospec=True,\n                side_effect=staged_exists,\n            ),\n            mock.patch.object(fcntl, \"flock\", side_effect=competing_flock),\n        ):\n            with _certified_evidence_lock_scope(\n                shared,\n                access_mode=\"read\",\n                seed=seed,\n            ):\n                pass\n    \n>       seed.assert_not_called()\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1488: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Mock id='22768514857856'>\n\n    def assert_not_called(self):\n        \"\"\"assert that the mock was never called.\n        \"\"\"\n        if self.call_count != 0:\n            msg = (\"Expected '%s' to not have been called. Called %s times.%s\"\n                   % (self._mock_name or 'mock',\n                      self.call_count,\n                      self._calls_repr()))\n>           raise AssertionError(msg)\nE           AssertionError: Expected 'mock' to not have been called. Called 1 times.\nE           Calls: [call()].\n\n/usr/lib/python3.10/unittest/mock.py:890: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed\n========================= 1 failed, 9 passed in 8.15s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=2355 retained_bytes=2355 omitted_bytes=0 rendered_excerpt_bytes=2490 sha256=1726f4755760003737b2f74e62ca000a1a39ed28a350c7ba1b2990ad41d108c9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_certified_evidence_seed_d0')\n> \n>     def test_certified_evidence_seed_double_check_observes_competing_seed(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, two workers can both seed and split metadata from evidence.\"\"\"\n>     \n>         shared = tmp_path / \"certified-lock\"\n>         shared.mkdir()\n>         metadata_path = shared / \"evidence.json\"\n>         real_exists = Path.exists\n>         real_flock = fcntl.flock\n>         first_metadata_check = True\n>         operations: list[int] = []\n>         seed = mock.Mock()\n>     \n>         def staged_exists(path: Path) -> bool:\n>             nonlocal first_metadata_check\n>             if path == metadata_path and first_metadata_check:\n>                 first_metadata_check = False\n>                 return False\n>             return real_exists(path)\n>     \n>         def competing_flock(fd: int, operation: int) -> None:\n>             real_flock(fd, operation)\n>             operations.append(operation)\n>             if operation == fcntl.LOCK_EX:\n>                 metadata_path.write_bytes(b\"{}\")\n>     \n>         with (\n>             mock.patch.object(\n>                 Path,\n>                 \"exists\",\n>                 autospec=True,\n>                 side_effect=staged_exists,\n>             ),\n>             mock.patch.object(fcntl, \"flock\", side_effect=competing_flock),\n>         ):\n>             with _certified_evidence_lock_scope(\n>                 shared,\n>                 access_mode=\"read\",\n>                 seed=seed,\n>             ):\n>                 pass\n>     \n> >       seed.assert_not_called()\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1488: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Mock id='22768514857856'>\n> \n>     def assert_not_called(self):\n>         \"\"\"assert that the mock was never called.\n>         \"\"\"\n>         if self.call_count != 0:\n>             msg = (\"Expected '%s' to not have been called. Called %s times.%s\"\n>                    % (self._mock_name or 'mock',\n>                       self.call_count,\n>                       self._calls_repr()))\n> >           raise AssertionError(msg)\n> E           AssertionError: Expected 'mock' to not have been called. Called 1 times.\n> E           Calls: [call()].\n> \n> /usr/lib/python3.10/unittest/mock.py:890: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2355 retained_bytes=2355 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3237 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "37efabb4675e5ed92f11e616d16615a211d52d4598e936c08ffae7280082f7e6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 276.157,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed"
+      ],
+      "hang_risk": false,
+      "id": "D-SEED-DOUBLE-CHECK-REMOVED",
+      "injection_diff_sha256": "561e1f4a488f0e09caed61d9fb31758b86be2a632b72c4c29b1eb9ccab3cad11",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7683df2eade38667bbfb843c94f581ad5e9b5e9c2763a969842913bd1d69bd70",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "            locked = True\n            if True:\n                evidence_root = shared / \"evidence\"\n",
+          "old": "            locked = True\n            if not metadata_path.exists():\n                evidence_root = shared / \"evidence\"\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "37efabb4675e5ed92f11e616d16615a211d52d4598e936c08ffae7280082f7e6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/83be2445aa986efc371778334e9583b5/izdw-83be2445aa.o977486",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/83be2445aa986efc371778334e9583b5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n......FFFF                                                               [100%]\n=================================== FAILURES ===================================\n________ test_certified_evidence_seeded_reader_never_requests_exclusive ________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_certified_evidence_seeded0')\n\n    def test_certified_evidence_seeded_reader_never_requests_exclusive(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, a seeded reader can briefly take EX and rebuild a serial chain.\"\"\"\n    \n        shared = _seeded_certified_evidence_lock_root(tmp_path)\n        operations: list[int] = []\n        real_flock = fcntl.flock\n    \n        def observed_flock(fd: int, operation: int) -> None:\n            operations.append(operation)\n            real_flock(fd, operation)\n    \n        with mock.patch.object(fcntl, \"flock\", side_effect=observed_flock):\n            with _certified_evidence_lock_scope(\n                shared,\n                access_mode=\"read\",\n                seed=mock.Mock(),\n            ):\n                pass\n    \n>       assert fcntl.LOCK_SH in operations\nE       assert 1 in [2, 8]\nE        +  where 1 = fcntl.LOCK_SH\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1388: AssertionError\n_______________ test_certified_evidence_lock_allows_two_readers ________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_certified_evidence_lock_a0')\n\n    def test_certified_evidence_lock_allows_two_readers(tmp_path: Path) -> None:\n        \"\"\"Without this check, an exclusive reader lock can pass while serializing all consumers.\"\"\"\n    \n        shared = _seeded_certified_evidence_lock_root(tmp_path)\n        seed = mock.Mock()\n        with _certified_evidence_lock_scope(\n            shared,\n            access_mode=\"read\",\n            seed=seed,\n        ):\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n>               fcntl.flock(competing_fd, fcntl.LOCK_SH | fcntl.LOCK_NB)\nE               BlockingIOError: [Errno 11] Resource temporarily unavailable\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1360: BlockingIOError\n______ test_certified_evidence_seed_double_check_observes_competing_seed _______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_certified_evidence_seed_d0')\n\n    def test_certified_evidence_seed_double_check_observes_competing_seed(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, two workers can both seed and split metadata from evidence.\"\"\"\n    \n        shared = tmp_path / \"certified-lock\"\n        shared.mkdir()\n        metadata_path = shared / \"evidence.json\"\n        real_exists = Path.exists\n        real_flock = fcntl.flock\n        first_metadata_check = True\n        operations: list[int] = []\n        seed = mock.Mock()\n    \n        def staged_exists(path: Path) -> bool:\n            nonlocal first_metadata_check\n            if path == metadata_path and first_metadata_check:\n                first_metadata_check = False\n                return False\n            return real_exists(path)\n    \n        def competing_flock(fd: int, operation: int) -> None:\n            real_flock(fd, operation)\n            operations.append(operation)\n            if operation == fcntl.LOCK_EX:\n                metadata_path.write_bytes(b\"{}\")\n    \n        with (\n            mock.patch.object(\n                Path,\n                \"exists\",\n                autospec=True,\n                side_effect=staged_exists,\n            ),\n            mock.patch.object(fcntl, \"flock\", side_effect=competing_flock),\n        ):\n            with _certified_evidence_lock_scope(\n                shared,\n                access_mode=\"read\",\n                seed=seed,\n            ):\n                pass\n    \n        seed.assert_not_called()\n>       assert operations[:3] == [\n            fcntl.LOCK_EX,\n            fcntl.LOCK_UN,\n            fcntl.LOCK_SH,\n        ]\nE       assert [2, 8, 2] == [2, 8, 1]\nE         \nE         At index 2 diff: 2 != 1\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1489: AssertionError\n_____ test_certified_evidence_fixture_scope_holds_both_modes_through_yield _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...b3ace170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n\n    def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n        tmp_path_factory,\n    ) -> None:\n        \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n    \n        shared = _certified_evidence_shared_root(tmp_path_factory)\n    \n        def assert_competing_lock_is_blocked(operation: int) -> None:\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                with pytest.raises(OSError) as exc_info:\n                    fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n                assert exc_info.value.errno in {\n                    errno.EWOULDBLOCK,\n                    errno.EAGAIN,\n                }\n            finally:\n                os.close(competing_fd)\n    \n        with _certified_evidence_fixture_scope(\n            tmp_path_factory,\n            access_mode=\"read\",\n        ):\n            competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n>               fcntl.flock(\n                    competing_reader_fd,\n                    fcntl.LOCK_SH | fcntl.LOCK_NB,\n                )\nE               BlockingIOError: [Errno 11] Resource temporarily unavailable\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1521: BlockingIOError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\n========================= 4 failed, 6 passed in 8.27s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1947 retained_bytes=1947 omitted_bytes=0 rendered_excerpt_bytes=2066 sha256=62962e433d9b61633e6f8d2d524eb6996f6e297a65ffaca5590b67113c67718c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_certified_evidence_seed_d0')\n> \n>     def test_certified_evidence_seed_double_check_observes_competing_seed(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, two workers can both seed and split metadata from evidence.\"\"\"\n>     \n>         shared = tmp_path / \"certified-lock\"\n>         shared.mkdir()\n>         metadata_path = shared / \"evidence.json\"\n>         real_exists = Path.exists\n>         real_flock = fcntl.flock\n>         first_metadata_check = True\n>         operations: list[int] = []\n>         seed = mock.Mock()\n>     \n>         def staged_exists(path: Path) -> bool:\n>             nonlocal first_metadata_check\n>             if path == metadata_path and first_metadata_check:\n>                 first_metadata_check = False\n>                 return False\n>             return real_exists(path)\n>     \n>         def competing_flock(fd: int, operation: int) -> None:\n>             real_flock(fd, operation)\n>             operations.append(operation)\n>             if operation == fcntl.LOCK_EX:\n>                 metadata_path.write_bytes(b\"{}\")\n>     \n>         with (\n>             mock.patch.object(\n>                 Path,\n>                 \"exists\",\n>                 autospec=True,\n>                 side_effect=staged_exists,\n>             ),\n>             mock.patch.object(fcntl, \"flock\", side_effect=competing_flock),\n>         ):\n>             with _certified_evidence_lock_scope(\n>                 shared,\n>                 access_mode=\"read\",\n>                 seed=seed,\n>             ):\n>                 pass\n>     \n>         seed.assert_not_called()\n> >       assert operations[:3] == [\n>             fcntl.LOCK_EX,\n>             fcntl.LOCK_UN,\n>             fcntl.LOCK_SH,\n>         ]\n> E       assert [2, 8, 2] == [2, 8, 1]\n> E         \n> E         At index 2 diff: 2 != 1\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1489: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1597 retained_bytes=1597 omitted_bytes=0 rendered_excerpt_bytes=1670 sha256=3f3f1b7869df510ddba43d70a39a7ccbf59d36a6f7ca41c124a930f07ec5f99a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...b3ace170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n> \n>     def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n>         tmp_path_factory,\n>     ) -> None:\n>         \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n>     \n>         shared = _certified_evidence_shared_root(tmp_path_factory)\n>     \n>         def assert_competing_lock_is_blocked(operation: int) -> None:\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 with pytest.raises(OSError) as exc_info:\n>                     fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n>                 assert exc_info.value.errno in {\n>                     errno.EWOULDBLOCK,\n>                     errno.EAGAIN,\n>                 }\n>             finally:\n>                 os.close(competing_fd)\n>     \n>         with _certified_evidence_fixture_scope(\n>             tmp_path_factory,\n>             access_mode=\"read\",\n>         ):\n>             competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n> >               fcntl.flock(\n>                     competing_reader_fd,\n>                     fcntl.LOCK_SH | fcntl.LOCK_NB,\n>                 )\n> E               BlockingIOError: [Errno 11] Resource temporarily unavailable\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1521: BlockingIOError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1080 retained_bytes=1080 omitted_bytes=0 rendered_excerpt_bytes=1141 sha256=d8d6c8fa15dd9cb164a64ced0dbc28f37344e2dbc19ea84779701789565195ee\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_certified_evidence_seeded0')\n> \n>     def test_certified_evidence_seeded_reader_never_requests_exclusive(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, a seeded reader can briefly take EX and rebuild a serial chain.\"\"\"\n>     \n>         shared = _seeded_certified_evidence_lock_root(tmp_path)\n>         operations: list[int] = []\n>         real_flock = fcntl.flock\n>     \n>         def observed_flock(fd: int, operation: int) -> None:\n>             operations.append(operation)\n>             real_flock(fd, operation)\n>     \n>         with mock.patch.object(fcntl, \"flock\", side_effect=observed_flock):\n>             with _certified_evidence_lock_scope(\n>                 shared,\n>                 access_mode=\"read\",\n>                 seed=mock.Mock(),\n>             ):\n>                 pass\n>     \n> >       assert fcntl.LOCK_SH in operations\n> E       assert 1 in [2, 8]\n> E        +  where 1 = fcntl.LOCK_SH\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1388: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=866 retained_bytes=866 omitted_bytes=0 rendered_excerpt_bytes=907 sha256=e52ad3d0a7ce1cd450c43d0d232f698678760cebd961ae19861a81501588f280\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_certified_evidence_lock_a0')\n> \n>     def test_certified_evidence_lock_allows_two_readers(tmp_path: Path) -> None:\n>         \"\"\"Without this check, an exclusive reader lock can pass while serializing all consumers.\"\"\"\n>     \n>         shared = _seeded_certified_evidence_lock_root(tmp_path)\n>         seed = mock.Mock()\n>         with _certified_evidence_lock_scope(\n>             shared,\n>             access_mode=\"read\",\n>             seed=seed,\n>         ):\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n> >               fcntl.flock(competing_fd, fcntl.LOCK_SH | fcntl.LOCK_NB)\n> E               BlockingIOError: [Errno 11] Resource temporarily unavailable\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1360: BlockingIOError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5490 retained_bytes=5490 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7890 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4b816da18b2ae610773688974f585d88572eb51206c9c5b2907faaefed049a60"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.202,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield"
+      ],
+      "hang_risk": false,
+      "id": "E-READER-MODE-EX-OLD-BEHAVIOUR",
+      "injection_diff_sha256": "bf9a1652b1c646d00c3df5f3b9e7629cdb896e0ff9c477917ef1c97ce335843f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "07ce7db27609a50000003c39a616c4e31cc8e81dd87ad9b9325081b2ee2e484d",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        body_operation = {\n            \"read\": fcntl.LOCK_EX,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n",
+          "old": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "4b816da18b2ae610773688974f585d88572eb51206c9c5b2907faaefed049a60",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/8d282b1b082200a7145feaf47c85808a/izdw-8d282b1b08.o977487",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/8d282b1b082200a7145feaf47c85808a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n.......FFF                                                               [100%]\n=================================== FAILURES ===================================\n___________ test_certified_evidence_reader_blocks_nonblocking_writer ___________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_certified_evidence_reader0')\n\n    def test_certified_evidence_reader_blocks_nonblocking_writer(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, an unlocked reader can observe a writer's temporary damage.\"\"\"\n    \n        shared = _seeded_certified_evidence_lock_root(tmp_path)\n        with _certified_evidence_lock_scope(\n            shared,\n            access_mode=\"read\",\n            seed=mock.Mock(),\n        ):\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n>               with pytest.raises(OSError) as exc_info:\nE               Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1407: Failed\n___________ test_certified_evidence_writer_blocks_nonblocking_reader ___________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_certified_evidence_writer0')\n\n    def test_certified_evidence_writer_blocks_nonblocking_reader(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, a shared writer lock can expose temporary damage to readers.\"\"\"\n    \n        shared = _seeded_certified_evidence_lock_root(tmp_path)\n        with _certified_evidence_lock_scope(\n            shared,\n            access_mode=\"write\",\n            seed=mock.Mock(),\n        ):\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n>               with pytest.raises(OSError) as exc_info:\nE               Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1433: Failed\n_____ test_certified_evidence_fixture_scope_holds_both_modes_through_yield _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...2bae6170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n\n    def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n        tmp_path_factory,\n    ) -> None:\n        \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n    \n        shared = _certified_evidence_shared_root(tmp_path_factory)\n    \n        def assert_competing_lock_is_blocked(operation: int) -> None:\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                with pytest.raises(OSError) as exc_info:\n                    fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n                assert exc_info.value.errno in {\n                    errno.EWOULDBLOCK,\n                    errno.EAGAIN,\n                }\n            finally:\n                os.close(competing_fd)\n    \n        with _certified_evidence_fixture_scope(\n            tmp_path_factory,\n            access_mode=\"read\",\n        ):\n            competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                fcntl.flock(\n                    competing_reader_fd,\n                    fcntl.LOCK_SH | fcntl.LOCK_NB,\n                )\n                fcntl.flock(competing_reader_fd, fcntl.LOCK_UN)\n            finally:\n                os.close(competing_reader_fd)\n>           assert_competing_lock_is_blocked(fcntl.LOCK_EX)\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1529: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\noperation = 2\n\n    def assert_competing_lock_is_blocked(operation: int) -> None:\n        competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n        try:\n>           with pytest.raises(OSError) as exc_info:\nE           Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1507: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\n========================= 3 failed, 7 passed in 8.25s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=2101 retained_bytes=2101 omitted_bytes=0 rendered_excerpt_bytes=2202 sha256=5a9253a93c8b9c5c0e7302f1b534bf5c2c51c4751ea4103e2d62984390131ba7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...2bae6170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n> \n>     def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n>         tmp_path_factory,\n>     ) -> None:\n>         \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n>     \n>         shared = _certified_evidence_shared_root(tmp_path_factory)\n>     \n>         def assert_competing_lock_is_blocked(operation: int) -> None:\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 with pytest.raises(OSError) as exc_info:\n>                     fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n>                 assert exc_info.value.errno in {\n>                     errno.EWOULDBLOCK,\n>                     errno.EAGAIN,\n>                 }\n>             finally:\n>                 os.close(competing_fd)\n>     \n>         with _certified_evidence_fixture_scope(\n>             tmp_path_factory,\n>             access_mode=\"read\",\n>         ):\n>             competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 fcntl.flock(\n>                     competing_reader_fd,\n>                     fcntl.LOCK_SH | fcntl.LOCK_NB,\n>                 )\n>                 fcntl.flock(competing_reader_fd, fcntl.LOCK_UN)\n>             finally:\n>                 os.close(competing_reader_fd)\n> >           assert_competing_lock_is_blocked(fcntl.LOCK_EX)\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1529: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> operation = 2\n> \n>     def assert_competing_lock_is_blocked(operation: int) -> None:\n>         competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>         try:\n> >           with pytest.raises(OSError) as exc_info:\n> E           Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1507: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=809 retained_bytes=809 omitted_bytes=0 rendered_excerpt_bytes=852 sha256=d024e4f6b10d1fc57d1952f292835d1b4fb770f4549ca90c9c97a90796dee930\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_certified_evidence_writer0')\n> \n>     def test_certified_evidence_writer_blocks_nonblocking_reader(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, a shared writer lock can expose temporary damage to readers.\"\"\"\n>     \n>         shared = _seeded_certified_evidence_lock_root(tmp_path)\n>         with _certified_evidence_lock_scope(\n>             shared,\n>             access_mode=\"write\",\n>             seed=mock.Mock(),\n>         ):\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n> >               with pytest.raises(OSError) as exc_info:\n> E               Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1433: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=807 retained_bytes=807 omitted_bytes=0 rendered_excerpt_bytes=850 sha256=2ea1152c73f4ba921b7bcf2a2df221bf17b29100453b50a7facc75b6337d44ae\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_certified_evidence_reader0')\n> \n>     def test_certified_evidence_reader_blocks_nonblocking_writer(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, an unlocked reader can observe a writer's temporary damage.\"\"\"\n>     \n>         shared = _seeded_certified_evidence_lock_root(tmp_path)\n>         with _certified_evidence_lock_scope(\n>             shared,\n>             access_mode=\"read\",\n>             seed=mock.Mock(),\n>         ):\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n> >               with pytest.raises(OSError) as exc_info:\n> E               Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1407: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3717 retained_bytes=3717 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5550 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "56c93130f948b96f209dbf69d0902659ba510fc0fc893955123fde39b093e803"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.24,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield"
+      ],
+      "hang_risk": false,
+      "id": "F-UNLOCK-BEFORE-YIELD",
+      "injection_diff_sha256": "c56e401ee027e8f91594fabf7d22d2a017fd606a584d68d057debe664ee9b8d8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "15572eb77c1fb3f4d5d6f419fd207af456ab292e956542444affdd29547b226c",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        fcntl.flock(lock_fd, body_operation)\n        fcntl.flock(lock_fd, fcntl.LOCK_UN)\n        locked = False\n        yield metadata_path\n",
+          "old": "        fcntl.flock(lock_fd, body_operation)\n        locked = True\n        yield metadata_path\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "56c93130f948b96f209dbf69d0902659ba510fc0fc893955123fde39b093e803",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/06f0e08ecd3e0cef798fd491586fa76a/izdw-06f0e08ecd.o977488",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/06f0e08ecd3e0cef798fd491586fa76a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_____ test_certified_evidence_metadata_is_fsynced_and_atomically_replaced ______\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_certified_evidence_metada0')\n\n    def test_certified_evidence_metadata_is_fsynced_and_atomically_replaced(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, a direct metadata write can publish a partial seed as ready.\"\"\"\n    \n        metadata_path = tmp_path / \"evidence.json\"\n        metadata = {\"iteration\": 1, \"on_root\": \"on\", \"off_root\": \"off\"}\n        expected_payload = json.dumps(\n            metadata,\n            sort_keys=True,\n            separators=(\",\", \":\"),\n        ).encode(\"utf-8\")\n        operations: list[tuple[object, ...]] = []\n        allocations: list[tuple[int, Path]] = []\n        real_mkstemp = tempfile.mkstemp\n        real_fdopen = os.fdopen\n        real_fsync = os.fsync\n        real_replace = os.replace\n    \n        class ObservedStream:\n            def __init__(self, stream):\n                self.stream = stream\n    \n            def __enter__(self):\n                self.stream.__enter__()\n                return self\n    \n            def __exit__(self, *args):\n                return self.stream.__exit__(*args)\n    \n            def write(self, payload: bytes) -> int:\n                written = self.stream.write(payload)\n                operations.append((\"write\", self.stream.fileno(), payload))\n                return written\n    \n            def flush(self) -> None:\n                self.stream.flush()\n                operations.append((\"flush\", self.stream.fileno()))\n    \n            def fileno(self) -> int:\n                return self.stream.fileno()\n    \n        def observed_mkstemp(*args, **kwargs):\n            fd, name = real_mkstemp(*args, **kwargs)\n            allocations.append((fd, Path(name)))\n            return fd, name\n    \n        def observed_fdopen(*args, **kwargs):\n            return ObservedStream(real_fdopen(*args, **kwargs))\n    \n        def observed_fsync(fd: int) -> None:\n            temp_path = next(\n                path\n                for allocated_fd, path in allocations\n                if allocated_fd == fd\n            )\n            operations.append((\"fsync\", fd, temp_path.read_bytes()))\n            real_fsync(fd)\n    \n        def observed_replace(source, target) -> None:\n            operations.append((\"replace\", Path(source), Path(target)))\n            real_replace(source, target)\n    \n        with (\n            mock.patch.object(tempfile, \"mkstemp\", side_effect=observed_mkstemp),\n            mock.patch.object(os, \"fdopen\", side_effect=observed_fdopen),\n            mock.patch.object(os, \"fsync\", side_effect=observed_fsync),\n            mock.patch.object(os, \"replace\", side_effect=observed_replace),\n        ):\n            _write_certified_evidence_metadata(metadata_path, metadata)\n    \n        assert len(allocations) == 1\n>       assert [operation[0] for operation in operations] == [\n            \"write\",\n            \"flush\",\n            \"fsync\",\n            \"replace\",\n        ]\nE       AssertionError: assert ['write', 'flush', 'fsync'] == ['write', 'fl...c', 'replace']\nE         \nE         Right contains one more item: 'replace'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1754: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced\n========================= 1 failed, 9 passed in 8.12s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=3270 retained_bytes=3270 omitted_bytes=0 rendered_excerpt_bytes=3447 sha256=62f341a3a4f75146c4c1a36079aa8867201482cfa5b458c6d2246daddb643f0a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_certified_evidence_metada0')\n> \n>     def test_certified_evidence_metadata_is_fsynced_and_atomically_replaced(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, a direct metadata write can publish a partial seed as ready.\"\"\"\n>     \n>         metadata_path = tmp_path / \"evidence.json\"\n>         metadata = {\"iteration\": 1, \"on_root\": \"on\", \"off_root\": \"off\"}\n>         expected_payload = json.dumps(\n>             metadata,\n>             sort_keys=True,\n>             separators=(\",\", \":\"),\n>         ).encode(\"utf-8\")\n>         operations: list[tuple[object, ...]] = []\n>         allocations: list[tuple[int, Path]] = []\n>         real_mkstemp = tempfile.mkstemp\n>         real_fdopen = os.fdopen\n>         real_fsync = os.fsync\n>         real_replace = os.replace\n>     \n>         class ObservedStream:\n>             def __init__(self, stream):\n>                 self.stream = stream\n>     \n>             def __enter__(self):\n>                 self.stream.__enter__()\n>                 return self\n>     \n>             def __exit__(self, *args):\n>                 return self.stream.__exit__(*args)\n>     \n>             def write(self, payload: bytes) -> int:\n>                 written = self.stream.write(payload)\n>                 operations.append((\"write\", self.stream.fileno(), payload))\n>                 return written\n>     \n>             def flush(self) -> None:\n>                 self.stream.flush()\n>                 operations.append((\"flush\", self.stream.fileno()))\n>     \n>             def fileno(self) -> int:\n>                 return self.stream.fileno()\n>     \n>         def observed_mkstemp(*args, **kwargs):\n>             fd, name = real_mkstemp(*args, **kwargs)\n>             allocations.append((fd, Path(name)))\n>             return fd, name\n>     \n>         def observed_fdopen(*args, **kwargs):\n>             return ObservedStream(real_fdopen(*args, **kwargs))\n>     \n>         def observed_fsync(fd: int) -> None:\n>             temp_path = next(\n>                 path\n>                 for allocated_fd, path in allocations\n>                 if allocated_fd == fd\n>             )\n>             operations.append((\"fsync\", fd, temp_path.read_bytes()))\n>             real_fsync(fd)\n>     \n>         def observed_replace(source, target) -> None:\n>             operations.append((\"replace\", Path(source), Path(target)))\n>             real_replace(source, target)\n>     \n>         with (\n>             mock.patch.object(tempfile, \"mkstemp\", side_effect=observed_mkstemp),\n>             mock.patch.object(os, \"fdopen\", side_effect=observed_fdopen),\n>             mock.patch.object(os, \"fsync\", side_effect=observed_fsync),\n>             mock.patch.object(os, \"replace\", side_effect=observed_replace),\n>         ):\n>             _write_certified_evidence_metadata(metadata_path, metadata)\n>     \n>         assert len(allocations) == 1\n> >       assert [operation[0] for operation in operations] == [\n>             \"write\",\n>             \"flush\",\n>             \"fsync\",\n>             \"replace\",\n>         ]\n> E       AssertionError: assert ['write', 'flush', 'fsync'] == ['write', 'fl...c', 'replace']\n> E         \n> E         Right contains one more item: 'replace'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1754: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3270 retained_bytes=3270 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4196 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0d5b49642dd9c6aaac4953d074bbf00b4772b09e8a28bb71e562f6faa54c3e56"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.676,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+      ],
+      "hang_risk": false,
+      "id": "G-METADATA-DIRECT-WRITE",
+      "injection_diff_sha256": "b15cf7eb8ed658df6a6cefcf2c9bc6bbf185f8af2f54f48de46b8ef794e063a9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "12bf6b749c5e8eaab00e4ebfcc8a027efeb9dc4bfe2b6b917425cd9d0966abe0",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        metadata_path.write_bytes(payload)\n        temp_path.unlink()\n",
+          "old": "        os.replace(temp_path, metadata_path)\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "0d5b49642dd9c6aaac4953d074bbf00b4772b09e8a28bb71e562f6faa54c3e56",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/337ff72afa8cd72951e9dd6203ce85fb/izdw-337ff72afa.o977489",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/337ff72afa8cd72951e9dd6203ce85fb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........FF                                                               [100%]\n=================================== FAILURES ===================================\n________ test_certified_evidence_fixture_scope_yield_is_inside_lock_ast ________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_evidence_fixture_scope_yield_is_inside_lock_ast() -> None:\n        \"\"\"Without this check, scopes can drop mode forwarding or yield outside locks.\"\"\"\n    \n        module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n        functions = {\n            node.name: node\n            for node in module.body\n            if isinstance(node, ast.FunctionDef)\n        }\n        scope = functions[\"_certified_evidence_fixture_scope\"]\n        yields = [node for node in ast.walk(scope) if isinstance(node, ast.Yield)]\n        lock_withs = [\n            node\n            for node in ast.walk(scope)\n            if isinstance(node, ast.With)\n            and any(\n                isinstance(item.context_expr, ast.Call)\n                and isinstance(item.context_expr.func, ast.Name)\n                and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n                for item in node.items\n            )\n        ]\n    \n        assert len(yields) == 1\n        assert len(lock_withs) == 1\n        lock_call = next(\n            item.context_expr\n            for item in lock_withs[0].items\n            if isinstance(item.context_expr, ast.Call)\n            and isinstance(item.context_expr.func, ast.Name)\n            and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n        )\n        mode_keywords = [\n            keyword\n            for keyword in lock_call.keywords\n            if keyword.arg == \"access_mode\"\n        ]\n        assert len(mode_keywords) == 1\n>       assert isinstance(mode_keywords[0].value, ast.Name)\nE       AssertionError: assert False\nE        +  where False = isinstance(<ast.Constant object at 0x1469e1c52590>, <class 'ast.Name'>)\nE        +    where <ast.Constant object at 0x1469e1c52590> = <ast.keyword object at 0x1469e1c525c0>.value\nE        +    and   <class 'ast.Name'> = ast.Name\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1575: AssertionError\n_____ test_certified_evidence_fixture_scope_holds_both_modes_through_yield _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...f0eda170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n\n    def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n        tmp_path_factory,\n    ) -> None:\n        \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n    \n        shared = _certified_evidence_shared_root(tmp_path_factory)\n    \n        def assert_competing_lock_is_blocked(operation: int) -> None:\n            competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n                with pytest.raises(OSError) as exc_info:\n                    fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n                assert exc_info.value.errno in {\n                    errno.EWOULDBLOCK,\n                    errno.EAGAIN,\n                }\n            finally:\n                os.close(competing_fd)\n    \n        with _certified_evidence_fixture_scope(\n            tmp_path_factory,\n            access_mode=\"read\",\n        ):\n            competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n            try:\n>               fcntl.flock(\n                    competing_reader_fd,\n                    fcntl.LOCK_SH | fcntl.LOCK_NB,\n                )\nE               BlockingIOError: [Errno 11] Resource temporarily unavailable\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1521: BlockingIOError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\n========================= 2 failed, 8 passed in 8.16s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1983 retained_bytes=1983 omitted_bytes=0 rendered_excerpt_bytes=2078 sha256=b2c86352d097be7ee095f873c3fad9acfd3d3aec6ba93b4dad190d01d998c3c9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_evidence_fixture_scope_yield_is_inside_lock_ast() -> None:\n>         \"\"\"Without this check, scopes can drop mode forwarding or yield outside locks.\"\"\"\n>     \n>         module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n>         functions = {\n>             node.name: node\n>             for node in module.body\n>             if isinstance(node, ast.FunctionDef)\n>         }\n>         scope = functions[\"_certified_evidence_fixture_scope\"]\n>         yields = [node for node in ast.walk(scope) if isinstance(node, ast.Yield)]\n>         lock_withs = [\n>             node\n>             for node in ast.walk(scope)\n>             if isinstance(node, ast.With)\n>             and any(\n>                 isinstance(item.context_expr, ast.Call)\n>                 and isinstance(item.context_expr.func, ast.Name)\n>                 and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n>                 for item in node.items\n>             )\n>         ]\n>     \n>         assert len(yields) == 1\n>         assert len(lock_withs) == 1\n>         lock_call = next(\n>             item.context_expr\n>             for item in lock_withs[0].items\n>             if isinstance(item.context_expr, ast.Call)\n>             and isinstance(item.context_expr.func, ast.Name)\n>             and item.context_expr.func.id == \"_certified_evidence_lock_scope\"\n>         )\n>         mode_keywords = [\n>             keyword\n>             for keyword in lock_call.keywords\n>             if keyword.arg == \"access_mode\"\n>         ]\n>         assert len(mode_keywords) == 1\n> >       assert isinstance(mode_keywords[0].value, ast.Name)\n> E       AssertionError: assert False\n> E        +  where False = isinstance(<ast.Constant object at 0x1469e1c52590>, <class 'ast.Name'>)\n> E        +    where <ast.Constant object at 0x1469e1c52590> = <ast.keyword object at 0x1469e1c525c0>.value\n> E        +    and   <class 'ast.Name'> = ast.Name\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1575: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1597 retained_bytes=1597 omitted_bytes=0 rendered_excerpt_bytes=1670 sha256=def6162e2d61c64a151043228f677d97646bb11129eb410ea2fac738047c743d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _trace=<pluggy._tracing.TagTrace...f0eda170>, _basetemp=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5'), _retention_count=3, _retention_policy='all')\n> \n>     def test_certified_evidence_fixture_scope_holds_both_modes_through_yield(\n>         tmp_path_factory,\n>     ) -> None:\n>         \"\"\"Without this check, the real fixture can lose its mode or unlock before yield.\"\"\"\n>     \n>         shared = _certified_evidence_shared_root(tmp_path_factory)\n>     \n>         def assert_competing_lock_is_blocked(operation: int) -> None:\n>             competing_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n>                 with pytest.raises(OSError) as exc_info:\n>                     fcntl.flock(competing_fd, operation | fcntl.LOCK_NB)\n>                 assert exc_info.value.errno in {\n>                     errno.EWOULDBLOCK,\n>                     errno.EAGAIN,\n>                 }\n>             finally:\n>                 os.close(competing_fd)\n>     \n>         with _certified_evidence_fixture_scope(\n>             tmp_path_factory,\n>             access_mode=\"read\",\n>         ):\n>             competing_reader_fd = os.open(shared / \"fixture.lock\", os.O_RDWR)\n>             try:\n> >               fcntl.flock(\n>                     competing_reader_fd,\n>                     fcntl.LOCK_SH | fcntl.LOCK_NB,\n>                 )\n> E               BlockingIOError: [Errno 11] Resource temporarily unavailable\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1521: BlockingIOError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3580 retained_bytes=3580 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4955 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "18568e85f94b0f65af473bb4f8492ae5ccad29f8d6524663c865e10a1287d6e1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.275,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield"
+      ],
+      "hang_risk": false,
+      "id": "H-SCOPE-MODE-CONSTANT-WRITE",
+      "injection_diff_sha256": "010b39159ae9de55dfef6616f3ecbc4dd60bfb5eacd2fea65c3ab59ee0a55fd6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b2537d5400eba2f007548b3b9a3e29910f926a4a04e863bd104d4cde2f48bbc6",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        access_mode=\"write\",\n        seed=seed,\n",
+          "old": "        access_mode=access_mode,\n        seed=seed,\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "18568e85f94b0f65af473bb4f8492ae5ccad29f8d6524663c865e10a1287d6e1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/f69c526eaf103b91130fbf4b7e69dd3c/izdw-f69c526eaf.o977491",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/f69c526eaf103b91130fbf4b7e69dd3c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_ test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast _\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast(\n    ) -> None:\n        \"\"\"Without this check, production seed can bypass the atomic metadata helper.\"\"\"\n    \n        module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n        scope = next(\n            node\n            for node in module.body\n            if isinstance(node, ast.FunctionDef)\n            and node.name == \"_certified_evidence_fixture_scope\"\n        )\n        seeds = [\n            node\n            for node in scope.body\n            if isinstance(node, ast.FunctionDef) and node.name == \"seed\"\n        ]\n        assert len(seeds) == 1\n        seed = seeds[0]\n    \n        def is_direct_metadata_path(expression: ast.expr) -> bool:\n            return (\n                isinstance(expression, ast.BinOp)\n                and isinstance(expression.op, ast.Div)\n                and isinstance(expression.left, ast.Name)\n                and expression.left.id == \"shared\"\n                and isinstance(expression.right, ast.Constant)\n                and expression.right.value == \"evidence.json\"\n            )\n    \n        calls = [node for node in ast.walk(seed) if isinstance(node, ast.Call)]\n        helper_calls = [\n            call\n            for call in calls\n            if isinstance(call.func, ast.Name)\n            and call.func.id == \"_write_certified_evidence_metadata\"\n        ]\n>       assert len(helper_calls) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1661: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast\n========================= 1 failed, 9 passed in 8.13s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=1615 retained_bytes=1615 omitted_bytes=0 rendered_excerpt_bytes=1702 sha256=d787bf38b5c9cb142481ae24cd19c670908289cf9696854144479996ab6924da\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast(\n>     ) -> None:\n>         \"\"\"Without this check, production seed can bypass the atomic metadata helper.\"\"\"\n>     \n>         module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n>         scope = next(\n>             node\n>             for node in module.body\n>             if isinstance(node, ast.FunctionDef)\n>             and node.name == \"_certified_evidence_fixture_scope\"\n>         )\n>         seeds = [\n>             node\n>             for node in scope.body\n>             if isinstance(node, ast.FunctionDef) and node.name == \"seed\"\n>         ]\n>         assert len(seeds) == 1\n>         seed = seeds[0]\n>     \n>         def is_direct_metadata_path(expression: ast.expr) -> bool:\n>             return (\n>                 isinstance(expression, ast.BinOp)\n>                 and isinstance(expression.op, ast.Div)\n>                 and isinstance(expression.left, ast.Name)\n>                 and expression.left.id == \"shared\"\n>                 and isinstance(expression.right, ast.Constant)\n>                 and expression.right.value == \"evidence.json\"\n>             )\n>     \n>         calls = [node for node in ast.walk(seed) if isinstance(node, ast.Call)]\n>         helper_calls = [\n>             call\n>             for call in calls\n>             if isinstance(call.func, ast.Name)\n>             and call.func.id == \"_write_certified_evidence_metadata\"\n>         ]\n> >       assert len(helper_calls) == 1\n> E       assert 0 == 1\n> E        +  where 0 = len([])\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1661: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1615 retained_bytes=1615 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2462 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ef2b4affb089bbaf1fccd050ab82102e85fedfb793a7543db0ddfc3215ce3189"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.285,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+      ],
+      "hang_risk": false,
+      "id": "G2-SEED-PUBLISHES-METADATA-DIRECTLY",
+      "injection_diff_sha256": "d062816e08a441848cf1b2991bfd94e498b8d7a93bd127aaf212594390034ae5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5491fb08798337e167bafa8e80a47150d42ae7c01b7580145625ee2d8c198f2e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        (shared / \"evidence.json\").write_bytes(json.dumps(metadata, sort_keys=True, separators=(\",\", \":\")).encode(\"utf-8\"))\n",
+          "old": "        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "ef2b4affb089bbaf1fccd050ab82102e85fedfb793a7543db0ddfc3215ce3189",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/2f80913053c49d926c468b2189222bfc/izdw-2f80913053.o977493",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/2f80913053c49d926c468b2189222bfc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_ test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast _\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast(\n    ) -> None:\n        \"\"\"Without this check, production seed can bypass the atomic metadata helper.\"\"\"\n    \n        module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n        scope = next(\n            node\n            for node in module.body\n            if isinstance(node, ast.FunctionDef)\n            and node.name == \"_certified_evidence_fixture_scope\"\n        )\n        seeds = [\n            node\n            for node in scope.body\n            if isinstance(node, ast.FunctionDef) and node.name == \"seed\"\n        ]\n        assert len(seeds) == 1\n        seed = seeds[0]\n    \n        def is_direct_metadata_path(expression: ast.expr) -> bool:\n            return (\n                isinstance(expression, ast.BinOp)\n                and isinstance(expression.op, ast.Div)\n                and isinstance(expression.left, ast.Name)\n                and expression.left.id == \"shared\"\n                and isinstance(expression.right, ast.Constant)\n                and expression.right.value == \"evidence.json\"\n            )\n    \n        calls = [node for node in ast.walk(seed) if isinstance(node, ast.Call)]\n        helper_calls = [\n            call\n            for call in calls\n            if isinstance(call.func, ast.Name)\n            and call.func.id == \"_write_certified_evidence_metadata\"\n        ]\n        assert len(helper_calls) == 1\n        assert helper_calls[0].args\n        assert is_direct_metadata_path(helper_calls[0].args[0])\n    \n        forbidden_file_calls = [\n            call\n            for call in calls\n            if (\n                isinstance(call.func, ast.Name)\n                and call.func.id == \"open\"\n            )\n            or (\n                isinstance(call.func, ast.Attribute)\n                and call.func.attr\n                in {\"write_bytes\", \"write_text\", \"open\", \"replace\", \"rename\"}\n            )\n        ]\n>       assert forbidden_file_calls == []\nE       assert [<ast.Call ob...147726096a70>] == []\nE         \nE         Left contains one more item: <ast.Call object at 0x147726096a70>\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1679: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast\n========================= 1 failed, 9 passed in 8.03s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=2291 retained_bytes=2291 omitted_bytes=0 rendered_excerpt_bytes=2416 sha256=527fb6a2abf77854575952f2e79237521d0fbe1f90a8e89ffb091bcdfc493c5b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast(\n>     ) -> None:\n>         \"\"\"Without this check, production seed can bypass the atomic metadata helper.\"\"\"\n>     \n>         module = ast.parse(Path(__file__).read_text(encoding=\"utf-8\"))\n>         scope = next(\n>             node\n>             for node in module.body\n>             if isinstance(node, ast.FunctionDef)\n>             and node.name == \"_certified_evidence_fixture_scope\"\n>         )\n>         seeds = [\n>             node\n>             for node in scope.body\n>             if isinstance(node, ast.FunctionDef) and node.name == \"seed\"\n>         ]\n>         assert len(seeds) == 1\n>         seed = seeds[0]\n>     \n>         def is_direct_metadata_path(expression: ast.expr) -> bool:\n>             return (\n>                 isinstance(expression, ast.BinOp)\n>                 and isinstance(expression.op, ast.Div)\n>                 and isinstance(expression.left, ast.Name)\n>                 and expression.left.id == \"shared\"\n>                 and isinstance(expression.right, ast.Constant)\n>                 and expression.right.value == \"evidence.json\"\n>             )\n>     \n>         calls = [node for node in ast.walk(seed) if isinstance(node, ast.Call)]\n>         helper_calls = [\n>             call\n>             for call in calls\n>             if isinstance(call.func, ast.Name)\n>             and call.func.id == \"_write_certified_evidence_metadata\"\n>         ]\n>         assert len(helper_calls) == 1\n>         assert helper_calls[0].args\n>         assert is_direct_metadata_path(helper_calls[0].args[0])\n>     \n>         forbidden_file_calls = [\n>             call\n>             for call in calls\n>             if (\n>                 isinstance(call.func, ast.Name)\n>                 and call.func.id == \"open\"\n>             )\n>             or (\n>                 isinstance(call.func, ast.Attribute)\n>                 and call.func.attr\n>                 in {\"write_bytes\", \"write_text\", \"open\", \"replace\", \"rename\"}\n>             )\n>         ]\n> >       assert forbidden_file_calls == []\n> E       assert [<ast.Call ob...147726096a70>] == []\n> E         \n> E         Left contains one more item: <ast.Call object at 0x147726096a70>\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1679: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2291 retained_bytes=2291 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3176 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4a43b3391403019eef5f727ed6ab94b420f1cd029ae727d56f60c111c40cc8ce"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.151,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+      ],
+      "hang_risk": false,
+      "id": "I-SEED-DIRECT-PUBLISH-BESIDE-HELPER",
+      "injection_diff_sha256": "f1bd251efdc1cbd3ff8e9725a497d4ab0d3847ea11da85debf35f08090611293",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4c3f8e8a955636f10985390fb667dcd2ea4e54de64e28163863105da1fe1e8d6",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "        shared.joinpath(\"evidence.json\").write_bytes(b\"{\")\n        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n",
+          "old": "        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "4a43b3391403019eef5f727ed6ab94b420f1cd029ae727d56f60c111c40cc8ce",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/e4027e948ae3d9b64f19f1e1745408de/izdw-e4027e948a.o977495",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/e4027e948ae3d9b64f19f1e1745408de/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n........F.                                                               [100%]\n=================================== FAILURES ===================================\n_____ test_certified_evidence_metadata_is_fsynced_and_atomically_replaced ______\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_certified_evidence_metada0')\n\n    def test_certified_evidence_metadata_is_fsynced_and_atomically_replaced(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"Without this check, a direct metadata write can publish a partial seed as ready.\"\"\"\n    \n        metadata_path = tmp_path / \"evidence.json\"\n        metadata = {\"iteration\": 1, \"on_root\": \"on\", \"off_root\": \"off\"}\n        expected_payload = json.dumps(\n            metadata,\n            sort_keys=True,\n            separators=(\",\", \":\"),\n        ).encode(\"utf-8\")\n        operations: list[tuple[object, ...]] = []\n        allocations: list[tuple[int, Path]] = []\n        real_mkstemp = tempfile.mkstemp\n        real_fdopen = os.fdopen\n        real_fsync = os.fsync\n        real_replace = os.replace\n    \n        class ObservedStream:\n            def __init__(self, stream):\n                self.stream = stream\n    \n            def __enter__(self):\n                self.stream.__enter__()\n                return self\n    \n            def __exit__(self, *args):\n                return self.stream.__exit__(*args)\n    \n            def write(self, payload: bytes) -> int:\n                written = self.stream.write(payload)\n                operations.append((\"write\", self.stream.fileno(), payload))\n                return written\n    \n            def flush(self) -> None:\n                self.stream.flush()\n                operations.append((\"flush\", self.stream.fileno()))\n    \n            def fileno(self) -> int:\n                return self.stream.fileno()\n    \n        def observed_mkstemp(*args, **kwargs):\n            fd, name = real_mkstemp(*args, **kwargs)\n            allocations.append((fd, Path(name)))\n            return fd, name\n    \n        def observed_fdopen(*args, **kwargs):\n            return ObservedStream(real_fdopen(*args, **kwargs))\n    \n        def observed_fsync(fd: int) -> None:\n            temp_path = next(\n                path\n                for allocated_fd, path in allocations\n                if allocated_fd == fd\n            )\n            operations.append((\"fsync\", fd, temp_path.read_bytes()))\n            real_fsync(fd)\n    \n        def observed_replace(source, target) -> None:\n            operations.append((\"replace\", Path(source), Path(target)))\n            real_replace(source, target)\n    \n        with (\n            mock.patch.object(tempfile, \"mkstemp\", side_effect=observed_mkstemp),\n            mock.patch.object(os, \"fdopen\", side_effect=observed_fdopen),\n            mock.patch.object(os, \"fsync\", side_effect=observed_fsync),\n            mock.patch.object(os, \"replace\", side_effect=observed_replace),\n        ):\n            _write_certified_evidence_metadata(metadata_path, metadata)\n    \n        assert len(allocations) == 1\n>       assert [operation[0] for operation in operations] == [\n            \"write\",\n            \"flush\",\n            \"fsync\",\n            \"replace\",\n        ]\nE       AssertionError: assert ['fsync', 'wr...h', 'replace'] == ['write', 'fl...c', 'replace']\nE         \nE         At index 0 diff: 'fsync' != 'write'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_raw_record_producer.py:1753: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced\n========================= 1 failed, 9 passed in 8.46s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=3269 retained_bytes=3269 omitted_bytes=0 rendered_excerpt_bytes=3446 sha256=0fcf1acc49cd2da57b93357842632a2191de02d700ef9ba3c85c4c094fb2d64c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_certified_evidence_metada0')\n> \n>     def test_certified_evidence_metadata_is_fsynced_and_atomically_replaced(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"Without this check, a direct metadata write can publish a partial seed as ready.\"\"\"\n>     \n>         metadata_path = tmp_path / \"evidence.json\"\n>         metadata = {\"iteration\": 1, \"on_root\": \"on\", \"off_root\": \"off\"}\n>         expected_payload = json.dumps(\n>             metadata,\n>             sort_keys=True,\n>             separators=(\",\", \":\"),\n>         ).encode(\"utf-8\")\n>         operations: list[tuple[object, ...]] = []\n>         allocations: list[tuple[int, Path]] = []\n>         real_mkstemp = tempfile.mkstemp\n>         real_fdopen = os.fdopen\n>         real_fsync = os.fsync\n>         real_replace = os.replace\n>     \n>         class ObservedStream:\n>             def __init__(self, stream):\n>                 self.stream = stream\n>     \n>             def __enter__(self):\n>                 self.stream.__enter__()\n>                 return self\n>     \n>             def __exit__(self, *args):\n>                 return self.stream.__exit__(*args)\n>     \n>             def write(self, payload: bytes) -> int:\n>                 written = self.stream.write(payload)\n>                 operations.append((\"write\", self.stream.fileno(), payload))\n>                 return written\n>     \n>             def flush(self) -> None:\n>                 self.stream.flush()\n>                 operations.append((\"flush\", self.stream.fileno()))\n>     \n>             def fileno(self) -> int:\n>                 return self.stream.fileno()\n>     \n>         def observed_mkstemp(*args, **kwargs):\n>             fd, name = real_mkstemp(*args, **kwargs)\n>             allocations.append((fd, Path(name)))\n>             return fd, name\n>     \n>         def observed_fdopen(*args, **kwargs):\n>             return ObservedStream(real_fdopen(*args, **kwargs))\n>     \n>         def observed_fsync(fd: int) -> None:\n>             temp_path = next(\n>                 path\n>                 for allocated_fd, path in allocations\n>                 if allocated_fd == fd\n>             )\n>             operations.append((\"fsync\", fd, temp_path.read_bytes()))\n>             real_fsync(fd)\n>     \n>         def observed_replace(source, target) -> None:\n>             operations.append((\"replace\", Path(source), Path(target)))\n>             real_replace(source, target)\n>     \n>         with (\n>             mock.patch.object(tempfile, \"mkstemp\", side_effect=observed_mkstemp),\n>             mock.patch.object(os, \"fdopen\", side_effect=observed_fdopen),\n>             mock.patch.object(os, \"fsync\", side_effect=observed_fsync),\n>             mock.patch.object(os, \"replace\", side_effect=observed_replace),\n>         ):\n>             _write_certified_evidence_metadata(metadata_path, metadata)\n>     \n>         assert len(allocations) == 1\n> >       assert [operation[0] for operation in operations] == [\n>             \"write\",\n>             \"flush\",\n>             \"fsync\",\n>             \"replace\",\n>         ]\n> E       AssertionError: assert ['fsync', 'wr...h', 'replace'] == ['write', 'fl...c', 'replace']\n> E         \n> E         At index 0 diff: 'fsync' != 'write'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_raw_record_producer.py:1753: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3269 retained_bytes=3269 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4195 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "06c73cb1a8fa26fd29249305c18d0dd27cf98ad67960dd80c22b668aec99c5b3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.112,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+      ],
+      "hang_risk": false,
+      "id": "J-FSYNC-BEFORE-WRITE",
+      "injection_diff_sha256": "e8859e820d108c669cfaba7c17fdd50170d311e64a72187243031ec4c6bb9569",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f1005c4d78cd0d995456148fab1015289684f1ba6d4e2e57fb2336059e817ff1",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "            os.fsync(stream.fileno())\n            stream.write(payload)\n            stream.flush()\n",
+          "old": "            stream.write(payload)\n            stream.flush()\n            os.fsync(stream.fileno())\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "KILLED",
+      "test_output_sha256": "06c73cb1a8fa26fd29249305c18d0dd27cf98ad67960dd80c22b668aec99c5b3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/9a64e25d6765fec43b6537f19d911840/izdw-9a64e25d67.o977496",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/9a64e25d6765fec43b6537f19d911840/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [10 items]\n\n..........                                                               [100%]\n============================== 10 passed in 8.04s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "a7dd418e2dc0e43dc61c1fbc596ad0f28a7833b201b1ee18da4cde96ec4d27ef"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "eba3319982bf7069b6b9127f80e12d039e43f1284517ec4b7cbc57cb55c98aa8",
+      "duration_s": 32.238,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "EQ-LOCKED-FALSE-SPELLING",
+      "injection_diff_sha256": "2c7e3920af8ba7f25c58c90f99525349029cb5a83cfbdf3832ef74e03f27a247",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "d5464fb63cba85ec3891f322154c9652b06c35bb838e57c50e9966942b633883",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+          "new": "            fcntl.flock(lock_fd, fcntl.LOCK_UN)\n            locked = bool(0)\n\n        body_operation = {\n",
+          "old": "            fcntl.flock(lock_fd, fcntl.LOCK_UN)\n            locked = False\n\n        body_operation = {\n"
+        }
+      ],
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "SURVIVED",
+      "test_output_sha256": "a7dd418e2dc0e43dc61c1fbc596ad0f28a7833b201b1ee18da4cde96ec4d27ef",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/f02408c297445bcb015a52f0c855d601/izdw-f02408c297.o977453",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/output/pegasus-dispatch/f02408c297445bcb015a52f0c855d601/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced\norchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers\n\n10/50 tests collected (40 deselected) in 0.94s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "420da9bd92c5f2725ad2c564ad829368507b35b0bf8b9ea39c4a45387a67428e"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced",
+        "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+      ],
+      "duration_s": 26.997,
+      "rc": 0,
+      "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+      "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+      "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+      "status": "PASSED",
+      "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9"
+    },
+    "hang_timeout_seconds": 5400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "A-WRITER-MODE-SH": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "327233ad213a03327f10846211f4f6a83fbde87dbd1b39ace4f66471d9c17378",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_SH,\n        }[access_mode]\n",
+            "old": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n"
+          }
+        ]
+      },
+      "A2-WRITER-WRAPPER-PASSES-READ": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b1d4aa2783a518073c0c6ed06ddc46d899632d956455eaa0b0126461197c0e73",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "    \"\"\"Provide shared certified evidence under a writer lock.\"\"\"\n\n    with _certified_evidence_fixture_scope(\n        tmp_path_factory,\n        access_mode=\"read\",\n",
+            "old": "    \"\"\"Provide shared certified evidence under a writer lock.\"\"\"\n\n    with _certified_evidence_fixture_scope(\n        tmp_path_factory,\n        access_mode=\"write\",\n"
+          }
+        ]
+      },
+      "B-READER-TAKES-NO-BODY-LOCK": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d8e0a5ed2a5d77aa85280126050082a608e271f5bf922947b032ce4d71883ad7",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        if access_mode == \"write\":\n            fcntl.flock(lock_fd, body_operation)\n            locked = True\n        yield metadata_path\n",
+            "old": "        fcntl.flock(lock_fd, body_operation)\n        locked = True\n        yield metadata_path\n"
+          }
+        ]
+      },
+      "C-M17-WRITER-DECLARATION-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f8ae5e87a3eb2f110b1518df9c1a2d54a4f8e68fe5830f8bb99f3a6bd565e0b4",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "    certified_evidence: _Evidence,\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    \"\"\"Every later validator consumes the first terminal-receipt snapshot bytes.\"\"\"\n    certified_evidence_writer = certified_evidence\n",
+            "old": "    certified_evidence_writer: _Evidence,\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    \"\"\"Every later validator consumes the first terminal-receipt snapshot bytes.\"\"\"\n"
+          }
+        ]
+      },
+      "C2-M18-WRITER-DECLARATION-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_direct_test_file_path_mutation_closure_excludes_called_helpers"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3d1a6a4cfc6d2c08a8e8ba0fb313fd1113639a0b9f22b267ea47dacf71e17dc4",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "    certified_evidence: _Evidence,\n) -> None:\n    certified_evidence_writer = certified_evidence\n    \"\"\"Acceptance would follow a replaceable receipt leaf.",
+            "old": "    certified_evidence_writer: _Evidence,\n) -> None:\n    \"\"\"Acceptance would follow a replaceable receipt leaf."
+          }
+        ]
+      },
+      "D-SEED-DOUBLE-CHECK-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "561e1f4a488f0e09caed61d9fb31758b86be2a632b72c4c29b1eb9ccab3cad11",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "            locked = True\n            if True:\n                evidence_root = shared / \"evidence\"\n",
+            "old": "            locked = True\n            if not metadata_path.exists():\n                evidence_root = shared / \"evidence\"\n"
+          }
+        ]
+      },
+      "E-READER-MODE-EX-OLD-BEHAVIOUR": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_lock_allows_two_readers",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_double_check_observes_competing_seed",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seeded_reader_never_requests_exclusive"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bf9a1652b1c646d00c3df5f3b9e7629cdb896e0ff9c477917ef1c97ce335843f",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        body_operation = {\n            \"read\": fcntl.LOCK_EX,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n",
+            "old": "        body_operation = {\n            \"read\": fcntl.LOCK_SH,\n            \"write\": fcntl.LOCK_EX,\n        }[access_mode]\n"
+          }
+        ]
+      },
+      "EQ-LOCKED-FALSE-SPELLING": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "2c7e3920af8ba7f25c58c90f99525349029cb5a83cfbdf3832ef74e03f27a247",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "            fcntl.flock(lock_fd, fcntl.LOCK_UN)\n            locked = bool(0)\n\n        body_operation = {\n",
+            "old": "            fcntl.flock(lock_fd, fcntl.LOCK_UN)\n            locked = False\n\n        body_operation = {\n"
+          }
+        ]
+      },
+      "F-UNLOCK-BEFORE-YIELD": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_reader_blocks_nonblocking_writer",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_writer_blocks_nonblocking_reader"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c56e401ee027e8f91594fabf7d22d2a017fd606a584d68d057debe664ee9b8d8",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        fcntl.flock(lock_fd, body_operation)\n        fcntl.flock(lock_fd, fcntl.LOCK_UN)\n        locked = False\n        yield metadata_path\n",
+            "old": "        fcntl.flock(lock_fd, body_operation)\n        locked = True\n        yield metadata_path\n"
+          }
+        ]
+      },
+      "G-METADATA-DIRECT-WRITE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b15cf7eb8ed658df6a6cefcf2c9bc6bbf185f8af2f54f48de46b8ef794e063a9",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        metadata_path.write_bytes(payload)\n        temp_path.unlink()\n",
+            "old": "        os.replace(temp_path, metadata_path)\n"
+          }
+        ]
+      },
+      "G2-SEED-PUBLISHES-METADATA-DIRECTLY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d062816e08a441848cf1b2991bfd94e498b8d7a93bd127aaf212594390034ae5",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        (shared / \"evidence.json\").write_bytes(json.dumps(metadata, sort_keys=True, separators=(\",\", \":\")).encode(\"utf-8\"))\n",
+            "old": "        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n"
+          }
+        ]
+      },
+      "H-SCOPE-MODE-CONSTANT-WRITE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_holds_both_modes_through_yield",
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_fixture_scope_yield_is_inside_lock_ast"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "010b39159ae9de55dfef6616f3ecbc4dd60bfb5eacd2fea65c3ab59ee0a55fd6",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        access_mode=\"write\",\n        seed=seed,\n",
+            "old": "        access_mode=access_mode,\n        seed=seed,\n"
+          }
+        ]
+      },
+      "I-SEED-DIRECT-PUBLISH-BESIDE-HELPER": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_seed_publishes_metadata_only_through_atomic_helper_ast"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f1bd251efdc1cbd3ff8e9725a497d4ab0d3847ea11da85debf35f08090611293",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "        shared.joinpath(\"evidence.json\").write_bytes(b\"{\")\n        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n",
+            "old": "        _write_certified_evidence_metadata(shared / \"evidence.json\", metadata)\n"
+          }
+        ]
+      },
+      "J-FSYNC-BEFORE-WRITE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_raw_record_producer.py::test_certified_evidence_metadata_is_fsynced_and_atomically_replaced"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e8859e820d108c669cfaba7c17fdd50170d311e64a72187243031ec4c6bb9569",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+            "new": "            os.fsync(stream.fileno())\n            stream.write(payload)\n            stream.flush()\n",
+            "old": "            stream.write(payload)\n            stream.flush()\n            os.fsync(stream.fileno())\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "5ceffb3bc2ec21a0b5717d92c37a2752792f3e948121a120cbd4b7f97b1fc65a",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+      "-k",
+      "certified_evidence",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "b47cf39758b84cb438318482dbbd50ed9beac6c6",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_raw_record_producer.py",
+      "-k",
+      "certified_evidence",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "2a379ee44a1a13bc3f9607a37e9940ca899963da",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "49a069c1aae49f0991a85d0b1c7d7be7499a787323a3f3342f9a4e654ce47003",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "b0987414458d13c8d6f7e933952bb33b145aa51ade9f71ea765aee553edc2c35",
+  "summary": {
+    "KILLED": 13,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 14,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2298-certified-evidence-lock/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "1562b00f0e9e40d8d6bdfb927d069db0ac07c79c400abdc8eb23b71c7e58d5c9",
+  "updated_at": "2026-09-04T15:15:19.103656+00:00"
+}
