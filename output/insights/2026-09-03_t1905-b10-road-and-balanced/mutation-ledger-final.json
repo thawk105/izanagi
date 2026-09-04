@@ -1,0 +1,457 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/4091296c735203f15299b3b459a1f934/izdw-4091296c73.o974400",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/4091296c735203f15299b3b459a1f934/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 69%]\n...............................                                          [100%]\n103 passed in 12.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4a3a54213f2b8db07ce681c6635fec7e5d0ec11c5b3eb215c41fdbd38ce75d9e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "154761570648a00730f1b63079ddf817f42b064f42c05d9a2f6538b8c95c00dd",
+    "duration_s": 32.358,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "6c01cf04403d02ed743fc7e4cf05cb0de7c0cd0ab53320e417d596fd41e1cbc0",
+    "repo_head": "413e3840ebfc6835abffe735a45556bc615a02db",
+    "runner_sha256": "fa5bc7a703ac45a0c108388e46d65920a7893e849c19caeb4b6de2f559e4e77f",
+    "spec_sha256": "6fb65978cb62b90bbd600582411283656a7ca9570d9e46a5600aaf2adac3292c",
+    "status": "PASSED",
+    "test_output_sha256": "4a3a54213f2b8db07ce681c6635fec7e5d0ec11c5b3eb215c41fdbd38ce75d9e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "d11102ccf48488da2d9170e3ac8edc17bde17d9aedebce1b1d776c2e242dc7b3"
+  },
+  "date": "2026-09-03T12:30:42.865655+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/a231328f801659aa6f571e83a29099ab/izdw-a231328f80.o974405",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/a231328f801659aa6f571e83a29099ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 69%]\n..........F....................                                          [100%]\n=================================== FAILURES ===================================\n________ test_verify_perf_launcher_contract_and_walltime_are_consistent ________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_verify_perf_launcher_cont0')\n\n    def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Path):\n        submit_text = (\n            ROOT / \"tools/pegasus/submit_b10_backoff_shape.sh\"\n        ).read_text(encoding=\"utf-8\")\n        job_text = (\n            ROOT / \"tools/pegasus/b10_backoff_shape_campaign.sh\"\n        ).read_text(encoding=\"utf-8\")\n        driver_text = Path(B.__file__).read_text(encoding=\"utf-8\")\n    \n        policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding=\"utf-8\"))\n        walltime_s = policy[\"b10_backoff_shape_walltime_s\"]\n>       assert walltime_s == 24 * 60 * 60\nE       assert 43200 == ((24 * 60) * 60)\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:2428: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\n1 failed, 102 passed in 12.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=853 retained_bytes=853 omitted_bytes=0 rendered_excerpt_bytes=892 sha256=ee292ae04f4fb5e794b33cf5dd01acfbde5e40d9920260fc1f2e2db298f0eb0d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_verify_perf_launcher_cont0')\n> \n>     def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Path):\n>         submit_text = (\n>             ROOT / \"tools/pegasus/submit_b10_backoff_shape.sh\"\n>         ).read_text(encoding=\"utf-8\")\n>         job_text = (\n>             ROOT / \"tools/pegasus/b10_backoff_shape_campaign.sh\"\n>         ).read_text(encoding=\"utf-8\")\n>         driver_text = Path(B.__file__).read_text(encoding=\"utf-8\")\n>     \n>         policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding=\"utf-8\"))\n>         walltime_s = policy[\"b10_backoff_shape_walltime_s\"]\n> >       assert walltime_s == 24 * 60 * 60\n> E       assert 43200 == ((24 * 60) * 60)\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:2428: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=853 retained_bytes=853 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1629 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "85ab8001e6e5dab6813ab3b62607c96545523059b8a68476efad498594dc31e6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "154761570648a00730f1b63079ddf817f42b064f42c05d9a2f6538b8c95c00dd",
+      "duration_s": 37.273,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+      ],
+      "hang_risk": false,
+      "id": "t1905wt.m01",
+      "injection_diff_sha256": "3761c29cba4b5fa6755ca2fb8918a5ac88bc09f2660e32374c8dd41319cc0562",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f44be27ab1e547278cc0fd9fe9f606bbd5871b69571a4263d7570e639d616ac9",
+      "replacements": [
+        {
+          "file": "tools/pegasus/policy.json",
+          "new": "  \"b10_backoff_shape_walltime_s\": 43200,\n",
+          "old": "  \"b10_backoff_shape_walltime_s\": 86400,\n"
+        }
+      ],
+      "repo_head": "413e3840ebfc6835abffe735a45556bc615a02db",
+      "runner_sha256": "fa5bc7a703ac45a0c108388e46d65920a7893e849c19caeb4b6de2f559e4e77f",
+      "spec_sha256": "6fb65978cb62b90bbd600582411283656a7ca9570d9e46a5600aaf2adac3292c",
+      "status": "KILLED",
+      "test_output_sha256": "85ab8001e6e5dab6813ab3b62607c96545523059b8a68476efad498594dc31e6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d11102ccf48488da2d9170e3ac8edc17bde17d9aedebce1b1d776c2e242dc7b3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/460a7a94feb9e32b5e449755831f6a0b/izdw-460a7a94fe.o974408",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/460a7a94feb9e32b5e449755831f6a0b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 69%]\n..........F....................                                          [100%]\n=================================== FAILURES ===================================\n________ test_verify_perf_launcher_contract_and_walltime_are_consistent ________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_verify_perf_launcher_cont0')\n\n    def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Path):\n        submit_text = (\n            ROOT / \"tools/pegasus/submit_b10_backoff_shape.sh\"\n        ).read_text(encoding=\"utf-8\")\n        job_text = (\n            ROOT / \"tools/pegasus/b10_backoff_shape_campaign.sh\"\n        ).read_text(encoding=\"utf-8\")\n        driver_text = Path(B.__file__).read_text(encoding=\"utf-8\")\n    \n        policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding=\"utf-8\"))\n        walltime_s = policy[\"b10_backoff_shape_walltime_s\"]\n        assert walltime_s == 24 * 60 * 60\n    \n        directive = re.findall(\n            r\"(?m)^#PBS -l elapstim_req=([0-9]+):([0-9]+):([0-9]+)$\", job_text,\n        )\n>       assert directive == [(\"24\", \"00\", \"00\")]\nE       AssertionError: assert [('12', '00', '00')] == [('24', '00', '00')]\nE         \nE         At index 0 diff: ('12', '00', '00') != ('24', '00', '00')\nE         Use -v to get more diff\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:2433: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\n1 failed, 102 passed in 12.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1177 retained_bytes=1177 omitted_bytes=0 rendered_excerpt_bytes=1232 sha256=ea7abd4f2a9ea7deb0c2411e84be2e49992ab8547965ca289b922982f30f7e3e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_verify_perf_launcher_cont0')\n> \n>     def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Path):\n>         submit_text = (\n>             ROOT / \"tools/pegasus/submit_b10_backoff_shape.sh\"\n>         ).read_text(encoding=\"utf-8\")\n>         job_text = (\n>             ROOT / \"tools/pegasus/b10_backoff_shape_campaign.sh\"\n>         ).read_text(encoding=\"utf-8\")\n>         driver_text = Path(B.__file__).read_text(encoding=\"utf-8\")\n>     \n>         policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding=\"utf-8\"))\n>         walltime_s = policy[\"b10_backoff_shape_walltime_s\"]\n>         assert walltime_s == 24 * 60 * 60\n>     \n>         directive = re.findall(\n>             r\"(?m)^#PBS -l elapstim_req=([0-9]+):([0-9]+):([0-9]+)$\", job_text,\n>         )\n> >       assert directive == [(\"24\", \"00\", \"00\")]\n> E       AssertionError: assert [('12', '00', '00')] == [('24', '00', '00')]\n> E         \n> E         At index 0 diff: ('12', '00', '00') != ('24', '00', '00')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:2433: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1177 retained_bytes=1177 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1974 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d4e47ae16a547d1ba40532c38b768a85d5d2cc7866500d9ad9f8e4d57d9594c2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "154761570648a00730f1b63079ddf817f42b064f42c05d9a2f6538b8c95c00dd",
+      "duration_s": 32.134,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+      ],
+      "hang_risk": false,
+      "id": "t1905wt.m02",
+      "injection_diff_sha256": "8df4351630812e84f020382c48b05589522d3202744241e24d93b4d8801f7b79",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c793b64137323f0dd14ffe0ffe37d48bfce1959a94d9c57e4b1da776a03c5d49",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+          "new": "#PBS -l elapstim_req=12:00:00\n",
+          "old": "#PBS -l elapstim_req=24:00:00\n"
+        }
+      ],
+      "repo_head": "413e3840ebfc6835abffe735a45556bc615a02db",
+      "runner_sha256": "fa5bc7a703ac45a0c108388e46d65920a7893e849c19caeb4b6de2f559e4e77f",
+      "spec_sha256": "6fb65978cb62b90bbd600582411283656a7ca9570d9e46a5600aaf2adac3292c",
+      "status": "KILLED",
+      "test_output_sha256": "d4e47ae16a547d1ba40532c38b768a85d5d2cc7866500d9ad9f8e4d57d9594c2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d11102ccf48488da2d9170e3ac8edc17bde17d9aedebce1b1d776c2e242dc7b3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/9eeaf580f34c5afef8dd871aabe4db37/izdw-9eeaf580f3.o974409",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/9eeaf580f34c5afef8dd871aabe4db37/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 69%]\n.........F.....................                                          [100%]\n=================================== FAILURES ===================================\n________ test_verify_perf_launcher_contract_and_walltime_are_consistent ________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_verify_perf_launcher_cont0')\n\n    def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Path):\n        submit_text = (\n            ROOT / \"tools/pegasus/submit_b10_backoff_shape.sh\"\n        ).read_text(encoding=\"utf-8\")\n        job_text = (\n            ROOT / \"tools/pegasus/b10_backoff_shape_campaign.sh\"\n        ).read_text(encoding=\"utf-8\")\n        driver_text = Path(B.__file__).read_text(encoding=\"utf-8\")\n    \n        policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding=\"utf-8\"))\n        walltime_s = policy[\"b10_backoff_shape_walltime_s\"]\n        assert walltime_s == 24 * 60 * 60\n    \n        directive = re.findall(\n            r\"(?m)^#PBS -l elapstim_req=([0-9]+):([0-9]+):([0-9]+)$\", job_text,\n        )\n        assert directive == [(\"24\", \"00\", \"00\")]\n        hours, minutes, seconds = map(int, directive[0])\n        assert hours * 3600 + minutes * 60 + seconds == walltime_s\n    \n        def evaluated_request_walltime(source: str) -> int:\n            expressions = re.findall(\n                r'\"elapstim_req_s\":\\s*([^}\\n]+)\\}', source,\n            )\n            assert len(expressions) == 1\n            return eval(  # noqa: S307 - evaluates one captured in-repository expression\n                expressions[0], {\"__builtins__\": {}, \"int\": int},\n                {\"walltime_s\": str(walltime_s)},\n            )\n    \n        assert evaluated_request_walltime(job_text) == walltime_s\n        assert evaluated_request_walltime(submit_text) == walltime_s\n        assert B._b10_pbs_request(ROOT)[\"elapstim_req_s\"] == walltime_s\n    \n        scheduler_condition = re.findall(\n            r'(?m)^(\\[\\[ \"\\$SCHEDULER_ELAPSE_LIMIT_S\" -eq \"\\$B10_WALLTIME_S\" \\]\\]) \\\\$',\n            job_text,\n        )\n        assert len(scheduler_condition) == 1\n        compared = subprocess.run(\n            [\n                \"bash\", \"-c\",\n                \"SCHEDULER_ELAPSE_LIMIT_S=$1; B10_WALLTIME_S=$2; \"\n                + scheduler_condition[0],\n                \"b10-walltime-value-test\", str(walltime_s), str(walltime_s),\n            ],\n            capture_output=True, text=True,\n        )\n        assert compared.returncode == 0, compared.stdout + compared.stderr\n    \n        scheduler_gate = re.findall(\n            r'(?m)^(\\[\\[ \"\\$SCHEDULER_ELAPSE_LIMIT_S\" -eq \"\\$B10_WALLTIME_S\" \\]\\] \\\\\\n'\n            r'  \\|\\| \\{ write_failure 2 allocation '\n            r'\"actual scheduler Elapse limit differs from receipt\"; exit 2; \\})$',\n            job_text,\n        )\n        assert len(scheduler_gate) == 1\n        failure_args = tmp_path / \"walltime-failure-args\"\n        rejected = subprocess.run(\n            [\n                \"bash\", \"-c\",\n                \"set -Eeuo pipefail\\n\"\n                \"failure_args=$1\\n\"\n                \"write_failure() { printf '%s\\\\n' \\\"$1\\\" \\\"$2\\\" \\\"$3\\\" >\\\"$failure_args\\\"; }\\n\"\n                \"SCHEDULER_ELAPSE_LIMIT_S=$2\\n\"\n                \"B10_WALLTIME_S=$3\\n\"\n                + scheduler_gate[0],\n                \"b10-walltime-rejection-test\", os.fspath(failure_args),\n                str(walltime_s + 1), str(walltime_s),\n            ],\n            capture_output=True,\n            text=True,\n        )\n        assert rejected.returncode == 2, rejected.stdout + rejected.stderr\n        assert failure_args.read_text(encoding=\"utf-8\").splitlines() == [\n            \"2\", \"allocation\", \"actual scheduler Elapse limit differs from receipt\",\n        ]\n    \n        for text in (submit_text, job_text):\n            assert \"build|verify|perf|probe|verify-perf|report\" in text\n        for duplicated_walltime in (\"43200\", \"86400\"):\n>           assert duplicated_walltime not in job_text + submit_text + driver_text\nE           assert '86400' not in '#!/bin/bash...it(main())\\n'\nE             \nE             '86400' is contained here:\nE               s\")\nE               print(86400)\nE             ?       +++++\nE               PY\nE               ) || bootstrap_fail \"B10 walltime policy invalid\"...\nE             \nE             ...Full output truncated (4337 lines hidden), use '-vv' to show\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:2498: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\n1 failed, 102 passed in 12.41s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=4239 retained_bytes=3797 omitted_bytes=442 rendered_excerpt_bytes=4096 sha256=535c072e43ea0670d104e92ef918a45318bb46cf6640533f527ad8c7b0f2308f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> h\"\n>         ).read_text(encoding=\"utf-8\")\n>         driver_text = Path(B.__file__).read_text(encoding=\"utf-8\")\n>     \n>         policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding=\"utf-8\"))\n>         walltime_s = policy[\"b10_backoff_shape_walltime_s\"]\n>         assert walltime_s == 24 * 60 * 60\n>     \n>         directive = re.findall(\n>             r\"(?m)^#PBS -l elapstim_req=([0-9]+):([0-9]+):([0-9]+)$\", job_text,\n>         )\n>         assert directive == [(\"24\", \"00\", \"00\")]\n>         hours, minutes, seconds = map(int, directive[0])\n>         assert hours * 3600 + minutes * 60 + seconds == walltime_s\n>     \n>         def evaluated_request_walltime(source: str) -> int:\n>             expressions = re.findall(\n>                 r'\"elapstim_req_s\":\\x5cs*([^}\\x5cn]+)\\x5c}', source,\n>             )\n>             assert len(expressions) == 1\n>             return eval(  # noqa: S307 - evaluates one captured in-repository expression\n>                 expressions[0], {\"__builtins__\": {}, \"int\": int},\n>                 {\"walltime_s\": str(walltime_s)},\n>             )\n>     \n>         assert evaluated_request_walltime(job_text) == walltime_s\n>         assert evaluated_request_walltime(submit_text) == walltime_s\n>         assert B._b10_pbs_request(ROOT)[\"elapstim_req_s\"] == walltime_s\n>     \n>         scheduler_condition = re.findall(\n>             r'(?m)^(\\x5c[\\x5c[ \"\\x5c$SCHEDULER_ELAPSE_LIMIT_S\" -eq \"\\x5c$B10_WALLTIME_S\" \\x5c]\\x5c]) \\x5c\\x5c$',\n>             job_text,\n>         )\n>         assert len(scheduler_condition) == 1\n>         compared = subprocess.run(\n>             [\n>                 \"bash\", \"-c\",\n>                 \"SCHEDULER_ELAPSE_LIMIT_S=$1; B10_WALLTIME_S=$2; \"\n>                 + scheduler_condition[0],\n>                 \"b10-walltime-value-test\", str(walltime_s), str(walltime_s),\n>             ],\n>             capture_output=True, text=True,\n>         )\n>         assert compared.returncode == 0, compared.stdout + compared.stderr\n>     \n>         scheduler_gate = re.findall(\n>             r'(?m)^(\\x5c[\\x5c[ \"\\x5c$SCHEDULER_ELAPSE_LIMIT_S\" -eq \"\\x5c$B10_WALLTIME_S\" \\x5c]\\x5c] \\x5c\\x5c\\x5cn'\n>             r'  \\x5c|\\x5c| \\x5c{ write_failure 2 allocation '\n>             r'\"actual scheduler Elapse limit differs from receipt\"; exit 2; \\x5c})$',\n>             job_text,\n>         )\n>         assert len(scheduler_gate) == 1\n>         failure_args = tmp_path / \"walltime-failure-args\"\n>         rejected = subprocess.run(\n>             [\n>                 \"bash\", \"-c\",\n>                 \"set -Eeuo pipefail\\x5cn\"\n>                 \"failure_args=$1\\x5cn\"\n>                 \"write_failure() { printf '%s\\x5c\\x5cn' \\x5c\"$1\\x5c\" \\x5c\"$2\\x5c\" \\x5c\"$3\\x5c\" >\\x5c\"$failure_args\\x5c\"; }\\x5cn\"\n>                 \"SCHEDULER_ELAPSE_LIMIT_S=$2\\x5cn\"\n>                 \"B10_WALLTIME_S=$3\\x5cn\"\n>                 + scheduler_gate[0],\n>                 \"b10-walltime-rejection-test\", os.fspath(failure_args),\n>                 str(walltime_s + 1), str(walltime_s),\n>             ],\n>             capture_output=True,\n>             text=True,\n>         )\n>         assert rejected.returncode == 2, rejected.stdout + rejected.stderr\n>         assert failure_args.read_text(encoding=\"utf-8\").splitlines() == [\n>             \"2\", \"allocation\", \"actual scheduler Elapse limit differs from receipt\",\n>         ]\n>     \n>         for text in (submit_text, job_text):\n>             assert \"build|verify|perf|probe|verify-perf|report\" in text\n>         for duplicated_walltime in (\"43200\", \"86400\"):\n> >           assert duplicated_walltime not in job_text + submit_text + driver_text\n> E           assert '86400' not in '#!/bin/bash...it(main())\\x5cn'\n> E             \n> E             '86400' is contained here:\n> E               s\")\n> E               print(86400)\n> E             ?       +++++\n> E               PY\n> E               ) || bootstrap_fail \"B10 walltime policy invalid\"...\n> E             \n> E             ...Full output truncated (4337 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:2498: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4239 retained_bytes=3797 omitted_bytes=442 budget_bytes=49152 rendered_bytes=4842 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a558c61ce40285eed0295965aae1bf656ba21aaaf906c1f8d163042580bec3eb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "154761570648a00730f1b63079ddf817f42b064f42c05d9a2f6538b8c95c00dd",
+      "duration_s": 37.465,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+      ],
+      "hang_risk": false,
+      "id": "t1905wt.m03",
+      "injection_diff_sha256": "d6c53cb37369228dc4ffa763d29817253db475fd928d33449552ce253d2b1ad4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "da3f0f477477aa730aa60def055df4daa732eb816513d9b0cb2c84ff5e40780b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+          "new": "print(86400)\n",
+          "old": "print(walltime_s)\n"
+        }
+      ],
+      "repo_head": "413e3840ebfc6835abffe735a45556bc615a02db",
+      "runner_sha256": "fa5bc7a703ac45a0c108388e46d65920a7893e849c19caeb4b6de2f559e4e77f",
+      "spec_sha256": "6fb65978cb62b90bbd600582411283656a7ca9570d9e46a5600aaf2adac3292c",
+      "status": "KILLED",
+      "test_output_sha256": "a558c61ce40285eed0295965aae1bf656ba21aaaf906c1f8d163042580bec3eb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d11102ccf48488da2d9170e3ac8edc17bde17d9aedebce1b1d776c2e242dc7b3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/4cb658e980284d0b2203d0cd65ad501e/izdw-4cb658e980.o974410",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/4cb658e980284d0b2203d0cd65ad501e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 69%]\n...............................                                          [100%]\n103 passed in 12.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "4ab017dcddc43343d3f265ddc20fca11eed6a19930230a3e1b02ecc61a6bbe81"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "154761570648a00730f1b63079ddf817f42b064f42c05d9a2f6538b8c95c00dd",
+      "duration_s": 37.271,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "t1905wt.m04",
+      "injection_diff_sha256": "342a4377ece8839b351b75626628afccea737354aaddae0af9f5d008bb61cf99",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "2b231f8021cd41fcc0491b1100c10594fb8ea68e1685716638a257b7d741d304",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+          "new": "    for duplicated_walltime in (\"43200\",):\n",
+          "old": "    for duplicated_walltime in (\"43200\", \"86400\"):\n"
+        }
+      ],
+      "repo_head": "413e3840ebfc6835abffe735a45556bc615a02db",
+      "runner_sha256": "fa5bc7a703ac45a0c108388e46d65920a7893e849c19caeb4b6de2f559e4e77f",
+      "spec_sha256": "6fb65978cb62b90bbd600582411283656a7ca9570d9e46a5600aaf2adac3292c",
+      "status": "SURVIVED",
+      "test_output_sha256": "4ab017dcddc43343d3f265ddc20fca11eed6a19930230a3e1b02ecc61a6bbe81",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d11102ccf48488da2d9170e3ac8edc17bde17d9aedebce1b1d776c2e242dc7b3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/450a6ca1d4f3d52eb36fc6ceab62bf43/izdw-450a6ca1d4.o974399",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/output/pegasus-dispatch/450a6ca1d4f3d52eb36fc6ceab62bf43/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m01_patch_path_widening_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m02_patch_sha_bypass_witness_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m03_duplicate_marker_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m04_hole_substring_match_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m05_wait_loop_mutation_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m06_nonstock_inert_token_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m07_unapplied_patch_is_not_a_success\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_dirty_tree_is_rejected_before_blob_admission\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_nonancestor_commit_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_blob_mismatch_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m09_shape_code_three_is_rejected_instead_of_falling_back\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m12_sign_flip_test_is_two_sided_not_fixed_one_sided\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m13_actual_patch_half_width_mutation_reaches_only_cpp_bounds_oracle\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m14_dormant_cpp_code2_mixer_must_match_registered_symmetric_mixer\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_cpp_code2_pair_average_is_exact_for_alternate_odd_mixer\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_same_job_correctness_and_performance_binary_sha_still_match\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_b10_cache_roots_are_disjoint_by_workload_and_stable_across_submissions\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_build_admission_identity_keeps_the_source_root_in_its_preimage\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m16_omitting_one_registered_analysis_field_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_table_is_required_and_placeholders_are_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_canonical_preregistration_path_cannot_be_overridden_from_cli\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_phase_closed_set_is_build_verify_perf_probe\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_phase_is_additive_to_the_legacy_phase_set\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_phase_is_the_only_report_writer_caller\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_new_v2_block_writer_records_the_reservation_binding_host\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_reuses_one_checkout_and_stops_before_perf_on_abort\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_build_requires_exact_path_policy_and_job_exports_it\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_fails_closed_at_login_site_before_any_work\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_does_not_start_performance_campaign\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_harness_copies_reviewed_chkclkspan_and_wait_loop_verbatim\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_output_schema_and_create_only\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_records_are_hash_verified_and_create_only\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_current_v2_block_record_requires_nonempty_execution_host\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_current_v2_block_record_requires_well_formed_variant_id\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_e3de15eb_legacy_adapter_rejects_other_campaign_id\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_binding_reads_the_real_campaign_lock_codec\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_admission_requires_exactly_135_registered_block_cells\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_admission_rejects_same_size_unique_nonregistered_grid\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_discloses_manual_termination_guarantee_and_wal_limitations\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_verification_completeness_counts_records_and_discloses_wal_anomalies\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p02_all_12_registered_encodings_are_bijective\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p03_legacy_zero_through_999_is_numerically_identical\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p04_three_reference_points_and_full_grid_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_exact_finite_models_distinguish_registered_shapes_and_dormant_code2\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_code2_binary_arms_and_registered_symmetric_bounds_for_odd_means\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_orders_are_distinct_complete_identity_bearing_permutations\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_nominal_wait_uses_abort_calls_times_target_mean\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m1_job_exports_official_root_and_missing_env_fails_closed\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m2_job_root_passes_real_external_and_claim_capability_gates\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m3_job_root_is_identical_across_phase_job_nonces\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_campaign_layout_and_writer_share_resolved_root_and_policy\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_non_forbidden_external_official_root_is_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_plain_runner_executes_this_file_instead_of_false_green\n\n103 tests collected in 0.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3fa86507819cc86639dc633b40b55cfad5f56beac173d1af82a5fe556abed660"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m01_patch_path_widening_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m02_patch_sha_bypass_witness_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m03_duplicate_marker_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m04_hole_substring_match_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m05_wait_loop_mutation_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m06_nonstock_inert_token_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m07_unapplied_patch_is_not_a_success",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_dirty_tree_is_rejected_before_blob_admission",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_nonancestor_commit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_blob_mismatch_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m09_shape_code_three_is_rejected_instead_of_falling_back",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m12_sign_flip_test_is_two_sided_not_fixed_one_sided",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m13_actual_patch_half_width_mutation_reaches_only_cpp_bounds_oracle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m14_dormant_cpp_code2_mixer_must_match_registered_symmetric_mixer",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_cpp_code2_pair_average_is_exact_for_alternate_odd_mixer",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_same_job_correctness_and_performance_binary_sha_still_match",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_b10_cache_roots_are_disjoint_by_workload_and_stable_across_submissions",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_build_admission_identity_keeps_the_source_root_in_its_preimage",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m16_omitting_one_registered_analysis_field_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_table_is_required_and_placeholders_are_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_canonical_preregistration_path_cannot_be_overridden_from_cli",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_phase_closed_set_is_build_verify_perf_probe",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_phase_is_additive_to_the_legacy_phase_set",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_phase_is_the_only_report_writer_caller",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_new_v2_block_writer_records_the_reservation_binding_host",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_reuses_one_checkout_and_stops_before_perf_on_abort",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_build_requires_exact_path_policy_and_job_exports_it",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_fails_closed_at_login_site_before_any_work",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_does_not_start_performance_campaign",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_harness_copies_reviewed_chkclkspan_and_wait_loop_verbatim",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_output_schema_and_create_only",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_records_are_hash_verified_and_create_only",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_current_v2_block_record_requires_nonempty_execution_host",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_current_v2_block_record_requires_well_formed_variant_id",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_e3de15eb_legacy_adapter_rejects_other_campaign_id",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_lock_binding_reads_the_real_campaign_lock_codec",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_admission_requires_exactly_135_registered_block_cells",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_admission_rejects_same_size_unique_nonregistered_grid",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_report_discloses_manual_termination_guarantee_and_wal_limitations",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verification_completeness_counts_records_and_discloses_wal_anomalies",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p02_all_12_registered_encodings_are_bijective",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p03_legacy_zero_through_999_is_numerically_identical",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p04_three_reference_points_and_full_grid_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_exact_finite_models_distinguish_registered_shapes_and_dormant_code2",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_code2_binary_arms_and_registered_symmetric_bounds_for_odd_means",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_orders_are_distinct_complete_identity_bearing_permutations",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_nominal_wait_uses_abort_calls_times_target_mean",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m1_job_exports_official_root_and_missing_env_fails_closed",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m2_job_root_passes_real_external_and_claim_capability_gates",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m3_job_root_is_identical_across_phase_job_nonces",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_campaign_layout_and_writer_share_resolved_root_and_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_non_forbidden_external_official_root_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_plain_runner_executes_this_file_instead_of_false_green"
+      ],
+      "duration_s": 26.963,
+      "rc": 0,
+      "repo_head": "413e3840ebfc6835abffe735a45556bc615a02db",
+      "runner_sha256": "fa5bc7a703ac45a0c108388e46d65920a7893e849c19caeb4b6de2f559e4e77f",
+      "spec_sha256": "6fb65978cb62b90bbd600582411283656a7ca9570d9e46a5600aaf2adac3292c",
+      "status": "PASSED",
+      "tool_sha256": "d11102ccf48488da2d9170e3ac8edc17bde17d9aedebce1b1d776c2e242dc7b3"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t1905wt.m01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3761c29cba4b5fa6755ca2fb8918a5ac88bc09f2660e32374c8dd41319cc0562",
+        "replacements": [
+          {
+            "file": "tools/pegasus/policy.json",
+            "new": "  \"b10_backoff_shape_walltime_s\": 43200,\n",
+            "old": "  \"b10_backoff_shape_walltime_s\": 86400,\n"
+          }
+        ]
+      },
+      "t1905wt.m02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8df4351630812e84f020382c48b05589522d3202744241e24d93b4d8801f7b79",
+        "replacements": [
+          {
+            "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+            "new": "#PBS -l elapstim_req=12:00:00\n",
+            "old": "#PBS -l elapstim_req=24:00:00\n"
+          }
+        ]
+      },
+      "t1905wt.m03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d6c53cb37369228dc4ffa763d29817253db475fd928d33449552ce253d2b1ad4",
+        "replacements": [
+          {
+            "file": "tools/pegasus/b10_backoff_shape_campaign.sh",
+            "new": "print(86400)\n",
+            "old": "print(walltime_s)\n"
+          }
+        ]
+      },
+      "t1905wt.m04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "342a4377ece8839b351b75626628afccea737354aaddae0af9f5d008bb61cf99",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+            "new": "    for duplicated_walltime in (\"43200\",):\n",
+            "old": "    for duplicated_walltime in (\"43200\", \"86400\"):\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "6c01cf04403d02ed743fc7e4cf05cb0de7c0cd0ab53320e417d596fd41e1cbc0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1500.0
+  },
+  "repo_head": "413e3840ebfc6835abffe735a45556bc615a02db",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b78efab052e8576efd1b53218d2ed282589426d2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "fa5bc7a703ac45a0c108388e46d65920a7893e849c19caeb4b6de2f559e4e77f",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "6fb65978cb62b90bbd600582411283656a7ca9570d9e46a5600aaf2adac3292c",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1905-b10-continuation/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "d11102ccf48488da2d9170e3ac8edc17bde17d9aedebce1b1d776c2e242dc7b3",
+  "updated_at": "2026-09-03T12:34:03.945477+00:00"
+}
