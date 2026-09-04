@@ -48,6 +48,8 @@ from orchestrator.campaign import (                                            #
 from orchestrator.campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
+    env_contract,
+    execution_guard,
     site_policy,
     source_digest,
     trigger_gate_binding,
@@ -82,10 +84,11 @@ def _avoid_condition_compiler_work_in_mechanical_tests(monkeypatch):
 
 
 def test_condition_gate_precedes_run_campaign_in_build_path():
-    source = inspect.getsource(L.run_one_iteration)
+    source = inspect.getsource(L._run_one_iteration_resolved)
     assert source.index("_require_condition_gate(sub, genome)") < source.index(
         "summary = run_campaign("
     )
+    assert "_run_one_iteration_resolved(" in inspect.getsource(L.run_one_iteration)
     helper = inspect.getsource(_REAL_CONDITION_GATE)
     assert "evaluate_define_supply_effectuation" in helper
     assert "evaluate_define_runtime_meaning" in helper
@@ -102,6 +105,379 @@ def test_condition_gate_precedes_run_campaign_in_build_path():
     )
     assert "p3_kickoff_condition_gate.json" in kickoff
     assert "s4_condition_gate.json" in red
+
+
+def _site_contract(
+    *,
+    env_tag: str = "sentinel-env",
+    clocks_per_us: int = 4242,
+    numactl: tuple[str, ...] = ("numactl", "--sentinel"),
+):
+    reference = env_contract.GENERATIONS["linux-baremetal"][0].contract
+    return env_contract.ExecutionEnvironmentContract(
+        env_tag=env_tag,
+        clocks_per_us=clocks_per_us,
+        numactl=numactl,
+        attestation_mode="none",
+        isolation_policy=env_contract.IsolationPolicy(
+            single_process=False,
+            allow_resume=True,
+        ),
+        calibration_ref=reference.calibration_ref,
+    )
+
+
+def _site_test_proposals():
+    return (
+        L.PlannerProposal(
+            axis=L.MARKER_ID,
+            direction="increase",
+            magnitude="small",
+        ),
+        L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=20,
+            implementation="double now_backoff = 20;",
+        ),
+    )
+
+
+def test_base_site_admission_is_exact_two_site_set():
+    candidates = (
+        site_policy.OTHER,
+        site_policy.PEGASUS_COMPUTE,
+        site_policy.PEGASUS_LOGIN,
+        site_policy.PEGASUS_SUSPECT,
+        "UNKNOWN_SITE",
+    )
+    admitted = {site for site in candidates if L._site_admits_measurement(site)}
+    assert admitted == {site_policy.OTHER, site_policy.PEGASUS_COMPUTE}
+
+
+def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
+    raw = L.default_cfg()
+    linux_contract = env_contract.lookup(L.ENV_TAG)
+    pegasus_contract = env_contract.lookup("pegasus")
+
+    assert raw.bound_environment_contract is None
+    other = L._campaign_cfg_for_site(
+        raw, site_policy.OTHER, _contract=linux_contract,
+    )
+    compute = L._campaign_cfg_for_site(
+        raw, site_policy.PEGASUS_COMPUTE, _contract=pegasus_contract,
+    )
+
+    assert other.bound_environment_contract is linux_contract
+    assert compute.bound_environment_contract is pegasus_contract
+    assert "measurement_env" not in other.search_config
+    assert str(ident.campaign_id(other)) == (
+        "p3-s4-loop-s4-autonomous-8ee68c0c"
+    )
+    assert ident.campaign_id(compute) != ident.campaign_id(other)
+    assert compute.search_config["measurement_env"] == "pegasus"
+
+    raw_off = L.default_cfg(reflux=False)
+    other_off = L._campaign_cfg_for_site(
+        raw_off, site_policy.OTHER, _contract=linux_contract,
+    )
+    assert raw_off.bound_environment_contract is None
+    assert other_off.bound_environment_contract is linux_contract
+    assert "measurement_env" not in other_off.search_config
+    assert str(ident.campaign_id(other_off)) == (
+        "p3-s4-loop-s4-autonomous-95a32c3e"
+    )
+
+
+@pytest.mark.parametrize(
+    "site",
+    (site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT),
+)
+def test_base_public_run_one_iteration_rejects_ambient_unadmitted_site(
+    monkeypatch, site,
+):
+    planner, coder = _site_test_proposals()
+    monkeypatch.setattr(L, "_current_site", lambda: site)
+
+    with pytest.raises(execution_guard.ExecutionGuardError, match="生成できない"):
+        L.run_one_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            L.LoopState(start_wall=time.time()),
+            "unused-by-site-admission-negative",
+            do_build=False,
+        )
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_base_automatic_compute_resolution_flows_one_projected_cfg_to_campaign(
+    monkeypatch,
+):
+    import contextlib
+
+    from orchestrator.campaign import patchharness
+
+    contract = _site_contract()
+    current_site_calls = []
+    lookup_calls = []
+    admitted = []
+    projected = []
+    authorization_tags = []
+    campaign_calls = []
+    real_admit = L._admit_env_contract
+    real_project = L._campaign_cfg_for_site
+
+    def current_site():
+        current_site_calls.append(True)
+        return site_policy.PEGASUS_COMPUTE
+
+    def lookup(env_tag):
+        lookup_calls.append(env_tag)
+        return contract
+
+    def admit(site):
+        result = real_admit(site)
+        admitted.append((site, result))
+        return result
+
+    def project(cfg, site, *, _contract=None):
+        result = real_project(cfg, site, _contract=_contract)
+        projected.append((cfg, site, _contract, result))
+        return result
+
+    def authorize(env_tag):
+        authorization_tags.append(env_tag)
+        return object()
+
+    def run_spy(
+        cfg, genomes, perf, env_tag, clocks_per_us, numactl=None, **kwargs,
+    ):
+        campaign_calls.append({
+            "cfg": cfg,
+            "env_tag": env_tag,
+            "clocks_per_us": clocks_per_us,
+            "numactl": numactl,
+            "env_contract": kwargs.get("env_contract"),
+            "dependency_prefix": kwargs.get("dependency_prefix"),
+        })
+        return CampaignSummary(
+            campaign_id=str(ident.campaign_id(cfg)),
+            layout_root=layout.root,
+            total=1,
+        )
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_base_site_compute_")
+    ).ensure()
+    raw_cfg = L.default_cfg()
+    planner, coder = _site_test_proposals()
+    monkeypatch.setattr(L, "_current_site", current_site)
+    monkeypatch.setattr(L, "_lookup", lookup)
+    monkeypatch.setattr(L, "_admit_env_contract", admit)
+    monkeypatch.setattr(L, "_campaign_cfg_for_site", project)
+    monkeypatch.setattr(L.env_contract, "authorize", authorize)
+    monkeypatch.setattr(L, "run_campaign", run_spy)
+    monkeypatch.setattr(
+        L, "exploration_campaign_layout", lambda *_args, **_kwargs: layout,
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        patchharness,
+        "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+
+    L.run_one_iteration(
+        raw_cfg,
+        L.default_perf(),
+        planner,
+        coder,
+        L.LoopState(start_wall=time.time()),
+        _mk_template_dir(L.SOURCE_REL),
+        do_build=True,
+        layout=layout,
+        dependency_prefix="/sentinel/dependency-prefix",
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        log=lambda *_args: None,
+    )
+
+    assert current_site_calls == [True]
+    assert lookup_calls == ["pegasus"]
+    assert admitted == [(site_policy.PEGASUS_COMPUTE, contract)]
+    assert len(projected) == 1
+    assert projected[0][0] is raw_cfg
+    assert projected[0][1:3] == (site_policy.PEGASUS_COMPUTE, contract)
+    campaign_cfg = projected[0][3]
+    assert campaign_cfg is not raw_cfg
+    assert campaign_cfg.bound_environment_contract is contract
+    assert campaign_cfg.search_config["measurement_env"] == "pegasus"
+    assert len(campaign_calls) == 1
+    actual_cfg = campaign_calls[0].pop("cfg")
+    assert actual_cfg == campaign_cfg
+    assert actual_cfg.bound_environment_contract is contract
+    assert actual_cfg.search_config["measurement_env"] == "pegasus"
+    assert campaign_calls[0] == {
+        "env_tag": contract.env_tag,
+        "clocks_per_us": contract.clocks_per_us,
+        "numactl": list(contract.numactl),
+        "env_contract": contract,
+        "dependency_prefix": "/sentinel/dependency-prefix",
+    }
+    assert authorization_tags == [contract.env_tag]
+
+
+def test_base_drive_iteration_rejects_one_sided_site_contract_injection(
+    monkeypatch, tmp_path,
+):
+    contract = env_contract.lookup(L.ENV_TAG)
+    real_site_admission = L._site_admits_measurement
+    monkeypatch.setattr(
+        L,
+        "_site_admits_measurement",
+        lambda site: site is None or real_site_admission(site),
+    )
+    monkeypatch.setattr(
+        L, "_SITE_ENV_TAGS", {**L._SITE_ENV_TAGS, None: contract.env_tag},
+    )
+    runner = unittest.mock.Mock(
+        side_effect=AssertionError("one-sided injection reached iteration"),
+    )
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda _campaign_id: CampaignLayout(str(tmp_path / "one-sided")),
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    planner, coder = _site_test_proposals()
+
+    with pytest.raises(TypeError, match="同時に渡す"):
+        L.drive_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            "unused",
+            False,
+            _contract=contract,
+        )
+
+    runner.assert_not_called()
+
+
+def test_base_drive_iteration_rejects_injected_unadmitted_site_only_at_site_gate(
+    monkeypatch, tmp_path,
+):
+    contract = _site_contract(env_tag="login-sentinel")
+    monkeypatch.setattr(
+        L,
+        "_SITE_ENV_TAGS",
+        {**L._SITE_ENV_TAGS, site_policy.PEGASUS_LOGIN: contract.env_tag},
+    )
+    runner = unittest.mock.Mock(
+        side_effect=AssertionError("unadmitted site reached iteration"),
+    )
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda _campaign_id: CampaignLayout(str(tmp_path / "unadmitted")),
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    planner, coder = _site_test_proposals()
+
+    with pytest.raises(execution_guard.ExecutionGuardError, match="生成できない"):
+        L.drive_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            "unused",
+            False,
+            _resolved_site=site_policy.PEGASUS_LOGIN,
+            _contract=contract,
+        )
+
+    runner.assert_not_called()
+
+
+def test_base_drive_iteration_rejects_only_injected_contract_tag_mismatch(
+    monkeypatch, tmp_path,
+):
+    runner = unittest.mock.Mock(
+        side_effect=AssertionError("mismatched contract reached iteration"),
+    )
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
+    monkeypatch.setattr(
+        L,
+        "exploration_campaign_layout",
+        lambda _campaign_id: CampaignLayout(str(tmp_path / "tag-mismatch")),
+    )
+    monkeypatch.setattr(
+        L.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None,
+    )
+    planner, coder = _site_test_proposals()
+
+    with pytest.raises(execution_guard.ExecutionGuardError, match="env_tag"):
+        L.drive_iteration(
+            L.default_cfg(),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            "unused",
+            False,
+            _resolved_site=site_policy.OTHER,
+            _contract=env_contract.lookup("pegasus"),
+        )
+
+    runner.assert_not_called()
+
+
+def test_base_resolved_rejection_calls_use_contract_env_tag_exactly_three_times():
+    tree = ast.parse(inspect.getsource(L._run_one_iteration_resolved))
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "record_diff_reject"
+    ]
+    assert len(calls) == 3
+    expected = ast.dump(
+        ast.Attribute(
+            value=ast.Name(id="contract", ctx=ast.Load()),
+            attr="env_tag",
+            ctx=ast.Load(),
+        ),
+        include_attributes=False,
+    )
+    for call in calls:
+        env_keywords = [
+            keyword.value for keyword in call.keywords if keyword.arg == "env_tag"
+        ]
+        assert len(env_keywords) == 1
+        assert ast.dump(env_keywords[0], include_attributes=False) == expected
+
+
+def test_base_site_injection_is_private_to_drive_iteration():
+    assert "_resolved_site" in inspect.signature(L.drive_iteration).parameters
+    assert "_contract" in inspect.signature(L.drive_iteration).parameters
+    assert "_resolved_site" not in inspect.signature(L.run_one_iteration).parameters
+    assert "_contract" not in inspect.signature(L.run_one_iteration).parameters
+    assert "_resolved_site" not in inspect.signature(L.main).parameters
+    assert "_contract" not in inspect.signature(L.main).parameters
+
+
 from orchestrator.campaign.projection_guard import (                            # noqa: E402
     AbilityProbeMaterialError,
     ProjectionPolicyError,
@@ -3668,7 +4044,7 @@ def test_sanctioned_cli_stdout_omits_red_detail_fields(
         fixture_returned.update(result)
         return result
 
-    monkeypatch.setattr(L, "run_one_iteration", fake_run_one_iteration)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", fake_run_one_iteration)
 
     assert L.main(["--no-build"]) == 0
     stdout = capsys.readouterr().out
@@ -4040,7 +4416,7 @@ def _exercise_b4_history_driver(
             return_value={"outcome": "dry-pass", "variant": None}
         )
         monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
-        monkeypatch.setattr(L, "run_one_iteration", run_spy)
+        monkeypatch.setattr(L, "_run_one_iteration_resolved", run_spy)
 
         def invoke():
             return L.drive_iteration(
@@ -4334,14 +4710,16 @@ def test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress(
         L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
     )
     observed_iterations = []
-    real_run_one_iteration = L.run_one_iteration
+    real_run_one_iteration = L._run_one_iteration_resolved
 
     def observing_run_one_iteration(*args, **kwargs):
         observed_iterations.append(args[4].iteration)
         return real_run_one_iteration(*args, **kwargs)
 
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
-    monkeypatch.setattr(L, "run_one_iteration", observing_run_one_iteration)
+    monkeypatch.setattr(
+        L, "_run_one_iteration_resolved", observing_run_one_iteration,
+    )
     with pytest.raises(B4_LAUNCHER.B4LauncherAuthorizationError) as caught:
         L.drive_iteration(
             cfg,
@@ -4503,7 +4881,7 @@ def test_production_context_does_not_weaken_six_receipt_rejections(
     runner = unittest.mock.Mock(
         side_effect=AssertionError("candidate synthesis reached")
     )
-    monkeypatch.setattr(L, "run_one_iteration", runner)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", runner)
     planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
     coder = L.CoderProposal(
         L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
@@ -4605,7 +4983,7 @@ def test_b4_bound_decision_reaches_synthesis_and_writes_exact_consumption(
 
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
-    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", fake_run)
     monkeypatch.setattr(
         B4_CLOSED,
         "require_b4_closed_critic_receipt",
@@ -4663,7 +5041,7 @@ def test_b4_same_terminal_receipt_hash_is_consumed_at_most_once(
 
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
-    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", fake_run)
     monkeypatch.setattr(
         B4_CLOSED,
         "require_b4_closed_critic_receipt",
@@ -4781,7 +5159,7 @@ def test_b4_bootstrap_rejects_receipt_but_allows_none_to_reach_synthesis(
     run_spy = unittest.mock.Mock(
         return_value={"outcome": "dry-pass", "variant": None}
     )
-    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", run_spy)
     common = dict(
         cfg=cfg,
         perf=L.default_perf(),
@@ -4843,7 +5221,7 @@ def test_b4_fixture_main_rejects_run_one_iteration_bypass_m13(monkeypatch):
     )
     pinned_spy = unittest.mock.Mock()
     single_tenant_spy = unittest.mock.Mock()
-    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", run_spy)
     monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
     monkeypatch.setattr(p2_2, "_assert_single_tenant", single_tenant_spy)
     with pytest.raises(
@@ -5998,7 +6376,7 @@ def test_drive_iteration_rechecks_mutated_nonintegral_value_before_entry_stop(
     coder.value = 20.5
     coder.implementation = "double now_backoff = 20.5;"
 
-    with unittest.mock.patch.object(L, "run_one_iteration") as run_spy:
+    with unittest.mock.patch.object(L, "_run_one_iteration_resolved") as run_spy:
         with pytest.raises(L.AttributionMismatch) as caught:
             L.drive_iteration(
                 L.default_cfg(),

@@ -1,0 +1,1619 @@
+[
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode074",
+    "jobid": "0:975569.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975569.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode074",
+    "jobid": "0:975569.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975569.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode074",
+    "jobid": "0:975569.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975569.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode092",
+    "jobid": "0:975570.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975570.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975570.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975570.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975570.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975570.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975571.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975571.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975571.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975571.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975571.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975571.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode075",
+    "jobid": "0:975572.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975572.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode075",
+    "jobid": "0:975572.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975572.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode075",
+    "jobid": "0:975572.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975572.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode076",
+    "jobid": "0:975573.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975573.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode076",
+    "jobid": "0:975573.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975573.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode076",
+    "jobid": "0:975573.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975573.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode092",
+    "jobid": "0:975574.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975574.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975574.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975574.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975574.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975574.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975575.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975575.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975575.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975575.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975575.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975575.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode075",
+    "jobid": "0:975576.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975576.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode075",
+    "jobid": "0:975576.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975576.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode075",
+    "jobid": "0:975576.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975576.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode076",
+    "jobid": "0:975584.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975584.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode076",
+    "jobid": "0:975584.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975584.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode076",
+    "jobid": "0:975584.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975584.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode092",
+    "jobid": "0:975585.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975585.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975585.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975585.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975585.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975585.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975586.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975586.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975586.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975586.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975586.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975586.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode049",
+    "jobid": "0:975587.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975587.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode049",
+    "jobid": "0:975587.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975587.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode049",
+    "jobid": "0:975587.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975587.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode092",
+    "jobid": "0:975588.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975588.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975588.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975588.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975588.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975588.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975589.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975589.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975589.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975589.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975589.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975589.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode092",
+    "jobid": "0:975590.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975590.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975590.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975590.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975590.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975590.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975591.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975591.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975591.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975591.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975591.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975591.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975612.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975612.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975612.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975612.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975612.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975612.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975614.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975614.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975614.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975614.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975614.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975614.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode092",
+    "jobid": "0:975615.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975615.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975615.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975615.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975615.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975615.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975616.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975616.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975616.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975616.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975616.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975616.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode092",
+    "jobid": "0:975617.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975617.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975617.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975617.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode092",
+    "jobid": "0:975617.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975617.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975618.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975618.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975618.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975618.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975618.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975618.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "bnode101",
+    "jobid": "0:975619.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "0",
+    "run": "0_975619.nqsv",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-173"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975619.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975619.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": true,
+    "host": "bnode101",
+    "jobid": "0:975619.nqsv",
+    "kernel": "5.15.0-173-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "numeric": [
+      "LLC-load-misses",
+      "LLC-loads",
+      "cycles",
+      "instructions"
+    ],
+    "paranoid": "0",
+    "run": "0_975619.nqsv",
+    "stat_rc": 0,
+    "stderr_head": [
+      "Performance counter stats for '/bin/true':"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "pegasus02",
+    "jobid": "",
+    "kernel": "5.15.0-190-generic",
+    "kind": "PATH lookup",
+    "label": "literal-perf",
+    "numeric": [],
+    "paranoid": "4",
+    "run": "login-pegasus0X",
+    "stat_rc": 2,
+    "stderr_head": [
+      "WARNING: perf not found for kernel 5.15.0-190"
+    ],
+    "symlink": null,
+    "version_rc": 2
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "pegasus02",
+    "jobid": "",
+    "kernel": "5.15.0-190-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-101-generic/perf",
+    "numeric": [],
+    "paranoid": "4",
+    "run": "login-pegasus0X",
+    "stat_rc": 255,
+    "stderr_head": [
+      "Error:"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "pegasus02",
+    "jobid": "",
+    "kernel": "5.15.0-190-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-136-generic/perf",
+    "numeric": [],
+    "paranoid": "4",
+    "run": "login-pegasus0X",
+    "stat_rc": 255,
+    "stderr_head": [
+      "Error:"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  },
+  {
+    "control_neg_unlaunched": true,
+    "control_pos_rc": 0,
+    "counters_obtained": false,
+    "host": "pegasus02",
+    "jobid": "",
+    "kernel": "5.15.0-190-generic",
+    "kind": "absolute path",
+    "label": "absolute:/usr/lib/linux-tools/5.15.0-173-generic/perf",
+    "numeric": [],
+    "paranoid": "4",
+    "run": "login-pegasus0X",
+    "stat_rc": 255,
+    "stderr_head": [
+      "Error:"
+    ],
+    "symlink": true,
+    "version_rc": 0
+  }
+]

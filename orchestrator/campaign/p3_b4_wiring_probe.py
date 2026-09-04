@@ -1520,6 +1520,9 @@ def _make_probe_view():
             generator_id=runtime.build_admission.GeneratorId.BACKOFF_SWEEP,
         )
         cfg = runtime.L.default_cfg(reflux=False)
+        cfg = runtime.ident.bind_environment_contract(
+            cfg, runtime.env_contract.lookup(runtime.L.ENV_TAG),
+        )
         backoff_grammar_version = runtime.L._require_backoff_grammar_version(cfg)
         if cfg.search_config.get("build_admission") != context.policy.as_preimage():
             raise ProbeIsolationError("fixture config is not bound to current admission policy")

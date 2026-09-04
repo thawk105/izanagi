@@ -2864,7 +2864,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s1_sink = _BuildSink(
         "orchestrator/campaign/s1_direct_comparison.py",
         "<module>.run_role",
-        1215,
+        1219,
         "campaign",
     )
     s8b_sink = _BuildSink(

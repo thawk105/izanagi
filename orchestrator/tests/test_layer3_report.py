@@ -27,7 +27,9 @@ from orchestrator.campaign import (  # noqa: E402
     autonomous_trial_completeness,
     campaign_lock,
     contract_loader_binding,
+    env_attestation,
     env_contract,
+    execution_guard,
     knowledge_manifest,
     layer3_report,
     model,
@@ -3618,12 +3620,158 @@ def test_pegasus_v2_adds_only_contract_pin_not_registered_glob(tmp_path):
     )
 
     floor = report["noise_floor"]["within_run"]
-    assert floor["value"]["cv"] == 0.011705837968885854
-    assert floor["source"]["path"] == (
-        "env/pegasus/calibration/registered/"
-        "calibration-753f535a8d024727.json"
+    assert floor["value"] is None
+    assert floor["provenance"] == "no-matching-env-record"
+    assert floor["source"] is None
+    assert floor["search"]["candidate_files"] == []
+    assert floor["search"]["scanned_files"] == 1
+    assert floor["search"]["contract_pin"] == {
+        "status": "validated",
+        "path": authorization.contract.calibration_ref.path,
+        "sha256": authorization.contract.calibration_ref.sha256,
+        "within_run_exclusion": "self-inconsistent-calibration",
+    }
+    between_pin = report["noise_floor"]["between_run"]["search"][
+        "contract_pin"
+    ]
+    assert between_pin["status"] == "validated"
+    assert "within_run_exclusion" not in between_pin
+
+
+def test_pegasus_g1_direct_copy_does_not_restore_within_run_match(tmp_path):
+    """Fails if exclusion regresses from the g1 series to only its pinned path."""
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+        copy_contract_calibration=False,
     )
-    assert floor["protocol_match_basis"] == "genome-absent-legacy-record"
+    pin_path = _copy_contract_calibration(output_root, authorization)
+    direct_copy = pin_path.parents[1] / "direct-copy.json"
+    direct_copy.write_bytes(
+        (ROOT / authorization.contract.calibration_ref.path).read_bytes()
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    floor = report["noise_floor"]["within_run"]
+    assert floor["value"] is None
+    assert floor["provenance"] == "no-matching-env-record"
+    assert floor["source"] is None
+    assert floor["search"]["candidate_files"] == []
+
+
+def test_pegasus_g1_series_excludes_direct_within_but_keeps_between(tmp_path):
+    """Fails if g1 admits a direct within floor or suppresses between-run too."""
+    authorization = env_contract.authorize("pegasus")
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record(
+            "build_start", genome="g", src_token="s", env_tag="pegasus",
+        )],
+        ycsb=YCSB,
+        protocol="silo",
+        authorization=authorization,
+        records_count=1_000_000,
+        threads=48,
+    )
+    calibration = output_root / "env/pegasus/calibration"
+    (calibration / "within.json").write_text(json.dumps({
+        "records": 1_000_000,
+        "threads": 48,
+        "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
+        "noise_floor": {"cv": 0.01},
+    }), encoding="utf-8")
+    between = {"max_delta_pct": 2.0}
+    (calibration / "between.json").write_text(json.dumps({
+        "records": 1_000_000,
+        "threads": 48,
+        "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
+        "between_run": between,
+    }), encoding="utf-8")
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    within = report["noise_floor"]["within_run"]
+    assert within["value"] is None
+    assert within["provenance"] == "no-matching-env-record"
+    assert within["search"]["candidate_files"] == []
+    assert within["search"]["contract_pin"]["status"] == "validated"
+    assert within["search"]["contract_pin"]["within_run_exclusion"] == (
+        "self-inconsistent-calibration"
+    )
+    between_floor = report["noise_floor"]["between_run"]
+    assert between_floor["value"] == between
+    assert between_floor["provenance"] == "env-record"
+    assert between_floor["source"]["path"].endswith("/between.json")
+
+
+def test_registered_healthy_pegasus_g2_pin_remains_selectable(tmp_path):
+    g2 = env_contract.GENERATIONS["pegasus"][1]
+    ref = g2.contract.calibration_ref
+    output_root = tmp_path / "repo/output"
+    calibration = output_root / "env/pegasus/calibration"
+    target = calibration / Path(*PurePosixPath(ref.path).parts[4:])
+    target.parent.mkdir(parents=True)
+    target.write_bytes((ROOT / ref.path).read_bytes())
+
+    floors, search_details = layer3_report._calibration_floors(
+        calibration,
+        1_000_000,
+        48,
+        YCSB,
+        protocol="silo",
+        contract_pin=ref,
+    )
+
+    floor = floors["within_run"]
+    assert floor["provenance"] == "env-record"
+    assert floor["value"] is not None
+    assert floor["source"]["path"] == ref.path.removeprefix("output/")
+    assert floor["source"]["sha256"] == ref.sha256
+    pin_search = search_details["within_run"]["contract_pin"]
+    assert pin_search["status"] == "validated"
+    assert "within_run_exclusion" not in pin_search
+
+
+def test_within_run_exclusion_declaration_matches_real_self_failures():
+    self_failures = set()
+    for sequence in env_contract.GENERATIONS.values():
+        for entry in sequence:
+            contract = entry.contract
+            if contract.attestation_mode != "required":
+                continue
+            verified = env_attestation.load_verified_calibration(contract, ROOT)
+            assert verified.calibration is not None
+            profile = verified.calibration.attestation_profile
+            expected = env_attestation.expected_comparison_values(profile)[
+                "effective_clock.samples_mhz"
+            ]
+            observed = {"samples_mhz": list(expected["samples_mhz"])}
+            if not execution_guard.effective_clock_comparison_passes(
+                expected, observed,
+            ):
+                self_failures.add((
+                    contract.calibration_ref.path,
+                    contract.calibration_ref.sha256,
+                ))
+
+    assert layer3_report.SELF_INCONSISTENT_WITHIN_RUN_CALIBRATIONS == (
+        frozenset(self_failures)
+    )
 
 
 def test_contract_pin_resolution_keeps_v1_none_and_marks_v2_env_mismatch():
@@ -3817,10 +3965,13 @@ def test_nested_exploration_root_resolves_contract_pin_by_suffix(tmp_path):
 
     assert output_root == tmp_path / "repo/output/exploration"
     floor = report["noise_floor"]["within_run"]
-    assert floor["value"]["cv"] == 0.011705837968885854
-    assert floor["source"]["path"] == (
-        "env/pegasus/calibration/registered/"
-        "calibration-753f535a8d024727.json"
+    assert floor["value"] is None
+    assert floor["provenance"] == "no-matching-env-record"
+    assert floor["source"] is None
+    assert floor["search"]["candidate_files"] == []
+    assert floor["search"]["contract_pin"]["status"] == "validated"
+    assert floor["search"]["contract_pin"]["within_run_exclusion"] == (
+        "self-inconsistent-calibration"
     )
 
 
@@ -3844,6 +3995,7 @@ def test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing(
         "threads": 4,
         "saturation": {"records": 100000},
         "workload": YCSB,
+        "genome": "silo|BACK_OFF=0",
         "noise_floor": {"cv": 0.01},
     }), encoding="utf-8")
 
@@ -3851,7 +4003,15 @@ def test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing(
         campaign, generated_from_head="fixed", output_root=output_root,
     )
 
-    assert report["noise_floor"]["within_run"]["value"] == {"cv": 0.01}
+    within = report["noise_floor"]["within_run"]
+    assert within["value"] is None
+    assert within["provenance"] == "no-matching-env-record"
+    assert within["source"] is None
+    assert within["search"]["candidate_files"] == []
+    assert within["search"]["contract_pin"]["status"] == "pin-file-missing"
+    assert within["search"]["contract_pin"]["within_run_exclusion"] == (
+        "self-inconsistent-calibration"
+    )
     missing_search = report["noise_floor"]["between_run"]["search"][
         "contract_pin"
     ]
