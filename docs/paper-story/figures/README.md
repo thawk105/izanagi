@@ -18,6 +18,39 @@
 | `fig2c_b10_extended_backoff.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_extended_backoff.py` | B-10 拡張格子の**記述図**。1000 µs を F718 により除外した有効 28 点 |
 | `fig4_s1a_9pair_direct_comparison.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_s1_9pair.py` | 縮小主張 S' の**失敗報告図**。既存図の後継ではなく独立した新図 |
 
+## 調整済み adaptive の実対照 (論文図へ未昇格)
+
+D1506 は「backoff 機構の性能比較は、無 backoff と**調整済み adaptive** (刻み 1 µs /
+更新間隔 2560 µs / 上限 1000 µs) の 2 本を基準線に置く」と定めた。
+**その基準線を実際に同じ軸へ並べた図は、上の一覧には無い。** 現物は論文図の外にある。
+
+- [`t2187_stage2_thread_axis.png`](../../../output/insights/2026-09-02_cicada-adaptive-three-constants-figures/t2187_stage2_thread_axis.png)
+- [`t2187_stage2_thread_axis.pdf`](../../../output/insights/2026-09-02_cicada-adaptive-three-constants-figures/t2187_stage2_thread_axis.pdf)
+- [`t2187_stage2_thread_axis.provenance.json`](../../../output/insights/2026-09-02_cicada-adaptive-three-constants-figures/t2187_stage2_thread_axis.provenance.json)
+
+生成器は `tools/plotting/plot_t2187_adaptive_consts.py` の `threads` モードである。同じ 6 パネル
+(3 workload x throughput / abort 率) の同じスレッド軸へ、**無 backoff** (`none`)、
+**CCBench 既定 3 定数の adaptive** (`s100-u10`)、**調整済み adaptive** (`s1-u2560`)、および
+調整候補 2 本 (`s0.5-u2560` / `s1-u640`) を描く。スレッド 6〜48、7 反復、
+t 分布の 95% 信頼区間つき。一次資料は
+`output/insights/2026-09-02_cicada-adaptive-three-constants.md`。
+
+**`fig2b` / `fig2c` をこの対照の代わりに引用してはならない。** 両図は適応側に既定 adaptive しか
+持たず、調整済みのセルを含まない。旧 `linux-baremetal` の campaign にそのセルが無いためで、
+足すには新規計測が要る。
+
+**上の図と `fig2b` / `fig2c` を同じ図・同じ表・同じ時系列・同じ再現判定へ畳んではならない。**
+違うのは環境だけではない — CCBench の版 (`6656e93` と `511c953` +
+`patches/cicada-adaptive-params.patch`)、反復設計 (campaign 内 5 反復と 7 ノード x 1 rep)、
+集約 (median 比と標本平均)、`clocks_per_us` (1800 と 2100) が違う。
+
+**この図は認証されていない。** trace-disabled の性能測定のみで、直列性の検査を通していない
+(provenance の `not_certified` field と、図中の `NOT CERTIFIED` 表示)。
+**variant 採用の根拠にも、certified な性能結論にも使わない** (絶対規律 2)。
+論文図への昇格には対応する correctness 検査の決着が要るが、**それは必要条件であって
+十分条件ではない** — 現 provenance が束縛する出力 path は repo 外にあり、論文図の場所へ置いた
+copy を検査する consumer も存在しない。昇格そのものは別途決着させる。
+
 ## `fig2_backoff_mechanism.png` の何が誤っていたか
 
 旧図は横破線に `stock adaptive backoff (Cicada-type hill-climb)` という label を付けているが、

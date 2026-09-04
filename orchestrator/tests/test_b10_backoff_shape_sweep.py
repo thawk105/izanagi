@@ -365,6 +365,7 @@ def _prior_block_record(
     row = {
         "schema_version": "b10-backoff-shape-block/v2",
         "official_certification": False,
+        "execution_host": "compute-fixture",
         "workload": "write-heavy",
         "block_id": block_id,
         "schedule_index": schedule_index,
@@ -373,6 +374,7 @@ def _prior_block_record(
         "mean_us": mean_us,
         "encoded": encoded,
         "genome": dict(B.named_genomes())[point].canonical(),
+        "variant_id": hashlib.sha256(point.encode("utf-8")).hexdigest()[:12],
         "source_commit": binding.analysis_commit,
         "trial": f"{request_id}-{nonce[:12]}",
         "submission_receipt": str(receipt),
@@ -386,6 +388,36 @@ def _prior_block_record(
         "analysis_code_sha256": binding.analysis_code_sha256,
     }
     return prereg, row
+
+
+def _legacy_adapter_records(
+    tmp_path: Path,
+) -> tuple[B.Preregistration, list[dict[str, object]]]:
+    prereg, template = _prior_block_record(tmp_path)
+    template.pop("execution_host")
+    template["source_commit"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT
+    template["preregistration_binding"] = B._legacy_write_heavy_binding(prereg)
+    template["analysis_commit"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_COMMIT
+    template["analysis_code_sha256"] = B.LEGACY_WRITE_HEAVY_ANALYSIS_SHA256
+    template["correctness_certified"] = True
+    template["median_tps"] = 10.0
+    records = []
+    for block_id, order in prereg.spec.block_orders:
+        for schedule_index, point in enumerate(order):
+            shape, mean_us, encoded = B._name_metadata(point)
+            content = {
+                **template,
+                "block_id": block_id,
+                "schedule_index": schedule_index,
+                "point": point,
+                "shape": shape,
+                "mean_us": mean_us,
+                "encoded": encoded,
+                "genome": dict(B.named_genomes())[point].canonical(),
+                "variant_id": hashlib.sha256(point.encode("utf-8")).hexdigest()[:12],
+            }
+            records.append({**content, "record_sha256": B._sha256_json(content)})
+    return prereg, records
 
 
 def _probe_result() -> dict[str, object]:
@@ -798,6 +830,98 @@ def test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement(
     )
 
 
+def test_same_job_correctness_and_performance_binary_sha_still_match(tmp_path: Path):
+    binary = tmp_path / "perf.bin"
+    binary.write_bytes(b"one verify-perf job binary")
+    built_sha = B.buildcache.full_sha256(binary)
+    certified = B.CertificationAttempt("attempt-1", built_sha)
+    assert B.verify_performance_binary(str(binary), built_sha, certified) == built_sha
+
+
+def test_b10_cache_roots_are_disjoint_by_workload_and_stable_across_submissions(
+    tmp_path: Path,
+):
+    roots = {
+        workload: B._b10_workload_cache_root(tmp_path, workload)
+        for workload in B.WORKLOADS
+    }
+    assert len(set(roots.values())) == 3
+    assert all(Path(root).parent.name == "b10-workloads" for root in roots.values())
+
+    # A retry has a new submission nonce, but the production cache address has
+    # no nonce input and resolves to the same workload-owned directory.
+    retry_nonces = ("0" * 32, "f" * 32)
+    retry_roots = {
+        _nonce: B._b10_workload_cache_root(tmp_path, "balanced")
+        for _nonce in retry_nonces
+    }
+    assert len(set(retry_roots.values())) == 1
+    assert retry_roots[retry_nonces[0]] == roots["balanced"]
+
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    run_formal = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_formal"
+    )
+    production_calls = [
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_b10_workload_cache_root"
+    ]
+    assert len(production_calls) == 2
+    assert {
+        ast.unparse(call.args[1]) for call in production_calls
+    } == {"cache_workload", "workload"}
+    assert "submission.nonce" not in "\n".join(
+        ast.unparse(node) for node in ast.walk(run_formal)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id in {"cache_root", "build_kwargs"}
+            for target in node.targets
+        )
+    )
+
+    _expect_code(
+        "phase", lambda: B._b10_workload_cache_root(tmp_path, "unregistered"),
+    )
+
+
+def test_build_admission_identity_keeps_the_source_root_in_its_preimage():
+    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
+    binding = _binding()
+    first = B.source_digest.SourceEvidence(
+        schema_version=B.source_digest.SOURCE_EVIDENCE_SCHEMA,
+        source_root="/tmp/b10-source-a",
+        ccbench_commit=B.PIN,
+        genome_sha256="e" * 64,
+        src_token="f" * 64,
+        source_bytes_sha256="1" * 64,
+        tracked_clean=False,
+        tracked_diff_sha256="2" * 64,
+        tracked_paths=tuple(sorted(B.EXPECTED_PATCH_PATHS)),
+    )
+    second = replace(first, source_root="/tmp/b10-source-b")
+    first_receipt = B.attest_generator_output(
+        context, first, generator_input_sha256=binding.binding_sha256,
+    )
+    second_receipt = B.attest_generator_output(
+        context, second, generator_input_sha256=binding.binding_sha256,
+    )
+    first_admission = B.derive_build_admission(
+        context, first, generator_receipt=first_receipt,
+    )
+    second_admission = B.derive_build_admission(
+        context, second, generator_receipt=second_receipt,
+    )
+    assert first.as_receipt()["source_root"] != second.as_receipt()["source_root"]
+    assert first_admission.as_cache_identity()["source"]["source_root"] \
+        == "/tmp/b10-source-a"
+    assert second_admission.as_cache_identity()["source"]["source_root"] \
+        == "/tmp/b10-source-b"
+    assert first_admission.receipt_sha256 != second_admission.receipt_sha256
+
+
 def test_m16_omitting_one_registered_analysis_field_is_rejected():
     mutated = copy.deepcopy(_spec_dict())
     del mutated["analysis"]["confidence_interval"]
@@ -1068,7 +1192,64 @@ def test_run_phase_closed_set_is_build_verify_perf_probe():
 
 
 def test_verify_perf_phase_is_additive_to_the_legacy_phase_set():
-    assert B.FORMAL_PHASES == (*B.RUN_PHASES, "verify-perf")
+    assert B.FORMAL_PHASES == (*B.RUN_PHASES, "verify-perf", "report")
+
+
+def test_report_phase_is_the_only_report_writer_caller():
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    run_formal = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_formal"
+    )
+    writer_calls = [
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_write_reports"
+    ]
+    assert len(writer_calls) == 1
+    report_branch = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.If) and ast.unparse(node.test) == "phase == 'report'"
+    )
+    assert writer_calls[0] in tuple(ast.walk(report_branch))
+
+
+def test_new_v2_block_writer_records_the_reservation_binding_host():
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    run_formal = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_formal"
+    )
+    host_assignments = [
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "execution_host"
+            for target in node.targets
+        )
+    ]
+    assert len(host_assignments) == 1
+    assert ast.unparse(host_assignments[0].value) \
+        == "reservation.read_binding(os.environ).host"
+    row_assignment = next(
+        node for node in ast.walk(run_formal)
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "row" for target in node.targets)
+        and isinstance(node.value, ast.Dict)
+        and any(
+            isinstance(key, ast.Constant) and key.value == "schema_version"
+            for key in node.value.keys
+        )
+    )
+    row_values = {
+        key.value: value
+        for key, value in zip(row_assignment.value.keys, row_assignment.value.values)
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+    assert ast.unparse(row_values["execution_host"]) == "execution_host"
+    assert isinstance(row_values["schema_version"], ast.Constant)
+    assert row_values["schema_version"].value == "b10-backoff-shape-block/v2"
 
 
 def test_verify_perf_reuses_one_checkout_and_stops_before_perf_on_abort():
@@ -1234,6 +1415,356 @@ def test_prior_block_record_with_canonical_point_metadata_is_accepted(
         [row], workload="write-heavy", prereg=prereg,
     )
     assert indexed == {("block-1", "symmetric-modulo-mu2"): row}
+
+
+def test_current_v2_block_record_requires_nonempty_execution_host(tmp_path: Path):
+    prereg, row = _prior_block_record(tmp_path)
+    for invalid in (None, "", 1):
+        candidate = copy.deepcopy(row)
+        if invalid is None:
+            del candidate["execution_host"]
+        else:
+            candidate["execution_host"] = invalid
+        _expect_code(
+            "resume-binding",
+            lambda candidate=candidate: B._validate_prior_block_records(
+                [candidate], workload="write-heavy", prereg=prereg,
+            ),
+        )
+
+
+def test_current_v2_block_record_requires_well_formed_variant_id(tmp_path: Path):
+    prereg, row = _prior_block_record(tmp_path)
+    for invalid in (None, "", 1, "not-a-hash", "A" * 12, "0" * 13):
+        candidate = copy.deepcopy(row)
+        if invalid is None:
+            del candidate["variant_id"]
+        else:
+            candidate["variant_id"] = invalid
+        _expect_code(
+            "resume-binding",
+            lambda candidate=candidate: B._validate_prior_block_records(
+                [candidate], workload="write-heavy", prereg=prereg,
+            ),
+        )
+
+
+def test_e3de15eb_legacy_adapter_enforces_injected_exact_digest_set(
+    tmp_path: Path,
+):
+    prereg, records = _legacy_adapter_records(tmp_path)
+    expected_digests = frozenset(row["record_sha256"] for row in records)
+    frozen_digests = sorted(B.LEGACY_WRITE_HEAVY_RECORD_SHA256S)
+    assert B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID \
+        == "b10-backoff-shape-silo-write-heavy-formal-e3de15eb"
+    assert len(frozen_digests) == len(set(frozen_digests)) == 45
+    assert "ceeb007ffca91a254bc261e2ff2e8b2f3255edd07d5e5409b47a2d8900496349" \
+        in frozen_digests
+    B._require_legacy_record_digests(frozen_digests)
+    assert len(records) == len(expected_digests) == 45
+    indexed = B._validate_legacy_write_heavy_records(
+        records,
+        campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+        prereg=prereg,
+        expected_record_digests=expected_digests,
+    )
+    assert len(indexed) == 45
+
+    mutated = copy.deepcopy(records)
+    changed = mutated[0]
+    changed["correctness_certified"] = False
+    content = dict(changed)
+    content.pop("record_sha256")
+    changed["record_sha256"] = B._sha256_json(content)
+    assert changed["record_sha256"] not in expected_digests
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_write_heavy_records(
+            mutated,
+            campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+            prereg=prereg,
+            expected_record_digests=expected_digests,
+        ),
+    )
+
+
+def test_e3de15eb_legacy_adapter_rejects_other_campaign_id():
+    _expect_code(
+        "legacy-record",
+        lambda: B._validate_legacy_write_heavy_records(
+            [], campaign_id="b10-backoff-shape-silo-write-heavy-formal-other",
+            prereg=B.Preregistration(_binding(), B.PREREG_REL, _spec()),
+        ),
+    )
+
+
+def test_report_lock_binding_reads_the_real_campaign_lock_codec(tmp_path: Path):
+    layout = CampaignLayout(str(tmp_path / "campaign"))
+    Path(layout.root).mkdir(parents=True)
+    binding = _binding().as_dict()
+    identity = {
+        "spec_content": "fixture",
+        "ccbench_commit": B.PIN,
+        "search_tag": "formal",
+        "search_config": {"preregistration_binding": binding},
+        "trial": "fixture",
+    }
+    Path(layout.lock_file).write_text(
+        B.campaign_lock.canonical_json(identity), encoding="utf-8",
+    )
+    B._assert_report_lock_binding(layout, binding)
+    _expect_code(
+        "resume-binding",
+        lambda: B._assert_report_lock_binding(
+            layout, {**binding, "binding_sha256": "0" * 64},
+        ),
+    )
+
+
+def test_report_admission_requires_exactly_135_registered_block_cells():
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    records = [
+        {"workload": workload, "block_id": block_id, "point": point}
+        for workload in prereg.spec.workload_map
+        for block_id, order in prereg.spec.block_orders
+        for point in order
+    ]
+    assert len(records) == 135
+    B._require_exact_report_cells(records, prereg)
+    _expect_code(
+        "report-completeness",
+        lambda: B._require_exact_report_cells(records[:-1], prereg),
+    )
+    _expect_code(
+        "report-completeness",
+        lambda: B._require_exact_report_cells([*records, records[0]], prereg),
+    )
+
+
+def test_report_admission_rejects_same_size_unique_nonregistered_grid():
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    records = [
+        {"workload": workload, "block_id": block_id, "point": point}
+        for workload in prereg.spec.workload_map
+        for block_id, order in prereg.spec.block_orders
+        for point in order
+    ]
+    records[-1] = {
+        "workload": "read-heavy",
+        "block_id": "block-3",
+        "point": "unregistered-point",
+    }
+    observed = [
+        (row["workload"], row["block_id"], row["point"])
+        for row in records
+    ]
+    assert len(observed) == len(set(observed)) == 135
+    _expect_code(
+        "report-completeness",
+        lambda: B._require_exact_report_cells(records, prereg),
+    )
+
+
+def test_report_discloses_manual_termination_guarantee_and_wal_limitations(
+    tmp_path: Path,
+):
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    tree = ast.parse(Path(B.__file__).read_text(encoding="utf-8"))
+    collector = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_collect_report_inputs"
+    )
+    producer_calls = [
+        node for node in ast.walk(collector)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_performance_cell_completeness"
+    ]
+    assert len(producer_calls) == 1
+    calibration = B.CalibrationSelection(
+        path="calibration.json", sha256="e" * 64,
+        schema_version="calibration/v2", records=100,
+        threads=48, env_tag="pegasus", clocks_per_us=2100,
+        saturated=True, lower_bound_selected=False, cache_floor_warning=False,
+    )
+    submission = B.SubmissionIdentity(
+        receipt_path="submit-receipt.json", receipt_sha256="d" * 64,
+        request_id="report-request", nonce="c" * 32,
+        source_commit="b" * 40, prereg_commit="a" * 40,
+        job_script_sha256="9" * 64, phase="report", workload=None,
+    )
+    performance = B._performance_cell_completeness(
+        [
+            {"workload": workload, "campaign_id": f"campaign-{workload}", "observed_cells": 45}
+            for workload in prereg.spec.workload_map
+        ],
+        observed_cells=135,
+        prereg=prereg,
+    )
+    verification = {
+        "expected_slots": 270,
+        "completed_logical_slots": 197,
+        "incomplete_slots": 73,
+        "logical_key": ["workload", "variant", "verify_tag", "repetition"],
+        "counting_rule": "count verify_done by (workload, variant, verify_tag)",
+        "known_limitation": (
+            "duplicate WAL frames and distinct repetitions cannot be distinguished"
+        ),
+        "observed_verify_done_records": 198,
+        "source_campaigns": [{
+            "workload": "write-heavy",
+            "campaign_id": B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+            "raw_verify_done_records": 91,
+            "completed_logical_slots": 90,
+            "verify_done_records_by_tag": {"legacy": 15, "performance": 75},
+            "unknown_verify_tags": {"extra": 1},
+            "unknown_verify_tag_values": [{"tag": "extra", "count": 1}],
+            "unmapped_variants": {},
+            "wal_truncated_tail": True,
+            "wal_read_error": None,
+            "registered_tag_overruns": [{"variant": "none"}],
+        }],
+        "observed_registered_counts": [],
+        "registered_tag_overruns": [{"workload": "write-heavy", "variant": "none"}],
+        "missing_slots": [],
+    }
+    report_root = tmp_path / "reports/final"
+    json_path, markdown_path = B._write_reports(
+        report_root,
+        prereg=prereg,
+        calibration=calibration,
+        records=_complete_records(),
+        applied_evidence={},
+        submission=submission,
+        performance_cell_completeness=performance,
+        verification_slot_completeness=verification,
+    )
+    document = json.loads(json_path.read_text(encoding="utf-8"))
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert document["schema_version"] == "b10-backoff-shape-provenance/v2"
+    assert document["performance_cell_completeness"][
+        "proves_all_workload_jobs_terminated"
+    ] is False
+    assert "does not prove that all three workload jobs terminated" in markdown
+    assert "submission sequencing after all three workload jobs terminate" in markdown
+    assert "duplicate WAL frames and distinct repetitions cannot be distinguished" in markdown
+    assert "completed_logical_slots=90" in markdown
+    assert "truncated_tail=True" in markdown
+    with pytest.raises(FileExistsError):
+        B._write_reports(
+            report_root,
+            prereg=prereg,
+            calibration=calibration,
+            records=_complete_records(),
+            applied_evidence={},
+            submission=submission,
+            performance_cell_completeness=performance,
+            verification_slot_completeness=verification,
+        )
+
+
+def test_verification_completeness_counts_records_and_discloses_wal_anomalies(
+    tmp_path: Path,
+):
+    indexed = {("block-1", "none"): {"variant_id": "variant-none"}}
+
+    def read_source(name: str, tags: list[object]):
+        layout = CampaignLayout(str(tmp_path / name))
+        Path(layout.runs_dir).mkdir(parents=True)
+        frames = [
+            json.dumps({
+                "variant": "variant-none",
+                "stage": B.STAGE_VERIFY_DONE,
+                "env_tag": "pegasus",
+                "ts": index,
+                "payload": {
+                    "build_attempt_id": "attempt",
+                    "workload": {"tag": tag},
+                },
+            }, separators=(",", ":"))
+            for index, tag in enumerate(tags)
+        ]
+        Path(layout.wal_file).write_text(
+            "\n".join(frames) + "\n{\"unterminated\"", encoding="utf-8",
+        )
+        return B._verification_source_disclosure(
+            layout,
+            workload="write-heavy",
+            campaign_id=B.LEGACY_WRITE_HEAVY_CAMPAIGN_ID,
+            indexed=indexed,
+        )
+
+    tags: list[object] = ["performance"] * 6 + ["legacy", "unregistered", []]
+    source, counts = read_source("forward", tags)
+    reverse_source, reverse_counts = read_source("reverse", list(reversed(tags)))
+    assert counts == reverse_counts == {("none", "performance"): 6, ("none", "legacy"): 1}
+    assert source["raw_verify_done_records"] == reverse_source["raw_verify_done_records"] == 9
+    assert source["wal_truncated_tail"] is True
+    assert source["unknown_verify_tags"] == {"unregistered": 1, "[]": 1}
+    assert source["unknown_verify_tag_values"] == [
+        {"tag": "unregistered", "count": 1},
+        {"tag": [], "count": 1},
+    ]
+    assert source["registered_tag_overruns"] == [{
+        "variant": "none", "verify_tag": "performance", "observed": 6, "registered": 5,
+    }]
+
+    prereg = B.Preregistration(_binding(), B.PREREG_REL, _spec())
+    completeness = B._verification_completeness(
+        [source], {"write-heavy": counts}, prereg,
+    )
+    assert completeness["expected_slots"] == 270
+    assert completeness["completed_logical_slots"] == 6
+    assert completeness["incomplete_slots"] == 264
+    assert completeness["source_campaigns"][0]["raw_verify_done_records"] == 9
+    assert completeness["source_campaigns"][0]["completed_logical_slots"] == 6
+    assert completeness["registered_tag_overruns"] == [{
+        "workload": "write-heavy", "variant": "none",
+        "verify_tag": "performance", "observed": 6, "registered": 5,
+    }]
+    assert "cannot be distinguished" in completeness["known_limitation"]
+
+    calibration = B.CalibrationSelection(
+        path="calibration.json", sha256="e" * 64,
+        schema_version="calibration/v2", records=100,
+        threads=48, env_tag="pegasus", clocks_per_us=2100,
+        saturated=True, lower_bound_selected=False, cache_floor_warning=False,
+    )
+    submission = B.SubmissionIdentity(
+        receipt_path="submit-receipt.json", receipt_sha256="d" * 64,
+        request_id="report-request", nonce="c" * 32,
+        source_commit="b" * 40, prereg_commit="a" * 40,
+        job_script_sha256="9" * 64, phase="report", workload=None,
+    )
+    performance = B._performance_cell_completeness(
+        [{
+            "workload": workload,
+            "campaign_id": f"campaign-{workload}",
+            "observed_cells": 45,
+        } for workload in prereg.spec.workload_map],
+        observed_cells=135,
+        prereg=prereg,
+    )
+    json_path, markdown_path = B._write_reports(
+        tmp_path / "reports/final",
+        prereg=prereg,
+        calibration=calibration,
+        records=_complete_records(),
+        applied_evidence={},
+        submission=submission,
+        performance_cell_completeness=performance,
+        verification_slot_completeness=completeness,
+    )
+    report = json.loads(json_path.read_text(encoding="utf-8"))
+    report_source = report["verification_slot_completeness"]["source_campaigns"][0]
+    assert report_source["unknown_verify_tags"] == {"unregistered": 1, "[]": 1}
+    assert report_source["unknown_verify_tag_values"] == [
+        {"tag": "unregistered", "count": 1},
+        {"tag": [], "count": 1},
+    ]
+    assert report_source["raw_verify_done_records"] == 9
+    assert report_source["completed_logical_slots"] == 6
+    assert markdown_path.is_file()
 
 
 def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(
@@ -1836,6 +2367,7 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
         if "orchestrator.campaign.b10_backoff_shape_sweep" in line
     ] == ['  "$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep']
     assert [line for line in job_lines if '"$PY" -I -B - ' in line] == [
+        '  "$PY" -I -B - "$REPO_ROOT/tools/pegasus/policy.json" <<\'PY\'',
         '    "$PY" -I -B - "$ATTEMPT_DIR/failure.json" "$PBS_JOBID" "$rc" "$stage" \\',
         '  "$PY" -I -B - "$SUBMIT_RECEIPT" "$IZANAGI_B10_NONCE" "$PBS_JOBID" \\',
         '  "$PY" -I -B - "$ATTEMPT_DIR/qstat-f.stdout" "$qstat_rc" \\',
@@ -1844,8 +2376,8 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
     ]
     assert '"$PY" -B -m orchestrator.campaign.b10_backoff_shape_sweep' in job_text
     assert '"$PY" -I -B -m orchestrator.campaign.b10_backoff_shape_sweep' not in job_text
-    assert "build|verify|perf|probe" in submit_text + job_text
-    assert '[[ "$IZANAGI_B10_PHASE" != probe ]]' in job_text
+    assert "build|verify|perf|probe|verify-perf|report" in submit_text + job_text
+    assert '[[ "$IZANAGI_B10_PHASE" != probe && "$IZANAGI_B10_PHASE" != report ]]' in job_text
 
 
 def test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status(
@@ -1882,7 +2414,7 @@ def test_pegasus_job_signal_handler_records_failure_and_exits_with_signal_status
     ]
 
 
-def test_verify_perf_launcher_contract_and_walltime_are_consistent():
+def test_verify_perf_launcher_contract_and_walltime_are_consistent(tmp_path: Path):
     submit_text = (
         ROOT / "tools/pegasus/submit_b10_backoff_shape.sh"
     ).read_text(encoding="utf-8")
@@ -1891,12 +2423,78 @@ def test_verify_perf_launcher_contract_and_walltime_are_consistent():
     ).read_text(encoding="utf-8")
     driver_text = Path(B.__file__).read_text(encoding="utf-8")
 
+    policy = json.loads((ROOT / B.B10_POLICY_REL).read_text(encoding="utf-8"))
+    walltime_s = policy["b10_backoff_shape_walltime_s"]
+    assert walltime_s == 12 * 60 * 60
+
+    directive = re.findall(
+        r"(?m)^#PBS -l elapstim_req=([0-9]+):([0-9]+):([0-9]+)$", job_text,
+    )
+    assert directive == [("12", "00", "00")]
+    hours, minutes, seconds = map(int, directive[0])
+    assert hours * 3600 + minutes * 60 + seconds == walltime_s
+
+    def evaluated_request_walltime(source: str) -> int:
+        expressions = re.findall(
+            r'"elapstim_req_s":\s*([^}\n]+)\}', source,
+        )
+        assert len(expressions) == 1
+        return eval(  # noqa: S307 - evaluates one captured in-repository expression
+            expressions[0], {"__builtins__": {}, "int": int},
+            {"walltime_s": str(walltime_s)},
+        )
+
+    assert evaluated_request_walltime(job_text) == walltime_s
+    assert evaluated_request_walltime(submit_text) == walltime_s
+    assert B._b10_pbs_request(ROOT)["elapstim_req_s"] == walltime_s
+
+    scheduler_condition = re.findall(
+        r'(?m)^(\[\[ "\$SCHEDULER_ELAPSE_LIMIT_S" -eq "\$B10_WALLTIME_S" \]\]) \\$',
+        job_text,
+    )
+    assert len(scheduler_condition) == 1
+    compared = subprocess.run(
+        [
+            "bash", "-c",
+            "SCHEDULER_ELAPSE_LIMIT_S=$1; B10_WALLTIME_S=$2; "
+            + scheduler_condition[0],
+            "b10-walltime-value-test", str(walltime_s), str(walltime_s),
+        ],
+        capture_output=True, text=True,
+    )
+    assert compared.returncode == 0, compared.stdout + compared.stderr
+
+    scheduler_gate = re.findall(
+        r'(?m)^(\[\[ "\$SCHEDULER_ELAPSE_LIMIT_S" -eq "\$B10_WALLTIME_S" \]\] \\\n'
+        r'  \|\| \{ write_failure 2 allocation '
+        r'"actual scheduler Elapse limit differs from receipt"; exit 2; \})$',
+        job_text,
+    )
+    assert len(scheduler_gate) == 1
+    failure_args = tmp_path / "walltime-failure-args"
+    rejected = subprocess.run(
+        [
+            "bash", "-c",
+            "set -Eeuo pipefail\n"
+            "failure_args=$1\n"
+            "write_failure() { printf '%s\\n' \"$1\" \"$2\" \"$3\" >\"$failure_args\"; }\n"
+            "SCHEDULER_ELAPSE_LIMIT_S=$2\n"
+            "B10_WALLTIME_S=$3\n"
+            + scheduler_gate[0],
+            "b10-walltime-rejection-test", os.fspath(failure_args),
+            str(walltime_s + 1), str(walltime_s),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode == 2, rejected.stdout + rejected.stderr
+    assert failure_args.read_text(encoding="utf-8").splitlines() == [
+        "2", "allocation", "actual scheduler Elapse limit differs from receipt",
+    ]
+
     for text in (submit_text, job_text):
-        assert "build|verify|perf|probe|verify-perf" in text
-    assert "#PBS -l elapstim_req=12:00:00" in job_text
-    assert job_text.count("43200") == 2
-    assert submit_text.count("43200") == 1
-    assert driver_text.count("43200") == 1
+        assert "build|verify|perf|probe|verify-perf|report" in text
+    assert "43200" not in job_text + submit_text + driver_text
     assert "21600" not in submit_text + job_text + driver_text
     assert "06:00:00" not in job_text
 
@@ -1909,10 +2507,13 @@ def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(
     tools.mkdir(parents=True)
     submit_source = ROOT / "tools/pegasus/submit_b10_backoff_shape.sh"
     job_source = ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
+    policy_source = ROOT / B.B10_POLICY_REL
     submit = tools / submit_source.name
     job = tools / job_source.name
+    policy = tools / policy_source.name
     shutil.copy2(submit_source, submit)
     shutil.copy2(job_source, job)
+    shutil.copy2(policy_source, policy)
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     fake_git = fake_bin / "git"
@@ -1941,22 +2542,26 @@ def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(
         "FAKE_COMMON": os.fspath(common),
         "FAKE_JOB": os.fspath(job),
     }
-    completed = subprocess.run(
-        [
-            str(submit), "--dry-run", "--durable-root", str(durable),
-            "--prereg-commit", "a" * 40, "--phase", "probe",
-        ],
-        cwd=repo, env=env, capture_output=True, text=True,
-    )
-    assert completed.returncode == 0, completed.stdout + completed.stderr
+    for phase in ("probe", "report"):
+        completed = subprocess.run(
+            [
+                str(submit), "--dry-run", "--durable-root", str(durable),
+                "--prereg-commit", "a" * 40, "--phase", phase,
+            ],
+            cwd=repo, env=env, capture_output=True, text=True,
+        )
+        assert completed.returncode == 0, completed.stdout + completed.stderr
     after = {path.relative_to(repo) for path in repo.rglob("*")}
     assert after == before
     receipts = list(durable.glob("*/submit-receipt.json"))
-    assert len(receipts) == 1
-    receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
-    assert receipt["dry_run"] is True
-    assert receipt["phase"] == "probe"
-    assert receipt["workload"] is None
+    assert len(receipts) == 2
+    receipt_docs = [json.loads(path.read_text(encoding="utf-8")) for path in receipts]
+    assert {receipt["phase"] for receipt in receipt_docs} == {"probe", "report"}
+    for receipt in receipt_docs:
+        assert receipt["dry_run"] is True
+        assert receipt["workload"] is None
+        assert receipt["request"]["elapstim_req_s"] \
+            == json.loads(policy.read_text(encoding="utf-8"))["b10_backoff_shape_walltime_s"]
 
 
 def test_plain_runner_executes_this_file_instead_of_false_green():

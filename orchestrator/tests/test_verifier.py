@@ -10,7 +10,9 @@ from collections import Counter
 import hashlib
 import json
 import os
+import subprocess
 import sys
+import tempfile
 from dataclasses import replace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -18,10 +20,13 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from skiputil import Skip                                     # noqa: E402
-from orchestrator.verifier import render_text, verify_trace_dir, result_to_dict  # noqa: E402
+from orchestrator.verifier import (render_text,                         # noqa: E402
+                                   verify_trace_dir as _verify_trace_dir,
+                                   result_to_dict)
 from orchestrator.verifier.dsg import DSG                                  # noqa: E402
 from orchestrator.verifier.model import (                              # noqa: E402
-    CycleEdge, EdgeReason, Integrity, RW, VerifyResult, WR, WW,
+    CycleEdge, EdgeReason, Integrity, ProofSurfaceAssessment, RW,
+    VerifyResult, WR, WW, assess_protocol_proof_surfaces,
 )
 from orchestrator.verifier.parse import ParseError, parse_trace_dir        # noqa: E402
 
@@ -32,6 +37,29 @@ BROKEN_SILO_NORW_FIXTURE = os.path.join(FIX, "r8_silo_broken_norw")
 # repo ルート相対で実 Silo トレース (生成済みなら)
 _REPO = os.path.dirname(_ORCH)
 SILO_SAMPLE = os.path.join(_REPO, "output", "runs", "silo-sample")
+REAL_CCBENCH_ROOT = os.path.join(_REPO, "external", "ccbench")
+_PROOF_SOURCE_TMP = tempfile.TemporaryDirectory(
+    prefix="izanagi-verifier-proof-source-",
+)
+CCBENCH_ROOT = _PROOF_SOURCE_TMP.name
+_SILO_SOURCE = os.path.join(CCBENCH_ROOT, "cc", "silo")
+os.makedirs(_SILO_SOURCE)
+with open(os.path.join(_SILO_SOURCE, "CMakeLists.txt"), "w", encoding="utf-8") as _f:
+    _f.write("ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n")
+with open(os.path.join(_SILO_SOURCE, "transaction.cc"), "w", encoding="utf-8") as _f:
+    _f.write(
+        "#if TRACE\n"
+        "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+        "izanagi_trace::stream(0) << \"P \";\n"
+        "#endif\n"
+    )
+
+
+def verify_trace_dir(trace_dir, *args, **kwargs):
+    """Legacy trace fixtures を complete な synthetic Silo source へ束縛する。"""
+    kwargs.setdefault("protocol", "silo")
+    kwargs.setdefault("ccbench_root", CCBENCH_ROOT)
+    return _verify_trace_dir(trace_dir, *args, **kwargs)
 
 
 def _verify(name):
@@ -53,6 +81,119 @@ def test_g4_has_rw_edge_but_no_cycle():
     res = _verify("g4_rw_no_cycle")
     assert res.n_edges == 1
     assert res.serializable
+
+
+def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
+    """現行 pin の実 compiled source と実 verifier を通す X/P 正負対。"""
+    from orchestrator.campaign.pin import CURRENT_PIN
+
+    trace_dir = os.path.join(FIX, "g1_serial")
+    head, pinned = subprocess.run(
+        [
+            "git", "-C", REAL_CCBENCH_ROOT, "rev-parse",
+            "HEAD", f"{CURRENT_PIN}^{{commit}}",
+        ],
+        check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    assert len(head) == 40 and len(pinned) == 40
+    assert head == pinned
+    silo = _verify_trace_dir(
+        trace_dir, protocol="silo", ccbench_root=REAL_CCBENCH_ROOT,
+    )
+    mocc = _verify_trace_dir(
+        trace_dir, protocol="mocc", ccbench_root=REAL_CCBENCH_ROOT,
+    )
+    assert silo.integrity.proof_surfaces.as_record() == {
+        "protocol": "silo",
+        "X": "evidence-present",
+        "P": "evidence-present",
+        "I": "evidence-absent",
+    }
+    assert silo.integrity.clean()
+    assert silo.certified
+    assert mocc.integrity.proof_surfaces.as_record() == {
+        "protocol": "mocc",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+    assert not mocc.integrity.clean()
+    assert mocc.verdict == "indeterminate"
+    assert not mocc.certified
+    assert assess_protocol_proof_surfaces(
+        "si", REAL_CCBENCH_ROOT,
+    ).as_record() == {
+        "protocol": "si",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+
+
+def test_proof_surfaces_unavailable_source_fails_closed():
+    """読めない source を positive evidence に変換せず認証不能にする。"""
+    import tempfile
+    with tempfile.TemporaryDirectory() as root:
+        protocol_dir = os.path.join(root, "cc", "silo")
+        os.makedirs(protocol_dir)
+        with open(os.path.join(protocol_dir, "CMakeLists.txt"), "wb") as stream:
+            stream.write(b"\xff")
+        result = _verify_trace_dir(
+            os.path.join(FIX, "g1_serial"),
+            protocol="silo",
+            ccbench_root=root,
+        )
+    assert result.integrity.proof_surfaces.as_record() == {
+        "protocol": "silo",
+        "X": "unavailable",
+        "P": "unavailable",
+        "I": "unavailable",
+    }
+    assert result.verdict == "indeterminate"
+    assert not result.certified
+
+
+def test_proof_surfaces_unspecified_fail_closed():
+    result = _verify_trace_dir(os.path.join(FIX, "g1_serial"))
+    assert result.integrity.proof_surfaces == ProofSurfaceAssessment()
+    assert result.verdict == "indeterminate"
+    assert not result.certified
+
+
+def test_proof_surface_emitters_inside_if_zero_are_not_evidence():
+    """M03: literal inactive block の死んだ emitter token では認証しない。"""
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root)
+        protocol_dir = root / "cc/mocc"
+        protocol_dir.mkdir(parents=True)
+        (protocol_dir / "CMakeLists.txt").write_text(
+            "ccbench_add_protocol(mocc SOURCES transaction.cc WORKLOADS ycsb)\n",
+            encoding="utf-8",
+        )
+        (protocol_dir / "transaction.cc").write_text(
+            "#if TRACE\n"
+            "#if 0\n"
+            "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+            "izanagi_trace::stream(0) << \"P \";\n"
+            "izanagi_trace::stream(0) << \"I \";\n"
+            "#endif\n"
+            "#endif\n",
+            encoding="utf-8",
+        )
+        result = _verify_trace_dir(
+            os.path.join(FIX, "g1_serial"),
+            protocol="mocc",
+            ccbench_root=root,
+        )
+    assert result.integrity.proof_surfaces.as_record() == {
+        "protocol": "mocc",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+    assert not result.certified
 
 
 # ---- 赤 (non-serializable, すべて G2) ----
@@ -1330,6 +1471,7 @@ def test_cli_expected_commits_accepts_single_trace_dir():
     with contextlib.redirect_stdout(io.StringIO()):
         assert cli.main([
             os.path.join(FIX, "g1_serial"), "--expected-commits", "2", "--quiet",
+            "--protocol", "silo", "--ccbench-root", CCBENCH_ROOT,
         ]) == 0
 
 
@@ -1342,6 +1484,7 @@ def test_cli_expected_commits_mismatch_is_indeterminate_json():
         rc = cli.main([
             os.path.join(FIX, "g1_serial"),
             "--expected-commits", "3", "--json",
+            "--protocol", "silo", "--ccbench-root", CCBENCH_ROOT,
         ])
     payload = json.loads(stdout.getvalue())
     result = payload["results"][0]
@@ -1911,7 +2054,16 @@ def test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure():
     tracked_fixture = os.path.normcase(os.path.realpath(os.path.join(
         _HERE, "fixtures", "g5_silo_real_prefix",
     )))
-    clean = Integrity(expected_commits=1345, observed_commits=1345)
+    clean = Integrity(
+        expected_commits=1345,
+        observed_commits=1345,
+        proof_surfaces=ProofSurfaceAssessment(
+            protocol="silo",
+            lock_coverage="evidence-present",
+            permutation="evidence-present",
+            write_intent="evidence-absent",
+        ),
+    )
     good = VerifyResult(
         trace_dir=tracked_fixture,
         serializable=True,
@@ -2376,10 +2528,17 @@ def test_sparse_huge_txid_returns_bounded_indeterminate_result():
 
 
 def test_parallel_capability_remains_bound_to_parent_pid():
+    import commit_receipt_support as receipt_support
     from orchestrator.verifier.core import verify_trace_dir_with_capability
+    genome, source_evidence, build_admission = (
+        receipt_support._proof_build_binding("baseline")
+    )
     result, capability = verify_trace_dir_with_capability(
         os.path.join(FIX, "g3_readonly"),
         workers=2,
+        genome=genome,
+        source_evidence=source_evidence,
+        build_admission=build_admission,
         receipt_sink_kind="test",
         receipt_lock_identity_sha256="0" * 64,
         receipt_variant="baseline",

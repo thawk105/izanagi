@@ -815,7 +815,7 @@ def _build_manifest_from_snapshot(
     return _artifacts.OfficialManifest(document)
 
 
-def build_manifest(
+def _build_manifest(
     *, freeze_path, spec_sha256, schedule, run_contract, binding_identity, campaign_ids,
     allowed_excluded_reasons, generator_versions, campaign_config_preimages=None,
 ) -> _artifacts.OfficialManifest:
@@ -839,7 +839,7 @@ def build_manifest(
     )
 
 
-def build_manifest_from_ratified(
+def _build_manifest_from_ratified(
     ratified, *, spec_sha256, schedule, run_contract, binding_identity, campaign_ids,
     allowed_excluded_reasons, generator_versions, root=ROOT,
 ) -> _artifacts.OfficialManifest:
@@ -899,7 +899,7 @@ def _atomic_create_json(path: Path, document: Mapping) -> None:
             pass
 
 
-def write_manifest(path, manifest) -> None:
+def _write_manifest(path, manifest) -> None:
     """manifest を create-only の同一 filesystem atomic link で封印する。"""
     if type(manifest) is not _artifacts.OfficialManifest:
         raise _artifacts.OracleArtifactTypeError(
@@ -1242,7 +1242,7 @@ def build_approved_manifest(raw_output: str, *, root=ROOT) -> _artifacts.Officia
             )
 
     try:
-        result = build_manifest_from_ratified(
+        result = _build_manifest_from_ratified(
             ratified,
             spec_sha256=approved.sha256,
             schedule=_mutable_json_tree(approved.schedule),

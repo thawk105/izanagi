@@ -319,7 +319,8 @@ def _run_once(binary: str, flags: Mapping[str, str], extime: int) -> Dict:
 def _verifier_run(trace_dir: str) -> Dict:
     """verifier を /usr/bin/time -v 配下の別プロセスで実走する。"""
     cmd = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier",
-           trace_dir, "--json", "--quiet"]
+           trace_dir, "--json", "--quiet", "--protocol", "silo",
+           "--ccbench-root", str(_repo_root() / "external/ccbench")]
     started = time.monotonic()
     proc = subprocess.run(
         cmd, capture_output=True, text=True, timeout=VERIFIER_HARD_TIMEOUT_S,

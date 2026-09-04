@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/acceptance_receipt_signature.py",
+          "old": "def _require_lease_generation(value: object, field_name: str) -> None:\n    if not isinstance(value, str) or (\n        value != LEASE_NOT_ACQUIRED and _SHA256_RE.fullmatch(value) is None\n    ):\n        raise ReceiptSignatureError(f\"invalid {field_name}\")\n",
+          "new": "def _require_lease_generation(value: object, field_name: str) -> None:\n    if not isinstance(value, str):\n        raise ReceiptSignatureError(f\"invalid {field_name}\")\n"
+        }
+      ]
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/acceptance_receipt_signature.py",
+          "old": "    _require_lease_generation(payload.get(\"lease_generation\"), \"lease_generation\")\n",
+          "new": "    _require_sha256(payload.get(\"lease_generation\"), \"lease_generation\")\n"
+        }
+      ]
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/acceptance_receipt_signature.py",
+          "old": "    _require_lease_generation(\n        expected_lease_generation, \"expected_lease_generation\"\n    )\n",
+          "new": "    _require_sha256(expected_lease_generation, \"expected_lease_generation\")\n"
+        }
+      ]
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/acceptance_issuer_reference.py",
+          "old": "    try:\n        _require_lease_generation(lease_generation, \"lease_generation\")\n    except ReceiptSignatureError as exc:\n        raise IssuerFailure(str(exc)) from exc\n",
+          "new": "    if re.compile(r\"[0-9a-f]{64}\\Z\").fullmatch(lease_generation) is None:\n        raise IssuerFailure(\"invalid lease_generation\")\n"
+        }
+      ]
+    }
+  ]
+}

@@ -2011,7 +2011,8 @@ PY_T1943_WITNESS_MANIFEST
   (
     cd "$REPO_ROOT" &&
     "$VERIFIER_PY" -m orchestrator.verifier "$TRACE_DIR" --json \
-      --expected-commits "$COMMIT_COUNT"
+      --expected-commits "$COMMIT_COUNT" --protocol mocc \
+      --ccbench-root "$CCBENCH_BASE"
   ) >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
   VERIFIER_RC=$verifier_rc
   printf '%s\n' "$VERIFIER_RC" >"$ATTEMPT_DIR/verifier.rc"
