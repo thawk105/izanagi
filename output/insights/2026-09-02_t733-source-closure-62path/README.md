@@ -84,9 +84,62 @@ authority.contract_loader_blob_sha256s の exact key 集合が不正
 **閉包拡張に帰属する回帰であり、非帰属赤ではない。**
 さらに同じ decode 経路は fig2c の生成器そのものなので、図の再生成も現状では通らない。
 
-**この wave は land していない。** 旧 grammar の扱いを決めるまで進めない。
-段 2 が提案した「pre-T733 exact-24 map を拒否するテストの新設」も、この裁定を先に
+段 2 が提案した「pre-T733 exact-24 map を拒否するテストの新設」は、この扱いを先に
 凍結してしまうため採らなかった。
+
+### 決着 — 歴史閲覧限定の decoder を足した
+
+ユーザー指示で codex 2 レンズへ相談した (`verbatim/s4b-consult-a.md`、`verbatim/s4b-consult-b.md`)。
+**両レンズが独立に「歴史閲覧限定の decoder」を推し、独立に同じ条件を付けた** —
+通常 decoder を union grammar へ広げてはならない。親が裏取りして採用した
+(`verbatim/s4b-ruling.md`)。
+
+他案を落とした理由:
+
+- **11 件を新閉包で再発行する案**は規律 7 に反する。lock は WAL より前に live capture して
+  作られる (`ident.py:575-602`)。測定後に残り 38 path の blob hash を計算しても、
+  「測定時に disk bytes と blob が一致した」事実は復元できない。lock hash は B10 の
+  completion / receipt chain と A2 の raw manifest / acquisition digest 鎖へ伝播しており、
+  外部 20〜40 file の書き換えになる。凍結 provenance を変えない条件とも両立しない。
+- **fig2c を bytes 束縛へ移す案**は作業量最小 (120〜260 行) だが、失うのが正しさ側の検査
+  (activation tuple、記録 commit blob 照合、deny overlay、attempt topology、build receipt) である。
+
+実装した設計:
+
+- pre-T733 の 24 path を**順序込みの独立 literal**として置いた。現行 exact-62 tuple の slice では
+  ないので、将来 exact-62 側が動いても歴史 grammar は動かない (親が AST で機械確認)。
+- 歴史 decode は**別入口・別返却型** (`DecodedHistoricalCampaignLock`)。flag による緩和ではない。
+- `purpose` を decode より前に exact enum で確定し、`HISTORICAL_RAW` のときだけ歴史 decoder を選ぶ。
+- grammar は path 数でなく **exact ordered tuple** で識別する。subset / superset / 同数別集合 /
+  順序違いはすべて拒否。
+- 記録 commit blob との digest 照合は歴史 grammar の 24 path 全体で維持。
+- 歴史 epoch は記録 grammar の順序と、その grammar 固有の scope 文言で計算し、現行適合は `unknown`。
+- 互換実装は新 module へ分離せず既存 file の中に置いた (D1128 の自己参照問題を増やさないため)。
+- **実在 corpus のある exact-24 だけ**を足した。8 / 12 / 14 / 25 / 27 は入れない。
+
+### 呼び出し境界の赤と、その直し方
+
+初回実装は `artifact_admission._verify_committed_loader_binding` から
+`contract_loader_binding` の**私有 helper** (`_validated_root` / `_require_commit` / `_blob`) を
+直接呼んでいた。`test_production_contract_loader_binding_call_sites_are_exact` が検出した。
+
+期待一覧へ 4 件を足して済ませることはしなかった。私有 helper への到達は、その module が
+公開面で保つ順序 (root 検証 -> commit 検証 -> blob 取得) を呼び手側で組み直すことであり、
+この検査が守る境界そのものを壊す。`verify_committed_contract_loader_blobs()` を公開面へ足し、
+呼び手は公開関数だけを使う形へ寄せた。親が実測して私有 helper 呼び出し 0 件、
+呼び出し箇所 8 件 (増分は公開関数 1 件だけ) を確認した。
+
+### 歴史 decoder の変異事前登録と結果
+
+本走は 3/3 KILLED、SURVIVED 0。台帳は `mutation-ledger-historical.json`。
+
+| # | 変異 | 結果 | 検出したテスト |
+|---|---|---|---|
+| M06 | 歴史 grammar の判定を exact ordered tuple から key 数へ緩める | KILLED | 同数別集合を弾く 2 件 |
+| M07 | `purpose` の判定を外し、certified でも歴史 decoder へ落ちるようにする | KILLED | P4 (同じ bytes の certified 拒否) 1 件 |
+| M08 | 歴史 decode で記録 commit blob との digest 照合を飛ばす | KILLED | 照合不一致を検出する 1 件 |
+
+M07 と M08 は落ちるテストがちょうど 1 件で、理由が 1 本に絞れている。
 
 教訓: 「外部成果物を repo が decode 経由で読んでいるか」は、1 つの test file を見て
 結論してはならない。同じ成果物 root を指す consumer は複数 file に分かれ、

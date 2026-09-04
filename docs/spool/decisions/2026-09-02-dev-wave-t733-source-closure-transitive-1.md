@@ -71,3 +71,54 @@ subprocess、外部 command/Git、toolchain、binary、動的 import) が対象�
 **却下した選択肢:**
 - **等値検査だけを置く** — 両側同時変異で無力化される。
 - **working tree の hash を pin する** — 揮発値であり、無関係な編集で落ちる。
+
+## {{D:historical-grammar-read-only-decoder}}. 旧閉包 grammar は歴史閲覧限定の別 decoder で読む
+
+**決定 (ユーザー指示による codex 相談を経た親裁定):** enforcement source closure を広げた結果
+decode できなくなる旧 grammar の campaign lock は、**`HISTORICAL_RAW` の読み取りに限って**
+専用 decoder で読む。現行 certified 経路の受理集合は 1 mm も広げない。
+収載する grammar は**実在 corpus が確認できたものだけ**とする。
+
+**理由:**
+- 閉包を広げると、旧 grammar を記録した成果物が decode 段で拒否される。この拒否は目的判定より
+  前に起きるため、歴史閲覧でも回避できない。外部 root の official lock 11 件が該当し、
+  そのうち 3 件は論文図 fig2c の生成経路が実際に読んでいた。**閉包拡張に帰属する回帰である。**
+- 記録を新閉包で発行し直す案は規律 7 に反する。lock は WAL より前に live capture して作られるため、
+  測定後に不足 path の blob hash を計算しても「測定時に disk bytes と blob が一致した」事実は
+  復元できない。lock hash は下流の completion / receipt / manifest の digest 鎖へ伝播しており、
+  凍結成果物の bytes を変えない条件とも両立しない。
+- 生成経路を bytes 束縛へ移す案は作業量最小だが、失うのが正しさ側の検査
+  (環境の起動記録、記録 commit blob 照合、拒否 overlay、試行構成、build receipt) である。
+- 独立した 2 レンズが別々に同じ結論と同じ条件へ到達した。
+
+**必須の条件:**
+- 通常 decoder / encode / resume / certified admission は現行 grammar のまま。union にしない。
+- 別入口・別返却型にする。flag や boolean 引数による緩和にしない。
+- `purpose` を decode より前に exact enum で確定する。
+- grammar は path 数でなく **exact ordered tuple** で識別し、subset / superset / 同数別集合 /
+  順序違いを拒否する。旧 tuple は現行 tuple の slice ではなく独立 literal として置く。
+- 記録 commit blob との digest 照合を旧 grammar の全 path で維持する。
+- 歴史 epoch は記録 grammar の順序とその grammar 固有の scope 文言で計算し、現行適合は `unknown`。
+- 互換実装を新 module へ分離しない (閉包へ入れるべきかという別問題を作らないため、D1128)。
+
+**却下した選択肢:**
+- **旧記録を新閉包で発行し直す** — 規律 7 に反し、下流の digest 鎖と凍結成果物を巻き込む。
+- **生成経路を bytes 束縛へ移す** — 中央 admission の検査を失う。
+- **通常 decoder を union grammar へ広げる** — 認証側の consumer まで旧 grammar を受理する。
+- **hash allowlist で個別に許可する** — 既存の hash 台帳を重複させ、成果物ごとの登録が要る。
+
+## {{D:private-helper-reach-is-not-registered}}. 呼び出し一覧の赤は私有 helper を登録して閉じない
+
+**決定:** 呼び出し箇所を exact な一覧として固定する検査が、他 module の**私有 helper** への
+到達を検出した場合、期待一覧へその呼び出しを登録して閉じてはならない。
+呼ばれる側へ公開関数を足し、呼び手を公開面へ寄せる。
+
+**理由:**
+- 私有 helper への到達は、その module が公開面で保っている手順 (根の検証、対象の検証、
+  取得の順序) を呼び手側で組み直すことである。検査が守ろうとしている境界そのものが消える。
+- 期待一覧へ足すのは最も安い直し方であり、だからこそ既定にしてはいけない。
+  一覧は「呼び出しが増えたこと」ではなく「境界の外へ手が伸びたこと」を検出している。
+
+**却下した選択肢:**
+- **期待一覧へ私有 helper を登録する** — 検査を恒真化する。
+- **検査の exact 比較をやめる** — 同じ理由でより広く壊す。
