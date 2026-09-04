@@ -2102,7 +2102,6 @@ def main(
     else:
         cfg = default_cfg(reflux=(a.reflux == "on"))
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     cfg, _knowledge_layout, knowledge_input = _prepare_knowledge_campaign(
         cfg,
         resolved_knowledge,
