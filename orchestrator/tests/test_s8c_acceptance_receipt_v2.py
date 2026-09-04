@@ -327,7 +327,8 @@ def _install_attempt_registry_binding(
     *,
     terminal_failure_trials: frozenset[str] = frozenset(),
     retry_trial_id: str | None = None,
-    binding_prereg_commit: str | None = None,
+    binding_prereg_content_commit: str | None = None,
+    binding_prereg_effective_commit: str | None = None,
 ) -> None:
     prereg_generation = 13
     slots = _attempt_slots(value["trials"], prereg_generation=prereg_generation)
@@ -337,7 +338,9 @@ def _install_attempt_registry_binding(
         rows = attempt_core.load_attempt_registry(
             attempt_path.read_bytes(), profile=profile,
         )
-        assert rows[0]["slots"] == slots
+        assert sorted(
+            rows[0]["slots"], key=lambda slot: slot["slot_id"],
+        ) == sorted(slots, key=lambda slot: slot["slot_id"])
     else:
         rows = attempt_core.create_attempt_registry_genesis(
             profile=profile,
@@ -346,8 +349,10 @@ def _install_attempt_registry_binding(
             manifest_sha256=value["manifest_sha256"],
             slots=slots,
         )
-    binding_commit = binding_prereg_commit or value["prereg_commit"]
-    binding = (binding_commit, binding_commit)
+    binding = (
+        binding_prereg_content_commit or value["prereg_content_commit"],
+        binding_prereg_effective_commit or value["prereg_effective_commit"],
+    )
     trial_rows = {row["trial_id"]: row for row in value["trials"]}
 
     def consume(slot: dict, *, terminal_status: str, report_sha256: str) -> None:
@@ -488,9 +493,14 @@ def _upgrade_to_current(
     *,
     terminal_failure_trials: frozenset[str] = frozenset(),
     retry_trial_id: str | None = None,
-    binding_prereg_commit: str | None = None,
+    binding_prereg_content_commit: str | None = None,
+    binding_prereg_effective_commit: str | None = None,
 ) -> None:
     value["schema_version"] = receipt.SCHEMA_VERSION
+    value.setdefault("prereg_content_commit", value["prereg_commit"])
+    effective = _run(repo, "rev-parse", "HEAD")
+    assert effective.returncode == 0, effective.stderr
+    value.setdefault("prereg_effective_commit", effective.stdout.strip())
     for index, row in enumerate(value["trials"]):
         row["cross_binding_receipt_sha256"] = hashlib.sha256(
             f"cross-binding-leaf-{index}".encode("ascii")
@@ -509,7 +519,8 @@ def _upgrade_to_current(
         value,
         terminal_failure_trials=terminal_failure_trials,
         retry_trial_id=retry_trial_id,
-        binding_prereg_commit=binding_prereg_commit,
+        binding_prereg_content_commit=binding_prereg_content_commit,
+        binding_prereg_effective_commit=binding_prereg_effective_commit,
     )
 
 
@@ -1026,7 +1037,16 @@ def test_v5_attempt_binding_accepts_all_predeclared_observed_units(
     assert projection is not None
     assert projection.prereg_generation == 13
     assert projection.unit_count == 6
-    assert receipt.require_current_verified_receipt(verified).sha256 == verified.sha256
+    assert verified.receipt.prereg_content_commit == value[
+        "prereg_content_commit"
+    ]
+    assert verified.receipt.prereg_effective_commit == value[
+        "prereg_effective_commit"
+    ]
+    assert (
+        receipt.require_current_verified_receipt(verified).sha256
+        == verified.sha256
+    )
 
 
 def test_m4_downstream_capability_rejects_readable_v4_receipt(
@@ -1036,6 +1056,8 @@ def test_m4_downstream_capability_rejects_readable_v4_receipt(
     _upgrade_to_current(repo, value)
     value["schema_version"] = receipt.CROSS_BINDING_V2_SCHEMA_VERSION
     for field in (
+        "prereg_content_commit",
+        "prereg_effective_commit",
         "attempt_registry_path",
         "attempt_registry_prefix_bytes",
         "attempt_registry_prefix_sha256",
@@ -1074,15 +1096,19 @@ def test_v5_rejects_attempt_registry_bound_to_another_manifest(
         receipt.verify_acceptance_receipt(path, repository_root=repo)
 
 
-def test_v5_rejects_attempt_registry_bound_to_another_prereg_commit(
+def test_v5_rejects_attempt_registry_bound_to_another_content_commit(
     tmp_path: Path,
 ) -> None:
     repo, path, value = _fixture(tmp_path)
     registry_binding_commit = value["prereg_commit"]
-    value["prereg_commit"] = _run(repo, "rev-parse", "HEAD").stdout.strip()
-    assert value["prereg_commit"] != registry_binding_commit
+    value["prereg_content_commit"] = _run(
+        repo, "rev-parse", "HEAD",
+    ).stdout.strip()
+    assert value["prereg_content_commit"] != registry_binding_commit
     _upgrade_to_current(
-        repo, value, binding_prereg_commit=registry_binding_commit,
+        repo,
+        value,
+        binding_prereg_content_commit=registry_binding_commit,
     )
     _rewrite_receipt(repo, path, value, "receipt with other-P registry")
 
@@ -1090,7 +1116,31 @@ def test_v5_rejects_attempt_registry_bound_to_another_prereg_commit(
         receipt.AcceptanceReceiptError,
         match=(
             r"^\[receipt-attempt-registry\] \[attempt-binding\] attempt row "
-            r"content commit differs from receipt prereg_commit$"
+            r"content commit differs from receipt prereg_content_commit$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v5_rejects_attempt_registry_bound_to_another_effective_commit(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    registry_binding_commit = _run(repo, "rev-parse", "HEAD").stdout.strip()
+    value["prereg_effective_commit"] = value["prereg_commit"]
+    assert value["prereg_effective_commit"] != registry_binding_commit
+    _upgrade_to_current(
+        repo,
+        value,
+        binding_prereg_effective_commit=registry_binding_commit,
+    )
+    _rewrite_receipt(repo, path, value, "receipt with other-C registry")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-attempt-registry\] \[attempt-binding\] attempt row "
+            r"effective commit differs from receipt prereg_effective_commit$"
         ),
     ):
         receipt.verify_acceptance_receipt(path, repository_root=repo)
@@ -1107,7 +1157,7 @@ def test_v5_rejects_registry_first_tracked_after_prereg_commit(
         receipt.AcceptanceReceiptError,
         match=(
             r"^\[receipt-attempt-binding\] attempt registry does not extend "
-            r"the genesis at prereg_commit$"
+            r"the genesis at prereg_content_commit$"
         ),
     ):
         receipt.verify_acceptance_receipt(path, repository_root=repo)
@@ -1284,6 +1334,8 @@ def test_v4_remains_readable_without_v5_attempt_binding(tmp_path: Path) -> None:
     _upgrade_to_current(repo, value)
     value["schema_version"] = receipt.CROSS_BINDING_V2_SCHEMA_VERSION
     for field in (
+        "prereg_content_commit",
+        "prereg_effective_commit",
         "attempt_registry_path",
         "attempt_registry_prefix_bytes",
         "attempt_registry_prefix_sha256",

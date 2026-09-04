@@ -900,6 +900,16 @@ def _project_t1749_receipt_v4_to_v1(
     ]
     aggregate = acceptance.pop("cross_binding_receipt_sha256")
     assert type(aggregate) is str and len(aggregate) == 64
+    prereg_content_commit = acceptance.pop("prereg_content_commit")
+    prereg_effective_commit = acceptance.pop("prereg_effective_commit")
+    assert (
+        type(prereg_content_commit) is str
+        and len(prereg_content_commit) == 40
+    )
+    assert (
+        type(prereg_effective_commit) is str
+        and len(prereg_effective_commit) == 40
+    )
     attempt_path = acceptance.pop("attempt_registry_path")
     attempt_prefix_bytes = acceptance.pop("attempt_registry_prefix_bytes")
     attempt_prefix_sha256 = acceptance.pop("attempt_registry_prefix_sha256")

@@ -6344,6 +6344,8 @@ def assert_trial_registry_acceptance(
             "manifest_path": manifest_relative,
             "manifest_sha256": manifest.sha256,
             "prereg_commit": manifest.prereg_commit,
+            "prereg_content_commit": effective_binding.prereg_content_commit,
+            "prereg_effective_commit": registration.prereg_effective_commit,
             "activation_report_digest_sha256": (
                 effective_preregistration.report_digest_sha256
             ),

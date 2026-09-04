@@ -71,6 +71,8 @@ _V3_TOP_LEVEL_KEYS = _BASE_TOP_LEVEL_KEYS | {
 }
 _V4_TOP_LEVEL_KEYS = _V3_TOP_LEVEL_KEYS
 _V5_TOP_LEVEL_KEYS = _V4_TOP_LEVEL_KEYS | {
+    "prereg_content_commit",
+    "prereg_effective_commit",
     "attempt_registry_path",
     "attempt_registry_prefix_bytes",
     "attempt_registry_prefix_sha256",
@@ -235,6 +237,8 @@ class AcceptanceReceipt:
     manifest_path: str
     manifest_sha256: str
     prereg_commit: str
+    prereg_content_commit: str | None
+    prereg_effective_commit: str | None
     activation_report_digest_sha256: str
     registry_path: str
     registry_blob_sha256: str
@@ -543,9 +547,15 @@ def _receipt_attempt_binding_mismatch(
     expected: tuple[str | None, str | None],
 ) -> str | None:
     if expected[0] is not None and actual[0] != expected[0]:
-        return "attempt row content commit differs from receipt prereg_commit"
+        return (
+            "attempt row content commit differs from receipt "
+            "prereg_content_commit"
+        )
     if expected[1] is not None and actual[1] != expected[1]:
-        return "attempt row effective commit differs from expected C"
+        return (
+            "attempt row effective commit differs from receipt "
+            "prereg_effective_commit"
+        )
     return None
 
 
@@ -802,6 +812,12 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         )
     )
     if schema_version == SCHEMA_VERSION:
+        prereg_content_commit = _require_commit(
+            value["prereg_content_commit"], "prereg_content_commit",
+        )
+        prereg_effective_commit = _require_commit(
+            value["prereg_effective_commit"], "prereg_effective_commit",
+        )
         attempt_registry_path = _require_posix_path(
             value["attempt_registry_path"], "attempt_registry_path",
         )
@@ -827,6 +843,8 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             value["attempt_slot_projection"]
         )
     else:
+        prereg_content_commit = None
+        prereg_effective_commit = None
         attempt_registry_path = None
         attempt_registry_prefix_bytes = None
         attempt_registry_prefix_sha256 = None
@@ -989,6 +1007,8 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         manifest_path=manifest_path,
         manifest_sha256=manifest_sha256,
         prereg_commit=prereg_commit,
+        prereg_content_commit=prereg_content_commit,
+        prereg_effective_commit=prereg_effective_commit,
         activation_report_digest_sha256=activation_digest,
         registry_path=registry_path,
         registry_blob_sha256=registry_digest,
@@ -1530,6 +1550,8 @@ def _assert_attempt_registry_consumption(
     """
     if (
         receipt.attempt_registry_path is None
+        or receipt.prereg_content_commit is None
+        or receipt.prereg_effective_commit is None
         or receipt.attempt_registry_prefix_bytes is None
         or receipt.attempt_registry_prefix_sha256 is None
         or receipt.attempt_slot_projection is None
@@ -1562,7 +1584,10 @@ def _assert_attempt_registry_consumption(
         rows = _attempt_core.load_attempt_registry(
             prefix,
             profile=_RECEIPT_ATTEMPT_PROFILE,
-            expected_binding=(receipt.prereg_commit, None),
+            expected_binding=(
+                receipt.prereg_content_commit,
+                receipt.prereg_effective_commit,
+            ),
         )
     except _attempt_core.AttemptRegistryCoreError as exc:
         raise AcceptanceReceiptError(
@@ -1575,12 +1600,13 @@ def _assert_attempt_registry_consumption(
             "attempt registry manifest_sha256 differs from receipt",
         )
     initial_blob = _blob_at_commit(
-        root, receipt.prereg_commit, receipt.attempt_registry_path,
+        root, receipt.prereg_content_commit, receipt.attempt_registry_path,
     )
     if initial_blob is None or not prefix.startswith(initial_blob):
         _fail(
             "receipt-attempt-binding",
-            "attempt registry does not extend the genesis at prereg_commit",
+            "attempt registry does not extend the genesis at "
+            "prereg_content_commit",
         )
     try:
         initial_rows = _attempt_core.load_attempt_registry(
@@ -1593,7 +1619,7 @@ def _assert_attempt_registry_consumption(
     if len(initial_rows) != 1:
         _fail(
             "receipt-attempt-binding",
-            "attempt registry at prereg_commit is not genesis-only",
+            "attempt registry at prereg_content_commit is not genesis-only",
         )
     derived_projection = _attempt_projection_from_rows(rows)
     if derived_projection != receipt.attempt_slot_projection:

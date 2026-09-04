@@ -1713,6 +1713,12 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         "manifest_path": manifest_path.relative_to(repo).as_posix(),
         "manifest_sha256": manifest.sha256,
         "prereg_commit": manifest.prereg_commit,
+        "prereg_content_commit": first_report[
+            "launch_admission"
+        ]["prereg_content_commit"],
+        "prereg_effective_commit": first_report[
+            "launch_admission"
+        ]["prereg_effective_commit"],
         "activation_report_digest_sha256": first_report[
             "launch_admission"
         ]["activation_report_digest_sha256"],
@@ -1761,6 +1767,11 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
     # the fixture repository and every key, leaf, and trial-array position is
     # compared.
     assert receipt == expected_receipt
+    assert receipt["prereg_commit"] != receipt["prereg_content_commit"]
+    assert (
+        receipt["prereg_content_commit"]
+        != receipt["prereg_effective_commit"]
+    )
     receipt_path = repo / summary.receipt_path
     _commit(repo, "track acceptance receipt v2", receipt_path)
     verified = R.s8c_acceptance_receipt.verify_acceptance_receipt(
