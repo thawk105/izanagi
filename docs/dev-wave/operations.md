@@ -31,6 +31,8 @@ prompt 先頭は AGENTS.md の単独段例外と同形式。
 WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
 Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
 prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
+**作る command だけでなく読む command も掛かる。** 防護 path と `$()`・プロセス置換・`<<<`・
+`eval`・`xargs` の同居は分類不能として拒否されるので、読取りは cat / grep / jq を直に使う。
 Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
 subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
 
@@ -84,6 +86,7 @@ tracked 無変更を出さず不在証明にならない。理解だけの `rm -
 ## DW-O12 — 裁定手順と実行手順の差
 
 worklog には裁定予定を写さず、実際に実行した手順を書く。
+親担当と分割した裁定項目は段 7 前に着地差分と突き合わせる。
 一次資料と逆の工程記録を残してはならない。
 受理集合を変える指示を子へ出す直前に、この wave で凍結済みの事前登録・判定式を再読する。
 凍結は自分が直前に書いたものでも拘束する。
@@ -143,7 +146,7 @@ cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走�
 主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の
 使い捨て worktree で harness を走らせる。`--scratch-root` は既存 directory 必須で、
 全 registered worktree の外に置く。再走は `--out` と `--attempt-out` を新 path にする
-（既存は rc=2）。`--wrapper-attempt` は試行番号。
+（既存は rc=2）。
 
 ## DW-O20 — clean-tree gate
 
@@ -162,10 +165,11 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 ## DW-O23 — 並行 session の local main land
 
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、着地tip、監査commit列を渡す。
+監査列の範囲は`<tested main>..<tested tip>`で固定。着地tipで数え直すとrc=23。
 協調wave lock内で再照合し、着地tipへのff-onlyだけ行う。ff-only成功後は**同じlockを保持したまま**
 `docs/spool/`のfragmentをfoldし、T/D/Fの採番・canonical3台帳追記・worklogローテーションを
 一度だけ行う。foldが赤なら`landed`を返さない。0件foldはno-op。
-**wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
+tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは停止せず既存branchのまま

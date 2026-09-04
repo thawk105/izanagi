@@ -50,6 +50,7 @@ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
 # conftest の付与正本から意図的に重複させる独立 oracle。ここを conftest から
 # import / 導出すると、正本の node 増減が付与側と期待側へ同時伝播して恒真化する。
 _REAL_REPO_CLASSIFIED_NODES_GOLDEN = frozenset({
+    "test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
     # snapshot テストの結線監査 meta-テスト (本ファイル)。実 ROOT で builder を実走し
     # repo tree snapshot を取るため writer の patch 窓と同じ競合面 (D63 列挙漏れの補完)。
@@ -196,6 +197,7 @@ _REAL_REPO_PARENT_ONLY_NODES_GOLDEN = frozenset({
     "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
 _REAL_REPO_CCBENCH_ONLY_NODES_GOLDEN = frozenset({
+    "test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
     "test_campaign.py::test_source_digest_parse_options_defaults",
     "test_campaign.py::test_source_digest_stock_roundtrip",
     "test_campaign.py::test_source_digest_fixed_variant_distinct",

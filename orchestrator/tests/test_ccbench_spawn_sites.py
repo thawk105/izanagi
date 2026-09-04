@@ -147,6 +147,26 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Fixed Git executable and fixed allow-list environment run read-only
     # repository-binding queries; argv never names or executes CCBench.
     ("campaign/p3_b4_admission_record.py", "<module>._git_call"): 1,
+    # Fixed read-only Git identity/blob/status queries bind the disposable
+    # producer-auth experiment to its source commit; none executes CCBench.
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.producer_blob_at_commit",
+    ): 1,
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.repository_status_bytes",
+    ): 1,
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.resolve_source_head",
+    ): 1,
+    # Fixed Git/archive and tar commands only construct a commit-pinned
+    # disposable scratch tree; no site names or executes a CCBench binary.
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.ScratchTree.__enter__",
+    ): 5,
     ("campaign/queue_state.py", "<module>._run_qstat_bounded"): 1,
     ("campaign/reflux_origin_ledger.py", "<module>._git"): 1,
     ("campaign/reflux_source_closure.py", "<module>._git"): 1,
@@ -205,6 +225,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8c_acceptance_receipt.py", "<module>._git"): 1,
     ("campaign/s8c_preregistration.py", "<module>._git"): 1,
     ("campaign/silo_ladder_rung1.py", "<module>._run"): 2,
+    # Git-object export plus patching of a disposable copy materialize the
+    # exact pinned source snapshot; neither invocation launches CCBench.
+    (
+        "campaign/silo_ladder_rung1.py",
+        "<module>._pinned_patched_source_model",
+    ): 2,
     # Sanitized read-only Git root/HEAD and tracked-path queries; neither argv
     # names nor executes CCBench.
     ("campaign/sort_swo_dependency_material.py", "<module>._run_git"): 1,
@@ -2838,7 +2864,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s1_sink = _BuildSink(
         "orchestrator/campaign/s1_direct_comparison.py",
         "<module>.run_role",
-        1215,
+        1219,
         "campaign",
     )
     s8b_sink = _BuildSink(
