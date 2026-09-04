@@ -317,9 +317,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    **残課題 (現役):** (a) D36 決定 4-2 の「AND 共通ヘルパ」は W (STAGE_COMMIT.verify_configs への書き込み)
    のみ実装 — 読み手 consumer が出た時点で追加 (規律 5)、(b) backoff 軸 driver (`p3_s4_loop.SOURCE_REL`)
    は引き続き backoff.hh 単一マーカーのみを駆動 (sort 軸は兄弟 driver 側)、(c) auditor ギャラリー型 14
-   (非 SWO comparator) は **[T-316] R2-b の独立 oracle が build 前に反例探索する**
-   (`orchestrator/campaign/sort_swo_oracle.py`、有限 corpus 上の反例発見器であり全入力の証明ではない。
-   型 15 fairness の機械観測点は依然として未実装)。実走手順 =
+   (非 SWO comparator) は **[T-316] R2-b の独立 oracle が build 前に閉じた IR への membership で塞ぐ**
+   (`orchestrator/campaign/sort_swo_oracle.py`、[T-2145] で受理言語を閉じた 79 値 IR へ縮めた。
+   保証は構成的 SWO + 実 TU conformance であり、動的な反例発見器ではなく全入力の証明でもない。
+   この縮小は D39 の raw C++ 独立合成の実証点を別実験へ移すが、D344 の実験同一性の論点は
+   supersede されていない (D1451)。型 15 fairness の機械観測点は依然として未実装)。実走手順 =
    `docs/phase3-s5-sort-runbook.md`。正本 = D40〜D43・`orchestrator/campaign/p3_s4_loop_sort.py`。
    campaign `p3-s5-sort-loop-s5-sort-autonomous-3be89e0d` は oracle 導入前の歴史成果物で再開不可。
 6. **(完了 2026-07-16) 旧主実験の縮小主張 S' を閉じる** — D52 で旧 headline を主張 S に再構成したが、
@@ -1175,7 +1177,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-883] **性能値主張時の dispatch receipt の worktree 外退避** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
 - [T-913] **公表台帳 R2 番人 4 function の保留可否** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。据置を追認済み。保留したい場合は D320 とは別の個別裁定を新たに取ると決着した。再訪条件 = 個別裁定を取るとき。
 - [T-915] **holdout live scan の保留可否** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。保留対象外で確定し、ファイル数比例をやめる最適化として [T-902] 実装側が扱うと決着した。再訪条件 = なし ([T-902] が所有)。
-- [T-942] **材料レポート renderer の結線 (V-12)** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。P6 実装 wave へ同梱すると確定済み。残は V-8 のみで別 ID が保持する。再訪条件 = なし ([T-941] が所有)。
+- [T-942] **材料レポート renderer の結線 (V-12)** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。P6 実装 wave へ同梱すると確定済み。残は V-8 のみで別 ID が保持する。再訪条件 = なし ([T-941] が所有)。 2026-09-03 の [T-941] wave で V-12 の同梱を見送った。段 3 の 2 レンズが独立に「P6 が `NOT_IMPLEMENTED` のまま繋ぐことは本項の裁定理由に反する」と判定し、親が採用した。裁定候補 U3 (延期するか、P6 不在でも診断専用の非完全 projection を許すか) をユーザーへ返す。親推奨 = 延期。 2026-09-03 の /rulings 第 5 回で裁定。P6 の認定完了まで延期し、P6 不在でも診断専用の非完全 projection として繋ぐ例外は作らない (D1566)。見送り台帳に留め置き、再訪条件 = P6 の認定完了。
 - [T-955] **guard bytes 期待値の trust root** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。据置で確定済み。独立 trust root・launch receipt 化はいずれも作らないと決着した (粗い provenance 基準)。再訪条件 = なし。
 - [T-961] **strict extension 保証の直接テスト** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。
 - [T-962] **B4 の第 5 案** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。(c) 今は足さないで確定済み。再訪条件 = manifest R1 (Q-D の同一 land 再解釈) の裁定後。

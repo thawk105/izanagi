@@ -1,0 +1,168 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120.0,
+ "timeout_seconds": 5400.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "N1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        \"requested_compiler_identities\", \"control_compiler_identities\",\n        \"cmake_path\", \"requested_configure_argv\", \"control_configure_argv\",\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    cmake_path = evidence[\"cmake_path\"]\n    if type(cmake_path) is not str or not cmake_path:\n        _invalid_record(\"green supply evidence has an empty CMake path\")\n    _validate_record_configure_argv(\n        evidence[\"requested_configure_argv\"],\n        \"requested_configure_argv\",\n        cmake_path=cmake_path,\n    )\n    _validate_record_configure_argv(\n        evidence[\"control_configure_argv\"],\n        \"control_configure_argv\",\n        cmake_path=cmake_path,\n    )\n    requested_cmake = _validate_record_cmake_identities(\n        evidence[\"requested_cmake_identities\"], \"requested_cmake_identities\",\n    )\n    control_cmake = _validate_record_cmake_identities(\n        evidence[\"control_cmake_identities\"], \"control_cmake_identities\",\n    )\n    cmake_identity = (requested_cmake[0].identity, requested_cmake[0].sha256)\n    if (control_cmake[0].identity, control_cmake[0].sha256) != cmake_identity:\n        _invalid_record(\"green supply arms used different CMake identities\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (control_cmake[0].identity, control_cmake[0].sha256) != cmake_identity:\n        _invalid_record(\"green supply arms used different CMake identities\")\n",
+     "new": "    if False:\n        _invalid_record(\"green supply arms used different CMake identities\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (value[0].identity, value[0].sha256) \\\n            != (value[1].identity, value[1].sha256):\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n",
+     "new": "    if False:\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if argv[0] != cmake_path:\n        _invalid_record(f\"{field_name} is not bound to cmake_path\")\n",
+     "new": "    if False:\n        _invalid_record(f\"{field_name} is not bound to cmake_path\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        if (default_cmake[0].identity, default_cmake[0].sha256) != cmake_identity:\n            _invalid_record(\n                \"green compile-time requested/default used different CMake identities\",\n            )\n",
+     "new": "        if False:\n            _invalid_record(\n                \"green compile-time requested/default used different CMake identities\",\n            )\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/certify_calibration.sh",
+     "old": "if [[ ! -s \"$ATTEMPT_DIR/binary.symbols\" ]]; then\n  write_failure 2 trace_separation \"calibration binary symbol table is empty\"\n  exit 2\nfi\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/certify_calibration.sh",
+     "old": "if grep -qi 'izanagi_trace' \"$ATTEMPT_DIR/binary.symbols\"; then\n  write_failure 2 trace_separation \"trace symbol detected in calibration binary\"\n  exit 2\nfi\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/certify_calibration.sh",
+     "old": "build_argv=(\"$CMAKE_PATH\" --build \"$BUILD_DIR\" --target ycsb_silo.exe -j 48)\n",
+     "new": "build_argv=(cmake --build \"$BUILD_DIR\" --target ycsb_silo.exe -j 48)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    _require_same_cmake(before, after)\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (value[0].identity, value[0].sha256) \\\n            != (value[1].identity, value[1].sha256):\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n",
+     "new": "    if False:\n        _invalid_record(f\"{field_name} records CMake identity drift\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "N10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "            _require_same_cmake(\n                requested_configure.cmake_identities[0],\n                control_configure.cmake_identities[0],\n            )\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        _require_same_cmake(\n            command.cmake_identities[0], command.cmake_identities[1],\n        )\n    _require_same_cmake(\n        configured.requested.cmake_identities[0],\n        configured.control.cmake_identities[0],\n",
+     "new": ""
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    if (control_cmake[0].identity, control_cmake[0].sha256) != cmake_identity:\n        _invalid_record(\"green supply arms used different CMake identities\")\n",
+     "new": "    if False:\n        _invalid_record(\"green supply arms used different CMake identities\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

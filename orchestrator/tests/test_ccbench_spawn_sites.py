@@ -147,6 +147,26 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Fixed Git executable and fixed allow-list environment run read-only
     # repository-binding queries; argv never names or executes CCBench.
     ("campaign/p3_b4_admission_record.py", "<module>._git_call"): 1,
+    # Fixed read-only Git identity/blob/status queries bind the disposable
+    # producer-auth experiment to its source commit; none executes CCBench.
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.producer_blob_at_commit",
+    ): 1,
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.repository_status_bytes",
+    ): 1,
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.resolve_source_head",
+    ): 1,
+    # Fixed Git/archive and tar commands only construct a commit-pinned
+    # disposable scratch tree; no site names or executes a CCBench binary.
+    (
+        "campaign/p3_b4_producer_auth_experiment.py",
+        "<module>.ScratchTree.__enter__",
+    ): 5,
     ("campaign/queue_state.py", "<module>._run_qstat_bounded"): 1,
     ("campaign/reflux_origin_ledger.py", "<module>._git"): 1,
     ("campaign/reflux_source_closure.py", "<module>._git"): 1,
@@ -205,6 +225,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8c_acceptance_receipt.py", "<module>._git"): 1,
     ("campaign/s8c_preregistration.py", "<module>._git"): 1,
     ("campaign/silo_ladder_rung1.py", "<module>._run"): 2,
+    # Git-object export plus patching of a disposable copy materialize the
+    # exact pinned source snapshot; neither invocation launches CCBench.
+    (
+        "campaign/silo_ladder_rung1.py",
+        "<module>._pinned_patched_source_model",
+    ): 2,
     # Sanitized read-only Git root/HEAD and tracked-path queries; neither argv
     # names nor executes CCBench.
     ("campaign/sort_swo_dependency_material.py", "<module>._run_git"): 1,
@@ -759,6 +785,9 @@ class _BenchmarkBuildSinkVisitor(ast.NodeVisitor):
 _SHELL_FUNCTION_RE = re.compile(
     r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\)\s*\{"
 )
+_SHELL_CMAKE_BUILD_RE = re.compile(
+    r'(?:\bcmake|["\']?\$(?:CMAKE_PATH|\{CMAKE_PATH\})["\']?)\s+--build\b'
+)
 
 
 def _shell_build_sinks(relative_path: str, source: str) -> set[_BuildSink]:
@@ -776,7 +805,7 @@ def _shell_build_sinks(relative_path: str, source: str) -> set[_BuildSink]:
                 scopes.pop()
                 depth = 0
         if (
-            re.search(r"\bcmake\s+--build\b", line)
+            _SHELL_CMAKE_BUILD_RE.search(line)
             and "--target" in line
             and re.search(r"\bycsb_[A-Za-z0-9_.-]+", line)
         ):
@@ -829,7 +858,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "buildcache",
         "<module>._build_binary",
-        2515,
+        2787,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
@@ -837,7 +866,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_formal",
-        2911,
+        3513,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
@@ -845,7 +874,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_measurement",
-        5067,
+        7099,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -876,26 +905,17 @@ _DEFERRED_GATE_MEMBERS = (
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-        "wave t2189",
-        (
-            "明示 certify mode の tuned adaptive trace build。exact cell/workload "
-            "contract、実 verifier 陽性対照、target gate、closure identity に束縛される。"
-            "condition-gate family admission は本 wave の scope 外"
-        ),
-        "buildcache",
-        "<module>._certify_main._build_trace_binary",
-        1679,
-    ),
-    _DeferredGateMember(
-        "tools/pegasus/probes/t2187_adaptive_const_probe.py",
         "wave t2187",
         (
-            "既定 performance mode の trace-disabled build。成果物は従来どおり "
-            "performance-only / not_certified であり、認証 mode と分離される"
+            "この probe は性能測定専用で直列性検査を通さず、成果物は認証されない。"
+            "BACKOFF_INCR_MILLI、BACKOFF_MAX_US、BACKOFF_UPDATE_US の既定値は"
+            "stock と同値で inert であり、既定では build 出力を変えない。"
+            "backoff_sweep.py 型の supply effectuation、runtime meaning、"
+            "family admission の正配線は後続タスクで行う"
         ),
         "buildcache",
         "<module>.main",
-        1970,
+        414,
     ),
 )
 
@@ -2595,6 +2615,14 @@ def test_define_sink_cross_product_has_no_unreviewed_ungated_member():
     assert failures == []
 
 
+def test_production_build_sinks_include_certify_calibration_script():
+    sinks = _benchmark_build_sinks(_production_build_sources())
+
+    assert "tools/pegasus/certify_calibration.sh" in {
+        sink.relative_path for sink in sinks
+    }
+
+
 def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     assert {
         (
@@ -2605,15 +2633,15 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     } == {
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "buildcache", "<module>._build_binary", 2515,
+            "wave t1905", "buildcache", "<module>._build_binary", 2787,
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "campaign", "<module>.run_formal", 2911,
+            "wave t1905", "campaign", "<module>.run_formal", 3513,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
-            "wave t1819", "campaign", "<module>.run_measurement", 5067,
+            "wave t1819", "campaign", "<module>.run_measurement", 7099,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
@@ -2631,12 +2659,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2189", "buildcache",
-            "<module>._certify_main._build_trace_binary", 1679,
-        ),
-        (
-            "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave t2187", "buildcache", "<module>.main", 1970,
+            "wave t2187", "buildcache", "<module>.main", 414,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)

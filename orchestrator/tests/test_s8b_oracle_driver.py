@@ -2333,7 +2333,7 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
     global _ACTIVE_APPROVED
     if activate_approved:
         _ACTIVE_APPROVED = approved
-    document = manifest_module.build_manifest(
+    document = manifest_module._build_manifest(
         freeze_path=freeze_path,
         spec_sha256=approved.sha256,
         schedule=schedule,
@@ -2344,7 +2344,7 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
         generator_versions=generators,
     )
     path = tmp_path / name
-    manifest_module.write_manifest(path, document)
+    manifest_module._write_manifest(path, document)
     _APPROVED_BY_PATH[path.resolve()] = approved
     return path, document
 

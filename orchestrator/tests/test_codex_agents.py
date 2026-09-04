@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Codex native 0 / non-native projection adapter 13 のfail-closedテスト。"""
+"""Codex native 0 / non-native projection adapter 14 のfail-closedテスト。"""
 from __future__ import annotations
 
 import importlib.util
@@ -120,16 +120,16 @@ def _reviewed_role_entry(root: Path, role: str):
         ROLE_MANIFEST_SHA256[role] = old_pin
 
 
-def test_policy_has_zero_native_and_thirteen_static_dormant_adapters():
+def test_policy_has_zero_native_and_fourteen_static_dormant_adapters():
     assert CCA.ACTIVE == {}
-    assert len(CCA.STATIC_ADAPTERS) == 13
+    assert len(CCA.STATIC_ADAPTERS) == 14
     assert CCA.STATIC_ADAPTERS == frozenset(CCA.ROLE_SPEC.load_role_specs(_REPO))
 
 
-def test_review_ledger_independently_pins_all_thirteen_sources_and_io_contracts():
+def test_review_ledger_independently_pins_all_fourteen_sources_and_io_contracts():
     specs = CCA.ROLE_SPEC.load_role_specs(_REPO)
     roles = set(specs)
-    assert len(roles) == 13
+    assert len(roles) == 14
     assert roles == set(SOURCE_FILE_SHA256)
     assert roles == set(DESCRIPTION_SHA256)
     assert roles == set(SCHEMA_SHA256)
@@ -925,16 +925,6 @@ def test_coder_v4_output_semantics_requires_literal_only_single_statement_value_
         "justification": "fixture",
         "confidence": "medium",
     }
-    for implementation in (
-        "double now_backoff = 20;",
-        "double now_backoff = 20.0;",
-    ):
-        ROLE_POLICY.validate_output_semantics(
-            "coder-v4-autonomous",
-            projected,
-            {"proposal": {**proposal, "implementation": implementation}},
-        )
-
     sentinel = "SENTINEL_POLICY_CANDIDATE_65ad"
     invalid = (
         {**proposal, "implementation": "double now_backoff = (20.0);"},
@@ -943,13 +933,85 @@ def test_coder_v4_output_semantics_requires_literal_only_single_statement_value_
         {**proposal, "implementation": "double now_backoff = 21;"},
         {**proposal, "implementation": f"double now_backoff = {sentinel};"},
     )
-    for candidate in invalid:
-        with pytest.raises(ROLE_POLICY.RolePolicyError) as caught:
+    for role in ("coder-v4-autonomous", "coder-v4-autonomous-k2"):
+        role_input = projected
+        result_extra = {}
+        if role == "coder-v4-autonomous-k2":
+            role_input = {
+                **projected,
+                "knowledge_input": {"sources": [{"content_utf8": "fixture"}]},
+            }
+            result_extra = {"knowledge_use": []}
+        for implementation in (
+            "double now_backoff = 20;",
+            "double now_backoff = 20.0;",
+        ):
             ROLE_POLICY.validate_output_semantics(
-                "coder-v4-autonomous", projected, {"proposal": candidate}
+                role,
+                role_input,
+                {
+                    "proposal": {**proposal, "implementation": implementation},
+                    **result_extra,
+                },
             )
-        assert sentinel not in str(caught.value)
-        assert candidate["implementation"] not in str(caught.value)
+        for candidate in invalid:
+            with pytest.raises(ROLE_POLICY.RolePolicyError) as caught:
+                ROLE_POLICY.validate_output_semantics(
+                    role,
+                    role_input,
+                    {"proposal": candidate, **result_extra},
+                )
+            assert sentinel not in str(caught.value)
+            assert candidate["implementation"] not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "invalid_knowledge_use",
+    (
+        [{"source_index": 2, "use": "存在しない source"}],
+        [
+            {"source_index": 0, "use": "first"},
+            {"source_index": 0, "use": "duplicate"},
+        ],
+    ),
+)
+def test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique(
+    invalid_knowledge_use,
+):
+    projected = {
+        "knowledge_input": {
+            "sources": [
+                {"content_utf8": "source zero"},
+                {"content_utf8": "source one"},
+            ]
+        },
+        "planner_direction": {
+            "axis": "silo-backoff-magnitude",
+            "direction": "increase",
+            "magnitude": "small",
+        },
+    }
+    proposal = {
+        "axis": "silo-backoff-magnitude",
+        "value": 20,
+        "implementation": "double now_backoff = 20;",
+        "justification": "fixture",
+        "confidence": "medium",
+    }
+    ROLE_POLICY.validate_output_semantics(
+        "coder-v4-autonomous-k2",
+        projected,
+        {
+            "proposal": proposal,
+            "knowledge_use": [{"source_index": 1, "use": "valid"}],
+        },
+    )
+    with pytest.raises(ROLE_POLICY.RolePolicyError, match="source_index"):
+        ROLE_POLICY.validate_output_semantics(
+            "coder-v4-autonomous-k2",
+            projected,
+            {"proposal": proposal, "knowledge_use": invalid_knowledge_use},
+        )
 
 
 def test_backoff_literal_only_contract_has_role_manifest_adapter_parity():
@@ -1271,6 +1333,7 @@ def test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced():
     roles = (
         "planner-v4",
         "coder-v4-autonomous",
+        "coder-v4-autonomous-k2",
         "coder-v4-autonomous-sort",
         "coder-v4-autonomous-trigger-gating",
     )
@@ -1381,7 +1444,7 @@ def test_direct_role_coverage_drift_raises_clean_profile_error():
 
 
 def test_lockstep_role_deletion_is_rejected_by_absolute_count_floor():
-    # 全 source から 1 role を同時削除すると set 等号は 11 件で整合するが、review ledger の
+    # 全 source から 1 role を同時削除すると set 等号は 13 件で整合するが、review ledger の
     # 絶対枚数 floor で fail-closed になる。profiler は mediated なので direct coverage guard と干渉しない。
     from orchestrator.codex_roles import review_ledger as LEDGER
     role = "profiler"

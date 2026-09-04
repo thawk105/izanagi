@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""検証のトップレベル: trace ディレクトリ -> VerifyResult。
+"""検証のトップレベル: trace ディレクトリ + source context -> VerifyResult。
 
-verifier の入力は **trace と optional な trace 外 commit counter のみ**。
+verifier の入力は trace、optional な trace 外 commit counter、protocol/source context。
 性能数値 (throughput 等) をここに渡さない
 (roadmap §3.4-4 anti-fabrication isolation = 入力側隔離。捏造経路をデータレベル
 で断つ。書き込み権限を持たない出力側隔離と対になる)。
@@ -9,12 +9,18 @@ verifier の入力は **trace と optional な trace 外 commit counter のみ**
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
 import os
 from typing import Dict, Optional
 
 from .dsg import DSG
-from .model import VerifyResult
-from .parse import parse_trace_dir
+from .model import (
+    CompiledProtocolSourceSnapshot,
+    VerifyResult,
+    assess_compiled_protocol_source_snapshot,
+    assess_protocol_proof_surfaces,
+)
+from .parse import _CompactTrace, _LegacyTrace, _parse_trace_dir_compact
 from .commit_receipt import CommitReceiptError, _domain_digest
 from .report import result_to_dict
 
@@ -22,14 +28,39 @@ from .report import result_to_dict
 def verify_trace_dir(
         trace_dir: str, max_report: Optional[int] = 20, *,
         expected_commits: Optional[int] = None,
+        workers: Optional[int] = None,
+        protocol: Optional[str] = None,
+        ccbench_root: Optional[str | os.PathLike[str]] = None,
+        _proof_source_snapshot: Optional[CompiledProtocolSourceSnapshot] = None,
 ) -> VerifyResult:
-    """1 run (= 1 trace ディレクトリ) を検証する。"""
-    txns, issues = parse_trace_dir(trace_dir)
-    dsg = DSG(txns)
+    """1 run を検証する。source context 未指定・不読は認証不能にする。"""
+    parsed = _parse_trace_dir_compact(trace_dir, workers=workers)
+    if isinstance(parsed, _CompactTrace):
+        issues = parsed.issues
+        dsg = DSG.from_compact(parsed)
+        n_txns = len(parsed.winner_txid)
+        n_reads = parsed.n_reads
+        n_writes = parsed.n_writes
+    elif isinstance(parsed, _LegacyTrace):
+        txns = parsed.txns
+        issues = parsed.issues
+        dsg = DSG(txns)
+        n_txns = len(txns)
+        n_reads = sum(len(txn.reads) for txn in txns)
+        n_writes = sum(len(txn.writes) for txn in txns)
+    else:  # fail closed if the internal parser union grows without wiring here
+        raise TypeError(f"unsupported parsed trace type: {type(parsed)!r}")
+    if _proof_source_snapshot is None:
+        assessment = assess_protocol_proof_surfaces(protocol, ccbench_root)
+    else:
+        assessment = assess_compiled_protocol_source_snapshot(
+            _proof_source_snapshot,
+        )
+    dsg.integrity.proof_surfaces = assessment
     if expected_commits is not None:
         # witness は trace 外の CCBench counter。片側だけの部分状態を作らず、
         # expected/observed を持つ新しい Integrity へ一度で差し替える。
-        observed_commits = len(txns)
+        observed_commits = n_txns
         dsg.integrity = replace(
             dsg.integrity,
             expected_commits=expected_commits,
@@ -149,9 +180,9 @@ def verify_trace_dir(
         serializable=(total == 0),
         anomalies=anomalies,
         integrity=dsg.integrity,
-        n_txns=len(txns),
-        n_reads=sum(len(t.reads) for t in txns),
-        n_writes=sum(len(t.writes) for t in txns),
+        n_txns=n_txns,
+        n_reads=n_reads,
+        n_writes=n_writes,
         n_keys=len(dsg.versions),
         n_edges=dsg.n_edges,
         total_cycles=total,
@@ -164,6 +195,45 @@ def _bind_verifier_capability_entrypoint():
     issuer_token = object()
     issued_capabilities: dict[object, tuple[object, ...]] = {}
     consumed_nonces: set[object] = set()
+
+    def _bound_proof_source_snapshot(
+            *, genome: object, source_evidence: object,
+            build_admission: object, receipt_variant: str,
+    ) -> CompiledProtocolSourceSnapshot:
+        """Validate the build-bound, non-wire source snapshot for capability issue."""
+        # Lazy imports preserve the established campaign -> verifier import
+        # direction at module load while checking exact sealed runtime types.
+        from ..campaign.build_admission import BuildAdmission
+        from ..campaign.model import Genome
+        from ..campaign.source_digest import SourceEvidence
+
+        if (type(genome) is not Genome
+                or type(source_evidence) is not SourceEvidence
+                or type(build_admission) is not BuildAdmission):
+            raise CommitReceiptError(
+                "verification capability requires exact build source binding"
+            )
+        canonical = genome.canonical()
+        expected_genome_sha256 = hashlib.sha256(
+            canonical.encode("utf-8")
+        ).hexdigest()
+        try:
+            admitted_source = build_admission.as_wal_receipt()["source"]
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            raise CommitReceiptError(
+                "verification capability build admission is invalid"
+            ) from exc
+        snapshot = source_evidence.proof_source_snapshot
+        if (source_evidence.genome_sha256 != expected_genome_sha256
+                or admitted_source != source_evidence.as_receipt()
+                or source_evidence.verification_variant != receipt_variant
+                or type(snapshot) is not CompiledProtocolSourceSnapshot
+                or snapshot.protocol != genome.protocol
+                or snapshot.ccbench_root != source_evidence.source_root):
+            raise CommitReceiptError(
+                "verification capability source/genome/variant binding mismatch"
+            )
+        return snapshot
 
     class _VerificationCapability:
         """Opaque, operation-bound evidence from one verifier invocation."""
@@ -283,15 +353,26 @@ def _bind_verifier_capability_entrypoint():
     def _verify_trace_dir_with_capability(
             trace_dir: str, max_report: Optional[int] = 20, *,
             expected_commits: Optional[int] = None,
+            workers: Optional[int] = None,
+            genome: object,
+            source_evidence: object,
+            build_admission: object,
             receipt_sink_kind: str,
             receipt_lock_identity_sha256: str,
             receipt_variant: str,
             receipt_operation_identity: str,
             receipt_workload_tag: str,
     ) -> tuple[VerifyResult, _VerificationCapability]:
-        """Run verification and issue one capability for this exact operation."""
+        """Run verification from the exact build-bound immutable source snapshot."""
+        proof_source_snapshot = _bound_proof_source_snapshot(
+            genome=genome,
+            source_evidence=source_evidence,
+            build_admission=build_admission,
+            receipt_variant=receipt_variant,
+        )
         result = verify_trace_dir(
             trace_dir, max_report=max_report, expected_commits=expected_commits,
+            workers=workers, _proof_source_snapshot=proof_source_snapshot,
         )
         capability = _VerificationCapability(
             result,

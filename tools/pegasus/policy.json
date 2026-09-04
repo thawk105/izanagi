@@ -9,6 +9,7 @@
   "floor_walltime": "10:00:00",
   "floor_walltime_s": 36000,
   "finalize_reserve_s": 600,
+  "b10_backoff_shape_walltime_s": 43200,
   "expected_cpu_model": "Intel Xeon Platinum 8468",
   "expected_physical_cores": 48,
   "gflags_source_path": "/work/SFC/tanab/github/gflags",

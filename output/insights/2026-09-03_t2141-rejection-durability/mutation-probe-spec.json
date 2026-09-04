@@ -1,0 +1,148 @@
+{
+ "estimated_run_seconds": 1500,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "    if checked_publication is None:\n        return rejection\n    return rejection\n",
+     "old": "    if checked_publication is None:\n        return rejection\n    return _durably_record_rejection(checked_publication, rejection)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        if size > 0 and os.pread(ledger_fd, 1, size - 1) != b\"\\n\":\n            fragment_discarded = True\n",
+     "old": "        if size > 0 and os.pread(ledger_fd, 1, size - 1) != b\"\\n\":\n            os.ftruncate(ledger_fd, _last_complete_line_offset(ledger_fd, size))\n            fragment_discarded = True\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "            issues=rejection.issues + (\n                B4RawRecordIssue(\n                    artifact=path,\n                    field=\"rejection_history\",\n                    code=B4RawRecordIssueCode.EVIDENCE_UNAVAILABLE,\n                    detail=f\"rejection ledger append failed: {type(exc).__name__}: {exc}\",\n                ),\n            ),\n",
+     "old": "            issues=rejection.issues + (\n                B4RawRecordIssue(\n                    artifact=path,\n                    field=\"rejection_history\",\n                    code=B4RawRecordIssueCode.IO_ERROR,\n                    detail=f\"rejection ledger append failed: {type(exc).__name__}: {exc}\",\n                ),\n            ),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        if isinstance(derived, B4RawRecordDeferred):\n            _durably_record_rejection(\n                checked_publication,\n                _rejection(attempt_id, B4RawRecordIssue(\n                    artifact=\"producer\",\n                    field=\"deferred\",\n                    code=B4RawRecordIssueCode.IO_ERROR,\n                    detail=\"deferred\",\n                )),\n            )\n            return derived\n",
+     "old": "        if isinstance(derived, B4RawRecordDeferred):\n            return derived\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+     "new": "            _RECEIPT_TEMP_NAME,\n        )\n",
+     "old": "            _RECEIPT_TEMP_NAME,\n            B4_RAW_RECORD_REJECTIONS_NAME,\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "new": "        for planned in publication.planned_result_artifacts\n        if planned.attempt_id in manifest_ids\n        and frame_availability.get(planned.attempt_id) == \"absent\"\n    ]\n    not_selected = [\n",
+     "old": "        for planned in publication.planned_result_artifacts\n        if planned.attempt_id in manifest_ids\n        and frame_availability.get(planned.attempt_id) == \"absent\"\n        and planned.attempt_id not in event_attempt_ids\n    ]\n    not_selected = [\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_material_report.py",
+     "new": "    values = [\n        _REJECTION_LEDGER_TRUNCATION_NON_GUARANTEE,\n",
+     "old": "    values = [\n        _CURRENT_ABSENT_REASON_NON_GUARANTEE,\n        _REJECTION_LEDGER_TRUNCATION_NON_GUARANTEE,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        rejection_history = load_b4_raw_record_rejection_history(checked)\n        if rejection_history.status == \"invalid\":\n            _issue(\n                \"publication\",\n                \"rejection_history\",\n                B4RawRecordIssueCode.EVIDENCE_SCHEMA,\n                \"rejection history is not readable\",\n            )\n",
+     "old": "        rejection_history = load_b4_raw_record_rejection_history(checked)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n09",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "        lines = [rejection_line]\n        if False:\n            lines.insert(0, canonical_json_bytes(_rejection_event_payload(\n                publication,\n                _fragment_discarded_rejection(path),\n            )) + b\"\\n\")\n",
+     "old": "        lines = [rejection_line]\n        if fragment_discarded:\n            lines.insert(0, canonical_json_bytes(_rejection_event_payload(\n                publication,\n                _fragment_discarded_rejection(path),\n            )) + b\"\\n\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2141.n10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_raw_record_producer.py",
+     "new": "            try:\n                os.fsync(ledger_fd)\n            except Exception as rollback_exc:\n",
+     "old": "            try:\n                os.ftruncate(ledger_fd, append_offset)\n                os.fsync(ledger_fd)\n            except Exception as rollback_exc:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 900
+}
