@@ -28,3 +28,19 @@ seq: 3
   共有契約が新しい運用知見を吸収できない状態にあることを併せて記録する。
 - 再発検知: 変異走の baseline が `PARSE_ERROR` または `submodule is not initialized` を含んだら
   実装差分へ帰属せず container の初期化状態を先に見る (同 memory の How to apply)。
+
+## 再発
+
+### F273
+
+- **再発: 2026-09-04** — 受入全走を 2 回投入し、いずれも `test_codex_worker_launch.py` の
+  1 件だけが落ちた。**落ちた node は 2 回で異なる** (`test_sigterm_ignoring_child_is_killed` →
+  `test_limit_stop_is_never_accepted`)。中身は前者が `actual rc timeout != expected rc 1`
+  (`communicate(timeout=10)` 超過、`loadavg=45.9` / `bnode082`)、後者が `assert -9 == 0`
+  (`max_wall="11"` の watchdog が子を SIGKILL)。いずれも launcher の壁時計上限である。
+  同エントリの再発検知手順を実行した — 並行 launcher は **8 本** (F273 の 2 回目と同水準)、
+  同 file の単独走は **211 passed / rc=0 / 8.87 秒**で緑。前者の単独再走も 7.44 秒で緑。
+  本 wave の差分は `orchestrator/tests/test_codex_reasoning_ab.py` 1 本だけで production は
+  無変更のため、同 file への到達経路が無い。**差分へ帰属させない。**
+  受入 lease が他 wave の codex 子を排除しない構造は同エントリの記載どおり未解決で、
+  本 wave では機構を新設しない。
