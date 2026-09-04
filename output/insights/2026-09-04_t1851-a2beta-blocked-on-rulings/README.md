@@ -83,3 +83,31 @@ A2β = E1 + E2 (+ 第 9 境界) を次 wave で積む。E2 の literal 4 語は 
 - 裁定 1〜3 が先。裁定後、branch `worktree-dev-wave-t1851-unit-a` を継承し、main を取り込んでから
   着手する。継承元の状態は本 README と worklog fragment が正本で、job dir handoff ではない。
 - 6 段すべてを積んだ後に D1341 に従って 1 変更単位で land する。
+
+## 7. 追加指示による裁定 (2026-09-05) — 5 節の 3 件は親が決めた
+
+段 9 の報告 (needs input) に対し、ユーザーが「codexに」「相談して決めてください」と委任した。
+別系統モデル 1 本 (`gpt-5.6-sol`、consult、read-only、`reasoning=xhigh`、model call 31、wall 619 秒、
+`check_codex_output.py` rc=0) へ諮り、prompt と逐語を `verbatim/prompt-consult-rulings.md` と
+`verbatim/consult-rulings-sol.md` に置いた。相談は 5 節の (推奨) を「根拠不足、現物と不整合」と判定した。
+親は相談が依拠した現物 4 点を自分で読んで一致を確かめた (`s8b_floor_attempt_launcher.py` の
+`FloorAttemptReservation.slot_id` が 4 軸で `S8BV2AttemptSlot` は 5 軸、`s8b_attempt_registry.py` の v2 予約が
+consumption marker を必須にする、`s8b_floor_campaign.py` の `_assert_perf_mode()` が mode と receipt から
+`use_perf` を導出する、同 file の計測前 probe 競合が `probe_after=None` の session を生成する)。
+
+決定 (spool fragment `docs/spool/decisions/2026-09-05-dev-wave-t1851-unit-a-9.md`、D 候補 3 件、ユーザーは覆せる):
+
+1. **E1 / E2 は単位 C (起動層の実際の呼び手を v2 台帳へ繋ぐ変更単位) が持つ。** 台帳層の単位 A に残る
+   実装は 0。handle 案は C の中で採ってよいが、呼び手が status / reason / primary value を選べる形は不可 (D1113)。
+   `record_sealed_classified_failure_terminal()` は C が非 observation の終了経路を新設しない限り作らない。
+2. **証拠の意味規則は今固定する。** `expected_use_perf` は verified mode と perf-preflight receipt から導出、
+   probe は `probe_before` と nullable `probe_after` の exact 組で計測前 session も対象、`repetition_evidence` の
+   sink は C。C の brief が terminal 証拠の契約を先に固定し、B2 / D1 の terminal 依存部分はその後に置く。
+3. **v2 の分類 claim / 回復行は今は囲まない。** C が独立した resume / recovery 経路を持ち込むときに再裁定する。
+
+## 8. 次 wave の出発点 (6 節を置き換える)
+
+- **次段は B2 (inspector) と D1 の非 terminal 部分。着手条件は無い。** branch `worktree-dev-wave-t1851-unit-a`
+  を継承し、main を取り込んでから着手する。継承元の状態は本 README が正本で、job dir handoff ではない。
+- 単位 C の brief は terminal 証拠の契約 (7 節の 2) を先に固定する。
+- 6 段すべてを積んだ後に D1341 に従って 1 変更単位で land する。
