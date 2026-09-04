@@ -23,13 +23,14 @@ seq: 1
 - 根本原因: 未特定。同じ夜の同じ login node で `floor_job_checkpoint` の時間制限つき操作を使う
   テスト 5 件も落ちており、単独再走では 7 passed (rc=0) で再現しなかった。実行環境側の要因を疑う。
   runner のどの段で futex を待っていたかまでは特定していない。
-- 恒久対応: `docs/dev-wave/core.md` の `DW-C00` が定める「完了は `.done` 非空で決める」に、
-  親側の生死判定を足す — 待ちが長いときは `.done` の不在を稼働中と読まず、
-  `ps -o etime,stat,wchan <pid>` と `pgrep -P <pid>` を実測する。
-  pytest の結果行が log に出ているのに `.done` が無い状態はハングであり、親が止めて
-  `git status` で作業ツリーの復元を確認してから先へ進む。
-  同時に `DW-O26` の「同一 worktree からの dispatch は全種を直列にする」を守り、
-  待ち手が返る前に次の走行を投入しない。
+- 恒久対応: 二次事故の側は既存規律 `DW-O26`「同一 worktree からの dispatch は全種を直列にする」で
+  塞がる。本件はその規律を守らなかった違反であり、規律自体の不足ではない。
+  ハング検知の側は `docs/dev-wave/` へ足そうとしたが、L1 の byte 予算 (10625) と
+  `DW-O18` の単節予算・exact 契約に収まらなかった。上限を上げず、
+  **AI 作業者の永続メモリ (`liveness-of-a-hung-runner-is-not-done-file-absence`) へ置いた** —
+  待ちが長いときは `.done` の不在を稼働中と読まず、`ps -o etime,stat,wchan <pid>` と
+  `pgrep -P <pid>` を実測する。pytest の結果行が log に出ているのに `.done` が無い状態は
+  ハングであり、親が止めて `git status` で作業ツリーの復元を確認してから先へ進む。
 - 再発検知: 孤児 hold の発生そのものが検知になる。
   `output/pegasus-dispatch/orphan-hold.json` が立ったら、直前に完了を待たずに投入した走行が
   無かったかを必ず遡って確認する。
