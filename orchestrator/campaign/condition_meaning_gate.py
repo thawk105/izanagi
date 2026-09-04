@@ -10,11 +10,11 @@ The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
 Claim boundary: the supply domain contains the 25 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Eight
-positive-control macros additionally have a bounded compile-time witness: it
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Nine
+registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
-guarded branch for the requested value and omits it for the default value.  It
+guarded branch for value 1 and omits it for value 0.  It
 does not prove the branch body's semantics, dynamic reachability, an expected
 runtime anomaly, or correctness.  Supply preprocessing separately proves that
 a define changes the selected owner TU's compile-command input.
@@ -178,6 +178,9 @@ _DEFINE_SPECS = {
 DEFINE_SPECS: Mapping[str, DefineSpec] = MappingProxyType(_DEFINE_SPECS)
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
+    "BACKOFF_NOINLINE": (
+        "include/backoff.hh", "#if BACKOFF_NOINLINE",
+    ),
     "IZANAGI_BREAK_PERMUTATION": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_PERMUTATION",
     ),
@@ -403,7 +406,7 @@ class BranchMeaningEvidence:
 
 @dataclass(frozen=True, slots=True)
 class CompileTimeBranchSelectionObservation:
-    """One requested/default compiler observation of the declared branch."""
+    """One requested or default/contrast observation of the declared branch."""
 
     define_value: str
     selected_count: int
@@ -414,6 +417,10 @@ class CompileTimeBranchSelectionObservation:
 @dataclass(frozen=True, slots=True)
 class CompileTimeBranchSelectionEvidence:
     """Bounded owner-TU proof that one preprocessor branch distinguishes 1/0.
+
+    ``requested`` contains the requested-value observation.  ``default``
+    contains the default-value observation, or the opposite-value contrast
+    when the requested value is itself the default.
 
     Configure argv fields are the exact outer argv this gate executed; they do
     not claim to observe argv inside a delegating CMake wrapper.
@@ -876,10 +883,15 @@ def declare_define_runtime_meaning(
     """Declare the registry witness only for its exact requested/default pair."""
     spec, requested, default, _companions = _validate_define_request(request)
     registered = CONDITIONAL_BRANCH_WITNESSES.get(request.macro)
-    if registered is None or requested != "1" or default != "0":
+    if registered is None:
         return None
     source_rel, start_directive = registered
-    if source_rel not in spec.owner_tus:
+    if request.macro == "BACKOFF_NOINLINE":
+        if requested not in {"0", "1"} or default != "0" \
+                or source_rel != "include/backoff.hh":
+            return None
+    elif requested != "1" or default != "0" \
+            or source_rel not in spec.owner_tus:
         return None
     return ConditionalBranchMeaningDeclaration(
         macro=request.macro,
@@ -1757,16 +1769,12 @@ def _configured_define_compile_commands(
             requested_build = base / "requested"
             shared_branch_build = (
                 not stock_identity
+                and request.route == ROUTE_CMAKE_CXX_FLAGS
                 and request.macro in CONDITIONAL_BRANCH_WITNESSES
             )
-            if shared_branch_build and request.route != ROUTE_CMAKE_CXX_FLAGS:
-                raise ConditionMeaningGateError(
-                    "compile-command-unavailable",
-                    "shared branch commands require the CMAKE_CXX_FLAGS route",
-                )
-            # These registry entries are CMAKE_CXX_FLAGS-only.  Capture the
-            # requested argv before reconfiguring the same build root so the
-            # two raw meaning argv differ only in the tested define.
+            # CMAKE_CXX_FLAGS registry entries must share a build root so the
+            # two raw meaning argv differ only in the tested define.  Cache
+            # entries retain the ordinary separate requested/default roots.
             control_build = requested_build if shared_branch_build else \
                 base / ("stock" if stock_identity else "default")
             requested_configure = _configure_compile_commands(
@@ -2718,35 +2726,68 @@ def _write_shadow_owner_source(
     source_rel: str,
     instrumented_source: str,
     shadow_root: Path,
+    *,
+    owner_tu: str,
 ) -> Path:
-    """Mirror owner ancestors with symlinks and write only the instrumented TU."""
+    """Write an instrumented source and return the shadow owner-TU operand."""
     relative = Path(source_rel)
-    original_directory = source_root
-    shadow_directory = shadow_root
     try:
-        for component in relative.parent.parts:
+        if source_rel == owner_tu:
+            original_directory = source_root
+            shadow_directory = shadow_root
+            for component in relative.parent.parts:
+                shadow_directory.mkdir()
+                for child in original_directory.iterdir():
+                    if child.name != component:
+                        (shadow_directory / child.name).symlink_to(
+                            child, target_is_directory=child.is_dir(),
+                        )
+                original_directory /= component
+                shadow_directory /= component
             shadow_directory.mkdir()
             for child in original_directory.iterdir():
-                if child.name != component:
+                if child.name != relative.name:
                     (shadow_directory / child.name).symlink_to(
                         child, target_is_directory=child.is_dir(),
                     )
-            original_directory /= component
-            shadow_directory /= component
-        shadow_directory.mkdir()
-        for child in original_directory.iterdir():
-            if child.name != relative.name:
-                (shadow_directory / child.name).symlink_to(
-                    child, target_is_directory=child.is_dir(),
-                )
-        instrumented_path = shadow_directory / relative.name
+            instrumented_path = shadow_directory / relative.name
+            instrumented_path.write_text(instrumented_source, encoding="utf-8")
+            return instrumented_path
+
+        def traversal_failed(error: OSError) -> None:
+            raise error
+
+        shadow_root.mkdir()
+        for original_text, directory_names, file_names in os.walk(
+            source_root, topdown=True, onerror=traversal_failed,
+            followlinks=False,
+        ):
+            original_directory = Path(original_text)
+            tree_relative = original_directory.relative_to(source_root)
+            shadow_directory = shadow_root / tree_relative
+            for name in tuple(directory_names):
+                original = original_directory / name
+                shadow = shadow_directory / name
+                if original.is_symlink() or name == ".git":
+                    shadow.symlink_to(original, target_is_directory=True)
+                    directory_names.remove(name)
+                else:
+                    shadow.mkdir()
+            for name in file_names:
+                original = original_directory / name
+                file_relative = tree_relative / name
+                if file_relative != relative:
+                    (shadow_directory / name).symlink_to(
+                        original, target_is_directory=False,
+                    )
+        instrumented_path = shadow_root / relative
         instrumented_path.write_text(instrumented_source, encoding="utf-8")
-    except OSError as exc:
+        return shadow_root / owner_tu
+    except (OSError, RuntimeError) as exc:
         raise ConditionMeaningGateError(
             "compile-time-branch-instrumentation-failed",
             "instrumented owner TU shadow cannot be created",
         ) from exc
-    return instrumented_path
 
 
 def _replace_owner_compile_input(
@@ -2863,7 +2904,7 @@ def _assert_compile_time_branch_selection(
     cmake: str,
     configured_commands: _ConfiguredDefineCompileCommands | None = None,
 ) -> CompileTimeBranchSelectionEvidence:
-    """Observe requested/default selection in the complete instrumented owner TU."""
+    """Observe requested/contrast selection in the complete instrumented owner TU."""
     _validate_captured_define_inputs(captured)
     _spec, requested, default, companions = _validate_define_request(request)
     expected_declaration = declare_define_runtime_meaning(request)
@@ -2879,6 +2920,7 @@ def _assert_compile_time_branch_selection(
         captured, declaration.source_rel,
     )
     instrumented_source = _instrument_declared_owner_source(source_text, declaration)
+    comparison = "1" if requested == "0" else default
     configured_pair: tuple[
         _ConfiguredOwnerCompileCommand, _ConfiguredOwnerCompileCommand,
     ] | None = None
@@ -2898,7 +2940,7 @@ def _assert_compile_time_branch_selection(
                 or requested_command.owner != os.fspath(expected_owner) \
                 or control_command.owner != os.fspath(expected_owner) \
                 or requested_command.define_value != requested \
-                or control_command.define_value != default:
+                or control_command.define_value != comparison:
             raise ConditionMeaningGateError(
                 "compile-command-drift",
                 "configured owner command pair differs from the meaning request",
@@ -2935,12 +2977,12 @@ def _assert_compile_time_branch_selection(
         instrumented_root = base / "instrumented-source"
         instrumented_owner = _write_shadow_owner_source(
             source_root, declaration.source_rel, instrumented_source,
-            instrumented_root,
+            instrumented_root, owner_tu=request.owner_tu,
         )
         entries: list[tuple[str, Mapping[str, Any], Path, Path]] = []
         if configured_pair is None:
             assert cmake_path is not None
-            for label, value in (("requested", requested), ("default", default)):
+            for label, value in (("requested", requested), ("default", comparison)):
                 configure = _configure_compile_commands(
                     captured=captured, request=request, source_root=source_root,
                     build_root=build_root, value=value, companions=companions,
@@ -2972,7 +3014,7 @@ def _assert_compile_time_branch_selection(
         )
         comparables: list[tuple[str, ...]] = []
         for (label, entry, owner, entry_build_root), value in zip(
-            entries, (requested, default), strict=True,
+            entries, (requested, comparison), strict=True,
         ):
             observation, comparable = _compile_time_observation(
                 entry=entry, owner=owner, instrumented_owner=instrumented_owner,
@@ -3002,18 +3044,25 @@ def _assert_compile_time_branch_selection(
         default_observation.selected_count,
         default_observation.completed_count,
     )
+    requested_expected = (int(requested), 1)
+    default_expected = (int(comparison), 1)
+    expected_observations = (
+        f"requested=({requested_expected[0]},{requested_expected[1]}),"
+        f"default=({default_expected[0]},{default_expected[1]})"
+    )
     if requested_counts == default_counts:
         raise ConditionMeaningGateError(
             "compile-time-branch-selection-not-discriminating",
             "requested and default values produced the same branch observation",
-            expected="requested=(1,1),default=(0,1)",
+            expected=expected_observations,
             observed=f"requested={requested_counts},default={default_counts}",
         )
-    if requested_counts != (1, 1) or default_counts != (0, 1):
+    if requested_counts != requested_expected \
+            or default_counts != default_expected:
         raise ConditionMeaningGateError(
             "compile-time-branch-selection-mismatch",
             "requested/default branch observations do not match the declaration",
-            expected="requested=(1,1),default=(0,1)",
+            expected=expected_observations,
             observed=f"requested={requested_counts},default={default_counts}",
         )
     return CompileTimeBranchSelectionEvidence(
@@ -3622,23 +3671,43 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
         if source_file.before != source_file.after \
                 or source_file.after != source_file.path_after:
             _invalid_record("green compile-time branch source changed during capture")
+        requested_value = "1"
+        default_value = "0"
+        if record.macro == "BACKOFF_NOINLINE":
+            raw_requested = evidence["requested"]
+            raw_default = evidence["default"]
+            if type(raw_requested) is not CompileTimeBranchSelectionObservation \
+                    or type(raw_default) is not CompileTimeBranchSelectionObservation \
+                    or raw_requested.define_value not in {"0", "1"} \
+                    or raw_default.define_value != (
+                        "1" if raw_requested.define_value == "0" else "0"
+                    ):
+                _invalid_record(
+                    "green compile-time noinline observations do not bind opposite values",
+                )
+            requested_value = raw_requested.define_value
+            default_value = raw_default.define_value
         requested = _validate_compile_time_branch_observation(
             evidence["requested"], "requested", compiler_path=compiler_path,
-            macro=record.macro, define_value="1", selected_count=1,
+            macro=record.macro, define_value=requested_value,
+            selected_count=int(requested_value),
         )
         default = _validate_compile_time_branch_observation(
             evidence["default"], "default", compiler_path=compiler_path,
-            macro=record.macro, define_value="0", selected_count=0,
+            macro=record.macro, define_value=default_value,
+            selected_count=int(default_value),
         )
         normalized_requested_argv = tuple(
             "<TESTED_DEFINE>" if argument in {
-                f"-D{record.macro}=1", f"{record.macro}=1",
+                f"-D{record.macro}={requested.define_value}",
+                f"{record.macro}={requested.define_value}",
             } else argument
             for argument in requested.preprocess_argv
         )
         normalized_default_argv = tuple(
             "<TESTED_DEFINE>" if argument in {
-                f"-D{record.macro}=0", f"{record.macro}=0",
+                f"-D{record.macro}={default.define_value}",
+                f"{record.macro}={default.define_value}",
             } else argument
             for argument in default.preprocess_argv
         )

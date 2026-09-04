@@ -101,6 +101,41 @@ def test_cost_probe_requests_every_genome_value_and_inert_witness() -> None:
         assert stock_requests["BACKOFF_NOINLINE"][0].stock_comparison is True
 
 
+def test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations() -> None:
+    probe = _load_cost_probe()
+    workload = {
+        "genomes": [(
+            "synthetic-stock",
+            {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0},
+        )],
+    }
+
+    cells = probe._condition_requests_by_genome(workload)
+    requests = {
+        request.macro: (request, declaration)
+        for _name, _defines, rows in cells
+        for request, declaration in rows
+    }
+    noinline_request, noinline_declaration = requests["BACKOFF_NOINLINE"]
+    fixed_request, fixed_declaration = requests["BACKOFF_FIXED"]
+
+    assert type(noinline_declaration) is (
+        probe.condition_meaning_gate.ConditionalBranchMeaningDeclaration
+    )
+    assert noinline_declaration == (
+        probe.condition_meaning_gate.declare_define_runtime_meaning(
+            noinline_request,
+        )
+    )
+    assert fixed_request.requested_value == -1
+    assert type(fixed_declaration) is (
+        probe.condition_meaning_gate.MeaningWitnessDeclaration
+    )
+    assert fixed_declaration.cases[0].expected_selected_branch == (
+        probe.condition_meaning_gate.STOCK_ADAPTIVE_BRANCH
+    )
+
+
 def test_submitter_rejects_an_unregistered_ratio_before_side_effects(tmp_path: Path) -> None:
     completed = subprocess.run(
         [
