@@ -81,6 +81,21 @@ A-2 の受理済み成果物に現れるのは D1523 取り込み後の fresh ru
 | 全史 AI provenance 監査 (統合 commit + main 取り込み後) | 8073 件、新規違反なし、rc=0 (request 975954) |
 | 受入全走 | 記録 commit 後に land 対象 tip へ投入する (DW-O12)。結果は land の受入受領証に残す。本 README には書かない |
 
+## main 取り込み後の合成監査 (merge 36e6206d3)
+
+受入前に main b5b5a583a を取り込んだ。main 側は T-2226 (D1523: inert 供給比較を差の分類へ変える) が同じ
+`condition_meaning_gate.py` と同 test を変えていたため、競合なしでも Codex review 子に合成を監査させた
+(`verbatim/s9-merge-audit.md`)。交差点 (route 限定 `shared_branch_build`、`stock_identity` 経路、両 validator、
+test の helper / fixture、二重定義) はいずれも直交と確認された。取り込み後の焦点走 6 file は 486 passed、rc=0 (request 976186)。
+
+監査は must-fix を 1 件挙げた: `_configured_define_compile_commands` の共有 seam を `BACKOFF_NOINLINE`
+要求 0・既定 0 で使うと、供給側の control (stock root, 値なし) と意味側の対照 (source root, 値 1) が
+食い違い `compile-command-drift` で red になる。親の裁定: **real だが現行成果物への影響なし、scope 外。**
+共有 seam の production 呼び手は s3 / s5 / t152 (IZANAGI_BREAK 系、要求 1・既定 0) だけで、NOINLINE を
+0/0 で seam に通す経路は存在しない。A-2 / s1 / t1683 は供給と意味を独立に評価する。段 2 plan の
+「残る懸念」で fail-closed と決めた挙動そのものであり、merge 由来でもない。将来 NOINLINE 0/0 を seam へ
+通す driver を書くときは、意味側を独立 configure にするか値 1 の第三 command を持たせる必要がある。
+
 ## 副産物
 
 - 供給の節の `shared_branch_build` は「登録 macro は CMAKE_CXX_FLAGS route だけ」という暗黙の前提を
