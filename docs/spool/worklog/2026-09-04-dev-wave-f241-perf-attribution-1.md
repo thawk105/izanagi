@@ -44,10 +44,15 @@ title: F241 の根本原因は「perf の不在」ではなく「振り分け役
   分類した。訂正対象は F241 と b10 事前登録の 2 件だけで、`docs/decisions.md` の D348 / D352 と
   `docs/pegasus-runbook.md` の環境事実は**既に正確**なので変更していない。archive worklog、
   過去 wave の insight、逐語は歴史記録として一切書き換えていない (規律 7)。
-- **実測した道具の欠陥。** `qstat <request-id>` は request が存在しなくても
-  `Batch Request: <id> does not exist on nqsv.` と表示しつつ **rc=0** を返す。rc を生死判定に
-  使う待ち手は全件「生存中」になり空転する。本 wave の最初の待ち手が実際に空転しかけた。
-  生死は done-marker か qstat の出力本文で判定する。
+- **段 8 の改善候補 2 件は、どちらも docs を変えずに閉じた。**
+  (1) 台帳内の相互矛盾を段 1 で探す手順は `DW-S01` へ入らない。同節は既に実測で L1 予算超過と
+  記録されており、予算のために他の安全義務を削ることは `docs/skill-self-improvement.md` が
+  禁じている。恒久対応は memory `nonzero-rc-of-a-dispatcher-is-not-absence` を新設して閉じ、
+  台帳側は F1 の再発で顕在化した。
+  (2) `qstat <request-id>` が存在しない request にも rc=0 を返す件は、本 wave の最初の待ち手が
+  実際に空転しかけたが、**`docs/pegasus-runbook.md` §3 の「`qstat` の読み方で踏みやすい罠」
+  (2026-08-26 実測、[T-1852]) に既に記録済み**だった。新しい発見ではなく、既存の正本を
+  読まずに待ち手を書いたことによる再現である。docs は変更しない。
 
 ## 次の一手差分
 
