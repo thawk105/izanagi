@@ -24,7 +24,6 @@ from array import array
 from bisect import bisect_left, bisect_right
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from heapq import merge
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from .model import (GENESIS, RW, WR, WW, Anomaly, CycleEdge, EdgeReason,
@@ -44,7 +43,6 @@ class _EdgeTask:
 class _EdgeCandidateColumns:
     task_index: int
     worker_pid: int
-    ordinal: array
     src: array
     dst: array
     orphan_reads: int
@@ -57,9 +55,7 @@ class _EdgeWorkerState:
     trace: _CompactTrace
     producer: Dict[Tuple[str, Version], int]
     versions: Dict[str, List[Version]]
-    read_prefix: array
     keys: tuple[str, ...]
-    ww_prefix: array
 
 
 # Set only by a pool initializer inside each child process.  The parent never
@@ -99,6 +95,17 @@ def _initialize_edge_worker(state: _EdgeWorkerState) -> None:
     _EDGE_WORKER_STATE = state
 
 
+def _ordered_complete_edge_outcomes(
+        received: Sequence[_EdgeCandidateColumns], task_count: int,
+) -> Optional[List[_EdgeCandidateColumns]]:
+    """Return every task exactly once in logical task order, or no evidence."""
+    indices = [outcome.task_index for outcome in received]
+    if (len(indices) != task_count
+            or sorted(indices) != list(range(task_count))):
+        return None
+    return sorted(received, key=lambda outcome: outcome.task_index)
+
+
 def _edge_candidates_for_task(
         task: _EdgeTask, state: Optional[_EdgeWorkerState] = None,
 ) -> _EdgeCandidateColumns:
@@ -108,17 +115,13 @@ def _edge_candidates_for_task(
     trace = worker_state.trace
     producer = worker_state.producer
     versions = worker_state.versions
-    read_prefix = worker_state.read_prefix
     keys = worker_state.keys
-    ww_prefix = worker_state.ww_prefix
-    ordinals = array("Q")
     sources = array("q")
     destinations = array("q")
     orphan_reads = 0
 
-    def add(ordinal: int, src: int, dst: int) -> None:
+    def add(src: int, dst: int) -> None:
         if src != dst:
-            ordinals.append(ordinal)
             sources.append(src)
             destinations.append(dst)
 
@@ -129,7 +132,7 @@ def _edge_candidates_for_task(
             txid = trace.winner_txid[rank]
             read_start = columns.txn_read_offsets[row]
             read_end = columns.txn_read_offsets[row + 1]
-            for local_index, read_index in enumerate(range(read_start, read_end)):
+            for read_index in range(read_start, read_end):
                 key_start = columns.token_offsets[columns.read_key_id[read_index]]
                 key_end = columns.token_offsets[columns.read_key_id[read_index] + 1]
                 key = columns.token_blob[key_start:key_end].decode("ascii")
@@ -137,10 +140,9 @@ def _edge_candidates_for_task(
                     columns.read_ver_epoch[read_index],
                     columns.read_ver_tid[read_index],
                 )
-                logical = read_prefix[rank] + local_index
                 writer = producer.get((key, version))
                 if writer is not None:
-                    add(2 * logical, writer, txid)
+                    add(writer, txid)
                 elif version != GENESIS:
                     orphan_reads += 1
                 key_versions = versions.get(key)
@@ -149,9 +151,8 @@ def _edge_candidates_for_task(
                     if successor < len(key_versions):
                         writer = producer.get((key, key_versions[successor]))
                         if writer is not None:
-                            add(2 * logical + 1, txid, writer)
+                            add(txid, writer)
     elif task.kind == "ww":
-        read_ordinal_end = 2 * trace.n_reads
         for key_index in range(task.start, task.end):
             key = keys[key_index]
             key_versions = versions[key]
@@ -159,17 +160,12 @@ def _edge_candidates_for_task(
                 first = producer.get((key, key_versions[version_index]))
                 second = producer.get((key, key_versions[version_index + 1]))
                 if first is not None and second is not None:
-                    add(
-                        read_ordinal_end + ww_prefix[key_index] + version_index,
-                        first,
-                        second,
-                    )
+                    add(first, second)
     else:
         raise RuntimeError(f"unknown compact edge task: {task.kind}")
     return _EdgeCandidateColumns(
         task_index=task.task_index,
         worker_pid=os.getpid(),
-        ordinal=ordinals,
         src=sources,
         dst=destinations,
         orphan_reads=orphan_reads,
@@ -286,18 +282,13 @@ class DSG:
         if trace is None:
             raise RuntimeError("compact edge build requested without compact trace")
         read_weights: List[int] = []
-        read_prefix = array("Q", [0])
         for rank in range(len(trace.winner_txid)):
             columns = trace.files[trace.winner_path_index[rank]]
             row = trace.winner_row[rank]
             count = columns.txn_read_offsets[row + 1] - columns.txn_read_offsets[row]
             read_weights.append(count)
-            read_prefix.append(read_prefix[-1] + count)
         keys = tuple(self.versions)
         ww_weights = [max(0, len(self.versions[key]) - 1) for key in keys]
-        ww_prefix = array("Q", [0])
-        for count in ww_weights:
-            ww_prefix.append(ww_prefix[-1] + count)
 
         tasks: List[_EdgeTask] = []
         parallelism = max(1, min(worker_count, len(trace.winner_txid) or 1))
@@ -310,11 +301,9 @@ class DSG:
             trace=trace,
             producer=self.producer,
             versions=self.versions,
-            read_prefix=read_prefix,
             keys=keys,
-            ww_prefix=ww_prefix,
         )
-        outcomes: List[_EdgeCandidateColumns] = []
+        outcomes: Optional[List[_EdgeCandidateColumns]] = None
         received: List[_EdgeCandidateColumns] = []
         if worker_count > 1 and len(tasks) > 1:
             try:
@@ -342,19 +331,20 @@ class DSG:
                             future.cancel()
                 finally:
                     executor.shutdown(wait=True, cancel_futures=True)
-                indices = [outcome.task_index for outcome in received]
-                if (len(indices) == len(tasks)
-                        and sorted(indices) == list(range(len(tasks)))):
-                    outcomes = received
+                outcomes = _ordered_complete_edge_outcomes(
+                    received, len(tasks))
             except (
                     ImportError, OSError, BlockingIOError, RuntimeError,
                     ValueError, AssertionError,
             ):
-                outcomes = []
-        if not outcomes:
-            outcomes = [
-                _edge_candidates_for_task(task, state) for task in tasks
-            ]
+                outcomes = None
+        if outcomes is None:
+            outcomes = _ordered_complete_edge_outcomes(
+                [_edge_candidates_for_task(task, state) for task in tasks],
+                len(tasks),
+            )
+            if outcomes is None:
+                raise AssertionError("parent edge recomputation was incomplete")
 
         _LAST_DSG_WORKER_PIDS = frozenset(
             outcome.worker_pid for outcome in outcomes
@@ -362,16 +352,13 @@ class DSG:
         self.integrity.orphan_reads += sum(
             outcome.orphan_reads for outcome in outcomes)
 
-        # The ordinal is the legacy _add call order: txid/read row, wr then rw,
+        # Task order is the legacy _add call order: txid/read row, wr then rw,
         # followed by first-seen key order for ww.  Replay into real sets before
         # freezing their runtime iteration order for Tarjan/BFS.
-        candidate_streams = [
-            zip(outcome.ordinal, outcome.src, outcome.dst)
-            for outcome in outcomes
-        ]
         adjacency: Dict[int, Set[int]] = defaultdict(set)
-        for _ordinal, source, destination in merge(*candidate_streams):
-            adjacency[source].add(destination)
+        for outcome in outcomes:
+            for source, destination in zip(outcome.src, outcome.dst):
+                adjacency[source].add(destination)
         self.adj = {
             source: tuple(destinations)
             for source, destinations in adjacency.items()
@@ -425,43 +412,61 @@ class DSG:
     def _sccs(self) -> List[List[int]]:
         """非自明な (size>1) SCC のみ返す。自己ループは辺にしていないので
         singleton SCC は cycle ではない。"""
-        index: Dict[int, int] = {}
-        low: Dict[int, int] = {}
-        on_stack: Dict[int, bool] = {}
+        roots = list(self.adj.keys())
+        dense_by_txid: Dict[int, int] = {}
+        txid_by_dense: List[int] = []
+
+        def register(txid: int) -> None:
+            if txid not in dense_by_txid:
+                dense_by_txid[txid] = len(txid_by_dense)
+                txid_by_dense.append(txid)
+
+        for root in roots:
+            register(root)
+        for root in roots:
+            for destination in self.adj.get(root, ()):
+                register(destination)
+
+        index = array("q", [-1]) * len(txid_by_dense)
+        low = array("q", [-1]) * len(txid_by_dense)
+        on_stack = bytearray(len(txid_by_dense))
         stack: List[int] = []
         counter = 0
         out: List[List[int]] = []
 
-        for root in list(self.adj.keys()):
-            if root in index:
+        for root in roots:
+            root_dense = dense_by_txid[root]
+            if index[root_dense] != -1:
                 continue
             work: List[Tuple[int, "object"]] = [(root, iter(self.adj.get(root, ())))]
-            index[root] = low[root] = counter
+            index[root_dense] = low[root_dense] = counter
             counter += 1
             stack.append(root)
-            on_stack[root] = True
+            on_stack[root_dense] = True
             while work:
                 node, it = work[-1]
+                node_dense = dense_by_txid[node]
                 advanced = False
                 for w in it:
-                    if w not in index:
-                        index[w] = low[w] = counter
+                    w_dense = dense_by_txid[w]
+                    if index[w_dense] == -1:
+                        index[w_dense] = low[w_dense] = counter
                         counter += 1
                         stack.append(w)
-                        on_stack[w] = True
+                        on_stack[w_dense] = True
                         work.append((w, iter(self.adj.get(w, ()))))
                         advanced = True
                         break
-                    elif on_stack.get(w):
-                        if index[w] < low[node]:
-                            low[node] = index[w]
+                    elif on_stack[w_dense]:
+                        if index[w_dense] < low[node_dense]:
+                            low[node_dense] = index[w_dense]
                 if advanced:
                     continue
-                if low[node] == index[node]:
+                if low[node_dense] == index[node_dense]:
                     comp: List[int] = []
                     while True:
                         x = stack.pop()
-                        on_stack[x] = False
+                        on_stack[dense_by_txid[x]] = False
                         comp.append(x)
                         if x == node:
                             break
@@ -470,8 +475,9 @@ class DSG:
                 work.pop()
                 if work:
                     parent = work[-1][0]
-                    if low[node] < low[parent]:
-                        low[parent] = low[node]
+                    parent_dense = dense_by_txid[parent]
+                    if low[node_dense] < low[parent_dense]:
+                        low[parent_dense] = low[node_dense]
         return out
 
     def _shortest_cycle(self, scc: Set[int]) -> List[int]:
