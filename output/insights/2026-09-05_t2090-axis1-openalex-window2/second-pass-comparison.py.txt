@@ -1,0 +1,14 @@
+import json, glob
+B = '/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle/'
+qids = ['AX1-20260902-E1-Q3-SPRE1991@openalex', 'AX1-20260902-E1-Q6-SPRE1991@openalex'] + [f'AX1-20260902-E1-Q3-SY{y}@openalex' for y in range(1991, 1997)]
+for qid in qids:
+    out = {}
+    for p in (1, 2):
+        fs = sorted(glob.glob(f'{B}ledgers/{qid}.pass{p}.*'), key=lambda f: json.load(open(f))['occurrence_count'])
+        d = json.load(open(fs[-1]))
+        out[p] = [o['index_work_id'] for o in d['occurrences']]
+        out[str(p) + 'n'] = (len(fs), d['occurrence_count'], d['distinct_index_work_id_count'])
+    s1, s2 = set(out[1]), set(out[2])
+    print(qid, 'pass1(files,rows,distinct)', out['1n'], 'pass2', out['2n'], 'set_equal', s1 == s2, 'order_equal', out[1] == out[2], 'only2', sorted(s2 - s1), 'only1', sorted(s1 - s2))
+d = json.load(open(sorted(glob.glob(f'{B}ledgers/AX1-20260902-E1-Q3-SY1992@openalex.pass2.*'))[-1]))
+print([o for o in d['occurrences'] if o['index_work_id'].endswith('W7208063655')])
