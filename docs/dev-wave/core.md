@@ -107,12 +107,11 @@ fragment として書く**（insights は従来どおり直接書く）。fragme
 canonical への追記・採番・ローテーションは段 9 の land が lock 内で一度だけ行う。
 **wave 側で fold してはならない。**
 凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +
-erratum とする（D88）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
+erratum とする（D88）。走査器は `python3 -m orchestrator.campaign.s8b_holdout_freeze search`（rc≠0 で hit）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
 復元法を記録した可逆最小正規化だけを許す（可視文字不変）。
 docs commit 後に repo scan invariant と影響テストを再走して閉じる（F34）。受入・検査は実測前に
 欄を作らず未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
-hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界は `CLAUDE.md` と
-`docs/ai-provenance.md` を正本とする。
+hash 自己参照は禁止（F36）。
 
 ## DW-S08 — 段 8 自己改善
 
