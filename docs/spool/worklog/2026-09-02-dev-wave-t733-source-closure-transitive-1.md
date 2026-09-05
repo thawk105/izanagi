@@ -76,7 +76,7 @@ title: [T-733] enforcement source closure を exact 24 path から exact 62 path
 - [T-733] **P2・進行中**: 第 1 層として exact 24 path から exact 62 path へ広げ、
   歴史閲覧に限って pre-T733 exact-24 grammar を読めるようにした。変異は 5/5 と 3/3 で
   いずれも KILLED。残りは未収載 69 module の収載と、非 import 委譲の束縛である。
-  base: 2e830bbb64bfb811c16385cf9f5c1b7614d38ad4a39191136ecbc95d9e1d654e
+  base: 31830c180c5d2b5d6e66b05cf1802fe530f941057597051cb58a393e29fd5c1e
 
 ### 新規
 
