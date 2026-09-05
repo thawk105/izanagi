@@ -258,6 +258,8 @@ def _declare_default_test_site(request, monkeypatch):
 # 親 working tree (P) と共有 ccbench (S) に触る node の分類正本。値は
 # ``test_file.py::test_function``（parametrize suffix なし）で固定する。
 _REAL_REPO_NODE_INVENTORY = frozenset({
+    # X/P/I assessment の現行 pin 正負対は共有 CCBench source を読む。
+    "test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
     # 親 working tree の tracked + untracked snapshot。
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
     # 上記 snapshot テストの結線監査 meta-テスト。実 ROOT で builder を実走し repo tree
@@ -434,6 +436,7 @@ _REAL_REPO_PARENT_ONLY_NODES = frozenset({
     "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
 _REAL_REPO_CCBENCH_ONLY_NODES = frozenset({
+    "test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
     "test_campaign.py::test_source_digest_parse_options_defaults",
     "test_campaign.py::test_source_digest_stock_roundtrip",
     "test_campaign.py::test_source_digest_fixed_variant_distinct",
@@ -603,6 +606,7 @@ ORACLE_ENVIRONMENT_CONSUMER_NODES = frozenset({
     "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
     "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
     "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+    "test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
 })
 
 # production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と

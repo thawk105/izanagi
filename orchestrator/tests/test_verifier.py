@@ -10,7 +10,9 @@ from collections import Counter
 import hashlib
 import json
 import os
+import subprocess
 import sys
+import tempfile
 from dataclasses import replace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -18,10 +20,13 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from skiputil import Skip                                     # noqa: E402
-from orchestrator.verifier import render_text, verify_trace_dir, result_to_dict  # noqa: E402
+from orchestrator.verifier import (render_text,                         # noqa: E402
+                                   verify_trace_dir as _verify_trace_dir,
+                                   result_to_dict)
 from orchestrator.verifier.dsg import DSG                                  # noqa: E402
 from orchestrator.verifier.model import (                              # noqa: E402
-    CycleEdge, EdgeReason, Integrity, RW, VerifyResult, WR, WW,
+    CycleEdge, EdgeReason, Integrity, ProofSurfaceAssessment, RW,
+    VerifyResult, WR, WW, assess_protocol_proof_surfaces,
 )
 from orchestrator.verifier.parse import ParseError, parse_trace_dir        # noqa: E402
 
@@ -32,6 +37,29 @@ BROKEN_SILO_NORW_FIXTURE = os.path.join(FIX, "r8_silo_broken_norw")
 # repo ルート相対で実 Silo トレース (生成済みなら)
 _REPO = os.path.dirname(_ORCH)
 SILO_SAMPLE = os.path.join(_REPO, "output", "runs", "silo-sample")
+REAL_CCBENCH_ROOT = os.path.join(_REPO, "external", "ccbench")
+_PROOF_SOURCE_TMP = tempfile.TemporaryDirectory(
+    prefix="izanagi-verifier-proof-source-",
+)
+CCBENCH_ROOT = _PROOF_SOURCE_TMP.name
+_SILO_SOURCE = os.path.join(CCBENCH_ROOT, "cc", "silo")
+os.makedirs(_SILO_SOURCE)
+with open(os.path.join(_SILO_SOURCE, "CMakeLists.txt"), "w", encoding="utf-8") as _f:
+    _f.write("ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n")
+with open(os.path.join(_SILO_SOURCE, "transaction.cc"), "w", encoding="utf-8") as _f:
+    _f.write(
+        "#if TRACE\n"
+        "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+        "izanagi_trace::stream(0) << \"P \";\n"
+        "#endif\n"
+    )
+
+
+def verify_trace_dir(trace_dir, *args, **kwargs):
+    """Legacy trace fixtures を complete な synthetic Silo source へ束縛する。"""
+    kwargs.setdefault("protocol", "silo")
+    kwargs.setdefault("ccbench_root", CCBENCH_ROOT)
+    return _verify_trace_dir(trace_dir, *args, **kwargs)
 
 
 def _verify(name):
@@ -53,6 +81,119 @@ def test_g4_has_rw_edge_but_no_cycle():
     res = _verify("g4_rw_no_cycle")
     assert res.n_edges == 1
     assert res.serializable
+
+
+def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
+    """現行 pin の実 compiled source と実 verifier を通す X/P 正負対。"""
+    from orchestrator.campaign.pin import CURRENT_PIN
+
+    trace_dir = os.path.join(FIX, "g1_serial")
+    head, pinned = subprocess.run(
+        [
+            "git", "-C", REAL_CCBENCH_ROOT, "rev-parse",
+            "HEAD", f"{CURRENT_PIN}^{{commit}}",
+        ],
+        check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    assert len(head) == 40 and len(pinned) == 40
+    assert head == pinned
+    silo = _verify_trace_dir(
+        trace_dir, protocol="silo", ccbench_root=REAL_CCBENCH_ROOT,
+    )
+    mocc = _verify_trace_dir(
+        trace_dir, protocol="mocc", ccbench_root=REAL_CCBENCH_ROOT,
+    )
+    assert silo.integrity.proof_surfaces.as_record() == {
+        "protocol": "silo",
+        "X": "evidence-present",
+        "P": "evidence-present",
+        "I": "evidence-absent",
+    }
+    assert silo.integrity.clean()
+    assert silo.certified
+    assert mocc.integrity.proof_surfaces.as_record() == {
+        "protocol": "mocc",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+    assert not mocc.integrity.clean()
+    assert mocc.verdict == "indeterminate"
+    assert not mocc.certified
+    assert assess_protocol_proof_surfaces(
+        "si", REAL_CCBENCH_ROOT,
+    ).as_record() == {
+        "protocol": "si",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+
+
+def test_proof_surfaces_unavailable_source_fails_closed():
+    """読めない source を positive evidence に変換せず認証不能にする。"""
+    import tempfile
+    with tempfile.TemporaryDirectory() as root:
+        protocol_dir = os.path.join(root, "cc", "silo")
+        os.makedirs(protocol_dir)
+        with open(os.path.join(protocol_dir, "CMakeLists.txt"), "wb") as stream:
+            stream.write(b"\xff")
+        result = _verify_trace_dir(
+            os.path.join(FIX, "g1_serial"),
+            protocol="silo",
+            ccbench_root=root,
+        )
+    assert result.integrity.proof_surfaces.as_record() == {
+        "protocol": "silo",
+        "X": "unavailable",
+        "P": "unavailable",
+        "I": "unavailable",
+    }
+    assert result.verdict == "indeterminate"
+    assert not result.certified
+
+
+def test_proof_surfaces_unspecified_fail_closed():
+    result = _verify_trace_dir(os.path.join(FIX, "g1_serial"))
+    assert result.integrity.proof_surfaces == ProofSurfaceAssessment()
+    assert result.verdict == "indeterminate"
+    assert not result.certified
+
+
+def test_proof_surface_emitters_inside_if_zero_are_not_evidence():
+    """M03: literal inactive block の死んだ emitter token では認証しない。"""
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root)
+        protocol_dir = root / "cc/mocc"
+        protocol_dir.mkdir(parents=True)
+        (protocol_dir / "CMakeLists.txt").write_text(
+            "ccbench_add_protocol(mocc SOURCES transaction.cc WORKLOADS ycsb)\n",
+            encoding="utf-8",
+        )
+        (protocol_dir / "transaction.cc").write_text(
+            "#if TRACE\n"
+            "#if 0\n"
+            "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+            "izanagi_trace::stream(0) << \"P \";\n"
+            "izanagi_trace::stream(0) << \"I \";\n"
+            "#endif\n"
+            "#endif\n",
+            encoding="utf-8",
+        )
+        result = _verify_trace_dir(
+            os.path.join(FIX, "g1_serial"),
+            protocol="mocc",
+            ccbench_root=root,
+        )
+    assert result.integrity.proof_surfaces.as_record() == {
+        "protocol": "mocc",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+    assert not result.certified
 
 
 # ---- 赤 (non-serializable, すべて G2) ----
@@ -119,6 +260,45 @@ def test_nonlatest_read_caught_via_ww_transitivity():
     res = _verify("r5_nonlatest_transitive")
     assert not res.serializable
     assert res.anomalies[0].phenomenon == "G2"
+
+
+def test_dense_cycle4_clean_g2():
+    res = _verify("r9_dense_cycle4")
+    assert res.integrity.clean(), res.integrity.notes
+    assert res.abort_reasons == {}
+    assert res.certified is False
+    assert not res.serializable
+    assert res.verdict == "non-serializable"
+    assert (
+        res.n_txns, res.n_reads, res.n_writes, res.n_keys, res.n_edges,
+    ) == (4, 4, 4, 4, 4)
+    assert res.total_cycles == 1
+    assert len(res.anomalies) == 1
+
+    txns, _issues = parse_trace_dir(os.path.join(FIX, "r9_dense_cycle4"))
+    assert [
+        (txn.txid, txn.thid, txn.commit) for txn in txns
+    ] == [
+        (0, 0, (1, 1)),
+        (1, 0, (1, 2)),
+        (2, 0, (1, 3)),
+        (3, 1, (1, 4)),
+    ]
+
+    a = res.anomalies[0]
+    assert a.phenomenon == "G2"
+    assert set(a.cycle) == {0, 1, 2, 3}
+    assert a.length == 4
+    edge_types = {
+        (edge.src, edge.dst): set(edge.types)
+        for edge in a.edges
+    }
+    assert edge_types == {
+        (0, 1): {WR},
+        (1, 2): {WR},
+        (2, 3): {WR},
+        (3, 0): {RW},
+    }
 
 
 # ---- integrity 軸 (絶対規律2: integrity 不良なら certified しない) ----
@@ -251,6 +431,8 @@ _V2_FIXTURE_FILES = (
     "r8_silo_broken_norw/trace_1.log",
     "r8_silo_broken_norw/trace_2.log",
     "r8_silo_broken_norw/trace_3.log",
+    "r9_dense_cycle4/trace_0.log",
+    "r9_dense_cycle4/trace_1.log",
 )
 
 
@@ -1289,6 +1471,7 @@ def test_cli_expected_commits_accepts_single_trace_dir():
     with contextlib.redirect_stdout(io.StringIO()):
         assert cli.main([
             os.path.join(FIX, "g1_serial"), "--expected-commits", "2", "--quiet",
+            "--protocol", "silo", "--ccbench-root", CCBENCH_ROOT,
         ]) == 0
 
 
@@ -1301,6 +1484,7 @@ def test_cli_expected_commits_mismatch_is_indeterminate_json():
         rc = cli.main([
             os.path.join(FIX, "g1_serial"),
             "--expected-commits", "3", "--json",
+            "--protocol", "silo", "--ccbench-root", CCBENCH_ROOT,
         ])
     payload = json.loads(stdout.getvalue())
     result = payload["results"][0]
@@ -1870,7 +2054,16 @@ def test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure():
     tracked_fixture = os.path.normcase(os.path.realpath(os.path.join(
         _HERE, "fixtures", "g5_silo_real_prefix",
     )))
-    clean = Integrity(expected_commits=1345, observed_commits=1345)
+    clean = Integrity(
+        expected_commits=1345,
+        observed_commits=1345,
+        proof_surfaces=ProofSurfaceAssessment(
+            protocol="silo",
+            lock_coverage="evidence-present",
+            permutation="evidence-present",
+            write_intent="evidence-absent",
+        ),
+    )
     good = VerifyResult(
         trace_dir=tracked_fixture,
         serializable=True,
@@ -1932,6 +2125,435 @@ def test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure():
     except AssertionError as exc:
         assert isinstance(exc.__cause__, Skip)
     assert verify_trace_dir is original
+
+
+def test_parallel_production_path_matches_certified_result_and_runs_workers():
+    """The certified result adopts real parse and DSG child-process outcomes."""
+    import importlib
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    sequential = verify_trace_dir(
+        os.path.join(FIX, "g3_readonly"), workers=1,
+    )
+    parallel = verify_trace_dir(
+        os.path.join(FIX, "g3_readonly"), workers=2,
+    )
+    assert result_to_dict(parallel) == result_to_dict(sequential)
+    assert parallel.certified
+    adopted_parse_pids = parse_module._LAST_PARSE_WORKER_PIDS
+    adopted_dsg_pids = dsg_module._LAST_DSG_WORKER_PIDS
+    assert adopted_parse_pids
+    assert adopted_dsg_pids
+    # These diagnostics are built from adopted outcomes only.  A sequential
+    # fallback records the parent PID and therefore cannot satisfy this check.
+    assert os.getpid() not in adopted_parse_pids
+    assert os.getpid() not in adopted_dsg_pids
+
+
+def test_default_worker_cap_is_16_but_explicit_workers_remain_available():
+    import importlib
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    original_getaffinity = parse_module.os.sched_getaffinity
+    parse_module.os.sched_getaffinity = lambda _pid: set(range(64))
+    try:
+        assert parse_module._effective_worker_count(64, None) == 16
+        assert parse_module._effective_worker_count(64, 48) == 48
+    finally:
+        parse_module.os.sched_getaffinity = original_getaffinity
+
+
+def test_concurrent_verifications_keep_edge_worker_inputs_isolated():
+    """Two threads cannot replace one another's cyclic/acyclic edge input."""
+    import concurrent.futures
+    import shutil
+    import threading
+
+    common = (
+        "C 0 0 1 1 1 1\n"
+        "R 0 aa 1 0\n"
+        "W 0 bb U 1 1\n"
+        "E 0\n"
+    )
+    cyclic = _tmp_trace(
+        common,
+        "C 1 1 1 2 1 1\n"
+        "R 1 bb 1 0\n"
+        "W 1 aa U 1 2\n"
+        "E 1\n",
+    )
+    acyclic = _tmp_trace(
+        common,
+        "C 1 1 1 2 1 1\n"
+        "R 1 bb 1 1\n"
+        "W 1 aa U 1 2\n"
+        "E 1\n",
+    )
+    real_process_pool = concurrent.futures.ProcessPoolExecutor
+    thread_state = threading.local()
+    both_edge_pools_ready = threading.Barrier(2)
+    both_edge_pools_forked = threading.Barrier(2)
+    forked_edge_pools = []
+    forked_edge_pools_lock = threading.Lock()
+
+    class SynchronizedProcessPool(real_process_pool):
+        """Synchronize real edge-pool forks after both verifier calls arrive."""
+
+        def __init__(self, *args, **kwargs):
+            pool_number = getattr(thread_state, "pool_number", 0) + 1
+            thread_state.pool_number = pool_number
+            self._synchronize_first_submit = pool_number == 2
+            super().__init__(*args, **kwargs)
+
+        def submit(self, *args, **kwargs):
+            if self._synchronize_first_submit:
+                self._synchronize_first_submit = False
+                both_edge_pools_ready.wait(timeout=15)
+                future = super().submit(*args, **kwargs)
+                # ProcessPoolExecutor forks all workers during the first submit.
+                with forked_edge_pools_lock:
+                    forked_edge_pools.append(id(self))
+                both_edge_pools_forked.wait(timeout=15)
+                return future
+            return super().submit(*args, **kwargs)
+
+    try:
+        cyclic_baseline = verify_trace_dir(
+            cyclic, expected_commits=2, workers=1,
+        )
+        acyclic_baseline = verify_trace_dir(
+            acyclic, expected_commits=2, workers=1,
+        )
+        assert cyclic_baseline.verdict == "non-serializable"
+        assert acyclic_baseline.verdict == "serializable"
+
+        concurrent.futures.ProcessPoolExecutor = SynchronizedProcessPool
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            cyclic_future = executor.submit(
+                verify_trace_dir, cyclic, expected_commits=2, workers=2,
+            )
+            acyclic_future = executor.submit(
+                verify_trace_dir, acyclic, expected_commits=2, workers=2,
+            )
+            cyclic_result = cyclic_future.result(timeout=30)
+            acyclic_result = acyclic_future.result(timeout=30)
+        assert len(forked_edge_pools) == 2
+        assert result_to_dict(cyclic_result) == result_to_dict(cyclic_baseline)
+        assert result_to_dict(acyclic_result) == result_to_dict(acyclic_baseline)
+    finally:
+        concurrent.futures.ProcessPoolExecutor = real_process_pool
+        shutil.rmtree(cyclic, ignore_errors=True)
+        shutil.rmtree(acyclic, ignore_errors=True)
+
+
+def test_file_failures_keep_sorted_path_priority_over_later_io_error():
+    """A later dangling symlink cannot replace the first file's ParseError."""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nR 0 aa not-an-int 0\nE 0\n",
+        "C 1 1 1 2 0 0\nE 1\n",
+    )
+    later_path = os.path.join(d, "trace_1.log")
+    os.unlink(later_path)
+    os.symlink(os.path.join(d, "missing-target.log"), later_path)
+    try:
+        for workers in (1, 2):
+            try:
+                verify_trace_dir(d, workers=workers)
+                assert False, "the first path's ParseError must win"
+            except ParseError as exc:
+                assert "trace_0.log:2" in str(exc)
+                assert type(exc.__cause__) is ValueError
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_worker_parse_error_survives_file_disappearing_before_parent_reread():
+    """The worker's ParseError remains primary if parent reread hits I/O."""
+    import importlib
+    import shutil
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nR 0 aa not-an-int 0\nE 0\n",
+        "C 1 1 1 2 0 0\nE 1\n",
+    )
+    original = parse_module._parse_file_to_columns
+    parent_pid = os.getpid()
+
+    def remove_failed_file(task):
+        outcome = original(task)
+        if (task[0] == 0 and os.getpid() != parent_pid
+                and isinstance(outcome, parse_module._ParsedFileFailure)):
+            os.unlink(task[1])
+        return outcome
+
+    parse_module._parse_file_to_columns = remove_failed_file
+    try:
+        try:
+            verify_trace_dir(d, workers=2)
+            assert False, "the worker's original ParseError must be restored"
+        except ParseError as exc:
+            assert "trace_0.log:2" in str(exc)
+            assert type(exc.__cause__) is ValueError
+            assert "not-an-int" in str(exc.__cause__)
+    finally:
+        parse_module._parse_file_to_columns = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_daemon_process_falls_back_to_sequential_verification():
+    """A daemon that cannot fork still verifies a valid multi-file trace."""
+    import multiprocessing
+    context = multiprocessing.get_context("fork")
+    parent_conn, child_conn = context.Pipe(duplex=False)
+
+    def run_in_daemon():
+        try:
+            result = verify_trace_dir(
+                os.path.join(FIX, "g3_readonly"), workers=2,
+            )
+            child_conn.send(("ok", result.certified, result.verdict))
+        except BaseException as exc:
+            child_conn.send(("error", type(exc).__name__, str(exc)))
+        finally:
+            child_conn.close()
+
+    process = context.Process(target=run_in_daemon)
+    process.daemon = True
+    process.start()
+    child_conn.close()
+    try:
+        process.join(20)
+        assert not process.is_alive(), "daemon verifier did not terminate"
+        assert parent_conn.poll(), "daemon verifier returned no result"
+        assert parent_conn.recv() == ("ok", True, "serializable")
+        assert process.exitcode == 0
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+        parent_conn.close()
+
+
+def test_parallel_worker_exit_discards_partial_results_and_rereads_all_files():
+    """M1: losing the tail outcome cannot certify the surviving half."""
+    import importlib
+    import shutil
+    import time
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _tmp_trace(
+        "C 0 0 1 1 1 1\nR 0 aa 1 0\nW 0 bb U 1 1\nE 0\n",
+        "C 1 1 1 2 1 1\nR 1 bb 1 0\nW 1 aa U 1 2\nE 1\n",
+    )
+    marker = os.path.join(d, "worker-exit.pid")
+    parent_pid = os.getpid()
+    original = parse_module._parse_file_to_columns
+
+    def force_tail_worker_exit(task):
+        if task[0] == 1 and os.getpid() != parent_pid:
+            # Let path 0 become a received partial outcome before this worker dies.
+            time.sleep(0.2)
+            with open(marker, "w") as fh:
+                fh.write(str(os.getpid()))
+            os._exit(71)
+        return original(task)
+
+    parse_module._parse_file_to_columns = force_tail_worker_exit
+    try:
+        result = verify_trace_dir(d, workers=2)
+        assert not result.serializable
+        assert result.verdict == "non-serializable"
+        with open(marker) as fh:
+            worker_pid = int(fh.read())
+        assert worker_pid != parent_pid
+    finally:
+        parse_module._parse_file_to_columns = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_parallel_parse_issues_keep_sorted_path_order():
+    """M2: completion order never becomes ParseIssues/report order."""
+    import importlib
+    import shutil
+    import time
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nE 0\n",
+        "C 1 1 1 2 0 1\nE 1\n",
+    )
+    sequential = verify_trace_dir(d, workers=1)
+    original = parse_module._parse_file_to_columns
+    parent_pid = os.getpid()
+
+    def delay_first_path(task):
+        if task[0] == 0 and os.getpid() != parent_pid:
+            time.sleep(0.2)
+        return original(task)
+
+    parse_module._parse_file_to_columns = delay_first_path
+    try:
+        parallel = verify_trace_dir(d, workers=2)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        details = parallel.integrity.framing_violation_details
+        assert [detail.txid for detail in details] == [0, 1]
+    finally:
+        parse_module._parse_file_to_columns = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def _ordinal_witness_trace() -> str:
+    """Three-file trace whose source 1 edges arrive from distinct read shards."""
+    files = [[], [], []]
+    for txid in range(17):
+        target = 0 if txid < 8 else (1 if txid < 16 else 2)
+        if txid == 1:
+            files[target].append(
+                "C 1 0 1 2 2 2\n"
+                "R 1 cc 1 9\nR 1 dd 1 17\n"
+                "W 1 aa U 1 2\nW 1 bb U 1 2\nE 1\n")
+        elif txid == 8:
+            files[target].append(
+                "C 8 1 1 9 1 1\nR 8 aa 1 2\nW 8 cc U 1 9\nE 8\n")
+        elif txid == 16:
+            files[target].append(
+                "C 16 2 1 17 1 1\nR 16 bb 1 2\nW 16 dd U 1 17\nE 16\n")
+        else:
+            files[target].append(
+                f"C {txid} {target} 2 {txid + 1} 0 0\nE {txid}\n")
+    return _tmp_trace(*["".join(rows) for rows in files])
+
+
+def test_parallel_edge_replay_uses_global_logical_ordinal():
+    """M3: arrival reversal preserves the exact anomaly witness and ordering."""
+    import importlib
+    import shutil
+    import time
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    d = _ordinal_witness_trace()
+    sequential = verify_trace_dir(d, workers=1)
+    original = dsg_module._edge_candidates_for_task
+    parent_pid = os.getpid()
+
+    def delay_edge_fragment(task):
+        if (task.kind == "read" and task.start <= 8 < task.end
+                and os.getpid() != parent_pid):
+            time.sleep(0.2)
+        return original(task)
+
+    dsg_module._edge_candidates_for_task = delay_edge_fragment
+    try:
+        parallel = verify_trace_dir(d, workers=3)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        assert parallel.anomalies[0].cycle == [1, 8]
+    finally:
+        dsg_module._edge_candidates_for_task = original
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_parallel_parse_error_is_raised_by_parent_scanner_with_cause():
+    """M4: worker syntax failure is reparsed, not rebuilt from exception args."""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nR 0 aa not-an-int 0\nE 0\n",
+        "C 1 1 1 2 0 0\nE 1\n",
+    )
+
+    def capture(workers):
+        try:
+            verify_trace_dir(d, workers=workers)
+            assert False, "ParseError expected"
+        except ParseError as exc:
+            frames = []
+            tb = exc.__traceback__
+            while tb is not None:
+                frames.append(tb.tb_frame.f_code.co_name)
+                tb = tb.tb_next
+            return (
+                type(exc), exc.args, type(exc.__cause__), str(exc.__cause__), frames,
+            )
+
+    try:
+        sequential = capture(1)
+        parallel = capture(2)
+        assert parallel[:4] == sequential[:4]
+        assert parallel[2] is ValueError
+        assert "_parse_file" in parallel[4]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_compact_dsg_keeps_rw_edge_and_detects_g2_cycle():
+    """M5: the production compact path must retain read anti-dependencies."""
+    result = verify_trace_dir(os.path.join(FIX, "r1_write_skew"), workers=1)
+    assert result.verdict == "non-serializable"
+    assert result.anomalies[0].phenomenon == "G2"
+    assert RW in {
+        edge_type
+        for edge in result.anomalies[0].edges
+        for edge_type in edge.types
+    }
+
+
+def test_parallel_cross_file_duplicate_txid_is_parent_replayed():
+    """M6: neither worker sees this duplicate locally; the parent must."""
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 0 1\nW 0 aa U 1 1\nE 0\n",
+        "C 0 1 1 2 0 1\nW 0 aa U 1 2\nE 0\n",
+    )
+    try:
+        sequential = verify_trace_dir(d, workers=1)
+        parallel = verify_trace_dir(d, workers=2)
+        assert result_to_dict(parallel) == result_to_dict(sequential)
+        assert parallel.integrity.dup_txids == 1
+        assert parallel.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_sparse_huge_txid_returns_bounded_indeterminate_result():
+    """Accepted A4 difference: bounded gap scan replaces legacy MemoryError."""
+    import shutil
+    d = _tmp_trace("C 1000000000000 0 2 1 0 0\nE 1000000000000\n")
+    try:
+        txns, issues = parse_trace_dir(d, workers=1)
+        assert [txn.txid for txn in txns] == [1000000000000]
+        assert issues.missing_txids == 1000000000000
+        assert issues.missing_sample == [0, 1, 2, 3, 4]
+        result = verify_trace_dir(d, workers=1)
+        assert result.n_txns == 1
+        assert result.integrity.missing_txids == 1000000000000
+        assert result.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_parallel_capability_remains_bound_to_parent_pid():
+    import commit_receipt_support as receipt_support
+    from orchestrator.verifier.core import verify_trace_dir_with_capability
+    genome, source_evidence, build_admission = (
+        receipt_support._proof_build_binding("baseline")
+    )
+    result, capability = verify_trace_dir_with_capability(
+        os.path.join(FIX, "g3_readonly"),
+        workers=2,
+        genome=genome,
+        source_evidence=source_evidence,
+        build_admission=build_admission,
+        receipt_sink_kind="test",
+        receipt_lock_identity_sha256="0" * 64,
+        receipt_variant="baseline",
+        receipt_operation_identity="parallel-parent-pid",
+        receipt_workload_tag="unit",
+    )
+    assert result.certified
+    assert capability._pid == os.getpid()
+    capability._assert_matches(
+        sink_kind="test",
+        lock_identity_sha256="0" * 64,
+        variant="baseline",
+        operation_identity="parallel-parent-pid",
+        workload_tag="unit",
+    )
 
 
 # ---- 素の runner (pytest 無しでも) ----

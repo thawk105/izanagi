@@ -2,12 +2,25 @@
 """Explicit post-policy receipt helpers, separate from legacy raw WAL fixtures."""
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+import tempfile
 from types import MappingProxyType
 
 from orchestrator.campaign import artifact_admission, wal
-from orchestrator.campaign.model import STAGE_COMMIT, WalRecord
+from orchestrator.campaign.build_admission import (
+    GeneratorId,
+    build_run_context,
+    derive_build_admission,
+)
+from orchestrator.campaign.model import Genome, STAGE_COMMIT, WalRecord
+from orchestrator.campaign.pin import CURRENT_PIN
+from orchestrator.campaign.source_digest import (
+    EMPTY_TRACKED_DIFF_SHA256,
+    SOURCE_EVIDENCE_SCHEMA,
+    SourceEvidence,
+)
 from orchestrator.verifier import (
     CAMPAIGN_WAL_SINK,
     QUALIFICATION_SINK,
@@ -20,18 +33,87 @@ from orchestrator.verifier import (
 from orchestrator.verifier.commit_receipt import (
     campaign_lock_sha256_or_absent,
 )
+from orchestrator.verifier.model import capture_compiled_protocol_source_snapshot
 
 
 _FIXTURE = Path(__file__).resolve().parent / "fixtures/g1_serial"
+_PROOF_SOURCE_TMP = tempfile.TemporaryDirectory(
+    prefix="izanagi-proof-source-fixture-",
+)
+_CCBENCH_ROOT = Path(_PROOF_SOURCE_TMP.name)
+_SILO_SOURCE = _CCBENCH_ROOT / "cc/silo"
+_SILO_SOURCE.mkdir(parents=True)
+(_SILO_SOURCE / "CMakeLists.txt").write_text(
+    "ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n",
+    encoding="utf-8",
+)
+(_SILO_SOURCE / "transaction.cc").write_text(
+    "#if TRACE\n"
+    "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+    "izanagi_trace::stream(0) << \"P \";\n"
+    "#endif\n",
+    encoding="utf-8",
+)
+_MOCC_SOURCE = _CCBENCH_ROOT / "cc/mocc"
+_MOCC_SOURCE.mkdir(parents=True)
+(_MOCC_SOURCE / "CMakeLists.txt").write_text(
+    "ccbench_add_protocol(mocc SOURCES transaction.cc WORKLOADS ycsb)\n",
+    encoding="utf-8",
+)
+(_MOCC_SOURCE / "transaction.cc").write_text(
+    "#if TRACE\nizanagi_trace::emit_write(0, 0, {}, {}, 0, 0);\n#endif\n",
+    encoding="utf-8",
+)
+
+
+def proof_source_root() -> Path:
+    return _CCBENCH_ROOT
+
+
+_PROOF_GENOME = Genome("silo", {})
+_PROOF_BUILD_CONTEXT = build_run_context(
+    generator_id=GeneratorId.BACKOFF_SWEEP,
+)
+
+
+def _proof_build_binding(variant: str):
+    source = SourceEvidence(
+        schema_version=SOURCE_EVIDENCE_SCHEMA,
+        source_root=str(_CCBENCH_ROOT),
+        ccbench_commit=CURRENT_PIN,
+        genome_sha256=hashlib.sha256(
+            _PROOF_GENOME.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token="stock",
+        source_bytes_sha256=hashlib.sha256(
+            b"fixed synthetic receipt proof source"
+        ).hexdigest(),
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+        proof_source_snapshot=capture_compiled_protocol_source_snapshot(
+            "silo", _CCBENCH_ROOT,
+        ),
+        verification_variant=variant,
+    )
+    return (
+        _PROOF_GENOME,
+        source,
+        derive_build_admission(_PROOF_BUILD_CONTEXT, source),
+    )
 
 
 def verification_capabilities(
         tags=("legacy",), *, sink_kind: str, lock_identity_sha256: str,
         variant: str, operation_identity: str,
 ):
+    genome, source_evidence, build_admission = _proof_build_binding(variant)
     results = tuple(
         verify_trace_dir_with_capability(
             str(_FIXTURE),
+            genome=genome,
+            source_evidence=source_evidence,
+            build_admission=build_admission,
             receipt_sink_kind=sink_kind,
             receipt_lock_identity_sha256=lock_identity_sha256,
             receipt_variant=variant,
@@ -198,6 +280,9 @@ def replay_evidence(
         records=records,
         decision=decision,
         campaign_verifier_epoch=epoch,
+        persisted_certified_commit_count=sum(
+            record.stage == STAGE_COMMIT for record in records
+        ),
         _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
         _replay_admission_capability=replay_capability,
     )

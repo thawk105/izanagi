@@ -1,5 +1,6 @@
 import ast
 import base64
+import contextlib
 import copy
 import errno
 import hashlib
@@ -46,26 +47,897 @@ from orchestrator.campaign.pipeline import (
     variant_id,
 )
 
-_REAL_CONDITION_GATE_FAMILY = A2._require_condition_gate_family
+_REAL_CONDITION_GATE_FAMILY = A2._condition_gate_family_context
 
 
 @pytest.fixture(autouse=True)
 def _avoid_condition_compiler_work_in_protocol_tests(monkeypatch):
-    monkeypatch.setattr(A2, "_require_condition_gate_family", lambda *_a, **_k: None)
+    @contextlib.contextmanager
+    def bypass_condition_gate(source_root, *_args, **_kwargs):
+        yield Path(source_root), None
+
+    monkeypatch.setattr(A2, "_condition_gate_family_context", bypass_condition_gate)
 
 
-def test_paper_condition_gate_is_p_strict_and_precedes_campaign():
+def test_paper_condition_gate_is_p_strict_and_precedes_campaign(monkeypatch):
     run_source = inspect.getsource(A2.run_workload)
-    assert run_source.index("_require_condition_gate_family(") < run_source.index(
+    assert run_source.index("_condition_gate_family_context(") < run_source.index(
         "summary = run_campaign("
     )
     helper_source = inspect.getsource(_REAL_CONDITION_GATE_FAMILY)
     assert 'use_class="paper"' in helper_source
     assert '"BACKOFF_FIXED"' in helper_source
     assert '"BACKOFF_NOINLINE"' in helper_source
-    assert "stock_root=stock_root" in helper_source
+    assert "declare_define_runtime_meaning" in helper_source
+    assert "stock_root=source_root" in helper_source
     assert "STOCK_ADAPTIVE_BRANCH" in helper_source
     assert "condition_gate_receipts" in run_source
+    assert '"patches/silo-backoff-fixed.patch"' in helper_source
+    assert helper_source.count("patchharness.checkout(") == 1
+    assert helper_source.index("patchharness.checkout(") < helper_source.index(
+        "patchharness.applied("
+    ) < helper_source.index("capture_define_inputs(")
+    assert "as (variant_root, condition_gate_receipts):" in run_source
+
+    tree = ast.parse(run_source)
+    condition_context = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.With)
+        and any(
+            isinstance(item.context_expr, ast.Call)
+            and isinstance(item.context_expr.func, ast.Name)
+            and item.context_expr.func.id == "_condition_gate_family_context"
+            for item in node.items
+        )
+    )
+    calls = [
+        node
+        for statement in condition_context.body
+        for node in ast.walk(statement)
+        if isinstance(node, ast.Call)
+    ]
+    campaign_call = next(
+        call for call in calls
+        if isinstance(call.func, ast.Name) and call.func.id == "run_campaign"
+    )
+    ccbench_dir = next(
+        keyword.value for keyword in campaign_call.keywords
+        if keyword.arg == "ccbench_dir"
+    )
+    assert (
+        isinstance(ccbench_dir, ast.Call)
+        and isinstance(ccbench_dir.func, ast.Attribute)
+        and isinstance(ccbench_dir.func.value, ast.Name)
+        and ccbench_dir.func.value.id == "os"
+        and ccbench_dir.func.attr == "fspath"
+        and len(ccbench_dir.args) == 1
+        and isinstance(ccbench_dir.args[0], ast.Name)
+        and ccbench_dir.args[0].id == "variant_root"
+    )
+    assert any(
+        isinstance(call.func, ast.Name) and call.func.id == "write_json_x"
+        for call in calls
+    )
+    _assert_condition_gate_context(monkeypatch)
+    _assert_condition_gate_rejection(monkeypatch)
+
+
+def _assert_condition_gate_context(monkeypatch):
+    source_root = Path("/shared/ccbench")
+    variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    expected_toolchain_manifest = {"fixture": "toolchain"}
+    events = []
+
+    @contextlib.contextmanager
+    def checkout(pin_commit, *, base_dir):
+        events.append((
+            "checkout-enter", variant_root, Path(base_dir), pin_commit))
+        try:
+            yield os.fspath(variant_root)
+        finally:
+            events.append(("checkout-exit", variant_root))
+
+    @contextlib.contextmanager
+    def applied(patch_path, pin_commit, *, ccbench_dir):
+        assert patch_path == os.fspath(
+            Path(A2.__file__).resolve().parents[2]
+            / "patches/silo-backoff-fixed.patch"
+        )
+        events.append(("applied-enter", Path(ccbench_dir), pin_commit))
+        try:
+            yield None
+        finally:
+            events.append(("applied-exit", Path(ccbench_dir)))
+
+    @contextlib.contextmanager
+    def temporary_directory(*, prefix):
+        assert prefix == "izanagi-a2-condition-gate-"
+        events.append(("fetchcontent-enter", fetchcontent_base))
+        try:
+            yield os.fspath(fetchcontent_base)
+        finally:
+            events.append(("fetchcontent-exit", fetchcontent_base))
+
+    def prepare_masstree_fetchcontent(**kwargs):
+        events.append((
+            "prebuild", Path(kwargs["ccbench_dir"]),
+            Path(kwargs["fetchcontent_base_dir"]),
+        ))
+        assert kwargs["expected_toolchain_manifest"] \
+            is expected_toolchain_manifest
+        assert kwargs == {
+            "ccbench_dir": os.fspath(variant_root),
+            "fetchcontent_base_dir": os.fspath(fetchcontent_base),
+            "expected_toolchain_manifest": expected_toolchain_manifest,
+            "configure_timeout_s": 900,
+            "target_timeout_s": 900,
+            "dependency_prefix": "/dependency",
+        }
+
+    def capture(source, *, stock_root, configure_args):
+        events.append(("capture", Path(source), Path(stock_root)))
+        assert configure_args == (
+            "-DCMAKE_PREFIX_PATH=/dependency",
+            f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+        )
+        return object()
+
+    def record(request, arm):
+        payload = {
+            "macro": request.macro,
+            "arm": arm,
+            "terminal_status": "green",
+        }
+        return A2.SimpleNamespace(
+            macro=request.macro,
+            arm=arm,
+            reason_code="established",
+            terminal_status="green",
+            evidence={},
+            canonical_json=lambda: json.dumps(payload),
+        )
+
+    def admit(supply_records, meaning_records, *, use_class):
+        events.append(("admit", use_class))
+        assert supply_records and meaning_records
+        return A2.SimpleNamespace(
+            admitted=True,
+            canonical_json=lambda: json.dumps({"admitted": True}),
+        )
+
+    monkeypatch.setattr(A2.patchharness, "checkout", checkout)
+    monkeypatch.setattr(A2.patchharness, "applied", applied)
+    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        prepare_masstree_fetchcontent)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "capture_define_inputs", capture)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "evaluate_define_supply_effectuation",
+        lambda _captured, *, request, **_kwargs: record(request, "supply"))
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "evaluate_define_runtime_meaning",
+        lambda _captured, *, request, **_kwargs: record(request, "meaning"))
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "require_condition_gate_family", admit)
+
+    genome = A2.SimpleNamespace(
+        flags={"BACKOFF_FIXED": 10, "BACKOFF_NOINLINE": 0})
+    with _REAL_CONDITION_GATE_FAMILY(
+            source_root, [genome], cxx="g++",
+            dependency_prefix=Path("/dependency"),
+            current_pin="abc1234",
+            expected_toolchain_manifest=expected_toolchain_manifest,
+    ) as (observed_variant, receipts):
+        assert observed_variant == variant_root
+        assert len(receipts) == 1
+        events.append(("campaign", observed_variant))
+        assert not any(event[0] == "applied-exit" for event in events)
+
+    assert variant_root != source_root
+    assert events.index(("applied-enter", variant_root, "abc1234")) < events.index(
+        ("prebuild", variant_root, fetchcontent_base)
+    ) < events.index(
+        ("capture", variant_root, source_root)
+    ) < events.index(("admit", "paper")) < events.index(
+        ("campaign", variant_root)
+    ) < events.index(("applied-exit", variant_root))
+    assert [event[0] for event in events].count("prebuild") == 1
+    assert [event[0] for event in events].count("checkout-enter") == 1
+    assert events[-2:] == [
+        ("applied-exit", variant_root),
+        ("checkout-exit", variant_root),
+    ]
+
+
+def test_condition_gate_context_cleans_up_on_body_exception(monkeypatch):
+    source_root = Path("/shared/ccbench")
+    variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    expected_toolchain_manifest = {"fixture": "toolchain"}
+    events = []
+
+    @contextlib.contextmanager
+    def checkout(pin_commit, *, base_dir):
+        events.append((
+            "checkout-enter", variant_root, Path(base_dir), pin_commit))
+        try:
+            yield os.fspath(variant_root)
+        finally:
+            events.append(("checkout-exit", variant_root))
+
+    @contextlib.contextmanager
+    def applied(_patch_path, pin_commit, *, ccbench_dir):
+        events.append(("applied-enter", Path(ccbench_dir), pin_commit))
+        try:
+            yield None
+        finally:
+            events.append(("applied-exit", Path(ccbench_dir)))
+
+    @contextlib.contextmanager
+    def temporary_directory(*, prefix):
+        assert prefix == "izanagi-a2-condition-gate-"
+        events.append(("fetchcontent-enter", fetchcontent_base))
+        try:
+            yield os.fspath(fetchcontent_base)
+        finally:
+            events.append(("fetchcontent-exit", fetchcontent_base))
+
+    def prepare_masstree_fetchcontent(**kwargs):
+        assert Path(kwargs["ccbench_dir"]) == variant_root
+        assert Path(kwargs["fetchcontent_base_dir"]) == fetchcontent_base
+        events.append(("prebuild", variant_root, fetchcontent_base))
+
+    def capture(source, *, stock_root, configure_args):
+        events.append(("capture", Path(source), Path(stock_root)))
+        assert configure_args == (
+            "-DCMAKE_PREFIX_PATH=/dependency",
+            f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+        )
+        return object()
+
+    def record(request, arm):
+        payload = {
+            "macro": request.macro,
+            "arm": arm,
+            "terminal_status": "green",
+        }
+        return A2.SimpleNamespace(
+            macro=request.macro,
+            arm=arm,
+            reason_code="established",
+            terminal_status="green",
+            evidence={},
+            canonical_json=lambda: json.dumps(payload),
+        )
+
+    def admit(supply_records, meaning_records, *, use_class):
+        assert supply_records and meaning_records
+        events.append(("admit", use_class))
+        return A2.SimpleNamespace(
+            admitted=True,
+            canonical_json=lambda: json.dumps({"admitted": True}),
+        )
+
+    monkeypatch.setattr(A2.patchharness, "checkout", checkout)
+    monkeypatch.setattr(A2.patchharness, "applied", applied)
+    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        prepare_masstree_fetchcontent)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "capture_define_inputs", capture)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "evaluate_define_supply_effectuation",
+        lambda _captured, *, request, **_kwargs: record(request, "supply"))
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "evaluate_define_runtime_meaning",
+        lambda _captured, *, request, **_kwargs: record(request, "meaning"))
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "require_condition_gate_family", admit)
+
+    genome = A2.SimpleNamespace(
+        flags={"BACKOFF_FIXED": 10, "BACKOFF_NOINLINE": 0})
+    with pytest.raises(RuntimeError, match="campaign failed"):
+        with _REAL_CONDITION_GATE_FAMILY(
+                source_root, [genome], cxx="g++",
+                dependency_prefix=Path("/dependency"),
+                current_pin="abc1234",
+                expected_toolchain_manifest=expected_toolchain_manifest,
+        ) as (observed_variant, receipts):
+            assert observed_variant == variant_root
+            assert len(receipts) == 1
+            events.append(("campaign", observed_variant))
+            raise RuntimeError("campaign failed")
+
+    assert events == [
+        ("checkout-enter", variant_root, source_root, "abc1234"),
+        ("applied-enter", variant_root, "abc1234"),
+        ("fetchcontent-enter", fetchcontent_base),
+        ("prebuild", variant_root, fetchcontent_base),
+        ("capture", variant_root, source_root),
+        ("admit", "paper"),
+        ("campaign", variant_root),
+        ("fetchcontent-exit", fetchcontent_base),
+        ("applied-exit", variant_root),
+        ("checkout-exit", variant_root),
+    ]
+
+
+def test_condition_gate_context_cleans_up_on_prebuild_exception(monkeypatch):
+    source_root = Path("/shared/ccbench")
+    variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    events = []
+
+    @contextlib.contextmanager
+    def checkout(_pin_commit, *, base_dir):
+        events.append(("checkout-enter", Path(base_dir)))
+        try:
+            yield os.fspath(variant_root)
+        finally:
+            events.append(("checkout-exit", variant_root))
+
+    @contextlib.contextmanager
+    def applied(_patch_path, _pin_commit, *, ccbench_dir):
+        events.append(("applied-enter", Path(ccbench_dir)))
+        try:
+            yield None
+        finally:
+            events.append(("applied-exit", Path(ccbench_dir)))
+
+    @contextlib.contextmanager
+    def temporary_directory(*, prefix):
+        assert prefix == "izanagi-a2-condition-gate-"
+        events.append(("fetchcontent-enter", fetchcontent_base))
+        try:
+            yield os.fspath(fetchcontent_base)
+        finally:
+            events.append(("fetchcontent-exit", fetchcontent_base))
+
+    def fail_prebuild(**kwargs):
+        events.append((
+            "prebuild", Path(kwargs["ccbench_dir"]),
+            Path(kwargs["fetchcontent_base_dir"]),
+        ))
+        raise RuntimeError("prebuild failed")
+
+    monkeypatch.setattr(A2.patchharness, "checkout", checkout)
+    monkeypatch.setattr(A2.patchharness, "applied", applied)
+    monkeypatch.setattr(A2.tempfile, "TemporaryDirectory", temporary_directory)
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent", fail_prebuild)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "capture_define_inputs",
+        lambda *_args, **_kwargs: pytest.fail(
+            "condition gate capture ran after prebuild failure"))
+
+    genome = A2.SimpleNamespace(flags={"BACKOFF_FIXED": 10})
+    with pytest.raises(RuntimeError, match="prebuild failed"):
+        with _REAL_CONDITION_GATE_FAMILY(
+                source_root, [genome], cxx="g++",
+                dependency_prefix=Path("/dependency"),
+                current_pin="abc1234",
+                expected_toolchain_manifest={"fixture": "toolchain"},
+        ):
+            pass
+
+    assert events == [
+        ("checkout-enter", source_root),
+        ("applied-enter", variant_root),
+        ("fetchcontent-enter", fetchcontent_base),
+        ("prebuild", variant_root, fetchcontent_base),
+        ("fetchcontent-exit", fetchcontent_base),
+        ("applied-exit", variant_root),
+        ("checkout-exit", variant_root),
+    ]
+
+
+def test_condition_gate_prebuild_runs_once_for_multiple_cells(monkeypatch):
+    variant_root = Path("/scratch/job-variant")
+    fetchcontent_base = Path("/scratch/fetchcontent")
+    prebuild_calls = []
+
+    monkeypatch.setattr(
+        A2.patchharness, "checkout",
+        lambda *_args, **_kwargs: contextlib.nullcontext(
+            os.fspath(variant_root)))
+    monkeypatch.setattr(
+        A2.patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext())
+    monkeypatch.setattr(
+        A2.tempfile, "TemporaryDirectory",
+        lambda **_kwargs: contextlib.nullcontext(
+            os.fspath(fetchcontent_base)))
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        lambda **kwargs: prebuild_calls.append(kwargs))
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "capture_define_inputs",
+        lambda *_args, **_kwargs: object())
+
+    def green_record(_captured, *, request, **_kwargs):
+        payload = {
+            "macro": request.macro,
+            "terminal_status": "green",
+        }
+        return A2.SimpleNamespace(
+            macro=request.macro,
+            terminal_status="green",
+            canonical_json=lambda: json.dumps(payload),
+        )
+
+    monkeypatch.setattr(
+        A2.condition_meaning_gate,
+        "evaluate_define_supply_effectuation", green_record)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate,
+        "evaluate_define_runtime_meaning", green_record)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "require_condition_gate_family",
+        lambda *_args, **_kwargs: A2.SimpleNamespace(
+            admitted=True,
+            canonical_json=lambda: json.dumps({"admitted": True}),
+        ))
+
+    genomes = [
+        A2.SimpleNamespace(flags={"BACKOFF_FIXED": value})
+        for value in (-1, 5, 10, 20)
+    ]
+    with _REAL_CONDITION_GATE_FAMILY(
+            Path("/shared/ccbench"), genomes, cxx="g++",
+            dependency_prefix=Path("/dependency"),
+            current_pin="abc1234",
+            expected_toolchain_manifest={"fixture": "toolchain"},
+    ) as (observed_variant, receipts):
+        assert observed_variant == variant_root
+        assert len(receipts) == len(genomes)
+
+    assert len(prebuild_calls) == 1
+
+
+def _assert_condition_gate_rejection(monkeypatch):
+    variant_root = Path("/scratch/job-variant")
+    monkeypatch.setattr(
+        A2.patchharness, "checkout",
+        lambda *_args, **_kwargs: contextlib.nullcontext(
+            os.fspath(variant_root)))
+    monkeypatch.setattr(
+        A2.patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext())
+    monkeypatch.setattr(
+        A2.tempfile, "TemporaryDirectory",
+        lambda **_kwargs: contextlib.nullcontext("/scratch/fetchcontent"))
+    monkeypatch.setattr(
+        A2.buildcache, "prepare_masstree_fetchcontent",
+        lambda **_kwargs: None)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "capture_define_inputs",
+        lambda *_args, **_kwargs: object())
+
+    red = A2.SimpleNamespace(
+        macro="BACKOFF_FIXED", arm="supply-effectuation",
+        reason_code="configure-failed", terminal_status="red",
+        evidence={"detail": "cmake emitted an unused-variable warning"},
+    )
+    green = A2.SimpleNamespace(
+        macro="BACKOFF_FIXED", arm="runtime-meaning",
+        reason_code="established", terminal_status="green", evidence={},
+    )
+    noinline_declaration = object()
+    factory_calls = []
+
+    def declare(request):
+        factory_calls.append(request)
+        return noinline_declaration \
+            if request.macro == "BACKOFF_NOINLINE" else None
+
+    def evaluate_meaning(_captured, *, request, declaration, **_kwargs):
+        if request.macro == "BACKOFF_NOINLINE":
+            assert declaration is noinline_declaration
+        return green
+
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "declare_define_runtime_meaning", declare)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "evaluate_define_supply_effectuation",
+        lambda _captured, *, request, **_kwargs: (
+            red if request.macro == "BACKOFF_FIXED" else green))
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "evaluate_define_runtime_meaning",
+        evaluate_meaning)
+    monkeypatch.setattr(
+        A2.condition_meaning_gate, "require_condition_gate_family",
+        lambda *_args, **_kwargs: A2.SimpleNamespace(admitted=False))
+
+    genome = A2.SimpleNamespace(
+        flags={"BACKOFF_FIXED": 10, "BACKOFF_NOINLINE": 0})
+    with pytest.raises(A2.CertificationError) as error:
+        with _REAL_CONDITION_GATE_FAMILY(
+                Path("/shared/ccbench"), [genome], cxx="g++",
+                dependency_prefix=Path("/dependency"),
+                current_pin="abc1234",
+                expected_toolchain_manifest={"fixture": "toolchain"},
+        ):
+            pass
+
+    message = str(error.value)
+    assert [
+        (request.macro, request.requested_value, request.default_value)
+        for request in factory_calls if request.macro == "BACKOFF_NOINLINE"
+    ] == [("BACKOFF_NOINLINE", 0, 0)]
+    assert "cmake emitted an unused-variable warning" in message
+    assert (
+        "BACKOFF_NOINLINE:runtime-meaning:meaning-witness-undeclared"
+    ) not in message
+
+
+def test_condition_gate_family_real_records_positive_then_issued_red_negative(
+    monkeypatch,
+):
+    """Exercise a family/wiring negative, not a real configure failure."""
+    import struct
+
+    from orchestrator.campaign import condition_meaning_gate as G
+    from orchestrator.tests import condition_gate_test_support as gate_support
+
+    supplied = gate_support._FIXTURE_ROOT
+    compilers = gate_support.condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("condition gate test compilers are not installed")
+    _cc, cxx = compilers
+    cmake = "cmake"
+    defaults = {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0}
+    real_family = G.require_condition_gate_family
+
+    def request_for(index, macro, value):
+        return G.make_define_request(
+            driver_id=(
+                "orchestrator.campaign.paper_story_a2_certification:"
+                f"cell-{index}"
+            ),
+            macro=macro,
+            requested_value=value,
+            default_value=defaults[macro],
+            stock_comparison=(macro == "BACKOFF_FIXED" and value == -1),
+        )
+
+    def declaration_for(request):
+        macro = request.macro
+        value = request.requested_value
+        declaration = G.declare_define_runtime_meaning(request)
+        if macro == "BACKOFF_FIXED" and value == -1:
+            return G.MeaningWitnessDeclaration(
+                macro,
+                (G.MeaningCase(
+                    -1,
+                    None,
+                    expected_selected_branch=G.STOCK_ADAPTIVE_BRANCH,
+                ),),
+            )
+        if macro == "BACKOFF_FIXED" and value >= 0:
+            bits = struct.pack(">d", float(value)).hex()
+            return G.MeaningWitnessDeclaration(
+                macro,
+                (G.MeaningCase(value, (bits, bits)),),
+            )
+        return declaration
+
+    captured = G.capture_define_inputs(
+        supplied, stock_root=supplied / "stock",
+    )
+    positive_flags = (
+        {"BACKOFF_FIXED": -1, "BACKOFF_NOINLINE": 0},
+        {"BACKOFF_FIXED": 10, "BACKOFF_NOINLINE": 0},
+    )
+    expected_supply_outcomes = {
+        (0, "BACKOFF_FIXED"): (
+            "green", "stock-inert-preprocess-identical",
+        ),
+        (0, "BACKOFF_NOINLINE"): (
+            "green", "stock-inert-preprocess-identical",
+        ),
+        (1, "BACKOFF_FIXED"): (
+            "green", "requested-default-preprocess-different",
+        ),
+        (1, "BACKOFF_NOINLINE"): (
+            "green", "stock-inert-preprocess-identical",
+        ),
+    }
+    expected_meaning_outcomes = {
+        (0, "BACKOFF_FIXED"): ("green", "declared-meaning-observed"),
+        (0, "BACKOFF_NOINLINE"): (
+            "green", "declared-compile-time-branch-selection-observed",
+        ),
+        (1, "BACKOFF_FIXED"): ("green", "declared-meaning-observed"),
+        (1, "BACKOFF_NOINLINE"): (
+            "green", "declared-compile-time-branch-selection-observed",
+        ),
+    }
+    positive_cells = []
+    positive_rows = []
+    for index, flags in enumerate(positive_flags):
+        cell_supply = []
+        cell_meaning = []
+        for macro in sorted(set(flags) & set(defaults)):
+            value = flags[macro]
+            request = request_for(index, macro, value)
+            declaration = declaration_for(request)
+            supply = G.evaluate_define_supply_effectuation(
+                captured, request=request, cxx=cxx, cmake=cmake,
+            )
+            meaning = G.evaluate_define_runtime_meaning(
+                captured,
+                request=request,
+                declaration=declaration,
+                cxx=cxx,
+                cmake=cmake,
+            )
+            assert type(supply) is G.ConditionArmRecord
+            assert type(meaning) is G.ConditionArmRecord
+            G._validate_arm_record_integrity(supply)
+            G._validate_arm_record_integrity(meaning)
+            assert (supply.terminal_status, supply.reason_code) \
+                == expected_supply_outcomes[(index, macro)]
+            assert (meaning.terminal_status, meaning.reason_code) \
+                == expected_meaning_outcomes[(index, macro)]
+            positive_rows.append((
+                index, macro, request, declaration, supply, meaning,
+            ))
+            cell_supply.append(supply)
+            cell_meaning.append(meaning)
+        admission = real_family(
+            cell_supply, cell_meaning, use_class="paper",
+        )
+        assert admission.admitted is True
+        assert admission.record_ids == tuple(
+            record.record_id for record in (*cell_supply, *cell_meaning)
+        )
+        assert admission.unestablished_meaning_macros == ()
+        positive_cells.append((cell_supply, cell_meaning, admission))
+
+    negative_request = request_for(0, "BACKOFF_FIXED", 10)
+    negative_declaration = declaration_for(negative_request)
+    negative_meaning = G.evaluate_define_runtime_meaning(
+        captured,
+        request=negative_request,
+        declaration=negative_declaration,
+        cxx=cxx,
+        cmake=cmake,
+    )
+    _spec, _requested, _default, companions = (
+        G._validate_define_request(negative_request)
+    )
+    negative_supply = G._issue_arm_record(
+        arm="supply-effectuation",
+        terminal_status="red",
+        reason_code="configure-failed",
+        request=negative_request,
+        request_digest=G._request_digest(negative_request, companions),
+        evidence={
+            "detail": "cmake emitted an unused-variable warning",
+        },
+    )
+    assert type(negative_supply) is G.ConditionArmRecord
+    assert type(negative_meaning) is G.ConditionArmRecord
+    G._validate_arm_record_integrity(negative_supply)
+    G._validate_arm_record_integrity(negative_meaning)
+    assert (
+        negative_meaning.terminal_status,
+        negative_meaning.reason_code,
+    ) == ("green", "declared-meaning-observed")
+
+    source_root = supplied
+    dependency_prefix = Path("/dependency")
+    current_pin = "abc1234"
+    expected_toolchain_manifest = {"fixture": "toolchain"}
+
+    def install_leaf_stubs(label, expected_rows):
+        variant_root = Path(f"/scratch/{label}-job-variant")
+        fetchcontent_base = Path(f"/scratch/{label}-fetchcontent")
+        calls = []
+        supply_index = 0
+        meaning_index = 0
+
+        @contextlib.contextmanager
+        def checkout(pin_commit, *, base_dir):
+            assert pin_commit == current_pin
+            assert base_dir == os.fspath(source_root)
+            calls.append("checkout")
+            yield os.fspath(variant_root)
+
+        @contextlib.contextmanager
+        def applied(patch_path, pin_commit, *, ccbench_dir):
+            assert patch_path == os.fspath(
+                Path(A2.__file__).resolve().parents[2]
+                / "patches/silo-backoff-fixed.patch"
+            )
+            assert pin_commit == current_pin
+            assert ccbench_dir == os.fspath(variant_root)
+            calls.append("applied")
+            yield None
+
+        @contextlib.contextmanager
+        def temporary_directory(*, prefix):
+            assert prefix == "izanagi-a2-condition-gate-"
+            calls.append("temporary-directory")
+            yield os.fspath(fetchcontent_base)
+
+        def prepare_masstree_fetchcontent(
+            *,
+            ccbench_dir,
+            fetchcontent_base_dir,
+            expected_toolchain_manifest,
+            configure_timeout_s,
+            target_timeout_s,
+            dependency_prefix,
+        ):
+            assert ccbench_dir == os.fspath(variant_root.resolve())
+            assert fetchcontent_base_dir == os.fspath(fetchcontent_base)
+            assert expected_toolchain_manifest is expected_manifest
+            assert configure_timeout_s == 900
+            assert target_timeout_s == 900
+            assert dependency_prefix == os.fspath(expected_dependency_prefix)
+            calls.append("prebuild")
+
+        def capture(source, *, stock_root, configure_args):
+            assert source == variant_root
+            assert stock_root == source_root
+            assert configure_args == (
+                f"-DCMAKE_PREFIX_PATH={expected_dependency_prefix}",
+                f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}",
+            )
+            calls.append("capture")
+            return captured
+
+        def evaluate_supply(_captured, *, request, cxx, cmake):
+            nonlocal supply_index
+            assert supply_index < len(expected_rows)
+            index, macro, expected_request, _declaration, record, _meaning = (
+                expected_rows[supply_index]
+            )
+            assert _captured is captured
+            assert request == expected_request
+            assert cxx == expected_cxx
+            assert cmake == expected_cmake
+            calls.append(f"supply:cell-{index}:{macro}")
+            supply_index += 1
+            return record
+
+        def evaluate_meaning(
+            _captured, *, request, declaration, cxx,
+        ):
+            nonlocal meaning_index
+            assert meaning_index < len(expected_rows)
+            index, macro, expected_request, expected_declaration, _supply, record = (
+                expected_rows[meaning_index]
+            )
+            assert _captured is captured
+            assert request == expected_request
+            assert declaration == expected_declaration
+            assert cxx == expected_cxx
+            calls.append(f"meaning:cell-{index}:{macro}")
+            meaning_index += 1
+            return record
+
+        expected_cxx = cxx
+        expected_cmake = cmake
+        expected_dependency_prefix = dependency_prefix
+        expected_manifest = expected_toolchain_manifest
+        monkeypatch.setattr(A2.patchharness, "checkout", checkout)
+        monkeypatch.setattr(A2.patchharness, "applied", applied)
+        monkeypatch.setattr(
+            A2.tempfile, "TemporaryDirectory", temporary_directory,
+        )
+        monkeypatch.setattr(
+            A2.buildcache,
+            "prepare_masstree_fetchcontent",
+            prepare_masstree_fetchcontent,
+        )
+        monkeypatch.setattr(
+            A2.condition_meaning_gate, "capture_define_inputs", capture,
+        )
+        monkeypatch.setattr(
+            A2.condition_meaning_gate,
+            "evaluate_define_supply_effectuation",
+            evaluate_supply,
+        )
+        monkeypatch.setattr(
+            A2.condition_meaning_gate,
+            "evaluate_define_runtime_meaning",
+            evaluate_meaning,
+        )
+        return variant_root, calls
+
+    positive_variant, positive_calls = install_leaf_stubs(
+        "positive", positive_rows,
+    )
+    positive_genomes = [
+        A2.SimpleNamespace(flags=dict(flags)) for flags in positive_flags
+    ]
+    with _REAL_CONDITION_GATE_FAMILY(
+        source_root,
+        positive_genomes,
+        cxx=cxx,
+        dependency_prefix=dependency_prefix,
+        current_pin=current_pin,
+        expected_toolchain_manifest=expected_toolchain_manifest,
+    ) as (observed_variant, receipts):
+        assert observed_variant == positive_variant
+        assert len(receipts) == 2
+        for receipt, (supply, meaning, admission) in zip(
+            receipts, positive_cells, strict=True,
+        ):
+            assert receipt == {
+                "supply_records": [
+                    json.loads(record.canonical_json()) for record in supply
+                ],
+                "meaning_records": [
+                    json.loads(record.canonical_json()) for record in meaning
+                ],
+                "admission": json.loads(admission.canonical_json()),
+            }
+    assert positive_calls == [
+        "checkout",
+        "applied",
+        "temporary-directory",
+        "prebuild",
+        "capture",
+        "supply:cell-0:BACKOFF_FIXED",
+        "meaning:cell-0:BACKOFF_FIXED",
+        "supply:cell-0:BACKOFF_NOINLINE",
+        "meaning:cell-0:BACKOFF_NOINLINE",
+        "supply:cell-1:BACKOFF_FIXED",
+        "meaning:cell-1:BACKOFF_FIXED",
+        "supply:cell-1:BACKOFF_NOINLINE",
+        "meaning:cell-1:BACKOFF_NOINLINE",
+    ]
+
+    negative_admission = real_family(
+        [negative_supply], [negative_meaning], use_class="paper",
+    )
+    assert negative_admission.admitted is False
+    negative_rows = [(
+        0,
+        "BACKOFF_FIXED",
+        negative_request,
+        negative_declaration,
+        negative_supply,
+        negative_meaning,
+    )]
+    _negative_variant, negative_calls = install_leaf_stubs(
+        "negative", negative_rows,
+    )
+    negative_genome = A2.SimpleNamespace(flags={"BACKOFF_FIXED": 10})
+    with pytest.raises(A2.CertificationError) as error:
+        with _REAL_CONDITION_GATE_FAMILY(
+            source_root,
+            [negative_genome],
+            cxx=cxx,
+            dependency_prefix=dependency_prefix,
+            current_pin=current_pin,
+            expected_toolchain_manifest=expected_toolchain_manifest,
+        ):
+            pass
+    message = str(error.value)
+    assert (
+        "BACKOFF_FIXED:supply-effectuation:configure-failed:"
+        "detail='cmake emitted an unused-variable warning'"
+    ) in message
+    assert "BACKOFF_FIXED:runtime-meaning:" not in message
+    assert negative_calls == [
+        "checkout",
+        "applied",
+        "temporary-directory",
+        "prebuild",
+        "capture",
+        "supply:cell-0:BACKOFF_FIXED",
+        "meaning:cell-0:BACKOFF_FIXED",
+    ]
+
+
 from orchestrator.tests import commit_receipt_support as receipt_support
 
 
@@ -99,6 +971,29 @@ def _policy(tmp_path):
     path = tmp_path / "policy.json"
     path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
     return A2.load_policy(path)
+
+
+def _a6_policy(tmp_path):
+    document = json.loads(A2.A6_POLICY_PATH.read_text(encoding="utf-8"))
+    document["durable_measurement_base"] = str(tmp_path / "durable-a6")
+    path = tmp_path / "a6-policy.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return A2.load_policy(path)
+
+
+def _request_ids(policy):
+    return {
+        workload_id: f"{945411 + index}.nqsv"
+        for index, workload_id in enumerate(A2.workload_ids(policy))
+    }
+
+
+def _submission_visibility(request_id):
+    return (
+        f"Request ID: {request_id}\n"
+        "    Current State = Staging\n"
+        "    Ended Request Time = (none)\n"
+    )
 
 
 def _campaign_cfg(mode):
@@ -172,7 +1067,8 @@ def _positive_results(
             "version_first_line": "cmake fixture",
         },
     }
-    for workload_id in ("rr5", "rr50"):
+    request_ids = _request_ids(policy)
+    for workload_id in A2.workload_ids(policy):
         lock_text = _campaign_lock_text(
             policy, workload_id, attempt_root.name)
         identity = campaign_lock.decode_campaign_lock(lock_text).identity
@@ -290,8 +1186,7 @@ def _positive_results(
             "protocol_digest": hashlib.sha256(
                 ident.canonical_preimage(cfg).encode("utf-8")
             ).hexdigest(),
-            "job_id": (
-                "945411.nqsv" if workload_id == "rr5" else "945412.nqsv"),
+            "job_id": request_ids[workload_id],
             "host": "bnode001",
             "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text(
                 encoding="ascii").strip(),
@@ -358,12 +1253,14 @@ def _write_receipt_bundle(
     repo_root = A2.POLICY_PATH.parents[2]
     job_body = repo_root / policy.document["scheduler"]["job_body"]
     started = int(time.time()) - 1
-    request_ids = {"rr5": "945411.nqsv", "rr50": "945412.nqsv"}
+    request_ids = _request_ids(policy)
     submission_jobs = []
     completion_jobs = []
-    driver_rcs = (
-        dict(driver_rc) if type(driver_rc) is dict
-        else {"rr5": driver_rc, "rr50": 0})
+    if type(driver_rc) is dict:
+        driver_rcs = dict(driver_rc)
+    else:
+        driver_rcs = dict.fromkeys(A2.workload_ids(policy), 0)
+        driver_rcs[A2.workload_ids(policy)[0]] = driver_rc
     assert list(driver_rcs) == list(A2.workload_ids(policy))
     for workload_id in A2.workload_ids(policy):
         request_id = request_ids[workload_id]
@@ -385,13 +1282,18 @@ def _write_receipt_bundle(
             "IZANAGI_A2_REPO_ROOT": str(repo_root),
             "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": "/pinned/deps",
         }
+        if policy.study == "paper-story-a6-certification":
+            qsub_environment["IZANAGI_A2_POLICY_PATH"] = str(policy.path)
         variable_arg = ",".join(
             f"{key}={value}" for key, value in qsub_environment.items())
         submission_jobs.append({
             "workload": workload_id,
             "qsub_argv": [
-                "qsub", "-A", "SFC", "-q", "gen_S", "-b", "1",
-                "-l", "elapstim_req=06:00:00", "-N", "paper-a2-cert",
+                "qsub", "-A", policy.document["scheduler"]["project"],
+                "-q", policy.document["scheduler"]["queue"],
+                "-b", str(policy.document["scheduler"]["nodes"]),
+                "-l", f"elapstim_req={policy.document['scheduler']['walltime']}",
+                "-N", A2._qsub_job_name(policy),
                 "-v", variable_arg,
                 "-o", str(stdout_path), "-e", str(stderr_path),
                 str(job_body),
@@ -407,25 +1309,33 @@ def _write_receipt_bundle(
                 "argv": ["qstat", "-f", request_id],
                 "returncode": 0,
                 "state": "QUE",
-                "stdout": QSTAT_FANOUT_VISIBILITY_FIXTURES[workload_id].read_text(
-                    encoding="utf-8"),
+                "stdout": (
+                    QSTAT_FANOUT_VISIBILITY_FIXTURES[workload_id].read_text(
+                        encoding="utf-8")
+                    if workload_id in QSTAT_FANOUT_VISIBILITY_FIXTURES
+                    else _submission_visibility(request_id)
+                ),
                 "stderr": "",
             },
             "qsub_environment": qsub_environment,
         })
         allocation_stdout = job_root / "scheduler" / "allocation-qstat.stdout"
         allocation_stderr = job_root / "scheduler" / "allocation-qstat.stderr"
+        walltime_hours, walltime_minutes, walltime_seconds = (
+            int(part) for part in policy.document["scheduler"]["walltime"].split(":"))
+        requested_seconds = (
+            walltime_hours * 3600 + walltime_minutes * 60 + walltime_seconds)
         allocation_stdout.write_text(
             f"Request ID: {request_id}\nStarted Request Time = now\n"
-            "(Per-Req) Elapse Time Limit = Max: 21600S\n",
+            f"(Per-Req) Elapse Time Limit = Max: {requested_seconds}S\n",
             encoding="utf-8",
         )
         allocation_stderr.write_text("", encoding="utf-8")
         reservation_environment = {
             "IZANAGI_RESERVATION_JOB_ID": request_id,
-            "IZANAGI_RESERVATION_REQUESTED_S": "21600",
+            "IZANAGI_RESERVATION_REQUESTED_S": str(requested_seconds),
             "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
-            "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + 21600),
+            "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested_seconds),
             "IZANAGI_RESERVATION_HOST": "bnode001",
             "IZANAGI_RESERVATION_BOOT_ID": Path(
                 "/proc/sys/kernel/random/boot_id").read_text(
@@ -499,10 +1409,13 @@ def _write_receipt_bundle(
         workload for workload, value in driver_rcs.items() if value == 0]
     completion_schema = A2.COMPLETION_SCHEMA
     manifest_path = None
-    if len(successful_workloads) == 2 and claim_manifest:
+    if (len(successful_workloads) == len(A2.workload_ids(policy))
+            and claim_manifest):
         manifest_path = A2.finalize_raw_manifest(
             policy, attempt_root, CURRENT_PIN)
-    elif len(successful_workloads) == 1 and not force_legacy_v3:
+    elif (len(A2.workload_ids(policy)) == 2
+          and len(successful_workloads) == 1
+          and not force_legacy_v3):
         completion_schema = A2.PARTIAL_COMPLETION_SCHEMA
         if claim_manifest:
             manifest_path = A2._finalize_partial_raw_manifest(
@@ -745,6 +1658,101 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     decorative_changed.pop("certification_composition")
     assert hashlib.sha256(A2._canonical_json(decorative_original)).hexdigest() == \
         hashlib.sha256(A2._canonical_json(decorative_changed)).hexdigest()
+
+
+def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
+    raw = A2.POLICY_PATH.read_bytes()
+    policy = A2.load_policy()
+
+    assert hashlib.sha256(raw).hexdigest() == (
+        "42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e")
+    assert policy.bytes_sha256 == (
+        "42bfee487c9e517b9876fbb41f8a4b4de53266ced1543263087bbd637ecc897e")
+    assert policy.protocol_sha256 == (
+        "136b823e60a4b43e07dbbb4e3f8b5be48964226c955e143d59955325f0e0d9f4")
+    assert policy.raw_bytes == raw
+    assert A2.workload_ids(policy) == ("rr5", "rr50")
+    assert A2._qsub_job_name(policy) == "paper-a2-cert"
+    assert A2._qsub_environment_keys(policy) == A2._QSUB_ENV_KEYS
+
+
+def test_m3_combined_count_layers_reject_three_workload_a6_policy(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["study"] = "paper-story-a6-certification"
+    document["workloads"].append({
+        "id": "rr95", "label": "read-heavy", "rratio": "95",
+        "adopted_backoff_us": 2,
+    })
+    document["cells"].extend([
+        {
+            "id": "rr95-stock", "workload": "rr95", "role": "stock",
+            "genome": {"BACK_OFF": 0, "BACKOFF_FIXED": -1},
+        },
+        {
+            "id": "rr95-fixed2", "workload": "rr95", "role": "adopted",
+            "genome": {"BACK_OFF": 1, "BACKOFF_FIXED": 2},
+        },
+    ])
+    path = tmp_path / "three-workload-a6.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(A2.CertificationError, match="study shape"):
+        A2.load_policy(path)
+
+
+def test_policy_loader_rejects_unknown_study(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["study"] = "paper-story-unknown-certification"
+    path = tmp_path / "unknown-study.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(A2.CertificationError, match="not a shipped certification study"):
+        A2.load_policy(path)
+
+
+def test_m4_cli_policy_selection_rejects_noncanonical_path(tmp_path):
+    path = tmp_path / "valid-but-unshipped-a6.json"
+    path.write_bytes(A2.A6_POLICY_PATH.read_bytes())
+    args = type("Args", (), {"policy": str(path)})()
+
+    with pytest.raises(A2.CertificationError, match="canonical shipped policy"):
+        A2._load_selected_policy(args)
+    exact_args = type("ExactArgs", (), {
+        "policy": str(path), "qsub_argv": ["--", "qsub"],
+    })()
+    with pytest.raises(A2.CertificationError, match="canonical shipped policy"):
+        A2._exact_qsub_command(exact_args)
+
+
+def test_m5_workloads_remain_in_protocol_preimage():
+    original = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(original)
+    changed["workloads"][0]["label"] = "changed-only-in-workloads"
+
+    original_sha = hashlib.sha256(
+        A2._canonical_json(A2._protocol_preimage(original))).hexdigest()
+    changed_sha = hashlib.sha256(
+        A2._canonical_json(A2._protocol_preimage(changed))).hexdigest()
+    assert original_sha != changed_sha
+
+
+def test_a6_policy_is_exact_read_heavy_pair_with_twelve_hour_walltime():
+    policy = A2.load_policy(A2.A6_POLICY_PATH)
+
+    assert A2.workload_ids(policy) == ("rr95",)
+    assert [(cell.cell_id, cell.role, dict(cell.genome)) for cell in policy.cells] == [
+        ("rr95-stock", "stock", {"BACK_OFF": 0, "BACKOFF_FIXED": -1}),
+        ("rr95-fixed2", "adopted", {"BACK_OFF": 1, "BACKOFF_FIXED": 2}),
+    ]
+    assert policy.document["scheduler"] == {
+        "project": "SFC", "queue": "gen_S", "nodes": 1,
+        "walltime": "12:00:00",
+        "job_body": "tools/pegasus/paper_story_a2_certification.sh",
+    }
+    assert policy.bytes_sha256 == (
+        "4ca15d071f0bc10febe3274d0523b59f0e4903bf612ff050bef7e6728a3700d4")
+    assert policy.protocol_sha256 == (
+        "a73bc3a0eabd1bcb960779c9b61b20983ef3cfb88d76d50c073e9ced4f6be445")
 
 
 def test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts(
@@ -1125,6 +2133,97 @@ def _terminal_qstat(command, **kwargs):
     return subprocess.CompletedProcess(
         command, 0,
         f"Request ID: {request_id}\nRequest State = EXT\n", "")
+
+
+def test_m1_a6_single_workload_full_success_stays_v3(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "attempt-a6-full-m1", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+
+    completion_path, acquisition_path = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    completion, _ = A2._read_json(completion_path)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition_path, current_pin=CURRENT_PIN)
+
+    assert completion["schema_version"] == A2.COMPLETION_SCHEMA
+    assert completion["raw_result_manifest"] == str(root / "raw-manifest.json")
+    assert evidence["completion_schema"] == A2.COMPLETION_SCHEMA
+    assert evidence["raw_manifest_schema"] == A2.RAW_MANIFEST_SCHEMA
+    assert evidence["raw_manifest_valid"] is True
+    assert len(evidence["raw_files"]) == 5
+
+
+def test_m2_partial_v4_completion_requires_exact_two_workloads(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "attempt-a6-forged-partial-m2", CURRENT_PIN)
+    _acquisition, submission = _write_receipt_bundle(policy, root)
+    completion, _ = A2._read_json(root / "receipts" / "completion.json")
+    completion["schema_version"] = A2.PARTIAL_COMPLETION_SCHEMA
+    completion["successful_workload"] = "rr95"
+    submission_binding = A2._validate_submission_receipt(
+        policy, submission, root.name, root, CURRENT_PIN)
+
+    with pytest.raises(
+            A2.CertificationError, match="exact two-workload policy"):
+        A2._validate_completion_receipt(
+            policy, completion, root.name, root, CURRENT_PIN,
+            submission_binding,
+        )
+
+
+def test_p2_a6_full_v3_path_collects_and_materializes(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "attempt-a6-full-p2", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    _completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2.collect_results(
+        policy, evidence["raw_results"], attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+        frozen_files=evidence["raw_files"], attempt_root=root,
+    )
+    report["source_commit"] = evidence["source_commit"]
+    repository = tmp_path / "a6-materialized-repository"
+    repository.mkdir()
+    destination = A2.materialize(
+        policy, report, evidence, repo_root=repository)
+
+    assert report["status"] == "observed-positive"
+    assert [cell["workload"] for cell in report["cells"]] == ["rr95", "rr95"]
+    assert all(cell["correctness"]["status"] == "certified"
+               for cell in report["cells"])
+    assert destination == repository / policy.tracked_destination
+    assert (destination / "certification.json").is_file()
+    assert (destination / "COMPLETE.json").is_file()
+
+
+def test_a6_anomaly_is_immediate_reject(tmp_path):
+    policy = _a6_policy(tmp_path)
+    root = A2.create_attempt_root(policy, "attempt-a6-anomaly")
+    results = _positive_results(policy, root)
+    anomaly = results[0]
+    anomaly["correctness"][PERFORMANCE_TAG][0] = {
+        **anomaly["correctness"][PERFORMANCE_TAG][0],
+        "status": "anomaly",
+        "certified": False,
+        "verdict": "non-serializable",
+        "anomalies": [{"cycle": ["read-a", "read-b"]}],
+    }
+    anomaly["correctness"][PERFORMANCE_TAG] = [
+        anomaly["correctness"][PERFORMANCE_TAG][0]]
+    anomaly["trace0_evidence"] = None
+    anomaly["performance"] = {
+        "status": "indeterminate", "reason": "verify-reject"}
+    report = A2.collect_results(
+        policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
+        request_ids=_request_ids(policy), _test_token=A2._COLLECT_TEST_TOKEN)
+
+    assert report["status"] == "reject"
+    assert report["cells"][0]["correctness"]["status"] == "non-serializable"
+    assert A2.driver_rc(report) == 0
 
 
 def test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest(
@@ -2221,6 +3320,7 @@ def test_collector_never_calls_positive_path_for_failed_or_manifestless_compute(
 
     monkeypatch.setattr(A2, "materialize", materialize)
     args = type("Args", (), {
+        "policy": None,
         "acquisition_receipt": str(acquisition),
         "current_pin": CURRENT_PIN,
         "attempt_root": str(root),
@@ -2439,9 +3539,20 @@ def test_changed_campaign_wal_invalidates_the_manifest_bundle(tmp_path):
     assert "hash mismatch" in evidence["raw_manifest_reason"]
 
 
-def test_cli_has_no_policy_injection_surface():
-    with pytest.raises(SystemExit):
-        A2._parser().parse_args(["--policy", "/tmp/alternate.json", "preregister"])
+def test_p3_cli_selects_default_a2_and_explicit_a6_policy():
+    common = ["preregister", "--attempt-id", "cli-policy", "--current-pin", CURRENT_PIN]
+    default_args = A2._parser().parse_args(common)
+    a6_args = A2._parser().parse_args([
+        "--policy", "orchestrator/campaign/paper_story_a6_certification.v2.json",
+        *common,
+    ])
+    default = A2._load_selected_policy(default_args)
+    a6 = A2._load_selected_policy(a6_args)
+
+    assert (A2.workload_ids(default), A2._qsub_job_name(default)) == (
+        ("rr5", "rr50"), "paper-a2-cert")
+    assert (A2.workload_ids(a6), A2._qsub_job_name(a6)) == (
+        ("rr95",), "paper-a6-cert")
 
 
 @pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
@@ -2512,6 +3623,16 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     observed = "buildcache.observed_toolchain_manifest("
     passed = "expected_toolchain_manifest=expected_toolchain_manifest"
     assert observed in source and passed in source
+    assert source.count(passed) == 2
+    condition_gate_call = source.index("with _condition_gate_family_context(")
+    condition_gate_call_end = source.index(
+        ") as (variant_root, condition_gate_receipts):", condition_gate_call)
+    condition_gate_manifest = source.index(
+        passed, condition_gate_call, condition_gate_call_end)
+    assert condition_gate_call < condition_gate_manifest < condition_gate_call_end
+    assert source.index(observed) < source.index(
+        "with _condition_gate_family_context("
+    )
     assert source.index(observed) < source.index("summary = run_campaign(")
     assert "capability_resolver=capability_resolver" in source
     loop_source = inspect.getsource(loop.run_campaign)

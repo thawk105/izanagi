@@ -26,6 +26,12 @@
   平均を μ に固定した半幅 3 形 × 6 平均 × 3 workload × 独立 3 ブロックの grid、
   判定規則の機械可読 spec (符号反転 exact 検定・Holm・曝露 gate・欠測規則)、
   待機の物理残差の実測欄、発効条件と束縛の正本
+- `dynamic-backoff-preregistration.md` — Silo 上の Cicada 型 adaptive backoff の 3 定数を動的化する変異
+  (計数窓 / 適応刻み / 動的上限) の事前登録。7 腕、対内 log 比の判定式と等価域、H1〜H7、欠測規則、
+  診断 run と認証の範囲、束縛の正本
+- `b10-multinode-formal-run-design.md` — B-10 正式系列を複数ノードへ分散する設計 ([T-1905])。
+  分散単位 4 案の判定、律速が正しさ検査であることと多重化が正しさ受領証の発行境界に当たる事実、
+  投入前の必須修正、ユーザー裁定へ返す項目。**投入の承認ではない**
 - `worklog.md` — 日誌。末尾エントリ = 可変状態の正本。書式とローテーションは同ファイル冒頭
 - `spool/README.md` — 3 台帳へ書くための fragment 形式と fold の正本。並行セッションが同じ行末を
   奪い合わないよう、wave は fragment だけを書き、採番と追記は land が lock 内で一度だけ行う
@@ -56,6 +62,8 @@
 - `related-work/` — 関連研究 (README.md が本体 — 7.7 が主張軸別の調査状態と不在主張の成立条件の規則 +
   claim-survey/ 主張軸別の凍結棚卸し・監査 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
+- `paper-story-backoff/` — adaptive backoff 単独論文 (2 本目) のストーリー。`paper-story/` と同じ凍結契約、
+  正典は decisions / worklog / insights。本体論文との境界は同 README
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-t189-model-routing-preregistration.md` — model 経路 (sol / luna) 比較実験の事前登録。
   未解決点の処遇は D674 で確定済み。素材の到達状況 (task catalog・price snapshot) は同書 §13 と総括が正本

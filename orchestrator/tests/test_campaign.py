@@ -47,8 +47,10 @@ _ORCH = os.path.dirname(_HERE)
 _REPOSITORY = os.path.dirname(_ORCH)
 sys.path.insert(0, _REPOSITORY)
 
+from orchestrator import holdout_observation                                  # noqa: E402
 from orchestrator.campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
-                      site_policy, source_digest, trigger_gate_binding, wal)
+                      s8b_ratified_freeze, site_policy, source_digest,
+                      trigger_gate_binding, wal)
 from orchestrator.calibrator import perf_preflight as perf_preflight_module   # noqa: E402
 from orchestrator.campaign import env_contract as ec                          # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
@@ -83,7 +85,7 @@ from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate     # 
 from orchestrator.campaign.source_digest import SourceEvidence                # noqa: E402
 from skiputil import Skip, skip, skip_conditional_unrun          # noqa: E402
 from orchestrator.verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
-                            Integrity, RW, VerifyResult)
+                            Integrity, ProofSurfaceAssessment, RW, VerifyResult)
 from certified_writer_fixtures import (                          # noqa: E402
     build_admission_fixture,
     build_source_drift_fixture,
@@ -150,6 +152,24 @@ def _source_evidence(
         tracked_diff_sha256=("4" * 64 if dirty else hashlib.sha256(b"").hexdigest()),
         tracked_paths=(("include/backoff.hh",) if dirty else ()),
     )
+
+
+def _install_complete_silo_proof_source(source_root: str) -> None:
+    """Add the compiled Silo X/P fixture without replacing existing source."""
+    protocol_root = Path(source_root) / "cc/silo"
+    protocol_root.mkdir(parents=True, exist_ok=True)
+    (protocol_root / "CMakeLists.txt").write_text(
+        "ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n",
+        encoding="utf-8",
+    )
+    transaction = protocol_root / "transaction.cc"
+    with transaction.open("a", encoding="utf-8") as stream:
+        stream.write(
+            "\n#if TRACE\n"
+            "izanagi_trace::emit_lock_violation(0, 0, {}, {});\n"
+            "izanagi_trace::stream(0) << \"P \";\n"
+            "#endif\n"
+        )
 
 
 def _admission_for(
@@ -245,10 +265,111 @@ def test_mocc_space_excludes_fixed_and_measurement_axes_and_names_ycsb_scope():
     assert "YCSB workload" in gs.notes and "include/ycsb.hh" in gs.notes
 
 
-def test_tictoc_and_cicada_remain_unregistered():
-    for protocol in ("tictoc", "cicada"):
-        with pytest.raises(KeyError, match="未登録"):
-            genome.space_for(protocol)
+def test_tictoc_and_cicada_are_registered():
+    assert genome.space_for("tictoc") is genome.TICTOC_SPACE
+    assert genome.space_for("cicada") is genome.CICADA_SPACE
+
+
+def test_tictoc_space_has_twenty_four_operable_ycsb_boolean_genomes():
+    gs = genome.space_for("tictoc")
+    assert gs.raw_size() == 32
+    assert set(gs.axes) == {
+        "BACK_OFF",
+        "NO_WAIT_LOCKING_IN_VALIDATION",
+        "NO_WAIT_OF_TICTOC",
+        "PREEMPTIVE_ABORTS",
+        "TIMESTAMP_HISTORY",
+    }
+    assert all(values == [0, 1] for values in gs.axes.values())
+    enumerated = gs.enumerate()
+    assert len(enumerated) == 24
+    assert len({item.canonical() for item in enumerated}) == 24
+    assert all(item.protocol == "tictoc" for item in enumerated)
+
+
+def test_tictoc_space_excludes_redundant_double_no_wait_but_keeps_wait_pair():
+    enumerated = genome.space_for("tictoc").enumerate()
+    pairs = {
+        (
+            item.flags["NO_WAIT_LOCKING_IN_VALIDATION"],
+            item.flags["NO_WAIT_OF_TICTOC"],
+        )
+        for item in enumerated
+    }
+    assert pairs == {(0, 0), (0, 1), (1, 0)}
+
+
+def test_tictoc_space_excludes_dead_and_measurement_axes_and_names_ycsb_scope():
+    """notes の語句だけを検査し、C++ 側の事実そのものは検証しない。"""
+    gs = genome.space_for("tictoc")
+    assert not {"PARTITION_TABLE", "SLEEP_READ_PHASE", "TRACE"} & set(gs.axes)
+    assert "PARTITION_TABLE" in gs.notes and "死にフラグ" in gs.notes
+    assert "workload source" in gs.notes and "共通 header" in gs.notes
+    assert "SLEEP_READ_PHASE" in gs.notes and "計測撹乱ノブ" in gs.notes
+    assert "(1,1)" in gs.notes and "(1,0)" in gs.notes and "冗長" in gs.notes
+    assert "silo" in gs.notes and "XOR" in gs.notes and "transaction.cc:626" in gs.notes
+    assert "競合下の完走性・公平性・starvation" in gs.notes and "未実測" in gs.notes
+    assert "24" in gs.notes and "YCSB workload" in gs.notes
+    assert "静的導出" in gs.notes and "実測ではない" in gs.notes
+    assert "bare define" in gs.notes and "導出不能として残す候補もない" in gs.notes
+    assert "CLI から個別指定" in gs.notes and "全組合せが異なる挙動" in gs.notes
+
+
+def test_cicada_space_has_twenty_four_operable_ycsb_boolean_genomes():
+    gs = genome.space_for("cicada")
+    assert gs.raw_size() == 32
+    assert set(gs.axes) == {
+        "BACK_OFF",
+        "INLINE_VERSION_OPT",
+        "INLINE_VERSION_PROMOTION",
+        "REUSE_VERSION",
+        "WRITE_LATEST_ONLY",
+    }
+    assert all(values == [0, 1] for values in gs.axes.values())
+    enumerated = gs.enumerate()
+    assert len(enumerated) == 24
+    assert len({item.canonical() for item in enumerated}) == 24
+    assert all(item.protocol == "cicada" for item in enumerated)
+
+
+def test_cicada_space_requires_inline_opt_for_promotion():
+    enumerated = genome.space_for("cicada").enumerate()
+    pairs = {
+        (
+            item.flags["INLINE_VERSION_OPT"],
+            item.flags["INLINE_VERSION_PROMOTION"],
+        )
+        for item in enumerated
+    }
+    assert pairs == {(0, 0), (1, 0), (1, 1)}
+
+
+def test_cicada_space_excludes_semantic_dead_and_measurement_axes_and_names_ycsb_scope():
+    """notes の語句だけを検査し、C++ 側の事実そのものは検証しない。"""
+    gs = genome.space_for("cicada")
+    assert not {
+        "SINGLE_EXEC",
+        "PARTITION_TABLE",
+        "WORKER1_INSERT_DELAY_RPHASE",
+        "INSERT_READ_DELAY_MS",
+        "INSERT_BATCH_DELAY_MS",
+        "TRACE",
+    } & set(gs.axes)
+    assert "SINGLE_EXEC" in gs.notes and "多版から単版" in gs.notes
+    assert "測るものそのもの" in gs.notes and "fresh configure" in gs.notes
+    assert "PARTITION_TABLE" in gs.notes and "print 専用" in gs.notes
+    assert "README の説明と現行コードが食い違う" in gs.notes
+    assert "WORKER1_INSERT_DELAY_RPHASE" in gs.notes
+    assert "INSERT_READ_DELAY_MS" in gs.notes and "INSERT_BATCH_DELAY_MS" in gs.notes
+    assert "計測撹乱ノブ" in gs.notes
+    assert "WRITE_LATEST_ONLY" in gs.notes and "読み側の可視性が不変" in gs.notes
+    assert "余分に abort" in gs.notes
+    assert "(OPT,PROMOTION)=(0,1)" in gs.notes and "(0,0)" in gs.notes
+    assert "CC / data path の挙動が同一" in gs.notes and "起動時の option 表示だけは異なる" in gs.notes
+    assert "24" in gs.notes and "YCSB workload" in gs.notes
+    assert "静的導出" in gs.notes and "実測ではない" in gs.notes
+    assert "bare define" in gs.notes and "導出不能として残す候補もない" in gs.notes
+    assert "CLI から個別指定" in gs.notes and "全組合せが異なる挙動" in gs.notes
 
 
 def test_buildcache_detects_trace_symbol_leak():
@@ -5234,7 +5355,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         ("orchestrator/campaign/p3_s4_loop_sort.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/p3_s4_loop_trigger_gating.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/p3_s4_red.py", "campaign.loop.run_campaign"): 2,
-        ("orchestrator/campaign/paper_story_a1_paired.py", "campaign.loop.run_campaign"): 1,
+        ("orchestrator/campaign/paper_story_a1_paired.py", "campaign.loop.run_campaign"): 2,
         ("orchestrator/campaign/paper_story_a2_certification.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/s6_sort_sweep.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/s8a_trigger_sweep.py", "campaign.loop.run_campaign"): 1,
@@ -5246,7 +5367,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         ("orchestrator/qualification/t126_driver.py", "campaign.pipeline.evaluate"): 1,
     })
     assert sum(count for (path, target), count in expected_inventory.items()
-               if target == "campaign.loop.run_campaign") == 19
+               if target == "campaign.loop.run_campaign") == 20
     assert sum(count for (path, target), count in expected_inventory.items()
                if target == "campaign.pipeline.evaluate") == 5
 
@@ -5616,7 +5737,12 @@ def test_m8_preflight_rejects_fail_open_domain_module_drift(tmp_path=None):
 def _green_vr():
     """実 VerifyResult (緑): certified=True になる最小の health。"""
     return VerifyResult(trace_dir="/tmp/ev", serializable=True, anomalies=[],
-                        integrity=Integrity(), n_txns=100, n_reads=300,
+                        integrity=Integrity(proof_surfaces=ProofSurfaceAssessment(
+                            protocol="silo",
+                            lock_coverage="evidence-present",
+                            permutation="evidence-present",
+                            write_intent="evidence-absent",
+                        )), n_txns=100, n_reads=300,
                         n_writes=100, n_keys=50, n_edges=120)
 
 
@@ -5628,7 +5754,12 @@ def _red_vr():
                        reasons=[EdgeReason(etype=RW, key="bb", u_ver=(1, 1), v_ver=(1, 2))])]
     a = Anomaly(cycle=[1, 2], phenomenon="G2", edges=edges)
     return VerifyResult(trace_dir="/tmp/ev", serializable=False, anomalies=[a],
-                        integrity=Integrity(), n_txns=2, n_reads=2,
+                        integrity=Integrity(proof_surfaces=ProofSurfaceAssessment(
+                            protocol="silo",
+                            lock_coverage="evidence-present",
+                            permutation="evidence-present",
+                            write_intent="evidence-absent",
+                        )), n_txns=2, n_reads=2,
                         n_writes=2, n_keys=2, n_edges=2)
 
 
@@ -5803,7 +5934,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         return _source_evidence(
             genome_value,
             commit,
-            source_root=ccbench_dir or "/tmp/izanagi-test-ccbench",
+            source_root=ccbench_dir or str(commit_receipts.proof_source_root()),
         )
 
     patch("source_digest", types.SimpleNamespace(
@@ -5913,7 +6044,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
 
 def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
-          record_rep_returncodes=False, **mock_kw):
+          record_rep_returncodes=False, protocol="silo", **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
     if wal.read_lock(lay) is None:
         cfg = _cfg()
@@ -5925,7 +6056,7 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
         _write_certified_lock(lay, _bound(cfg))
     with _mock_pipeline(**mock_kw) as calls:
         r = pipeline.evaluate(
-            Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
+            Genome(protocol, {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
             do_bench=do_bench, screening=screening,
@@ -6241,6 +6372,7 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
     os.makedirs(os.path.dirname(source_path), exist_ok=True)
     predicate = emit_predicate(TriggerGateIR(20))
     hole_line = _write_materialized_trigger_source(source_path, predicate)
+    _install_complete_silo_proof_source(source_root)
     assert hole_line == "  " + predicate
     candidate = trigger_gate_binding.TriggerGateBinding(
         mask=20,
@@ -6526,10 +6658,13 @@ def test_m12_pipeline_compute_uses_gxx_for_source_digest_and_v2_builds():
     assert "site" not in inspect.signature(pipeline.evaluate).parameters
 
 
-def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds():
+def test_pipeline_v2_passes_nondefault_prepared_ccbench_tree_to_both_builds(
+        tmp_path,
+):
     lay = _tmp_layout()
     contract = ec.lookup("linux-baremetal")
-    prepared_tree = "/approved/prepared-cell-tree"
+    prepared_tree = str(tmp_path / "prepared-cell-tree")
+    _install_complete_silo_proof_source(prepared_tree)
     with _mock_pipeline(certified=True) as calls:
         result = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, contract.env_tag, "deadbeef",
@@ -7226,7 +7361,32 @@ def test_pipeline_matching_commit_witness_commits_and_records_verify_payload():
         "commit_counts": 100,
         "batch_commit_counts": 0,
     }
+    assert verify[0].payload["proof_surfaces"] == {
+        "protocol": "silo",
+        "X": "evidence-present",
+        "P": "evidence-present",
+        "I": "evidence-absent",
+    }
     assert any(record.stage == STAGE_COMMIT for record in records)
+
+
+def test_pipeline_records_mocc_missing_proof_surfaces_and_does_not_commit():
+    """同じ実 verifier 入力を mocc source assessment で fail-closed にする。"""
+    lay = _tmp_layout()
+    result, calls = _eval(lay, do_bench=False, protocol="mocc")
+    assert calls.verify_witnesses == [100]
+    assert result.aborted and not result.certified
+    assert result.verdict == "indeterminate"
+    records = list(wal.read_records(lay))
+    verify = [record for record in records if record.stage == STAGE_VERIFY_DONE]
+    assert len(verify) == 1
+    assert verify[0].payload["proof_surfaces"] == {
+        "protocol": "mocc",
+        "X": "evidence-absent",
+        "P": "evidence-absent",
+        "I": "evidence-absent",
+    }
+    assert STAGE_COMMIT not in {record.stage for record in records}
 
 
 def test_run_trace_parses_abort_from_stdout():
@@ -7974,7 +8134,10 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         STOCK="stock", assert_worktree_within_allowlist=lambda *a, **k: None,
         resolve_evidence=lambda genome_value, commit, **kwargs: _source_evidence(
             genome_value, commit,
-            source_root=kwargs.get("ccbench_dir") or "/tmp/izanagi-test-ccbench",
+            source_root=(
+                kwargs.get("ccbench_dir")
+                or str(commit_receipts.proof_source_root())
+            ),
         )))
     patch("_run_trace", fake_run_trace)
     patch("verify_trace_dir_with_capability", fake_verify)
@@ -9387,7 +9550,9 @@ def _sd_mock(src_token):
                 genome_value,
                 commit,
                 src_token=src_token,
-                source_root=ccbench_dir or "/tmp/izanagi-test-ccbench",
+                source_root=(
+                    ccbench_dir or str(commit_receipts.proof_source_root())
+                ),
             )
     return types.SimpleNamespace(STOCK="stock", resolve_evidence=_resolve)
 
@@ -13516,6 +13681,187 @@ def test_run_campaign_wires_nondefault_bench_max_rounds_to_evaluate():
         campaign_loop.evaluate = saved_evaluate
         campaign_loop.source_digest = saved_source_digest
     assert captured == [1]
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_campaign_forwards_only_non_none_holdout_observation_admission():
+    from orchestrator.campaign import loop as campaign_loop
+
+    parameter = inspect.signature(campaign_loop.run_campaign).parameters[
+        "holdout_observation_admission"
+    ]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is None
+
+    captured = []
+    genome = Genome("silo", {"BACK_OFF": 1})
+    admission = object()
+
+    def fake_evaluate(candidate, *_args, **kwargs):
+        captured.append((
+            "holdout_observation_admission" in kwargs,
+            kwargs.get("holdout_observation_admission"),
+        ))
+        return EvalResult(
+            genome=candidate,
+            variant=pipeline.variant_id(candidate, kwargs["src_token"]),
+            certified=True,
+            aborted=False,
+        )
+
+    saved_evaluate = campaign_loop.evaluate
+    saved_source_digest = campaign_loop.source_digest
+    campaign_loop.evaluate = fake_evaluate
+    campaign_loop.source_digest = _sd_mock("stock")
+    try:
+        for label, options in (
+            ("default", {}),
+            ("admitted", {"holdout_observation_admission": admission}),
+        ):
+            campaign_loop.run_campaign(
+                CampaignConfig(
+                    spec_slug=f"holdout-transport-{label}",
+                    search_tag="test",
+                    spec_content=f"holdout transport {label}",
+                    ccbench_commit="deadbeef",
+                ),
+                [genome],
+                PerfConfig(records=1, threads=1),
+                _AUTH_CONTRACT.env_tag,
+                _AUTH_CONTRACT.clocks_per_us,
+                numactl=list(_AUTH_CONTRACT.numactl),
+                do_bench=False,
+                output_root=_tmpdir(f"izanagi_holdout_transport_{label}_"),
+                log=lambda *_args: None,
+                authorization_contract=_AUTHORIZATION,
+                build_context=_BUILD_CONTEXT,
+                declared_use_class="official",
+                **options,
+            )
+    finally:
+        campaign_loop.evaluate = saved_evaluate
+        campaign_loop.source_digest = saved_source_digest
+
+    assert captured == [(False, None), (True, admission)]
+
+
+def test_run_campaign_rejects_balanced_schedule_with_holdout_admission_before_output():
+    from orchestrator.campaign import loop as campaign_loop
+
+    output_root = Path(_tmpdir("izanagi_balanced_holdout_parent_")) / "must-not-exist"
+    freeze = s8b_ratified_freeze.load_legacy_freeze(Path(_REPOSITORY))
+    rr80 = freeze.document["holdouts"]["rr80"]
+    perf = PerfConfig(
+        records=rr80["records"],
+        threads=rr80["threads"],
+        workload=dict(rr80["ycsb"]),
+        reps=20,
+    )
+    receipt = holdout_observation._new_durable_attempt_consumption_receipt(
+        attempt_id="test-campaign-balanced-holdout",
+        permitted_run_once_calls=perf.reps,
+    )
+    admission = (
+        holdout_observation._issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=freeze.document,
+            freeze_holdout_key="rr80",
+        )
+    )
+    holdout_observation.assert_issued_holdout_observation(admission)
+    schedule = pipeline.BalancedScheduleConfig(
+        workload="rr80",
+        root_seed="1" * 64,
+        arm_names=("a", "b"),
+    )
+    genomes = [
+        Genome("silo", {"BACK_OFF": 1}),
+        Genome("silo", {"BACK_OFF": 2}),
+    ]
+    with pytest.raises(
+        ValueError,
+        match=r"two arms require 2 \* perf\.reps observations",
+    ):
+        campaign_loop.run_campaign(
+            CampaignConfig(
+                spec_slug="balanced-holdout-conflict",
+                search_tag="test",
+                spec_content="balanced holdout conflict",
+                ccbench_commit="deadbeef",
+                search_config={
+                    "pairing_design": "balanced-a5b5-b5a5-v1",
+                    "arm_order": list(schedule.arm_names),
+                    "workload": {"name": schedule.workload},
+                },
+            ),
+            genomes,
+            perf,
+            _AUTH_CONTRACT.env_tag,
+            _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            do_bench=True,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
+            output_root=str(output_root),
+            bench_max_rounds=1,
+            balanced_schedule=schedule,
+            holdout_observation_admission=admission,
+        )
+    assert not output_root.exists()
+
+
+def test_run_campaign_rejects_multiple_genomes_with_holdout_admission_before_output():
+    from orchestrator.campaign import loop as campaign_loop
+
+    output_root = Path(_tmpdir("izanagi_multi_holdout_parent_")) / "must-not-exist"
+    freeze = s8b_ratified_freeze.load_legacy_freeze(Path(_REPOSITORY))
+    rr80 = freeze.document["holdouts"]["rr80"]
+    perf = PerfConfig(
+        records=rr80["records"],
+        threads=rr80["threads"],
+        workload=dict(rr80["ycsb"]),
+    )
+    receipt = holdout_observation._new_durable_attempt_consumption_receipt(
+        attempt_id="test-campaign-multiple-genomes",
+        permitted_run_once_calls=perf.reps,
+    )
+    admission = (
+        holdout_observation._issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=freeze.document,
+            freeze_holdout_key="rr80",
+        )
+    )
+    holdout_observation.assert_issued_holdout_observation(admission)
+    with pytest.raises(
+        ValueError,
+        match=r"attempt-bound token has a finite run_once allowance",
+    ):
+        campaign_loop.run_campaign(
+            CampaignConfig(
+                spec_slug="multi-genome-holdout-conflict",
+                search_tag="test",
+                spec_content="multi-genome holdout conflict",
+                ccbench_commit="deadbeef",
+            ),
+            [
+                Genome("silo", {"BACK_OFF": 1}),
+                Genome("silo", {"BACK_OFF": 2}),
+            ],
+            perf,
+            _AUTH_CONTRACT.env_tag,
+            _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            do_bench=True,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
+            output_root=str(output_root),
+            bench_max_rounds=1,
+            holdout_observation_admission=admission,
+        )
+    assert not output_root.exists()
 
 
 def test_balanced_schedule_quality_gate_signatures_accept_complete_input():

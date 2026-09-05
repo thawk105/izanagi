@@ -11,7 +11,7 @@
 driver と共有しているコードの目印)。
 
 sort 戦略固有の設計 (敵対レビュー 2026-07-10、3レンズで確定):
-  - `CoderProposalSort` に `value` フィールドは無い (数値でなくコード片の変異)。
+  - `CoderProposalSort` に `value` フィールドは無い (閉じた 79 値 IR 文法の選択)。
     `strategy_summary` のような一言要約フィールドも持たない — 具体戦略名の例示は
     D39 決定7 (coder に勝ち筋の機序を見せない) を出力スキーマの例示という経路で
     直撃するリークだったため、`justification` のみに絞った (backoff 版と同型)。
@@ -44,11 +44,10 @@ tools=[]) を使う。実 LLM (planner-v4/coder-v4-autonomous-sort/auditor/criti
 メインセッションが spawn する — 本モジュールは LLM を spawn しない (Model Y 設計、
 `p3_s4_loop.py` と同じ)。運用手順は `docs/phase3-s5-sort-runbook.md`。
 
-型14 (非 SWO comparator) は、実 ``WriteElement<Tuple>`` と版固定 corpus を使う独立
-oracle で build 前に反例探索する。有限 corpus 上で SWO 公理の反例を探す gate であり、任意
-C++ の全入力に対する SWO の証明ではない。対象は coder 自律ループが合成する comparator
-であり、s6 sweep の列挙候補 (SWO-by-construction) は対象外。fairness (型15) の機械観測点は
-依然として未実装。
+型14 (非 SWO comparator) は、閉じた 79 値 sort IR への membership、trusted evaluator、
+実 ``WriteElement<Tuple>`` TU との byte exact conformance で保証する。候補の反例を動的に
+探す gate ではなく、任意 C++ の全入力に対する SWO の証明でもない。fairness (型15) の
+機械観測点は依然として未実装。
 """
 from __future__ import annotations
 
@@ -152,12 +151,12 @@ def _require_condition_gate(source_root: str, genome: Genome) -> dict:
 
 @dataclass
 class CoderProposalSort:
-    """coder-v4-autonomous-sort の出力 (comparator コード片。value フィールドは無い —
-    軸がコード片の変異のため数値概念が構造的に存在しない、D42 条件6)。`strategy_summary`
+    """coder-v4-autonomous-sort の出力 (79 値 IR の正準 C++ 表現。value は無い —
+    軸が閉じた comparator 文法の選択で数値概念が存在しない、D42 条件6)。`strategy_summary`
     のような一言要約フィールドも持たせない (敵対レビュー 2026-07-10: 具体戦略の例示が
     D39 決定7 のリーク制御を出力スキーマ経由で直撃した反省)。"""
     axis: str
-    implementation: str               # EVOLVE-BLOCK hole 全体 (sort(...) 文一式) を置換する文字列
+    implementation: str               # 閉じた IR 文法で表した sort(...) 文一式
     justification: str = ""
     confidence: str = "medium"
 
@@ -181,7 +180,10 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalSort, auditor: AuditorVe
                           genome: Genome, layout: CampaignLayout, state: L.LoopState,
                           planner: L.PlannerProposal, write: bool,
                           log=print) -> Optional[Dict]:
-    """hole 挿入 → diff 検疫 → mandatory deny-only veto; affirmative security credit なし。
+    """hole 挿入 → diff 検疫 → deny-only veto → sort IR admission と正準化。
+
+    deny-only veto は受理権威でなく、sort comparator language の受理権威は共有
+    ``quarantine`` 内の IR admission だけである。
 
     ``diff_digest`` は attribution/provenance 専用。呼び出し元が return すべき reject dict を
     返すか (reject/gate不通過)、None (通過、呼び出し元は build へ進めるか dry-pass を返す)。
@@ -312,11 +314,12 @@ def default_cfg(
         search_config[B4_PROTOCOL_KEY] = B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s5-sort-loop", search_tag="s5-sort-autonomous",
-        spec_content=("P3 後続段 5: sort-strategy (write_set 施錠順序 comparator) coder "
-                      "自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋を見ずに "
-                      "comparator コードを合成、diff 検疫 (4a 型) + auditor 機械 gate + "
-                      "独立 SWO oracle を通した hole 変異のみ build/verify(legacy+S2)/bench に "
-                      "進む。critic 帰属を次 iteration に還流 (LLM ablation の on アーム)"),
+        spec_content=("P3 後続段 5: sort-strategy の別実験。planner が方向 (値なし) を提案し、"
+                      "coder は storage_/key_/rcdptr_ の相異なる 0〜3 field と各 asc/desc から"
+                      "閉じた 79 値 IR 文法の comparator を組み立てる。正準化、diff 検疫、"
+                      "auditor、trusted evaluator と実 TU の byte exact conformance を通った "
+                      "hole だけを build/verify(legacy+S2)/bench へ進める。D344 は元の raw C++ "
+                      "独立合成実験について有効なままであり、本実験が supersede しない。"),
         ccbench_commit=PIN,
         search_config=search_config,
         trial="p3-s5-sort-loop")
@@ -326,6 +329,21 @@ def default_cfg(
 
 
 default_perf = L.default_perf   # 軸非依存 (kickoff 規模、有意性を主張しない配線規模)
+
+
+def _require_sort_oracle_contract(cfg: CampaignConfig) -> str:
+    """Return the single campaign-declared sort oracle contract or fail closed."""
+
+    from .sort_swo_oracle import ORACLE_CONTRACT_ID
+
+    declared = cfg.search_config.get("sort_swo_oracle")
+    expected = ORACLE_CONTRACT_ID
+    if type(declared) is not str or declared != expected:
+        raise ValueError(
+            "cfg.search_config.sort_swo_oracle must exactly equal "
+            f"{expected}"
+        )
+    return declared
 
 
 # ==== 1 iteration の機械 E2E ==================================================
@@ -368,6 +386,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    sort_oracle_contract_id = _require_sort_oracle_contract(cfg)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     genome = Genome("silo", {**_BASE, "SORT_VARIANT": 1})
@@ -395,7 +414,8 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                               ccbench_dir=sub, cache_root=cache_root,
                               authorization_contract=env_contract.authorize(ENV_TAG),
                               build_context=build_context,
-                              declared_use_class=DECLARED_USE_CLASS)
+                              declared_use_class=DECLARED_USE_CLASS,
+                              sort_oracle_contract_id=sort_oracle_contract_id)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)

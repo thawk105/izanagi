@@ -1,0 +1,408 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 1
+#PBS -l elapstim_req=00:40:00
+#PBS -N izanagi-t2187
+# qsub -v 'IZANAGI_T2187_CELLS=none:0:100:1000:10+stock:1:100:1000:10,IZANAGI_T2187_WORKLOADS=write-heavy+balanced+read-heavy,IZANAGI_T2187_THREADS=24+48' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
+# diagnostic example:
+# qsub -v 'IZANAGI_T2187_BACKOFF_TRACE=1,IZANAGI_T2187_OUT_DIR=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/trace,IZANAGI_T2187_CELLS=cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1,IZANAGI_T2187_WORKLOADS=write-heavy+balanced+read-heavy,IZANAGI_T2187_THREADS=24+48' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
+# certify pilot example (the parent submits it and supplies shared artifact paths):
+# qsub -l elapstim_req=02:15:00 -v 'IZANAGI_T2187_MODE=certify,IZANAGI_T2187_CELLS=tuned:1:1:1000:2560,IZANAGI_T2187_WORKLOADS=read-heavy,IZANAGI_T2187_THREADS=48,IZANAGI_T2187_REP_INDEX=0,IZANAGI_T2187_OUTER_WALLTIME_S=8100,...' tools/pegasus/probes/t2187_adaptive_const_probe.pbs
+
+set -Eeuo pipefail
+umask 077
+
+DEFAULT_OUT_DIR=/work/1/SFC/tanab/izanagi-job-evidence/t2187-adaptive-3const/results
+DYNAMIC_OUT_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/
+DYNAMIC_CERTIFY_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/certify/
+DYNAMIC_PERFORMANCE_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/perf/
+TRACE_CELLS_RAW='cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
+CERT_TUNED_CELL='tuned:1:1:1000:2560'
+CERT_DYNAMIC_CELL='cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
+
+if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
+  echo "PBS_JOBID and PBS_O_WORKDIR are required" >&2
+  exit 2
+fi
+if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
+  echo "unsafe PBS_JOBID" >&2
+  exit 2
+fi
+
+COMPUTE_HOST=$(hostname)
+if [[ ! "$COMPUTE_HOST" =~ ^bnode[0-9]+([.].*)?$ ]]; then
+  echo "T-2187 adaptive constant probe is compute-only: hostname=$COMPUTE_HOST" >&2
+  exit 2
+fi
+
+REPO_ROOT=$(realpath -e -- "$PBS_O_WORKDIR")
+if [[ "$REPO_ROOT" != "$PBS_O_WORKDIR" ]]; then
+  echo "PBS_O_WORKDIR must be the canonical repository root" >&2
+  exit 2
+fi
+REPO_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD)
+if [[ ! "$REPO_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "repository HEAD must be an exact commit" >&2
+  exit 2
+fi
+REPO_STATUS=$(git -C "$REPO_ROOT" status --porcelain --untracked-files=no)
+if [[ -n "$REPO_STATUS" ]]; then
+  echo "repository must be tracked-clean before the probe starts" >&2
+  exit 2
+fi
+export IZANAGI_T2187_REPO_HEAD="$REPO_HEAD"
+export IZANAGI_T2187_REPO_CLEAN=1
+DRIVER="$REPO_ROOT/tools/pegasus/probes/t2187_adaptive_const_probe.py"
+POLICY="$REPO_ROOT/tools/pegasus/policy.json"
+if [[ ! -f "$DRIVER" || -L "$DRIVER" || ! -f "$POLICY" || -L "$POLICY" ]]; then
+  echo "probe driver or Pegasus policy is unavailable" >&2
+  exit 2
+fi
+
+# qsub -v treats commas as variable separators and evaluates shell metacharacters.
+# List-valued variables therefore cross the qsub boundary with plus signs, which
+# are not shell metacharacters, and are restored here.
+CELLS_RAW=${IZANAGI_T2187_CELLS:-}
+MODE=${IZANAGI_T2187_MODE:-performance}
+BACKOFF_TRACE=${IZANAGI_T2187_BACKOFF_TRACE:-0}
+OUT_DIR_RAW=${IZANAGI_T2187_OUT_DIR:-}
+WORKLOADS_RAW=${IZANAGI_T2187_WORKLOADS:-write-heavy+balanced+read-heavy}
+THREADS_RAW=${IZANAGI_T2187_THREADS:-48}
+REP_INDEX=${IZANAGI_T2187_REP_INDEX:-0}
+STAGE=${IZANAGI_T2187_STAGE:-1}
+VERIFIER_TIMEOUT_S=${IZANAGI_T2187_VERIFIER_TIMEOUT_S:-5400}
+OUTER_WALLTIME_S=${IZANAGI_T2187_OUTER_WALLTIME_S:-8100}
+BUILD_BUDGET_S=${IZANAGI_T2187_BUILD_BUDGET_S:-900}
+PROLOGUE_BUDGET_S=${IZANAGI_T2187_PROLOGUE_BUDGET_S:-540}
+EXIT_MARGIN_S=${IZANAGI_T2187_EXIT_MARGIN_S:-300}
+GROUP_RECEIPT_OUT=${IZANAGI_T2187_GROUP_RECEIPT_OUT:-}
+GROUP_RESULT_PATHS_RAW=${IZANAGI_T2187_GROUP_RESULT_PATHS:-}
+ATTEMPT_ID=${IZANAGI_T2187_ATTEMPT_ID:-}
+PERFORMANCE_ARTIFACT=${IZANAGI_T2187_PERFORMANCE_ARTIFACT:-}
+PERFORMANCE_ARTIFACT_SHA256=${IZANAGI_T2187_PERFORMANCE_ARTIFACT_SHA256:-}
+EXPECTED_VERIFIER_IDENTITY=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY:-}
+EXPECTED_VERIFIER_IDENTITY_SHA256=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY_SHA256:-}
+
+require_canonical_child() {
+  local raw_path=$1 namespace=$2 binding=$3 canonical_path
+  canonical_path=$(realpath -m -- "$raw_path") || return 1
+  if [[ "$raw_path" != /* || "$canonical_path" != "$namespace"* ]]; then
+    echo "$binding must be a canonical child of $namespace" >&2
+    return 1
+  fi
+}
+if [[ "$MODE" != performance && "$MODE" != certify ]]; then
+  echo "IZANAGI_T2187_MODE must be performance or certify" >&2
+  exit 2
+fi
+if [[ "$BACKOFF_TRACE" != 0 && "$BACKOFF_TRACE" != 1 ]]; then
+  echo "IZANAGI_T2187_BACKOFF_TRACE must be 0 or 1" >&2
+  exit 2
+fi
+if [[ "$MODE" == certify && "$BACKOFF_TRACE" == 1 ]]; then
+  echo "certify mode cannot be combined with backoff trace mode" >&2
+  exit 2
+fi
+if [[ -z "$CELLS_RAW" || "$CELLS_RAW" == *","* || "$CELLS_RAW" == *";"* || "$CELLS_RAW" == *$'\n'* ]]; then
+  echo "IZANAGI_T2187_CELLS must be a nonempty plus-separated cell list" >&2
+  exit 2
+fi
+if [[ -z "$WORKLOADS_RAW" || "$WORKLOADS_RAW" == *","* || "$WORKLOADS_RAW" == *";"* || "$WORKLOADS_RAW" == *$'\n'* ]]; then
+  echo "IZANAGI_T2187_WORKLOADS must be a plus-separated workload list" >&2
+  exit 2
+fi
+if [[ ! "$THREADS_RAW" =~ ^[0-9]+(\+[0-9]+)*$ ]]; then
+  echo "IZANAGI_T2187_THREADS must be a plus-separated integer list" >&2
+  exit 2
+fi
+if [[ ! "$REP_INDEX" =~ ^[0-9]+$ ]]; then
+  echo "IZANAGI_T2187_REP_INDEX must be nonnegative" >&2
+  exit 2
+fi
+if [[ ! "$STAGE" =~ ^[123]$ ]]; then
+  echo "IZANAGI_T2187_STAGE must be 1, 2 or 3" >&2
+  exit 2
+fi
+HAS_EXTENDED_CELL=0
+IFS='+' read -r -a CELL_ITEMS <<< "$CELLS_RAW"
+for raw_cell in "${CELL_ITEMS[@]}"; do
+  colon_text=${raw_cell//[^:]/}
+  if [[ ${#colon_text} -eq 10 ]]; then
+    HAS_EXTENDED_CELL=1
+  fi
+done
+if [[ "$BACKOFF_TRACE" == 1 ]]; then
+  if [[ "$CELLS_RAW" != "$TRACE_CELLS_RAW" || "$WORKLOADS_RAW" != write-heavy+balanced+read-heavy || "$THREADS_RAW" != 24+48 ]]; then
+    echo "backoff trace mode requires the exact diagnostic axes" >&2
+    exit 2
+  fi
+fi
+if [[ "$MODE" == certify ]]; then
+  if [[ "$CELLS_RAW" != tuned:1:1:1000:2560 && "$CELLS_RAW" != "$CERT_DYNAMIC_CELL" ]]; then
+    echo "certify mode requires exactly one of the two registered cells" >&2
+    exit 2
+  fi
+  if [[ "$WORKLOADS_RAW" != write-heavy && "$WORKLOADS_RAW" != balanced && "$WORKLOADS_RAW" != read-heavy ]]; then
+    echo "certify mode requires exactly one fixed workload" >&2
+    exit 2
+  fi
+  if [[ "$THREADS_RAW" != 48 || ! "$REP_INDEX" =~ ^[0-7]$ ]]; then
+    echo "certify mode requires threads=48 and rep index 0..7" >&2
+    exit 2
+  fi
+  if [[ -z "$GROUP_RECEIPT_OUT" || -z "$GROUP_RESULT_PATHS_RAW" || -z "$ATTEMPT_ID" || -z "$PERFORMANCE_ARTIFACT" || -z "$EXPECTED_VERIFIER_IDENTITY" ]]; then
+    echo "certify mode requires group, attempt, performance, and verifier bindings" >&2
+    exit 2
+  fi
+  if [[ "$GROUP_RECEIPT_OUT" != /* || "$PERFORMANCE_ARTIFACT" != /* || "$EXPECTED_VERIFIER_IDENTITY" != /* ]]; then
+    echo "certify mode binding paths must be absolute" >&2
+    exit 2
+  fi
+  if [[ ! "$ATTEMPT_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || ! "$PERFORMANCE_ARTIFACT_SHA256" =~ ^[0-9a-f]{64}$ || ! "$EXPECTED_VERIFIER_IDENTITY_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "certify mode attempt id or preregistered SHA is invalid" >&2
+    exit 2
+  fi
+  if [[ ! "$VERIFIER_TIMEOUT_S" =~ ^[0-9]+([.][0-9]+)?$ || ! "$OUTER_WALLTIME_S" =~ ^[0-9]+([.][0-9]+)?$ || ! "$BUILD_BUDGET_S" =~ ^[0-9]+([.][0-9]+)?$ || ! "$PROLOGUE_BUDGET_S" =~ ^[0-9]+([.][0-9]+)?$ || ! "$EXIT_MARGIN_S" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo "certify mode time budgets must be positive decimal seconds" >&2
+    exit 2
+  fi
+  if [[ "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
+    require_canonical_child "$GROUP_RECEIPT_OUT" "$DYNAMIC_CERTIFY_PREFIX" \
+      "dynamic group receipt" || exit 2
+    require_canonical_child "$PERFORMANCE_ARTIFACT" "$DYNAMIC_PERFORMANCE_PREFIX" \
+      "dynamic performance artifact" || exit 2
+    IFS='+' read -r -a DYNAMIC_GROUP_RESULT_PATHS <<< "$GROUP_RESULT_PATHS_RAW"
+    if [[ ${#DYNAMIC_GROUP_RESULT_PATHS[@]} -ne 24 ]]; then
+      echo "dynamic certify requires exactly 24 result paths" >&2
+      exit 2
+    fi
+    for result_path in "${DYNAMIC_GROUP_RESULT_PATHS[@]}"; do
+      require_canonical_child "$result_path" "$DYNAMIC_CERTIFY_PREFIX" \
+        "dynamic group result" || exit 2
+    done
+  fi
+fi
+NEEDS_DYNAMIC_OUT=0
+if [[ "$HAS_EXTENDED_CELL" == 1 || "$BACKOFF_TRACE" == 1 || "$MODE" == certify && "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
+  NEEDS_DYNAMIC_OUT=1
+fi
+if [[ "$NEEDS_DYNAMIC_OUT" == 1 && -z "$OUT_DIR_RAW" ]]; then
+  echo "IZANAGI_T2187_OUT_DIR is required for dynamic-backoff output" >&2
+  exit 2
+fi
+OUT_DIR=${OUT_DIR_RAW:-$DEFAULT_OUT_DIR}
+OUT_DIR=$(realpath -m -- "$OUT_DIR")
+if [[ "$NEEDS_DYNAMIC_OUT" == 1 && "$OUT_DIR" != "$DYNAMIC_OUT_PREFIX"* ]]; then
+  echo "IZANAGI_T2187_OUT_DIR must use the dynamic-backoff prefix" >&2
+  exit 2
+fi
+if [[ "$MODE" == certify && "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
+  require_canonical_child "$OUT_DIR" "$DYNAMIC_CERTIFY_PREFIX" \
+    "dynamic certification output directory" || exit 2
+fi
+CELLS=${CELLS_RAW//+/,}
+WORKLOADS=${WORKLOADS_RAW//+/,}
+THREADS=${THREADS_RAW//+/,}
+
+export TMPDIR="/scr/${PBS_JOBID//:/_}-t2187"
+if ! mkdir -m 700 -- "$TMPDIR"; then
+  echo "TMPDIR already exists or cannot be created: $TMPDIR" >&2
+  exit 2
+fi
+cleanup() { find "$TMPDIR" -depth -delete 2>/dev/null || true; }
+trap cleanup EXIT
+
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+PY=""
+for candidate in python3.10 python3.11 python3.12 python3; do
+  resolved=$(command -v -- "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -S -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    PY=$(realpath -e -- "$resolved")
+    break
+  fi
+done
+if [[ -z "$PY" ]]; then
+  echo "Python 3.10 or newer is required" >&2
+  exit 2
+fi
+export PATH="$(dirname "$PY"):$PATH"
+
+read -r PROLOGUE_WALL_STARTED PROLOGUE_CPU_STARTED < <("$PY" -I -B - "$$" <<'PY'
+import os
+import sys
+import time
+
+raw = open(f"/proc/{sys.argv[1]}/stat", encoding="ascii").read()
+fields = raw[raw.rfind(")") + 2:].split()
+ticks = sum(int(fields[index]) for index in (11, 12, 13, 14))
+print(time.monotonic(), ticks / os.sysconf("SC_CLK_TCK"))
+PY
+)
+
+readarray -t policy_values < <("$PY" -I -B - "$POLICY" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    policy = json.load(handle)
+print(policy["gflags_source_path"])
+print(policy["gflags_expected_head"])
+print(policy["glog_source_path"])
+print(policy["glog_expected_head"])
+PY
+)
+if [[ ${#policy_values[@]} -ne 4 ]]; then
+  echo "Pegasus dependency policy is incomplete" >&2
+  exit 2
+fi
+GFLAGS_SOURCE_PATH=${policy_values[0]}
+GFLAGS_EXPECTED_HEAD=${policy_values[1]}
+GLOG_SOURCE_PATH=${policy_values[2]}
+GLOG_EXPECTED_HEAD=${policy_values[3]}
+
+CC_PATH=$(realpath -e -- "$(command -v gcc)")
+CXX_PATH=$(realpath -e -- "$(command -v g++)")
+
+verify_pinned_clean() {
+  local source=$1 pin=$2 name=$3 head status
+  if [[ ! -d "$source" ]]; then
+    echo "$name source path is unavailable" >&2
+    return 1
+  fi
+  head=$(git -C "$source" rev-parse HEAD) || return 1
+  status=$(git -C "$source" status --porcelain --untracked-files=all) || return 1
+  if [[ "$head" != "$pin" || -n "$status" ]]; then
+    echo "$name source is not pinned-clean" >&2
+    return 1
+  fi
+}
+
+verify_pinned_clean "$GFLAGS_SOURCE_PATH" "$GFLAGS_EXPECTED_HEAD" gflags
+GFLAGS_BUILD_DIR="$TMPDIR/gflags-build"
+GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"
+mkdir -- "$GFLAGS_BUILD_DIR"
+gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH")
+gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
+gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
+timeout 60 "${gflags_configure_argv[@]}"
+timeout 60 "${gflags_build_argv[@]}"
+timeout 60 "${gflags_install_argv[@]}"
+
+verify_pinned_clean "$GLOG_SOURCE_PATH" "$GLOG_EXPECTED_HEAD" glog
+GLOG_BUILD_DIR="$TMPDIR/glog-build"
+GLOG_INSTALL_DIR="$TMPDIR/glog-install"
+mkdir -- "$GLOG_BUILD_DIR"
+glog_configure_argv=(cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH")
+glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
+glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
+timeout 120 "${glog_configure_argv[@]}"
+timeout 120 "${glog_build_argv[@]}"
+timeout 120 "${glog_install_argv[@]}"
+
+read -r PROLOGUE_WALL_FINISHED PROLOGUE_CPU_FINISHED < <("$PY" -I -B - "$$" <<'PY'
+import os
+import sys
+import time
+
+raw = open(f"/proc/{sys.argv[1]}/stat", encoding="ascii").read()
+fields = raw[raw.rfind(")") + 2:].split()
+ticks = sum(int(fields[index]) for index in (11, 12, 13, 14))
+print(time.monotonic(), ticks / os.sysconf("SC_CLK_TCK"))
+PY
+)
+read -r PROLOGUE_ELAPSED_S PROLOGUE_CPU_S < <("$PY" -I -B - \
+  "$PROLOGUE_WALL_STARTED" "$PROLOGUE_WALL_FINISHED" \
+  "$PROLOGUE_CPU_STARTED" "$PROLOGUE_CPU_FINISHED" <<'PY'
+import sys
+
+start_wall, end_wall, start_cpu, end_cpu = map(float, sys.argv[1:])
+print(max(0.0, end_wall - start_wall), max(0.0, end_cpu - start_cpu))
+PY
+)
+
+export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"
+export IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cache
+if [[ ! -d "$IZANAGI_PEGASUS_THIRDPARTY_CACHE" ]]; then
+  echo "Pegasus third-party source cache is unavailable" >&2
+  exit 2
+fi
+
+mkdir -p -m 700 -- "$OUT_DIR"
+
+GROUP_RESULT_ARGS=()
+if [[ "$MODE" == certify ]]; then
+  IFS='+' read -r -a GROUP_RESULT_PATHS <<< "$GROUP_RESULT_PATHS_RAW"
+  if [[ ${#GROUP_RESULT_PATHS[@]} -ne 24 ]]; then
+    echo "certify mode requires exactly 24 explicit result paths" >&2
+    exit 2
+  fi
+  for result_path in "${GROUP_RESULT_PATHS[@]}"; do
+    if [[ "$result_path" != /* ]]; then
+      echo "certify result paths must be absolute" >&2
+      exit 2
+    fi
+    GROUP_RESULT_ARGS+=(--group-result-path "$result_path")
+  done
+fi
+
+cd "$REPO_ROOT"
+if [[ "$MODE" == performance ]]; then
+OUT="$OUT_DIR/stage${STAGE}-rep${REP_INDEX}-${PBS_JOBID//:/_}.json"
+BACKOFF_TRACE_ARGS=()
+if [[ "$BACKOFF_TRACE" == 1 ]]; then
+  BACKOFF_TRACE_ARGS=(--backoff-trace)
+fi
+exec "$PY" -B -u "$DRIVER" \
+  "${BACKOFF_TRACE_ARGS[@]}" \
+  --repo-head "$REPO_HEAD" \
+  --repo-clean 1 \
+  --cells "$CELLS" \
+  --workloads "$WORKLOADS" \
+  --threads "$THREADS" \
+  --rep-index "$REP_INDEX" \
+  --stage "$STAGE" \
+  --prologue-elapsed-s "$PROLOGUE_ELAPSED_S" \
+  --prologue-cpu-s "$PROLOGUE_CPU_S" \
+  --out "$OUT"
+fi
+
+OUT="$OUT_DIR/certify-${WORKLOADS}-slot${REP_INDEX}-${ATTEMPT_ID}.json"
+exec "$PY" -B -u "$DRIVER" \
+  --mode certify \
+  --repo-head "$REPO_HEAD" \
+  --repo-clean 1 \
+  --cells "$CELLS" \
+  --workloads "$WORKLOADS" \
+  --threads "$THREADS" \
+  --rep-index "$REP_INDEX" \
+  --reps-per-job 1 \
+  --stage "$STAGE" \
+  --extime 3 \
+  --verifier-timeout-s "$VERIFIER_TIMEOUT_S" \
+  --build-budget-s "$BUILD_BUDGET_S" \
+  --prologue-budget-s "$PROLOGUE_BUDGET_S" \
+  --prologue-elapsed-s "$PROLOGUE_ELAPSED_S" \
+  --prologue-cpu-s "$PROLOGUE_CPU_S" \
+  --outer-walltime-s "$OUTER_WALLTIME_S" \
+  --exit-margin-s "$EXIT_MARGIN_S" \
+  --group-receipt-out "$GROUP_RECEIPT_OUT" \
+  "${GROUP_RESULT_ARGS[@]}" \
+  --attempt-id "$ATTEMPT_ID" \
+  --performance-artifact "$PERFORMANCE_ARTIFACT" \
+  --performance-artifact-sha256 "$PERFORMANCE_ARTIFACT_SHA256" \
+  --expected-verifier-identity "$EXPECTED_VERIFIER_IDENTITY" \
+  --expected-verifier-identity-sha256 "$EXPECTED_VERIFIER_IDENTITY_SHA256" \
+  --out "$OUT"

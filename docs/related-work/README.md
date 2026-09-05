@@ -53,7 +53,7 @@ ID をいつ検証したか」が一目で追える:
 | CCBench | `2009.11558` (VLDB 2020) | `外部補強` | 素材コーパスの学術的出自 | 7.1 |
 | Polyjuice / CCaaLF→NeurCC | `2105.10329` / `2503.10036` (SIGMOD 2026) | `思想` | 層2 の祖先、新規性主張の核 | 7.1 |
 | ATCC | `2603.13906` | `思想` | 未知/エージェント的ワークロードへの CC 適応 (最新競合) | 7.1 |
-| DB knob チューニング系譜 (OtterTune/CDBTune/QTune/UDO) | SIGMOD 2017 ほか | `引用元` | 「選択 vs 合成」の境界線、P2-5 の外部文脈 | 7.1 |
+| DB knob チューニング系譜 (OtterTune/CDBTune/QTune/UDO/DB-BERT/GPTuner/SysInsight) | SIGMOD 2017 ほか / `2603.22708` (PVLDB 19(6) 2026) | `引用元`+`外部補強` | 「選択 vs 合成」の境界線、P2-5 の射程の限定、LLM 由来方策の事前検証 | 7.1 |
 | learned DB components 系譜 (Kraska/ALEX/PGM/Neo/Bao) | `1712.01208` ほか | `引用元`+`外部補強` | 物語の源流、実行時推論ゼロの必然性 | 7.1 |
 | Declarative Concurrent Data Structures (Rösti) | `2404.13359` | `引用元`+`外部補強` | 軸1 の直接競合、AI 抜きのワークロード特化 CC 生成 | 7.1 |
 | AlphaEvolve | `2506.13131` (白書) | `思想` | 進化的コード合成の源流、EVOLVE-BLOCK の出典 | 7.2 |
@@ -138,20 +138,51 @@ worklog 2026-07-10 (8) の材料が正本)。
 > アクション空間自体をコードで拡張する* — はこの延長線上で最も外側にあり、既存研究が正面から
 > 扱う例は本調査では未発見 (新規性主張の外堀は埋まっている)。
 
-#### DB 自動チューニング (knob tuning) 系譜 — OtterTune / CDBTune / QTune / UDO
-`判定: 引用元` · `接地: P2-5 negative result (フラグ探索は自明) の外部文脈` · `id検証: 2026-07-10 (一次資料 PDF 4/4 精読、worklog 2026-07-10 (8))`
-**一言:** DBMS の設定 knob を ML/RL で自動チューニングする系譜。OtterTune (Van Aken et al.,
+#### DB 自動チューニング (knob tuning) 系譜 — OtterTune / CDBTune / QTune / UDO / DB-BERT / GPTuner / SysInsight
+`判定: 引用元`+`外部補強` · `接地: 「選択 vs 合成」の境界線、P2-5 の射程の限定、LLM 由来方策を実観測で事前検証する設計 (性能の信頼性であって直列化可能性ではない)` · `id検証: 2026-07-10 (ML/RL 4 本の一次資料 PDF 精読、worklog 2026-07-10 (8)) / 2026-09-03 (SysInsight を一次資料で精読、claim-survey/2026-09-03-sysinsight-adjudication.md)`
+**一言:** DBMS の設定 knob を自動チューニングする系譜。**ML/RL 枝** = OtterTune (Van Aken et al.,
 SIGMOD 2017) = GP 回帰 + workload mapping の起点 / CDBTune (SIGMOD 2019) = DDPG による
 end-to-end 強化学習化 / QTune (VLDB 2019) = クエリ認識 (DS-DDPG、3 粒度) / UDO (`2104.01744`,
 VLDB 2021) = knob + index + トランザクションコード variant 選択を統合する強化学習 (delayed-HOO)。
-**採る (引用のみ):** 差別化の基準点。この系譜は探索が「設計者が事前に開けた knob 次元」に閉じ、
-CC のロジック (競合検出・待機・abort の判断構造) には手が届かない。系譜内で探索空間が最大の UDO
-の「transaction code variants」ですら人間が用意した有限候補からの**選択**であり、Izanagi の**合成**
-(アクション空間自体の拡張) との境界線を一行で引ける最良の引用先。knob 探索が専業 ML/RL で解けて
-しまうこと自体が P2-5 (フラグ探索に LLM の付加価値なし) と同方向を指す外部証拠。
-**採らない:** 機構すべて — Izanagi は knob 探索をしない (P2-5 で既反証)。
+**LLM 枝** = DB-BERT (Trummer, VLDB 2022) = マニュアル文章から調整ヒントを取る /
+GPTuner (Lao et al., VLDB 2024) = LLM がマニュアルから knob ごとの推奨範囲・推奨値を構造化し
+BO の探索空間を狭める / SysInsight (`2603.22708`, PVLDB 19(6):1358-1371, 2026) = **マニュアルでなく
+DBMS のソースコード**を静的解析 + LLM で読み、knob 支配関数の因果経路から調整仮説を立て、
+観測から定量 rule (発火条件 + 方向 + 増分 + confidence) を誘導する。
+**採る (引用 + 外部補強):** 差別化の基準点。この系譜は**介入面**が「設計者が事前に開けた knob 次元」
+に閉じる — SysInsight 自身が knob は `predefined execution paths` を制御すると書く。系譜内で
+探索空間が最大の UDO の「transaction code variants」ですら人間が用意した有限候補からの**選択**である。
+**ただし「CC の内部に手が届かない」とは書けない (2026-09-03 裁定)。** SysInsight は
+`rw_lock_x_lock_wait_func()` から `sync_array_wait_event()` を辿り、`ut_delay()` の spin 時間と
+context switch 頻度の trade-off を因果として言語化したうえで `innodb_spin_wait_delay` を動かす —
+低レベルの待機挙動は**読解の対象になっている**。ただしそれが spin-wait 同期の層を越えて
+トランザクションの競合待ちと同じ層かは一次資料からは決まらない。競合検出と abort については、
+整形本文 87,303 文字の全体を `abort` / `deadlock` / `concurrency control` / `serializab` /
+`isolation level` / `two-phase` で走査して hit 0 件、かつ精読でも正の記述を確認できなかった
+(**この 1 論文の中の不在であり、「読んでいない」でも世界の不在でもない**)。
+**したがって境界線は「コードか値か」ではなく「対象実装の action vocabulary と分岐構造を
+拡張するか、既存 knob の上に条件付き controller を合成するか」に引く。**
+**P2-5 との関係は限定付きで書く (同上)。** SysInsight は 44 knob・1 session 20 反復という online 予算で、
+白紙から始める SMAC / DDPG++ が良い設定に届かないことを報告し、TPC-C の knob 選択 ablation でも
+ML ベースが最下位になる。**「knob 探索は専業 ML/RL で解ける」は、この実験条件では成立しなかった**
+(regime 一般への一般化ではない — 一次資料が測ったのはこの 44 knob・20 反復・別途 100 config の
+履歴データという 1 条件だけである)。P2-5 が実証したのは silo 8 通りという列挙しきれる空間での
+否定的結果であり、SysInsight はそれを反証しないが、**その外挿範囲を狭める。**
+無限定に「P2-5 と同方向を指す外部証拠」とは書けない。
+**外部補強の実体:** LLM が出した調整仮説をそのまま使わず、観測から定量 rule へ落として confidence を
+付けてから使う設計。**補強するのは性能の信頼性であって直列化可能性ではない** — confidence の定義は
+「その調整が目的関数を改善した割合」であり、6.3 の信頼性指標も「default より悪い設定の数」と累積改善率。
+**採らない:** 機構すべて — Izanagi は knob 探索を研究対象にしない。**この行の根拠に P2-5 を単独で
+置かない (2026-09-03 裁定)** — P2-5 が反証したのは小さい列挙可能なフラグ空間での LLM 誘導の
+付加価値であって、knob tuning 一般ではない。
 **系譜上の位置:** 「ワークロード特化の DB 自動最適化」の最古参。Izanagi はこの目標を knob 空間から
-コード空間へ持ち出す位置に立つ。
+コード空間へ持ち出す位置に立つ。**ただし「LLM に DBMS のソースコードを読ませて機序を取り出す」ことは
+SysInsight が既に行っている。** 差別化に使えるのは、対象がトランザクションの CC であること・
+action space 自体を拡張すること・正しさゲートを毎反復回すことである。
+**使えないのは「LLM に DBMS のコードを読ませて機序説明を生成する」という狭い能力主張だけ**であり、
+説明可能性の軸全体ではない — SysInsight は説明の忠実性も proof chain も provenance も評価しない
+(軸 2・軸 3 とも `部分接地` / `方法論的祖先`。上記の狭い能力についてだけ `競合`。裁定記録 §4)。
+**調査ノート:** `notes/note_why_database_manuals_are_not_enough_effi.md`
 
 #### learned DB components 系譜 — learned index / learned query optimizer
 `判定: 引用元`+`外部補強` · `接地: 層2 の物語 (部品の学習特化)、実行時推論ゼロの設計必然性` · `id検証: 2026-07-10 (arXiv バルク 5/5 + venue 裏取り、worklog 2026-07-10 (8))`

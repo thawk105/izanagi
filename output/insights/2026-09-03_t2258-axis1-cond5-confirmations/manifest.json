@@ -1,0 +1,53 @@
+{
+  "bundle_manifest_sha256": "ff25f09af3840d35b4bc3cb36c0fa8b9df283f0cce055c6c117b71707832e9ca",
+  "catalog_sha256": "8e23d63a799c8ab9d25151012c34bc738dbb422ac3dfb237999c359137c816ab",
+  "document_type": "evidence_sidecar_manifest",
+  "entries": [
+    {
+      "bytes": 7310,
+      "path": "verbatim/measure-boundary.md",
+      "sha256": "0af679ba3a63a9e006429ab2882fc3737cbf75688991b3551685e9d2dc29e1a9"
+    },
+    {
+      "bytes": 1781,
+      "path": "verbatim/measure-chain.md",
+      "sha256": "88f45f692bb41e1180b5ec433fc84ad612bbc8c204befa5acd3dab1184d0988f"
+    },
+    {
+      "bytes": 3620,
+      "path": "verbatim/measure-crosscheck.md",
+      "sha256": "cdf444af4f51d5e1c139e688c1d22b1db60bc3a515e5ff3e07c133c0d5d7cd31"
+    },
+    {
+      "bytes": 4164,
+      "path": "verbatim/measure-digest.md",
+      "sha256": "d2e29bdd8e368ab53cbcd76c0621baa80029b12a709a971fed7ccb44f520bef6"
+    },
+    {
+      "bytes": 5852,
+      "path": "verbatim/measure-mech.md",
+      "sha256": "d59cf22d20569e9f959b66f0fd949756bf5064cd30ecf69aec91f51796b8e3fc"
+    },
+    {
+      "bytes": 3182,
+      "path": "verbatim/measure-premise.md",
+      "sha256": "da9b4a4bceaaa3c72ddad73108c0e6c65d925bc3a31484eadef5be30d1cde009"
+    },
+    {
+      "bytes": 11494,
+      "path": "verbatim/measure-tuple.md",
+      "sha256": "63d4cede098ac734968caef13a5989765605ca7e2b2459ad2c3025dd40b92f62"
+    },
+    {
+      "bytes": 28310,
+      "path": "verbatim/probe-src.md",
+      "sha256": "a8848901a8739a506dce61329501fc6dfea69f876f46c14ac60bdab0d457b5b3"
+    }
+  ],
+  "input_commit": "39086303b5c36a9e5523dc9f3e9480678a2b2f35",
+  "new_http_requests": 0,
+  "registration_commit": "4ec3eba04354f9ba86117a2dd488c72d007045e6",
+  "registration_epoch": "AX1-20260902-E1",
+  "run_id": "t2090-openalex-20260903",
+  "schema_version": "izanagi-axis1-cond5-confirmation-sidecar/v1"
+}

@@ -1,0 +1,46 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 600,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T2111-GIT-ENV-LEAK-BOTH-LAYERS",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            \"HOME\": \"/tmp/t181-home\",\n",
+     "new": "            \"GIT_DIR\": \"/tmp/t181-leak\",\n            \"HOME\": \"/tmp/t181-home\",\n"
+    },
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        if key.startswith(\"GIT_\") or key not in ENV_ALLOWLIST:\n",
+     "new": "        if key not in ENV_ALLOWLIST and not key.startswith(\"GIT_\"):\n"
+    },
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if any(key.startswith(\"GIT_\") for key in environment):\n        raise ValidationError(\"GIT_* survived supervisor environment scrub\", RC_ROUTING)\n",
+     "new": "    if False:\n        raise ValidationError(\"GIT_* survived supervisor environment scrub\", RC_ROUTING)\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T2111-MANIFEST-DIGEST-BINDING",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if actual != expected:\n        raise ValidationError(\n            f\"{label} task_manifest_sha256 mismatch\", rc\n        )\n",
+     "new": "    if False:\n        raise ValidationError(\n            f\"{label} task_manifest_sha256 mismatch\", rc\n        )\n"
+    }
+   ]
+  }
+ ]
+}

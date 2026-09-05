@@ -1,0 +1,103 @@
+=== cumulative top 40 ===
+Wed Sep  2 23:14:08 2026    /home/SFC/tanab/.claude/jobs/0043f614/tmp/collect.prof
+
+         37200463 function calls (36639044 primitive calls) in 22.380 seconds
+
+   Ordered by: cumulative time
+   List reduced from 8034 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   7986/1    0.457    0.000   22.424   22.424 {built-in method builtins.exec}
+        1    0.000    0.000   22.424   22.424 /usr/lib/python3.10/runpy.py:199(run_module)
+        1    0.000    0.000   22.270   22.270 /usr/lib/python3.10/runpy.py:63(_run_code)
+        1    0.000    0.000   22.270   22.270 /home/SFC/tanab/.local/lib/python3.10/site-packages/pytest/__main__.py:1(<module>)
+        1    0.000    0.000   22.270   22.270 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/config/__init__.py:246(_console_main)
+        1    0.000    0.000   22.270   22.270 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/config/__init__.py:204(_main)
+ 70611/66    0.039    0.000   22.239    0.337 /home/SFC/tanab/.local/lib/python3.10/site-packages/pluggy/_manager.py:111(_hookexec)
+ 70611/66    0.161    0.000   22.239    0.337 /home/SFC/tanab/.local/lib/python3.10/site-packages/pluggy/_callers.py:76(_multicall)
+  56774/2    0.085    0.000   22.235   11.118 /home/SFC/tanab/.local/lib/python3.10/site-packages/pluggy/_hooks.py:497(__call__)
+        1    0.000    0.000   21.680   21.680 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/main.py:376(pytest_cmdline_main)
+        1    0.000    0.000   21.680   21.680 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/main.py:317(wrap_session)
+        1    0.000    0.000   21.050   21.050 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/main.py:380(_main)
+        1    0.000    0.000   21.050   21.050 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/main.py:393(pytest_collection)
+        1    0.002    0.002   21.050   21.050 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/main.py:789(perform_collect)
+62285/519    0.013    0.000   20.221    0.039 {method 'extend' of 'list' objects}
+80965/20145    0.049    0.000   19.864    0.001 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/main.py:1023(genitems)
+      382    0.001    0.000   19.699    0.052 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/main.py:886(_collect_one_node)
+  383/381    0.002    0.000   19.698    0.052 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/runner.py:586(collect_one_node)
+  383/381    0.002    0.000   19.464    0.051 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/runner.py:388(pytest_make_collect_report)
+  383/381    0.002    0.000   19.460    0.051 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/runner.py:340(from_call)
+  383/381    0.001    0.000   19.453    0.051 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/runner.py:389(collect)
+      319    0.003    0.000   18.764    0.059 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:563(collect)
+ 1380/345    0.007    0.000   13.339    0.039 <frozen importlib._bootstrap>:1022(_find_and_load)
+ 1362/339    0.005    0.000   13.331    0.039 <frozen importlib._bootstrap>:987(_find_and_load_unlocked)
+ 1327/340    0.007    0.000   13.241    0.039 <frozen importlib._bootstrap>:664(_load_unlocked)
+131680/111215    0.052    0.000   13.077    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:285(obj)
+  429/323    0.006    0.000   13.058    0.040 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:148(exec_module)
+      320    0.006    0.000   12.970    0.041 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/pathlib.py:502(import_path)
+      319    0.001    0.000   12.933    0.041 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:569(_register_setup_module_fixture)
+      319    0.000    0.000   12.926    0.041 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:560(_getobj)
+      319    0.002    0.000   12.926    0.041 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:501(importtestmodule)
+  346/324    0.001    0.000   12.917    0.040 /usr/lib/python3.10/importlib/__init__.py:108(import_module)
+  348/324    0.001    0.000   12.916    0.040 <frozen importlib._bootstrap>:1038(_gcd_import)
+        1    0.001    0.001    6.407    6.407 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-overhead/orchestrator/tests/test_p3_exploration_namespace.py:1(<module>)
+        1    0.064    0.064    6.169    6.169 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-overhead/orchestrator/tests/test_p3_exploration_namespace.py:131(_discover_campaign_drivers)
+      320    0.056    0.000    5.785    0.018 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:400(collect)
+    26382    0.070    0.000    5.500    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:219(pytest_pycollect_makeitem)
+    33813    0.099    0.000    5.210    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:451(_genfunctions)
+ 1358/271    0.001    0.000    3.801    0.014 <frozen importlib._bootstrap>:233(_call_with_frames_removed)
+    33813    0.041    0.000    3.471    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:1658(from_parent)
+
+
+
+=== tottime top 40 ===
+Wed Sep  2 23:14:08 2026    /home/SFC/tanab/.claude/jobs/0043f614/tmp/collect.prof
+
+         37200463 function calls (36639044 primitive calls) in 22.380 seconds
+
+   Ordered by: internal time
+   List reduced from 8034 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      482    2.187    0.005    2.187    0.005 {built-in method builtins.compile}
+    45764    1.614    0.000    1.630    0.000 {built-in method posix.stat}
+     1237    1.187    0.001    1.192    0.001 {built-in method io.open}
+  2553950    1.042    0.000    2.017    0.000 /usr/lib/python3.10/ast.py:267(iter_child_nodes)
+     1770    1.018    0.001    1.018    0.001 {method '__exit__' of '_io._IOBase' objects}
+      909    0.729    0.001    0.729    0.001 {built-in method io.open_code}
+      428    0.574    0.001    0.574    0.001 {built-in method marshal.load}
+  3283037    0.550    0.000    0.725    0.000 /usr/lib/python3.10/ast.py:255(iter_fields)
+6364827/6361947    0.541    0.000    0.660    0.000 {built-in method builtins.isinstance}
+       98    0.500    0.005    0.500    0.005 {method 'poll' of 'select.poll' objects}
+  1277257    0.481    0.000    2.902    0.000 /usr/lib/python3.10/ast.py:380(walk)
+   7986/1    0.457    0.000   22.424   22.424 {built-in method builtins.exec}
+        2    0.388    0.194    0.388    0.194 {built-in method gc.collect}
+  2683908    0.342    0.000    0.361    0.000 {built-in method builtins.getattr}
+  1277053    0.320    0.000    2.337    0.000 {method 'extend' of 'collections.deque' objects}
+     1430    0.319    0.000    0.319    0.000 {method 'read' of '_io.BufferedReader' objects}
+      187    0.314    0.002    2.912    0.016 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-overhead/orchestrator/tests/test_p3_exploration_namespace.py:70(<setcomp>)
+      885    0.304    0.000    0.304    0.000 {built-in method marshal.loads}
+   177548    0.254    0.000    0.629    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/fixtures.py:2155(_matchfactories)
+    33813    0.247    0.000    3.345    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:1606(__init__)
+   166621    0.246    0.000    0.353    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/nodes.py:338(iter_markers_with_node)
+355722/204816    0.240    0.000    1.070    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/fixtures.py:358(process_argname)
+    34215    0.215    0.000    0.253    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/nodes.py:147(__init__)
+     1764    0.206    0.000    0.591    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:1231(parametrize)
+  1893922    0.202    0.000    0.202    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/nodes.py:286(iter_parents)
+  1047260    0.173    0.000    0.257    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/nodes.py:277(__hash__)
+ 70611/66    0.161    0.000   22.239    0.337 /home/SFC/tanab/.local/lib/python3.10/site-packages/pluggy/_callers.py:76(_multicall)
+20107/19331    0.153    0.000    0.555    0.000 /usr/lib/python3.10/inspect.py:2375(_signature_from_callable)
+  1034650    0.135    0.000    0.233    0.000 {method 'get' of 'dict' objects}
+    80576    0.128    0.000    0.536    0.000 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-overhead/orchestrator/tests/conftest.py:698(_real_repo_node_id)
+    19331    0.128    0.000    0.322    0.000 /usr/lib/python3.10/inspect.py:2280(_signature_from_function)
+    13669    0.120    0.000    0.580    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/fixtures.py:1900(pytest_generate_tests)
+    88774    0.112    0.000    0.154    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/fixtures.py:2160(<setcomp>)
+       62    0.111    0.002    0.175    0.003 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/pathlib.py:941(scandir)
+1400219/1400099    0.107    0.000    0.107    0.000 {built-in method builtins.hash}
+      977    0.106    0.000    0.116    0.000 {method 'read' of '_io.TextIOWrapper' objects}
+    33813    0.099    0.000    5.210    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/python.py:451(_genfunctions)
+   161332    0.093    0.000    0.170    0.000 /usr/lib/python3.10/posixpath.py:140(basename)
+      5/1    0.091    0.018    0.194    0.194 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/fixtures.py:276(reorder_items_atscope)
+    80576    0.089    0.000    0.139    0.000 /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/fixtures.py:225(get_param_argkeys)
+
+

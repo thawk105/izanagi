@@ -2407,6 +2407,205 @@ def test_m8_v2_explicit_dependency_prefix_change_is_cache_miss(tmp_path, monkeyp
     assert first.build_dir != second.build_dir
 
 
+def test_b10_binary_path_policy_emits_only_macro_map_and_rpath_suppression(
+        tmp_path):
+    source = tmp_path / "checkout"
+    toolchain = {
+        role: {"realpath": f"/tool/{role}"}
+        for role in ("cc", "cxx", "cmake")
+    }
+    common = dict(
+        genome=Genome("silo", {"BACK_OFF": 1}), trace=False,
+        sub=str(source), bdir=str(tmp_path / "build"), toolchain=toolchain,
+        site="test",
+    )
+    default_configure, _ = buildcache._v2_commands(**common)
+    configured, _ = buildcache._v2_commands(
+        **common, binary_path_policy=buildcache.B10_BINARY_PATH_POLICY,
+    )
+    macro_map = (
+        "-DCMAKE_CXX_FLAGS=-fmacro-prefix-map="
+        f"{source.resolve()}={buildcache.B10_LOGICAL_SOURCE_ROOT}"
+    )
+    additions = [token for token in configured if token not in default_configure]
+
+    assert additions == [macro_map, "-DCMAKE_SKIP_RPATH=ON"]
+    assert "-DCMAKE_BUILD_TYPE=Release" in configured
+    assert not any("-O" in token for token in additions)
+    assert not any("-flto" in token for token in additions)
+    assert not any("CMAKE_SKIP_RPATH" in token for token in default_configure)
+    with pytest.raises(buildcache.BuildCacheError, match="binary path policy"):
+        buildcache._v2_commands(**common, binary_path_policy="unknown/v1")
+
+
+def test_b10_binary_path_policy_maps_exact_staging_root_only_for_policy(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    fake_run = buildcache._run
+    configure_calls = []
+
+    def record_run(cmd, what, timeout_s=None, *, site=None, env=None):
+        if what == "configure":
+            configure_calls.append(tuple(cmd))
+        return fake_run(cmd, what, timeout_s, site=site, env=env)
+
+    monkeypatch.setattr(buildcache, "_run", record_run)
+    monkeypatch.setenv(
+        buildcache.B10_BINARY_PATH_POLICY_ENV,
+        buildcache.B10_BINARY_PATH_POLICY,
+    )
+    _build(tmp_path, _contract(1))
+    monkeypatch.delenv(buildcache.B10_BINARY_PATH_POLICY_ENV)
+    _build(tmp_path, _contract(1))
+
+    assert len(configure_calls) == 2
+    configured, default_configure = configure_calls
+    staging = Path(configured[configured.index("-B") + 1]).resolve()
+    default_staging = Path(
+        default_configure[default_configure.index("-B") + 1]
+    ).resolve()
+    source = (tmp_path / "ccbench").resolve()
+    expected_cxx_flags = (
+        "-DCMAKE_CXX_FLAGS="
+        f"-fmacro-prefix-map={source}="
+        f"{buildcache.B10_LOGICAL_SOURCE_ROOT} "
+        f"-fdebug-prefix-map={staging}="
+        f"{buildcache.B10_LOGICAL_BUILD_ROOT}"
+    )
+
+    assert staging.name.startswith(".staging-")
+    assert default_staging.name.startswith(".staging-")
+    assert [
+        token for token in configured if "-fdebug-prefix-map=" in token
+    ] == [expected_cxx_flags]
+    assert [
+        token for token in default_configure if "-fdebug-prefix-map=" in token
+    ] == []
+    assert "-DCMAKE_SKIP_RPATH=ON" in configured
+
+
+def test_b10_macro_prefix_map_real_compiler_normalizes_bytes_without_text_change(
+        tmp_path):
+    cxx = shutil.which("g++")
+    objcopy = shutil.which("objcopy")
+    assert cxx is not None
+    assert objcopy is not None
+    roots = (tmp_path / "checkout-a", tmp_path / "checkout-b")
+    binaries = {}
+    text_sections = {}
+    source_bytes = (
+        b"extern void consume(const char*);\n"
+        b"int main() { consume(__FILE__); }\n"
+    )
+    sink = tmp_path / "sink.cc"
+    sink.write_bytes(b"void consume(const char*) {}\n")
+
+    for root in roots:
+        root.mkdir()
+        source = root / "probe.cc"
+        source.write_bytes(source_bytes)
+        for mapped in (False, True):
+            label = (root.name, mapped)
+            binary = root / ("mapped.exe" if mapped else "plain.exe")
+            command = [cxx, "-O3", "-DNDEBUG"]
+            if mapped:
+                command.append(
+                    f"-fmacro-prefix-map={root.resolve()}="
+                    f"{buildcache.B10_LOGICAL_SOURCE_ROOT}"
+                )
+            command.extend([
+                str(source.resolve()), str(sink.resolve()), "-o", str(binary),
+            ])
+            completed = subprocess.run(
+                command, capture_output=True, text=True,
+            )
+            assert completed.returncode == 0, completed.stdout + completed.stderr
+            binaries[label] = binary.read_bytes()
+            text_path = root / ("mapped.text" if mapped else "plain.text")
+            dumped = subprocess.run(
+                [objcopy, "--dump-section", f".text={text_path}", str(binary)],
+                capture_output=True, text=True,
+            )
+            assert dumped.returncode == 0, dumped.stdout + dumped.stderr
+            text_sections[label] = text_path.read_bytes()
+
+    assert binaries[("checkout-a", False)] != binaries[("checkout-b", False)]
+    assert str(roots[0].resolve()).encode() in binaries[("checkout-a", False)]
+    assert str(roots[1].resolve()).encode() in binaries[("checkout-b", False)]
+    assert binaries[("checkout-a", True)] == binaries[("checkout-b", True)]
+    assert buildcache.B10_LOGICAL_SOURCE_ROOT.encode() in binaries[
+        ("checkout-a", True)
+    ]
+    assert str(roots[0].resolve()).encode() not in binaries[("checkout-a", True)]
+    assert str(roots[1].resolve()).encode() not in binaries[("checkout-b", True)]
+    assert len(set(text_sections.values())) == 1
+
+
+def test_b10_binary_path_policy_environment_binds_identity_and_preserves_default(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv(
+        buildcache.B10_BINARY_PATH_POLICY_ENV,
+        buildcache.B10_BINARY_PATH_POLICY,
+    )
+    dependencies = ";".join((
+        str(tmp_path / "gflags-install"), str(tmp_path / "glog-install"),
+    ))
+    normalized = _build(
+        tmp_path, _contract(1), dependency_prefix=dependencies,
+    )
+    normalized_manifest = json.loads(
+        (Path(normalized.build_dir) / "completion.json").read_text(
+            encoding="utf-8",
+        )
+    )
+    expected_map = (
+        "-DCMAKE_CXX_FLAGS=-fmacro-prefix-map="
+        f"{(tmp_path / 'ccbench').resolve()}="
+        f"{buildcache.B10_LOGICAL_SOURCE_ROOT}"
+    )
+
+    assert expected_map in normalized.configure_argv
+    assert "-DCMAKE_SKIP_RPATH=ON" in normalized.configure_argv
+    assert normalized_manifest["preimage"]["binary_path_policy"] == (
+        buildcache.B10_BINARY_PATH_POLICY
+    )
+    assert normalized_manifest["preimage"]["admission"]["source"][
+        "source_root"
+    ] == str((tmp_path / "ccbench").resolve())
+    assert normalized_manifest["preimage"]["dependency_prefix"] == [
+        str((tmp_path / "gflags-install").resolve()),
+        str((tmp_path / "glog-install").resolve()),
+    ]
+
+    monkeypatch.delenv(buildcache.B10_BINARY_PATH_POLICY_ENV)
+    default = _build(
+        tmp_path, _contract(1), dependency_prefix=dependencies,
+    )
+    default_manifest = json.loads(
+        (Path(default.build_dir) / "completion.json").read_text(
+            encoding="utf-8",
+        )
+    )
+    assert default.build_dir != normalized.build_dir
+    assert expected_map not in default.configure_argv
+    assert "-DCMAKE_SKIP_RPATH=ON" not in default.configure_argv
+    assert "binary_path_policy" not in default_manifest["preimage"]
+
+
+def test_b10_binary_path_policy_environment_rejects_unknown_value(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv(buildcache.B10_BINARY_PATH_POLICY_ENV, "unknown/v1")
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match=buildcache.B10_BINARY_PATH_POLICY_ENV):
+        _build(tmp_path, _contract(1))
+
+
 def test_ambient_dependency_prefix_canonicalization_rule(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     raw = os.pathsep.join(("deps/../gflags", "", "./glog"))

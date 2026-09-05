@@ -1,0 +1,27 @@
+Traceback (most recent call last):
+  File "/scr/0_977066.nqsv-a5-second-boot-write-heavy/job-repo/orchestrator/campaign/backoff_sweep.py", line 457, in <module>
+    sys.exit(main(sys.argv))
+  File "/scr/0_977066.nqsv-a5-second-boot-write-heavy/job-repo/orchestrator/campaign/backoff_sweep.py", line 433, in main
+    summaries = [(tag, run_workload(
+  File "/scr/0_977066.nqsv-a5-second-boot-write-heavy/job-repo/orchestrator/campaign/backoff_sweep.py", line 433, in <listcomp>
+    summaries = [(tag, run_workload(
+  File "/scr/0_977066.nqsv-a5-second-boot-write-heavy/job-repo/orchestrator/campaign/backoff_sweep.py", line 363, in run_workload
+    _require_backoff_condition_gate(
+  File "/scr/0_977066.nqsv-a5-second-boot-write-heavy/job-repo/orchestrator/campaign/backoff_sweep.py", line 163, in _require_backoff_condition_gate
+    raise RuntimeError(
+RuntimeError: condition gate rejected the driver before build/measurement: BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed, BACKOFF_FIXED=red/preprocess-failed
+
+============================================================
+Request ID:             977066.nqsv
+Request Name:           a5_second_boot_backoff_sweep.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Fri Sep  4 21:55:36 2026
+Started Request Time:   Fri Sep  4 21:57:07 2026
+Ended Request Time:     Fri Sep  4 21:59:20 2026
+Resources Information:
+  Elapse:               137S
+  Remaining Elapse:     7063S
+============================================================

@@ -294,6 +294,18 @@ def _normalize_node(node: str, repo: Path, label: str) -> str:
     return f"{path.as_posix()}::{test_text.strip()}"
 
 
+def _strip_group_suffix(node: str) -> str:
+    path_text, separator, test_text = node.partition("::")
+    suffix_start = test_text.rfind("@")
+    if suffix_start > test_text.rfind("]"):
+        test_text = test_text[:suffix_start]
+    return f"{path_text}{separator}{test_text}"
+
+
+def _match_key(node: str, repo: Path, label: str) -> str:
+    return _strip_group_suffix(_normalize_node(node, repo, label))
+
+
 def _failed_nodes(stdout: str, repo: Path, label: str) -> list[str]:
     found: list[str] = []
     for raw_line in stdout.splitlines():
@@ -346,10 +358,13 @@ def _observed_status(
         return "PARSE_ERROR", failed
     if rc == 0:
         return ("SURVIVED" if not failed else "MISMATCH"), failed
-    expected = {
-        _normalize_node(node, repo, f"{label} expected node") for node in expected_nodes
+    expected_keys = {
+        _match_key(node, repo, f"{label} expected node") for node in expected_nodes
     }
-    return ("KILLED" if set(failed) == expected else "MISMATCH"), failed
+    failed_keys = {
+        _match_key(node, repo, f"{label} failed node") for node in failed
+    }
+    return ("KILLED" if failed_keys == expected_keys else "MISMATCH"), failed
 
 
 def _read_receipt(
@@ -485,6 +500,11 @@ def _validate_spec_document(value: Any, label: str) -> dict[str, Any]:
             raise FanoutContractError(f"{mutation_label}.expected_nodes が文字列 list でない")
         if len(nodes) != len(set(nodes)):
             raise FanoutContractError(f"{mutation_label}.expected_nodes が重複")
+        match_keys = {_strip_group_suffix(node) for node in nodes}
+        if len(match_keys) != len(nodes):
+            raise FanoutContractError(
+                f"{mutation_label}.expected_nodes が正規化後に重複"
+            )
         if (expected_status == "KILLED") is not bool(nodes):
             raise FanoutContractError(f"{mutation_label}.expected_nodes と status が不整合")
         replacements = mutation["replacements"]
@@ -897,9 +917,15 @@ def _validate_ledger(
             f"{shard_id} collected_nodes が collection stdout からの再導出と不一致"
         )
     expected_nodes = {
-        node for mutation in shard_spec["mutations"] for node in mutation["expected_nodes"]
+        _match_key(node, checkout, f"{shard_id} expected node")
+        for mutation in shard_spec["mutations"]
+        for node in mutation["expected_nodes"]
     }
-    if not expected_nodes <= set(collection["collected_nodes"]):
+    collected_node_keys = {
+        _match_key(node, checkout, f"{shard_id} collected node")
+        for node in collection["collected_nodes"]
+    }
+    if not expected_nodes <= collected_node_keys:
         raise FanoutContractError(f"{shard_id} collection に expected node がない")
 
     baseline = _exact(ledger["baseline"], _BASELINE_FIELDS, f"{shard_id} baseline")

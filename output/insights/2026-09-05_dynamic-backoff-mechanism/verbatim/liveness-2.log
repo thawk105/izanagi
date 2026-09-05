@@ -1,0 +1,14 @@
+=== start 08:22:01
+NOTE: B also applies on pin+A? (expected yes, cc-a is pin+A)
+include lines identical A vs A+B
+built a 08:22:20 sha=df3a6a0e3370c33a
+built ab-tuned 08:22:30 sha=0b5435c3e5eea157
+built ab-full 08:22:43 sha=c79f3402df8cffbb
+built ab-diag 08:22:53 sha=dfd4e49c7e7f6bd3
+a nm_symbols=0 strings=0 sha=df3a6a0e3370c33a
+ab-tuned nm_symbols=0 strings=0 sha=0b5435c3e5eea157
+ab-full nm_symbols=0 strings=0 sha=c79f3402df8cffbb
+ab-diag nm_symbols=4 strings=2 sha=dfd4e49c7e7f6bd3
+TEXT DIFFERS a vs ab-tuned: 1118 lines
+=== end 08:22:54
+INSTRUCTION STREAM IDENTICAL a vs ab-tuned after stripping '# addr' comments (60242 lines)

@@ -719,15 +719,69 @@ def _resolve_expr(
     return None
 
 
+def _split_source_lines(source: str) -> list[str]:
+    """Split CR/LF source for use only with valid nodes from ``ast.parse``."""
+    lines: list[str] = []
+    start = 0
+    index = 0
+    while index < len(source):
+        character = source[index]
+        if character == "\n":
+            index += 1
+            lines.append(source[start:index])
+            start = index
+        elif character == "\r":
+            index += 1
+            if index < len(source) and source[index] == "\n":
+                index += 1
+            lines.append(source[start:index])
+            start = index
+        else:
+            index += 1
+    if start < len(source):
+        lines.append(source[start:])
+    return lines
+
+
+def _get_source_segment(
+    lines: Sequence[str], node: ast.AST, *, padded: bool = False,
+) -> str | None:
+    """Return text only for a valid location-bearing node from ``ast.parse``."""
+    lineno = getattr(node, "lineno", None)
+    col_offset = getattr(node, "col_offset", None)
+    end_lineno = getattr(node, "end_lineno", None)
+    end_col_offset = getattr(node, "end_col_offset", None)
+    if None in (lineno, col_offset, end_lineno, end_col_offset):
+        return None
+
+    lineno -= 1
+    end_lineno -= 1
+    if lineno == end_lineno:
+        return lines[lineno].encode("utf-8")[
+            col_offset:end_col_offset
+        ].decode("utf-8")
+
+    padding = ""
+    if padded:
+        prefix = lines[lineno].encode("utf-8")[:col_offset].decode("utf-8")
+        padding = "".join(
+            character if character in "\t\f" else " "
+            for character in prefix
+        )
+    first = padding + lines[lineno].encode("utf-8")[col_offset:].decode("utf-8")
+    last = lines[end_lineno].encode("utf-8")[:end_col_offset].decode("utf-8")
+    return "".join((first, *lines[lineno + 1:end_lineno], last))
+
+
 class _FunctionCallVisitor(ast.NodeVisitor):
     def __init__(
         self,
-        source: str,
+        source_lines: Sequence[str],
         bindings: Mapping[str, str],
         module_name: str,
         local_functions: frozenset[str],
     ):
-        self.source = source
+        self.source_lines = source_lines
         self.bindings = bindings
         self.module_name = module_name
         self.local_functions = local_functions
@@ -747,7 +801,7 @@ class _FunctionCallVisitor(ast.NodeVisitor):
         return
 
     def visit_If(self, node: ast.If) -> None:
-        guard = ast.get_source_segment(self.source, node.test) or ast.unparse(node.test)
+        guard = _get_source_segment(self.source_lines, node.test) or ast.unparse(node.test)
         self.guards.append(guard.strip())
         for child in node.body:
             self.visit(child)
@@ -831,6 +885,7 @@ def _analyze_source(module_name: str, relative_path: str, source: str) -> _Stati
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as exc:
         raise StaticInventoryError(f"cannot parse {relative_path}: {exc}") from exc
+    source_lines = _split_source_lines(source)
     bindings, module_issues = _import_bindings(module_name, tree)
     defs = {
         node.name: node
@@ -851,7 +906,10 @@ def _analyze_source(module_name: str, relative_path: str, source: str) -> _Stati
         if node.args.kwarg is not None:
             parameters[node.args.kwarg.arg] = f"parameter.{node.args.kwarg.arg}"
         visitor = _FunctionCallVisitor(
-            source, {**bindings, **parameters}, module_name, local_functions,
+            source_lines,
+            {**bindings, **parameters},
+            module_name,
+            local_functions,
         )
         for child in node.body:
             visitor.visit(child)
@@ -1392,7 +1450,13 @@ def _validate_fixture_payload(payload: Mapping[str, object]) -> dict[str, object
     return dict(payload)
 
 
-def _record_probe_diff_reject(workspace: object, layout: object, payload: Mapping[str, object]) -> str:
+def _record_probe_diff_reject(
+    workspace: object,
+    layout: object,
+    payload: Mapping[str, object],
+    *,
+    backoff_grammar_version: int | None = None,
+) -> str:
     runtime = _require_active_runtime()
     expected = _layout_for_workspace(workspace)
     if type(layout) is not type(expected) or _resolved(layout.root) != _resolved(expected.root):
@@ -1418,6 +1482,7 @@ def _record_probe_diff_reject(workspace: object, layout: object, payload: Mappin
     )
     return runtime.L.record_diff_reject(
         layout, genome, checked["implementation"], rejection,
+        backoff_grammar_version=backoff_grammar_version,
     )
 
 
@@ -1455,6 +1520,10 @@ def _make_probe_view():
             generator_id=runtime.build_admission.GeneratorId.BACKOFF_SWEEP,
         )
         cfg = runtime.L.default_cfg(reflux=False)
+        cfg = runtime.ident.bind_environment_contract(
+            cfg, runtime.env_contract.lookup(runtime.L.ENV_TAG),
+        )
+        backoff_grammar_version = runtime.L._require_backoff_grammar_version(cfg)
         if cfg.search_config.get("build_admission") != context.policy.as_preimage():
             raise ProbeIsolationError("fixture config is not bound to current admission policy")
         binding = runtime.loader_binding
@@ -1473,7 +1542,12 @@ def _make_probe_view():
             ),
         )
         runtime.L.wal.write_lock(layout, lock_text)
-        _record_probe_diff_reject(workspace, layout, _fixture_payload_from_types())
+        _record_probe_diff_reject(
+            workspace,
+            layout,
+            _fixture_payload_from_types(),
+            backoff_grammar_version=backoff_grammar_version,
+        )
         view = runtime.artifact_admission.require_admitted_campaign(
             layout,
             purpose=runtime.artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,

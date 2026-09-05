@@ -61,7 +61,9 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import (backoff_hole_grammar, buildcache,                         # noqa: E402
                campaign_lock as campaign_lock_codec, condition_meaning_gate,
-               coder_effect_gate, env_contract, ident, trigger_gate_binding, wal)
+               coder_effect_gate, env_contract, execution_guard, ident,
+               site_policy, sort_swo_oracle, trigger_gate_binding, wal)
+from . import knowledge_manifest                                      # noqa: E402
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -91,6 +93,7 @@ from .model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             CampaignConfig, Genome)
 from .pipeline import PerfConfig                           # noqa: E402
 from .projection_guard import (                            # noqa: E402
+    CODER_CONTRACT_K2,
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
 )
@@ -110,12 +113,51 @@ DECLARED_USE_CLASS = "exploration"
 ENV_TAG = "linux-baremetal"           # 計測層タグ (規律: 計測層以外の数値を混ぜない)
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]
+_SITE_ENV_TAGS = {
+    site_policy.OTHER: ENV_TAG,
+    site_policy.PEGASUS_COMPUTE: "pegasus",
+}
+_CAMPAIGN_ENV_KEY = "measurement_env"
+
+_current_site = site_policy.current_site
+_lookup = env_contract.lookup
 
 MARKER_ID = "silo-backoff-magnitude"
 SOURCE_REL = "include/backoff.hh"     # EVOLVE_BLOCK_SOURCES のメンバ (段 4 loop はこの 1 面のみ駆動)
 TEMPLATE_PATCH = "patches/silo-backoff-fixed.patch"  # 骨格 (hole) を敷く不変フレーム
 
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
+
+
+def _site_admits_measurement(site: str) -> bool:
+    """計測を許す既知 site の exact set。未知値は fail-closed。"""
+    return site in {site_policy.OTHER, site_policy.PEGASUS_COMPUTE}
+
+
+def _admit_env_contract(site: str) -> env_contract.ExecutionEnvironmentContract:
+    """解決済み site を admission 後に閉じた対応から契約へ写像する。"""
+    if not _site_admits_measurement(site):
+        raise execution_guard.ExecutionGuardError(
+            f"計測用 env bytes は site={site!r} では生成できない"
+        )
+    return _lookup(_SITE_ENV_TAGS[site])
+
+
+def _campaign_cfg_for_site(
+        cfg: CampaignConfig, site: str, *,
+        _contract: Optional[env_contract.ExecutionEnvironmentContract] = None,
+) -> CampaignConfig:
+    """Resolved site contract を identity に束縛し、Pegasus marker も分離する。"""
+    contract = _contract if _contract is not None else _admit_env_contract(site)
+    if site == site_policy.PEGASUS_COMPUTE:
+        cfg = replace(
+            cfg,
+            search_config={
+                **cfg.search_config,
+                _CAMPAIGN_ENV_KEY: _SITE_ENV_TAGS[site],
+            },
+        )
+    return ident.bind_environment_contract(cfg, contract)
 
 # 停止条件 (design v1 §4、D39 で凍結)。
 MAX_ITER = 10
@@ -364,6 +406,36 @@ def quarantine(sub: str, implementation: str,
             res = _backoff_grammar_rejection(
                 decision, source_rel=source_rel, marker_id=marker_id,
             )
+        else:
+            canonical = (
+                backoff_hole_grammar.canonicalize_backoff_implementation(
+                    implementation
+                )
+            )
+            edited_text = render_hole(base_text, marker, canonical)
+            working_diff = make_working_diff(
+                base_text, edited_text, source_rel
+            )
+    if res.passed and marker_id == "silo-writeset-sort":
+        decision = sort_swo_oracle.validate_sort_implementation(
+            implementation
+        )
+        if not decision.accepted:
+            res = _sort_ir_grammar_rejection(
+                decision,
+                implementation=implementation,
+                materialized_source=edited_text,
+                source_rel=source_rel,
+                marker_id=marker_id,
+            )
+        else:
+            canonical = sort_swo_oracle.canonicalize_sort_implementation(
+                implementation
+            )
+            edited_text = render_hole(base_text, marker, canonical)
+            working_diff = make_working_diff(
+                base_text, edited_text, source_rel
+            )
     if write:
         if res.passed:
             with open(path, "w", encoding="utf-8") as f:
@@ -401,25 +473,104 @@ def _backoff_grammar_rejection(
     )
 
 
+def _sort_ir_grammar_rejection(
+    decision: sort_swo_oracle.SortIrAdmissionDecision,
+    *,
+    implementation: object,
+    materialized_source: str,
+    source_rel: str,
+    marker_id: str,
+) -> DiffQuarantineResult:
+    """Project one sort admission decision through the oracle schema."""
+
+    if (
+        decision.accepted
+        or decision.rule_id is None
+        or decision.reason is None
+        or decision.stage is None
+    ):
+        raise ValueError("sort IR rejection requires a fixed decision")
+    proposal = implementation if type(implementation) is str else ""
+    finding = sort_swo_oracle.SortSwoFinding(
+        sort_swo_oracle.OracleRejectKind.STRUCTURE,
+        decision.reason,
+    )
+    try:
+        materialized_hole = sort_swo_oracle.extract_materialized_hole(
+            materialized_source, marker_id,
+        )
+    except (TypeError, ValueError):
+        materialized_hole = ""
+    result = sort_swo_oracle.SortSwoOracleResult(
+        sort_swo_oracle.OracleStatus.REJECT,
+        hashlib.sha256(materialized_hole.encode("utf-8")).hexdigest(),
+        hashlib.sha256(proposal.encode("utf-8")).hexdigest(),
+        finding,
+    )
+    digest = sort_swo_oracle.rejection_digest(
+        result, diff_region=source_rel, marker_id=marker_id,
+    )
+    digest["rule_id"] = decision.rule_id
+    digest["admission_stage"] = decision.stage
+    return DiffQuarantineResult(
+        passed=False,
+        subtype=DiffRejectSubtype.SORT_SWO_ORACLE,
+        reason=decision.reason,
+        digest=digest,
+        violations=[digest],
+    )
+
+
 # ==== diff-quarantine reject の WAL 記録 (片肺の書き手側) ======================
 
-def diffq_variant_id(genome: Genome, implementation: str) -> str:
+def diffq_variant_id(
+    genome: Genome,
+    implementation: str,
+    *,
+    backoff_grammar_version: Optional[int] = None,
+) -> str:
     """diff 検疫で reject された variant の WAL キー。build しない (src_token 無し) ため
     pipeline.variant_id は使えない — genome + 提案コードのハッシュで一意化する。"""
+    if (backoff_grammar_version is not None
+            and (type(backoff_grammar_version) is not int
+                 or backoff_grammar_version < 1)):
+        raise ValueError(
+            "backoff_grammar_version must be an exact positive integer"
+        )
     import hashlib
-    h = hashlib.sha256((genome.canonical() + "|impl=" + implementation).encode()).hexdigest()[:12]
+    preimage = genome.canonical()
+    if backoff_grammar_version is not None:
+        preimage += f"|backoff_grammar_version={backoff_grammar_version}"
+    h = hashlib.sha256(
+        (preimage + "|impl=" + implementation).encode()
+    ).hexdigest()[:12]
     return f"diffq-{h}"
 
 
 def record_diff_reject(layout: CampaignLayout, genome: Genome, implementation: str,
                        res: DiffQuarantineResult, env_tag: str = ENV_TAG, *,
-                       trigger_gate_binding=None) -> str:
+                       trigger_gate_binding=None,
+                       backoff_grammar_version: Optional[int] = None) -> str:
     """diff 検疫 reject を WAL に BUILD_START→ABORT(reason=diff-quarantine) で焼く。
 
     load_diff_rejections がこの形を読み返し critic に渡す (規律3: 検疫が reject を出した
     だけで消費されない片肺を作らない)。build/verify には到達しないので verify payload も
     fitness も無い (正しさゲート手前の失格 = 採用しない、規律2)。"""
-    v = diffq_variant_id(genome, implementation)
+    lock_grammar_version = wal._declared_backoff_grammar_version(
+        wal._campaign_lock_value(layout)
+    )
+    if (lock_grammar_version is not None
+            or backoff_grammar_version is not None):
+        if (type(backoff_grammar_version) is not int
+                or backoff_grammar_version != lock_grammar_version):
+            raise wal.AttemptTopologyError(
+                "diff reject backoff grammar version が campaign.lock と不一致"
+            )
+    v = diffq_variant_id(
+        genome,
+        implementation,
+        backoff_grammar_version=backoff_grammar_version,
+    )
     attempt_id = secrets.token_hex(16)
     start_payload = {"genome": genome.canonical(), "src_token": "",
                      "build_attempt_id": attempt_id}
@@ -680,15 +831,26 @@ def whiteboard_for_planner(state: LoopState) -> List[Dict]:
     return out
 
 
-def planner_context_payload(state: LoopState, cfg: CampaignConfig) -> Dict[str, Any]:
+def planner_context_payload(
+    state: LoopState,
+    cfg: CampaignConfig,
+    *,
+    knowledge_input: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """段4 human-supervised loop: このharnessが権威を持つ入力 (whiteboard + 任意の
     policy_hint) を planner-v4 spawn 用 JSON へ射影する。current_perf/leading_indicators は
     メインセッションが別途合成し本関数の責務外。
+
+    ``knowledge_input`` がある場合は両既存 key と同じ階層の兄弟 key として加える。
 
     ``policy_hint`` は search_config にキーがある場合だけ exact ``str`` を受け付ける。
     キーが無い場合は planner payload にも出力しない。
     """
     payload: Dict[str, Any] = {"whiteboard": whiteboard_for_planner(state)}
+    if knowledge_input is not None:
+        if type(knowledge_input) is not dict:
+            raise ValueError("knowledge_input は exact dict が必要")
+        payload["knowledge_input"] = knowledge_input
     if "policy_hint" not in cfg.search_config:
         return payload
     hint = cfg.search_config.get("policy_hint")
@@ -943,7 +1105,9 @@ def default_cfg(
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
     search_config = {"scale": "silo", "axis": MARKER_ID,
                      "reflux": "on" if reflux else "off",
-                     "records": 100_000, "threads": 4}
+                     "records": 100_000, "threads": 4,
+                     backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY:
+                         backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION}
     if b4_reflux_ablation:
         from .p3_b4_launcher import require_b4_any_context
         require_b4_any_context(
@@ -962,8 +1126,52 @@ def default_cfg(
         search_config=search_config,
         trial="p3-s4-loop")
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    cfg = ident.bind_admission_policy(cfg, context.policy)
-    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    return ident.bind_admission_policy(cfg, context.policy)
+
+
+def _resolve_knowledge_manifest_argument(
+    manifest_path: Optional[str | os.PathLike[str]],
+) -> Optional[knowledge_manifest.ResolvedKnowledgeManifest]:
+    if manifest_path is None:
+        return None
+    return knowledge_manifest.load_and_resolve_manifest(
+        manifest_path,
+        repo_root=_repo_root(),
+    )
+
+
+def _prepare_knowledge_campaign(
+    cfg: CampaignConfig,
+    resolved: Optional[knowledge_manifest.ResolvedKnowledgeManifest],
+    *,
+    classification: str,
+    de_novo_claim: bool,
+) -> tuple[
+    CampaignConfig,
+    Optional[CampaignLayout],
+    Optional[Dict[str, Any]],
+]:
+    """両 CLI 経路で同じ typed manifest から identity、receipt、projection を作る。"""
+    if resolved is None:
+        return cfg, None, None
+    bound = replace(
+        cfg,
+        search_config={
+            **cfg.search_config,
+            wal.KNOWLEDGE_LEVEL_SEARCH_KEY: resolved.manifest.knowledge_level,
+            wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY:
+                resolved.knowledge_manifest_sha256,
+        },
+    )
+    layout = exploration_campaign_layout(str(ident.campaign_id(bound)))
+    layout.ensure()
+    knowledge_manifest.write_receipt(
+        layout.root,
+        resolved,
+        classification=classification,
+        de_novo_claim=de_novo_claim,
+    )
+    return bound, layout, knowledge_manifest.planner_projection(resolved)
 
 
 def default_perf() -> PerfConfig:
@@ -1067,6 +1275,19 @@ def _check_attribution_before_quarantine(
     return decision
 
 
+def _require_backoff_grammar_version(cfg: CampaignConfig) -> int:
+    """Return the single campaign-declared grammar version or fail closed."""
+
+    key = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY
+    declared = cfg.search_config.get(key)
+    expected = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION
+    if type(declared) is not int or declared != expected:
+        raise ValueError(
+            f"cfg.search_config.{key} must exactly equal {expected}"
+        )
+    return declared
+
+
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
 
 def _duplicate_snapshot(layout: CampaignLayout, variant: str):
@@ -1095,6 +1316,12 @@ def _duplicate_snapshot(layout: CampaignLayout, variant: str):
             "duplicate campaign lock changed while reading WAL"
         )
 
+    wal.validate_backoff_grammar_bindings(
+        records, campaign_lock=decoded_lock,
+    )
+    wal.validate_knowledge_provenance_bindings(
+        records, campaign_lock=decoded_lock,
+    )
     wal.validate_commit_contract_bindings(records, campaign_lock=decoded_lock)
     wal.validate_trigger_bindings(records, campaign_lock=decoded_lock)
     records_by_stage: Dict[str, Dict] = {}
@@ -1183,14 +1410,18 @@ def _resolve_duplicate(layout: CampaignLayout, planner: PlannerProposal,
             "verdict": verdict, "records": recs}
 
 
-def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
-                      planner: PlannerProposal, coder: CoderProposal,
-                      state: LoopState, sub: str, do_build: bool,
-                      layout: Optional[CampaignLayout] = None, log=print,
-                      cache_root: str = "",
-                      build_context: Optional[BuildRunContext] = None,
-                      _b4_launch_context=None) -> Dict:
-    """1 iteration の機械部分を回す (LLM proposal は引数で受け取る)。
+def _run_one_iteration_resolved(
+        cfg: CampaignConfig, perf: PerfConfig,
+        planner: PlannerProposal, coder: CoderProposal,
+        state: LoopState, sub: str, do_build: bool,
+        layout: CampaignLayout,
+        contract: env_contract.ExecutionEnvironmentContract,
+        resolved_site: str, log=print, cache_root: str = "",
+        dependency_prefix: str = "",
+        build_context: Optional[BuildRunContext] = None,
+        _b4_launch_context=None,
+) -> Dict:
+    """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。
 
     do_build=True: applied(TEMPLATE_PATCH) 下で挿入→検疫→(pass なら)run_campaign。
     do_build=False: 挿入→検疫のみ (配線 dry-run、build/verify/bench を省く)。
@@ -1199,11 +1430,6 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     作った使い捨て worktree の場合、build 出力だけは固定共有パス配下に据え置きたい
     呼び手が明示する (省略時は `sub` 直下 = 従来動作と完全互換)。ccbench_dir は常に
     `sub` そのもの (patch/coder 編集がある実際の tree を build に使う)。
-
-    layout=None なら cfg 由来 layout を導出する。**注入 layout は reject WAL/records/checkpoint/
-    digest を同一 layout に co-locate させるため** (drive_iteration が checkpoint と同じ layout を
-    渡す — さもないと reject WAL が cfg 由来 layout に、checkpoint/digest が注入 layout に分裂し
-    digest が空になる、監査 2026-07-08)。
 
     Returns: {"outcome": rejected|certified|aborted|dry-pass, "variant": ..., ...}。
     """
@@ -1218,15 +1444,12 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
             ),
             expected_campaign_id=str(ident.campaign_id(cfg)),
             expected_arm=cfg.search_config.get("reflux"),
-            boundary="base run_one_iteration",
+            boundary="base resolved run_one_iteration",
         )
     from .patchharness import applied
-    if build_context is None and not do_build:
-        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
-    cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    backoff_grammar_version = _require_backoff_grammar_version(cfg)
     preflight_decision = backoff_hole_grammar.validate_backoff_preflight(
         coder.implementation
     )
@@ -1246,15 +1469,6 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         _check_attribution_before_quarantine(coder)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
-    if layout is None:
-        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-    elif do_build and layout.root != exploration_campaign_layout(
-            str(ident.campaign_id(cfg))).root:
-        # build 経路は run_campaign が cfg 由来 layout に WAL を書く — 注入 layout がそれと食い違うと
-        # WAL と reject/records/digest が分裂する。build 時は一致を強制 (production は layout=None
-        # ゆえ常に一致。注入は dry/test 専用の hermetic 化、監査 2026-07-08)。
-        raise ValueError(f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
-                         f"{layout.root} != cfg 由来")
     layout.ensure()
     # reject も campaign の初回 WAL write なので、repair 無しの recovery seam を先行する。
     ident.ensure_resumable_attempts(
@@ -1264,6 +1478,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     if preflight_rejection is not None:
         variant = record_diff_reject(
             layout, genome, coder.implementation, preflight_rejection,
+            env_tag=contract.env_tag,
+            backoff_grammar_version=backoff_grammar_version,
         )
         project_whiteboard(state, planner, "rejected")
         if do_build:
@@ -1282,7 +1498,11 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
             res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)
         if not res.passed:
-            v = record_diff_reject(layout, genome, coder.implementation, res)
+            v = record_diff_reject(
+                layout, genome, coder.implementation, res,
+                env_tag=contract.env_tag,
+                backoff_grammar_version=backoff_grammar_version,
+            )
             project_whiteboard(state, planner, "rejected")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
         return {"outcome": "dry-pass", "variant": None}
@@ -1290,7 +1510,11 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
         res, _b, _e, _d = quarantine(sub, coder.implementation, write=True)
         if not res.passed:
-            v = record_diff_reject(layout, genome, coder.implementation, res)
+            v = record_diff_reject(
+                layout, genome, coder.implementation, res,
+                env_tag=contract.env_tag,
+                backoff_grammar_version=backoff_grammar_version,
+            )
             project_whiteboard(state, planner, "rejected")
             log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
@@ -1298,11 +1522,21 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         # 検疫通過 → build×2 / verify / bench を run_campaign に委譲。coder 編集は
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
-        summary = run_campaign(cfg, [genome], perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                              ccbench_dir=sub, cache_root=cache_root,
-                              authorization_contract=env_contract.authorize(ENV_TAG),
-                              build_context=build_context,
-                              declared_use_class=DECLARED_USE_CLASS)
+        campaign_options = {}
+        if resolved_site == site_policy.PEGASUS_COMPUTE:
+            campaign_options["env_contract"] = contract
+            if dependency_prefix:
+                campaign_options["dependency_prefix"] = dependency_prefix
+        summary = run_campaign(
+            cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
+            numactl=list(contract.numactl), log=log,
+            ccbench_dir=sub, cache_root=cache_root,
+            authorization_contract=env_contract.authorize(contract.env_tag),
+            build_context=build_context,
+            declared_use_class=DECLARED_USE_CLASS,
+            backoff_grammar_version=backoff_grammar_version,
+            **campaign_options,
+        )
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
@@ -1319,6 +1553,58 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     return {"outcome": "aborted", "variant": v,
             "verdict": (r.verdict if r else ""), "records": recs,
             "condition_gate": condition_gate}
+
+
+def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
+                      planner: PlannerProposal, coder: CoderProposal,
+                      state: LoopState, sub: str, do_build: bool,
+                      layout: Optional[CampaignLayout] = None, log=print,
+                      cache_root: str = "",
+                      build_context: Optional[BuildRunContext] = None,
+                      _b4_launch_context=None, *,
+                      dependency_prefix: str = "") -> Dict:
+    """site と environment contract を解決して 1 iteration の機械部分を回す。"""
+    if cfg.search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=cfg.search_tag,
+                trial=cfg.trial,
+                axis=cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(cfg)),
+            expected_arm=cfg.search_config.get("reflux"),
+            boundary="base run_one_iteration",
+        )
+    resolved_site = _current_site()
+    contract = _admit_env_contract(resolved_site)
+    campaign_cfg = _campaign_cfg_for_site(
+        cfg, resolved_site, _contract=contract,
+    )
+    if build_context is None and not do_build:
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    campaign_cfg = ident.bind_admission_policy(campaign_cfg, build_context.policy)
+    if layout is None:
+        layout = exploration_campaign_layout(str(ident.campaign_id(campaign_cfg)))
+    elif do_build and layout.root != exploration_campaign_layout(
+            str(ident.campaign_id(campaign_cfg))).root:
+        # build 経路は run_campaign が cfg 由来 layout に WAL を書く — 注入 layout がそれと食い違うと
+        # WAL と reject/records/digest が分裂する。build 時は一致を強制 (production は layout=None
+        # ゆえ常に一致。注入は dry/test 専用の hermetic 化、監査 2026-07-08)。
+        raise ValueError(
+            f"build 経路の layout 注入は cfg 由来と一致必須 (WAL 分裂防止): "
+            f"{layout.root} != cfg 由来"
+        )
+    return _run_one_iteration_resolved(
+        campaign_cfg, perf, planner, coder, state, sub, do_build,
+        layout, contract, resolved_site, log=log, cache_root=cache_root,
+        dependency_prefix=dependency_prefix,
+        build_context=build_context,
+        _b4_launch_context=_b4_launch_context,
+    )
 
 
 # ==== 段 4b 駆動口 (実 planner/coder proposal を受けて 1 iteration を継続) =========
@@ -1521,11 +1807,41 @@ def _fold_critic_reverse(state: LoopState, prior_critic_reverse: Optional[bool])
         state.reverse_recommendations = 0
 
 
+def _consume_k2_coder_output(
+    result: Dict[str, Any],
+    projected_input: Dict[str, Any],
+) -> Dict[str, Any]:
+    """K2 role の論理出力を schema、anomaly、semantic の順で検査する。"""
+    from orchestrator.codex_roles.events import validate_schema_instance
+    from orchestrator.codex_roles.policy import validate_output_semantics
+    from orchestrator.codex_roles.spec import get_role_spec
+
+    spec = get_role_spec("coder-v4-autonomous-k2")
+    validate_schema_instance(
+        result, spec.output_schema, label="coder-v4-autonomous-k2 output",
+    )
+    proposal = result["proposal"]
+    knowledge_use = result["knowledge_use"]
+    classification = result["classification"]
+    data_boundary_report = result["data_boundary_report"]
+    del knowledge_use, classification
+    if data_boundary_report["instruction_like_content_detected"] is True:
+        raise ValueError(
+            "coder-v4-autonomous-k2 が instruction-like content を申告した"
+        )
+    validate_output_semantics(
+        "coder-v4-autonomous-k2", projected_input, result,
+    )
+    return proposal
+
+
 def load_proposal_file(
     path: str,
     *,
     b4_reflux_ablation: bool = False,
     b4_closed_critic_receipt_sha256: str | None = None,
+    knowledge_input: Optional[Dict[str, Any]] = None,
+    coder_role: str | None = None,
 ) -> Tuple[PlannerProposal, CoderProposal, Optional[bool]]:
     """メインセッションが spawn した planner/coder の構造化出力 (+ 前 critic の逆方向 bool) を
     JSON ファイルから読む。schema:
@@ -1538,7 +1854,16 @@ def load_proposal_file(
     (勝ち筋値・機序を harness へ運ぶ経路にしない)。value 値域は CoderProposal
     構築時、value↔literal 整合は run_one_iteration が機械強制する (D39 決定7)。"""
     with open(path, encoding="utf-8") as f:
-        d = json.load(f)
+        if (
+            knowledge_input is not None
+            and coder_role == "coder-v4-autonomous-k2"
+        ):
+            d = json.load(
+                f,
+                object_pairs_hook=knowledge_manifest._reject_duplicate_keys,
+            )
+        else:
+            d = json.load(f)
     schema_document = d
     if b4_reflux_ablation:
         if "prior_critic_reverse" in d:
@@ -1561,10 +1886,36 @@ def load_proposal_file(
         schema_document.pop(B4_PROPOSAL_RECEIPT_SHA256_KEY, None)
     elif b4_closed_critic_receipt_sha256 is not None:
         raise B4ProtocolError("proposal receipt binding requires B-4 mode")
-    assert_closed_proposal_schema(
-        schema_document, require_auditor=False, require_coder_value=True,
-    )
+    has_knowledge_input = knowledge_input is not None
+    has_coder_role = coder_role is not None
+    if has_knowledge_input != has_coder_role:
+        raise ValueError(
+            "knowledge_input と coder_role は両方指定するか両方省略する必要がある"
+        )
+    k2_contract = has_knowledge_input and has_coder_role
+    if k2_contract and coder_role != "coder-v4-autonomous-k2":
+        raise ValueError("K2 proposal loader の coder_role が不正")
+    if k2_contract:
+        assert_closed_proposal_schema(
+            schema_document,
+            require_auditor=False,
+            require_coder_value=True,
+            coder_contract=CODER_CONTRACT_K2,
+        )
+    else:
+        assert_closed_proposal_schema(
+            schema_document, require_auditor=False, require_coder_value=True,
+        )
     p, c = d["planner"], d["coder"]
+    if k2_contract:
+        assert knowledge_input is not None
+        c = _consume_k2_coder_output(
+            c,
+            {
+                "knowledge_input": knowledge_input,
+                "planner_direction": p,
+            },
+        )
     planner = PlannerProposal(
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
         justification=p.get("justification", ""), uncertainty=p.get("uncertainty", ""))
@@ -1591,7 +1942,12 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     build_context: Optional[BuildRunContext] = None,
                     b4_closed_critic_receipt: str | os.PathLike[str] | None = None,
                     b4_proposal_receipt_sha256: str | None = None,
-                    _b4_launch_context=None) -> Dict:
+                    _b4_launch_context=None, *,
+                    dependency_prefix: str = "",
+                    _resolved_site: Optional[str] = None,
+                    _contract: Optional[
+                        env_contract.ExecutionEnvironmentContract
+                    ] = None) -> Dict:
     """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
 
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
@@ -1604,12 +1960,28 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
     _assert_coder_value_domain(coder.value)
+    if _resolved_site is None and _contract is None:
+        resolved_site = _current_site()
+        contract = _admit_env_contract(resolved_site)
+    elif _resolved_site is None or _contract is None:
+        raise TypeError("resolved site と contract は同時に渡す必要がある")
+    else:
+        resolved_site = _resolved_site
+        contract = _contract
+        if not _site_admits_measurement(resolved_site):
+            raise execution_guard.ExecutionGuardError(
+                f"計測用 env bytes は site={resolved_site!r} では生成できない"
+            )
+        if contract.env_tag != _SITE_ENV_TAGS[resolved_site]:
+            raise execution_guard.ExecutionGuardError(
+                "解決済み site と environment contract の env_tag が一致しない"
+            )
+    cfg = _campaign_cfg_for_site(cfg, resolved_site, _contract=contract)
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     b4_mode = b4_reflux_ablation_mode(cfg)
@@ -1678,13 +2050,13 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     state.iteration += 1
     # 同一 layout を run_one_iteration に渡す — reject WAL/records と checkpoint/digest を
     # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
-    iteration_kwargs = {}
-    if b4_mode:
-        iteration_kwargs["_b4_launch_context"] = _b4_launch_context
-    out = run_one_iteration(cfg, perf, planner, coder, state, sub,
-                            do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root, build_context=build_context,
-                            **iteration_kwargs)
+    out = _run_one_iteration_resolved(
+        cfg, perf, planner, coder, state, sub, do_build,
+        layout, contract, resolved_site, log=log, cache_root=cache_root,
+        dependency_prefix=dependency_prefix,
+        build_context=build_context,
+        _b4_launch_context=(_b4_launch_context if b4_mode else None),
+    )
     save_loop_state(layout, state)
 
     if do_build and out["outcome"] != "dry-pass":
@@ -1743,6 +2115,17 @@ def main(
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
     ap.add_argument("--emit-planner-context", metavar="PATH.json",
                     help="proposal 生成前の planner-v4 入力 (whiteboard + 任意の policy_hint) を JSON 出力")
+    ap.add_argument("--knowledge-manifest", type=Path, metavar="PATH",
+                    help="K2 knowledge manifest (commit/path/raw-byte SHA を検証して条件付き bind)")
+    ap.add_argument("--coder-role", choices=("coder-v4-autonomous-k2",),
+                    default=None,
+                    help="--run-iteration の coder role 契約を明示する")
+    ap.add_argument("--knowledge-classification", metavar="TEXT",
+                    default="reproduction_or_selection",
+                    help="knowledge receipt へ記録する呼び手宣言の候補分類")
+    ap.add_argument("--knowledge-de-novo-claim", choices=("true", "false"),
+                    default="false",
+                    help="knowledge receipt へ記録する呼び手宣言の de novo claim")
     ap.add_argument("--policy-hint", metavar="TEXT", default=None,
                     help="planner-v4 へ渡す任意の policy hint (--emit-planner-context と併用)")
     ap.add_argument("--isolate-worktree", action="store_true",
@@ -1767,31 +2150,53 @@ def main(
         raise B4ProtocolError(
             "B-4 protocol forbids the fixture run_one_iteration route"
         )
+    resolved_knowledge = _resolve_knowledge_manifest_argument(
+        a.knowledge_manifest,
+    )
+    knowledge_de_novo_claim = a.knowledge_de_novo_claim == "true"
+    if (
+        not a.emit_planner_context
+        and not a.no_build
+        and a.coder_build_authority is None
+    ):
+        raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
+
+    resolved_site = _current_site()
+    contract = _admit_env_contract(resolved_site)
+    if a.b4_reflux_ablation:
+        cfg = default_cfg(
+            reflux=(a.reflux == "on"),
+            b4_reflux_ablation=True,
+            _b4_launch_context=_b4_launch_context,
+        )
+    else:
+        cfg = default_cfg(reflux=(a.reflux == "on"))
+    cfg = _campaign_cfg_for_site(cfg, resolved_site, _contract=contract)
     if a.emit_planner_context:
-        if a.b4_reflux_ablation:
-            cfg = default_cfg(
-                reflux=(a.reflux == "on"),
-                b4_reflux_ablation=True,
-                _b4_launch_context=_b4_launch_context,
-            )
-        else:
-            cfg = default_cfg(reflux=(a.reflux == "on"))
         if a.policy_hint is not None:
             cfg = replace(
                 cfg,
                 search_config={**cfg.search_config, "policy_hint": a.policy_hint},
             )
+        cfg, _knowledge_layout, knowledge_input = _prepare_knowledge_campaign(
+            cfg,
+            resolved_knowledge,
+            classification=a.knowledge_classification,
+            de_novo_claim=knowledge_de_novo_claim,
+        )
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         state = load_loop_state(layout)
         if state is None:
             state = LoopState(start_wall=time.time())
         payload = planner_context_payload(state, cfg)
+        if knowledge_input is not None:
+            payload = planner_context_payload(
+                state, cfg, knowledge_input=knowledge_input,
+            )
         with open(a.emit_planner_context, "w", encoding="utf-8") as f:
             f.write(json.dumps(payload, ensure_ascii=False))
         print(f"planner context を出力しました: {a.emit_planner_context}")
         return 0
-    if not a.no_build and a.coder_build_authority is None:
-        raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
     build_context = build_run_context(
         generator_id=GeneratorId.BACKOFF_SWEEP,
         coder_authority=None if a.no_build else a.coder_build_authority,
@@ -1805,16 +2210,13 @@ def main(
         _assert_single_tenant()
     patchharness.assert_pinned_clean(fixed_sub, PIN)
 
-    if a.b4_reflux_ablation:
-        cfg = default_cfg(
-            reflux=(a.reflux == "on"),
-            b4_reflux_ablation=True,
-            _b4_launch_context=_b4_launch_context,
-        )
-    else:
-        cfg = default_cfg(reflux=(a.reflux == "on"))
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    cfg, _knowledge_layout, knowledge_input = _prepare_knowledge_campaign(
+        cfg,
+        resolved_knowledge,
+        classification=a.knowledge_classification,
+        de_novo_claim=knowledge_de_novo_claim,
+    )
     perf = default_perf()
 
     # 段5 git worktree 隔離 (opt-in): 有効時は 1 回だけ使い捨て worktree を作り、build
@@ -1853,6 +2255,10 @@ def main(
             a.run_iteration,
             b4_reflux_ablation=a.b4_reflux_ablation,
             b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+            knowledge_input=(
+                knowledge_input if a.coder_role is not None else None
+            ),
+            coder_role=a.coder_role,
         )
         print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
               f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
@@ -1867,7 +2273,9 @@ def main(
                                   b4_proposal_receipt_sha256=(
                                       proposal_receipt_sha256
                                   ),
-                                  _b4_launch_context=_b4_launch_context)
+                                  _b4_launch_context=_b4_launch_context,
+                                  _resolved_site=resolved_site,
+                                  _contract=contract)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -1892,13 +2300,15 @@ def main(
     print(f"=== 段 4 loop 1 iteration (機械 E2E, value={a.value}, "
           f"reflux={a.reflux}, build={not a.no_build}, "
           f"isolate_worktree={a.isolate_worktree}) ===")
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     with wt_cm as sub:
-        out = run_one_iteration(cfg, perf, planner, coder, state, sub,
-                                do_build=not a.no_build, cache_root=cache_root,
-                                build_context=build_context)
+        out = _run_one_iteration_resolved(
+            cfg, perf, planner, coder, state, sub, not a.no_build,
+            layout, contract, resolved_site, cache_root=cache_root,
+            build_context=build_context,
+        )
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
-    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     out_path = os.path.join(layout.root, "s4_loop_digest.txt")
     stop = check_stop(state)
     dqs = []

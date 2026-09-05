@@ -22,8 +22,10 @@ from pathlib import Path
 from typing import Callable, List, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
-from . import (buildcache, campaign_claim, env_attestation, execution_guard, ident,
-               reservation, source_digest, wal)
+from ..holdout_observation import HoldoutObservationAdmission
+from . import (backoff_hole_grammar, buildcache, campaign_claim,
+               env_attestation, execution_guard, ident, reservation,
+               source_digest, wal)
 from .build_admission import BuildRunContext
 from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
 from .layout import (campaign_layout, env_scope_dir,
@@ -251,6 +253,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  durable_root_policy=None,
                  bench_max_rounds: int = 3,
                  balanced_schedule: Optional[BalancedScheduleConfig] = None,
+                 backoff_grammar_version: Optional[int] = None,
+                 sort_oracle_contract_id: Optional[str] = None,
+                 holdout_observation_admission: Optional[
+                     HoldoutObservationAdmission
+                 ] = None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -265,6 +272,25 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
         raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
+    if (
+        balanced_schedule is not None
+        and holdout_observation_admission is not None
+    ):
+        raise ValueError(
+            "balanced_schedule cannot share one holdout observation admission: "
+            "two arms require 2 * perf.reps observations but the token allowance "
+            "is bound to protocol reps"
+        )
+    if (
+        balanced_schedule is None
+        and holdout_observation_admission is not None
+        and len(genomes) > 1
+    ):
+        raise ValueError(
+            "one holdout_observation_admission cannot cover multiple genomes: "
+            "the attempt-bound token has a finite run_once allowance and reuse "
+            "would exhaust it"
+        )
     if balanced_schedule is not None:
         if type(balanced_schedule) is not BalancedScheduleConfig:
             raise TypeError("balanced_schedule must be an exact BalancedScheduleConfig")
@@ -308,6 +334,21 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    grammar_key = backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY
+    if (grammar_key in cfg.search_config
+            or backoff_grammar_version is not None):
+        declared_grammar_version = cfg.search_config.get(grammar_key)
+        expected_grammar_version = (
+            backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION
+        )
+        if (type(declared_grammar_version) is not int
+                or declared_grammar_version != expected_grammar_version
+                or type(backoff_grammar_version) is not int
+                or backoff_grammar_version != declared_grammar_version):
+            raise ValueError(
+                "campaign backoff grammar version must exactly match the "
+                "running grammar module before authorization or WAL"
+            )
     if expected_toolchain_manifest is not None and env_contract is None:
         raise ValueError(
             "expected_toolchain_manifest は env_contract 付き v2 campaign に限る"
@@ -434,8 +475,18 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 else:
                     _, resolved_cxx = expected_compilers
                 evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
+                source_options = {}
+                if backoff_grammar_version is not None:
+                    source_options["backoff_grammar_version"] = (
+                        backoff_grammar_version
+                    )
+                if sort_oracle_contract_id is not None:
+                    source_options["sort_oracle_contract_id"] = (
+                        sort_oracle_contract_id
+                    )
                 source_evidence = source_digest.resolve_evidence(
-                    g, cfg.ccbench_commit, ccbench_dir=ccbench_dir, cxx=evidence_cxx,
+                    g, cfg.ccbench_commit, ccbench_dir=ccbench_dir,
+                    cxx=evidence_cxx, **source_options,
                 )
                 src_tok = source_evidence.src_token
             except RuntimeError as e:
@@ -509,6 +560,18 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     evaluate_options["use_perf"] = False
                 if bench_max_rounds != 3:
                     evaluate_options["bench_max_rounds"] = bench_max_rounds
+                if backoff_grammar_version is not None:
+                    evaluate_options["backoff_grammar_version"] = (
+                        backoff_grammar_version
+                    )
+                if sort_oracle_contract_id is not None:
+                    evaluate_options["sort_oracle_contract_id"] = (
+                        sort_oracle_contract_id
+                    )
+                if holdout_observation_admission is not None:
+                    evaluate_options["holdout_observation_admission"] = (
+                        holdout_observation_admission
+                    )
                 if balanced_schedule is not None:
                     r = _prepare_evaluation(
                         g, layout, env_tag, cfg.ccbench_commit, perf,

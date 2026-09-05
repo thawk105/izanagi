@@ -96,13 +96,13 @@
       ],
       "properties": {
         "registration_epoch": {
-          "const": "AX1-20260829-E1"
+          "const": "AX1-20260902-E1"
         },
         "registration_commit": {
           "$ref": "#/definitions/registration_commit"
         },
         "catalog_path": {
-          "const": "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+          "const": "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
         },
         "catalog_sha256": {
           "$ref": "#/definitions/sha256"
@@ -129,7 +129,7 @@
         },
         "request_id": {
           "type": "string",
-          "pattern": "^AX1-20260829-E1-.+#p[0-9]+$"
+          "pattern": "^AX1-20260902-E1-.+#p[0-9]+$"
         },
         "attempt_number": {
           "type": "integer",
@@ -781,7 +781,7 @@
           "const": "record_occurrence_ledger"
         },
         "registration_epoch": {
-          "const": "AX1-20260829-E1"
+          "const": "AX1-20260902-E1"
         },
         "registration_commit": {
           "$ref": "#/definitions/registration_commit"
@@ -868,7 +868,7 @@
           "const": "bundle_manifest"
         },
         "registration_epoch": {
-          "const": "AX1-20260829-E1"
+          "const": "AX1-20260902-E1"
         },
         "registration_commit": {
           "$ref": "#/definitions/registration_commit"

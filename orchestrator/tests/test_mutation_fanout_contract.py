@@ -85,19 +85,25 @@ def _mutation(mutation_id: str, *, hang_risk: bool = False) -> dict[str, Any]:
     }
 
 
-def _parent_bytes() -> bytes:
+def _parent_bytes(
+    *, expected_nodes_by_id: dict[str, list[str]] | None = None
+) -> bytes:
+    mutations = [
+        _mutation("M1", hang_risk=True),
+        _mutation("M2"),
+        _mutation("M3", hang_risk=True),
+        _mutation("M4"),
+    ]
+    for mutation in mutations:
+        if expected_nodes_by_id and mutation["id"] in expected_nodes_by_id:
+            mutation["expected_nodes"] = expected_nodes_by_id[mutation["id"]]
     return json.dumps(
         {
             "schema": MF.SPEC_SCHEMA,
             "estimated_run_seconds": 12.5,
             "timeout_seconds": 120,
             "hang_timeout_seconds": 360,
-            "mutations": [
-                _mutation("M1", hang_risk=True),
-                _mutation("M2"),
-                _mutation("M3", hang_risk=True),
-                _mutation("M4"),
-            ],
+            "mutations": mutations,
         },
         ensure_ascii=False,
         indent=1,
@@ -119,10 +125,17 @@ def _write_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _build_group(tmp_path: Path) -> dict[str, Any]:
+def _build_group(
+    tmp_path: Path,
+    *,
+    expected_nodes_by_id: dict[str, list[str]] | None = None,
+    failed_nodes_by_id: dict[str, list[str]] | None = None,
+    status_by_id: dict[str, str] | None = None,
+    collected_nodes: list[str] | None = None,
+) -> dict[str, Any]:
     tmp_path.mkdir(parents=True, exist_ok=True)
     parent_path = tmp_path / "parent.json"
-    parent = _parent_bytes()
+    parent = _parent_bytes(expected_nodes_by_id=expected_nodes_by_id)
     parent_path.write_bytes(parent)
     parent_sha = _sha(parent)
     assignment, shard_payloads = MF.derive_split(
@@ -140,7 +153,11 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
     shared_lock = tmp_path / "shared.lock"
     repo_head = "b" * 40
     wrapper_sha = "c" * 64
-    all_collected = [f"tests/test_gate.py::test_m{index}" for index in range(1, 5)]
+    all_collected = (
+        list(collected_nodes)
+        if collected_nodes is not None
+        else [f"tests/test_gate.py::test_m{index}" for index in range(1, 5)]
+    )
 
     for index, (assignment_shard, shard_payload) in enumerate(
         zip(assignment["shards"], shard_payloads, strict=True)
@@ -229,7 +246,14 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
         records: list[dict[str, Any]] = []
         requests = [("collection", None, 0, collection_request), ("baseline", None, 0, baseline_request)]
         for mutation_index, mutation in enumerate(spec["mutations"]):
-            output = f"FAILED {mutation['expected_nodes'][0]} - AssertionError\n"
+            failed_nodes = (
+                failed_nodes_by_id[mutation["id"]]
+                if failed_nodes_by_id and mutation["id"] in failed_nodes_by_id
+                else mutation["expected_nodes"]
+            )
+            output = "".join(
+                f"FAILED {node} - AssertionError\n" for node in failed_nodes
+            )
             artifact, request = _artifact(
                 original_root,
                 relocated_root,
@@ -238,13 +262,19 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
                 output=output,
             )
             mutation_registration = registration[mutation["id"]]
+            status = (
+                status_by_id[mutation["id"]]
+                if status_by_id and mutation["id"] in status_by_id
+                else "KILLED"
+            )
+            matches_expectation = status == mutation["expected_status"]
             records.append(
                 {
                     **mutation,
-                    "status": "KILLED",
-                    "matches_expectation": True,
+                    "status": status,
+                    "matches_expectation": matches_expectation,
                     "rc": 1,
-                    "failed_nodes": mutation["expected_nodes"],
+                    "failed_nodes": failed_nodes,
                     "timed_out": False,
                     "duration_s": 3.0,
                     "artifact_error": None,
@@ -252,7 +282,11 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
                     "anchor_counts": {"0": 1},
                     "injection_diff_sha256": "a" * 64,
                     "test_output_sha256": _sha(output.encode()),
-                    "test_output_tail": [],
+                    "test_output_tail": (
+                        output.splitlines()[-80:]
+                        if status in {"MISMATCH", "PARSE_ERROR"}
+                        else []
+                    ),
                     "repo_head": repo_head,
                     "spec_sha256": _sha(shard_payload),
                     "registration_sha256": MF._compact_sha256(mutation_registration),
@@ -266,12 +300,12 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
             "registered": len(records),
             "recorded": len(records),
             "completed": len(records),
-            "matching": len(records),
-            "KILLED": len(records),
-            "SURVIVED": 0,
-            "MISMATCH": 0,
-            "TIMEOUT": 0,
-            "PARSE_ERROR": 0,
+            "matching": sum(record["matches_expectation"] for record in records),
+            "KILLED": sum(record["status"] == "KILLED" for record in records),
+            "SURVIVED": sum(record["status"] == "SURVIVED" for record in records),
+            "MISMATCH": sum(record["status"] == "MISMATCH" for record in records),
+            "TIMEOUT": sum(record["status"] == "TIMEOUT" for record in records),
+            "PARSE_ERROR": sum(record["status"] == "PARSE_ERROR" for record in records),
         }
         ledger = {
             "schema": MF.LEDGER_SCHEMA,
@@ -308,7 +342,7 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
             "container_path": str(shared_checkout.parent),
             "scratch_root": str(shared_scratch),
             "lock_path": str(shared_lock),
-            "child_rc": 0,
+            "child_rc": 0 if all(record["matches_expectation"] for record in records) else 1,
             "dispatch_evidence": {
                 "original_path": str(original_root),
                 "relocated_path": str(relocated_root),
@@ -362,7 +396,9 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
                 "wrapper_receipt_path": str(wrapper_path),
                 "attempt_path": str(attempt_path),
                 "wrapper_attempt_ordinal": 1,
-                "wrapper_rc": 0,
+                "wrapper_rc": (
+                    0 if all(record["matches_expectation"] for record in records) else 1
+                ),
                 "expected_paths": {
                     "scratch_root": str(shared_scratch),
                     "container_path": str(shared_checkout.parent),
@@ -512,6 +548,77 @@ def test_split_requires_explicit_valid_n_and_rejects_existing_outputs(tmp_path: 
         )
 
 
+def test_split_rejects_group_suffix_alias_as_expected_node_duplicate() -> None:
+    parent = _parent_bytes(
+        expected_nodes_by_id={
+            "M1": [
+                "tests/test_gate.py::test_m1",
+                "tests/test_gate.py::test_m1@mutation-group",
+            ]
+        }
+    )
+
+    with pytest.raises(MF.FanoutContractError, match="expected_nodes .*正規化後に重複"):
+        MF.derive_split(
+            parent,
+            expected_parent_sha256=_sha(parent),
+            shard_count=2,
+        )
+
+
+def test_split_still_rejects_raw_expected_node_duplicate() -> None:
+    parent = _parent_bytes(
+        expected_nodes_by_id={
+            "M1": [
+                "tests/test_gate.py::test_m1",
+                "tests/test_gate.py::test_m1",
+            ]
+        }
+    )
+
+    with pytest.raises(MF.FanoutContractError, match="expected_nodes が重複"):
+        MF.derive_split(
+            parent,
+            expected_parent_sha256=_sha(parent),
+            shard_count=2,
+        )
+
+
+def test_fanout_match_key_preserves_real_parametrize_id_containing_at() -> None:
+    node = (
+        "orchestrator/tests/test_axis1_search_runner.py::"
+        "test_real_catalog_leaf_resolves_every_runner_field"
+        "[arxiv-AX1-20260902-E1-Q1@arxiv]"
+    )
+
+    assert MF._match_key(node, _REPO, "expected node") == node
+
+
+def test_fanout_match_key_removes_only_group_after_nested_real_parametrize_id() -> None:
+    suffixed = (
+        "orchestrator/tests/test_acceptance_schedule_order.py::"
+        "test_g3_splitter_exactly_matches_loadgroup_scheduler"
+        "[試験::場合[値@例]]@mutation-group"
+    )
+
+    assert MF._match_key(suffixed, _REPO, "expected node") == (
+        "orchestrator/tests/test_acceptance_schedule_order.py::"
+        "test_g3_splitter_exactly_matches_loadgroup_scheduler"
+        "[試験::場合[値@例]]"
+    )
+
+
+def test_fanout_match_key_does_not_collapse_at_in_realistic_paths() -> None:
+    left = "tests@left/x.py::test_case"
+    right = "tests@right/x.py::test_case"
+
+    assert MF._match_key(left, _REPO, "left node") == left
+    assert MF._match_key(right, _REPO, "right node") == right
+    assert MF._match_key(left, _REPO, "left node") != MF._match_key(
+        right, _REPO, "right node"
+    )
+
+
 def test_merge_accepts_manifest_exact_paths_even_when_shards_reuse_same_paths(
     tmp_path: Path,
 ) -> None:
@@ -531,6 +638,101 @@ def test_merge_accepts_manifest_exact_paths_even_when_shards_reuse_same_paths(
     assert saved == index
     with pytest.raises(MF.FanoutContractError, match="既に存在"):
         _merge(paths)
+
+
+def test_merge_matches_group_suffixed_failure_and_preserves_raw_nodes(
+    tmp_path: Path,
+) -> None:
+    paths = _build_group(
+        tmp_path,
+        expected_nodes_by_id={
+            "M1": ["tests/test_gate.py::test_m1"],
+        },
+        failed_nodes_by_id={
+            "M1": ["tests/test_gate.py::test_m1@mutation-group"],
+        },
+    )
+
+    index = _merge(paths)
+
+    assert index["matches_expectation"] is True
+    assert index["result_rc"] == 0
+    ledger = json.loads(paths["ledgers"][0].read_text(encoding="utf-8"))
+    record = next(item for item in ledger["mutations"] if item["id"] == "M1")
+    assert record["status"] == "KILLED"
+    assert record["failed_nodes"] == [
+        "tests/test_gate.py::test_m1@mutation-group"
+    ]
+    assert ledger["procedure"]["collection"]["collected_nodes"] == [
+        "tests/test_gate.py::test_m1",
+        "tests/test_gate.py::test_m2",
+        "tests/test_gate.py::test_m3",
+        "tests/test_gate.py::test_m4",
+    ]
+    assert ledger["procedure"]["registration_preflight"]["M1"][
+        "expected_nodes"
+    ] == ["tests/test_gate.py::test_m1"]
+
+
+def test_merge_accepts_group_suffixed_expected_against_base_collection(
+    tmp_path: Path,
+) -> None:
+    paths = _build_group(
+        tmp_path,
+        expected_nodes_by_id={
+            "M1": ["tests/test_gate.py::test_m1@mutation-group"],
+        },
+        failed_nodes_by_id={
+            "M1": ["tests/test_gate.py::test_m1@mutation-group"],
+        },
+    )
+
+    index = _merge(paths)
+
+    assert index["matches_expectation"] is True
+    assert index["result_rc"] == 0
+    ledger = json.loads(paths["ledgers"][0].read_text(encoding="utf-8"))
+    record = next(item for item in ledger["mutations"] if item["id"] == "M1")
+    assert record["status"] == "KILLED"
+    assert record["expected_nodes"] == [
+        "tests/test_gate.py::test_m1@mutation-group"
+    ]
+    assert ledger["procedure"]["registration_preflight"]["M1"][
+        "expected_nodes"
+    ] == ["tests/test_gate.py::test_m1@mutation-group"]
+    assert ledger["procedure"]["collection"]["collected_nodes"][0] == (
+        "tests/test_gate.py::test_m1"
+    )
+
+
+def test_merge_keeps_group_normalized_strict_superset_as_mismatch(
+    tmp_path: Path,
+) -> None:
+    paths = _build_group(
+        tmp_path,
+        expected_nodes_by_id={
+            "M1": ["tests/test_gate.py::test_m1"],
+        },
+        failed_nodes_by_id={
+            "M1": [
+                "tests/test_gate.py::test_m1@mutation-group",
+                "tests/test_gate.py::test_m2@mutation-group",
+            ],
+        },
+        status_by_id={"M1": "MISMATCH"},
+    )
+
+    index = _merge(paths)
+
+    assert index["matches_expectation"] is False
+    assert index["result_rc"] == 1
+    ledger = json.loads(paths["ledgers"][0].read_text(encoding="utf-8"))
+    record = next(item for item in ledger["mutations"] if item["id"] == "M1")
+    assert record["status"] == "MISMATCH"
+    assert record["failed_nodes"] == [
+        "tests/test_gate.py::test_m1@mutation-group",
+        "tests/test_gate.py::test_m2@mutation-group",
+    ]
 
 
 @pytest.mark.parametrize(

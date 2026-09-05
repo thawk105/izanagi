@@ -65,9 +65,13 @@ import hashlib
 import os
 import re
 import subprocess
-from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, List, Mapping, Optional
 
+from ..verifier.model import (
+    CompiledProtocolSourceSnapshot,
+    capture_compiled_protocol_source_snapshot,
+)
 from .model import Genome
 
 # ---- 対象集合 (kickoff の固定集合。動的なマーカー走査はマーカー導入後に格上げ) ----
@@ -101,6 +105,14 @@ EMPTY_TRACKED_DIFF_SHA256 = hashlib.sha256(b"").hexdigest()
 SOURCE_BINDING_DIRECTORY = "source-bindings"
 
 
+def verification_variant_id(genome: Genome, source_token: str = STOCK) -> str:
+    """SourceEvidence と verifier receipt が共有する variant identity。"""
+    suffix = "" if source_token == STOCK else f"|src={source_token}"
+    return hashlib.sha256(
+        f"{genome.canonical()}{suffix}".encode("utf-8")
+    ).hexdigest()[:12]
+
+
 def _is_sha256(value: object) -> bool:
     if type(value) is not str or len(value) != 64:
         return False
@@ -116,8 +128,9 @@ class SourceEvidence:
     """One source-root-bound evidence projection for build admission.
 
     ``source_root`` records which checkout was inspected, while ``tracked_clean``, the tracked
-    diff digest, and ``tracked_paths`` are derived from one status snapshot.  The checkout remains
-    mutable: this value does not close the ABA/mixed-snapshot window between capture and build.
+    diff digest, and ``tracked_paths`` are derived from one status snapshot.  The non-wire proof
+    snapshot freezes the compiled-source predicate input for the build/verifier path.  The checkout
+    remains mutable, so buildcache must still re-resolve and compare both projections at its exit.
     """
 
     schema_version: str
@@ -129,6 +142,13 @@ class SourceEvidence:
     tracked_clean: bool
     tracked_diff_sha256: str
     tracked_paths: tuple[str, ...]
+    # Build/verifier の同一プロセス内だけで使う非 wire 束縛。receipt key は増やさない。
+    proof_source_snapshot: Optional[CompiledProtocolSourceSnapshot] = field(
+        default=None, repr=False, compare=False,
+    )
+    verification_variant: Optional[str] = field(
+        default=None, repr=False, compare=False,
+    )
 
     _KEYS = frozenset({
         "schema", "source_root", "ccbench_commit", "genome_sha256", "src_token",
@@ -160,6 +180,17 @@ class SourceEvidence:
             raise ValueError("SourceEvidence tracked_clean と tracked_paths が不整合")
         if self.tracked_clean != (self.tracked_diff_sha256 == EMPTY_TRACKED_DIFF_SHA256):
             raise ValueError("SourceEvidence tracked_clean と tracked diff digest が不整合")
+        if (self.proof_source_snapshot is not None
+                and type(self.proof_source_snapshot)
+                is not CompiledProtocolSourceSnapshot):
+            raise ValueError("SourceEvidence proof source snapshot が不正")
+        if (self.proof_source_snapshot is not None
+                and self.proof_source_snapshot.ccbench_root != self.source_root):
+            raise ValueError("SourceEvidence proof source snapshot root が不一致")
+        if (self.verification_variant is not None
+                and (type(self.verification_variant) is not str
+                     or not self.verification_variant)):
+            raise ValueError("SourceEvidence verification variant が不正")
 
     def as_receipt(self) -> dict[str, object]:
         return {
@@ -173,6 +204,44 @@ class SourceEvidence:
             "tracked_diff_sha256": self.tracked_diff_sha256,
             "tracked_paths": list(self.tracked_paths),
         }
+
+    def _bind_runtime_verification(
+            self, *,
+            proof_source_snapshot: CompiledProtocolSourceSnapshot,
+            verification_variant: str,
+    ) -> "SourceEvidence":
+        """Bind missing non-wire fields once while preserving this instance.
+
+        Production ``resolve_evidence()`` supplies both fields at construction.
+        In-process legacy/test resolvers may omit them; the pipeline completes
+        only those runtime fields before forwarding this exact object to the
+        capability resolver and both build APIs.  An existing conflicting
+        binding is never replaced.
+        """
+        if type(proof_source_snapshot) is not CompiledProtocolSourceSnapshot:
+            raise ValueError("SourceEvidence proof source snapshot が不正")
+        if proof_source_snapshot.ccbench_root != self.source_root:
+            raise ValueError("SourceEvidence proof source snapshot root が不一致")
+        if type(verification_variant) is not str or not verification_variant:
+            raise ValueError("SourceEvidence verification variant が不正")
+        if (self.proof_source_snapshot is not None
+                and self.proof_source_snapshot != proof_source_snapshot):
+            raise ValueError("SourceEvidence proof source snapshot が既存束縛と不一致")
+        if (self.verification_variant is not None
+                and self.verification_variant != verification_variant):
+            raise ValueError("SourceEvidence verification variant が既存束縛と不一致")
+        if self.proof_source_snapshot is None:
+            object.__setattr__(
+                self, "proof_source_snapshot", proof_source_snapshot,
+            )
+        if self.verification_variant is None:
+            object.__setattr__(
+                self, "verification_variant", verification_variant,
+            )
+        if (self.proof_source_snapshot != proof_source_snapshot
+                or self.verification_variant != verification_variant):
+            raise ValueError("SourceEvidence runtime binding が競合した")
+        return self
 
     @classmethod
     def from_receipt(cls, value: object) -> "SourceEvidence":
@@ -2105,8 +2174,72 @@ def baseline(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     return _digest(parts)
 
 
+def _bind_backoff_grammar_version(
+    raw_digest: str, backoff_grammar_version: Optional[int],
+) -> str:
+    """Domain-separate a non-stock source digest for one explicit grammar."""
+
+    if backoff_grammar_version is None:
+        return raw_digest
+    if (type(backoff_grammar_version) is not int
+            or backoff_grammar_version < 1):
+        raise ValueError(
+            "backoff_grammar_version must be None or an exact positive integer"
+        )
+    preimage = (
+        b"backoff-src-token/v1\0grammar="
+        + str(backoff_grammar_version).encode("ascii")
+        + b"\0source="
+        + raw_digest.encode("ascii")
+    )
+    return hashlib.sha256(preimage).hexdigest()
+
+
+def _bind_sort_oracle_contract_id(
+    raw_digest: str, sort_oracle_contract_id: Optional[str],
+) -> str:
+    """Domain-separate a non-stock source digest for one sort oracle contract."""
+
+    if sort_oracle_contract_id is None:
+        return raw_digest
+    if (type(sort_oracle_contract_id) is not str
+            or not sort_oracle_contract_id
+            or "\0" in sort_oracle_contract_id
+            or not sort_oracle_contract_id.isascii()):
+        raise ValueError(
+            "sort_oracle_contract_id must be None or a non-empty ASCII str "
+            "without NUL"
+        )
+    preimage = (
+        b"sort-src-token/v1\0contract="
+        + sort_oracle_contract_id.encode("ascii")
+        + b"\0source="
+        + raw_digest.encode("ascii")
+    )
+    return hashlib.sha256(preimage).hexdigest()
+
+
+def _resolved_src_token(
+    current: str, baseline_digest: str, backoff_grammar_version: Optional[int],
+    *, sort_oracle_contract_id: Optional[str] = None,
+) -> str:
+    if (backoff_grammar_version is not None
+            and sort_oracle_contract_id is not None):
+        raise ValueError(
+            "backoff_grammar_version and sort_oracle_contract_id are mutually exclusive"
+        )
+    if current == baseline_digest:
+        return STOCK
+    if sort_oracle_contract_id is not None:
+        return _bind_sort_oracle_contract_id(
+            current, sort_oracle_contract_id,
+        )
+    return _bind_backoff_grammar_version(current, backoff_grammar_version)
+
+
 def src_token(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
-              cxx: str = "g++-13") -> str:
+              cxx: str = "g++-13", *,
+              backoff_grammar_version: Optional[int] = None) -> str:
     """identity に織り込む src トークン。
 
     working-tree が stock/inert (HEAD baseline と同一 digest) なら "stock" (後方互換:
@@ -2114,7 +2247,7 @@ def src_token(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     """
     cur = compute(genome, ccbench_dir, cxx)
     base = baseline(genome, ccbench_commit, ccbench_dir, cxx)
-    return STOCK if cur == base else cur
+    return _resolved_src_token(cur, base, backoff_grammar_version)
 
 
 def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
@@ -2198,6 +2331,8 @@ def resolve_evidence(
     *,
     ccbench_dir: str = "",
     cxx: str = "g++-13",
+    backoff_grammar_version: Optional[int] = None,
+    sort_oracle_contract_id: Optional[str] = None,
 ) -> SourceEvidence:
     """Resolve build evidence and bind it to the inspected source root.
 
@@ -2220,7 +2355,12 @@ def resolve_evidence(
     assert_conditional_macros_covered(genome, sub, cxx)
     current = compute(genome, sub, cxx)
     base = baseline(genome, ccbench_commit, sub, cxx)
-    token = STOCK if current == base else current
+    token = _resolved_src_token(
+        current,
+        base,
+        backoff_grammar_version,
+        sort_oracle_contract_id=sort_oracle_contract_id,
+    )
     genome_sha256 = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
     return SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA,
@@ -2232,11 +2372,16 @@ def resolve_evidence(
         tracked_clean=not tracked_paths,
         tracked_diff_sha256=tracked_diff_sha256,
         tracked_paths=tracked_paths,
+        proof_source_snapshot=capture_compiled_protocol_source_snapshot(
+            genome.protocol, source_root,
+        ),
+        verification_variant=verification_variant_id(genome, token),
     )
 
 
 def resolve(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
-            cxx: str = "g++-13") -> str:
+            cxx: str = "g++-13", *,
+            backoff_grammar_version: Optional[int] = None) -> str:
     """variant の identity (src_token) を確定する単一窓口 = allowlist 検査 + src_token。
 
     **WAL は書かない** (呼び手が skip 判定・abort 記録を担う) ので、loop (評価前に skip キーを
@@ -2247,4 +2392,10 @@ def resolve(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     assert_worktree_within_allowlist(ccbench_dir)
     assert_includes_match_head(genome, ccbench_commit, ccbench_dir, cxx)  # #include 死角 (最小案)
     assert_conditional_macros_covered(genome, ccbench_dir, cxx)           # マクロ文脈死角 (T-148)
-    return src_token(genome, ccbench_commit, ccbench_dir, cxx)
+    return src_token(
+        genome,
+        ccbench_commit,
+        ccbench_dir,
+        cxx,
+        backoff_grammar_version=backoff_grammar_version,
+    )

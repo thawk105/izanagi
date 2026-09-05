@@ -33,12 +33,20 @@ _CODER_REQUIRED = frozenset({"axis", "implementation"})
 _CODER_OPTIONAL = frozenset({"value", "justification", "confidence"})
 CODER_CONTRACT_IMPLEMENTATION = "implementation"
 CODER_CONTRACT_TRIGGER_WIRE = "trigger-wire"
+CODER_CONTRACT_K2 = "k2-role-output"
 _CODER_CONTRACTS = frozenset({
     CODER_CONTRACT_IMPLEMENTATION,
     CODER_CONTRACT_TRIGGER_WIRE,
+    CODER_CONTRACT_K2,
 })
 _TRIGGER_CODER_REQUIRED = frozenset({"axis", "wire"})
 _TRIGGER_CODER_OPTIONAL = frozenset({"justification", "confidence"})
+_K2_CODER_REQUIRED = frozenset({
+    "proposal", "knowledge_use", "classification", "data_boundary_report",
+})
+_K2_PROPOSAL_REQUIRED = frozenset({
+    "axis", "value", "implementation", "justification", "confidence",
+})
 _AUDITOR_REQUIRED = frozenset({"verdict", "diff_digest"})
 _AUDITOR_OPTIONAL = frozenset(
     {"violations", "nits", "proposed_tests", "uncertainty"}
@@ -313,6 +321,18 @@ def assert_closed_proposal_schema(
         required=_PLANNER_REQUIRED,
         optional=_PLANNER_OPTIONAL,
     )
+    if coder_contract == CODER_CONTRACT_K2:
+        _assert_key_set(
+            document["coder"],
+            field="$.coder",
+            required=_K2_CODER_REQUIRED,
+        )
+        _assert_key_set(
+            document["coder"]["proposal"],
+            field="$.coder.proposal",
+            required=_K2_PROPOSAL_REQUIRED,
+        )
+        return
     if coder_contract == CODER_CONTRACT_TRIGGER_WIRE:
         coder_required = set(_TRIGGER_CODER_REQUIRED)
         coder_optional = set(_TRIGGER_CODER_OPTIONAL)

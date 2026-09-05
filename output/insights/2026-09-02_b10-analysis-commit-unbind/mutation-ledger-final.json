@@ -1,0 +1,451 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/b3adeb3303d646889e028ad2af23bf75/izdw-b3adeb3303.o967217",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/b3adeb3303d646889e028ad2af23bf75/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 81%]\n................                                                         [100%]\n88 passed in 12.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "d0d43876eb88c4e29d3b35864f4d789ebc21a16c00f9cc893adb97f108a2d28d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "499b3159b903fba034e931c57abca4f9521e88df56476cade195ae88fb0d8cc3",
+    "duration_s": 32.202,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "cef375f8a91d1249bcda35769e72c136e5dd9a67fa287b935c59a5c08996b196",
+    "repo_head": "a495bd1d66ccd85b97746cf73312ff36ba815feb",
+    "runner_sha256": "ea6e2cd5b04afbd9d602329c0f894b51398fffdb7af00a9c778fd1f69d779db5",
+    "spec_sha256": "11da8cfaa0e5223d8483d9fe1fbb39b3b4fce45afac6a62d17a1a8327bc04487",
+    "status": "PASSED",
+    "test_output_sha256": "d0d43876eb88c4e29d3b35864f4d789ebc21a16c00f9cc893adb97f108a2d28d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "fa39c6b460e78f512e10eecb1781da62c8bf4a65f7487cb8d89490ce2f932df8"
+  },
+  "date": "2026-09-02T03:18:59.398221+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/a5b27fcee161c49b5808e9147f1e7a68/izdw-a5b27fcee1.o967219",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/a5b27fcee161c49b5808e9147f1e7a68/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................................................FF.. [ 81%]\n................                                                         [100%]\n=================================== FAILURES ===================================\n______ test_prior_block_record_allows_commit_drift_but_rejects_code_drift ______\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_prior_block_record_allows0')\n\n    def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(\n        tmp_path: Path,\n    ):\n        stored_prereg, row = _prior_block_record(tmp_path)\n        stored_commit = stored_prereg.binding.analysis_commit\n        current_binding = replace(\n            stored_prereg.binding,\n            analysis_commit=\"c\" * 40,\n        )\n        current_prereg = B.Preregistration(\n            current_binding, stored_prereg.path, stored_prereg.spec,\n        )\n    \n        assert row[\"analysis_commit\"] == stored_commit\n        assert row[\"source_commit\"] == stored_commit\n>       assert row[\"preregistration_binding\"] == current_binding.as_dict()\nE       AssertionError: assert {'prereg_comm...8470832', ...} == {'prereg_comm...8470832', ...}\nE         \nE         Omitting 6 identical items, use -vv to show\nE         Differing items:\nE         {'binding_sha256': '642fe6eae6eabb1b874cabd33b8e7e2142a4966c161cb552017248ac0d1fd68a'} != {'binding_sha256': 'b7bf74b75bbfaaec7f06354e58d3c76a6c6c4dc8f583dc73f6e2a5971847c75c'}\nE         {'analysis_commit': 'ffffffffffffffffffffffffffffffffffffffff'} != {'analysis_commit': 'cccccccccccccccccccccccccccccccccccccccc'}\nE         Use -v to get more diff\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:1253: AssertionError\n____ test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not ____\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_analysis_commit_drift_is_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e5d9e3c610>\n\n    def test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not(\n        tmp_path: Path, monkeypatch,\n    ):\n        layout = CampaignLayout(str(tmp_path / \"campaign\"))\n        Path(layout.runs_dir).mkdir(parents=True)\n        Path(layout.lock_file).write_text(\"bound\", encoding=\"utf-8\")\n        Path(layout.wal_file).write_text(\"record\\n\", encoding=\"utf-8\")\n        stored = _binding()\n        resumed = replace(stored, analysis_commit=\"c\" * 40)\n    \n        assert stored.analysis_commit == \"f\" * 40\n        assert resumed.analysis_commit == \"c\" * 40\n        for binding in (stored, resumed):\n>           assert \"analysis_commit\" not in binding.core()\nE           AssertionError: assert 'analysis_commit' not in {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...}\nE            +  where {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} = core()\nE            +    where core = PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_sha='bbbbbbbbbbbbbbbbbbbb...ffffffffffffffffffffffffffff', analysis_code_sha256='eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee').core\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:841: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not\n2 failed, 86 passed in 12.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1809 retained_bytes=1809 omitted_bytes=0 rendered_excerpt_bytes=1861 sha256=361d40068883e36c96fbe053523f1c039587585c392350417c8d7261afb9738f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_analysis_commit_drift_is_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e5d9e3c610>\n> \n>     def test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not(\n>         tmp_path: Path, monkeypatch,\n>     ):\n>         layout = CampaignLayout(str(tmp_path / \"campaign\"))\n>         Path(layout.runs_dir).mkdir(parents=True)\n>         Path(layout.lock_file).write_text(\"bound\", encoding=\"utf-8\")\n>         Path(layout.wal_file).write_text(\"record\\x5cn\", encoding=\"utf-8\")\n>         stored = _binding()\n>         resumed = replace(stored, analysis_commit=\"c\" * 40)\n>     \n>         assert stored.analysis_commit == \"f\" * 40\n>         assert resumed.analysis_commit == \"c\" * 40\n>         for binding in (stored, resumed):\n> >           assert \"analysis_commit\" not in binding.core()\n> E           AssertionError: assert 'analysis_commit' not in {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...}\n> E            +  where {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} = core()\n> E            +    where core = PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_sha='bbbbbbbbbbbbbbbbbbbb...ffffffffffffffffffffffffffff', analysis_code_sha256='eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee').core\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:841: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1425 retained_bytes=1425 omitted_bytes=0 rendered_excerpt_bytes=1484 sha256=940d6e105659c54d75c7fe01e079337d10ee578f06ba509ef1d51b0968695d1d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_prior_block_record_allows0')\n> \n>     def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(\n>         tmp_path: Path,\n>     ):\n>         stored_prereg, row = _prior_block_record(tmp_path)\n>         stored_commit = stored_prereg.binding.analysis_commit\n>         current_binding = replace(\n>             stored_prereg.binding,\n>             analysis_commit=\"c\" * 40,\n>         )\n>         current_prereg = B.Preregistration(\n>             current_binding, stored_prereg.path, stored_prereg.spec,\n>         )\n>     \n>         assert row[\"analysis_commit\"] == stored_commit\n>         assert row[\"source_commit\"] == stored_commit\n> >       assert row[\"preregistration_binding\"] == current_binding.as_dict()\n> E       AssertionError: assert {'prereg_comm...8470832', ...} == {'prereg_comm...8470832', ...}\n> E         \n> E         Omitting 6 identical items, use -vv to show\n> E         Differing items:\n> E         {'binding_sha256': '642fe6eae6eabb1b874cabd33b8e7e2142a4966c161cb552017248ac0d1fd68a'} != {'binding_sha256': 'b7bf74b75bbfaaec7f06354e58d3c76a6c6c4dc8f583dc73f6e2a5971847c75c'}\n> E         {'analysis_commit': 'ffffffffffffffffffffffffffffffffffffffff'} != {'analysis_commit': 'cccccccccccccccccccccccccccccccccccccccc'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:1253: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3234 retained_bytes=3234 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4554 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "88f44bd945a487207a668f646421aa81130d43606f3a3d2ccc6422dae1efe6ea"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "499b3159b903fba034e931c57abca4f9521e88df56476cade195ae88fb0d8cc3",
+      "duration_s": 37.004,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "535aae89c841f2c55b88f5fff87aca24a89f3ed56d764d3ddf7d188d518d65fb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5fb9bc92b698b7fe5de0d24745503d44a5b678664dae97cdbd0a29ded7c02332",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "new": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_commit\": self.analysis_commit,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n",
+          "old": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n"
+        }
+      ],
+      "repo_head": "a495bd1d66ccd85b97746cf73312ff36ba815feb",
+      "runner_sha256": "ea6e2cd5b04afbd9d602329c0f894b51398fffdb7af00a9c778fd1f69d779db5",
+      "spec_sha256": "11da8cfaa0e5223d8483d9fe1fbb39b3b4fce45afac6a62d17a1a8327bc04487",
+      "status": "KILLED",
+      "test_output_sha256": "88f44bd945a487207a668f646421aa81130d43606f3a3d2ccc6422dae1efe6ea",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fa39c6b460e78f512e10eecb1781da62c8bf4a65f7487cb8d89490ce2f932df8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/d98755507b9bb90235d8f9a4472e0ed9/izdw-d98755507b.o967221",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/d98755507b9bb90235d8f9a4472e0ed9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................................F [ 81%]\n................                                                         [100%]\n=================================== FAILURES ===================================\n______ test_prior_block_record_allows_commit_drift_but_rejects_code_drift ______\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_prior_block_record_allows0')\n\n    def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(\n        tmp_path: Path,\n    ):\n        stored_prereg, row = _prior_block_record(tmp_path)\n        stored_commit = stored_prereg.binding.analysis_commit\n        current_binding = replace(\n            stored_prereg.binding,\n            analysis_commit=\"c\" * 40,\n        )\n        current_prereg = B.Preregistration(\n            current_binding, stored_prereg.path, stored_prereg.spec,\n        )\n    \n        assert row[\"analysis_commit\"] == stored_commit\n        assert row[\"source_commit\"] == stored_commit\n        assert row[\"preregistration_binding\"] == current_binding.as_dict()\n        assert row[\"analysis_code_sha256\"] == current_binding.analysis_code_sha256\n>       indexed = B._validate_prior_block_records(\n            [row], workload=\"write-heavy\", prereg=current_prereg,\n        )\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:1255: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrecords = [{'schema_version': 'b10-backoff-shape-block/v2', 'official_certification': False, 'workload': 'write-heavy', 'block_id': 'block-1', ...}]\nworkload = 'write-heavy'\nprereg = Preregistration(binding=PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_s...y', 0.67, 1.9, 'linux-baremetal'), ('balanced', 1.07, 3.0, 'linux-baremetal'), ('read-heavy', 0.22, 0.62, 'pegasus'))))\n\n    def _validate_prior_block_records(\n        records: Sequence[Mapping[str, object]],\n        *,\n        workload: str,\n        prereg: Preregistration,\n    ) -> dict[tuple[str, str], Mapping[str, object]]:\n        indexed = {}\n        expected_order = prereg.spec.block_order_map\n        for row in records:\n            block_id = row.get(\"block_id\")\n            point = row.get(\"point\")\n            index = row.get(\"schedule_index\")\n            request_id = row.get(\"request_id\")\n            nonce = row.get(\"submission_nonce\")\n            expected_trial = None\n            if type(request_id) is str and type(nonce) is str:\n                expected_trial = (\n                    re.sub(r\"[^A-Za-z0-9._-]\", \"-\", request_id)\n                    + f\"-{nonce[:12]}\"\n                )\n            if row.get(\"schema_version\") != \"b10-backoff-shape-block/v2\" \\\n                    or row.get(\"official_certification\") is not False \\\n                    or row.get(\"workload\") != workload \\\n                    or row.get(\"preregistration_binding\") != prereg.binding.as_dict() \\\n                    or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                    or row.get(\"analysis_commit\") != prereg.binding.analysis_commit \\\n                    or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                    or type(request_id) is not str or not request_id \\\n                    or type(nonce) is not str or re.fullmatch(r\"[0-9a-f]{32}\", nonce) is None \\\n                    or row.get(\"trial\") != expected_trial \\\n                    or type(row.get(\"submission_receipt\")) is not str \\\n                    or type(row.get(\"submission_receipt_sha256\")) is not str \\\n                    or _SHA256_RE.fullmatch(row[\"submission_receipt_sha256\"]) is None \\\n                    or type(row.get(\"job_script_sha256\")) is not str \\\n                    or _SHA256_RE.fullmatch(row[\"job_script_sha256\"]) is None \\\n                    or block_id not in expected_order \\\n                    or type(index) is not int \\\n                    or index < 0 or index >= len(expected_order[block_id]) \\\n                    or expected_order[block_id][index] != point:\n>               raise PreflightError(\"resume-binding\", \"既存 block record の束縛/identity が不一致\")\nE               orchestrator.campaign.b10_backoff_shape_sweep.PreflightError: [resume-binding] 既存 block record の束縛/identity が不一致\n\norchestrator/campaign/b10_backoff_shape_sweep.py:2399: PreflightError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\n1 failed, 87 passed in 12.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=4103 retained_bytes=3850 omitted_bytes=253 rendered_excerpt_bytes=4095 sha256=91ec688f33a720c572e4a51e63ed3a80d21f88f34f494105077d47410f67ce51\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>         stored_prereg, row = _prior_block_record(tmp_path)\n>         stored_commit = stored_prereg.binding.analysis_commit\n>         current_binding = replace(\n>             stored_prereg.binding,\n>             analysis_commit=\"c\" * 40,\n>         )\n>         current_prereg = B.Preregistration(\n>             current_binding, stored_prereg.path, stored_prereg.spec,\n>         )\n>     \n>         assert row[\"analysis_commit\"] == stored_commit\n>         assert row[\"source_commit\"] == stored_commit\n>         assert row[\"preregistration_binding\"] == current_binding.as_dict()\n>         assert row[\"analysis_code_sha256\"] == current_binding.analysis_code_sha256\n> >       indexed = B._validate_prior_block_records(\n>             [row], workload=\"write-heavy\", prereg=current_prereg,\n>         )\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:1255: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> records = [{'schema_version': 'b10-backoff-shape-block/v2', 'official_certification': False, 'workload': 'write-heavy', 'block_id': 'block-1', ...}]\n> workload = 'write-heavy'\n> prereg = Preregistration(binding=PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_s...y', 0.67, 1.9, 'linux-baremetal'), ('balanced', 1.07, 3.0, 'linux-baremetal'), ('read-heavy', 0.22, 0.62, 'pegasus'))))\n> \n>     def _validate_prior_block_records(\n>         records: Sequence[Mapping[str, object]],\n>         *,\n>         workload: str,\n>         prereg: Preregistration,\n>     ) -> dict[tuple[str, str], Mapping[str, object]]:\n>         indexed = {}\n>         expected_order = prereg.spec.block_order_map\n>         for row in records:\n>             block_id = row.get(\"block_id\")\n>             point = row.get(\"point\")\n>             index = row.get(\"schedule_index\")\n>             request_id = row.get(\"request_id\")\n>             nonce = row.get(\"submission_nonce\")\n>             expected_trial = None\n>             if type(request_id) is str and type(nonce) is str:\n>                 expected_trial = (\n>                     re.sub(r\"[^A-Za-z0-9._-]\", \"-\", request_id)\n>                     + f\"-{nonce[:12]}\"\n>                 )\n>             if row.get(\"schema_version\") != \"b10-backoff-shape-block/v2\" \\x5c\n>                     or row.get(\"official_certification\") is not False \\x5c\n>                     or row.get(\"workload\") != workload \\x5c\n>                     or row.get(\"preregistration_binding\") != prereg.binding.as_dict() \\x5c\n>                     or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\x5c\n>                     or row.get(\"analysis_commit\") != prereg.binding.analysis_commit \\x5c\n>                     or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\x5c\n>                     or type(request_id) is not str or not request_id \\x5c\n>                     or type(nonce) is not str or re.fullmatch(r\"[0-9a-f]{32}\", nonce) is None \\x5c\n>                     or row.get(\"trial\") != expected_trial \\x5c\n>                     or type(row.get(\"submission_receipt\")) is not str \\x5c\n>                     or type(row.get(\"submission_receipt_sha256\")) is not str \\x5c\n>                     or _SHA256_RE.fullmatch(row[\"submission_receipt_sha256\"]) is None \\x5c\n>                     or type(row.get(\"job_script_sha256\")) is not str \\x5c\n>                     or _SHA256_RE.fullmatch(row[\"job_script_sha256\"]) is None \\x5c\n>                     or block_id not in expected_order \\x5c\n>                     or type(index) is not int \\x5c\n>                     or index < 0 or index >= len(expected_order[block_id]) \\x5c\n>                     or expected_order[block_id][index] != point:\n> >               raise PreflightError(\"resume-binding\", \"\\u65e2\\u5b58 block record \\u306e\\u675f\\u7e1b/identity \\u304c\\u4e0d\\u4e00\\u81f4\")\n> E               orchestrator.campaign.b10_backoff_shape_sweep.PreflightError: [resume-binding] \\u65e2\\u5b58 block record \\u306e\\u675f\\u7e1b/identity \\u304c\\u4e0d\\u4e00\\u81f4\n> \n> orchestrator/campaign/b10_backoff_shape_sweep.py:2399: PreflightError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4103 retained_bytes=3850 omitted_bytes=253 budget_bytes=49152 rendered_bytes=4845 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c1a6edbaba156bd67616cca91f17c770fded677bec2f1ab88071d9291b815c49"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "499b3159b903fba034e931c57abca4f9521e88df56476cade195ae88fb0d8cc3",
+      "duration_s": 37.396,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "f631bc12055155b59a93c663efeee8d0859155195d70a5a1b1268921b02895b7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d20bc0f1f8233fa405c44479cc552f4f2d04c6d576cc04d94cdefd4bb9082394",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "new": "                or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                or row.get(\"analysis_commit\") != prereg.binding.analysis_commit \\\n                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n",
+          "old": "                or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n"
+        }
+      ],
+      "repo_head": "a495bd1d66ccd85b97746cf73312ff36ba815feb",
+      "runner_sha256": "ea6e2cd5b04afbd9d602329c0f894b51398fffdb7af00a9c778fd1f69d779db5",
+      "spec_sha256": "11da8cfaa0e5223d8483d9fe1fbb39b3b4fce45afac6a62d17a1a8327bc04487",
+      "status": "KILLED",
+      "test_output_sha256": "c1a6edbaba156bd67616cca91f17c770fded677bec2f1ab88071d9291b815c49",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fa39c6b460e78f512e10eecb1781da62c8bf4a65f7487cb8d89490ce2f932df8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/838111609465f67eab6e5e7111d0f2ee/izdw-8381116094.o967222",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/838111609465f67eab6e5e7111d0f2ee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................................F [ 81%]\n................                                                         [100%]\n=================================== FAILURES ===================================\n______ test_prior_block_record_allows_commit_drift_but_rejects_code_drift ______\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_prior_block_record_allows0')\n\n    def test_prior_block_record_allows_commit_drift_but_rejects_code_drift(\n        tmp_path: Path,\n    ):\n        stored_prereg, row = _prior_block_record(tmp_path)\n        stored_commit = stored_prereg.binding.analysis_commit\n        current_binding = replace(\n            stored_prereg.binding,\n            analysis_commit=\"c\" * 40,\n        )\n        current_prereg = B.Preregistration(\n            current_binding, stored_prereg.path, stored_prereg.spec,\n        )\n    \n        assert row[\"analysis_commit\"] == stored_commit\n        assert row[\"source_commit\"] == stored_commit\n        assert row[\"preregistration_binding\"] == current_binding.as_dict()\n        assert row[\"analysis_code_sha256\"] == current_binding.analysis_code_sha256\n>       indexed = B._validate_prior_block_records(\n            [row], workload=\"write-heavy\", prereg=current_prereg,\n        )\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:1255: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrecords = [{'schema_version': 'b10-backoff-shape-block/v2', 'official_certification': False, 'workload': 'write-heavy', 'block_id': 'block-1', ...}]\nworkload = 'write-heavy'\nprereg = Preregistration(binding=PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_s...y', 0.67, 1.9, 'linux-baremetal'), ('balanced', 1.07, 3.0, 'linux-baremetal'), ('read-heavy', 0.22, 0.62, 'pegasus'))))\n\n    def _validate_prior_block_records(\n        records: Sequence[Mapping[str, object]],\n        *,\n        workload: str,\n        prereg: Preregistration,\n    ) -> dict[tuple[str, str], Mapping[str, object]]:\n        indexed = {}\n        expected_order = prereg.spec.block_order_map\n        for row in records:\n            block_id = row.get(\"block_id\")\n            point = row.get(\"point\")\n            index = row.get(\"schedule_index\")\n            request_id = row.get(\"request_id\")\n            nonce = row.get(\"submission_nonce\")\n            expected_trial = None\n            if type(request_id) is str and type(nonce) is str:\n                expected_trial = (\n                    re.sub(r\"[^A-Za-z0-9._-]\", \"-\", request_id)\n                    + f\"-{nonce[:12]}\"\n                )\n            if row.get(\"schema_version\") != \"b10-backoff-shape-block/v2\" \\\n                    or row.get(\"official_certification\") is not False \\\n                    or row.get(\"workload\") != workload \\\n                    or row.get(\"preregistration_binding\") != prereg.binding.as_dict() \\\n                    or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                    or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                    or row.get(\"source_commit\") != prereg.binding.analysis_commit \\\n                    or type(request_id) is not str or not request_id \\\n                    or type(nonce) is not str or re.fullmatch(r\"[0-9a-f]{32}\", nonce) is None \\\n                    or row.get(\"trial\") != expected_trial \\\n                    or type(row.get(\"submission_receipt\")) is not str \\\n                    or type(row.get(\"submission_receipt_sha256\")) is not str \\\n                    or _SHA256_RE.fullmatch(row[\"submission_receipt_sha256\"]) is None \\\n                    or type(row.get(\"job_script_sha256\")) is not str \\\n                    or _SHA256_RE.fullmatch(row[\"job_script_sha256\"]) is None \\\n                    or block_id not in expected_order \\\n                    or type(index) is not int \\\n                    or index < 0 or index >= len(expected_order[block_id]) \\\n                    or expected_order[block_id][index] != point:\n>               raise PreflightError(\"resume-binding\", \"既存 block record の束縛/identity が不一致\")\nE               orchestrator.campaign.b10_backoff_shape_sweep.PreflightError: [resume-binding] 既存 block record の束縛/identity が不一致\n\norchestrator/campaign/b10_backoff_shape_sweep.py:2399: PreflightError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\n1 failed, 87 passed in 12.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=4101 retained_bytes=3849 omitted_bytes=252 rendered_excerpt_bytes=4096 sha256=a331e1f28ca2bf1f6bedf9ea16222fd5f449a27dc94d4baafafe4915b389483c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> \n>         stored_prereg, row = _prior_block_record(tmp_path)\n>         stored_commit = stored_prereg.binding.analysis_commit\n>         current_binding = replace(\n>             stored_prereg.binding,\n>             analysis_commit=\"c\" * 40,\n>         )\n>         current_prereg = B.Preregistration(\n>             current_binding, stored_prereg.path, stored_prereg.spec,\n>         )\n>     \n>         assert row[\"analysis_commit\"] == stored_commit\n>         assert row[\"source_commit\"] == stored_commit\n>         assert row[\"preregistration_binding\"] == current_binding.as_dict()\n>         assert row[\"analysis_code_sha256\"] == current_binding.analysis_code_sha256\n> >       indexed = B._validate_prior_block_records(\n>             [row], workload=\"write-heavy\", prereg=current_prereg,\n>         )\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:1255: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> records = [{'schema_version': 'b10-backoff-shape-block/v2', 'official_certification': False, 'workload': 'write-heavy', 'block_id': 'block-1', ...}]\n> workload = 'write-heavy'\n> prereg = Preregistration(binding=PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_s...y', 0.67, 1.9, 'linux-baremetal'), ('balanced', 1.07, 3.0, 'linux-baremetal'), ('read-heavy', 0.22, 0.62, 'pegasus'))))\n> \n>     def _validate_prior_block_records(\n>         records: Sequence[Mapping[str, object]],\n>         *,\n>         workload: str,\n>         prereg: Preregistration,\n>     ) -> dict[tuple[str, str], Mapping[str, object]]:\n>         indexed = {}\n>         expected_order = prereg.spec.block_order_map\n>         for row in records:\n>             block_id = row.get(\"block_id\")\n>             point = row.get(\"point\")\n>             index = row.get(\"schedule_index\")\n>             request_id = row.get(\"request_id\")\n>             nonce = row.get(\"submission_nonce\")\n>             expected_trial = None\n>             if type(request_id) is str and type(nonce) is str:\n>                 expected_trial = (\n>                     re.sub(r\"[^A-Za-z0-9._-]\", \"-\", request_id)\n>                     + f\"-{nonce[:12]}\"\n>                 )\n>             if row.get(\"schema_version\") != \"b10-backoff-shape-block/v2\" \\x5c\n>                     or row.get(\"official_certification\") is not False \\x5c\n>                     or row.get(\"workload\") != workload \\x5c\n>                     or row.get(\"preregistration_binding\") != prereg.binding.as_dict() \\x5c\n>                     or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\x5c\n>                     or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\x5c\n>                     or row.get(\"source_commit\") != prereg.binding.analysis_commit \\x5c\n>                     or type(request_id) is not str or not request_id \\x5c\n>                     or type(nonce) is not str or re.fullmatch(r\"[0-9a-f]{32}\", nonce) is None \\x5c\n>                     or row.get(\"trial\") != expected_trial \\x5c\n>                     or type(row.get(\"submission_receipt\")) is not str \\x5c\n>                     or type(row.get(\"submission_receipt_sha256\")) is not str \\x5c\n>                     or _SHA256_RE.fullmatch(row[\"submission_receipt_sha256\"]) is None \\x5c\n>                     or type(row.get(\"job_script_sha256\")) is not str \\x5c\n>                     or _SHA256_RE.fullmatch(row[\"job_script_sha256\"]) is None \\x5c\n>                     or block_id not in expected_order \\x5c\n>                     or type(index) is not int \\x5c\n>                     or index < 0 or index >= len(expected_order[block_id]) \\x5c\n>                     or expected_order[block_id][index] != point:\n> >               raise PreflightError(\"resume-binding\", \"\\u65e2\\u5b58 block record \\u306e\\u675f\\u7e1b/identity \\u304c\\u4e0d\\u4e00\\u81f4\")\n> E               orchestrator.campaign.b10_backoff_shape_sweep.PreflightError: [resume-binding] \\u65e2\\u5b58 block record \\u306e\\u675f\\u7e1b/identity \\u304c\\u4e0d\\u4e00\\u81f4\n> \n> orchestrator/campaign/b10_backoff_shape_sweep.py:2399: PreflightError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4101 retained_bytes=3849 omitted_bytes=252 budget_bytes=49152 rendered_bytes=4846 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "71b65092c70adf58d10e7df147347c0fd21ceba05ec5e234a9f0f034ee777e13"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "499b3159b903fba034e931c57abca4f9521e88df56476cade195ae88fb0d8cc3",
+      "duration_s": 37.207,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "ced60da663cbee164376c3dcf5191cc7c216a258e489866e0ca0d85cca6cebdd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f24f7c26783d295d42b29463f0bec25c266235d592e063b0d8001b63ceb83499",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "new": "                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                or row.get(\"source_commit\") != prereg.binding.analysis_commit \\\n                or type(request_id) is not str or not request_id \\\n",
+          "old": "                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                or type(request_id) is not str or not request_id \\\n"
+        }
+      ],
+      "repo_head": "a495bd1d66ccd85b97746cf73312ff36ba815feb",
+      "runner_sha256": "ea6e2cd5b04afbd9d602329c0f894b51398fffdb7af00a9c778fd1f69d779db5",
+      "spec_sha256": "11da8cfaa0e5223d8483d9fe1fbb39b3b4fce45afac6a62d17a1a8327bc04487",
+      "status": "KILLED",
+      "test_output_sha256": "71b65092c70adf58d10e7df147347c0fd21ceba05ec5e234a9f0f034ee777e13",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fa39c6b460e78f512e10eecb1781da62c8bf4a65f7487cb8d89490ce2f932df8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/587bece08e07d40b82ce48574bd06420/izdw-587bece08e.o967223",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/587bece08e07d40b82ce48574bd06420/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................................F.. [ 81%]\n................                                                         [100%]\n=================================== FAILURES ===================================\n____ test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not ____\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_analysis_commit_drift_is_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14740a8b38e0>\n\n    def test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not(\n        tmp_path: Path, monkeypatch,\n    ):\n        layout = CampaignLayout(str(tmp_path / \"campaign\"))\n        Path(layout.runs_dir).mkdir(parents=True)\n        Path(layout.lock_file).write_text(\"bound\", encoding=\"utf-8\")\n        Path(layout.wal_file).write_text(\"record\\n\", encoding=\"utf-8\")\n        stored = _binding()\n        resumed = replace(stored, analysis_commit=\"c\" * 40)\n    \n        assert stored.analysis_commit == \"f\" * 40\n        assert resumed.analysis_commit == \"c\" * 40\n        for binding in (stored, resumed):\n            assert \"analysis_commit\" not in binding.core()\n            assert \"analysis_commit\" not in binding.as_dict()\n        assert stored.core() == resumed.core()\n        assert stored.as_dict() == resumed.as_dict()\n        assert stored.binding_sha256 == resumed.binding_sha256\n    \n        monkeypatch.setattr(B.wal, \"read_lock\", lambda _layout: \"bound\")\n        monkeypatch.setattr(\n            B, \"_decode_lock_search_config\",\n            lambda _raw: {\"preregistration_binding\": stored.as_dict()},\n        )\n        record = SimpleNamespace(\n            stage=B.STAGE_BUILD_START,\n            payload={\n                B.B10_BUILD_START_BINDING_KEY: stored.as_dict(),\n                \"build_admission\": {\"input_sha256\": stored.binding_sha256},\n            },\n        )\n        monkeypatch.setattr(B.wal, \"read_records_checked\", lambda _layout: ([record], False))\n        B.assert_resumable_binding(layout, resumed)\n    \n        code_drift = replace(resumed, analysis_code_sha256=\"d\" * 64)\n>       assert stored.core() != code_drift.core()\nE       AssertionError: assert {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} != {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...}\nE        +  where {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} = core()\nE        +    where core = PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_sha='bbbbbbbbbbbbbbbbbbbb...ffffffffffffffffffffffffffff', analysis_code_sha256='eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee').core\nE        +  and   {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} = core()\nE        +    where core = PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_sha='bbbbbbbbbbbbbbbbbbbb...cccccccccccccccccccccccccccc', analysis_code_sha256='dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd').core\n\norchestrator/tests/test_b10_backoff_shape_sweep.py:863: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not\n1 failed, 87 passed in 12.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=3547 retained_bytes=3547 omitted_bytes=0 rendered_excerpt_bytes=3647 sha256=2f6d4f7ece54c37b999940fa9142928411ff9f95562202d2c1c026ade0733515\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_analysis_commit_drift_is_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14740a8b38e0>\n> \n>     def test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not(\n>         tmp_path: Path, monkeypatch,\n>     ):\n>         layout = CampaignLayout(str(tmp_path / \"campaign\"))\n>         Path(layout.runs_dir).mkdir(parents=True)\n>         Path(layout.lock_file).write_text(\"bound\", encoding=\"utf-8\")\n>         Path(layout.wal_file).write_text(\"record\\x5cn\", encoding=\"utf-8\")\n>         stored = _binding()\n>         resumed = replace(stored, analysis_commit=\"c\" * 40)\n>     \n>         assert stored.analysis_commit == \"f\" * 40\n>         assert resumed.analysis_commit == \"c\" * 40\n>         for binding in (stored, resumed):\n>             assert \"analysis_commit\" not in binding.core()\n>             assert \"analysis_commit\" not in binding.as_dict()\n>         assert stored.core() == resumed.core()\n>         assert stored.as_dict() == resumed.as_dict()\n>         assert stored.binding_sha256 == resumed.binding_sha256\n>     \n>         monkeypatch.setattr(B.wal, \"read_lock\", lambda _layout: \"bound\")\n>         monkeypatch.setattr(\n>             B, \"_decode_lock_search_config\",\n>             lambda _raw: {\"preregistration_binding\": stored.as_dict()},\n>         )\n>         record = SimpleNamespace(\n>             stage=B.STAGE_BUILD_START,\n>             payload={\n>                 B.B10_BUILD_START_BINDING_KEY: stored.as_dict(),\n>                 \"build_admission\": {\"input_sha256\": stored.binding_sha256},\n>             },\n>         )\n>         monkeypatch.setattr(B.wal, \"read_records_checked\", lambda _layout: ([record], False))\n>         B.assert_resumable_binding(layout, resumed)\n>     \n>         code_drift = replace(resumed, analysis_code_sha256=\"d\" * 64)\n> >       assert stored.core() != code_drift.core()\n> E       AssertionError: assert {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} != {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...}\n> E        +  where {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} = core()\n> E        +    where core = PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_sha='bbbbbbbbbbbbbbbbbbbb...ffffffffffffffffffffffffffff', analysis_code_sha256='eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee').core\n> E        +  and   {'prereg_commit': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'prereg_blob_sha': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...aba20b7fcc3c3a0eba9b13f998f9', 'patch_sha256': '36cd974c56c6f103d894a53048ac734d9859def266c05898d3794d2c48470832', ...} = core()\n> E        +    where core = PreregistrationBinding(prereg_commit='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', prereg_blob_sha='bbbbbbbbbbbbbbbbbbbb...cccccccccccccccccccccccccccc', analysis_code_sha256='dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd').core\n> \n> orchestrator/tests/test_b10_backoff_shape_sweep.py:863: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3547 retained_bytes=3547 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4397 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "62429c9e9f7ffbb668f216c0814147e22438c6d1d35bcacc9b216afda4fea9be"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "499b3159b903fba034e931c57abca4f9521e88df56476cade195ae88fb0d8cc3",
+      "duration_s": 37.314,
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "cc885a67b2b026f60c42005ee4f17b2ec2f24971ab521fc30ce791c4f473b7dc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9881622c2f58dc9ff7477ef78274998bc77374b687ed5861e44fed5d9a97c76a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "new": "            \"formula_sha256\": self.formula_sha256,\n        }\n",
+          "old": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n        }\n"
+        }
+      ],
+      "repo_head": "a495bd1d66ccd85b97746cf73312ff36ba815feb",
+      "runner_sha256": "ea6e2cd5b04afbd9d602329c0f894b51398fffdb7af00a9c778fd1f69d779db5",
+      "spec_sha256": "11da8cfaa0e5223d8483d9fe1fbb39b3b4fce45afac6a62d17a1a8327bc04487",
+      "status": "KILLED",
+      "test_output_sha256": "62429c9e9f7ffbb668f216c0814147e22438c6d1d35bcacc9b216afda4fea9be",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fa39c6b460e78f512e10eecb1781da62c8bf4a65f7487cb8d89490ce2f932df8"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/5cdc801cc6fbe19bbd61695cc97162fe/izdw-5cdc801cc6.o967214",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/output/pegasus-dispatch/5cdc801cc6fbe19bbd61695cc97162fe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m01_patch_path_widening_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m02_patch_sha_bypass_witness_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m03_duplicate_marker_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m04_hole_substring_match_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m05_wait_loop_mutation_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m06_nonstock_inert_token_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m07_unapplied_patch_is_not_a_success\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_dirty_tree_is_rejected_before_blob_admission\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_nonancestor_commit_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_blob_mismatch_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m09_shape_code_three_is_rejected_instead_of_falling_back\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m12_sign_flip_test_is_two_sided_not_fixed_one_sided\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m13_actual_patch_half_width_mutation_reaches_only_cpp_bounds_oracle\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m14_dormant_cpp_code2_mixer_must_match_registered_symmetric_mixer\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_cpp_code2_pair_average_is_exact_for_alternate_odd_mixer\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m16_omitting_one_registered_analysis_field_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_table_is_required_and_placeholders_are_rejected\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_canonical_preregistration_path_cannot_be_overridden_from_cli\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_phase_closed_set_is_build_verify_perf_probe\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_phase_is_additive_to_the_legacy_phase_set\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_reuses_one_checkout_and_stops_before_perf_on_abort\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_build_requires_exact_path_policy_and_job_exports_it\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_fails_closed_at_login_site_before_any_work\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_does_not_start_performance_campaign\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_harness_copies_reviewed_chkclkspan_and_wait_loop_verbatim\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_output_schema_and_create_only\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_records_are_hash_verified_and_create_only\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p02_all_12_registered_encodings_are_bijective\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p03_legacy_zero_through_999_is_numerically_identical\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_p04_three_reference_points_and_full_grid_are_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_exact_finite_models_distinguish_registered_shapes_and_dormant_code2\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_code2_binary_arms_and_registered_symmetric_bounds_for_odd_means\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_orders_are_distinct_complete_identity_bearing_permutations\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_nominal_wait_uses_abort_calls_times_target_mean\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m1_job_exports_official_root_and_missing_env_fails_closed\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m2_job_root_passes_real_external_and_claim_capability_gates\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m3_job_root_is_identical_across_phase_job_nonces\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_campaign_layout_and_writer_share_resolved_root_and_policy\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_non_forbidden_external_official_root_is_accepted\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface\norchestrator/tests/test_b10_backoff_shape_sweep.py::test_plain_runner_executes_this_file_instead_of_false_green\n\n88 tests collected in 0.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "05b9250cc815d6d9d92171b3c520a7d842619d258e2e5705bb648018572ddbd2"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m01_patch_path_widening_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m02_patch_sha_bypass_witness_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m03_duplicate_marker_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m04_hole_substring_match_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m05_wait_loop_mutation_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m06_nonstock_inert_token_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m07_unapplied_patch_is_not_a_success",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_dirty_tree_is_rejected_before_blob_admission",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_nonancestor_commit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_blob_mismatch_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m09_shape_code_three_is_rejected_instead_of_falling_back",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m12_sign_flip_test_is_two_sided_not_fixed_one_sided",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m13_actual_patch_half_width_mutation_reaches_only_cpp_bounds_oracle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m14_dormant_cpp_code2_mixer_must_match_registered_symmetric_mixer",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_cpp_code2_pair_average_is_exact_for_alternate_odd_mixer",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m16_omitting_one_registered_analysis_field_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p06_canonical_v4_machine_spec_and_runtime_residual_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_v4_spec_including_binary_shape_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[0.5]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_limit_other_than_exact_one_is_rejected[2.0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_schema_version-izanagi-b10-backoff-shape-probe/v2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_result_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_source_commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[placeholder_preregistration_commit-1111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_request_id-953544.nqsv]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_nonce-00000000000000000000000000000000]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[submission_receipt_sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_host-bnode143]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_measured_at_utc-2026-08-27T16:26:56.628726Z]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_clocks_per_us-2101]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_calls_per_cell-100001]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[probe_cells_total-19]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_provenance_values_are_checked_exactly[extraction_rule-select-all-probe-rows]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_registration_rules_values_are_checked_exactly",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_schema_v3_document_is_rejected_after_v4_positive_control",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_deviation_exactly_at_the_limit_is_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_physical_residual_table_is_required_and_placeholders_are_rejected",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_canonical_preregistration_path_cannot_be_overridden_from_cli",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_run_phase_closed_set_is_build_verify_perf_probe",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_phase_is_additive_to_the_legacy_phase_set",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_reuses_one_checkout_and_stops_before_perf_on_abort",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_build_requires_exact_path_policy_and_job_exports_it",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_fails_closed_at_login_site_before_any_work",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_phase_does_not_start_performance_campaign",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_harness_copies_reviewed_chkclkspan_and_wait_loop_verbatim",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_probe_output_schema_and_create_only",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_records_are_hash_verified_and_create_only",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_with_canonical_point_metadata_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_metadata_must_match_point",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p02_all_12_registered_encodings_are_bijective",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p03_legacy_zero_through_999_is_numerically_identical",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p04_three_reference_points_and_full_grid_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_exact_finite_models_distinguish_registered_shapes_and_dormant_code2",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_dormant_code2_binary_arms_and_registered_symmetric_bounds_for_odd_means",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_block_orders_are_distinct_complete_identity_bearing_permutations",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_config_uses_calibration_records_and_binds_preregistration",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[rejected-saturation0]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-None]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation2]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_rejected_missing_null_or_cache_warning_calibration_fails_before_run[accepted-saturation3]",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_generator_receipt_commits_the_exact_preregistration_bundle",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_each_build_start_carries_all_four_explicit_binding_values",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_missing_uncertified_and_unstable_pairs_are_indeterminate",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_cell_effects_cover_all_36_factorial_cells_with_ci",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_nominal_wait_uses_abort_calls_times_target_mean",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m1_job_exports_official_root_and_missing_env_fails_closed",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m2_job_root_passes_real_external_and_claim_capability_gates",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_m3_job_root_is_identical_across_phase_job_nonces",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_formal_campaign_layout_and_writer_share_resolved_root_and_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_tmp_official_root_is_rejected_by_real_durable_policy",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_t1905_a5_non_forbidden_external_official_root_is_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_verify_perf_launcher_contract_and_walltime_are_consistent",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_plain_runner_executes_this_file_instead_of_false_green"
+      ],
+      "duration_s": 21.843,
+      "rc": 0,
+      "repo_head": "a495bd1d66ccd85b97746cf73312ff36ba815feb",
+      "runner_sha256": "ea6e2cd5b04afbd9d602329c0f894b51398fffdb7af00a9c778fd1f69d779db5",
+      "spec_sha256": "11da8cfaa0e5223d8483d9fe1fbb39b3b4fce45afac6a62d17a1a8327bc04487",
+      "status": "PASSED",
+      "tool_sha256": "fa39c6b460e78f512e10eecb1781da62c8bf4a65f7487cb8d89490ce2f932df8"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not",
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "535aae89c841f2c55b88f5fff87aca24a89f3ed56d764d3ddf7d188d518d65fb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+            "new": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_commit\": self.analysis_commit,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n",
+            "old": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f631bc12055155b59a93c663efeee8d0859155195d70a5a1b1268921b02895b7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+            "new": "                or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                or row.get(\"analysis_commit\") != prereg.binding.analysis_commit \\\n                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n",
+            "old": "                or row.get(\"spec_sha256\") != prereg.spec.spec_sha256 \\\n                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_prior_block_record_allows_commit_drift_but_rejects_code_drift"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ced60da663cbee164376c3dcf5191cc7c216a258e489866e0ca0d85cca6cebdd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+            "new": "                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                or row.get(\"source_commit\") != prereg.binding.analysis_commit \\\n                or type(request_id) is not str or not request_id \\\n",
+            "old": "                or row.get(\"analysis_code_sha256\") != prereg.binding.analysis_code_sha256 \\\n                or type(request_id) is not str or not request_id \\\n"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_analysis_commit_drift_is_resumable_but_analysis_code_drift_is_not"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cc885a67b2b026f60c42005ee4f17b2ec2f24971ab521fc30ce791c4f473b7dc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+            "new": "            \"formula_sha256\": self.formula_sha256,\n        }\n",
+            "old": "            \"formula_sha256\": self.formula_sha256,\n            \"analysis_code_sha256\": self.analysis_code_sha256,\n        }\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "cef375f8a91d1249bcda35769e72c136e5dd9a67fa287b935c59a5c08996b196",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "a495bd1d66ccd85b97746cf73312ff36ba815feb",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_b10_backoff_shape_sweep.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7a8efb223c4ad00dcb26ea031fa7983597ddedcf",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "ea6e2cd5b04afbd9d602329c0f894b51398fffdb7af00a9c778fd1f69d779db5",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "11da8cfaa0e5223d8483d9fe1fbb39b3b4fce45afac6a62d17a1a8327bc04487",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-analysis-commit-unbind/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "fa39c6b460e78f512e10eecb1781da62c8bf4a65f7487cb8d89490ce2f932df8",
+  "updated_at": "2026-09-02T03:22:16.104764+00:00"
+}

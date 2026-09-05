@@ -41,6 +41,9 @@ from ..verifier.commit_receipt import (                          # noqa: E402
     campaign_lock_sha256_or_absent,
 )
 from ..verifier.parse import ParseError                           # noqa: E402
+from ..verifier.model import (                                   # noqa: E402
+    capture_compiled_protocol_source_snapshot,
+)
 
 from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
                source_digest, wal)  # noqa: E402
@@ -896,6 +899,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
+             backoff_grammar_version: Optional[int] = None,
+             sort_oracle_contract_id: Optional[str] = None,
              expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
              declared_use_class: Optional[str] = None,
              trigger_gate_binding=None,
@@ -1083,11 +1088,21 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 expected_toolchain_manifest,
             )
         evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
+        source_options = {}
+        if backoff_grammar_version is not None:
+            source_options["backoff_grammar_version"] = (
+                backoff_grammar_version
+            )
+        if sort_oracle_contract_id is not None:
+            source_options["sort_oracle_contract_id"] = (
+                sort_oracle_contract_id
+            )
         current_evidence = source_digest.resolve_evidence(
             genome,
             ccbench_commit,
             ccbench_dir=ccbench_dir,
             cxx=evidence_cxx,
+            **source_options,
         )
         if source_evidence is not None:
             if type(source_evidence) is not SourceEvidence:
@@ -1098,7 +1113,23 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 raise BuildAdmissionError(
                     "caller の SourceEvidence が current source と不一致"
                 )
-        evidence = current_evidence
+        # Mock/legacy in-process evidence can lack the new non-wire fields.  Bind
+        # them once before either build; production resolve_evidence() already
+        # returns the same immutable snapshot and variant identity.
+        proof_snapshot = capture_compiled_protocol_source_snapshot(
+            genome.protocol, current_evidence.source_root,
+        )
+        try:
+            evidence = current_evidence._bind_runtime_verification(
+                proof_source_snapshot=proof_snapshot,
+                verification_variant=variant_id(
+                    genome, current_evidence.src_token,
+                ),
+            )
+        except ValueError as exc:
+            raise BuildAdmissionError(
+                "SourceEvidence resolve 中に proof source binding が変化した"
+            ) from exc
         if src_token is not None and src_token != evidence.src_token:
             raise BuildAdmissionError("src_token が current SourceEvidence と不一致")
         capability = capability_resolver(evidence) if capability_resolver is not None else None
@@ -1223,6 +1254,10 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 common["expected_toolchain_manifest"] = expected_toolchain_manifest
             if declared_use_class is not None:
                 common["declared_use_class"] = declared_use_class
+            if backoff_grammar_version is not None:
+                common["backoff_grammar_version"] = backoff_grammar_version
+            if sort_oracle_contract_id is not None:
+                common["sort_oracle_contract_id"] = sort_oracle_contract_id
 
         def _build_one(*, trace: bool):
             build_kind = "trace" if trace else "perf"
@@ -1231,11 +1266,21 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     ccbench_dir, canonical_build_pin, build_kind=build_kind,
                 )
             if common is None:
+                build_options = {}
+                if backoff_grammar_version is not None:
+                    build_options["backoff_grammar_version"] = (
+                        backoff_grammar_version
+                    )
+                if sort_oracle_contract_id is not None:
+                    build_options["sort_oracle_contract_id"] = (
+                        sort_oracle_contract_id
+                    )
                 return buildcache.build(
                     genome, ccbench_commit, trace=trace, src_token=src_tok,
                     ccbench_dir=ccbench_dir, cache_root=cache_root,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
+                    **build_options,
                 )
             if qualification_policy is None:
                 return buildcache.build_v2(genome, trace=trace, **common)
@@ -1457,6 +1502,9 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 vr, verification_capability = verify_trace_dir_with_capability(
                     tdir,
                     expected_commits=trace_result.commit_count_witness,
+                    genome=genome,
+                    source_evidence=evidence,
+                    build_admission=admission,
                     receipt_sink_kind=receipt_sink_kind,
                     receipt_lock_identity_sha256=receipt_lock_identity,
                     receipt_variant=v,
@@ -1473,6 +1521,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 "commits": ncommit, "aborts": aborts,
                 "commit_witness": commit_witness,
                 "anomalies": len(vr.anomalies), "workload": {"tag": tag},
+                "proof_surfaces": vr.integrity.proof_surfaces.as_record(),
             }
             if qualification_policy is not None:
                 verify_payload.update({
@@ -1777,6 +1826,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
+             backoff_grammar_version: Optional[int] = None,
+             sort_oracle_contract_id: Optional[str] = None,
              expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
              declared_use_class: Optional[str] = None,
              trigger_gate_binding=None,
@@ -1828,6 +1879,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         build_context=build_context,
         capability_resolver=capability_resolver,
         source_evidence=source_evidence,
+        backoff_grammar_version=backoff_grammar_version,
+        sort_oracle_contract_id=sort_oracle_contract_id,
         expected_toolchain_manifest=expected_toolchain_manifest,
         declared_use_class=declared_use_class,
         trigger_gate_binding=trigger_gate_binding,

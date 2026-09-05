@@ -1,0 +1,113 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m1-revert-liveness",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    if accept is None or \"assert_campaign_layer3_chain\" not in _live_called_names(accept):\n",
+          "new": "    if accept is None or \"assert_campaign_layer3_chain\" not in _called_names(accept):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_acceptance_call_is_not_a_formal_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-acceptance-gate-always-fires",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    if accept is None or \"assert_campaign_layer3_chain\" not in _live_called_names(accept):\n",
+          "new": "    if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_acceptance_call_is_not_a_formal_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[after-return]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[if-true-else]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[while-false-body]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_same_name_target_in_undeclared_production_path_is_not_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_test_only_layer3_target_is_not_production_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_unknown_branch_remains_a_potential_reachability_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review@s8c-predicate-snapshot",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c09_acceptance_skips_layer3-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C09]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-revert-contract-proof",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json",
+          "old": "for every build report that reaches acceptance receipt issuance and must never certify",
+          "new": "for every build report and must never certify"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_current_evidence_contract_hash_is_frozen",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_accepts_non_path_controls[cr]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_accepts_non_path_controls[lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_accepts_non_path_controls[nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head@s8c-predicate-snapshot"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-revert-decider-version",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "DECIDER_VERSION = \"s8c-decider/v9\"\n",
+          "new": "DECIDER_VERSION = \"s8c-decider/v8\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_decider_version_binds_cross_module_semantics_to_v9",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_running_decider_version_cannot_activate",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_valid_hostile_str_subclass_cannot_fake_decider_version_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-revert-contract-reachable-from",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json",
+          "old": "assert_campaign_layer3_chain -> acceptance receipt issuance",
+          "new": "assert_campaign_layer3_chain -> registry append"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_current_evidence_contract_hash_is_frozen",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_accepts_non_path_controls[cr]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_accepts_non_path_controls[lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_accepts_non_path_controls[nul]",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_function_names_exist_and_checked_set_is_exact",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_rejects_prewave_accept_trial_name",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head@s8c-predicate-snapshot"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

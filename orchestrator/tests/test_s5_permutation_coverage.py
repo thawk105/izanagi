@@ -86,10 +86,15 @@ def test_oracle_cross_check_rejects_negative_non_int_and_bool_values():
 def test_condition_preflight_dominates_first_benchmark_build(module):
     source = inspect.getsource(module.main)
     assert source.index("_preflight_condition_gates") < source.index("buildcache.build")
+    if module in {s3, coverage}:
+        gate_source = inspect.getsource(module._require_condition_gate)
+        assert "declare_define_runtime_meaning(request)" in gate_source
 
 
 def test_condition_gate_rejection_stops_s5_before_build(monkeypatch):
     gate = coverage.condition_meaning_gate
+    request = object()
+    declaration = object()
     red = SimpleNamespace(
         terminal_status="red", reason_code="preprocess-bytes-identical",
     )
@@ -97,13 +102,23 @@ def test_condition_gate_rejection_stops_s5_before_build(monkeypatch):
         terminal_status="unestablished", reason_code="meaning-witness-undeclared",
     )
     monkeypatch.setattr(gate, "capture_define_inputs", lambda *_a, **_k: object())
-    monkeypatch.setattr(gate, "make_define_request", lambda **_k: object())
+    monkeypatch.setattr(gate, "make_define_request", lambda **_k: request)
+    monkeypatch.setattr(
+        gate, "declare_define_runtime_meaning",
+        lambda observed: declaration if observed is request else pytest.fail(
+            "factory did not receive the exact request",
+        ),
+    )
     monkeypatch.setattr(
         gate, "evaluate_define_supply_effectuation", lambda *_a, **_k: red,
     )
-    monkeypatch.setattr(
-        gate, "evaluate_define_runtime_meaning", lambda *_a, **_k: unknown,
-    )
+
+    def evaluate_meaning(*_args, **kwargs):
+        assert kwargs["request"] is request
+        assert kwargs["declaration"] is declaration
+        return unknown
+
+    monkeypatch.setattr(gate, "evaluate_define_runtime_meaning", evaluate_meaning)
     monkeypatch.setattr(
         gate, "require_condition_gate_family",
         lambda *_a, **_k: SimpleNamespace(admitted=False),

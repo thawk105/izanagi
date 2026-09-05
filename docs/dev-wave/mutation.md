@@ -4,10 +4,10 @@
 
 ## DW-M01 — 事前登録と単一理由性
 
-変異は実装前に登録する。段 4 は B-057、段 6 の real 所見は fix 前。各変異は位置に加え、同じ
-入力を拒否する層が前後に無く、無効化時の赤理由が一つに絞れることをコードで確認する。
-できなければ登録せず実効 gate へ再照準する（F28）。受理集合を縮小する wave は承認外の
-過剰拒否の正例も登録する。テスト強化だけの wave は `DW-M08` の新旧両走も。
+変異は実装前に登録する。段 4 は B-057、段 6 の real 所見は fix 前。各変異は位置と、同じ
+入力を拒否する層が前後にも内側にも無く赤理由が一つに絞れることを実装後に確認し（F820）、
+できなければ登録せず実効 gate へ再照準する（F28）。受理集合を縮小する wave は承認外の過剰拒否の
+正例も、テスト強化だけの wave は `DW-M08` の新旧両走も登録する。
 
 ## DW-M02 — 所見ゼロの裏取り
 
@@ -46,11 +46,11 @@ fix 後の最終 commit で変異 spec の anchor（old 逐語）と期待 node 
 mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 本走は `--runner-mode dispatch` を既定とし、runner argv へ `--force-dispatch` を入れる。
 runner の実行経路を変異させる local は runner が自壊し収集段が `rc=16` になる。
-`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペアで、片方のみ・local
-指定は起動前に中止する。`--wrapper-attempt` は整数、実走は `--detached` 必須で、欠けると変異を
-1 件も実行せず中止する。
-KILLED 期待で期待 node が空の spec も起動前に中止するため、probe は全件 SURVIVED 期待で登録して
-観測 node を集める。
+`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペア。片方のみ・local は
+中止。後者は整数、実走は `--detached` 必須。再投入は両方を変え、`--resume` は前回 sidecar を
+新 path へ複写して渡す（F453。空 file は中止）。
+KILLED 期待で node 空の spec は起動前に中止するため、probe は全件 SURVIVED で登録し観測 node を
+集める。
 `--out` は `--scratch-root` と同一 device に置く（別 device は evidence 退避の rename が落ちる）。
 
 ## DW-M08 — 失敗 node と検出力

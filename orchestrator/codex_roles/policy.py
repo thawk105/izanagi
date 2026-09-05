@@ -59,6 +59,9 @@ ROLE_FORBIDDEN_KEY_TOKENS: dict[str, tuple[str, ...]] = {
         "known_optimal_mechanism", "known_optimal_mechanisms",
         "optimal_mechanism", "optimal_mechanisms",
     ),
+    "coder-v4-autonomous-k2": (
+        "unevaluated_performance", "unevaluated_performances",
+    ),
     "coder-v4-autonomous-sort": (
         "external_winning_comparator", "external_winning_comparators",
         "winning_comparator", "winning_comparators", "winner", "winners",
@@ -336,11 +339,13 @@ def validate_input_semantics(role: Any, projected_input: Any) -> None:
             raise RolePolicyError("calibrator measurement records重複")
     elif spec.name in {
         "coder-v4-autonomous",
+        "coder-v4-autonomous-k2",
         "coder-v4-autonomous-sort",
         "coder-v4-autonomous-trigger-gating",
     }:
         axis = {
             "coder-v4-autonomous": "silo-backoff-magnitude",
+            "coder-v4-autonomous-k2": "silo-backoff-magnitude",
             "coder-v4-autonomous-sort": "silo-writeset-sort",
             "coder-v4-autonomous-trigger-gating": "silo-backoff-trigger-gating",
         }[spec.name]
@@ -469,11 +474,13 @@ def validate_output_semantics(role: Any, projected_input: Any, result: Any) -> N
                            path="result.proposal")
     elif spec.name in {
         "coder-v4-autonomous",
+        "coder-v4-autonomous-k2",
         "coder-v4-autonomous-sort",
         "coder-v4-autonomous-trigger-gating",
     }:
         axis = {
             "coder-v4-autonomous": "silo-backoff-magnitude",
+            "coder-v4-autonomous-k2": "silo-backoff-magnitude",
             "coder-v4-autonomous-sort": "silo-writeset-sort",
             "coder-v4-autonomous-trigger-gating": "silo-backoff-trigger-gating",
         }[spec.name]
@@ -482,20 +489,20 @@ def validate_output_semantics(role: Any, projected_input: Any, result: Any) -> N
             raise RolePolicyError(f"result.proposal.axis: {axis!r}固定")
         _enum(proposal.get("confidence"), _CONFIDENCE,
               "result.proposal.confidence")
-        if spec.name == "coder-v4-autonomous":
+        if spec.name in {"coder-v4-autonomous", "coder-v4-autonomous-k2"}:
             value = proposal.get("value")
             if (isinstance(value, bool) or not isinstance(value, (int, float))
                     or not math.isfinite(value) or not 1 <= value <= 1000):
                 raise RolePolicyError("result.proposal.valueは1..1000の有限数")
-            # 現行の実働 gate ではなく dormant role adapter の parity 検査。
-            # production の強制点は p3_s4_loop と quarantine の consumer 側にある。
+            # K2 は p3_s4_loop の明示 role consumer からも到達する。その他の
+            # role は従来どおり dormant adapter parity と各 loop consumer が強制点である。
             implementation = proposal.get("implementation")
             decision = backoff_hole_grammar.validate_backoff_implementation(
                 implementation
             )
             if not decision.accepted:
                 raise RolePolicyError(
-                    "coder-v4-autonomous implementationは固定backoff文法に不適合"
+                    f"{spec.name} implementationは固定backoff文法に不適合"
                 )
             try:
                 assigned, assigned_value, _literal_values = (
@@ -505,12 +512,39 @@ def validate_output_semantics(role: Any, projected_input: Any, result: Any) -> N
                 )
             except Exception:
                 raise RolePolicyError(
-                    "coder-v4-autonomous implementationとvalueの数値一致を確認できない"
+                    f"{spec.name} implementationとvalueの数値一致を確認できない"
                 ) from None
             if not assigned or assigned_value != value:
                 raise RolePolicyError(
-                    "coder-v4-autonomous implementationとvalueの数値一致を確認できない"
+                    f"{spec.name} implementationとvalueの数値一致を確認できない"
                 )
+            if spec.name == "coder-v4-autonomous-k2":
+                knowledge_input = _mapping(
+                    data.get("knowledge_input"), "input.knowledge_input"
+                )
+                sources = _array(
+                    knowledge_input.get("sources"),
+                    "input.knowledge_input.sources",
+                )
+                knowledge_use = _array(
+                    output.get("knowledge_use"), "result.knowledge_use"
+                )
+                seen_source_indexes: set[int] = set()
+                for index, raw in enumerate(knowledge_use):
+                    item = _mapping(raw, f"result.knowledge_use[{index}]")
+                    source_index = item.get("source_index")
+                    if (isinstance(source_index, bool)
+                            or not isinstance(source_index, int)
+                            or not 0 <= source_index < len(sources)):
+                        raise RolePolicyError(
+                            f"result.knowledge_use[{index}].source_indexは"
+                            "input.knowledge_input.sourcesの有効indexでなければならない"
+                        )
+                    if source_index in seen_source_indexes:
+                        raise RolePolicyError(
+                            "result.knowledge_use.source_indexは重複禁止"
+                        )
+                    seen_source_indexes.add(source_index)
         elif spec.name == "coder-v4-autonomous-trigger-gating":
             expected = {"axis", "wire", "justification", "confidence"}
             if set(proposal) != expected:

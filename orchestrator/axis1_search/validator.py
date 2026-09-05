@@ -137,12 +137,13 @@ def _position_as_offset(position: Any) -> int | None:
 
 
 def normalize_interpreted_query(index: str, value: str) -> str:
-    """Apply only the three registered textual echo normalizations.
+    """Apply only the three registered arXiv/DBLP echo normalizations.
 
     OpenAlex does not use this function for acceptance; its structured ``oqo``
-    object is compared instead.  URL decoding is deliberately performed once,
-    then whitespace is collapsed.  For arXiv only, the brackets/quotes around a
-    ``submittedDate`` range are canonicalized without changing the range body.
+    object is recursively canonicalized so only ``and``/``or`` sibling order is
+    ignored.  URL decoding is deliberately performed once, then whitespace is
+    collapsed.  For arXiv only, the brackets/quotes around a ``submittedDate``
+    range are canonicalized without changing the range body.
     """
 
     if not isinstance(value, str):
@@ -157,6 +158,83 @@ def normalize_interpreted_query(index: str, value: str) -> str:
             normalized,
         )
     return normalized
+
+
+class _InvalidOpenAlexOQO(ValueError):
+    """Raised when an OpenAlex structured echo is outside the registered grammar."""
+
+
+def _openalex_oqo_sort_key(node: tuple[Any, ...]) -> str:
+    return json.dumps(node, ensure_ascii=False, separators=(",", ":"))
+
+
+def _canonicalize_openalex_filter(value: Any) -> tuple[Any, ...]:
+    if not isinstance(value, Mapping):
+        raise _InvalidOpenAlexOQO("filter row must be an object")
+
+    keys = frozenset(value)
+    if "filters" in value or "join" in value:
+        if keys != frozenset({"filters", "join"}):
+            raise _InvalidOpenAlexOQO("group fields must be exact")
+        join = value["join"]
+        filters = value["filters"]
+        if type(join) is not str or join not in {"and", "or"}:
+            raise _InvalidOpenAlexOQO("group join must be and/or")
+        if type(filters) is not list or not filters:
+            raise _InvalidOpenAlexOQO("group filters must be a nonempty array")
+        children = tuple(
+            sorted(
+                (_canonicalize_openalex_filter(child) for child in filters),
+                key=_openalex_oqo_sort_key,
+            )
+        )
+        return ("group", join, children)
+
+    allowed_fields = (
+        frozenset({"column_id", "value"}),
+        frozenset({"column_id", "operator", "value"}),
+    )
+    if keys not in allowed_fields:
+        raise _InvalidOpenAlexOQO("filter fields must be exact")
+    if any(type(value[key]) is not str for key in keys):
+        raise _InvalidOpenAlexOQO("filter fields must be strings")
+    return (
+        "filter",
+        tuple((key, ("str", value[key])) for key in sorted(keys)),
+    )
+
+
+def _canonicalize_openalex_oqo(value: Any) -> tuple[Any, ...]:
+    if not isinstance(value, Mapping):
+        raise _InvalidOpenAlexOQO("oqo must be an object")
+    if frozenset(value) != frozenset({"get_rows", "filter_rows"}):
+        raise _InvalidOpenAlexOQO("oqo fields must be exact")
+    get_rows = value["get_rows"]
+    filter_rows = value["filter_rows"]
+    if type(get_rows) is not str or get_rows != "works":
+        raise _InvalidOpenAlexOQO("get_rows must be works")
+    if type(filter_rows) is not list or not filter_rows:
+        raise _InvalidOpenAlexOQO("filter_rows must be a nonempty array")
+    children = tuple(
+        sorted(
+            (_canonicalize_openalex_filter(row) for row in filter_rows),
+            key=_openalex_oqo_sort_key,
+        )
+    )
+    return (
+        "oqo",
+        ("get_rows", ("str", "works")),
+        ("filter_rows", ("group", "and", children)),
+    )
+
+
+def _openalex_oqo_matches(expected: Any, actual: Any) -> bool:
+    try:
+        return _canonicalize_openalex_oqo(expected) == _canonicalize_openalex_oqo(
+            actual
+        )
+    except _InvalidOpenAlexOQO:
+        return False
 
 
 def evaluate_page(
@@ -198,7 +276,9 @@ def evaluate_page(
             if actual_interpreted_structure is _UNSET
             else actual_interpreted_structure
         )
-        query_matches = actual_structure == expected_interpreted_structure
+        query_matches = _openalex_oqo_matches(
+            expected_interpreted_structure, actual_structure
+        )
     elif expected_interpreted_query is not None:
         try:
             query_matches = normalize_interpreted_query(
@@ -827,11 +907,32 @@ def _expected_openalex_structure(query: Any) -> Any:
     raise ValueError("OpenAlex logical query lacks structured echo expectation")
 
 
+class _DuplicateOpenAlexJSONMember(ValueError):
+    """Raised only while extracting an OpenAlex structured query echo."""
+
+
+def _openalex_json_object(
+    pairs: list[tuple[str, Any]],
+) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, member in pairs:
+        if key in value:
+            raise _DuplicateOpenAlexJSONMember(key)
+        value[key] = member
+    return value
+
+
 def _openalex_structure(body: bytes) -> Any:
     try:
-        value = json.loads(body)
+        value = json.loads(body, object_pairs_hook=_openalex_json_object)
         return value["meta"]["x_query"]["oqo"]
-    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, KeyError):
+    except (
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        _DuplicateOpenAlexJSONMember,
+        TypeError,
+        KeyError,
+    ):
         return None
 
 
@@ -979,7 +1080,7 @@ def verify_bundle(
     repo_root = Path(__file__).resolve().parents[2]
     registered_catalog_path = Path(catalog_path) if catalog_path is not None else (
         repo_root
-        / "docs/related-work/claim-survey/2026-08-29-axis1-search-catalog.json"
+        / "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
     )
     page_schema_file = Path(page_schema_path) if page_schema_path is not None else (
         repo_root / "orchestrator/schemas/axis1_search_page_evidence.schema.json"

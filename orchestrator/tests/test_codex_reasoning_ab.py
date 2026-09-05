@@ -125,7 +125,6 @@ TOOL = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = TOOL
 _SPEC.loader.exec_module(TOOL)
 
-_HISTORICAL_SESSIONS = Path("/home/SFC/tanab/.codex/sessions")
 _CONTROL_DIR = (
     _ROOT
     / "output"
@@ -142,11 +141,6 @@ _CERTIFIED_RERUN_DIR = (
     / "run-outputs"
 )
 _S03_SHA = "393df3429fff61bb87d45350237a55ea3346ff9cbad0f7042eeb9ebf859b33ce"
-_REAL_ROLLOUT = (
-    _HISTORICAL_SESSIONS
-    / "2026/07/29/"
-    "rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl"
-)
 _REAL_TOKEN_SLICE = (
     '{"timestamp":"2026-07-29T06:49:36.776Z","type":"event_msg","payload":'
     '{"type":"token_count","info":{"total_token_usage":{"input_tokens":17295,'
@@ -819,12 +813,104 @@ def _write_pinned_rollout_stub(sessions_root: Path, label: str) -> Path:
     return rollout
 
 
+def _synthetic_benchmark_message(case: str) -> str:
+    task = TOOL.TASK_MANIFEST["tasks"][case]
+    artifact_paths = [
+        f"{TOOL.OLD_ROOT}/{TOOL.ARTIFACT_DIR}/{name}"
+        for name in task["snapshot"]["artifact_names"]
+    ]
+    replacement_count = task["provenance"]["prompt_source"]["replacements"]
+    root_references = [
+        f"benchmark root reference {index}: {TOOL.OLD_ROOT}"
+        for index in range(1, replacement_count - len(artifact_paths) + 1)
+    ]
+    return "\n".join(
+        [
+            f"Synthetic {case} benchmark prompt.",
+            *artifact_paths,
+            *root_references,
+        ]
+    )
+
+
+def _write_synthetic_benchmark_rollout(
+    sessions_root: Path,
+    session_id: str,
+    message: str,
+) -> tuple[Path, str]:
+    rollout = (
+        sessions_root
+        / "2026/07/29"
+        / f"rollout-2026-07-29T00-00-00-{session_id}.jsonl"
+    )
+    content = b"".join(
+        TOOL._canonical_bytes(row)
+        for row in (
+            {"type": "session_meta", "payload": {"id": session_id}},
+            {
+                "type": "event_msg",
+                "payload": {"type": "user_message", "message": message},
+            },
+        )
+    )
+    _write_rollout(rollout, content)
+    return rollout, TOOL._sha256(content)
+
+
 @pytest.fixture(scope="module")
 def benchmark_snapshots(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> dict[str, Any]:
-    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
     root = tmp_path_factory.mktemp("t181-benchmark")
+    sessions_root = root / "codex-home" / "sessions"
+    task_manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    session_ids = {
+        "POS": "00000000-0000-4000-8000-000000000181",
+        "NEG": "00000000-0000-4000-8000-000000000182",
+    }
+    for case in ("POS", "NEG"):
+        message = _synthetic_benchmark_message(case)
+        source = message.encode("utf-8")
+        _, rollout_sha256 = _write_synthetic_benchmark_rollout(
+            sessions_root,
+            session_ids[case],
+            message,
+        )
+        provenance = task_manifest["tasks"][case]["provenance"]
+        provenance["session_id"] = session_ids[case]
+        provenance["rollout_sha256"] = rollout_sha256
+        provenance["prompt_source"] = {
+            "sha256": TOOL._sha256(source),
+            "chars": len(message),
+            "bytes": len(source),
+            "replacements": message.count(TOOL.OLD_ROOT),
+        }
+
+    base_files = {
+        path: TOOL._git(_ROOT, "show", f"{TOOL.BASE_COMMIT}:{path}")
+        for path in TOOL.PATCH_PATHS
+    }
+    assert all(data.endswith(b"\n") for data in base_files.values())
+    test_path = "orchestrator/tests/test_check_ai_provenance.py"
+    tool_path = "tools/check_ai_provenance.py"
+    prepared_pos = {
+        test_path: base_files[test_path]
+        + b"".join(
+            f"# synthetic POS benchmark line {index:04d}\n".encode("ascii")
+            for index in range(1, 694)
+        ),
+        tool_path: b"".join(base_files[tool_path].splitlines(keepends=True)[:-10])
+        + b"".join(
+            f"# synthetic POS tool line {index:04d}\n".encode("ascii")
+            for index in range(1, 124)
+        ),
+    }
+    for path, data in prepared_pos.items():
+        task_manifest["tasks"]["POS"]["snapshot"]["hashes"][path] = (
+            TOOL._sha256(data)
+        )
+    prepared = {"POS": prepared_pos, "NEG": {}}
+
     base = root / "base"
     destinations = {case: root / case.lower() for case in ("POS", "NEG")}
     TOOL._resolve_snapshot_destination(_ROOT, base)
@@ -832,15 +918,12 @@ def benchmark_snapshots(
         case: TOOL._resolve_snapshot_destination(_ROOT, snapshot)
         for case, snapshot in destinations.items()
     }
-    prepared = {
-        case: TOOL._prepare_snapshot_case(_ROOT, _HISTORICAL_SESSIONS, case)
-        for case in ("POS", "NEG")
-    }
-
     TOOL._build_snapshot_base(_ROOT, base)
     base_manifests = {"initial": TOOL._metadata_manifest(base)}
     result: dict[str, Any] = {
         "root": root,
+        "sessions_root": sessions_root,
+        "task_manifest": task_manifest,
         "_base": base,
         "_base_manifests": base_manifests,
     }
@@ -850,15 +933,20 @@ def benchmark_snapshots(
             _ROOT,
             base,
             snapshot,
-            _HISTORICAL_SESSIONS,
+            sessions_root,
             case,
             prepared_golden=prepared[case],
             prepared_destination=resolved_destinations[case],
+            task_manifest=task_manifest,
         )
         base_manifests[f"after_{case.lower()}"] = TOOL._metadata_manifest(base)
         oracle_path = _canonical(root / f"{case.lower()}-oracle.json", oracle)
         prompt, prompt_receipt = TOOL.render_prompt(
-            _HISTORICAL_SESSIONS, case, snapshot
+            sessions_root,
+            case,
+            snapshot,
+            task_manifest=task_manifest,
+            snapshot_oracle=oracle,
         )
         prompt_path = root / f"{case.lower()}-prompt.txt"
         prompt_path.write_bytes(prompt)
@@ -1183,7 +1271,12 @@ def _collect_manual_run(
 def _supervisor_pair(
     root: Path, benchmark: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> tuple[dict[str, Any], Path, list[dict[str, Any]]]:
-    schedule_path, slots = _schedule(root / "schedule-source.json", benchmark)
+    task_manifest = benchmark["task_manifest"]
+    schedule_path, slots = _schedule(
+        root / "schedule-source.json",
+        benchmark,
+        task_manifest=task_manifest,
+    )
     config = root / "config-source.toml"
     auth = root / "auth-source.json"
     config.write_text("model='gpt-5.6-sol'\n", encoding="utf-8")
@@ -1206,6 +1299,7 @@ def _supervisor_pair(
         codex_binary=codex,
         bwrap_binary=bwrap,
         dry_run=True,
+        task_manifest=task_manifest,
     )
     return result, schedule_path, slots
 
@@ -1588,7 +1682,12 @@ def _full_manifest(
     *,
     memoize_construction_snapshots: bool = False,
 ) -> tuple[Path, Path]:
-    schedule_source, slots = _schedule(root / "schedule-source.json", benchmark)
+    task_manifest = benchmark["task_manifest"]
+    schedule_source, slots = _schedule(
+        root / "schedule-source.json",
+        benchmark,
+        task_manifest=task_manifest,
+    )
     run_root = root / "run-root"
     config = root / "config-source.toml"
     auth = root / "auth-source.json"
@@ -1658,6 +1757,7 @@ def _full_manifest(
                 codex_binary=codex,
                 bwrap_binary=bwrap,
                 dry_run=True,
+                task_manifest=task_manifest,
             )
             completions.extend(result["runs"])
     attempts: list[dict[str, Any]] = []
@@ -1685,6 +1785,7 @@ def _full_manifest(
             snapshot=Path(oracle_value["snapshot"]),
             launch_receipt=launch_path,
             expected_requested_model=TOOL.MODEL,
+            task_manifest=task_manifest,
         )
         assert receipt_rc == 0
         score, score_rc = TOOL.score_run(output, completion["run_id"])
@@ -1714,13 +1815,16 @@ def _full_manifest(
     premanifest = _canonical(
         root / "premanifest.json",
         {
-            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "task_manifest_sha256": TOOL._task_manifest_sha256(task_manifest),
             "attempts": attempts,
         },
     )
     custodian_root = root / "mapping-custodian"
     packet_result = TOOL.make_packets(
-        premanifest, root / "packets", custodian_root
+        premanifest,
+        root / "packets",
+        custodian_root,
+        task_manifest=task_manifest,
     )
     packet_state = Path(packet_result["packet_state"])
     packet_rows = json.loads(packet_state.read_text(encoding="utf-8"))["packets"]
@@ -1740,13 +1844,26 @@ def _full_manifest(
     )
     verdict_log = root / "verdicts.jsonl"
     TOOL.append_verdicts(
-        packet_state, verdict_log, "parent", parent_input
+        packet_state,
+        verdict_log,
+        "parent",
+        parent_input,
+        task_manifest=task_manifest,
     )
     TOOL.append_verdicts(
-        packet_state, verdict_log, "second-reader", second_input
+        packet_state,
+        verdict_log,
+        "second-reader",
+        second_input,
+        task_manifest=task_manifest,
     )
     freeze = root / "verdict-freeze.json"
-    TOOL.freeze_verdicts(packet_state, verdict_log, freeze)
+    TOOL.freeze_verdicts(
+        packet_state,
+        verdict_log,
+        freeze,
+        task_manifest=task_manifest,
+    )
     revealed = root / "revealed-map.json"
     TOOL.reveal_mapping(
         packet_state,
@@ -1754,6 +1871,7 @@ def _full_manifest(
         verdict_log,
         freeze,
         revealed,
+        task_manifest=task_manifest,
     )
     log_rows = [
         json.loads(line)
@@ -1772,7 +1890,9 @@ def _full_manifest(
         )
         slot = next(row for row in slots if row["slot_id"] == slot_id)
         combined = {
-            "oracle_kind": TOOL._slot_dimensions(slot)["oracle_kind"],
+            "oracle_kind": TOOL._slot_dimensions(
+                slot, task_manifest=task_manifest
+            )["oracle_kind"],
             "r1_detected": (
                 readers["parent"]["r1_detected"] is True
                 and readers["second-reader"]["r1_detected"] is True
@@ -1799,7 +1919,7 @@ def _full_manifest(
         )
     manifest = {
         "schema_version": TOOL.SCHEMA_VERSION,
-        "task_manifest_sha256": TOOL._task_manifest_sha256(),
+        "task_manifest_sha256": TOOL._task_manifest_sha256(task_manifest),
         "run_root": str(run_root.relative_to(root)),
         "attempts_root": str((run_root / "attempts").relative_to(root)),
         "attempt_ledger": _descriptor(
@@ -2028,8 +2148,17 @@ def test_schedule_normalizers_reject_malformed_manifest(
 def test_parent_numstat_controls_remain_pinned(
     benchmark_snapshots: dict[str, Any],
 ) -> None:
-    pos = TOOL.verify_snapshot(benchmark_snapshots["POS"]["snapshot"], "POS")
-    neg = TOOL.verify_snapshot(benchmark_snapshots["NEG"]["snapshot"], "NEG")
+    task_manifest = benchmark_snapshots["task_manifest"]
+    pos = TOOL.verify_snapshot(
+        benchmark_snapshots["POS"]["snapshot"],
+        "POS",
+        task_manifest=task_manifest,
+    )
+    neg = TOOL.verify_snapshot(
+        benchmark_snapshots["NEG"]["snapshot"],
+        "NEG",
+        task_manifest=task_manifest,
+    )
     assert next(row for row in pos["numstat"] if row[2].endswith("test_check_ai_provenance.py"))[:2] == [693, 0]
     assert next(row for row in pos["numstat"] if row[2].endswith("check_ai_provenance.py") and not row[2].startswith("orchestrator"))[:2] == [123, 10]
     assert next(row for row in neg["numstat"] if row[2].endswith("test_check_ai_provenance.py"))[:2] == [764, 0]
@@ -2204,9 +2333,12 @@ def test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only(
 def test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure(
     benchmark_snapshots: dict[str, Any],
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     for case in ("POS", "NEG"):
         snapshot = benchmark_snapshots[case]["snapshot"]
-        oracle = TOOL.verify_snapshot(snapshot, case)
+        oracle = TOOL.verify_snapshot(
+            snapshot, case, task_manifest=task_manifest
+        )
         repositories = oracle["git_object_closure"]["repositories"]
         assert repositories
         for repository in repositories:
@@ -2520,12 +2652,16 @@ def test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested
     tmp_path: Path,
     benchmark_snapshots: dict[str, Any],
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     snapshot = tmp_path / "stale-commit-graph"
     shutil.copytree(benchmark_snapshots["POS"]["snapshot"], snapshot)
     _install_stale_commit_graph(snapshot)
 
     reasons, manifests, _ = TOOL._git_closure_reasons(
-        snapshot, TOOL._snapshot_spec("POS")["untracked"]
+        snapshot,
+        TOOL._snapshot_spec(
+            "POS", task_manifest=task_manifest
+        )["untracked"],
     )
     assert any("git commit-graph verify exited" in reason for reason in reasons)
     commit_graph = manifests[0]["commit_graph"]
@@ -2534,7 +2670,7 @@ def test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested
     assert commit_graph["verify_returncode"] != 0
     assert commit_graph["paths"]
     with pytest.raises(TOOL.ValidationError) as caught:
-        TOOL.verify_snapshot(snapshot, "POS")
+        TOOL.verify_snapshot(snapshot, "POS", task_manifest=task_manifest)
     assert any(
         "git commit-graph verify exited" in reason
         for reason in caught.value.reasons
@@ -3190,16 +3326,25 @@ def test_git_fsck_worker_uses_run_subprocess_environment_contract(
 def test_m1_snapshot_head_pin_is_independent(
     benchmark_snapshots: dict[str, Any],
 ) -> None:
-    spec = copy.deepcopy(TOOL._snapshot_spec("POS"))
+    task_manifest = benchmark_snapshots["task_manifest"]
+    spec = copy.deepcopy(
+        TOOL._snapshot_spec("POS", task_manifest=task_manifest)
+    )
     spec["head"] = "0" * 40
     with pytest.raises(TOOL.ValidationError, match="HEAD mismatch"):
-        TOOL.verify_snapshot(benchmark_snapshots["POS"]["snapshot"], "POS", spec=spec)
+        TOOL.verify_snapshot(
+            benchmark_snapshots["POS"]["snapshot"],
+            "POS",
+            spec=spec,
+            task_manifest=task_manifest,
+        )
 
 
 def test_m2_production_golden_requires_both_routes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
+    sessions_root = TOOL._sessions_default()
+    _require_pinned_rollouts(sessions_root)
     called = False
     original = TOOL._compare_golden_routes
 
@@ -3209,7 +3354,7 @@ def test_m2_production_golden_requires_both_routes(
         return original(route_a, route_b)
 
     monkeypatch.setattr(TOOL, "_compare_golden_routes", observed)
-    golden = TOOL.derive_independent_golden(_ROOT, _HISTORICAL_SESSIONS)
+    golden = TOOL.derive_independent_golden(_ROOT, sessions_root)
     assert called is True
     assert hashlib.sha256(golden[TOOL.PATCH_PATHS[0]]).hexdigest() == (
         "bc3f5f95f5c9c3f44955bbd1b2e3affbbafb6e62fda8e836173e1b9d5998c3af"
@@ -3219,28 +3364,31 @@ def test_m2_production_golden_requires_both_routes(
 def test_m3_snapshot_mode_change(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     for case in ("POS", "NEG"):
         snapshot = tmp_path / case.lower()
         shutil.copytree(benchmark_snapshots[case]["snapshot"], snapshot)
         target = snapshot / TOOL.TRACKED_PATHS[0]
         target.chmod(0o600)
         with pytest.raises(TOOL.ValidationError, match="st_mode mismatch"):
-            TOOL.verify_snapshot(snapshot, case)
+            TOOL.verify_snapshot(snapshot, case, task_manifest=task_manifest)
 
 
 def test_m3_symbolic_head_is_required(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     snapshot = tmp_path / "detached"
     shutil.copytree(benchmark_snapshots["POS"]["snapshot"], snapshot)
     (snapshot / ".git/HEAD").write_text(TOOL.BASE_COMMIT + "\n", encoding="ascii")
     with pytest.raises(TOOL.ValidationError, match="symbolic HEAD mismatch"):
-        TOOL.verify_snapshot(snapshot, "POS")
+        TOOL.verify_snapshot(snapshot, "POS", task_manifest=task_manifest)
 
 
 def test_m3_ignored_extra_and_missing(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     for case in ("POS", "NEG"):
         extra_snapshot = tmp_path / f"extra-{case.lower()}"
         shutil.copytree(benchmark_snapshots[case]["snapshot"], extra_snapshot)
@@ -3248,17 +3396,23 @@ def test_m3_ignored_extra_and_missing(
         with (extra_snapshot / ".git/info/exclude").open("a", encoding="utf-8") as stream:
             stream.write("\n.answer-cache\n")
         with pytest.raises(TOOL.ValidationError, match="filesystem allowlist has extra"):
-            TOOL.verify_snapshot(extra_snapshot, case)
+            TOOL.verify_snapshot(
+                extra_snapshot, case, task_manifest=task_manifest
+            )
         missing_snapshot = tmp_path / f"missing-{case.lower()}"
         shutil.copytree(benchmark_snapshots[case]["snapshot"], missing_snapshot)
         missing_relative = (
             f"{TOOL.ARTIFACT_DIR}/focus1.md"
             if case == "NEG"
-            else TOOL._snapshot_spec(case)["untracked"][0]
+            else TOOL._snapshot_spec(
+                case, task_manifest=task_manifest
+            )["untracked"][0]
         )
         (missing_snapshot / missing_relative).unlink()
         with pytest.raises(TOOL.ValidationError, match="missing"):
-            TOOL.verify_snapshot(missing_snapshot, case)
+            TOOL.verify_snapshot(
+                missing_snapshot, case, task_manifest=task_manifest
+            )
 
 
 @pytest.mark.parametrize(
@@ -3271,18 +3425,20 @@ def test_m3_focus_artifact_directions(
     tmp_path: Path,
     benchmark_snapshots: dict[str, Any],
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     snapshot = tmp_path / f"{case.lower()}-{name}"
     shutil.copytree(benchmark_snapshots[case]["snapshot"], snapshot)
     target = snapshot / TOOL.ARTIFACT_DIR / name
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("forbidden", encoding="utf-8")
     with pytest.raises(TOOL.ValidationError, match="forbidden focus artifact"):
-        TOOL.verify_snapshot(snapshot, case)
+        TOOL.verify_snapshot(snapshot, case, task_manifest=task_manifest)
 
 
 def test_snapshot_submodule_object_store_is_recursive(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     base = benchmark_snapshots["_base"]
     base_manifests = benchmark_snapshots["_base_manifests"]
     assert base_manifests["initial"] == base_manifests["after_pos"]
@@ -3298,7 +3454,9 @@ def test_snapshot_submodule_object_store_is_recursive(
         symlinks=True,
         copy_function=shutil.copy2,
     )
-    clean_oracle = TOOL.verify_snapshot(snapshot, "POS")
+    clean_oracle = TOOL.verify_snapshot(
+        snapshot, "POS", task_manifest=task_manifest
+    )
     assert clean_oracle["case"] == "POS"
     assert _index_semantics(snapshot) == base_index
     submodules = TOOL._submodule_repositories(snapshot)
@@ -3309,7 +3467,7 @@ def test_snapshot_submodule_object_store_is_recursive(
     head = TOOL._git(submodules[0], "rev-parse", "HEAD").decode().strip()
     grafts.write_text(head + "\n")
     with pytest.raises(TOOL.ValidationError, match="grafts closure"):
-        TOOL.verify_snapshot(snapshot, "POS")
+        TOOL.verify_snapshot(snapshot, "POS", task_manifest=task_manifest)
 
 
 def test_ls_files_never_combines_stage_and_recurse_submodules() -> None:
@@ -6177,11 +6335,18 @@ def test_pos_neg_submodule_initialization_state_mismatch_is_rejected(
     benchmark_snapshots: dict[str, Any],
     tmp_path: Path,
 ) -> None:
-    _, slots = _schedule(tmp_path / "schedule.json", benchmark_snapshots)
+    task_manifest = benchmark_snapshots["task_manifest"]
+    _, slots = _schedule(
+        tmp_path / "schedule.json",
+        benchmark_snapshots,
+        task_manifest=task_manifest,
+    )
     for slot in slots:
         if slot["case"] == "NEG":
             slot["submodule_manifest_sha256"] = "f" * 64
-    _, reasons = TOOL._validate_schedule({"slots": slots})
+    _, reasons = TOOL._validate_schedule(
+        {"slots": slots}, task_manifest=task_manifest
+    )
     assert (
         "POS/NEG submodule initialization and gitlink state mismatch" in reasons
     )
@@ -6552,6 +6717,55 @@ def _bound_price_schedule(
             },
         ],
     }
+
+
+def _cross_arm_cost_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
+    task_manifest = _synthetic_task_manifest(
+        (
+            ("alpha", "POS", "positive", "alpha-finding"),
+            ("beta", "POS", "positive", "beta-finding"),
+        )
+    )
+    task_manifest["tasks"]["beta"]["stage"] = "stage-2"
+    slot_specs = (
+        ("s01", "alpha", "stage-1", "b02", 1, "max", "gpt-5.6-sol"),
+        ("s02", "alpha", "stage-1", "b02", 2, "high", "gpt-5.6-luna"),
+        ("s03", "alpha", "stage-1", "b01", 1, "max", "gpt-5.6-sol"),
+        ("s04", "alpha", "stage-1", "b01", 2, "high", "gpt-5.6-luna"),
+        ("s05", "beta", "stage-2", "b03", 1, "max", "gpt-5.6-sol"),
+        ("s06", "beta", "stage-2", "b03", 2, "high", "gpt-5.6-luna"),
+    )
+    schedule = {
+        "schema_version": 3,
+        "price_snapshot": {
+            "path": _TEST_PRICE_SNAPSHOT_PATH,
+            "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
+        },
+        "slots": [
+            {
+                **_v3_slot(
+                    slot_id=slot_id,
+                    task_id=task_id,
+                    block_id=block_id,
+                    block_order=block_order,
+                    arm=arm,
+                    requested_model=requested_model,
+                    stage=stage,
+                ),
+                "price_version": _TEST_PRICE_VERSION,
+            }
+            for (
+                slot_id,
+                task_id,
+                stage,
+                block_id,
+                block_order,
+                arm,
+                requested_model,
+            ) in slot_specs
+        ],
+    }
+    return task_manifest, schedule
 
 
 def test_cli_real_import_loads_dataclass_price_verifier() -> None:
@@ -7128,9 +7342,16 @@ def test_validate_schedule_rejects_live_non_null_cache_or_price(
 def test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid(
     benchmark_snapshots: dict[str, Any], tmp_path: Path
 ) -> None:
-    _, source_slots = _schedule(tmp_path / "legacy-schedule.json", benchmark_snapshots)
+    task_manifest = benchmark_snapshots["task_manifest"]
+    _, source_slots = _schedule(
+        tmp_path / "legacy-schedule.json",
+        benchmark_snapshots,
+        task_manifest=task_manifest,
+    )
     source = {"slots": copy.deepcopy(source_slots)}
-    slots, reasons = TOOL._validate_schedule(source)
+    slots, reasons = TOOL._validate_schedule(
+        source, task_manifest=task_manifest
+    )
     assert "schema_version" not in source
     assert reasons == []
     assert slots[0]["requested_model"] == TOOL.MODEL
@@ -7211,6 +7432,7 @@ def test_validate_verdict_accepts_manifest_finding_union_while_blind_and_rejects
 def test_git_answer_object_reinjection_is_rejected(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     snapshot = tmp_path / "snapshot"
     shutil.copytree(benchmark_snapshots["NEG"]["snapshot"], snapshot)
     subprocess.run(
@@ -7220,7 +7442,7 @@ def test_git_answer_object_reinjection_is_rejected(
         capture_output=True,
     )
     with pytest.raises(TOOL.ValidationError, match="forbidden git object"):
-        TOOL.verify_snapshot(snapshot, "NEG")
+        TOOL.verify_snapshot(snapshot, "NEG", task_manifest=task_manifest)
 
 
 def test_find_rollout_session_meta_encoding_and_payload_identity_semantics(
@@ -8647,49 +8869,74 @@ def test_m20_render_prompt_binds_external_task_manifest(
 @pytest.mark.parametrize("replacement_count", [0, 9, 10])
 def test_prompt_replacement_count_zero_expected_and_excess(
     replacement_count: int,
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    _require_pinned_rollouts(_HISTORICAL_SESSIONS)
-    source_rollout = _REAL_ROLLOUT
-    TOOL._verify_rollout_sha(source_rollout, "POS")
-    canonical_message = TOOL.extract_user_message(source_rollout)
+    canonical_message = _synthetic_benchmark_message("POS")
     if replacement_count == 0:
         message = canonical_message.replace(TOOL.OLD_ROOT, "/neutral-old-root")
     elif replacement_count == 10:
         message = canonical_message + "\n" + TOOL.OLD_ROOT
     else:
         message = canonical_message
-    rollout = tmp_path / "rollout.jsonl"
-    rollout.write_text("{}\n", encoding="utf-8")
-    monkeypatch.setattr(
-        TOOL, "_find_rollout", lambda *args, **kwargs: rollout
+    sessions_root = tmp_path / "sessions"
+    session_id = "00000000-0000-4000-8000-000000000181"
+    _, rollout_sha256 = _write_synthetic_benchmark_rollout(
+        sessions_root,
+        session_id,
+        message,
     )
-    monkeypatch.setattr(
-        TOOL, "_verify_rollout_sha", lambda *args, **kwargs: None
+    task_manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    provenance = task_manifest["tasks"]["POS"]["provenance"]
+    source = message.encode("utf-8")
+    provenance["session_id"] = session_id
+    provenance["rollout_sha256"] = rollout_sha256
+    provenance["prompt_source"].update(
+        {
+            "sha256": TOOL._sha256(source),
+            "chars": len(message),
+            "bytes": len(source),
+        }
     )
-    monkeypatch.setattr(TOOL, "extract_user_message", lambda *_: message)
+    snapshot_oracle = {
+        "task_manifest_sha256": TOOL._task_manifest_sha256(task_manifest),
+        "case": "POS",
+    }
     if replacement_count == TOOL.PROMPT_SOURCE["POS"]["replacements"]:
         _, receipt = TOOL.render_prompt(
-            tmp_path, "POS", tmp_path / "neutral-root", verify_source=True
+            sessions_root,
+            "POS",
+            tmp_path / "neutral-root",
+            verify_source=True,
+            task_manifest=task_manifest,
+            snapshot_oracle=snapshot_oracle,
         )
         assert receipt["replacement_count"] == 9
     else:
         with pytest.raises(TOOL.ValidationError, match="replacement count mismatch"):
             TOOL.render_prompt(
-                tmp_path, "POS", tmp_path / "neutral-root", verify_source=True
+                sessions_root,
+                "POS",
+                tmp_path / "neutral-root",
+                verify_source=True,
+                task_manifest=task_manifest,
+                snapshot_oracle=snapshot_oracle,
             )
 
 
 def test_real_rollout_collector_golden_is_source_bound() -> None:
-    rollout_available = _REAL_ROLLOUT.is_file()
+    real_rollout = (
+        TOOL._sessions_default()
+        / "2026/07/29/"
+        "rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl"
+    )
+    rollout_available = real_rollout.is_file()
     if rollout_available:
         assert TOOL.ROLLOUT_SHA256["POS"] == hashlib.sha256(
-            _REAL_ROLLOUT.read_bytes()
+            real_rollout.read_bytes()
         ).hexdigest()
     assert hashlib.sha256(_REAL_TOKEN_SLICE.encode()).hexdigest() == _REAL_TOKEN_SLICE_SHA
     if rollout_available:
-        source_line = _REAL_ROLLOUT.read_text(encoding="utf-8").splitlines(
+        source_line = real_rollout.read_text(encoding="utf-8").splitlines(
             keepends=True
         )[15]
         assert source_line == _REAL_TOKEN_SLICE
@@ -8876,16 +9123,21 @@ def test_verify_replays_complete_fake_codex_experiment(
     benchmark_snapshots: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     manifest, run_root = _full_manifest(
         tmp_path,
         benchmark_snapshots,
         monkeypatch,
         memoize_construction_snapshots=True,
     )
-    result, rc = TOOL.verify_manifest(manifest, run_root)
+    result, rc = TOOL.verify_manifest(
+        manifest, run_root, task_manifest=task_manifest
+    )
     assert rc == 0
     assert result["valid"] is True
-    assert result["task_manifest_sha256"] == TOOL._task_manifest_sha256()
+    assert result["task_manifest_sha256"] == TOOL._task_manifest_sha256(
+        task_manifest
+    )
     assert result["experiment_complete"] is True
     assert result["primary_judgment_ledger"] == {
         "max": {"k": 3, "n": 3},
@@ -8923,7 +9175,9 @@ def test_verify_replays_complete_fake_codex_experiment(
     (run_root / "rollout-extra.jsonl").write_text(
         first_meta + "\n", encoding="utf-8"
     )
-    tampered, tampered_rc = TOOL.verify_manifest(manifest, run_root)
+    tampered, tampered_rc = TOOL.verify_manifest(
+        manifest, run_root, task_manifest=task_manifest
+    )
     assert tampered_rc == TOOL.RC_AGGREGATE
     assert "generated session row set mismatch" in "\n".join(
         tampered["failure_reasons"]
@@ -8935,13 +9189,14 @@ def test_material_replay_rejects_task_manifest_exchange_at_digest_consumers(
     benchmark_snapshots: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     manifest_path, run_root = _full_manifest(
         tmp_path,
         benchmark_snapshots,
         monkeypatch,
         memoize_construction_snapshots=True,
     )
-    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate = copy.deepcopy(task_manifest)
     alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
     result, rc = TOOL.verify_manifest(
         manifest_path,
@@ -9334,6 +9589,7 @@ def test_replay_forwards_only_successful_snapshot_evidence_to_adjudication(
     benchmark_snapshots: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     manifest_path, run_root = _full_manifest(
         tmp_path,
         benchmark_snapshots,
@@ -9440,7 +9696,11 @@ def test_replay_forwards_only_successful_snapshot_evidence_to_adjudication(
     monkeypatch.setattr(
         TOOL, "_load_adjudication", capture_snapshot_evidence
     )
-    _, _, _, reasons = TOOL._replay_manifest(manifest_path, run_root)
+    _, _, _, reasons = TOOL._replay_manifest(
+        manifest_path,
+        run_root,
+        task_manifest=task_manifest,
+    )
 
     assert captured == expected_verified
     assert shared_mismatch_replay_calls == 2
@@ -9455,6 +9715,7 @@ def test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run(
     benchmark_snapshots: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     manifest_path, run_root = _full_manifest(
         tmp_path,
         benchmark_snapshots,
@@ -9522,7 +9783,11 @@ def test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run(
     monkeypatch.setattr(TOOL, "_artifact_path", track_artifact_path)
     monkeypatch.setattr(TOOL, "verify_snapshot", count_verify_snapshot)
 
-    accepted, accepted_rc = TOOL.verify_manifest(manifest_path, run_root)
+    accepted, accepted_rc = TOOL.verify_manifest(
+        manifest_path,
+        run_root,
+        task_manifest=task_manifest,
+    )
     assert accepted_rc == 0
     assert accepted["valid"] is True
     assert shared_replay_calls == 1
@@ -9538,7 +9803,11 @@ def test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run(
     _canonical(manifest_path, manifest)
 
     shared_replay_calls = 0
-    rejected, rejected_rc = TOOL.verify_manifest(manifest_path, run_root)
+    rejected, rejected_rc = TOOL.verify_manifest(
+        manifest_path,
+        run_root,
+        task_manifest=task_manifest,
+    )
     expected_reason = (
         f"{second['run_id']}: pre/post snapshot oracle mismatch"
     )
@@ -12039,7 +12308,12 @@ def test_pair_one_sided_retry_is_rejected(tmp_path: Path) -> None:
 def test_attempt_four_is_rejected_before_launch(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
-    schedule_path, _ = _schedule(tmp_path / "schedule.json", benchmark_snapshots)
+    task_manifest = benchmark_snapshots["task_manifest"]
+    schedule_path, _ = _schedule(
+        tmp_path / "schedule.json",
+        benchmark_snapshots,
+        task_manifest=task_manifest,
+    )
     with pytest.raises(TOOL.ValidationError, match="attempt must be in 1..3"):
         TOOL.supervise_pair(
             schedule_path=schedule_path,
@@ -12053,6 +12327,7 @@ def test_attempt_four_is_rejected_before_launch(
             codex_binary=tmp_path / "missing-codex",
             bwrap_binary=tmp_path / "missing-bwrap",
             dry_run=True,
+            task_manifest=task_manifest,
         )
 
 
@@ -12061,8 +12336,11 @@ def test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation(
     benchmark_snapshots: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    task_manifest = benchmark_snapshots["task_manifest"]
     schedule_path, slots = _schedule(
-        tmp_path / "schedule.json", benchmark_snapshots
+        tmp_path / "schedule.json",
+        benchmark_snapshots,
+        task_manifest=task_manifest,
     )
     run_root = tmp_path / "run-root"
 
@@ -12083,6 +12361,7 @@ def test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation(
             codex_binary=tmp_path / "codex",
             bwrap_binary=tmp_path / "bwrap",
             dry_run=True,
+            task_manifest=task_manifest,
         )
     ledger_rows = TOOL._attempt_ledger_rows(
         run_root / "attempt-ledger.jsonl"
@@ -12150,6 +12429,7 @@ def test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation(
         codex_binary=tmp_path / "codex",
         bwrap_binary=tmp_path / "bwrap",
         dry_run=True,
+        task_manifest=task_manifest,
     )
     assert len(retried["runs"]) == 2
     assert {row["attempt"] for row in retried["runs"]} == {2}
@@ -15638,6 +15918,74 @@ def _bound_cost_aggregate(
     )
 
 
+def _cross_arm_cost_aggregate(
+    tmp_path: Path,
+    attempts: list[dict[str, Any]],
+    *,
+    has_schedule_descriptor: bool = True,
+    material_manifest_sha256: str | None = "d" * 64,
+) -> dict[str, Any]:
+    task_manifest, schedule = _cross_arm_cost_fixture()
+    slots, schedule_reasons = TOOL._validate_schedule(
+        schedule, task_manifest=task_manifest
+    )
+    assert schedule_reasons == []
+    assert len(attempts) == len(slots)
+    verdicts: dict[str, dict[str, Any]] = {}
+    for index, (slot, attempt) in enumerate(zip(slots, attempts), 1):
+        attempt.update(
+            {
+                "run_id": f"cross-arm-cost-r{index:02d}",
+                "slot_id": slot["slot_id"],
+                "benchmark_task_id": slot["benchmark_task_id"],
+                "legacy_case": slot["legacy_case"],
+                "case": slot["case"],
+                "stage": slot["stage"],
+                "requested_model": slot["requested_model"],
+                "cache_condition": slot["cache_condition"],
+                "price_version": slot["price_version"],
+                "oracle_kind": slot["oracle_kind"],
+                "arm": slot["arm"],
+                "block_id": slot["block_id"],
+                "block_order": slot["block_order"],
+            }
+        )
+        verdicts[slot["slot_id"]] = {
+            "oracle_kind": slot["oracle_kind"],
+            "r1_detected": True,
+            "findings": [],
+            "reader_agreement": True,
+        }
+    manifest = _canonical(
+        tmp_path / "cross-arm-cost-manifest.json",
+        {"schedule": {"path": "schedule.json", "sha256": "0" * 64}},
+    )
+    return TOOL._aggregate_verified(
+        manifest,
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+        has_schedule_descriptor=has_schedule_descriptor,
+        validated_price_snapshot=slots.price_snapshot,
+        material_manifest_sha256=material_manifest_sha256,
+    )
+
+
+def _axis_cost(
+    result: dict[str, Any],
+    *,
+    benchmark_task_id: str,
+    arm: str,
+) -> dict[str, Any]:
+    return next(
+        row
+        for row in result["normalized_cost_axis_ledger"]
+        if row["benchmark_task_id"] == benchmark_task_id and row["arm"] == arm
+    )
+
+
 def test_m10_cost_snapshot_loader_reads_and_validates_one_byte_observation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -15772,6 +16120,474 @@ def _walk_json_values(value: Any) -> list[Any]:
     if isinstance(value, list):
         return [value, *[item for child in value for item in _walk_json_values(child)]]
     return [value]
+
+
+def test_cross_arm_comparability_is_self_describing_and_model_normalized(
+    tmp_path: Path,
+) -> None:
+    result = _cross_arm_cost_aggregate(
+        tmp_path, [_cost_attempt() for _ in range(6)]
+    )
+    assert result["valid"] is True
+    resources = result["resource_ledger"]
+    assert {(row["benchmark_task_id"], row["stage"]) for row in resources} == {
+        ("alpha", "stage-1"),
+        ("beta", "stage-2"),
+    }
+    assert {
+        (
+            row["normalized_cost"]["comparability"]["basis_key"][
+                "comparison_scope"
+            ]["benchmark_task_id"],
+            row["normalized_cost"]["comparability"]["basis_key"][
+                "comparison_scope"
+            ]["stage"],
+        )
+        for row in resources
+    } == {("alpha", "stage-1"), ("beta", "stage-2")}
+
+    alpha_max = resources[0]
+    alpha_high = resources[1]
+    assert (alpha_max["arm"], alpha_high["arm"]) == ("max", "high")
+    max_cost = alpha_max["normalized_cost"]
+    high_cost = alpha_high["normalized_cost"]
+    max_comparability = max_cost["comparability"]
+    high_comparability = high_cost["comparability"]
+    assert max_cost["unit_prices"] != high_cost["unit_prices"]
+    assert max_comparability["basis_key"] == high_comparability["basis_key"]
+    assert (
+        max_comparability["accounted_total_key"]
+        == high_comparability["accounted_total_key"]
+    )
+    assert max_comparability["accounted_total_key"] == {
+        "attempt_count": 1,
+        "unavailable_count": 0,
+        "not_incurred_count": 0,
+        "scheduled_attempt_count": 1,
+        "pair_units_by_status": {
+            "observed": [{"block_id": "b02", "attempt": 1}],
+            "unavailable": [],
+            "not-incurred": [],
+        },
+    }
+    basis_key = max_comparability["basis_key"]
+    assert basis_key["comparison_scope"] == {
+        "benchmark_task_id": "alpha",
+        "stage": "stage-1",
+        "cache_condition": None,
+    }
+    assert basis_key["comparison_universe"] == {
+        "material_manifest_sha256": "d" * 64,
+    }
+    basis_tree_keys = {
+        key
+        for value in _walk_json_values(basis_key)
+        if isinstance(value, dict)
+        for key in value
+    }
+    assert {
+        "requested_model",
+        "unit_prices",
+        "arm",
+        "accounted_amount",
+    }.isdisjoint(basis_tree_keys)
+    assert "partial accounted component totals" in max_comparability["rule"]
+    assert "per-attempt averages" in max_comparability["rule"]
+    assert "complete costs" in max_comparability["rule"]
+    assert "actual billed amounts" in max_comparability["rule"]
+
+    max_axis = _axis_cost(result, benchmark_task_id="alpha", arm="max")
+    high_axis = _axis_cost(result, benchmark_task_id="alpha", arm="high")
+    assert max_axis["comparability"]["basis_key"] == high_axis["comparability"][
+        "basis_key"
+    ]
+    assert (
+        max_axis["comparability"]["accounted_total_key"]
+        == high_axis["comparability"]["accounted_total_key"]
+    )
+    for axis in (max_axis, high_axis):
+        total_key = axis["comparability"]["accounted_total_key"]
+        assert total_key == {
+            "attempt_count": 2,
+            "unavailable_count": 0,
+            "not_incurred_count": 0,
+            "scheduled_attempt_count": 2,
+            "pair_units_by_status": {
+                "observed": [
+                    {"block_id": "b01", "attempt": 1},
+                    {"block_id": "b02", "attempt": 1},
+                ],
+                "unavailable": [],
+                "not-incurred": [],
+            },
+        }
+        assert {
+            key: axis[key]
+            for key in (
+                "attempt_count",
+                "unavailable_count",
+                "not_incurred_count",
+                "scheduled_attempt_count",
+            )
+        } == {
+            key: total_key[key]
+            for key in (
+                "attempt_count",
+                "unavailable_count",
+                "not_incurred_count",
+                "scheduled_attempt_count",
+            )
+        }
+
+
+def test_equal_counts_with_swapped_pair_units_are_not_comparable(
+    tmp_path: Path,
+) -> None:
+    unavailable = {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+    }
+    attempts = [
+        _cost_attempt(),
+        _cost_attempt(**unavailable),
+        _cost_attempt(**unavailable),
+        _cost_attempt(),
+        _cost_attempt(),
+        _cost_attempt(),
+    ]
+    result = _cross_arm_cost_aggregate(tmp_path, attempts)
+    max_axis = _axis_cost(result, benchmark_task_id="alpha", arm="max")
+    high_axis = _axis_cost(result, benchmark_task_id="alpha", arm="high")
+    max_comparability = max_axis["comparability"]
+    high_comparability = high_axis["comparability"]
+    assert max_comparability["basis_key"] == high_comparability["basis_key"]
+    max_total = max_comparability["accounted_total_key"]
+    high_total = high_comparability["accounted_total_key"]
+    assert (
+        max_total["attempt_count"],
+        max_total["unavailable_count"],
+        max_total["not_incurred_count"],
+        max_total["scheduled_attempt_count"],
+    ) == (1, 1, 0, 2)
+    assert (
+        high_total["attempt_count"],
+        high_total["unavailable_count"],
+        high_total["not_incurred_count"],
+        high_total["scheduled_attempt_count"],
+    ) == (1, 1, 0, 2)
+    assert max_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b02", "attempt": 1}],
+        "unavailable": [{"block_id": "b01", "attempt": 1}],
+        "not-incurred": [],
+    }
+    assert high_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b01", "attempt": 1}],
+        "unavailable": [{"block_id": "b02", "attempt": 1}],
+        "not-incurred": [],
+    }
+    assert max_total != high_total
+    assert all(
+        "comparability" in row["normalized_cost"]
+        for row in result["resource_ledger"]
+    )
+
+
+def test_attempt_number_distinguishes_equal_count_pair_unit_identities(
+    tmp_path: Path,
+) -> None:
+    unavailable = {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+    }
+    result = _cross_arm_cost_aggregate(
+        tmp_path,
+        [
+            _cost_attempt(attempt=2),
+            _cost_attempt(attempt=1),
+            _cost_attempt(attempt=1, **unavailable),
+            _cost_attempt(attempt=2, **unavailable),
+            _cost_attempt(),
+            _cost_attempt(),
+        ],
+    )
+    max_total = _axis_cost(
+        result, benchmark_task_id="alpha", arm="max"
+    )["comparability"]["accounted_total_key"]
+    high_total = _axis_cost(
+        result, benchmark_task_id="alpha", arm="high"
+    )["comparability"]["accounted_total_key"]
+    count_keys = (
+        "attempt_count",
+        "unavailable_count",
+        "not_incurred_count",
+        "scheduled_attempt_count",
+    )
+    assert tuple(max_total[key] for key in count_keys) == (1, 1, 0, 2)
+    assert tuple(high_total[key] for key in count_keys) == (1, 1, 0, 2)
+    assert max_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b02", "attempt": 2}],
+        "unavailable": [{"block_id": "b01", "attempt": 1}],
+        "not-incurred": [],
+    }
+    assert high_total["pair_units_by_status"] == {
+        "observed": [{"block_id": "b02", "attempt": 1}],
+        "unavailable": [{"block_id": "b01", "attempt": 2}],
+        "not-incurred": [],
+    }
+    assert max_total != high_total
+
+
+def test_distinct_non_null_manifest_digests_propagate_to_every_cost_row(
+    tmp_path: Path,
+) -> None:
+    first = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        material_manifest_sha256="d" * 64,
+    )
+    second = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        material_manifest_sha256="e" * 64,
+    )
+
+    first_universes = [
+        row["normalized_cost"]["comparability"]["basis_key"][
+            "comparison_universe"
+        ]
+        for row in first["resource_ledger"]
+    ] + [
+        row["comparability"]["basis_key"]["comparison_universe"]
+        for row in first["normalized_cost_axis_ledger"]
+    ]
+    second_universes = [
+        row["normalized_cost"]["comparability"]["basis_key"][
+            "comparison_universe"
+        ]
+        for row in second["resource_ledger"]
+    ] + [
+        row["comparability"]["basis_key"]["comparison_universe"]
+        for row in second["normalized_cost_axis_ledger"]
+    ]
+    assert first_universes
+    assert second_universes
+    assert all(
+        universe == {"material_manifest_sha256": "d" * 64}
+        for universe in first_universes
+    )
+    assert all(
+        universe == {"material_manifest_sha256": "e" * 64}
+        for universe in second_universes
+    )
+    assert first_universes[0] != second_universes[0]
+
+
+def test_comparability_rule_preserves_polarity_and_null_locality_branch(
+    tmp_path: Path,
+) -> None:
+    non_null = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        material_manifest_sha256="e" * 64,
+    )
+    null = _bound_cost_aggregate(
+        tmp_path, [_cost_attempt(), _cost_attempt()]
+    )
+    base_rule = (
+        "basis_key and accounted_total_key must both match exactly to compare "
+        "partial accounted component totals; this does not establish "
+        "comparability of per-attempt averages, complete costs, or actual "
+        "billed amounts"
+    )
+    null_locality = (
+        "; when comparison_universe.material_manifest_sha256 is null, "
+        "comparison is limited to rows in the same aggregate result"
+    )
+    non_null_rules = {
+        row["normalized_cost"]["comparability"]["rule"]
+        for row in non_null["resource_ledger"]
+    } | {
+        row["comparability"]["rule"]
+        for row in non_null["normalized_cost_axis_ledger"]
+    }
+    null_rules = {
+        row["normalized_cost"]["comparability"]["rule"]
+        for row in null["resource_ledger"]
+    } | {
+        row["comparability"]["rule"]
+        for row in null["normalized_cost_axis_ledger"]
+    }
+    assert non_null_rules == {base_rule}
+    assert null_rules == {base_rule + null_locality}
+
+
+def test_comparability_presence_and_mismatch_do_not_change_acceptance(
+    tmp_path: Path,
+) -> None:
+    observed_attempts = [_cost_attempt() for _ in range(6)]
+    matching = _cross_arm_cost_aggregate(tmp_path, observed_attempts)
+
+    zero_tokens = {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+    }
+    mismatching = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt(**zero_tokens)]
+        + [_cost_attempt() for _ in range(5)],
+    )
+    not_incurred = _cross_arm_cost_aggregate(
+        tmp_path,
+        [
+            _cost_attempt(
+                **zero_tokens,
+                model_calls=0,
+                prelaunch_failure={"kind": "prelaunch-exception"},
+            )
+        ]
+        + [_cost_attempt() for _ in range(5)],
+    )
+    without_declaration = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt() for _ in range(6)],
+        has_schedule_descriptor=False,
+    )
+
+    assert all(
+        "comparability" in row["normalized_cost"]
+        for row in matching["resource_ledger"]
+    )
+    assert (
+        _axis_cost(mismatching, benchmark_task_id="alpha", arm="max")[
+            "comparability"
+        ]["accounted_total_key"]
+        != _axis_cost(mismatching, benchmark_task_id="alpha", arm="high")[
+            "comparability"
+        ]["accounted_total_key"]
+    )
+    not_incurred_cost = not_incurred["resource_ledger"][0]["normalized_cost"]
+    assert not_incurred_cost["token_availability"] == "not-incurred"
+    assert not_incurred_cost["comparability"]["accounted_total_key"] == {
+        "attempt_count": 0,
+        "unavailable_count": 0,
+        "not_incurred_count": 1,
+        "scheduled_attempt_count": 1,
+        "pair_units_by_status": {
+            "observed": [],
+            "unavailable": [],
+            "not-incurred": [{"block_id": "b02", "attempt": 1}],
+        },
+    }
+    not_incurred_axis = _axis_cost(
+        not_incurred, benchmark_task_id="alpha", arm="max"
+    )["comparability"]["accounted_total_key"]
+    assert not_incurred_axis == {
+        "attempt_count": 1,
+        "unavailable_count": 0,
+        "not_incurred_count": 1,
+        "scheduled_attempt_count": 2,
+        "pair_units_by_status": {
+            "observed": [{"block_id": "b01", "attempt": 1}],
+            "unavailable": [],
+            "not-incurred": [{"block_id": "b02", "attempt": 1}],
+        },
+    }
+    assert "normalized_cost_axis_ledger" not in without_declaration
+    assert all(
+        "normalized_cost" not in row
+        for row in without_declaration["resource_ledger"]
+    )
+    assert [
+        (
+            result["valid"],
+            result["failure_reasons"],
+            result["experiment_complete"],
+        )
+        for result in (
+            matching,
+            mismatching,
+            not_incurred,
+            without_declaration,
+        )
+    ] == [(True, [], True)] * 4
+
+    malformed = _cross_arm_cost_aggregate(
+        tmp_path,
+        [_cost_attempt(input_tokens=-1)]
+        + [_cost_attempt() for _ in range(5)],
+    )
+    assert "comparability" in malformed["resource_ledger"][0]["normalized_cost"]
+    assert (
+        malformed["valid"],
+        malformed["failure_reasons"],
+        malformed["experiment_complete"],
+    ) == (
+        False,
+        [
+            "cross-arm-cost-r01: normalized cost unavailable: "
+            "normalized cost input_tokens is negative"
+        ],
+        False,
+    )
+
+
+def test_final_cost_artifact_comparability_contains_no_float_and_keeps_rounding(
+    tmp_path: Path,
+) -> None:
+    result = _cross_arm_cost_aggregate(
+        tmp_path, [_cost_attempt() for _ in range(6)]
+    )
+    final_values = _walk_json_values(result)
+    comparability_trees = [
+        value
+        for value in final_values
+        if isinstance(value, dict)
+        and set(value) == {"rule", "basis_key", "accounted_total_key"}
+    ]
+    assert len(comparability_trees) == (
+        len(result["resource_ledger"])
+        + len(result["normalized_cost_axis_ledger"])
+    )
+    assert not any(
+        isinstance(value, float)
+        for tree in comparability_trees
+        for value in _walk_json_values(tree)
+    )
+    for resource in result["resource_ledger"]:
+        cost = resource["normalized_cost"]
+        assert cost["rounding"] == {
+            "decimal_places": 8,
+            "mode": "ROUND_HALF_EVEN",
+        }
+        assert type(cost["rounding"]["decimal_places"]) is int
+        nested_rounding = cost["comparability"]["basis_key"][
+            "accounting_basis"
+        ]["rounding"]
+        assert nested_rounding == cost["rounding"]
+        assert type(nested_rounding["decimal_places"]) is int
+
+
+def test_null_comparison_universe_is_limited_to_same_aggregate_result(
+    tmp_path: Path,
+) -> None:
+    result = _bound_cost_aggregate(
+        tmp_path, [_cost_attempt(), _cost_attempt()]
+    )
+    comparability_trees = [
+        row["normalized_cost"]["comparability"]
+        for row in result["resource_ledger"]
+    ] + [row["comparability"] for row in result["normalized_cost_axis_ledger"]]
+    for comparability in comparability_trees:
+        assert comparability["basis_key"]["comparison_universe"] == {
+            "material_manifest_sha256": None,
+        }
+        assert "same aggregate result" in comparability["rule"]
 
 
 def test_m01_unavailable_zero_tokens_never_enter_cost_denominator(

@@ -1,0 +1,111 @@
+{
+ "estimated_run_seconds": 300,
+ "hang_timeout_seconds": 5400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2226.n01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "                    if True or f\"source/{relative}\" in requested_dependency_identities:\n",
+     "old": "                    if f\"source/{relative}\" in requested_dependency_identities:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2226.n02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "        if False and bytes(transformed) != control_line:\n            has_residual = True\n",
+     "old": "        if bytes(transformed) != control_line:\n            has_residual = True\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2226.n03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "    location_only = (\n        not has_residual\n        and replacement_count >= 1\n    )\n",
+     "old": "    location_only = (\n        not has_residual\n        and replacement_count >= 1\n        and has_root_dependent_builtin\n    )\n"
+    },
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "        if False:\n            _invalid_record(\n                \"root-location-only evidence lacks a root-dependent builtin\",\n            )\n",
+     "old": "        if not (\n            evidence[\"requested_root_dependent_builtin_paths\"]\n            or evidence[\"control_root_dependent_builtin_paths\"]\n        ):\n            _invalid_record(\n                \"root-location-only evidence lacks a root-dependent builtin\",\n            )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2226.n04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "                        transformed.extend(requested_source_root)\n",
+     "old": "                        transformed.extend(control_source_root)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2226.n05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "    if False:\n        return _issue_arm_record(\n            arm=\"supply-effectuation\", terminal_status=\"green\",\n            reason_code=\"stock-inert-preprocess-identical\", request=request,\n            request_digest=request_digest, evidence=evidence,\n        )\n",
+     "old": "    if requested_result.preprocessed_bytes == control_result.preprocessed_bytes:\n        return _issue_arm_record(\n            arm=\"supply-effectuation\", terminal_status=\"green\",\n            reason_code=\"stock-inert-preprocess-identical\", request=request,\n            request_digest=request_digest, evidence=evidence,\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2226.n06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "        if False:\n            _invalid_record(\n                \"root_diff_source_roots is not bound to configure argv\",\n            )\n",
+     "old": "        if source_roots != (\n            requested_configure_argv[2], control_configure_argv[2],\n        ):\n            _invalid_record(\n                \"root_diff_source_roots is not bound to configure argv\",\n            )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2226.n07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "new": "            if requested_line.startswith(source_prefix, index):\n",
+     "old": "            if requested_line.startswith(source_prefix, index) \\\n                    and (index == 0 or requested_line[index - 1] not in path_bytes):\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 5400
+}

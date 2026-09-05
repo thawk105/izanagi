@@ -7,7 +7,7 @@ unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
 usage() {
   cat >&2 <<'EOF'
 usage: submit_b10_backoff_shape.sh --prereg-commit COMMIT
-       --phase {build|verify|perf|probe} [--workload {write-heavy|balanced|read-heavy}]
+       --phase {build|verify|perf|probe|verify-perf|trial-cell|report} [--workload {write-heavy|balanced|read-heavy}]
        [--dry-run] [--durable-root PATH]
 EOF
 }
@@ -58,15 +58,15 @@ done
   echo "--prereg-commit must be a full lowercase commit ID" >&2
   exit 2
 }
-[[ "$PHASE" =~ ^(build|verify|perf|probe)$ ]] || {
-  echo "--phase must be build, verify, perf, or probe" >&2
+[[ "$PHASE" =~ ^(build|verify|perf|probe|verify-perf|trial-cell|report)$ ]] || {
+  echo "--phase must be build, verify, perf, probe, verify-perf, trial-cell, or report" >&2
   exit 2
 }
-if [[ "$PHASE" == build || "$PHASE" == probe ]]; then
-  [[ -z "$WORKLOAD" ]] || { echo "build/probe phase must not select a workload" >&2; exit 2; }
+if [[ "$PHASE" == build || "$PHASE" == probe || "$PHASE" == report ]]; then
+  [[ -z "$WORKLOAD" ]] || { echo "build/probe/report phase must not select a workload" >&2; exit 2; }
 else
   [[ "$WORKLOAD" =~ ^(write-heavy|balanced|read-heavy)$ ]] || {
-    echo "verify/perf phase requires one registered workload" >&2
+    echo "verify/perf/verify-perf/trial-cell phase requires one registered workload" >&2
     exit 2
   }
 fi
@@ -83,6 +83,27 @@ REPO_ROOT=$(realpath -e -- "$SCRIPT_DIR/../..") || exit 2
 JOB_SCRIPT="$SCRIPT_DIR/b10_backoff_shape_campaign.sh"
 [[ -f "$JOB_SCRIPT" && ! -L "$JOB_SCRIPT" ]] || exit 2
 [[ "$SCRIPT_PATH" == "$REPO_ROOT/tools/pegasus/submit_b10_backoff_shape.sh" ]] || exit 2
+B10_WALLTIME_S=$(python3 -I -B - "$REPO_ROOT/tools/pegasus/policy.json" <<'PY'
+import json
+import sys
+
+def no_duplicates(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON key")
+        value[key] = item
+    return value
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    policy = json.load(stream, object_pairs_hook=no_duplicates)
+walltime_s = policy.get("b10_backoff_shape_walltime_s") if type(policy) is dict else None
+if type(walltime_s) is not int or walltime_s <= 0:
+    raise SystemExit("invalid b10_backoff_shape_walltime_s")
+print(walltime_s)
+PY
+) || exit 2
+[[ "$B10_WALLTIME_S" =~ ^[1-9][0-9]*$ ]] || exit 2
 
 # Source identity and cleanliness are established before any durable write.
 SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit}) || exit 2
@@ -179,12 +200,12 @@ fi
 PREPARED_AT=$(date +%s)
 python3 -I -B - "$SUBMISSION_DIR/pre-submit.json" "$SOURCE_COMMIT" \
   "$PREREG_COMMIT" "$NONCE" "$JOB_SCRIPT_SHA256" "$PHASE" "$WORKLOAD" \
-  "$PREPARED_AT" "$DRY_RUN" <<'PY'
+  "$PREPARED_AT" "$DRY_RUN" "$B10_WALLTIME_S" <<'PY'
 import json
 import sys
 
 (target, source, prereg, nonce, script_sha, phase, workload,
- prepared_at, dry_run) = sys.argv[1:]
+ prepared_at, dry_run, walltime_s) = sys.argv[1:]
 payload = {
     "schema_version": "pegasus-b10-pre-submit/v2",
     "source_commit": source,
@@ -197,7 +218,7 @@ payload = {
     "prepared_epoch": int(prepared_at),
     "dry_run": dry_run == "1",
     "request": {"project": "SFC", "queue": "gen_S", "nodes": 1,
-                "elapstim_req_s": 21600},
+                "elapstim_req_s": int(walltime_s)},
 }
 with open(target, "x", encoding="utf-8") as stream:
     json.dump(payload, stream, sort_keys=True, separators=(",", ":"), allow_nan=False)

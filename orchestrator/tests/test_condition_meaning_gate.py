@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shlex
 import shutil
 import struct
 import subprocess
@@ -14,7 +15,11 @@ import pytest
 
 from orchestrator.campaign import b10_backoff_shape_sweep as B10
 from orchestrator.campaign import condition_meaning_gate as G
+from orchestrator.campaign import screening_driver
 from orchestrator.campaign.evolve_block import extract_materialized_evolve_block
+from orchestrator.tests.condition_gate_test_support import (
+    install_condition_gate_build_fixture,
+)
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -23,6 +28,17 @@ _SUPPLIED = _FIXTURES / "supplied"
 _F707 = _FIXTURES / "f707-missing-supply"
 _IGNORED = _FIXTURES / "effectuation-ignored"
 _PATCH = _ROOT / "patches" / "silo-backoff-fixed.patch"
+_COMPILE_TIME_BRANCH_MACROS = (
+    "BACKOFF_NOINLINE",
+    "IZANAGI_BREAK_PERMUTATION",
+    "IZANAGI_BREAK_PERMUTATION_SWAP",
+    "IZANAGI_BREAK_LOCK_COVERAGE",
+    "IZANAGI_BREAK_EARLY_UNLOCK",
+    "IZANAGI_BREAK_WRITE_INTENT_ERASE",
+    "IZANAGI_BREAK_WRITE_INTENT_FORGE",
+    "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
+    "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+)
 
 
 def _any_cxx() -> str:
@@ -103,10 +119,47 @@ def _public_arm_record(
     )
 
 
+def _assert_current_cmake_evidence(
+    evidence: dict[str, object],
+    labels: tuple[str, str],
+) -> None:
+    cmake_path = evidence["cmake_path"]
+    assert type(cmake_path) is str
+    cmake_file = Path(cmake_path)
+    current_sha256 = hashlib.sha256(cmake_file.read_bytes()).hexdigest()
+    current_identity = G._file_identity(os.stat(cmake_file, follow_symlinks=False))
+    for label in labels:
+        configure_argv = evidence[f"{label}_configure_argv"]
+        identities = evidence[f"{label}_cmake_identities"]
+        assert type(configure_argv) is tuple
+        assert configure_argv and configure_argv[0] == cmake_path
+        assert type(identities) is tuple
+        assert tuple(row.phase for row in identities) == (
+            "before-configure", "after-configure",
+        )
+        assert all(row.sha256 == current_sha256 for row in identities)
+        assert all(row.identity == current_identity for row in identities)
+
+
 def _copied_fixture(tmp_path: Path) -> Path:
     destination = tmp_path / "ccbench"
     shutil.copytree(_SUPPLIED, destination)
     return destination
+
+
+def _append_inert_header_lines(
+    root: Path,
+    requested_lines: tuple[str, ...],
+    control_lines: tuple[str, ...] | None = None,
+) -> None:
+    if control_lines is None:
+        control_lines = requested_lines
+    for header, lines in (
+        (root / "include" / "backoff.hh", requested_lines),
+        (root / "stock" / "include" / "backoff.hh", control_lines),
+    ):
+        content = header.read_text(encoding="utf-8")
+        header.write_text(content + "".join(lines), encoding="utf-8")
 
 
 def _replace_source(root: Path, old: str, new: str) -> None:
@@ -141,6 +194,71 @@ def _patch_target_source() -> str:
         if line.startswith(("+", " ")):
             target.append(line[1:])
     return "".join(target)
+
+
+def _compile_time_request(
+    macro: str,
+    *,
+    requested: int | str = 1,
+    default: int | str | None = 0,
+) -> G.DefineRequest:
+    return G.make_define_request(
+        driver_id="test-compile-time-branch-selection",
+        macro=macro,
+        requested_value=requested,
+        default_value=default,
+    )
+
+
+def _compile_time_source_root(
+    tmp_path: Path,
+    macro: str,
+    *,
+    prefix: str = "",
+    duplicate: bool = False,
+    nested: bool = False,
+    close: bool = True,
+    directive: str | None = None,
+    owner_text: str | None = None,
+) -> Path:
+    root = tmp_path / "ccbench"
+    source_rel, _start_directive = G.CONDITIONAL_BRANCH_WITNESSES[macro]
+    owner_rel = G.DEFINE_SPECS[macro].owner_tus[0]
+    if source_rel != owner_rel:
+        assert macro == "BACKOFF_NOINLINE"
+        assert not prefix and not duplicate and not nested and close
+        assert directive is None and owner_text is None
+        shutil.copytree(_SUPPLIED, root)
+        return root
+    owner = root / "cc" / "silo" / "transaction.cc"
+    owner.parent.mkdir(parents=True)
+    if owner_text is None:
+        branch = (
+            (directive or f"#if {macro}") + "\n"
+            "int izanagi_compile_time_selected = 1;\n"
+            + ("#endif\n" if close else "")
+        )
+        if nested:
+            branch = "#if 1\n" + branch + "#endif\n"
+        owner_text = prefix + branch + (branch if duplicate else "")
+    owner.write_text(owner_text, encoding="utf-8")
+    return install_condition_gate_build_fixture(root)
+
+
+def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
+    """Derive the owner and exact start directive from real patch additions."""
+    patch = _ROOT / G.DEFINE_SPECS[macro].patch_rel
+    current_target: str | None = None
+    matches: list[tuple[str, str]] = []
+    for line in patch.read_text(encoding="utf-8").splitlines():
+        if line.startswith("+++ b/"):
+            current_target = line.removeprefix("+++ b/")
+        elif line.startswith("+") and not line.startswith("+++") \
+                and line[1:] == f"#if {macro}":
+            assert current_target is not None
+            matches.append((current_target, line[1:]))
+    assert len(matches) == 1
+    return matches[0]
 
 
 def test_backoff_fixed_five_matches_pointwise():
@@ -368,6 +486,102 @@ def test_supply_effectuation_does_not_pin_volatile_fixture_hash(tmp_path: Path):
     )
 
 
+def test_supply_green_binds_real_cmake_identity_and_gate_configure_argv():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    G._validate_arm_record_integrity(supply)
+    _assert_current_cmake_evidence(
+        dict(supply.evidence), ("requested", "control"),
+    )
+
+
+def test_real_cmake_wrapper_replacement_during_configure_is_rejected(
+    tmp_path: Path,
+):
+    real_cmake = Path(_any_cmake()).resolve(strict=True)
+    wrapper = tmp_path / "cmake-wrapper"
+    stable = tmp_path / "cmake-wrapper.stable"
+    stable.write_text(
+        "#!/bin/sh\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    stable.chmod(0o755)
+    original = (
+        "#!/bin/sh\n"
+        "cp \"$0.stable\" \"$0.next\"\n"
+        "chmod 755 \"$0.next\"\n"
+        "mv \"$0.next\" \"$0\"\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n"
+    )
+    wrapper.write_text(original, encoding="utf-8")
+    wrapper.chmod(0o755)
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(_SUPPLIED),
+        request=_request(5),
+        cxx=_any_cxx(),
+        cmake=os.fspath(wrapper),
+    )
+
+    assert wrapper.read_text(encoding="utf-8") == stable.read_text(encoding="utf-8")
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "cmake-identity-drift",
+    )
+
+
+def test_configure_compile_commands_rejects_real_cmake_replacement_before_return(
+    tmp_path: Path,
+):
+    real_cmake = Path(_any_cmake()).resolve(strict=True)
+    wrapper = tmp_path / "cmake-wrapper"
+    stable = tmp_path / "cmake-wrapper.stable"
+    stable.write_text(
+        "#!/bin/sh\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    stable.chmod(0o755)
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        "cp \"$0.stable\" \"$0.next\"\n"
+        "chmod 755 \"$0.next\"\n"
+        "mv \"$0.next\" \"$0\"\n"
+        f"exec {shlex.quote(os.fspath(real_cmake))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    _spec, requested, _default, companions = G._validate_define_request(request)
+    resolved_wrapper = G._resolve_executable(
+        os.fspath(wrapper), "configure-failed",
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._configure_compile_commands(
+            captured=captured,
+            request=request,
+            source_root=Path(captured.source_root),
+            build_root=tmp_path / "build",
+            value=requested,
+            companions=companions,
+            compiler=G._resolve_compiler(_any_cxx()),
+            cmake=resolved_wrapper,
+        )
+
+    assert wrapper.read_text(encoding="utf-8") == stable.read_text(encoding="utf-8")
+    assert raised.value.reason_code == "cmake-identity-drift"
+    assert raised.value.detail == "CMake path identity/content changed by after-configure"
+
+
 def test_ignored_define_has_identical_preprocessed_bytes_and_is_red():
     captured = G.capture_define_inputs(_IGNORED)
     request = _request(5)
@@ -405,6 +619,229 @@ def test_backoff_fixed_minus_one_stock_preprocess_identity_is_green():
         "green", "stock-inert-preprocess-identical",
     )
     assert evidence["requested_digest"] == evidence["control_digest"]
+
+
+@pytest.mark.parametrize(
+    ("macro", "requested", "default"),
+    (
+        pytest.param("BACKOFF_FIXED", -1, None, id="BACKOFF_FIXED=-1"),
+        pytest.param("BACKOFF_NOINLINE", 0, 0, id="BACKOFF_NOINLINE=0"),
+    ),
+)
+def test_inert_root_location_only_difference_is_green(
+    tmp_path: Path,
+    macro: str,
+    requested: int,
+    default: int | None,
+):
+    root = _copied_fixture(tmp_path).resolve()
+    _append_inert_header_lines(
+        root,
+        ('    static constexpr const char *condition_gate_file = __FILE__;\n',),
+    )
+    request = G.make_define_request(
+        driver_id="test-condition-meaning-gate",
+        macro=macro,
+        requested_value=requested,
+        default_value=default,
+    )
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=root / "stock"),
+        request=request,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "green", "stock-inert-preprocess-root-location-only",
+    )
+    assert evidence["comparison"] == "stock-inert-root-location-only"
+    assert evidence["requested_digest"] != evidence["control_digest"]
+    assert type(evidence["root_diff_line_count"]) is int
+    assert evidence["root_diff_line_count"] >= 1
+    assert type(evidence["root_diff_replacement_count"]) is int
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_source_roots"] == (
+        os.fspath(root), os.fspath(root / "stock"),
+    )
+    assert evidence["root_diff_has_residual"] is False
+    G._validate_arm_record_integrity(record)
+
+
+def test_inert_semantic_difference_on_root_line_is_red(tmp_path: Path):
+    root = _copied_fixture(tmp_path).resolve()
+    requested_header = root / "include" / "backoff.hh"
+    control_header = root / "stock" / "include" / "backoff.hh"
+    requested_text = requested_header.read_text(encoding="utf-8")
+    control_text = control_header.read_text(encoding="utf-8")
+    old = "    double now_backoff = Backoff_.load(std::memory_order_acquire);\n"
+    requested_new = (
+        "    double now_backoff = Backoff_.load(std::memory_order_acquire); "
+        "static constexpr const char *condition_gate_file = __FILE__;\n"
+    )
+    control_new = (
+        "    double now_backoff = Backoff_.load(std::memory_order_acquire) + 1; "
+        "static constexpr const char *condition_gate_file = __FILE__;\n"
+    )
+    assert requested_text.count(old) == 1
+    assert control_text.count(old) == 1
+    requested_header.write_text(
+        requested_text.replace(old, requested_new), encoding="utf-8",
+    )
+    control_header.write_text(
+        control_text.replace(old, control_new), encoding="utf-8",
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=root / "stock"),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is True
+
+
+def test_inert_root_shaped_literal_outside_closure_is_red(tmp_path: Path):
+    root = _copied_fixture(tmp_path).resolve()
+    control_root = root / "stock"
+    _append_inert_header_lines(
+        root,
+        (
+            f'    static constexpr const char *condition_gate_literal = "{root}'
+            '/not-a-dependency.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+        (
+            f'    static constexpr const char *condition_gate_literal = "{control_root}'
+            '/not-a-dependency.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=control_root),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["requested_root_dependent_builtin_paths"]
+    assert evidence["control_root_dependent_builtin_paths"]
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is True
+
+
+def test_inert_root_prefixed_by_path_byte_is_red(tmp_path: Path):
+    root = _copied_fixture(tmp_path).resolve()
+    control_root = root / "stock"
+    _append_inert_header_lines(
+        root,
+        (
+            f'    static constexpr const char *condition_gate_literal = "xyz{root}'
+            '/include/backoff.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+        (
+            f'    static constexpr const char *condition_gate_literal = "xyz{control_root}'
+            '/include/backoff.hh";\n',
+            '    static constexpr const char *condition_gate_file = __FILE__;\n',
+        ),
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=control_root),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["requested_root_dependent_builtin_paths"]
+    assert evidence["control_root_dependent_builtin_paths"]
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is True
+
+
+def test_inert_root_difference_without_code_owned_file_builtin_is_red(
+    tmp_path: Path,
+):
+    root = _copied_fixture(tmp_path).resolve()
+    control_root = root / "stock"
+    _append_inert_header_lines(
+        root,
+        (
+            f'    static constexpr const char *condition_gate_literal = "{root}'
+            '/include/backoff.hh";\n',
+        ),
+        (
+            f'    static constexpr const char *condition_gate_literal = "{control_root}'
+            '/include/backoff.hh";\n',
+        ),
+    )
+
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=control_root),
+        request=_request(-1, default=None, stock=True),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    evidence = dict(record.evidence)
+    assert (record.terminal_status, record.reason_code) == (
+        "red", "stock-inert-mismatch",
+    )
+    assert evidence["requested_root_dependent_builtin_paths"] == ()
+    assert evidence["control_root_dependent_builtin_paths"] == ()
+    assert evidence["root_diff_replacement_count"] >= 1
+    assert evidence["root_diff_has_residual"] is False
+
+
+def test_inert_root_location_evidence_binds_configure_source_roots(
+    tmp_path: Path,
+):
+    root = _copied_fixture(tmp_path).resolve()
+    _append_inert_header_lines(
+        root,
+        ('    static constexpr const char *condition_gate_file = __FILE__;\n',),
+    )
+    request = _request(-1, default=None, stock=True)
+    record = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root, stock_root=root / "stock"),
+        request=request,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert record.terminal_status == "green"
+
+    evidence = dict(record.evidence)
+    evidence["root_diff_source_roots"] = (
+        "/forged/requested-source", "/forged/control-source",
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=record.reason_code,
+        request=request,
+        request_digest=record.request_digest,
+        evidence=evidence,
+    )
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
 
 
 def test_requested_default_inert_reaches_tu_and_matches_stock():
@@ -514,6 +951,770 @@ def test_cli_accepts_inert_selected_branch_meaning_case():
         f"-1:branch:{G.STOCK_ADAPTIVE_BRANCH}",
     ])
     assert cases == (_stock_branch_case(),)
+
+
+def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
+    tmp_path: Path,
+):
+    assert tuple(G.CONDITIONAL_BRANCH_WITNESSES) == _COMPILE_TIME_BRANCH_MACROS
+    for macro in _COMPILE_TIME_BRANCH_MACROS:
+        patch_declaration = _patch_added_branch_declaration(macro)
+        fixture = _compile_time_source_root(tmp_path / macro, macro)
+        fixture_directives = [
+            line for line in (
+                fixture / patch_declaration[0]
+            ).read_text(encoding="utf-8").splitlines()
+            if line == patch_declaration[1]
+        ]
+        assert fixture_directives == [f"#if {macro}"]
+        assert (patch_declaration[0], fixture_directives[0]) \
+            == patch_declaration
+        assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == patch_declaration
+
+
+def test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_NOINLINE")
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=0, default=0,
+    )
+    declaration = G.declare_define_runtime_meaning(request)
+
+    assert type(declaration) is G.ConditionalBranchMeaningDeclaration
+    assert declaration.source_rel == "include/backoff.hh"
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=declaration,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    requested = meaning.evidence["requested"]
+    default = meaning.evidence["default"]
+    assert (requested.define_value, requested.selected_count,
+            requested.completed_count) == ("0", 0, 1)
+    assert (default.define_value, default.selected_count,
+            default.completed_count) == ("1", 1, 1)
+    for observation in (requested, default):
+        assert sum(
+            argument.endswith(request.owner_tu)
+            for argument in observation.preprocess_argv
+        ) == 1
+    G._validate_arm_record_integrity(meaning)
+    requested_argv = tuple(
+        argument.replace("-DBACKOFF_NOINLINE=0", "-DBACKOFF_NOINLINE=<VALUE>")
+        for argument in requested.preprocess_argv
+    )
+    default_argv = tuple(
+        argument.replace("-DBACKOFF_NOINLINE=1", "-DBACKOFF_NOINLINE=<VALUE>")
+        for argument in default.preprocess_argv
+    )
+    assert requested_argv == default_argv
+
+
+def test_backoff_noinline_requested_one_supply_and_meaning_are_green(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_NOINLINE")
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=1, default=0,
+    )
+    cxx = _any_cxx()
+    cmake = _any_cmake()
+
+    with G._configured_define_compile_commands(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    ) as configured_commands:
+        assert configured_commands.requested is not None
+        assert configured_commands.control is not None
+        assert configured_commands.requested.build_root != (
+            configured_commands.control.build_root
+        )
+        supply = G.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        meaning = G.evaluate_define_runtime_meaning(
+            captured,
+            request=request,
+            declaration=G.declare_define_runtime_meaning(request),
+            cxx=cxx,
+            cmake=cmake,
+            configured_commands=configured_commands,
+        )
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    assert meaning.evidence["requested"].define_value == "1"
+    assert meaning.evidence["default"].define_value == "0"
+    assert admission.admitted is True
+
+
+def test_header_shadow_preserves_directory_symlinks_and_git_link(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path / "source", "BACKOFF_NOINLINE")
+    (root / ".git").mkdir()
+    (root / "linked-target").mkdir()
+    (root / "linked-target" / ".git").mkdir()
+    (root / "linked-directory").symlink_to(
+        root / "linked-target", target_is_directory=True,
+    )
+    shadow = tmp_path / "shadow"
+    owner = G._write_shadow_owner_source(
+        root,
+        "include/backoff.hh",
+        "#if BACKOFF_NOINLINE\n#endif\n",
+        shadow,
+        owner_tu="cc/silo/transaction.cc",
+    )
+
+    assert owner == shadow / "cc" / "silo" / "transaction.cc"
+    assert owner.is_symlink()
+    assert (shadow / "include").is_dir()
+    assert not (shadow / "include").is_symlink()
+    assert not (shadow / "include" / "backoff.hh").is_symlink()
+    assert (shadow / "linked-directory").is_symlink()
+    assert (shadow / ".git").is_symlink()
+    assert (shadow / "linked-target" / ".git").is_symlink()
+
+
+@pytest.mark.parametrize("failure", [OSError("walk"), RuntimeError("walk")])
+def test_header_shadow_traversal_failure_is_structured(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+):
+    root = _compile_time_source_root(tmp_path / "source", "BACKOFF_NOINLINE")
+
+    def fail_walk(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(G.os, "walk", fail_walk)
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._write_shadow_owner_source(
+            root,
+            "include/backoff.hh",
+            "#if BACKOFF_NOINLINE\n#endif\n",
+            tmp_path / "shadow",
+            owner_tu="cc/silo/transaction.cc",
+        )
+    assert raised.value.reason_code == (
+        "compile-time-branch-instrumentation-failed"
+    )
+
+
+def test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    G._validate_arm_record_integrity(meaning)
+    _assert_current_cmake_evidence(
+        dict(meaning.evidence), ("requested", "default"),
+    )
+
+
+def test_real_compile_time_green_admits_certified_selection(tmp_path: Path):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _copied_fixture(tmp_path)
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(macro)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured,
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    G._validate_arm_record_integrity(supply)
+    G._validate_arm_record_integrity(meaning)
+    _assert_current_cmake_evidence(
+        dict(supply.evidence), ("requested", "control"),
+    )
+    _assert_current_cmake_evidence(
+        dict(meaning.evidence), ("requested", "default"),
+    )
+    assert admission.admitted is True
+
+
+@pytest.mark.parametrize("macro", _COMPILE_TIME_BRANCH_MACROS)
+def test_compile_time_branch_selection_accepts_each_registry_macro(
+    tmp_path: Path,
+    macro: str,
+):
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    declaration = G.declare_define_runtime_meaning(request)
+
+    assert type(declaration) is G.ConditionalBranchMeaningDeclaration
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=declaration,
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    assert meaning.evidence["proof_kind"] == G.COMPILE_TIME_BRANCH_SELECTION_PROOF_KIND
+    assert "compile-time" in meaning.evidence["proof_kind"]
+    assert "runtime" not in meaning.evidence["proof_kind"]
+    assert meaning.evidence["requested"].selected_count == 1
+    assert meaning.evidence["requested"].completed_count == 1
+    assert meaning.evidence["default"].selected_count == 0
+    assert meaning.evidence["default"].completed_count == 1
+    requested_argv = tuple(
+        argument.replace(f"-D{macro}=1", f"-D{macro}=<VALUE>")
+        for argument in meaning.evidence["requested"].preprocess_argv
+    )
+    default_argv = tuple(
+        argument.replace(f"-D{macro}=0", f"-D{macro}=<VALUE>")
+        for argument in meaning.evidence["default"].preprocess_argv
+    )
+    assert requested_argv == default_argv
+
+
+def test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        owner_text=(
+            "int common_owner_bytes = 1;\n"
+            f"#if {macro}\n"
+            "#endif\n"
+        ),
+    )
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(macro)
+    cxx = _any_cxx()
+    cmake = _any_cmake()
+    configure_calls: list[Path] = []
+    real_configure = G._configure_compile_commands
+
+    def recording_configure(**kwargs):
+        configure_calls.append(kwargs["build_root"])
+        return real_configure(**kwargs)
+
+    monkeypatch.setattr(G, "_configure_compile_commands", recording_configure)
+    with G._configured_define_compile_commands(
+        captured, request=request, cxx=cxx, cmake=cmake,
+    ) as configured_commands:
+        supply = G.evaluate_define_supply_effectuation(
+            captured, request=request, cxx=cxx, cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        assert len(configure_calls) == 2
+        meaning = G.evaluate_define_runtime_meaning(
+            captured,
+            request=request,
+            declaration=G.declare_define_runtime_meaning(request),
+            cxx=cxx,
+            cmake=cmake,
+            configured_commands=configured_commands,
+        )
+        assert len(configure_calls) == 2
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "red", "preprocess-bytes-identical",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    assert supply.record_id != meaning.record_id
+    assert supply.record_digest != meaning.record_digest
+
+
+def test_compile_time_branch_selection_rejects_non_discriminating_observation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    source_rel, _start_directive = G.CONDITIONAL_BRANCH_WITNESSES[macro]
+    mutated_directive = "#if 1"
+    monkeypatch.setitem(
+        G._CONDITIONAL_BRANCH_WITNESSES,
+        macro,
+        (source_rel, mutated_directive),
+    )
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        directive=mutated_directive,
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(1, 1),default=(1, 1)"
+
+
+def test_compile_time_branch_selection_accepts_active_nested_context(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_LOCK_COVERAGE"
+    root = _compile_time_source_root(tmp_path, macro, nested=True)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+
+
+def test_compile_time_branch_selection_accepts_block_comment_prefix(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_LOCK_COVERAGE"
+    root = _compile_time_source_root(
+        tmp_path, macro, prefix="/*\n#if 0\n*/\n",
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+
+
+def test_compile_time_branch_selection_rejects_duplicate_start_directive(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_ERASE"
+    root = _compile_time_source_root(tmp_path, macro, duplicate=True)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-start-not-unique",
+    )
+
+
+def test_compile_time_branch_selection_rejects_owner_prefix_undef(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_FORGE"
+    root = _compile_time_source_root(tmp_path, macro, prefix=f"#undef {macro}\n")
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(0, 1),default=(0, 1)"
+
+
+def test_compile_time_branch_selection_rejects_line_spliced_comment_endif(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_OPSWAP"
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        owner_text=(
+            "#if 0\n"
+            "// this endif is part of the comment after splicing \\\n"
+            "#endif\n"
+            f"#if {macro}\n"
+            "int guarded = 1;\n"
+            "#endif\n"
+            "#endif\n"
+        ),
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(0, 0),default=(0, 0)"
+
+
+@pytest.mark.parametrize("container", ["block-comment", "raw-string"])
+def test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text(
+    tmp_path: Path,
+    container: str,
+):
+    macro = "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP"
+    owner_text = (
+        f"/*\n#if {macro}\n#endif\n*/\n"
+        if container == "block-comment"
+        else f'const char *text = R"probe(\n#if {macro}\n)probe";\n'
+    )
+    root = _compile_time_source_root(
+        tmp_path / container, macro, owner_text=owner_text,
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == "requested=(0, 0),default=(0, 0)"
+
+
+def test_compile_time_branch_selection_rejects_unobserved_completion_marker(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION"
+    root = _compile_time_source_root(
+        tmp_path,
+        macro,
+        prefix=(
+            f"#undef {G._COMPILE_TIME_COMPLETED_MARKER}\n"
+            f"#define {G._COMPILE_TIME_COMPLETED_MARKER}()\n"
+        ),
+    )
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-mismatch",
+    )
+    assert meaning.evidence["observed"] == "requested=(1, 0),default=(0, 0)"
+
+
+def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: Path):
+    request = _compile_time_request("IZANAGI_BREAK_NOREAD_VALIDATION")
+    assert G.declare_define_runtime_meaning(request) is None
+
+    root = tmp_path / "ccbench"
+    root.mkdir()
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "unestablished", "meaning-witness-undeclared",
+    )
+
+
+@pytest.mark.parametrize(
+    ("requested", "default"),
+    [(1, None), (1, 1), (0, 0), (0, 1)],
+)
+def test_compile_time_factory_rejects_nonpaired_values(
+    requested: int,
+    default: int | None,
+):
+    request = _compile_time_request(
+        "IZANAGI_BREAK_PERMUTATION",
+        requested=requested,
+        default=default,
+    )
+    assert G.declare_define_runtime_meaning(request) is None
+
+
+@pytest.mark.parametrize(
+    ("requested", "default", "declared"),
+    [
+        (0, 0, True),
+        (1, 0, True),
+        (0, 1, False),
+        (1, 1, False),
+        (0, None, False),
+    ],
+)
+def test_backoff_noinline_factory_accepts_only_default_zero_binary_requests(
+    requested: int,
+    default: int | None,
+    declared: bool,
+):
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=requested, default=default,
+    )
+    declaration = G.declare_define_runtime_meaning(request)
+
+    assert (type(declaration) is G.ConditionalBranchMeaningDeclaration) \
+        is declared
+
+
+def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(
+    tmp_path: Path,
+):
+    assert G.MeaningWitnessDeclaration("BACKOFF_FIXED", ()) \
+        == G.MeaningWitnessDeclaration("BACKOFF_FIXED", ())
+    with pytest.raises(ValueError, match="no runtime witness support"):
+        G.MeaningWitnessDeclaration("IZANAGI_BREAK_PERMUTATION", ())
+    with pytest.raises(ValueError, match="no runtime witness support"):
+        G.MeaningWitnessDeclaration("BACKOFF_NOINLINE", ())
+
+    root = tmp_path / "ccbench"
+    root.mkdir()
+    with pytest.raises(SystemExit) as raised:
+        G.condition_gate_cli([
+            "--source-root", os.fspath(root),
+            "--driver-id", "test-cli-legacy-boundary",
+            "--macro", "IZANAGI_BREAK_PERMUTATION",
+            "--requested-value", "1",
+            "--default-value", "0",
+            "--meaning-case", f"1:{_bits(1)}:{_bits(1)}",
+            "--cxx", _any_cxx(),
+        ])
+    assert raised.value.code == 2
+
+
+def test_compile_time_green_schema_rejects_missing_or_mutated_observations(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION_SWAP"
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+
+    mutations: list[dict[str, object]] = []
+    missing = dict(meaning.evidence)
+    del missing["default"]
+    mutations.append(missing)
+    same_observation = dict(meaning.evidence)
+    same_observation["default"] = replace(
+        same_observation["default"], selected_count=1,
+    )
+    mutations.append(same_observation)
+    drifted_argv = dict(meaning.evidence)
+    drifted_argv["default"] = replace(
+        drifted_argv["default"],
+        preprocess_argv=(*drifted_argv["default"].preprocess_argv, "-DOTHER=1"),
+    )
+    mutations.append(drifted_argv)
+    wrong_kind = dict(meaning.evidence)
+    wrong_kind["proof_kind"] = "runtime-conditional-branch-witness"
+    mutations.append(wrong_kind)
+
+    for evidence in mutations:
+        forged = _public_arm_record(
+            arm="runtime-meaning",
+            terminal_status="green",
+            reason_code="declared-compile-time-branch-selection-observed",
+            request=request,
+            request_digest=meaning.request_digest,
+            evidence=evidence,
+        )
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G._validate_arm_record_integrity(forged, require_issuer=False)
+        assert raised.value.reason_code == "admission-contract-invalid"
+
+
+def test_backoff_noinline_green_schema_rejects_nonbinary_and_same_value(
+    tmp_path: Path,
+):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_NOINLINE")
+    request = _compile_time_request(
+        "BACKOFF_NOINLINE", requested=0, default=0,
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+
+    nonbinary = dict(meaning.evidence)
+    nonbinary["requested"] = replace(
+        nonbinary["requested"], define_value="2",
+    )
+    same_value = dict(meaning.evidence)
+    same_value["default"] = same_value["requested"]
+    for evidence in (nonbinary, same_value):
+        forged = _public_arm_record(
+            arm="runtime-meaning",
+            terminal_status="green",
+            reason_code=meaning.reason_code,
+            request=request,
+            request_digest=meaning.request_digest,
+            evidence=evidence,
+        )
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G._validate_arm_record_integrity(forged, require_issuer=False)
+        assert raised.value.reason_code == "admission-contract-invalid"
+
+
+def test_compile_time_green_rejects_different_requested_default_cmake_identity(
+    tmp_path: Path,
+):
+    macro = "IZANAGI_BREAK_PERMUTATION_SWAP"
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root),
+        request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(),
+        cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+
+    evidence = dict(meaning.evidence)
+    default_identities = evidence["default_cmake_identities"]
+    assert type(default_identities) is tuple
+    evidence["default_cmake_identities"] = tuple(
+        replace(
+            row,
+            identity=replace(row.identity, inode=row.identity.inode + 1),
+            sha256="0" * 64,
+        )
+        for row in default_identities
+    )
+    forged = _public_arm_record(
+        arm="runtime-meaning",
+        terminal_status="green",
+        reason_code=meaning.reason_code,
+        request=request,
+        request_digest=meaning.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "different CMake identities" in raised.value.detail
+
+
+def test_nonconfiguring_meaning_proofs_reject_unexpected_cmake_evidence():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    pointwise_request = _request(5)
+    branch_request = _request(-1, default=-1)
+    pointwise = G.evaluate_define_runtime_meaning(
+        captured,
+        request=pointwise_request,
+        declaration=_declaration(_case(5)),
+        cxx=_any_cxx(),
+    )
+    branch = G.evaluate_define_runtime_meaning(
+        captured,
+        request=branch_request,
+        declaration=_declaration(_stock_branch_case()),
+        cxx=_any_cxx(),
+    )
+    assert {
+        pointwise.evidence["proof_kind"], branch.evidence["proof_kind"],
+    } == {G.MEANING_PROOF_KIND, G.BRANCH_MEANING_PROOF_KIND}
+    cmake_path = os.fspath(Path(_any_cmake()).resolve(strict=True))
+
+    for record, request in (
+        (pointwise, pointwise_request), (branch, branch_request),
+    ):
+        assert record.terminal_status == "green"
+        evidence = dict(record.evidence)
+        evidence["cmake_path"] = cmake_path
+        forged = _public_arm_record(
+            arm="runtime-meaning",
+            terminal_status="green",
+            reason_code=record.reason_code,
+            request=request,
+            request_digest=record.request_digest,
+            evidence=evidence,
+        )
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G._validate_arm_record_integrity(forged, require_issuer=False)
+        assert raised.value.reason_code == "admission-contract-invalid"
+        assert "unexpected=['cmake_path']" in raised.value.detail
 
 
 def test_backoff_fixed_minus_one_requires_stock_preprocess_identity(tmp_path: Path):
@@ -736,6 +1937,136 @@ def test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields():
             )
         assert raised.value.reason_code == "admission-contract-invalid"
         assert "production evaluator" not in raised.value.detail
+
+
+def test_green_supply_rejects_missing_cmake_evidence():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    del evidence["cmake_path"]
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "missing=['cmake_path']" in raised.value.detail
+
+
+def test_green_supply_rejects_configure_argv_for_different_cmake_path():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    requested_argv = evidence["requested_configure_argv"]
+    assert type(requested_argv) is tuple
+    evidence["requested_configure_argv"] = (
+        f"{evidence['cmake_path']}.different", *requested_argv[1:],
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "not bound to cmake_path" in raised.value.detail
+
+
+def test_green_supply_rejects_different_arm_cmake_identity():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    control_identities = evidence["control_cmake_identities"]
+    assert type(control_identities) is tuple
+    evidence["control_cmake_identities"] = tuple(
+        replace(
+            row,
+            identity=replace(row.identity, inode=row.identity.inode + 1),
+            sha256="0" * 64,
+        )
+        for row in control_identities
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "different CMake identities" in raised.value.detail
+
+
+def test_green_supply_rejects_cmake_identity_drift_within_arm():
+    captured = G.capture_define_inputs(_SUPPLIED)
+    request = _request(5)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+
+    evidence = dict(supply.evidence)
+    requested_identities = evidence["requested_cmake_identities"]
+    control_identities = evidence["control_cmake_identities"]
+    assert type(requested_identities) is tuple
+    assert type(control_identities) is tuple
+    before, after = control_identities
+    assert (requested_identities[0].identity, requested_identities[0].sha256) \
+        == (before.identity, before.sha256)
+    drift_sha256 = (
+        ("0" if after.sha256[0] != "0" else "1") + after.sha256[1:]
+    )
+    evidence["control_cmake_identities"] = (
+        before,
+        replace(
+            after,
+            identity=replace(after.identity, inode=after.identity.inode + 1),
+            sha256=drift_sha256,
+        ),
+    )
+    forged = _public_arm_record(
+        arm="supply-effectuation",
+        terminal_status="green",
+        reason_code=supply.reason_code,
+        request=request,
+        request_digest=supply.request_digest,
+        evidence=evidence,
+    )
+
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(forged, require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+    assert "CMake identity drift" in raised.value.detail
 
 
 def test_unknown_terminal_status_is_rejected_before_raw_admission():
@@ -1061,8 +2392,12 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
-        "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
-        "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
+        "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
+        "BACKOFF_COUNT_WINDOW", "BACKOFF_COUNT_CAP_US", "BACKOFF_STEP_ADAPT",
+        "BACKOFF_STEP_MIN_MILLI", "BACKOFF_STEP_MAX_MILLI",
+        "BACKOFF_DYN_CEILING", "BACKOFF_TRACE",
+        "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US", "BACKOFF_TRIGGER_GATING",
+        "BACKOFF_UPDATE_US", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
         "IZANAGI_BREAK_PERMUTATION", "IZANAGI_BREAK_PERMUTATION_SWAP",
         "IZANAGI_BREAK_LOCK_COVERAGE", "IZANAGI_BREAK_EARLY_UNLOCK",
@@ -1073,7 +2408,9 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     }
     assert G.SUPPLY_DOMAIN_MACROS == supply_domain
-    assert G.MEANING_SUPPORTED_MACROS == {"BACKOFF_FIXED"}
+    assert G.MEANING_SUPPORTED_MACROS == {
+        "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
+    }
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -1082,19 +2419,85 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
     }
     assert G.RELATED_DEFINE_DECODE_MACROS <= G.SUPPLY_DOMAIN_MACROS
-    for macro in G.SUPPLY_DOMAIN_MACROS - G.MEANING_SUPPORTED_MACROS:
+    for macro in G.SUPPLY_DOMAIN_MACROS - {"BACKOFF_FIXED"}:
         with pytest.raises(ValueError, match="no runtime witness support"):
             G.MeaningWitnessDeclaration(macro, ())
     assert G.DEFINE_SPECS["SS2PL_LOCK_KIND"].companion_defines == (
         ("SS2PL_LOCK_IMPL", "1"),
     )
     assert G.DEFINE_SPECS["BACKOFF_FIXED"].inert_values == ("-1",)
+    dynamic_specs = {
+        macro: (
+            spec.patch_rel,
+            spec.owner_tus,
+            spec.target,
+            spec.inert_values,
+        )
+        for macro, spec in G.DEFINE_SPECS.items()
+        if spec.patch_rel == "patches/cicada-adaptive-dynamic.patch"
+    }
+    assert dynamic_specs == {
+        "BACKOFF_COUNT_WINDOW": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+        "BACKOFF_COUNT_CAP_US": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+        ),
+        "BACKOFF_STEP_ADAPT": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+        "BACKOFF_STEP_MIN_MILLI": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+        ),
+        "BACKOFF_STEP_MAX_MILLI": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+        ),
+        "BACKOFF_DYN_CEILING": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+        "BACKOFF_TRACE": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+    }
+    assert {
+        macro: screening_driver._CONDITION_DEFAULTS[macro]
+        for macro in dynamic_specs
+    } == {
+        "BACKOFF_COUNT_WINDOW": 0,
+        "BACKOFF_COUNT_CAP_US": 0,
+        "BACKOFF_STEP_ADAPT": 0,
+        "BACKOFF_STEP_MIN_MILLI": 100000,
+        "BACKOFF_STEP_MAX_MILLI": 100000,
+        "BACKOFF_DYN_CEILING": 0,
+        "BACKOFF_TRACE": 0,
+    }
     assert G.DEFINE_SPECS[
         "IZANAGI_SILO_LADDER_RUNG1_REPORT"
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 9
+    ) == 19
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
     ) == 13
@@ -1111,6 +2514,10 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         assert raised.value.reason_code == "supply-contract-invalid"
     with pytest.raises(ValueError):
         G.MeaningCase(1, ("7ff0000000000000", "7ff0000000000000"))
+
+
+def test_module_claim_names_the_exact_32_define_supply_domain() -> None:
+    assert "supply domain contains the 32 patch-derived defines" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():
