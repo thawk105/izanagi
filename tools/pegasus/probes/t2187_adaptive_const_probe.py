@@ -38,19 +38,40 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
     derive_build_admission,
 )
 from orchestrator.campaign.model import Genome  # noqa: E402
-from orchestrator.campaign.patchharness import applied, assert_pinned_clean  # noqa: E402
+from orchestrator.campaign.patchharness import (  # noqa: E402
+    applied,
+    apply_patch,
+    assert_pinned_clean,
+    patch_files,
+)
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 
-SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v1"
-CERTIFICATION_SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-certification/v1"
+SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-probe/v2"
+TRACE_SCHEMA_VERSION = "izanagi-dynamic-backoff-trace/v2"
+CERTIFICATION_SCHEMA_VERSION = "izanagi-cicada-adaptive-3const-certification/v2"
 GROUP_RECEIPT_SCHEMA_VERSION = (
-    "izanagi-cicada-adaptive-3const-certification-group/v1"
+    "izanagi-cicada-adaptive-3const-certification-group/v2"
 )
 NOT_CERTIFIED = (
     "trace-disabled performance runs only; no serializability check was run"
 )
 PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
-PATCH = ROOT / "patches" / "cicada-adaptive-params.patch"
+PATCH_A_REL = "patches/cicada-adaptive-params.patch"
+PATCH_B_REL = "patches/cicada-adaptive-dynamic.patch"
+PATCH_A = ROOT / PATCH_A_REL
+PATCH_B = ROOT / PATCH_B_REL
+# Kept as the legacy name for callers that bind the immutable A patch.
+PATCH = PATCH_A
+EXPECTED_PATCH_A_SHA256 = (
+    "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
+)
+PREREGISTRATION = ROOT / "docs" / "dynamic-backoff-preregistration.md"
+PBS_DRIVER = Path(__file__).with_suffix(".pbs").resolve()
+DYNAMIC_OUT_PREFIX = Path(
+    "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/"
+)
+DYNAMIC_CERTIFY_PREFIX = DYNAMIC_OUT_PREFIX / "certify"
+DYNAMIC_PERFORMANCE_PREFIX = DYNAMIC_OUT_PREFIX / "perf"
 
 CONTRACT = env_contract.lookup("pegasus")
 ENV_TAG = CONTRACT.env_tag
@@ -89,6 +110,14 @@ ALLOWED_GROUP_CLAIM = (
     "の下で、調整済み定数の trace-enabled 走行 24 件すべてが verifier で "
     "certified serializable となり、anomaly を 1 件も観測しなかった。"
 )
+DYNAMIC_GROUP_CLAIM = (
+    "固定条件 (records=1,000,000 / threads=48 / extime=3 / max_ope=10 / "
+    "zipf=0.9 / rmw=0、workload rr5・rr50・rr95、独立反復 8、計 24 trace) "
+    "の下で、全機構 on (計数窓 K=10000 / 最小 2560 µs / 最大 10240 µs、"
+    "適応刻み 1〜4 µs、動的上限 下限 50 µs) の `cw-as-dyn` build の "
+    "trace-enabled 走行 24 件すべてが verifier で certified serializable "
+    "となり、anomaly を 1 件も観測しなかった。機構の各枝の被覆は認証しない。"
+)
 CLAIM_LIMITATIONS = (
     "固定条件外へ直列化可能性を一般化しない",
     "未測定の thread 数・records・extime・workload へ外挿しない",
@@ -100,6 +129,12 @@ STOCK_STEP_US = 100.0
 STOCK_INCR_MILLI = 100_000
 STOCK_MAX_US = 1_000
 STOCK_UPDATE_US = 10
+STOCK_COUNT_WINDOW = 0
+STOCK_COUNT_CAP_US = 0
+STOCK_STEP_ADAPT = 0
+STOCK_STEP_MIN_US = 100.0
+STOCK_STEP_MAX_US = 100.0
+STOCK_DYN_CEILING = 0
 
 BASE = {
     "NO_WAIT_LOCKING_IN_VALIDATION": 1,
@@ -143,6 +178,13 @@ class Cell:
     step_us: float
     ceiling_us: int
     update_us: int
+    count_window: int = STOCK_COUNT_WINDOW
+    count_cap_us: int = STOCK_COUNT_CAP_US
+    step_adapt: int = STOCK_STEP_ADAPT
+    step_min_us: float = STOCK_STEP_MIN_US
+    step_max_us: float = STOCK_STEP_MAX_US
+    dyn_ceiling: int = STOCK_DYN_CEILING
+    extended: bool = False
 
     @property
     def incr_milli(self) -> int:
@@ -152,8 +194,60 @@ class Cell:
     def is_stock_control(self) -> bool:
         return is_stock_control(self)
 
+    @property
+    def step_min_milli(self) -> int:
+        return int(Decimal(str(self.step_min_us)) * 1000)
 
-CERT_CELL = Cell("tuned", 1, 1.0, 1_000, 2_560)
+    @property
+    def step_max_milli(self) -> int:
+        return int(Decimal(str(self.step_max_us)) * 1000)
+
+
+CERT_TUNED_CELL = Cell("tuned", 1, 1.0, 1_000, 2_560)
+CERT_DYNAMIC_CELL = Cell(
+    "cw-as-dyn",
+    1,
+    1.0,
+    1_000,
+    2_560,
+    count_window=10_000,
+    count_cap_us=10_240,
+    step_adapt=1,
+    step_min_us=1.0,
+    step_max_us=4.0,
+    dyn_ceiling=1,
+    extended=True,
+)
+CERT_CELLS = (CERT_TUNED_CELL, CERT_DYNAMIC_CELL)
+# Compatibility alias: its literal and five-field genome remain unchanged.
+CERT_CELL = CERT_TUNED_CELL
+CERT_CLAIMS = {
+    CERT_TUNED_CELL: ALLOWED_GROUP_CLAIM,
+    CERT_DYNAMIC_CELL: DYNAMIC_GROUP_CLAIM,
+}
+CERT_TUNED_CELL_TEXT = "tuned:1:1:1000:2560"
+CERT_DYNAMIC_CELL_TEXT = (
+    "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
+)
+
+TRACE_CELLS = (
+    Cell(
+        "cw", 1, 1.0, 1_000, 2_560, 10_000, 10_240, 0, 100.0, 100.0, 0,
+        True,
+    ),
+    Cell(
+        "cw-as", 1, 1.0, 1_000, 2_560, 10_000, 10_240, 1, 1.0, 4.0, 0,
+        True,
+    ),
+    CERT_DYNAMIC_CELL,
+)
+TRACE_WORKLOADS = ("write-heavy", "balanced", "read-heavy")
+TRACE_THREADS = (24, 48)
+TRACE_CELLS_TEXT = (
+    "cw:1:1:1000:2560:10000:10240:0:100:100:0,"
+    "cw-as:1:1:1000:2560:10000:10240:1:1:4:0,"
+    "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
+)
 
 
 class CertificationReject(RuntimeError):
@@ -172,6 +266,12 @@ def is_stock_control(cell: Cell) -> bool:
         and cell.step_us == STOCK_STEP_US
         and cell.ceiling_us == STOCK_MAX_US
         and cell.update_us == STOCK_UPDATE_US
+        and cell.count_window == STOCK_COUNT_WINDOW
+        and cell.count_cap_us == STOCK_COUNT_CAP_US
+        and cell.step_adapt == STOCK_STEP_ADAPT
+        and cell.step_min_us == STOCK_STEP_MIN_US
+        and cell.step_max_us == STOCK_STEP_MAX_US
+        and cell.dyn_ceiling == STOCK_DYN_CEILING
     )
 
 
@@ -184,36 +284,47 @@ def _parse_positive_integer(text: str, field: str) -> int:
     return value
 
 
-def _parse_step_us(text: str) -> tuple[float, int]:
+def _parse_exact_step_us(text: str, field: str) -> tuple[float, int]:
     try:
         value = Decimal(text)
     except InvalidOperation as exc:
-        raise ValueError(f"step_us is not a decimal: {text!r}") from exc
+        raise ValueError(f"{field} is not a decimal: {text!r}") from exc
     if not value.is_finite() or value <= 0:
-        raise ValueError(f"step_us must be finite and positive: {text!r}")
+        raise ValueError(f"{field} must be finite and positive: {text!r}")
     milli = value * 1000
     integral = milli.to_integral_value()
     if milli != integral:
         raise ValueError(
-            f"step_us cannot be represented exactly in 1/1000 us: {text!r}"
+            f"{field} cannot be represented exactly in 1/1000 us: {text!r}"
         )
     return float(value), int(integral)
 
 
+def _parse_step_us(text: str) -> tuple[float, int]:
+    return _parse_exact_step_us(text, "step_us")
+
+
+def _parse_nonnegative_integer(text: str, field: str) -> int:
+    if _INTEGER_RE.fullmatch(text) is None:
+        raise ValueError(f"{field} must be a nonnegative integer: {text!r}")
+    return int(text)
+
+
 def parse_cells(text: str) -> tuple[Cell, ...]:
-    """Parse ``label:back_off:step_us:ceiling_us:update_us`` cells."""
+    """Parse exact five-field legacy or eleven-field dynamic cells."""
     if not isinstance(text, str) or not text.strip():
         raise ValueError("cells must not be empty")
     cells: list[Cell] = []
     labels: set[str] = set()
     for index, raw_cell in enumerate(text.split(",")):
         fields = [field.strip() for field in raw_cell.split(":")]
-        if len(fields) != 5 or any(not field for field in fields):
+        if len(fields) not in {5, 11} or any(not field for field in fields):
             raise ValueError(
-                f"cell {index} must have five nonempty colon-separated fields: "
+                f"cell {index} must have five or eleven nonempty "
+                "colon-separated fields: "
                 f"{raw_cell!r}"
             )
-        label, back_off_text, step_text, ceiling_text, update_text = fields
+        label, back_off_text, step_text, ceiling_text, update_text = fields[:5]
         if _LABEL_RE.fullmatch(label) is None:
             raise ValueError(f"cell label is unsafe: {label!r}")
         if label in labels:
@@ -223,7 +334,68 @@ def parse_cells(text: str) -> tuple[Cell, ...]:
         step_us, incr_milli = _parse_step_us(step_text)
         ceiling_us = _parse_positive_integer(ceiling_text, "ceiling_us")
         update_us = _parse_positive_integer(update_text, "update_us")
-        cell = Cell(label, int(back_off_text), step_us, ceiling_us, update_us)
+        if len(fields) == 5:
+            cell = Cell(label, int(back_off_text), step_us, ceiling_us, update_us)
+        else:
+            (
+                count_window_text,
+                count_cap_text,
+                step_adapt_text,
+                step_min_text,
+                step_max_text,
+                dyn_ceiling_text,
+            ) = fields[5:]
+            count_window = _parse_nonnegative_integer(
+                count_window_text, "count_window"
+            )
+            count_cap_us = _parse_nonnegative_integer(
+                count_cap_text, "count_cap_us"
+            )
+            if step_adapt_text not in {"0", "1"}:
+                raise ValueError(
+                    f"step_adapt must be 0 or 1: {step_adapt_text!r}"
+                )
+            if dyn_ceiling_text not in {"0", "1"}:
+                raise ValueError(
+                    f"dyn_ceiling must be 0 or 1: {dyn_ceiling_text!r}"
+                )
+            step_min_us, step_min_milli = _parse_exact_step_us(
+                step_min_text, "step_min_us"
+            )
+            step_max_us, step_max_milli = _parse_exact_step_us(
+                step_max_text, "step_max_us"
+            )
+            step_adapt = int(step_adapt_text)
+            dyn_ceiling = int(dyn_ceiling_text)
+            if step_min_milli > step_max_milli:
+                raise ValueError("step_min_us must not exceed step_max_us")
+            if step_adapt and not (
+                step_min_milli <= incr_milli <= step_max_milli
+            ):
+                raise ValueError(
+                    "step_us must lie within step_min_us..step_max_us when "
+                    "step_adapt=1"
+                )
+            if count_window == 0 and count_cap_us != 0:
+                raise ValueError("count_window=0 requires count_cap_us=0")
+            if dyn_ceiling and step_max_milli * 4 > 50_000:
+                raise ValueError(
+                    "dyn_ceiling=1 requires step_max_us * 4 <= 50 us"
+                )
+            cell = Cell(
+                label,
+                int(back_off_text),
+                step_us,
+                ceiling_us,
+                update_us,
+                count_window,
+                count_cap_us,
+                step_adapt,
+                step_min_us,
+                step_max_us,
+                dyn_ceiling,
+                True,
+            )
         if cell.incr_milli != incr_milli:
             raise ValueError(f"step_us normalization changed value: {step_text!r}")
         cells.append(cell)
@@ -247,7 +419,18 @@ def _validate_grid_contract(cells: tuple[Cell, ...]) -> None:
     if sum(cell.is_stock_control for cell in cells) != 1:
         raise ValueError("grid must contain exactly one stock adaptive control")
     configurations = {
-        (cell.back_off, cell.incr_milli, cell.ceiling_us, cell.update_us)
+        (
+            cell.back_off,
+            cell.incr_milli,
+            cell.ceiling_us,
+            cell.update_us,
+            cell.count_window,
+            cell.count_cap_us,
+            cell.step_adapt,
+            cell.step_min_milli,
+            cell.step_max_milli,
+            cell.dyn_ceiling,
+        )
         for cell in cells
     }
     if len(configurations) != len(cells):
@@ -341,17 +524,425 @@ def isolated_checkout(submodule: Path, pin_commit: str):
         assert_pinned_clean(str(path), pin_commit)
 
 
-def genome_for(cell: Cell) -> Genome:
-    return Genome(
-        "silo",
-        {
-            **BASE,
-            "BACK_OFF": cell.back_off,
-            "BACKOFF_INCR_MILLI": cell.incr_milli,
-            "BACKOFF_MAX_US": cell.ceiling_us,
-            "BACKOFF_UPDATE_US": cell.update_us,
-        },
+def genome_for(cell: Cell, *, backoff_trace: bool = False) -> Genome:
+    flags = {
+        **BASE,
+        "BACK_OFF": cell.back_off,
+        "BACKOFF_INCR_MILLI": cell.incr_milli,
+        "BACKOFF_MAX_US": cell.ceiling_us,
+        "BACKOFF_UPDATE_US": cell.update_us,
+    }
+    if cell.extended or backoff_trace:
+        flags.update(
+            BACKOFF_COUNT_WINDOW=cell.count_window,
+            BACKOFF_COUNT_CAP_US=cell.count_cap_us,
+            BACKOFF_STEP_ADAPT=cell.step_adapt,
+            BACKOFF_STEP_MIN_MILLI=cell.step_min_milli,
+            BACKOFF_STEP_MAX_MILLI=cell.step_max_milli,
+            BACKOFF_DYN_CEILING=cell.dyn_ceiling,
+            BACKOFF_TRACE=int(backoff_trace),
+        )
+    return Genome("silo", flags)
+
+
+def _cell_identity(cell: Cell) -> dict:
+    return {
+        "cell": cell.label,
+        "back_off": cell.back_off,
+        "step_us": cell.step_us,
+        "ceiling_us": cell.ceiling_us,
+        "update_us": cell.update_us,
+        "count_window": cell.count_window,
+        "count_cap_us": cell.count_cap_us,
+        "step_adapt": cell.step_adapt,
+        "step_min_us": cell.step_min_us,
+        "step_max_us": cell.step_max_us,
+        "dyn_ceiling": cell.dyn_ceiling,
+        "cell_format_fields": 11 if cell.extended else 5,
+    }
+
+
+def _cell_from_document(document: dict) -> Cell:
+    fields = document.get("cell_format_fields")
+    if fields not in {5, 11}:
+        raise CertificationReject(
+            "group-workload-contract-mismatch",
+            "certification cell format must be exactly 5 or 11 fields",
+        )
+    values = (
+        document.get("cell"),
+        document.get("back_off"),
+        document.get("step_us"),
+        document.get("ceiling_us"),
+        document.get("update_us"),
+        document.get("count_window"),
+        document.get("count_cap_us"),
+        document.get("step_adapt"),
+        document.get("step_min_us"),
+        document.get("step_max_us"),
+        document.get("dyn_ceiling"),
     )
+    expected_types = (str, int, float, int, int, int, int, int, float, float, int)
+    if any(type(value) is not expected for value, expected in zip(values, expected_types)):
+        raise CertificationReject(
+            "group-workload-contract-mismatch",
+            "certification cell identity has an invalid type",
+        )
+    cell = Cell(*values, extended=fields == 11)
+    if _cell_identity(cell) != {
+        key: document.get(key) for key in _cell_identity(cell)
+    }:
+        raise CertificationReject(
+            "group-workload-contract-mismatch",
+            "certification cell identity is not canonical",
+        )
+    return cell
+
+
+def _patch_stack_identity() -> dict:
+    if not PATCH_A.is_file():
+        raise FileNotFoundError(f"patch A is missing: {PATCH_A}")
+    a_sha256 = hashlib.sha256(PATCH_A.read_bytes()).hexdigest()
+    if a_sha256 != EXPECTED_PATCH_A_SHA256:
+        raise RuntimeError(
+            "immutable patch A SHA-256 mismatch: "
+            f"expected {EXPECTED_PATCH_A_SHA256}, got {a_sha256}"
+        )
+    if not PATCH_B.is_file():
+        raise FileNotFoundError(f"patch B is missing: {PATCH_B}")
+    b_sha256 = hashlib.sha256(PATCH_B.read_bytes()).hexdigest()
+    stack = [
+        {"path": PATCH_A_REL, "sha256": a_sha256},
+        {"path": PATCH_B_REL, "sha256": b_sha256},
+    ]
+    encoded = "izanagi-patch-stack/v1\n" + "".join(
+        f"{entry['path']} {entry['sha256']}\n" for entry in stack
+    )
+    return {
+        "patch_sha256": a_sha256,
+        "dynamic_patch_sha256": b_sha256,
+        "patch_stack": stack,
+        "patch_stack_sha256": hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
+    }
+
+
+@contextmanager
+def _applied_patch_stack(work_root: str):
+    """Apply immutable A then exact-path B; outer A cleanup reverts both."""
+    with applied(str(PATCH_A), CURRENT_PIN, work_root) as a_files:
+        b_files = patch_files(str(PATCH_B), work_root)
+        if set(b_files) != set(a_files):
+            raise RuntimeError(
+                "patch B must touch exactly the same existing paths as patch A"
+            )
+        for relative in b_files:
+            result = subprocess.run(
+                ["git", "-C", work_root, "cat-file", "-e", f"HEAD:{relative}"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"patch B path does not exist at pinned HEAD: {relative}"
+                )
+        apply_patch(str(PATCH_B), work_root)
+        yield tuple(b_files)
+
+
+def _validated_repo_head(value: str | None) -> str:
+    if type(value) is not str or _COMMIT_RE.fullmatch(value) is None:
+        raise RuntimeError("--repo-head must be the exact PBS_O_WORKDIR commit")
+    actual = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if value != actual:
+        raise RuntimeError(
+            f"--repo-head {value!r} does not match driver repository {actual!r}"
+        )
+    return value
+
+
+def _validated_repo_clean(value: str | None) -> bool:
+    if value != "1":
+        raise RuntimeError("--repo-clean must attest the PBS clean-repository check")
+    status = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(ROOT),
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    if status:
+        raise RuntimeError(
+            "driver repository is not tracked-clean despite the PBS attestation"
+        )
+    return True
+
+
+def _execution_identity(repo_clean: str | None) -> dict:
+    return {
+        "driver_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "pbs_sha256": hashlib.sha256(PBS_DRIVER.read_bytes()).hexdigest(),
+        "driver_argv": list(sys.argv),
+        "repo_status_clean": _validated_repo_clean(repo_clean),
+    }
+
+
+def _validate_recorded_execution_identity(
+    document: dict, *, reason: str
+) -> dict:
+    identity = {
+        key: document.get(key)
+        for key in (
+            "driver_sha256",
+            "pbs_sha256",
+            "driver_argv",
+            "repo_status_clean",
+        )
+    }
+    if (
+        type(identity["driver_sha256"]) is not str
+        or _SHA256_RE.fullmatch(identity["driver_sha256"]) is None
+        or type(identity["pbs_sha256"]) is not str
+        or _SHA256_RE.fullmatch(identity["pbs_sha256"]) is None
+        or type(identity["driver_argv"]) is not list
+        or not identity["driver_argv"]
+        or any(type(item) is not str for item in identity["driver_argv"])
+        or identity["repo_status_clean"] is not True
+    ):
+        raise CertificationReject(reason, "execution identity is missing or invalid")
+    return identity
+
+
+def _prereg_sha256() -> str:
+    if not PREREGISTRATION.is_file():
+        raise FileNotFoundError(f"preregistration is missing: {PREREGISTRATION}")
+    return hashlib.sha256(PREREGISTRATION.read_bytes()).hexdigest()
+
+
+def _validate_dynamic_output_path(out: Path) -> None:
+    candidate = out.resolve(strict=False)
+    prefix = DYNAMIC_OUT_PREFIX.resolve(strict=False)
+    try:
+        candidate.relative_to(prefix)
+    except ValueError as exc:
+        raise ValueError(
+            f"dynamic output must be below {str(DYNAMIC_OUT_PREFIX)!r}"
+        ) from exc
+
+
+def _require_child_path(path: Path, root: Path, *, binding: str) -> None:
+    candidate = path.resolve(strict=False)
+    canonical_root = root.resolve(strict=False)
+    try:
+        relative = candidate.relative_to(canonical_root)
+    except ValueError as exc:
+        raise CertificationReject(
+            "dynamic-certification-namespace-invalid",
+            f"{binding} must be a canonical child of {canonical_root}",
+        ) from exc
+    if not relative.parts:
+        raise CertificationReject(
+            "dynamic-certification-namespace-invalid",
+            f"{binding} must be a child, not the namespace root",
+        )
+
+
+def _validate_dynamic_certification_namespaces(
+    args: argparse.Namespace, cell: Cell
+) -> None:
+    if cell != CERT_DYNAMIC_CELL:
+        return
+    assert args.group_receipt_out is not None
+    assert args.performance_artifact is not None
+    _require_child_path(
+        args.group_receipt_out,
+        DYNAMIC_CERTIFY_PREFIX,
+        binding="group receipt",
+    )
+    for path in args.group_result_path:
+        _require_child_path(
+            path, DYNAMIC_CERTIFY_PREFIX, binding="group result path"
+        )
+    _require_child_path(
+        Path(args.out), DYNAMIC_CERTIFY_PREFIX, binding="certification output"
+    )
+    _require_child_path(
+        args.performance_artifact,
+        DYNAMIC_PERFORMANCE_PREFIX,
+        binding="performance artifact",
+    )
+
+
+def _trace_binary_counts(binary: str) -> tuple[int, int]:
+    nm = subprocess.run(
+        ["nm", "-C", binary], check=True, capture_output=True, text=True
+    )
+    strings = subprocess.run(
+        ["strings", binary], check=True, capture_output=True, text=True
+    )
+    symbol_count = sum(
+        "izanagi_backoff_trace" in line for line in nm.stdout.splitlines()
+    )
+    string_count = sum(
+        "IZANAGI_BACKOFF_TRACE" in line for line in strings.stdout.splitlines()
+    )
+    return symbol_count, string_count
+
+
+def _validate_trace_binary_counts(
+    symbol_count: int, string_count: int, *, backoff_trace: bool
+) -> None:
+    if backoff_trace:
+        if symbol_count < 1 or string_count < 1:
+            raise RuntimeError(
+                "diagnostic binary must contain backoff trace symbols and strings"
+            )
+    elif symbol_count != 0 or string_count != 0:
+        raise RuntimeError(
+            "trace-disabled binary contains backoff trace symbols or strings"
+        )
+
+
+_TRACE_RECORD_RE = re.compile(
+    r"^IZANAGI_BACKOFF_TRACE v=1 "
+    r"seq=(?P<seq>[0-9]+) tsc=(?P<tsc>[0-9]+) "
+    r"window_us=(?P<window_us>[0-9]+) "
+    r"window_commits=(?P<window_commits>[0-9]+) "
+    r"trigger=(?P<trigger>0|1|2) "
+    r"backoff_before=(?P<backoff_before>[0-9]+(?:[.][0-9]+)?) "
+    r"backoff_after=(?P<backoff_after>[0-9]+(?:[.][0-9]+)?) "
+    r"gradient_sign=(?P<gradient_sign>-1|0|1) "
+    r"step_us=(?P<step_us>[0-9]+(?:[.][0-9]+)?) "
+    r"ceiling_us=(?P<ceiling_us>[0-9]+(?:[.][0-9]+)?) "
+    r"ceiling_changed=(?P<ceiling_changed>0|1) "
+    r"parity_branch=(?P<parity_branch>-1|0|1)$"
+)
+_TRACE_TRIGGER_NAMES = {0: "time", 1: "count", 2: "cap"}
+_TRACE_PARITY_BRANCH_NAMES = {-1: "none", 0: "decrement", 1: "increment"}
+_TRACE_SUMMARY_RE = re.compile(
+    r"^IZANAGI_BACKOFF_TRACE_SUMMARY v=1 "
+    r"updates=(?P<updates>[0-9]+) retained=(?P<retained>[0-9]+) "
+    r"dropped=(?P<dropped>[0-9]+)$"
+)
+
+
+def _sign(value: Decimal) -> int:
+    return (value > 0) - (value < 0)
+
+
+def _directional_success(events: list[dict]) -> dict:
+    scored = 0
+    successes = 0
+    for current, following in zip(events, events[1:]):
+        action = _sign(
+            Decimal(str(current["backoff_after"]))
+            - Decimal(str(current["backoff_before"]))
+        )
+        if action == 0:
+            continue
+        current_tput = Decimal(current["window_commits"]) / Decimal(
+            str(current["window_us"])
+        )
+        following_tput = Decimal(following["window_commits"]) / Decimal(
+            str(following["window_us"])
+        )
+        scored += 1
+        successes += int(action == _sign(following_tput - current_tput))
+    return {
+        "scored": scored,
+        "successes": successes,
+        "rate": successes / scored if scored else None,
+    }
+
+
+def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
+    events = []
+    summary = None
+    for line in stdout.splitlines():
+        if not line.startswith("IZANAGI_BACKOFF_TRACE"):
+            continue
+        record_match = _TRACE_RECORD_RE.fullmatch(line)
+        summary_match = _TRACE_SUMMARY_RE.fullmatch(line)
+        if record_match is not None:
+            if summary is not None:
+                raise ValueError("trace record appeared after summary")
+            raw = record_match.groupdict()
+            event = {
+                "seq": int(raw["seq"]),
+                "tsc": int(raw["tsc"]),
+                "window_us": int(raw["window_us"]),
+                "window_commits": int(raw["window_commits"]),
+                "trigger": _TRACE_TRIGGER_NAMES[int(raw["trigger"])],
+                "backoff_before": float(raw["backoff_before"]),
+                "backoff_after": float(raw["backoff_after"]),
+                "gradient_sign": int(raw["gradient_sign"]),
+                "step_us": float(raw["step_us"]),
+                "ceiling_us": float(raw["ceiling_us"]),
+                "ceiling_changed": int(raw["ceiling_changed"]),
+                "parity_branch": _TRACE_PARITY_BRANCH_NAMES[
+                    int(raw["parity_branch"])
+                ],
+            }
+            if event["window_us"] <= 0 or event["step_us"] <= 0:
+                raise ValueError("trace window_us and step_us must be positive")
+            events.append(event)
+        elif summary_match is not None and summary is None:
+            summary = {
+                key: int(value) for key, value in summary_match.groupdict().items()
+            }
+        else:
+            raise ValueError(f"malformed backoff trace line: {line!r}")
+    if summary is None:
+        raise ValueError("backoff trace summary is missing")
+    if not events:
+        raise ValueError("backoff trace must contain at least one event")
+    if [event["seq"] for event in events] != list(range(len(events))):
+        raise ValueError("backoff trace seq must be contiguous from zero")
+    if any(
+        following["tsc"] < current["tsc"]
+        for current, following in zip(events, events[1:])
+    ):
+        raise ValueError("backoff trace tsc must be monotonic")
+    if summary != {
+        "updates": len(events),
+        "retained": len(events),
+        "dropped": 0,
+    }:
+        raise ValueError("backoff trace summary/count or dropped contract failed")
+    return events, summary, _directional_success(events)
+
+
+def _capturing_subprocess_runner(chunks: list[str]):
+    def run(*args, **kwargs):
+        completed = subprocess.run(*args, **kwargs)
+        stdout = completed.stdout
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="strict")
+        if isinstance(stdout, str):
+            chunks.append(stdout)
+        return completed
+
+    return run
+
+
+def _append_journal(out: Path, row: dict) -> None:
+    journal = Path(str(out) + ".journal.jsonl")
+    journal.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+    with journal.open("a", encoding="utf-8") as stream:
+        stream.write(encoded)
+        stream.flush()
+        os.fsync(stream.fileno())
 
 
 def _certification_protocol(genome: Genome) -> str:
@@ -394,13 +985,18 @@ def _positive_float(text: str) -> float:
 
 def _certification_contract(args: argparse.Namespace) -> tuple[Cell, str, int]:
     """Return the exact one-request certification axes or reject widening."""
+    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT}:
+        raise CertificationReject(
+            "certification-cell-mismatch",
+            "certify requires one exact preregistered cell string",
+        )
     cells = parse_cells(args.cells)
     workloads = _parse_workloads(args.workloads)
     threads = _parse_threads(args.threads)
-    if cells != (CERT_CELL,):
+    if len(cells) != 1 or cells[0] not in CERT_CELLS:
         raise CertificationReject(
             "certification-cell-mismatch",
-            "certify requires exactly tuned:1:1:1000:2560",
+            "certify requires exactly one of the two preregistered cells",
         )
     if len(workloads) != 1 or workloads[0] not in CERT_WORKLOADS:
         raise CertificationReject(
@@ -949,7 +1545,15 @@ def _write_json_create_only(path: Path, payload: dict) -> None:
         stream.write("\n")
 
 
-def _performance_artifact_identity(path: Path, expected_sha256: str) -> dict:
+def _performance_artifact_identity(
+    path: Path,
+    expected_sha256: str,
+    *,
+    expected_repo_head: str | None = None,
+    expected_prereg_sha256: str | None = None,
+    expected_patch_stack_sha256: str | None = None,
+    required_cell: Cell | None = None,
+) -> dict:
     if type(expected_sha256) is not str or _SHA256_RE.fullmatch(expected_sha256) is None:
         raise CertificationReject(
             "performance-artifact-identity-mismatch",
@@ -978,6 +1582,48 @@ def _performance_artifact_identity(path: Path, expected_sha256: str) -> dict:
             "performance-artifact-identity-mismatch",
             "performance artifact does not match the preregistered path/SHA",
         )
+    expected_values = (
+        expected_repo_head,
+        expected_prereg_sha256,
+        expected_patch_stack_sha256,
+        required_cell,
+    )
+    if any(value is not None for value in expected_values):
+        if any(value is None for value in expected_values):
+            raise CertificationReject(
+                "performance-artifact-identity-mismatch",
+                "dynamic performance identity expectations are incomplete",
+            )
+        assert required_cell is not None
+        cells = document.get("cells")
+        expected_cell_identity = _cell_identity(required_cell)
+        if (
+            document.get("repo_head") != expected_repo_head
+            or document.get("prereg_sha256") != expected_prereg_sha256
+            or document.get("patch_stack_sha256")
+            != expected_patch_stack_sha256
+            or type(cells) is not list
+            or not any(
+                type(row) is dict
+                and {
+                    key: row.get(key) for key in expected_cell_identity
+                }
+                == expected_cell_identity
+                for row in cells
+            )
+        ):
+            raise CertificationReject(
+                "performance-artifact-identity-mismatch",
+                "dynamic performance artifact identity/cell does not match certify",
+            )
+        _validate_recorded_execution_identity(
+            document, reason="performance-artifact-identity-mismatch"
+        )
+        if document.get("ccbench_head") != PIN_FULL:
+            raise CertificationReject(
+                "performance-artifact-identity-mismatch",
+                "dynamic performance artifact lacks the full ccbench pin",
+            )
     return {
         "path": str(path.resolve(strict=True)),
         "sha256": actual_sha256,
@@ -1133,16 +1779,15 @@ def _validated_certification_row(
         "thread_num": str(CERT_THREADS[0]),
         "extime": str(CERT_EXTIME),
     }
+    cell = _cell_from_document(document)
     if (
         document.get("workload_flags") != expected_workload_flags
         or document.get("records") != CERT_RECORDS
         or document.get("threads") != CERT_THREADS[0]
         or document.get("extime_s") != CERT_EXTIME
-        or document.get("cell") != CERT_CELL.label
-        or document.get("back_off") != CERT_CELL.back_off
-        or document.get("step_us") != CERT_CELL.step_us
-        or document.get("ceiling_us") != CERT_CELL.ceiling_us
-        or document.get("update_us") != CERT_CELL.update_us
+        or cell not in CERT_CELLS
+        or document.get("cell_order") != [cell.label]
+        or document.get("allowed_group_claim") != CERT_CLAIMS[cell]
         or document.get("rng_seed_controlled") is not False
     ):
         raise CertificationReject(
@@ -1165,15 +1810,35 @@ def _validated_certification_row(
             "group-verifier-identity-mismatch",
             "result is not bound to the preregistered verifier manifest file",
         )
+    expected_patch_identity = _patch_stack_identity()
+    execution_identity = _validate_recorded_execution_identity(
+        document, reason="group-build-identity-mismatch"
+    )
+    expected_genome = genome_for(cell).canonical()
+    expected_genome_sha256 = hashlib.sha256(
+        expected_genome.encode("utf-8")
+    ).hexdigest()
     if (
         document.get("build_trace_enabled") is not True
         or type(document.get("build_cache_key")) is not str
         or not document["build_cache_key"].endswith("_t1")
         or type(document.get("binary_sha256")) is not str
         or _SHA256_RE.fullmatch(document["binary_sha256"]) is None
-        or document.get("patch_sha256")
-        != hashlib.sha256(PATCH.read_bytes()).hexdigest()
+        or any(
+            document.get(key) != value
+            for key, value in expected_patch_identity.items()
+        )
         or document.get("ccbench_commit") != PIN_FULL
+        or document.get("ccbench_head") != PIN_FULL
+        or document.get("genome") != expected_genome
+        or type(document.get("repo_head")) is not str
+        or _COMMIT_RE.fullmatch(document["repo_head"]) is None
+        or document.get("prereg_sha256") != _prereg_sha256()
+        or type(document.get("hostname")) is not str
+        or not document["hostname"]
+        or document.get("backoff_trace_symbol_count") != 0
+        or document.get("backoff_trace_string_count") != 0
+        or document.get("backoff_trace") is not False
         or type(document.get("build_admission_receipt_sha256")) is not str
         or _SHA256_RE.fullmatch(document["build_admission_receipt_sha256"]) is None
         or type(document.get("source_evidence")) is not dict
@@ -1183,6 +1848,8 @@ def _validated_certification_row(
             document["source_evidence"]["genome_sha256"]
         )
         is None
+        or document["source_evidence"]["genome_sha256"]
+        != expected_genome_sha256
         or type(document["source_evidence"].get("source_bytes_sha256")) is not str
         or _SHA256_RE.fullmatch(
             document["source_evidence"]["source_bytes_sha256"]
@@ -1285,15 +1952,30 @@ def _validated_certification_row(
                 "build_admission_receipt_sha256"
             ],
             "source_evidence": {
-                "source_bytes_sha256": document["source_evidence"][
-                    "source_bytes_sha256"
-                ],
-                "genome_sha256": document["source_evidence"]["genome_sha256"],
+                **document["source_evidence"],
             },
             "proof_surface": proof_surface,
             "genome": document["genome"],
+            **_cell_identity(cell),
+            "cell_order": document["cell_order"],
+            "claim": document["allowed_group_claim"],
             "patch_sha256": document["patch_sha256"],
+            "dynamic_patch_sha256": document["dynamic_patch_sha256"],
+            "patch_stack": document["patch_stack"],
+            "patch_stack_sha256": document["patch_stack_sha256"],
             "ccbench_commit": document["ccbench_commit"],
+            "ccbench_head": document["ccbench_head"],
+            "repo_head": document["repo_head"],
+            "prereg_sha256": document["prereg_sha256"],
+            "hostname": document["hostname"],
+            **execution_identity,
+            "backoff_trace_symbol_count": document[
+                "backoff_trace_symbol_count"
+            ],
+            "backoff_trace_string_count": document[
+                "backoff_trace_string_count"
+            ],
+            "backoff_trace": document["backoff_trace"],
             "attempt_id": attempt_id,
         },
         (workload, slot),
@@ -1307,6 +1989,9 @@ def _group_receipt_payload(
     attempt_id: str,
     expected_verifier_identity: dict,
     expected_verifier_identity_file_sha256: str,
+    *,
+    performance_expectations: dict | None = None,
+    execution_identity: dict | None = None,
 ) -> dict:
     expected = {(workload, slot) for workload in CERT_WORKLOADS for slot in CERT_SLOTS}
     normalized_files = [path.resolve(strict=False) for path in result_files]
@@ -1323,7 +2008,9 @@ def _group_receipt_payload(
     rows = []
     actual = set()
     performance_identity = _performance_artifact_identity(
-        performance_artifact, performance_artifact_sha256
+        performance_artifact,
+        performance_artifact_sha256,
+        **(performance_expectations or {}),
     )
     for path in sorted(normalized_files):
         row, pair = _validated_certification_row(
@@ -1354,14 +2041,28 @@ def _group_receipt_payload(
         len({row["trace_dir"] for row in rows}) != 24
         or len(
             {
-                row["source_evidence"]["source_bytes_sha256"]
+                json.dumps(
+                    row["source_evidence"], sort_keys=True, separators=(",", ":")
+                )
                 for row in rows
             }
         ) != 1
-        or len(
-            {row["source_evidence"]["genome_sha256"] for row in rows}
-        ) != 1
         or len({row["genome"] for row in rows}) != 1
+        or len(
+            {
+                json.dumps(
+                    {
+                        key: row[key]
+                        for key in _cell_identity(CERT_TUNED_CELL)
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                for row in rows
+            }
+        ) != 1
+        or len({row["claim"] for row in rows}) != 1
+        or len({tuple(row["cell_order"]) for row in rows}) != 1
         or len({row["proof_surface"]["protocol"] for row in rows}) != 1
         or len(
             {
@@ -1376,7 +2077,21 @@ def _group_receipt_payload(
         != 1
         or any(row["build_trace_enabled"] is not True for row in rows)
         or len({row["patch_sha256"] for row in rows}) != 1
+        or len({row["dynamic_patch_sha256"] for row in rows}) != 1
+        or len({row["patch_stack_sha256"] for row in rows}) != 1
+        or len(
+            {
+                json.dumps(row["patch_stack"], sort_keys=True, separators=(",", ":"))
+                for row in rows
+            }
+        ) != 1
         or len({row["ccbench_commit"] for row in rows}) != 1
+        or len({row["ccbench_head"] for row in rows}) != 1
+        or len({row["repo_head"] for row in rows}) != 1
+        or len({row["prereg_sha256"] for row in rows}) != 1
+        or any(row["backoff_trace_symbol_count"] != 0 for row in rows)
+        or any(row["backoff_trace_string_count"] != 0 for row in rows)
+        or any(row["backoff_trace"] is not False for row in rows)
         or any(
             type(row[field]) is not str
             or re.fullmatch(r"[0-9a-f]{64}", row[field]) is None
@@ -1388,6 +2103,10 @@ def _group_receipt_payload(
             or re.fullmatch(r"[0-9a-f]{40}", row["ccbench_commit"]) is None
             for row in rows
         )
+        or any(row["ccbench_head"] != PIN_FULL for row in rows)
+        or len({row["driver_sha256"] for row in rows}) != 1
+        or len({row["pbs_sha256"] for row in rows}) != 1
+        or any(row["repo_status_clean"] is not True for row in rows)
     ):
         raise CertificationReject(
             "group-build-identity-mismatch",
@@ -1399,6 +2118,24 @@ def _group_receipt_payload(
             "source_snapshot_identity"
         ],
     }
+    cell = _cell_from_document(rows[0])
+    if cell not in CERT_CELLS or rows[0]["claim"] != CERT_CLAIMS[cell]:
+        raise CertificationReject(
+            "group-cell-identity-mismatch",
+            "group cell and claim are not one exact certification identity",
+        )
+    group_execution_identity = execution_identity or {
+        key: rows[0][key]
+        for key in (
+            "driver_sha256",
+            "pbs_sha256",
+            "driver_argv",
+            "repo_status_clean",
+        )
+    }
+    _validate_recorded_execution_identity(
+        group_execution_identity, reason="group-build-identity-mismatch"
+    )
     return {
         "schema_version": GROUP_RECEIPT_SCHEMA_VERSION,
         "complete": True,
@@ -1406,16 +2143,31 @@ def _group_receipt_payload(
         "expected_requests": 24,
         "terminal_requests": 24,
         "certified_requests": 24,
-        "claim": ALLOWED_GROUP_CLAIM,
+        "claim": CERT_CLAIMS[cell],
+        **_cell_identity(cell),
+        "cell_order": [cell.label],
+        "backoff_trace": False,
         "claim_limitations": list(CLAIM_LIMITATIONS),
         # The correctness campaign binds the trace-disabled performance
         # artifact, but never relabels its measurements as verifier outputs.
         "performance_values_remain_uncertified": True,
+        "hostname": os.uname().nodename,
         "verifier_identity": expected_verifier_identity,
         "expected_verifier_identity_file_sha256": (
             expected_verifier_identity_file_sha256
         ),
         "performance_artifact": performance_identity,
+        "repo_head": rows[0]["repo_head"],
+        "prereg_sha256": rows[0]["prereg_sha256"],
+        "patch_sha256": rows[0]["patch_sha256"],
+        "dynamic_patch_sha256": rows[0]["dynamic_patch_sha256"],
+        "patch_stack": rows[0]["patch_stack"],
+        "patch_stack_sha256": rows[0]["patch_stack_sha256"],
+        "ccbench_commit": rows[0]["ccbench_commit"],
+        "ccbench_head": rows[0]["ccbench_head"],
+        **group_execution_identity,
+        "genome": rows[0]["genome"],
+        "source_evidence": rows[0]["source_evidence"],
         "proof_surface": proof_surface,
         "results": rows,
     }
@@ -1429,6 +2181,8 @@ def _validate_published_group(
     attempt_id: str,
     expected_verifier_identity: dict,
     expected_verifier_identity_file_sha256: str,
+    *,
+    performance_expectations: dict | None = None,
 ) -> None:
     try:
         receipt = json.loads(group_out.read_text(encoding="utf-8"))
@@ -1443,6 +2197,11 @@ def _validate_published_group(
     expected_paths = {str(path.resolve(strict=True)): path for path in result_files}
     rows = receipt.get("results")
     proof_surface = receipt.get("proof_surface")
+    cell = _cell_from_document(receipt)
+    expected_patch_identity = _patch_stack_identity()
+    receipt_execution_identity = _validate_recorded_execution_identity(
+        receipt, reason="group-receipt-collision"
+    )
     if (
         receipt.get("schema_version") != GROUP_RECEIPT_SCHEMA_VERSION
         or receipt.get("complete") is not True
@@ -1453,10 +2212,35 @@ def _validate_published_group(
         != expected_verifier_identity_file_sha256
         or receipt.get("performance_artifact")
         != _performance_artifact_identity(
-            performance_artifact, performance_artifact_sha256
+            performance_artifact,
+            performance_artifact_sha256,
+            **(performance_expectations or {}),
         )
         or type(rows) is not list
         or len(rows) != 24
+        or cell not in CERT_CELLS
+        or receipt.get("cell_order") != [cell.label]
+        or receipt.get("claim") != CERT_CLAIMS[cell]
+        or receipt.get("backoff_trace") is not False
+        or type(receipt.get("hostname")) is not str
+        or not receipt["hostname"]
+        or receipt.get("prereg_sha256") != _prereg_sha256()
+        or type(receipt.get("repo_head")) is not str
+        or _COMMIT_RE.fullmatch(receipt["repo_head"]) is None
+        or any(
+            receipt.get(key) != value
+            for key, value in expected_patch_identity.items()
+        )
+        or receipt.get("ccbench_commit") != PIN_FULL
+        or receipt.get("ccbench_head") != PIN_FULL
+        or type(receipt.get("genome")) is not str
+        or type(receipt.get("source_evidence")) is not dict
+        or receipt["source_evidence"]
+        != (
+            proof_surface.get("source_snapshot_identity")
+            if type(proof_surface) is dict
+            else None
+        )
         or {row.get("path") for row in rows if type(row) is dict}
         != set(expected_paths)
     ):
@@ -1479,6 +2263,58 @@ def _validate_published_group(
             "group-receipt-collision",
             "published group receipt has another proof-surface identity",
         )
+    if any(
+        type(row) is not dict
+        or {key: row.get(key) for key in _cell_identity(cell)}
+        != _cell_identity(cell)
+        or row.get("cell_order") != [cell.label]
+        or row.get("claim") != CERT_CLAIMS[cell]
+        or row.get("backoff_trace") is not False
+        or row.get("repo_head") != receipt["repo_head"]
+        or row.get("prereg_sha256") != receipt["prereg_sha256"]
+        or row.get("ccbench_commit") != receipt["ccbench_commit"]
+        or row.get("ccbench_head") != receipt["ccbench_head"]
+        or row.get("driver_sha256") != receipt_execution_identity["driver_sha256"]
+        or row.get("pbs_sha256") != receipt_execution_identity["pbs_sha256"]
+        or row.get("repo_status_clean") is not True
+        or type(row.get("driver_argv")) is not list
+        or not row["driver_argv"]
+        or any(type(item) is not str for item in row["driver_argv"])
+        or row.get("genome") != receipt["genome"]
+        or row.get("source_evidence") != receipt["source_evidence"]
+        or any(
+            row.get(key) != receipt.get(key)
+            for key in expected_patch_identity
+        )
+        for row in rows
+    ):
+        raise CertificationReject(
+            "group-receipt-collision",
+            "published group receipt has another cell or source identity",
+        )
+    if (
+        len({row.get("genome") for row in rows}) != 1
+        or len(
+            {
+                json.dumps(
+                    row.get("source_evidence"),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                for row in rows
+            }
+        )
+        != 1
+        or any(
+            row.get("source_evidence")
+            != row["proof_surface"].get("source_snapshot_identity")
+            for row in rows
+        )
+    ):
+        raise CertificationReject(
+            "group-receipt-collision",
+            "published group receipt has non-unique genome/source identity",
+        )
     for row in rows:
         path = expected_paths[row["path"]]
         if row.get("sha256") != hashlib.sha256(path.read_bytes()).hexdigest():
@@ -1495,6 +2331,9 @@ def _try_finalize_group(
     attempt_id: str,
     expected_verifier_identity: dict,
     expected_verifier_identity_file_sha256: str,
+    *,
+    performance_expectations: dict | None = None,
+    execution_identity: dict | None = None,
 ) -> bool:
     if any(not path.is_file() for path in result_files):
         return False
@@ -1511,6 +2350,7 @@ def _try_finalize_group(
                 attempt_id,
                 expected_verifier_identity,
                 expected_verifier_identity_file_sha256,
+                performance_expectations=performance_expectations,
             )
             return True
         try:
@@ -1535,6 +2375,7 @@ def _try_finalize_group(
                 attempt_id,
                 expected_verifier_identity,
                 expected_verifier_identity_file_sha256,
+                performance_expectations=performance_expectations,
             )
             return True
         try:
@@ -1545,6 +2386,8 @@ def _try_finalize_group(
                 attempt_id,
                 expected_verifier_identity,
                 expected_verifier_identity_file_sha256,
+                performance_expectations=performance_expectations,
+                execution_identity=execution_identity,
             )
         except CertificationReject:
             return False
@@ -1595,6 +2438,15 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--mode", choices=("performance", "certify"), default="performance"
     )
+    parser.add_argument("--backoff-trace", action="store_true")
+    parser.add_argument(
+        "--repo-head", default=os.environ.get("IZANAGI_T2187_REPO_HEAD")
+    )
+    parser.add_argument(
+        "--repo-clean",
+        choices=("1",),
+        default=os.environ.get("IZANAGI_T2187_REPO_CLEAN"),
+    )
     parser.add_argument("--cells", required=True)
     parser.add_argument(
         "--workloads", default=",".join(DEFAULT_WORKLOADS)
@@ -1640,11 +2492,37 @@ def _argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _validate_backoff_trace_contract(
+    args: argparse.Namespace,
+    cells: tuple[Cell, ...],
+    workloads: tuple[str, ...],
+    threads: tuple[int, ...],
+) -> None:
+    if (
+        args.cells != TRACE_CELLS_TEXT
+        or args.workloads != ",".join(TRACE_WORKLOADS)
+        or args.threads != ",".join(str(value) for value in TRACE_THREADS)
+        or cells != TRACE_CELLS
+        or workloads != TRACE_WORKLOADS
+        or threads != TRACE_THREADS
+        or args.rep_index != 0
+        or args.reps_per_job != 1
+        or args.extime != 3
+    ):
+        raise ValueError(
+            "--backoff-trace requires exact cw/cw-as/cw-as-dyn cells, "
+            "three workloads, threads 24,48, rep index 0, reps 1, and extime 3"
+        )
+
+
 def _certify_main(args: argparse.Namespace) -> int:
     """Run one exact workload × independent-slot certification request."""
     out = Path(args.out)
     _validate_output_path(out)
     cell, workload_id, threads = _certification_contract(args)
+    _validate_dynamic_certification_namespaces(args, cell)
+    if cell.extended:
+        _validate_dynamic_output_path(out)
     assert args.group_receipt_out is not None
     assert args.performance_artifact is not None
     assert args.performance_artifact_sha256 is not None
@@ -1661,15 +2539,31 @@ def _certify_main(args: argparse.Namespace) -> int:
             args.expected_verifier_identity_sha256,
         )
     )
+    patch_identity = _patch_stack_identity()
+    repo_head = _validated_repo_head(args.repo_head)
+    prereg_sha256 = _prereg_sha256()
+    execution_identity = _execution_identity(args.repo_clean)
+    performance_expectations = (
+        {
+            "expected_repo_head": repo_head,
+            "expected_prereg_sha256": prereg_sha256,
+            "expected_patch_stack_sha256": patch_identity[
+                "patch_stack_sha256"
+            ],
+            "required_cell": cell,
+        }
+        if cell == CERT_DYNAMIC_CELL
+        else {}
+    )
     if not performance_artifact.is_file():
         raise FileNotFoundError(
             f"performance artifact is missing: {performance_artifact}"
         )
     performance_identity = _performance_artifact_identity(
-        performance_artifact, performance_artifact_sha256
+        performance_artifact,
+        performance_artifact_sha256,
+        **performance_expectations,
     )
-    if not PATCH.is_file():
-        raise FileNotFoundError(f"patch is missing: {PATCH}")
 
     site = site_policy.current_site()
     if site_policy.refuses_heavy_work(site):
@@ -1689,13 +2583,16 @@ def _certify_main(args: argparse.Namespace) -> int:
         "schema_version": CERTIFICATION_SCHEMA_VERSION,
         "kind": "correctness-certification-request",
         "claim_status": "not-yet-group-certified",
-        "allowed_group_claim": ALLOWED_GROUP_CLAIM,
+        "allowed_group_claim": CERT_CLAIMS[cell],
         "claim_limitations": list(CLAIM_LIMITATIONS),
         "performance_values_remain_uncertified": True,
         "attempt_id": args.attempt_id,
         "stage": args.stage,
         "site": "pegasus",
         "host": os.uname().nodename,
+        "hostname": os.uname().nodename,
+        "repo_head": repo_head,
+        "prereg_sha256": prereg_sha256,
         "pbs_jobid": os.environ.get("PBS_JOBID"),
         "workload": workload_id,
         "workload_flags": {
@@ -1709,13 +2606,13 @@ def _certify_main(args: argparse.Namespace) -> int:
         "extime_s": CERT_EXTIME,
         "independent_run_slot": args.rep_index,
         "rng_seed_controlled": False,
-        "cell": cell.label,
-        "back_off": cell.back_off,
-        "step_us": cell.step_us,
-        "ceiling_us": cell.ceiling_us,
-        "update_us": cell.update_us,
+        **_cell_identity(cell),
+        "cell_order": [cell.label],
+        "backoff_trace": False,
         "ccbench_commit": PIN_FULL,
-        "patch_sha256": hashlib.sha256(PATCH.read_bytes()).hexdigest(),
+        "ccbench_head": PIN_FULL,
+        **execution_identity,
+        **patch_identity,
         "performance_artifact": performance_identity,
         "expected_verifier_identity": expected_verifier_identity,
         "expected_verifier_identity_file_sha256": (
@@ -1779,7 +2676,7 @@ def _certify_main(args: argparse.Namespace) -> int:
         build_wall_started = time.monotonic()
         build_cpu_started = _cpu_seconds()
         with isolated_checkout(submodule, CURRENT_PIN) as work_root:
-            with applied(str(PATCH), CURRENT_PIN, work_root):
+            with _applied_patch_stack(work_root):
                 evidence = source_digest.resolve_evidence(
                     genome,
                     CURRENT_PIN,
@@ -1862,6 +2759,17 @@ def _certify_main(args: argparse.Namespace) -> int:
                 payload["binary_sha256"] = build.bin_sha256
                 payload["ccbench_head"] = head
                 payload["genome"] = genome.canonical()
+                symbol_count, string_count = _trace_binary_counts(build.binary)
+                payload["backoff_trace_symbol_count"] = symbol_count
+                payload["backoff_trace_string_count"] = string_count
+                try:
+                    _validate_trace_binary_counts(
+                        symbol_count, string_count, backoff_trace=False
+                    )
+                except RuntimeError as exc:
+                    raise CertificationReject(
+                        "backoff-trace-leaked-into-certification", str(exc)
+                    ) from exc
                 if (
                     getattr(build, "trace", None) is not True
                     or not re.fullmatch(r"[0-9a-f]{64}", build.bin_sha256)
@@ -2024,6 +2932,8 @@ def _certify_main(args: argparse.Namespace) -> int:
         args.attempt_id,
         expected_verifier_identity,
         expected_verifier_identity_file_sha256,
+        performance_expectations=performance_expectations,
+        execution_identity=execution_identity,
     )
     if group_complete:
         _remove_group_traces(group_out)
@@ -2036,18 +2946,40 @@ def _certify_main(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
+    if args.backoff_trace and args.mode == "certify":
+        raise CertificationReject(
+            "backoff-trace-certification-conflict",
+            "--backoff-trace cannot be combined with --mode certify",
+        )
     if args.mode == "certify":
         return _certify_main(args)
     cells = parse_cells(args.cells)
-    _validate_grid_contract(cells)
     workloads = _parse_workloads(args.workloads)
     threads_axis = _parse_threads(args.threads)
     out = Path(args.out)
     _validate_output_path(out)
+    if args.backoff_trace:
+        _validate_backoff_trace_contract(
+            args, cells, workloads, threads_axis
+        )
+        _validate_dynamic_output_path(out)
+    else:
+        _validate_grid_contract(cells)
+        if any(cell.extended for cell in cells):
+            _validate_dynamic_output_path(out)
     from orchestrator.campaign.p2_2 import RECORDS
 
-    if not PATCH.is_file():
-        raise FileNotFoundError(f"patch is missing: {PATCH}")
+    patch_identity = _patch_stack_identity()
+    repo_head = _validated_repo_head(args.repo_head)
+    prereg_sha256 = _prereg_sha256()
+    execution_identity = _execution_identity(args.repo_clean)
+    if (
+        type(args.prologue_elapsed_s) is not float
+        or args.prologue_elapsed_s < 0
+        or type(args.prologue_cpu_s) is not float
+        or args.prologue_cpu_s < 0
+    ):
+        raise ValueError("prologue elapsed/CPU measurements must be nonnegative")
 
     site = site_policy.current_site()
     if site_policy.refuses_heavy_work(site):
@@ -2068,14 +3000,28 @@ def main(argv: list[str] | None = None) -> int:
     cache_root.mkdir(mode=0o700)
 
     payload = {
-        "schema_version": SCHEMA_VERSION,
-        "kind": "performance-only-probe",
+        "schema_version": (
+            TRACE_SCHEMA_VERSION if args.backoff_trace else SCHEMA_VERSION
+        ),
+        "kind": (
+            "diagnostic-backoff-trace"
+            if args.backoff_trace
+            else "performance-only-probe"
+        ),
         "not_certified": NOT_CERTIFIED,
+        "headline_eligible": False if args.backoff_trace else True,
+        "throughput_scope": (
+            "diagnostic_only" if args.backoff_trace else "performance"
+        ),
         "stage": args.stage,
         "grid_spec": args.cells,
+        "cell_order": [cell.label for cell in cells],
         "env_tag": ENV_TAG,
         "site": "pegasus",
         "host": os.uname().nodename,
+        "hostname": os.uname().nodename,
+        "repo_head": repo_head,
+        "prereg_sha256": prereg_sha256,
         "pbs_jobid": os.environ.get("PBS_JOBID"),
         "rep_index": args.rep_index,
         "records": RECORDS,
@@ -2086,24 +3032,25 @@ def main(argv: list[str] | None = None) -> int:
         "use_perf": False,
         "ccbench_commit": CURRENT_PIN,
         "ccbench_head": head,
+        **execution_identity,
         "cc": cc,
         "cxx": cxx,
-        "patch_sha256": hashlib.sha256(PATCH.read_bytes()).hexdigest(),
+        **patch_identity,
         "stock": {
             "step_us": STOCK_STEP_US,
             "ceiling_us": STOCK_MAX_US,
             "update_us": STOCK_UPDATE_US,
         },
         "started_utc": started_utc,
-        "cells": [],
+        ("trace_runs" if args.backoff_trace else "cells"): [],
     }
 
     with isolated_checkout(submodule, CURRENT_PIN) as work_root:
-        with applied(str(PATCH), CURRENT_PIN, work_root):
+        with _applied_patch_stack(work_root):
             build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
             built = []
             for cell in cells:
-                genome = genome_for(cell)
+                genome = genome_for(cell, backoff_trace=args.backoff_trace)
                 evidence = source_digest.resolve_evidence(
                     genome,
                     CURRENT_PIN,
@@ -2114,7 +3061,10 @@ def main(argv: list[str] | None = None) -> int:
                     build_context,
                     evidence,
                     generator_input_sha256=hashlib.sha256(
-                        f"{SCHEMA_VERSION}|{evidence.genome_sha256}".encode("utf-8")
+                        (
+                            f"{payload['schema_version']}|"
+                            f"{evidence.genome_sha256}"
+                        ).encode("utf-8")
                     ).hexdigest(),
                 )
                 admission = derive_build_admission(
@@ -2133,7 +3083,14 @@ def main(argv: list[str] | None = None) -> int:
                     cache_root=str(cache_root),
                     ccbench_dir=work_root,
                 )
-                built.append((cell, genome, build))
+                symbol_count, string_count = _trace_binary_counts(build.binary)
+                _validate_trace_binary_counts(
+                    symbol_count, string_count,
+                    backoff_trace=args.backoff_trace,
+                )
+                built.append(
+                    (cell, genome, build, symbol_count, string_count)
+                )
                 print(
                     f"[build] {cell.label} sha={build.bin_sha256[:16]} "
                     f"cached={build.cached} "
@@ -2142,7 +3099,8 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
             binary_shas = {
-                cell.label: build.bin_sha256 for cell, _genome, build in built
+                cell.label: build.bin_sha256
+                for cell, _genome, build, _symbols, _strings in built
             }
             if len(set(binary_shas.values())) != len(binary_shas):
                 raise RuntimeError(
@@ -2153,8 +3111,9 @@ def main(argv: list[str] | None = None) -> int:
             for workload_id in workloads:
                 workload = WORKLOADS[workload_id]
                 for threads in threads_axis:
-                    for cell, genome, build in built:
+                    for cell, genome, build, symbol_count, string_count in built:
                         measure_started = time.monotonic()
+                        stdout_chunks: list[str] = []
                         point = measure_point(
                             build.binary,
                             records=RECORDS,
@@ -2166,32 +3125,58 @@ def main(argv: list[str] | None = None) -> int:
                             numactl=NUMA,
                             timeout_s=RUN_TIMEOUT_S,
                             use_perf=False,
+                            require_all_reps=args.backoff_trace,
+                            subprocess_runner=(
+                                _capturing_subprocess_runner(stdout_chunks)
+                                if args.backoff_trace
+                                else subprocess.run
+                            ),
                         )
                         throughputs = list(point.throughputs)
                         median_tps = (
                             statistics.median(throughputs) if throughputs else None
                         )
-                        payload["cells"].append(
-                            {
-                                "cell": cell.label,
-                                "workload": workload_id,
-                                "workload_flags": dict(workload),
-                                "threads": threads,
-                                "back_off": cell.back_off,
-                                "step_us": cell.step_us,
-                                "ceiling_us": cell.ceiling_us,
-                                "update_us": cell.update_us,
-                                "is_stock_control": cell.is_stock_control,
-                                "genome": genome.canonical(),
-                                "binary_sha256": build.bin_sha256,
-                                "throughputs": throughputs,
-                                "median_tps": median_tps,
-                                "abort_rate": point.abort_rate,
-                                "latency_ns": point.latency_ns,
-                                "run_cmd": point.run_cmd,
-                                "measured_utc": datetime.now(timezone.utc).isoformat(),
-                            }
-                        )
+                        row = {
+                            **_cell_identity(cell),
+                            "hostname": payload["hostname"],
+                            "repo_head": repo_head,
+                            "prereg_sha256": prereg_sha256,
+                            "ccbench_head": head,
+                            **execution_identity,
+                            **patch_identity,
+                            "rep_index": args.rep_index,
+                            "cell_order": payload["cell_order"],
+                            "workload": workload_id,
+                            "workload_flags": dict(workload),
+                            "threads": threads,
+                            "is_stock_control": cell.is_stock_control,
+                            "genome": genome.canonical(),
+                            "binary_sha256": build.bin_sha256,
+                            "backoff_trace_symbol_count": symbol_count,
+                            "backoff_trace_string_count": string_count,
+                            "backoff_trace": args.backoff_trace,
+                            "throughputs": throughputs,
+                            "median_tps": median_tps,
+                            "abort_rate": point.abort_rate,
+                            "latency_ns": point.latency_ns,
+                            "run_cmd": point.run_cmd,
+                            "measured_utc": datetime.now(timezone.utc).isoformat(),
+                        }
+                        if args.backoff_trace:
+                            events, summary, directional = _parse_backoff_trace(
+                                "".join(stdout_chunks)
+                            )
+                            row.update(
+                                trace_events=events,
+                                trace_summary=summary,
+                                directional_success=directional,
+                                throughput_scope="diagnostic_only",
+                            )
+                            payload["trace_runs"].append(row)
+                        else:
+                            row["throughput_scope"] = "performance"
+                            payload["cells"].append(row)
+                        _append_journal(out, row)
                         shown = (
                             "none" if median_tps is None else f"{median_tps:,.0f}"
                         )
@@ -2208,6 +3193,9 @@ def main(argv: list[str] | None = None) -> int:
     payload["wall_seconds"] = wall_seconds
     payload["cpu_seconds"] = cpu_seconds
     payload["cpu_over_elapsed"] = cpu_seconds / wall_seconds
+    payload["prologue_elapsed_s"] = args.prologue_elapsed_s
+    payload["prologue_cpu_s"] = args.prologue_cpu_s
+    payload["job_total_seconds"] = args.prologue_elapsed_s + wall_seconds
 
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("x", encoding="utf-8") as stream:

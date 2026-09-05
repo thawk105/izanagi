@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DRIVER = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.py"
 PBS = ROOT / "tools" / "pegasus" / "probes" / "t2187_adaptive_const_probe.pbs"
 PATCH = ROOT / "patches" / "cicada-adaptive-params.patch"
+PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
 CCBENCH = ROOT / "external" / "ccbench"
 PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 
@@ -38,6 +39,14 @@ VALID_CELLS = (
     "stock:1:100:1000:10"
 )
 CERT_CELL = "tuned:1:1:1000:2560"
+DYNAMIC_CERT_CELL = (
+    "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
+)
+TRACE_CELLS = (
+    "cw:1:1:1000:2560:10000:10240:0:100:100:0,"
+    "cw-as:1:1:1000:2560:10000:10240:1:1:4:0,"
+    "cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1"
+)
 
 
 SERIAL_TRACE = """\
@@ -74,6 +83,8 @@ def _certify_argv(
 ):
     performance = tmp_path / "performance.json"
     if not performance.exists():
+        # The A+B patch/source identity fields make old v1 fixtures ambiguous;
+        # this current-code fixture intentionally follows the v2 schema.
         performance.write_text(
             json.dumps(
                 {
@@ -99,6 +110,15 @@ def _certify_argv(
     argv = [
         "--mode",
         "certify",
+        "--repo-head",
+        subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip(),
+        "--repo-clean",
+        "1",
         "--cells",
         CERT_CELL,
         "--workloads",
@@ -156,6 +176,7 @@ def _install_certification_runtime(
     monkeypatch.setattr(probe.site_policy, "current_site", lambda: "PEGASUS_COMPUTE")
     monkeypatch.setattr(probe.site_policy, "refuses_heavy_work", lambda _site: False)
     monkeypatch.setattr(probe, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(probe, "_validated_repo_clean", lambda value: value == "1")
     monkeypatch.setattr(
         probe.buildcache, "compilers_for_current_site", lambda: ("gcc", "g++")
     )
@@ -195,6 +216,7 @@ def _install_certification_runtime(
         )
 
     monkeypatch.setattr(probe.buildcache, "build", fake_build)
+    monkeypatch.setattr(probe, "_trace_binary_counts", lambda _binary: (0, 0))
 
     def fake_run(_binary, trace_dir, flags, *_args, **kwargs):
         events.append("run")
@@ -895,7 +917,9 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
 ) -> None:
     _install_certification_runtime(monkeypatch, tmp_path)
     with monkeypatch.context() as source_run_patch:
-        source_run_patch.setattr(probe, "_try_finalize_group", lambda *_args: False)
+        source_run_patch.setattr(
+            probe, "_try_finalize_group", lambda *_args, **_kwargs: False
+        )
         source_argv = _certify_argv(tmp_path)
         assert probe.main(source_argv) == 0
     source_document = json.loads(Path(source_argv[-1]).read_text(encoding="utf-8"))
@@ -907,6 +931,14 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
     identity_file_sha256 = source_document[
         "expected_verifier_identity_file_sha256"
     ]
+    real_genome_for = probe.genome_for
+
+    def synthetic_group_genome(cell, *, backoff_trace=False):
+        if cell == probe.CERT_TUNED_CELL and backoff_trace is False:
+            return SimpleNamespace(canonical=lambda: "synthetic-canonical-genome")
+        return real_genome_for(cell, backoff_trace=backoff_trace)
+
+    monkeypatch.setattr(probe, "genome_for", synthetic_group_genome)
     result_files = []
     valid_documents = []
     for workload in probe.CERT_WORKLOADS:
@@ -927,7 +959,7 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
                 b"synthetic-shared-source-bytes"
             ).hexdigest()
             document["source_evidence"]["genome_sha256"] = hashlib.sha256(
-                b"synthetic-shared-genome"
+                b"synthetic-canonical-genome"
             ).hexdigest()
             document["proof_surface"]["source_snapshot_identity"] = copy.deepcopy(
                 document["source_evidence"]
@@ -997,6 +1029,8 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
     assert receipt["proof_surface"]["source_snapshot_identity"] == valid_documents[
         0
     ]["source_evidence"]
+    assert receipt["source_evidence"] == valid_documents[0]["source_evidence"]
+    assert receipt["genome"] == "synthetic-canonical-genome"
     assert {
         row["proof_surface"]["protocol"] for row in receipt["results"]
     } == {probe.CERT_PROTOCOL}
@@ -1023,7 +1057,12 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
         "genome-sha256",
         "genome",
         "patch-sha256",
+        "dynamic-patch-sha256",
+        "patch-stack-order",
         "ccbench-commit",
+        "repo-head",
+        "cell-field",
+        "claim",
         "trace-dir-duplicate",
         "trace-disabled",
         "source-src-token",
@@ -1045,8 +1084,20 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
             candidates[0]["genome"] = "synthetic-other-genome"
         elif mutation == "patch-sha256":
             candidates[0]["patch_sha256"] = "0" * 64
+        elif mutation == "dynamic-patch-sha256":
+            candidates[0]["dynamic_patch_sha256"] = "0" * 64
+        elif mutation == "patch-stack-order":
+            candidates[0]["patch_stack"] = list(
+                reversed(candidates[0]["patch_stack"])
+            )
         elif mutation == "ccbench-commit":
             candidates[0]["ccbench_commit"] = "f" * 40
+        elif mutation == "repo-head":
+            candidates[0]["repo_head"] = "f" * 40
+        elif mutation == "cell-field":
+            candidates[0]["count_window"] = 1
+        elif mutation == "claim":
+            candidates[0]["allowed_group_claim"] += " drift"
         elif mutation == "trace-dir-duplicate":
             donor = candidates[0]
             candidate = candidates[1]
@@ -1084,11 +1135,12 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
                 identity,
                 identity_file_sha256,
             )
-        expected_reason = (
-            "group-proof-surface-mismatch"
-            if mutation in {"proof-snapshot-detached", "proof-protocol"}
-            else "group-build-identity-mismatch"
-        )
+        if mutation in {"proof-snapshot-detached", "proof-protocol"}:
+            expected_reason = "group-proof-surface-mismatch"
+        elif mutation in {"cell-field", "claim"}:
+            expected_reason = "group-workload-contract-mismatch"
+        else:
+            expected_reason = "group-build-identity-mismatch"
         assert caught.value.reason == expected_reason, mutation
 
     write_documents(valid_documents)
@@ -1255,6 +1307,560 @@ def test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes() ->
     )[0]
     assert "--mode" not in performance_branch
     assert "--extime" not in performance_branch
+
+
+def test_five_field_cells_preserve_legacy_cell_and_genome_bytes() -> None:
+    cell = probe.parse_cells(CERT_CELL)[0]
+    assert cell == probe.Cell("tuned", 1, 1.0, 1000, 2560)
+    assert cell.extended is False
+    genome = probe.genome_for(cell)
+    assert genome.canonical() == (
+        "silo|BACKOFF_INCR_MILLI=1000,BACKOFF_MAX_US=1000,"
+        "BACKOFF_UPDATE_US=2560,BACK_OFF=1,"
+        "NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
+    )
+    assert genome.cmake_defines() == [
+        "-DCCBENCH_BACKOFF_INCR_MILLI=1000",
+        "-DCCBENCH_BACKOFF_MAX_US=1000",
+        "-DCCBENCH_BACKOFF_UPDATE_US=2560",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+    ]
+
+
+def test_extended_cells_parse_all_dynamic_fields() -> None:
+    cells = probe.parse_cells(TRACE_CELLS)
+    assert cells == probe.TRACE_CELLS
+    assert all(cell.extended for cell in cells)
+    assert cells[1].step_min_milli == 1000
+    assert cells[1].step_max_milli == 4000
+    flags = probe.genome_for(cells[2]).flags
+    assert {
+        macro: flags[macro]
+        for macro in (
+            "BACKOFF_COUNT_WINDOW",
+            "BACKOFF_COUNT_CAP_US",
+            "BACKOFF_STEP_ADAPT",
+            "BACKOFF_STEP_MIN_MILLI",
+            "BACKOFF_STEP_MAX_MILLI",
+            "BACKOFF_DYN_CEILING",
+            "BACKOFF_TRACE",
+        )
+    } == {
+        "BACKOFF_COUNT_WINDOW": 10000,
+        "BACKOFF_COUNT_CAP_US": 10240,
+        "BACKOFF_STEP_ADAPT": 1,
+        "BACKOFF_STEP_MIN_MILLI": 1000,
+        "BACKOFF_STEP_MAX_MILLI": 4000,
+        "BACKOFF_DYN_CEILING": 1,
+        "BACKOFF_TRACE": 0,
+    }
+
+
+@pytest.mark.parametrize(
+    "cell",
+    (
+        "bad:1:1:1000:2560:0",
+        "bad:1:1:1000:2560:0:10240:0:100:100:0",
+        "bad:1:1:1000:2560:-1:0:0:100:100:0",
+        "bad:1:1:1000:2560:1:10240:2:1:4:0",
+        "bad:1:1:1000:2560:1:10240:1:0.0001:4:0",
+        "bad:1:1:1000:2560:1:10240:1:4:1:0",
+        "bad:1:5:1000:2560:1:10240:1:1:4:0",
+        "bad:1:1:1000:2560:1:10240:1:1:13:1",
+        "bad:1:1:1000:2560:1:10240:1:1:4:2",
+    ),
+    ids=(
+        "six-fields",
+        "M7-k-zero-cap-nonzero",
+        "negative-window",
+        "step-toggle",
+        "lossy-step-bound",
+        "reversed-bounds",
+        "initial-step-outside-bounds",
+        "dynamic-floor-impossible",
+        "dynamic-toggle",
+    ),
+)
+def test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations(
+    cell: str,
+) -> None:
+    with pytest.raises(ValueError):
+        probe.parse_cells(cell)
+
+
+def test_grid_contract_uses_all_dynamic_configuration_fields() -> None:
+    grid = probe.parse_cells(
+        "none:0:100:1000:10,"
+        "stock:1:100:1000:10,"
+        "tuned:1:1:1000:2560,"
+        "tuned-u10240:1:1:1000:10240,"
+        + TRACE_CELLS
+    )
+    probe._validate_grid_contract(grid)
+    duplicate = (*grid, probe.Cell("same-build", 1, 1.0, 1000, 2560))
+    with pytest.raises(ValueError, match="duplicate build configurations"):
+        probe._validate_grid_contract(duplicate)
+
+
+def test_expected_patch_a_sha256_is_checked_before_patch_b(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    changed_a = tmp_path / "changed-a.patch"
+    changed_a.write_bytes(PATCH.read_bytes() + b"\n")
+    monkeypatch.setattr(probe, "PATCH_A", changed_a)
+    with pytest.raises(RuntimeError, match="immutable patch A SHA-256 mismatch"):
+        probe._patch_stack_identity()
+    assert probe.EXPECTED_PATCH_A_SHA256 == hashlib.sha256(PATCH.read_bytes()).hexdigest()
+
+
+def test_patch_b_requires_a_and_stack_reverts_cleanly(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    assert PATCH_B.is_file()
+    identity = probe._patch_stack_identity()
+    stack_bytes = "izanagi-patch-stack/v1\n" + "".join(
+        f"{entry['path']} {entry['sha256']}\n"
+        for entry in identity["patch_stack"]
+    )
+    assert identity["patch_sha256"] == probe.EXPECTED_PATCH_A_SHA256
+    assert identity["dynamic_patch_sha256"] == hashlib.sha256(
+        PATCH_B.read_bytes()
+    ).hexdigest()
+    assert identity["patch_stack_sha256"] == hashlib.sha256(
+        stack_bytes.encode("utf-8")
+    ).hexdigest()
+    pure_pin = subprocess.run(
+        ["git", "-C", str(CCBENCH), "apply", "--check", str(PATCH_B)],
+        capture_output=True,
+        text=True,
+    )
+    assert pure_pin.returncode != 0
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    with probe.isolated_checkout(CCBENCH, probe.CURRENT_PIN) as work_root:
+        with probe._applied_patch_stack(work_root) as b_files:
+            assert set(b_files) == {"cmake/Options.cmake", "include/backoff.hh"}
+        probe.assert_pinned_clean(work_root, probe.CURRENT_PIN)
+
+
+def test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if() -> None:
+    assert PATCH_B.is_file()
+    patch = PATCH_B.read_text(encoding="utf-8")
+    for name, value in {
+        "COUNT_WINDOW": 0,
+        "COUNT_CAP_US": 0,
+        "STEP_ADAPT": 0,
+        "STEP_MIN_MILLI": 100000,
+        "STEP_MAX_MILLI": 100000,
+        "DYN_CEILING": 0,
+        "TRACE": 0,
+    }.items():
+        assert re.search(
+            rf"^\+set\(CCBENCH_BACKOFF_{name}[ ]+{value}\b",
+            patch,
+            flags=re.MULTILINE,
+        )
+    assert re.search(r"^\+#if BACKOFF_TRACE$", patch, flags=re.MULTILINE)
+    assert re.search(r"^\+#ifdef BACKOFF_TRACE$", patch, flags=re.MULTILINE) is None
+
+
+def test_trace_binary_counts_match_small_fixture_binaries_and_fail_closed(
+    tmp_path: Path,
+) -> None:
+    trace_source = tmp_path / "trace.cc"
+    trace_binary = tmp_path / "trace.exe"
+    trace_source.write_text(
+        'extern "C" const char* izanagi_backoff_trace_probe() {\n'
+        '  return "IZANAGI_BACKOFF_TRACE v=1";\n'
+        '}\n'
+        'int main() { return izanagi_backoff_trace_probe()[0] == \'\\0\'; }\n',
+        encoding="utf-8",
+    )
+    perf_source = tmp_path / "perf.cc"
+    perf_binary = tmp_path / "perf.exe"
+    perf_source.write_text("int main() { return 0; }\n", encoding="utf-8")
+    for source, binary in (
+        (trace_source, trace_binary),
+        (perf_source, perf_binary),
+    ):
+        subprocess.run(
+            ["g++", "-O0", str(source), "-o", str(binary)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    trace_counts = probe._trace_binary_counts(str(trace_binary))
+    perf_counts = probe._trace_binary_counts(str(perf_binary))
+    assert trace_counts[0] >= 1 and trace_counts[1] >= 1
+    assert perf_counts == (0, 0)
+
+    probe._validate_trace_binary_counts(*trace_counts, backoff_trace=True)
+    probe._validate_trace_binary_counts(*perf_counts, backoff_trace=False)
+    with pytest.raises(RuntimeError):
+        probe._validate_trace_binary_counts(*trace_counts, backoff_trace=False)
+    with pytest.raises(RuntimeError):
+        probe._validate_trace_binary_counts(*perf_counts, backoff_trace=True)
+
+
+def test_public_certification_accepts_each_exact_cell_and_rejects_widening(
+    tmp_path: Path,
+) -> None:
+    parser = probe._argument_parser()
+    for exact in (CERT_CELL, DYNAMIC_CERT_CELL):
+        argv = _certify_argv(tmp_path)
+        argv[argv.index(CERT_CELL)] = exact
+        cell, workload, threads = probe._certification_contract(
+            parser.parse_args(argv)
+        )
+        assert cell in probe.CERT_CELLS
+        assert workload == "balanced"
+        assert threads == 48
+
+    for invalid in (
+        f"{CERT_CELL},{DYNAMIC_CERT_CELL}",
+        "cw:1:1:1000:2560:10000:10240:0:100:100:0",
+        "cw-as-dyn:1:1:1000:2560:10001:10240:1:1:4:1",
+    ):
+        argv = _certify_argv(tmp_path)
+        argv[argv.index(CERT_CELL)] = invalid
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._certification_contract(parser.parse_args(argv))
+        assert caught.value.reason == "certification-cell-mismatch"
+
+
+def test_trace_parser_requires_exact_sequence_summary_and_computes_direction() -> None:
+    stdout = """\
+unrelated benchmark output
+IZANAGI_BACKOFF_TRACE v=1 seq=0 tsc=100 window_us=10 window_commits=100 trigger=1 backoff_before=1 backoff_after=2 gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 parity_branch=-1
+IZANAGI_BACKOFF_TRACE v=1 seq=1 tsc=120 window_us=10 window_commits=120 trigger=2 backoff_before=2 backoff_after=2 gradient_sign=0 step_us=1 ceiling_us=500 ceiling_changed=1 parity_branch=0
+IZANAGI_BACKOFF_TRACE v=1 seq=2 tsc=140 window_us=10 window_commits=110 trigger=0 backoff_before=2 backoff_after=1 gradient_sign=0 step_us=1 ceiling_us=500 ceiling_changed=0 parity_branch=1
+IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=3 retained=3 dropped=0
+"""
+    events, summary, directional = probe._parse_backoff_trace(stdout)
+    assert [event["seq"] for event in events] == [0, 1, 2]
+    assert [event["window_us"] for event in events] == [10, 10, 10]
+    assert [event["trigger"] for event in events] == ["count", "cap", "time"]
+    assert [event["parity_branch"] for event in events] == [
+        "none",
+        "decrement",
+        "increment",
+    ]
+    assert summary == {"updates": 3, "retained": 3, "dropped": 0}
+    assert directional == {"scored": 1, "successes": 1, "rate": 1.0}
+
+    for mutated in (
+        stdout.replace("seq=1", "seq=2"),
+        stdout.replace("tsc=120", "tsc=99"),
+        stdout.replace("dropped=0", "dropped=1"),
+        stdout.replace("updates=3", "updates=4"),
+        stdout.replace("trigger=0", "trigger=3"),
+        stdout.replace("parity_branch=1", "parity_branch=2"),
+    ):
+        with pytest.raises(ValueError):
+            probe._parse_backoff_trace(mutated)
+
+
+def test_trace_parser_rejects_summary_without_any_event() -> None:
+    with pytest.raises(ValueError, match="at least one event"):
+        probe._parse_backoff_trace(
+            "IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=0 retained=0 dropped=0\n"
+        )
+
+
+def test_directional_success_does_not_score_zero_action() -> None:
+    events = [
+        {
+            "backoff_before": 1.0,
+            "backoff_after": 1.0,
+            "window_commits": 100,
+            "window_us": 10.0,
+        },
+        {
+            "backoff_before": 1.0,
+            "backoff_after": 2.0,
+            "window_commits": 120,
+            "window_us": 10.0,
+        },
+    ]
+    assert probe._directional_success(events) == {
+        "scored": 0,
+        "successes": 0,
+        "rate": None,
+    }
+
+
+def test_v2_schemas_and_cell_identity_fields_are_exact() -> None:
+    assert probe.SCHEMA_VERSION.endswith("/v2")
+    assert probe.TRACE_SCHEMA_VERSION == "izanagi-dynamic-backoff-trace/v2"
+    assert probe.CERTIFICATION_SCHEMA_VERSION.endswith("/v2")
+    assert probe.GROUP_RECEIPT_SCHEMA_VERSION.endswith("/v2")
+    assert set(probe.CERT_CLAIMS) == set(probe.CERT_CELLS)
+    assert probe.CERT_CLAIMS[probe.CERT_TUNED_CELL] == probe.ALLOWED_GROUP_CLAIM
+    assert "cw-as-dyn" in probe.CERT_CLAIMS[probe.CERT_DYNAMIC_CELL]
+    assert "機構の各枝の被覆は認証しない" in probe.CERT_CLAIMS[
+        probe.CERT_DYNAMIC_CELL
+    ]
+    assert probe._cell_identity(probe.CERT_DYNAMIC_CELL) == {
+        "cell": "cw-as-dyn",
+        "back_off": 1,
+        "step_us": 1.0,
+        "ceiling_us": 1000,
+        "update_us": 2560,
+        "count_window": 10000,
+        "count_cap_us": 10240,
+        "step_adapt": 1,
+        "step_min_us": 1.0,
+        "step_max_us": 4.0,
+        "dyn_ceiling": 1,
+        "cell_format_fields": 11,
+    }
+
+
+def test_perf_and_diagnostic_binary_trace_counts_fail_closed() -> None:
+    probe._validate_trace_binary_counts(0, 0, backoff_trace=False)
+    probe._validate_trace_binary_counts(1, 2, backoff_trace=True)
+    for counts, enabled in (((1, 0), False), ((0, 1), False), ((0, 1), True), ((1, 0), True)):
+        with pytest.raises(RuntimeError):
+            probe._validate_trace_binary_counts(
+                counts[0], counts[1], backoff_trace=enabled
+            )
+
+
+def test_pbs_dynamic_output_and_plus_transport_are_fail_closed() -> None:
+    text = PBS.read_text(encoding="utf-8")
+    assert "IZANAGI_T2187_BACKOFF_TRACE must be 0 or 1" in text
+    assert "IZANAGI_T2187_OUT_DIR is required for dynamic-backoff output" in text
+    assert (
+        "DYNAMIC_OUT_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/"
+        "dynamic-backoff/"
+    ) in text
+    assert 'CELLS=${CELLS_RAW//+/,}' in text
+    assert '"$CELLS_RAW" != tuned:1:1:1000:2560' in text
+    assert '"$CELLS_RAW" != "$CERT_DYNAMIC_CELL"' in text
+    assert '"${BACKOFF_TRACE_ARGS[@]}"' in text
+    assert 'export IZANAGI_T2187_REPO_HEAD="$REPO_HEAD"' in text
+    assert '--repo-head "$REPO_HEAD"' in text
+
+
+def test_execution_identity_fields_have_exact_types_and_file_hashes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(probe, "_validated_repo_clean", lambda value: value == "1")
+    monkeypatch.setattr(sys, "argv", [str(DRIVER), "--repo-clean", "1"])
+    identity = probe._execution_identity("1")
+    assert identity == {
+        "driver_sha256": hashlib.sha256(DRIVER.read_bytes()).hexdigest(),
+        "pbs_sha256": hashlib.sha256(PBS.read_bytes()).hexdigest(),
+        "driver_argv": [str(DRIVER), "--repo-clean", "1"],
+        "repo_status_clean": True,
+    }
+
+
+def test_driver_repo_clean_attestation_is_rechecked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        probe.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=" M tracked.py\n"),
+    )
+    with pytest.raises(RuntimeError, match="not tracked-clean"):
+        probe._validated_repo_clean("1")
+
+
+def test_pbs_rechecks_repo_clean_and_passes_identity_and_prologue_args() -> None:
+    text = PBS.read_text(encoding="utf-8")
+    assert 'git -C "$REPO_ROOT" status --porcelain --untracked-files=no' in text
+    assert 'export IZANAGI_T2187_REPO_CLEAN=1' in text
+    assert text.count("--repo-clean 1") == 2
+    assert text.count('--prologue-elapsed-s "$PROLOGUE_ELAPSED_S"') == 2
+    assert text.count('--prologue-cpu-s "$PROLOGUE_CPU_S"') == 2
+
+
+def test_driver_rejects_dynamic_output_outside_dedicated_namespace(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="dynamic output must be below"):
+        probe._validate_dynamic_output_path(tmp_path / "result.json")
+    probe._validate_dynamic_output_path(
+        probe.DYNAMIC_OUT_PREFIX / "trace" / "result.json"
+    )
+
+
+@pytest.mark.parametrize(
+    "binding",
+    ("receipt", "result-path", "performance-artifact"),
+)
+def test_dynamic_certification_rejects_each_foreign_namespace(
+    tmp_path: Path, binding: str
+) -> None:
+    certify_root = tmp_path / "certify"
+    performance_root = tmp_path / "perf"
+    result_paths = [certify_root / f"result-{index}.json" for index in range(24)]
+    args = SimpleNamespace(
+        group_receipt_out=certify_root / "group.json",
+        group_result_path=result_paths,
+        performance_artifact=performance_root / "performance.json",
+        out=str(result_paths[0]),
+    )
+    if binding == "receipt":
+        args.group_receipt_out = tmp_path / "foreign" / "group.json"
+    elif binding == "result-path":
+        args.group_result_path[0] = tmp_path / "foreign" / "result.json"
+    else:
+        args.performance_artifact = tmp_path / "foreign" / "performance.json"
+    old_certify = probe.DYNAMIC_CERTIFY_PREFIX
+    old_performance = probe.DYNAMIC_PERFORMANCE_PREFIX
+    try:
+        probe.DYNAMIC_CERTIFY_PREFIX = certify_root
+        probe.DYNAMIC_PERFORMANCE_PREFIX = performance_root
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._validate_dynamic_certification_namespaces(
+                args, probe.CERT_DYNAMIC_CELL
+            )
+    finally:
+        probe.DYNAMIC_CERTIFY_PREFIX = old_certify
+        probe.DYNAMIC_PERFORMANCE_PREFIX = old_performance
+    assert caught.value.reason == "dynamic-certification-namespace-invalid"
+
+
+def test_dynamic_performance_artifact_rejects_certify_identity_drift(
+    tmp_path: Path,
+) -> None:
+    patch_identity = probe._patch_stack_identity()
+    repo_head = "a" * 40
+    prereg_sha256 = "b" * 64
+    execution_identity = {
+        "driver_sha256": hashlib.sha256(DRIVER.read_bytes()).hexdigest(),
+        "pbs_sha256": hashlib.sha256(PBS.read_bytes()).hexdigest(),
+        "driver_argv": [str(DRIVER), "--mode", "performance"],
+        "repo_status_clean": True,
+    }
+    document = {
+        "schema_version": probe.SCHEMA_VERSION,
+        "kind": "performance-only-probe",
+        "not_certified": probe.NOT_CERTIFIED,
+        "repo_head": repo_head,
+        "prereg_sha256": prereg_sha256,
+        "patch_stack_sha256": patch_identity["patch_stack_sha256"],
+        "ccbench_head": probe.PIN_FULL,
+        **execution_identity,
+        "cells": [{**probe._cell_identity(probe.CERT_DYNAMIC_CELL)}],
+    }
+    performance = tmp_path / "performance.json"
+
+    def write_and_digest() -> str:
+        performance.write_text(json.dumps(document) + "\n", encoding="utf-8")
+        return hashlib.sha256(performance.read_bytes()).hexdigest()
+
+    expected = {
+        "expected_repo_head": repo_head,
+        "expected_prereg_sha256": prereg_sha256,
+        "expected_patch_stack_sha256": patch_identity["patch_stack_sha256"],
+        "required_cell": probe.CERT_DYNAMIC_CELL,
+    }
+    probe._performance_artifact_identity(
+        performance, write_and_digest(), **expected
+    )
+    document["repo_head"] = "c" * 40
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(
+            performance, write_and_digest(), **expected
+        )
+    assert caught.value.reason == "performance-artifact-identity-mismatch"
+
+
+def test_point_journal_is_append_only_jsonl(tmp_path: Path) -> None:
+    out = tmp_path / "result.json"
+    probe._append_journal(out, {"point": 1})
+    probe._append_journal(out, {"point": 2})
+    journal = Path(str(out) + ".journal.jsonl")
+    assert [json.loads(line) for line in journal.read_text().splitlines()] == [
+        {"point": 1},
+        {"point": 2},
+    ]
+    assert not out.exists()
+
+
+def test_backoff_trace_and_certification_modes_are_disjoint(tmp_path: Path) -> None:
+    argv = _certify_argv(tmp_path)
+    argv.insert(0, "--backoff-trace")
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe.main(argv)
+    assert caught.value.reason == "backoff-trace-certification-conflict"
+
+
+def test_backoff_trace_mode_requires_exact_diagnostic_axes(tmp_path: Path) -> None:
+    parser = probe._argument_parser()
+    argv = [
+        "--backoff-trace",
+        "--cells",
+        TRACE_CELLS,
+        "--workloads",
+        "write-heavy,balanced,read-heavy",
+        "--threads",
+        "24,48",
+        "--reps-per-job",
+        "1",
+        "--extime",
+        "3",
+        "--out",
+        str(probe.DYNAMIC_OUT_PREFIX / "trace" / "test.json"),
+    ]
+    args = parser.parse_args(argv)
+    cells = probe.parse_cells(args.cells)
+    workloads = probe._parse_workloads(args.workloads)
+    threads = probe._parse_threads(args.threads)
+    probe._validate_backoff_trace_contract(args, cells, workloads, threads)
+    for option, drift in (
+        ("--cells", DYNAMIC_CERT_CELL),
+        ("--workloads", "balanced"),
+        ("--threads", "48"),
+        ("--extime", "4"),
+    ):
+        changed = list(argv)
+        changed[changed.index(option) + 1] = drift
+        args = parser.parse_args(changed)
+        cells = probe.parse_cells(args.cells)
+        workloads = probe._parse_workloads(args.workloads)
+        threads = probe._parse_threads(args.threads)
+        with pytest.raises(ValueError, match="requires exact"):
+            probe._validate_backoff_trace_contract(
+                args, cells, workloads, threads
+            )
+
+
+def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> None:
+    parser = probe._argument_parser()
+    args = parser.parse_args(
+        [
+            "--backoff-trace",
+            "--cells",
+            TRACE_CELLS,
+            "--workloads",
+            "write-heavy,balanced,read-heavy",
+            "--threads",
+            "24,48",
+            "--rep-index",
+            "1",
+            "--reps-per-job",
+            "1",
+            "--extime",
+            "3",
+            "--out",
+            str(probe.DYNAMIC_OUT_PREFIX / "trace" / "test.json"),
+        ]
+    )
+    with pytest.raises(ValueError, match="rep index 0"):
+        probe._validate_backoff_trace_contract(
+            args,
+            probe.parse_cells(args.cells),
+            probe._parse_workloads(args.workloads),
+            probe._parse_threads(args.threads),
+        )
 
 
 def _run() -> int:

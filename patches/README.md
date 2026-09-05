@@ -219,6 +219,41 @@ cmake --build "$SUB/build-bf50" --target ycsb_silo.exe -j
 
 ---
 
+## cicada-adaptive-params.patch / cicada-adaptive-dynamic.patch — Silo 上の Cicada 型 adaptive backoff の 3 定数と、その動的化 (合成 variant, D18 第 3 類)
+
+**A = `cicada-adaptive-params.patch`** (sha256 `9b2153e0…`、bytes 不変) は、stock の `include/backoff.hh` に
+焼かれた 3 定数 (刻み `kIncrBackoff` = 100 µs / 上限 `kMaxBackoff` = 1000 µs / 更新間隔 10 µs) を CMake cache option
+`CCBENCH_BACKOFF_INCR_MILLI` / `CCBENCH_BACKOFF_MAX_US` / `CCBENCH_BACKOFF_UPDATE_US` (既定 = stock 同値) にする。
+測定と裁定は D1505 / D1506、一次資料 `output/insights/2026-09-02_cicada-adaptive-three-constants.md`、
+正しさ (調整済み定数 24 trace の認証) は `2026-09-04_t2189-adaptive-serializability-certification.md`。
+
+**B = `cicada-adaptive-dynamic.patch`** は **pin `511c9538` + A を当てた木だけを preimage とし、A の上に重ねる**
+(pin 単独には当たらない)。触るのは A と同じ `cmake/Options.cmake` と `include/backoff.hh` の 2 file で、
+**`#include` 行を 1 行も足さない** (`source_digest.assert_includes_match_head` は `include/backoff.hh` の include 行を
+HEAD と逐語比較するため)。CMake option 7 つ (既定はすべて stock 同値、`#ifndef ... #error` で欠落を止める):
+
+| option | 既定 | 意味 |
+|---|---|---|
+| `CCBENCH_BACKOFF_COUNT_WINDOW` (K) | 0 | 0 = stock の時間判定。K>0 = 経過 ≥ `UPDATE_US` (counter を読む最小間隔) かつ (commit 数 ≥ K または 経過 ≥ cap) で更新 |
+| `CCBENCH_BACKOFF_COUNT_CAP_US` | 0 | 計数窓の最大間隔 (0 = `UPDATE_US`)。K=0 のとき inert |
+| `CCBENCH_BACKOFF_STEP_ADAPT` | 0 | 1 = 勾配符号が前回と同じなら刻み ×2 (上限 STEP_MAX)、反転または 0 なら ÷2 (下限 STEP_MIN)。整数 µs だけ |
+| `CCBENCH_BACKOFF_STEP_MIN_MILLI` / `_MAX_MILLI` | 100000 | 適応刻みの下限 / 上限 (1/1000 µs)。`STEP_ADAPT=0` のとき inert |
+| `CCBENCH_BACKOFF_DYN_CEILING` | 0 | 1 = 実効上限 `ceiling_` を持ち、上限に当たって負勾配なら半減 (下限 50 µs)、正勾配なら倍増 (上限 `MAX_US`) |
+| `CCBENCH_BACKOFF_TRACE` | 0 | D14 契約の `#if BACKOFF_TRACE` 診断計器。leader の更新ごとに (窓の経過・commit 数・発火理由・前後の `Backoff_`・勾配符号・刻み・上限・parity 分岐) を 64-byte aligned の ring (65,536 件) に溜め、正常終了時に `IZANAGI_BACKOFF_TRACE v=1 …` 行として stdout へ流す。**perf build (0) では symbol・文字列とも 0 個** (probe が `nm` / `strings` で fail-closed に検査)。`CCBENCH_TRACE` (verifier 用) とは別 macro |
+
+- 時刻 seam: `check_update_backoff_at(now, committed)` / `update_backoff_at(now, committed)` を本体にし、production の
+  `check_update_backoff()` / `update_backoff(committed)` は `rdtscp()` を渡す wrapper。既定値では制御流が stock と一致する
+  (`orchestrator/tests/test_dynamic_backoff_transitions.py` が pin + A 単独の driver と `Backoff_` 列の一致を固定)。
+- `last_backoff_` は stock どおり `uint64_t` のまま。sub-µs の刻みは偽ゼロ勾配を作る (T-2216 §3) ので、B の刻みは整数 µs に限る。
+- 登録簿: 7 define は `orchestrator/campaign/condition_meaning_gate.py` の `DefineSpec` (patch_rel = B) と
+  `screening_driver.py` の `_CONDITION_DEFAULTS` に登録。**toggle 依存の限界**: `_is_inert_value` は単項で、従属 parameter
+  (`COUNT_CAP_US`, `STEP_MIN/MAX_MILLI`) は既定値一致だけを stock と扱う (toggle が on のときの意味は見ない)。
+  probe の build sink は deferred gate 台帳に載っており、この限界は本 wave の成果物に影響しない。
+- **`ledger.json` には登録しない**: 同台帳の scope は D18 第 4 類 ability probe 専用で、真の consumer
+  `orchestrator/campaign/silo_ladder_rung1_contract.py` が entry 数 1 を exact に要求する。B は第 3 類の合成 variant。
+- driver は既存の `tools/pegasus/probes/t2187_adaptive_const_probe.py` / `.pbs` (拡張 cell 書式 11 field、`--backoff-trace`
+  の診断 mode、certify の exact 2 値)。事前登録は `docs/dynamic-backoff-preregistration.md`。
+
 ## variant-*.patch — coder 編集の固定 (Phase 3)
 
 coder (LLM) の EVOLVE-BLOCK 編集を orchestrator が diff 監査のうえ patch 化したもの
