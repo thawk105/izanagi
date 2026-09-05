@@ -661,10 +661,13 @@ def test_live_producer_trigger_with_source_reaches_only_p6_unavailable(
     assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
 
 
-def test_verbatim_producer_sequence_with_only_attempt_transplanted_reaches_p6(
+def test_verbatim_producer_records_with_only_attempt_transplanted_reach_p6(
     case: _Case,
 ) -> None:
-    """Use the two verbatim producer records with only the attempt transplanted."""
+    """The consumer reads only the trigger.
+
+    This test independently pins build_start's commitment.
+    """
 
     trigger = json.loads(_PRODUCER_VERBATIM_TRIGGER)
     build_start = json.loads(_PRODUCER_VERBATIM_BUILD_START)
@@ -774,6 +777,27 @@ def test_fc05c_rejects_source_only_mismatch(case: _Case) -> None:
     trigger["payload"]["trigger_gate_binding"]["source"] = None
     terminal = _projection_records(case, index)[-1]
     _rewrite_wal(case, index, [trigger, terminal])
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_boolean_trigger_timestamp(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["ts"] = True
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_string_trigger_timestamp(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["ts"] = "1788580082.583126"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC05C)
+
+
+def test_fc05c_rejects_integer_trigger_variant(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[0]["variant"] = 1
+    _rewrite_wal(case, 0, wal)
     _assert_reason(case, C.FormalReasonCode.FC05C)
 
 

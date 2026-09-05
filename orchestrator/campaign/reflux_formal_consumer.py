@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import threading
 from dataclasses import dataclass, field
@@ -733,6 +734,13 @@ def _wal_trigger(records: Sequence[dict]) -> object:
 
     record = stage_records[0]
     if set(record) != {"variant", "stage", "env_tag", "ts", "payload"}:
+        return None
+    if type(record["variant"]) is not str or type(record["env_tag"]) is not str:
+        return None
+    ts = record["ts"]
+    if type(ts) not in (int, float) or (
+        type(ts) is float and not math.isfinite(ts)
+    ):
         return None
     payload = record["payload"]
     if type(payload) is not dict or set(payload) != {
