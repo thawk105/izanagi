@@ -126,6 +126,9 @@ seed と試行数を本文で凍結している) と同型で、「データを�
 
 ## 4. 発効手順 (人間の手番)
 
+**追記 (2026-09-05、[T-2272]):** この手順は D1638 の委任により worklog (1275) で AI が実施済みである。
+以下は記録として残し、§4.1 の行 locator 4 件だけを 2026-09-05 時点の位置へ更新した (本文の pin hash は動かない)。
+
 **AI はここから先を行わない。** 次の 5 箇所を 1 つの commit にまとめる。
 **本文を編集する場合は、その本文自身が 6 箇所目として同じ commit に入る。**
 
@@ -151,7 +154,7 @@ repo root で、1 コマンドずつ実行する。
    sha256sum -- output/insights/2026-09-01_paper-story-a1-balanced5-pilot-preregistration/README.md
    ```
 
-2. `orchestrator/campaign/paper_story_a1_paired.py:175-176` の
+2. `orchestrator/campaign/paper_story_a1_paired.py:198-203` の
    `V3_PILOT_PREREGISTRATION_RELATIVE_PATH` に
    `output/insights/2026-09-01_paper-story-a1-balanced5-pilot-preregistration/README.md` を、
    `V3_PILOT_PREREGISTRATION_SHA256` に手順 1 の値を入れる。
@@ -165,10 +168,10 @@ repo root で、1 コマンドずつ実行する。
    sha256sum -- orchestrator/campaign/paper_story_a1_paired.v3-pilot.json
    ```
 
-5. `orchestrator/campaign/paper_story_a1_paired.py:168-170` の `V3_PILOT_POLICY_SHA256` を
+5. `orchestrator/campaign/paper_story_a1_paired.py:192-194` の `V3_PILOT_POLICY_SHA256` を
    手順 4 の値にする。
 
-6. `orchestrator/tests/test_paper_story_a1_paired.py:1386-1390` の未凍結を固定している 4 つの
+6. `orchestrator/tests/test_paper_story_a1_paired.py:1387-1397` の未凍結を固定している 4 つの
    assertion を、束縛後の正例へ更新する。**非 null であることではなく、exact 一致を固定する。**
    - `policy["preregistration"]` が
      `{"path": paired.V3_PILOT_PREREGISTRATION_RELATIVE_PATH, "sha256": paired.V3_PILOT_PREREGISTRATION_SHA256}`
@@ -178,7 +181,7 @@ repo root で、1 コマンドずつ実行する。
    - `paired._require_policy_ready_for_execution(policy)` が例外を投げないこと
      (`pytest.raises` を消し、素の呼び出しにする)。
 
-7. `orchestrator/tests/test_paper_story_a1_paired.py:1018-1020` の
+7. `orchestrator/tests/test_paper_story_a1_paired.py:1012-1019` の
    `test_v3_loader_accepts_future_sized_policy_shape` で、pilot から複製した `sized` の
    `preregistration` を sized 側の module pin
    (`V3_SIZED_PREREGISTRATION_RELATIVE_PATH` / `V3_SIZED_PREREGISTRATION_SHA256`) から

@@ -1508,16 +1508,22 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
 - qsub 前の永続 claim を持たないため、**SIGKILL と request ID 照会中の再 signal では
   hold が立たないまま終了しうる**。「全 job が fail-closed になった」とは読まない。
 
-### 7.7 A-1 対測定の正式投入 ([T-1819]、2026-08-29 実測)
+### 7.7 A-1 対測定の正式投入 ([T-1819] 2026-08-29 実測、[T-2272] / [T-2301] 2026-09-05 更新)
 
 - **投入器は login 側 shell ではなく driver の `submit` サブコマンドである。** job body
   `tools/pegasus/paper_story_a1_paired.sh` は冒頭で「親が直接 qsub し、この file は投入器ではない」と
   宣言している。A-2 が login 側 shell に投入器を置くのは 2 workload の fan-out / fan-in を shell が
-  担うためで、A-1 は 1 job なので driver に置く。この差は欠落ではない。
+  担うためで、A-1 は fan-out / fan-in を driver が担う。この差は欠落ではない。
+- **`--study-id` は必須で、既定値は無い (D1619)。** 値は凍結 policy の `study_id` のいずれかに限る:
+  旧 v2 study `paper-story-a1-20260826-sized-v1` (1 job)、v3 pilot
+  `paper-story-a1-20260901-balanced5-pilot-v1`、v3 sized `paper-story-a1-20260901-balanced5-sized-v1`
+  (いずれも workload 別 3 job)。これ以外の ID と省略は qsub 前に拒否される。job body 側も
+  `IZANAGI_A1_STUDY_ID` の未設定を `study ID differs` で拒否し、既定の study を持たない。
 - login node から次の形で投入する。
 
   ```bash
   python3 -B -m orchestrator.campaign.paper_story_a1_paired submit \
+    --study-id <凍結 policy の study_id> \
     --expected-head <現 HEAD の 40 桁> \
     --attempt-root <durable base>/<attempt-id>
   ```
@@ -1530,11 +1536,43 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
   いずれかが残っていると qsub 前に拒否される。作り直すときは新しい attempt-id を使う。
 - 投入前に tracked worktree が clean で、`--expected-head` が現 HEAD と一致している必要がある。
   どちらも driver が qsub 前に検査する。
-- **intent があって submission receipt が無い状態は「投入したかどうか不明」である。**
+- **v3 study は workload 別に 3 request を driver が順に qsub する** (`write-heavy` → `balanced` →
+  `read-heavy`)。qsub の前に group intent `<base>/<attempt-id>.intent.json` を create-only で書き、
+  attempt root 直下に `receipts/`・`raw/`・`barrier/`・`jobs/<workload>/scheduler/` を作る。
+  request ごとの qsub stdout / stderr・request-id・qstat 可視性は `jobs/<workload>/scheduler/` に、
+  job 本体の stdout / stderr も同じ場所に返るので repo は汚れない (D1291 の規範に適合)。
+- **3 request が揃って初めて group receipt `receipts/submission.json` が出る。** 途中の request が
+  失敗・不定 (qsub 非 0、stderr 非空、request ID を読めない、request ID の三つ組が一意でない) なら
+  driver は `receipts/submission-failure.json` に workload ごとの状態
+  (`accepted` / `failed` / `indeterminate`) を書いて rc=2 で止まる。**受理済みの request を driver は
+  取り消さない。** 残った job は job body 側で group receipt を 60 秒待ち、現れなければ prebench の
+  failure terminal を書いて bench に入らず終わる。
+  この attempt は再利用せず、新しい attempt-id で取り直す。
+- **intent があって group receipt も failure も無い状態は「投入したかどうか不明」である。**
   driver は同じ attempt へ二度目の qsub をしない。これは意図的な fail-closed であり迂回しない。
-  別の attempt-id で取り直す。
-- scheduler の標準出力・標準エラーは evidence path (durable base 直下) へ返るので repo は汚れない
-  (D1291 の規範に既に適合している)。
+- **bench の前に 3 job の barrier がある。** 各 job は自分の workload の両 arm を build・verify してから
+  `barrier/ready/<workload>.json` を書き、ちょうど 3 つの ready が揃ったときだけ `barrier/bench-go.json`
+  と `barrier/bench-start/<workload>.json` を経て bench に入る。**同じ base の先行 attempt が
+  bench barrier に達していると、同じ study の group 再投入は拒否される**
+  (`prior attempt reached the bench barrier; group rerun is prohibited`)。途中中断と片側 commit を
+  invalid に閉じる D1295 決定 7 の実装であり、迂回しない。
+- **group completion は 3 job がすべて終端してから login で行う。**
+
+  ```bash
+  python3 -B -m orchestrator.campaign.paper_story_a1_paired complete \
+    --study-id <submit と同じ study_id> \
+    --expected-head <submit と同じ HEAD> \
+    --attempt-root <submit と同じ attempt root>
+  ```
+
+  `complete` は group receipt を intent と突き合わせ、`jobs/<workload>/raw/results/` の
+  `result.json` / `receipt.json` と scheduler の終了状態、barrier の三つ組を検査してから
+  `raw/job-terminal.json` (group terminal) と `receipts/completion.json` (group completion receipt) を
+  書く。1 workload でも欠ければ receipt は出ない。materialize はこの 2 file を入力に取る
+  (引数は driver の `materialize --help`)。
+- **estimand の読み (D1619):** 論文の contrast は D1262 (各 workload の「固定 X − backoff なし」) が現行で、
+  D1295 の 5-rep ブロック交互 + AB/BA 均衡はその estimand の上で使う配置である。D1295 決定 4 の
+  「常に static10 − adaptive」は配置の記述であって estimand の再定義ではない。
 - この経路は `tools/pegasus/` の admission 登録簿の対象外である。登録簿は `tools/` 配下の実行体を
   分類するもので、driver の subcommand は管轄外である。§7.0 の実行場所判定にも掛からない —
   qsub 自体は login 側で行う軽い操作である。
