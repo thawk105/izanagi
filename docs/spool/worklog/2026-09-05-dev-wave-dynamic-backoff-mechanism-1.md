@@ -54,8 +54,13 @@ title: Cicada 型 adaptive backoff の 3 定数を動的化して Pegasus で実
 - **段 8 の改善候補:** (a) `qstat` の job 名列は 8 文字で切れる (待ち手の grep が空振り)、(b) GCC の `#pragma once` は同一 bytes の
   別 path file を同一視する、(c) sandbox の子は `python -m pytest` を guard に拒否され自走 harness だけ使える、
   (d) harness の collection 段の D612 上書き (T-2228 (c) と同じ)。いずれも memory へ。
-- 計算ノード: perf 7 + 診断 1 + canary 2 + 認証 24 + 変異 dispatch 約 15 + provenance 監査 4 + 焦点走 dispatch 若干。
-  詳細は insight §4。
+- **受入全走 1 回目 (tested tip 54940301f): 20,626 緑 / 68 skip / 赤 1 件** — `test_p3_s4_loop.py::
+  test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted` (B-3 在庫検査)。patch B の `#if BACKOFF_TRACE` 内の
+  診断 stdout marker `IZANAGI_BACKOFF_TRACE*` (文字列 literal) が `\bIZANAGI_[A-Z0-9_]+\b` に一致し、ledger 未登録の
+  「裸マクロ patch」と数えられた。全走でしか発火しない在庫検査の型 (T-2187 の (d) と同型)。Codex fix 子が
+  `known_non_variant_patches` へ B を理由 comment 付きで足し (検査の regex と意味は不変)、受入 2 回目を投入した。
+- 計算ノード: perf 7 + 診断 1 + canary 2 + 認証 24 + 変異 dispatch 約 30 (probe 2 回 + 本走) + provenance 監査 7 +
+  受入全走 2 + 焦点走 dispatch 若干。詳細は insight §4。
 
 ## 次の一手差分
 
