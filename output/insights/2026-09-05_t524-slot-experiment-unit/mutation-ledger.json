@@ -1,0 +1,107 @@
+{
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "baseline": {
+  "status": "PASSED"
+ },
+ "mutations": [
+  {
+   "id": "MUT-T524-M1-ROOT-SINGLE-GENERATION",
+   "status": "KILLED",
+   "matches_expectation": true,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_m1_v3_reader_accepts_single_generation_and_rejects_mixed_generation"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_m1_v3_reader_accepts_single_generation_and_rejects_mixed_generation"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/attempt_registry_core.py",
+     "new": "        if False:\n",
+     "old": "        if (\n            any(type(generation) is not int or generation < 1\n                for generation in generations)\n            or len(set(generations)) != 1\n        ):\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T524-M2-GENESIS-ARG-SLOT-MATCH",
+   "status": "KILLED",
+   "matches_expectation": true,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_m2_genesis_creator_requires_exact_slot_generation"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_m2_genesis_creator_requires_exact_slot_generation"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "            or False\n",
+     "old": "            or slot.get(\"prereg_generation\") != prereg_generation\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T524-M3A-FULL-UNIT-CONSUMPTION",
+   "status": "KILLED",
+   "matches_expectation": true,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3_v5_rejects_predeclared_unit_without_final_terminal"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3_v5_rejects_predeclared_unit_without_final_terminal"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "        if False:\n",
+     "old": "        if len(finals) != 1:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T524-M3B-PROJECTION-RECHECK",
+   "status": "KILLED",
+   "matches_expectation": true,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3b_v5_rejects_receipt_projection_divergent_from_registry"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3b_v5_rejects_receipt_projection_divergent_from_registry"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "    if False:\n",
+     "old": "    if derived_projection != receipt.attempt_slot_projection:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T524-M4-DOWNSTREAM-SCHEMA-CURRENT",
+   "status": "KILLED",
+   "matches_expectation": true,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_rejects_legacy_receipt_before_write",
+    "orchestrator/tests/test_s8c_acceptance_receipt.py::test_tracked_receipt_and_all_referenced_bytes_verify_positive",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m4_downstream_capability_rejects_readable_v4_receipt"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_rejects_legacy_receipt_before_write",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m4_downstream_capability_rejects_readable_v4_receipt",
+    "orchestrator/tests/test_s8c_acceptance_receipt.py::test_tracked_receipt_and_all_referenced_bytes_verify_positive"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "    if False:\n",
+     "old": "    if verified.receipt.schema_version != SCHEMA_VERSION:\n"
+    }
+   ]
+  }
+ ]
+}
