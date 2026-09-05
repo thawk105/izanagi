@@ -15,6 +15,7 @@ import pytest
 
 from orchestrator.campaign import b10_backoff_shape_sweep as B10
 from orchestrator.campaign import condition_meaning_gate as G
+from orchestrator.campaign import screening_driver
 from orchestrator.campaign.evolve_block import extract_materialized_evolve_block
 from orchestrator.tests.condition_gate_test_support import (
     install_condition_gate_build_fixture,
@@ -2392,6 +2393,9 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
         "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
+        "BACKOFF_COUNT_WINDOW", "BACKOFF_COUNT_CAP_US", "BACKOFF_STEP_ADAPT",
+        "BACKOFF_STEP_MIN_MILLI", "BACKOFF_STEP_MAX_MILLI",
+        "BACKOFF_DYN_CEILING", "BACKOFF_TRACE",
         "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US", "BACKOFF_TRIGGER_GATING",
         "BACKOFF_UPDATE_US", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
@@ -2422,12 +2426,78 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         ("SS2PL_LOCK_IMPL", "1"),
     )
     assert G.DEFINE_SPECS["BACKOFF_FIXED"].inert_values == ("-1",)
+    dynamic_specs = {
+        macro: (
+            spec.patch_rel,
+            spec.owner_tus,
+            spec.target,
+            spec.inert_values,
+        )
+        for macro, spec in G.DEFINE_SPECS.items()
+        if spec.patch_rel == "patches/cicada-adaptive-dynamic.patch"
+    }
+    assert dynamic_specs == {
+        "BACKOFF_COUNT_WINDOW": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+        "BACKOFF_COUNT_CAP_US": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+        ),
+        "BACKOFF_STEP_ADAPT": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+        "BACKOFF_STEP_MIN_MILLI": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+        ),
+        "BACKOFF_STEP_MAX_MILLI": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            (),
+        ),
+        "BACKOFF_DYN_CEILING": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+        "BACKOFF_TRACE": (
+            "patches/cicada-adaptive-dynamic.patch",
+            ("cc/silo/transaction.cc",),
+            "ycsb_silo.exe",
+            ("0",),
+        ),
+    }
+    assert {
+        macro: screening_driver._CONDITION_DEFAULTS[macro]
+        for macro in dynamic_specs
+    } == {
+        "BACKOFF_COUNT_WINDOW": 0,
+        "BACKOFF_COUNT_CAP_US": 0,
+        "BACKOFF_STEP_ADAPT": 0,
+        "BACKOFF_STEP_MIN_MILLI": 100000,
+        "BACKOFF_STEP_MAX_MILLI": 100000,
+        "BACKOFF_DYN_CEILING": 0,
+        "BACKOFF_TRACE": 0,
+    }
     assert G.DEFINE_SPECS[
         "IZANAGI_SILO_LADDER_RUNG1_REPORT"
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 12
+    ) == 19
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
     ) == 13
@@ -2444,6 +2514,10 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         assert raised.value.reason_code == "supply-contract-invalid"
     with pytest.raises(ValueError):
         G.MeaningCase(1, ("7ff0000000000000", "7ff0000000000000"))
+
+
+def test_module_claim_names_the_exact_32_define_supply_domain() -> None:
+    assert "supply domain contains the 32 patch-derived defines" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():

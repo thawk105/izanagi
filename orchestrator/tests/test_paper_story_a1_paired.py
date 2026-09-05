@@ -1016,6 +1016,7 @@ def test_v3_loader_accepts_future_sized_policy_shape(
     Rejection: policy drift or an unavailable certificate is rejected.
     """
     sized = copy.deepcopy(_v3_pilot_policy())
+    sized["preregistration"] = {"path": paired.V3_SIZED_PREREGISTRATION_RELATIVE_PATH, "sha256": paired.V3_SIZED_PREREGISTRATION_SHA256}
     sized["study_id"] = paired.V3_SIZED_STUDY_ID
     sized["final_estimate_eligible"] = True
     repo = tmp_path / "repo"
@@ -1383,11 +1384,17 @@ def test_v3_sizing_and_ccbench_contract_are_exact_literals() -> None:
         "tracked_clean_required": True,
         "untracked_files_ignored": True,
     }
-    assert policy["preregistration"] == {"path": None, "sha256": None}
-    assert paired.V3_PILOT_PREREGISTRATION_RELATIVE_PATH is None
-    assert paired.V3_PILOT_PREREGISTRATION_SHA256 is None
-    with pytest.raises(paired.PaperStoryError, match="not frozen by the parent"):
-        paired._require_policy_ready_for_execution(policy)
+    assert policy["preregistration"] == {
+        "path": paired.V3_PILOT_PREREGISTRATION_RELATIVE_PATH,
+        "sha256": paired.V3_PILOT_PREREGISTRATION_SHA256,
+    }
+    assert paired.V3_PILOT_PREREGISTRATION_RELATIVE_PATH == (
+        "output/insights/2026-09-01_paper-story-a1-balanced5-pilot-preregistration/README.md"
+    )
+    assert paired.V3_PILOT_PREREGISTRATION_SHA256 == (
+        "8f8d2ad338a7a3193aaee8433c1495cef06b9520425251dd8bef89584ca626fc"
+    )
+    paired._require_policy_ready_for_execution(policy)
 
 
 def test_v3_artifact_consumer_recomputes_contrast_without_producer_helper_M9(

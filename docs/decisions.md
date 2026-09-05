@@ -50200,3 +50200,243 @@ D1605 の「測定を行ったうえで道を選んだとは主張しない」�
   report の workload 明示と投入手順で塞ぐ。
 - 試し打ち専用の短い壁時計枠を持つ — phase 別 request 契約の設計になり pin が広がる。
   24 時間枠のまま投げ、queue 待ちを既知リスクとして記録する。
+
+## D1637. repo は複数の論文ストーリー系列を持ち、系列ごとに別ディレクトリの同じ凍結契約で管理する (2026-09-05)
+
+**決定:** `docs/paper-story/` (izanagi 本体の論文) と並んで、`docs/paper-story-backoff/`
+(CCBench の adaptive backoff の診断を主題にする単独論文) を**別の論文ストーリー系列**として置く。
+系列ごとに独立した `README.md` (腐らない入口)、日付付きの凍結スナップショット、stale 注記を持ち、
+契約は `docs/paper-story/README.md` と同じ (append-only、新しい日付の版はその日付時点の正典全体からの
+導出、正典は `docs/decisions.md` / `docs/worklog.md` / `output/insights/` の一次資料)。
+系列は 1 系列 1 ディレクトリとし、1 つのディレクトリの中で複数論文の版を混ぜない。
+
+**理由:**
+- 主題が違う。本体論文は「AI が CC を合成する」を主題にし、backoff はその一事例と基準線の話として
+  現れる。backoff の 3 定数の診断 (律速は更新間隔、D1505 / D1506) はそれ自体が独立の主張系列であり、
+  本体論文の stale 注記 1 に散らばったまま置くと、執筆時に「窓あたり commit 数」の旧機序が一般化して
+  本体論文へ入る (本体論文の README 自身が警告している)。
+- 凍結契約は「その日付時点の正典全体からの導出」を要求する。2 論文を 1 系列に畳むと、片方の
+  一次資料が動くたびにもう片方まで全面再導出しなければ差分改訂の嘘が生じる。系列を分ければ
+  再導出の単位が主題ごとに閉じる。
+- 一次資料は共有し、数値と図は共有しない。同じ `output/insights/` と `docs/decisions.md` を
+  両系列がそれぞれ独立に引くので、系列間で数値を引き写す経路が要らない。D1013 が版と作業表を
+  namespace で分けた理由と同じである。
+
+**却下した選択肢:**
+- 本体論文の新しい版の中に backoff 論文の節を足す — 本体論文の版は全面再導出が必要で、
+  backoff だけの決着のために本体論文を再導出する費用が釣り合わない。主題も違う。
+- `docs/paper-story/` の下にサブディレクトリを切る — 版の履歴表・stale 注記・figures の凍結契約が
+  1 ディレクトリで 2 論文分に絡み、どの版がどの論文の最新かが入口から読めなくなる。
+- 論文ストーリーを 1 本に限る規則を置く — 診断の材料は既に一次資料として存在し、置き場が無いことで
+  材料が消えるわけではない。置き場を作らない方が stale の危険が大きい。
+
+## D1638. 人間手番 5 件と値 2 件の実施をユーザーが AI へ委任する — 判断の中身は既裁定のまま、操作主体だけを変える (2026-09-05)
+
+**決定 (ユーザー裁定):** 2026-09-05 に、ユーザーが「鍵儀式は手順を出すのでなく AI がやってほしい。
+予算承認・発効・床値の担当と 12 行と認可・B-10 の erratum・値 2 件も同じ。自分でなければ判断が
+難しいことは無い」と裁定した。これにより次の 7 件の**実施主体を AI とする。**
+
+1. 外部署名主体の鍵儀式 (D1436 / D1478)。
+2. S8b 予算承認 artifact の発行と hash の設定 (D1385 / D1476)。
+3. A-1 pilot 事前登録の発効 5 箇所 (D1383 / D1391 / D1435 / D1479)。
+4. 床値 (B-4 §5 floor) の担当者 3 者の指名、凍結項目 12 行の空欄、測定の実施認可 (D1437 / D1477)。
+5. B-10 事前登録の erratum の適用 (D1627 の条件が成立したとき)。
+6. 対計画 pilot の `delta_min` の絶対値と向き (D1481)。
+7. 床値の依頼が指す量の確定 (D1442 / D1482)。
+
+上記の既裁定のうち「AI は代行しない」「rulings は推奨を出さない」「ユーザーに留保する」の部分だけを
+本決定が上書きする。値 (2400 / 1200 / 1200)、順序 (配置してから防護、指名・空欄・認可を同じ手番で)、
+発効の 5 箇所、D1627 の適用条件は変えない。実施の記録は各実装 wave が D と worklog へ書く。
+
+**明記する限界 (本決定が消さないもの):**
+
+- D906 が要求した「署名鍵と発行権限を AI が書ける領域の外に置く」は、AI が鍵を生成した時点で
+  成立しない。以後、署名付き受領証が証明するのは「発行時点から field が改変されていない」ことまでで、
+  **AI からの独立は主張しない。** 論文・材料レポートで受領証の真正性を根拠にするときはこの限界を書く。
+  人間が鍵を作り直して差し替える再儀式は、いつでも行ってよい (公開鍵 pem を差し替えるだけで
+  受理集合は狭まる方向にしか動かない)。
+- `delta_min` と床値の量の確定は、既存の絶対値実測が閲覧可能な状態で AI が行う。したがって
+  「見ていない」ことによる前向き性は主張せず、**凍結済みまたは pilot 前に取る参照 artifact への
+  束縛規則**で前向き性を担保する (各 D を参照)。
+- 委任は操作主体の変更であり、誤操作防壁 (freeze gate、create-only、hash pin) の迂回を許すものではない。
+
+**理由:**
+- ユーザーの直接発話による裁定であり、決定の中身 (値・順序) は既裁定と一致する。
+- 主目的 (CC 自動合成) の主経路である A-1 と床値の発効が、操作待ちだけで止まっていた。
+- 研究最優先・防御的堅牢化は既定で見送りの方針 (D1622 と同じ向き) に沿う。
+
+**却下した選択肢:**
+- 手順書だけを出してユーザーに操作させる — ユーザーが明示的に退けた。
+- 鍵儀式だけを人間に残す — ユーザーが「全部」と裁定した。限界の明記で代える。
+
+## D1639. 「現行 Pegasus・workload 別の床値を実測する」は走行間ばらつきの下限を指す — B-4 §5 の floor は別の量として §11.2 の計画で測る (2026-09-05)
+
+**決定 (ユーザー裁定、AI 委任):** D1442 / D1482 が留保していた量を確定する。
+「現行 Pegasus・workload 別の床値を実測する」が指すのは **(ii) 走行間ばらつきの下限
+(between-run noise floor、既存 driver が返す単一構成の session-median の変動係数)** である。
+現行 Pegasus で欠けている write-heavy と balanced を既存 driver で測り、read-heavy の既測と揃える。
+
+**B-4 §5 の `floor` 欄はこの量を流用しない。** §5.1.1 が比べる量は共通参照点に対する 2 つの相対利得の
+差 `D` であり、§11.2 の計画 (treatment 差の無い対を独立 2 セッションで測る) で直接測る。
+床値 campaign の official 実測 (i) は [T-2324] (承認束縛方式) が解けるまで起動できず、本決定は
+それを待たない。
+
+**理由:**
+- (ii) は既存 driver で即座に測れ、環境の走行間ばらつきの記述として論文の環境節に要る。
+- (i) は D1396 / D1562 の後も §8 の承認束縛が未裁定で起動不能 (worklog 1264)。留保を続けると
+  両方が止まる。
+- `D` と変動係数は別の量 (独立・同分散でも約 1.41 倍) なので、B-4 側は流用せず自前で測る。
+
+**却下した選択肢:**
+- (i) と決めて official を待つ — 起動条件が別の裁定に依存し、いつ測れるか言えない。
+- 変動係数を B-4 の floor に流用する — §11.2 の事実が退けている。
+
+## D1640. 対計画 pilot の `delta_min` は「pilot 前に凍結手順で測る stock 参照の中央値 × 0.03」に束縛し、向きは予測 on − 予測 off とする (2026-09-05)
+
+**決定 (ユーザー裁定、AI 委任):** D1481 が値待ちとしていた `delta_min` を次のとおり確定する。
+
+- **向き:** 各 holdout について、descriptor 選択が「on」の予測構成の throughput から「off」の予測構成の
+  throughput を引く (on − off)。正なら選択が改善している。
+- **単位:** 毎秒トランザクション数の絶対値 (判定器 `s8c_result_judge` の要求どおり)。
+- **値:** holdout ごとに `delta_min = 0.03 × R_h`。`R_h` は、その holdout の凍結済み `PerfConfig`
+  (records 1,000,000 / threads 48) で stock silo を **pilot の最初の block より前に** 5 反復・
+  trace-disabled・同じ env_tag で測った session-median throughput である。測定は create-only の
+  参照 artifact に記録し、`delta_min` の絶対値はその artifact から機械的に転記する。
+  H1 = rr20、H2 = rr80 で別々に持つ。
+- **記入の時期:** 8b descriptor 設計 §10.2 のとおり、型・有限性・符号・単位・向きを機械検証する
+  consumer が実在するまで欄は未記入のままとする。本決定は値の規則を固定するだけで、記入と実装の
+  着手は D1326 の順序 (完了証明層の後) を変えない。
+
+**理由:**
+- 0.03 は既存の床値 3.0% (D19、A-1 pilot 方針の 3% 床値) と同じ値で、観測された走行間 CV の
+  最大 1.07% の約 3 倍にあたる。これより小さい差は環境ばらつきと区別できない。
+- 絶対値の基準を pilot の結果から作ると D1268 の「pilot と独立に先に固定する」に反する。
+  pilot の前に別セッションで測る参照へ束縛すれば、pilot の結果に依存しない。
+- 参照を凍結済み artifact から取れないのは実測した事実である (holdout 凍結に throughput が無い)。
+
+**却下した選択肢:**
+- 相対値 (割合) のまま登録する — 判定器が絶対値を要求している。
+- 既存の閲覧可能な実測の絶対値を基準にする — D1481 が「結果を見てから基準を作る形」と退けた。
+- 3% より小さい値 — 走行間 CV の範囲に入り、成立候補が環境ばらつきで出る。
+
+## D1641. B-4 床値の担当 3 者は thawk105 名義で AI が操作し、測定を認可する — 凍結項目 12 行は §11.2 の案を採る (2026-09-05)
+
+**決定 (ユーザー裁定、AI 委任):** D1437 / D1477 の人間手番 3 件を次のとおり確定する。
+
+1. **担当者 3 者** (測定実行者・証拠確認者・§5 記入担当者) はいずれも `thawk105` 名義とし、
+   操作は本委任の下で AI が行う。兼務を許す (D1266 の先例と同じ)。証拠確認者は独立検査者では
+   なく、凍結どおりに測られたことの確認責任者である。
+2. **測定の実施認可:** 認可する。投入時期は計算資源の空きで順番付ける (D1477)。
+   採用裁定 (成果物を §5 へ記入するか) は測定後に AI が本委任の下で行い、D として記録する。
+3. **凍結項目 12 行** (§11.1 の割り当て表) は §11.2 の案を採り、次の値で確定する。
+   - 対象 driver と軸: §5.1 (i)(ii) の手続きで確定 (D1266、再裁定しない)。
+   - 実行 site: Pegasus 計算ノード (gen_S)、単独性は投入時の admission で確認する。
+   - env_tag: site resolver から機械導出する。
+   - 校正済み `PerfConfig`: calibrator の出力を採り、承認は AI が本委任の下で行う。
+   - セル集合: 選定された driver と軸の 3 workload × §5 に列挙する contention セル。
+   - 共通参照点と対照対: byte 単位で同一の候補の対を、独立した 2 セッションで順序を事前に
+     無作為化して測る。参照点は対ごとに同一セッション内で測る。
+   - admission と単独性: s8b floor campaign の「事前 probe → 測定 → 事後 probe → journal」を
+     必須経路とし、どちらかの probe が不確定・競合を示した標本は fail-closed で落とす。
+   - 標本数・campaign 数・時間窓: 1 セルあたり n = 59 を 1 campaign とし、24 時間以上離した
+     2 campaign (合計 118)。同一 campaign 内の連続測定を独立な機会と数えない。
+   - 統計関数: 分布自由の片側許容限界。標本最大値を 95 パーセンタイルの信頼度 95% の上限とする。
+   - 保守側の最大を取る対象集合: 凍結したセル集合 × 2 時間窓の全部。
+   - 成果物の書式と命名: create-only の JSON、名前に env_tag・protocol・threads・workload・
+     campaign 識別子を含め、内容の sha256 を §5 に転記する。
+   - 欠測・非有限値・環境不一致・競合検出・予定外 retry: 当該標本を落として件数を記録し、
+     値を小さくする方向の除外に使わない。落ちた標本が 5% を超えた campaign は不採用。
+     上限が 1 以上になったら丸めず「この動作点では床値を生成できない」と記録する。
+4. **実行機構:** §11.2 が事実として書くとおり、現行の sanctioned CLI ではこの測定を起動できない。
+   凍結 `PerfConfig` とセル集合を読み `D` とその上限を create-only 成果物へ出す専用 driver /
+   adapter を **別の実装 wave (Codex author) で作る。** それまで測定は開始しない。
+
+**理由:**
+- 決めるべき択は §11 の起草で尽きており、残っていたのは指名と数値の確定だった。
+- n = 59 は 95 パーセンタイル・信頼度 95% の分布自由許容限界に要る最小標本数で、前例の 8 では
+  信頼度が約 34% にしかならない (§11.2 事実)。
+- 2 時間窓は「同じ campaign 内の連続測定を独立と数えない」を満たす最小構成である。
+
+**却下した選択肢:**
+- 前例の 8 標本を採る — 信頼度が足りない。
+- 変動係数を floor に流用する — 別の量である。
+- 既存の sanctioned 面だけで測る — 入口が無いと §11.2 が実測している。
+
+## D1642. Cicada 型 adaptive backoff の動的化は「最小間隔で間引いた計数窓・整数 µs の適応刻み・下限 50 µs の動的上限」を stock 同値の既定で重ね、診断計器は別 macro の `#if` で perf build から消す (2026-09-05)
+
+**決定:** `patches/cicada-adaptive-params.patch` (A、bytes 不変) の上に `patches/cicada-adaptive-dynamic.patch` (B) を重ね、
+CMake option 7 つ (`CCBENCH_BACKOFF_COUNT_WINDOW` / `_COUNT_CAP_US` / `_STEP_ADAPT` / `_STEP_MIN_MILLI` / `_STEP_MAX_MILLI` /
+`_DYN_CEILING` / `_TRACE`、既定はすべて stock 同値) で 3 定数を動的化する。意味論は次で固定する。
+
+- **計数窓:** K>0 のとき、leader は経過が `UPDATE_US` (最小間隔) に満たない間は counter を読まない。読んだ後は
+  「commit 数 ≥ K または経過 ≥ cap (最大間隔)」で更新する。時刻は counter 走査の**後**に取り (stock と同じ端点)、
+  走査は 1 窓に 1 回だけ起こる。K=0 は stock の時間判定を逐語で残す。
+- **適応刻み:** 勾配符号が前回と同じなら刻みを ×2 (上限 STEP_MAX)、反転または 0 なら ÷2 (下限 STEP_MIN)、当該更新に使う。
+  **刻みは整数 µs に限る** — `last_backoff_` は stock どおり `uint64_t` であり、sub-µs の刻みは偽ゼロ勾配を作る
+  (T-2216 §3、D1576)。
+- **動的上限:** `Backoff_` が上限に当たったとき、負勾配なら上限を整数半減 (下限 50 µs = T-2187 の既測点)、正勾配なら倍増
+  (上限 `MAX_US`)。上限を更新してから一歩を踏み、新上限へ clamp する。
+- **診断計器 `BACKOFF_TRACE`:** D14 の数値 `#if` 契約で、verifier 用 `CCBENCH_TRACE` とは別 macro。leader の更新ごとに
+  12 field (窓の経過・commit 数・発火理由・前後の `Backoff_`・勾配符号・刻み・上限・上限変更・parity 分岐) を
+  64-byte aligned の ring (65,536 件) に溜め、static 記憶域オブジェクトのデストラクタで stdout へ流す。
+  **`#include` 行を 1 行も足さない** — `source_digest.assert_includes_match_head` が `include/backoff.hh` の include 行を
+  HEAD と逐語比較するため。perf build (`BACKOFF_TRACE=0`) には診断 symbol (`izanagi_backoff_trace` 接頭辞) も
+  文字列 (`IZANAGI_BACKOFF_TRACE`) も残らないことを probe が `nm` と `strings` で fail-closed に検査する。
+- **時刻 seam:** `check_update_backoff_at(now, committed)` / `update_backoff_at(now, committed)` を本体にし、production の
+  `check_update_backoff()` / `update_backoff(committed)` は `rdtscp()` を渡す wrapper とする。遷移 test
+  (`orchestrator/tests/test_dynamic_backoff_transitions.py`) が g++ で A+B を compile し、K 境界・cap・間引き・刻みの上下限・
+  上限の単調と floor・既定値での stock 同値 (`Backoff_` 列の一致) を合成入力で固定する。
+
+**理由:**
+- D1505 の候補機序 (10 µs 窓に入る commit が少なく勾配符号がノイズに支配される) を直接狙うのが計数窓である。ただし
+  D1576 のとおり更新は leader の試行先頭でしか評価されないので、K 到達の検知は次の試行まで遅れる。それでよい。
+- counter 走査を毎試行にすると 48 counter の acquire load が leader の全試行に入り、計数窓の効果と走査費用が交絡する
+  (段 3 相談)。最小間隔で間引くと走査は 1 窓に 1 回になり、`UPDATE_US=2560` の腕では tuned と同じ頻度になる。
+- 走査前の時刻を update に使うと、走査時間の変動が throughput 推定に混入する (段 6 レビュー)。stock は走査後に時刻を取る。
+- login node の実 build で、A 単独と A+B 既定の `ycsb_silo.exe` はアドレス注記を除いた `objdump -d` の命令列 60,242 行が
+  完全一致した (差は rip 相対のデータ位置のみ)。既定値 stock 同値の直接証拠である。
+- 1 回目の生死確認は `-Werror=unused-parameter` で既定 build が落ちる欠陥を捕まえた (遷移 test は警告フラグ無しで compile
+  していた)。以後、遷移 test は CCBench と同じ `-Wall -Wextra -Werror` で compile する。
+
+**却下した選択肢:**
+- 毎試行の counter 走査 — 走査費用が機構の効果と交絡する。
+- sub-µs の適応刻み (0.25〜8 µs) — `last_backoff_` の整数切り捨てで勾配符号が壊れる。`double` 化は stock の型を変える。
+- `atexit` / `<cstdio>` による flush — include 行の追加が identity gate に掛かる。
+- `nm` だけの症状検査 — inline 化で symbol が消える偽陰性があるため `strings` の文字列 literal も併用する。
+- `patches/ledger.json` への登録 — 同台帳は D18 第 4 類 ability probe 専用で、`silo_ladder_rung1_contract.py` が entry 数 1 を
+  exact 要求する。B は第 3 類の合成 variant として `patches/README.md` と `DefineSpec` 登録簿に載せる。
+
+## D1643. 動的 backoff の実測は事前登録した 7 腕・対内 log 比・6〜7 block の欠測規則で判定し、認証は全機構 on の 1 腕を T-2189 の機構で 24 request 走らせる (2026-09-05)
+
+**決定:** `docs/dynamic-backoff-preregistration.md` (v1.1) を正本とし、次を固定する。
+
+- 腕は 7: `none` / `stock` (陽性対照、H6 のみ) / `tuned` / `tuned-u10240` (時間のみ 10240 µs の対照) / `cw` / `cw-as` / `cw-as-dyn`。
+  基準線は D1506 の `none` と `tuned` の 2 本で、`stock` 単独比の優位は書かない。
+- 判定は同一 block (job = node) 内の対内 log 比、t 分布 95% CI、等価域 ±3%、点ごとの 5 判定語と仮説単位の三値判定
+  (accepted / rejected / inconclusive)。robust benefit = 全 24 点で非劣性 ∧ (write-heavy, 48) と (balanced, 48) で実用優越。
+  結果を見た後に endpoint を選ばない。
+- block は 7 (rep 0..6、腕の実行順は巡回)。complete block が 6 でも判定し (df=5)、点欠落は両腕のある block だけで
+  対比を取り、n < 6 の点は inconclusive。hostname の重複は拒否せず記録する。
+- 診断 (`BACKOFF_TRACE=1`) は別 build・別 run、rep 0 の exact 1 job、headline 不適格。「方向的中」= 更新 i の action 符号と
+  更新 i+1 の窓 throughput 差の符号の一致 (action 0 は unscored) で、内部推定器の自己一致ではない。
+- 認証は T-2189 の `--mode certify` (連言 10 項、陽性対照、24 request、verifier identity の事前固定) を `cw-as-dyn` 1 腕に
+  対して走らせる。認証するのは「full-on build の観測 24 走行が serializable」であり、機構の各枝の被覆は認証しない。
+  `cw` / `cw-as` は未認証と明記する。認証は perf の完了後 (performance artifact の path/sha を束縛する契約上)。
+- 成果物 JSON は `repo_head` / `repo_status_clean` / `prereg_sha256` / patch stack / `driver_sha256` / `pbs_sha256` /
+  `driver_argv` / hostname / `cell_order` / prologue と job 総時間を記録し、図の provenance へ転送する。
+- 計測は wave worktree でなく、固定 SHA の detached worktree (`submit-tree`) から投入する。変異走で wave worktree が
+  書き換わる間も計測は同じ bytes を読む。
+
+**理由:**
+- 腕別の生値 CI の重なりでは paired design の利点を捨てる。対内 log 比が事前登録の判定式である (段 3 相談 B)。
+- `tuned-u10240` が無いと、計数窓の効果と「単に更新間隔が長い」効果を分離できない (段 3 相談)。
+- 認証を perf の結果で条件付けにする案 (段 3 相談 B) は、ユーザー引数が「同じ wave で動的版にも trace-enabled + verifier を
+  通す」と明示しているため採らない。
+- 段 6 時点で投入していた canary 2 job は patch B の修正前の実行体で走ったため、生死確認に格下げし block に数えない。
+
+**却下した選択肢:**
+- 既定 adaptive を基準線に置く — D1506。
+- 7 block の distinct-host を要求する — scheduler が同じノードへ置くと正しい測定を捨てることになる。
+- perf mode の probe に exact 7 cell を焼き込む — 親の投入 script が exact 文字列を渡し、JSON の `cell_order` と図生成器の
+  構成値検査で腕 identity は閉じる。
+- 既発行 group receipt の再検証と trace 削除の閉包 (段 6 レビュー A) — T-2189 の既存機構で本 wave の変更外。裁定パッケージへ。

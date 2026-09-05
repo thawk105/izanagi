@@ -7331,6 +7331,12 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
     ledger = json.loads(_LEDGER.read_text(encoding="utf-8"))
     registered = {entry["path"] for entry in ledger["entries"]}
     known_non_variant_patches = {
+        # Matches are diagnostic stdout marker string literals
+        # (IZANAGI_BACKOFF_TRACE*) inside #if BACKOFF_TRACE, not naked macros.
+        # Patch macros are registered in condition_meaning_gate.DefineSpec;
+        # ledger.json stays unregistered for the rung1 contract (exactly 1 entry),
+        # per the stage 4 ruling P7.
+        "patches/cicada-adaptive-dynamic.patch",
         "patches/broken-silo-early-unlock-validation.patch",
         "patches/broken-silo-highkey-validation.patch",
         "patches/broken-silo-lockskip-validation.patch",

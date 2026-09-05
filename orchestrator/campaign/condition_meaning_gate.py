@@ -9,7 +9,7 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 25 patch-derived defines.  The
+Claim boundary: the supply domain contains the 32 patch-derived defines.  The
 legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Nine
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
@@ -83,6 +83,41 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/cicada-adaptive-params.patch",
         inert_values=("1000",),
+    ),
+    "BACKOFF_COUNT_WINDOW": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-dynamic.patch",
+        inert_values=("0",),
+    ),
+    "BACKOFF_COUNT_CAP_US": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-dynamic.patch",
+        inert_values=(),
+    ),
+    "BACKOFF_STEP_ADAPT": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-dynamic.patch",
+        inert_values=("0",),
+    ),
+    "BACKOFF_STEP_MIN_MILLI": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-dynamic.patch",
+        inert_values=(),
+    ),
+    "BACKOFF_STEP_MAX_MILLI": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-dynamic.patch",
+        inert_values=(),
+    ),
+    "BACKOFF_DYN_CEILING": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-dynamic.patch",
+        inert_values=("0",),
+    ),
+    "BACKOFF_TRACE": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/cicada-adaptive-dynamic.patch",
+        inert_values=("0",),
     ),
     "BACKOFF_NOINLINE": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
