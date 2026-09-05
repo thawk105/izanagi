@@ -15,6 +15,8 @@ umask 077
 
 DEFAULT_OUT_DIR=/work/1/SFC/tanab/izanagi-job-evidence/t2187-adaptive-3const/results
 DYNAMIC_OUT_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/
+DYNAMIC_CERTIFY_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/certify/
+DYNAMIC_PERFORMANCE_PREFIX=/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/perf/
 TRACE_CELLS_RAW='cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
 CERT_TUNED_CELL='tuned:1:1:1000:2560'
 CERT_DYNAMIC_CELL='cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1'
@@ -44,7 +46,13 @@ if [[ ! "$REPO_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
   echo "repository HEAD must be an exact commit" >&2
   exit 2
 fi
+REPO_STATUS=$(git -C "$REPO_ROOT" status --porcelain --untracked-files=no)
+if [[ -n "$REPO_STATUS" ]]; then
+  echo "repository must be tracked-clean before the probe starts" >&2
+  exit 2
+fi
 export IZANAGI_T2187_REPO_HEAD="$REPO_HEAD"
+export IZANAGI_T2187_REPO_CLEAN=1
 DRIVER="$REPO_ROOT/tools/pegasus/probes/t2187_adaptive_const_probe.py"
 POLICY="$REPO_ROOT/tools/pegasus/policy.json"
 if [[ ! -f "$DRIVER" || -L "$DRIVER" || ! -f "$POLICY" || -L "$POLICY" ]]; then
@@ -75,6 +83,15 @@ PERFORMANCE_ARTIFACT=${IZANAGI_T2187_PERFORMANCE_ARTIFACT:-}
 PERFORMANCE_ARTIFACT_SHA256=${IZANAGI_T2187_PERFORMANCE_ARTIFACT_SHA256:-}
 EXPECTED_VERIFIER_IDENTITY=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY:-}
 EXPECTED_VERIFIER_IDENTITY_SHA256=${IZANAGI_T2187_EXPECTED_VERIFIER_IDENTITY_SHA256:-}
+
+require_canonical_child() {
+  local raw_path=$1 namespace=$2 binding=$3 canonical_path
+  canonical_path=$(realpath -m -- "$raw_path") || return 1
+  if [[ "$raw_path" != /* || "$canonical_path" != "$namespace"* ]]; then
+    echo "$binding must be a canonical child of $namespace" >&2
+    return 1
+  fi
+}
 if [[ "$MODE" != performance && "$MODE" != certify ]]; then
   echo "IZANAGI_T2187_MODE must be performance or certify" >&2
   exit 2
@@ -150,6 +167,21 @@ if [[ "$MODE" == certify ]]; then
     echo "certify mode time budgets must be positive decimal seconds" >&2
     exit 2
   fi
+  if [[ "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
+    require_canonical_child "$GROUP_RECEIPT_OUT" "$DYNAMIC_CERTIFY_PREFIX" \
+      "dynamic group receipt" || exit 2
+    require_canonical_child "$PERFORMANCE_ARTIFACT" "$DYNAMIC_PERFORMANCE_PREFIX" \
+      "dynamic performance artifact" || exit 2
+    IFS='+' read -r -a DYNAMIC_GROUP_RESULT_PATHS <<< "$GROUP_RESULT_PATHS_RAW"
+    if [[ ${#DYNAMIC_GROUP_RESULT_PATHS[@]} -ne 24 ]]; then
+      echo "dynamic certify requires exactly 24 result paths" >&2
+      exit 2
+    fi
+    for result_path in "${DYNAMIC_GROUP_RESULT_PATHS[@]}"; do
+      require_canonical_child "$result_path" "$DYNAMIC_CERTIFY_PREFIX" \
+        "dynamic group result" || exit 2
+    done
+  fi
 fi
 NEEDS_DYNAMIC_OUT=0
 if [[ "$HAS_EXTENDED_CELL" == 1 || "$BACKOFF_TRACE" == 1 || "$MODE" == certify && "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
@@ -164,6 +196,10 @@ OUT_DIR=$(realpath -m -- "$OUT_DIR")
 if [[ "$NEEDS_DYNAMIC_OUT" == 1 && "$OUT_DIR" != "$DYNAMIC_OUT_PREFIX"* ]]; then
   echo "IZANAGI_T2187_OUT_DIR must use the dynamic-backoff prefix" >&2
   exit 2
+fi
+if [[ "$MODE" == certify && "$CELLS_RAW" == "$CERT_DYNAMIC_CELL" ]]; then
+  require_canonical_child "$OUT_DIR" "$DYNAMIC_CERTIFY_PREFIX" \
+    "dynamic certification output directory" || exit 2
 fi
 CELLS=${CELLS_RAW//+/,}
 WORKLOADS=${WORKLOADS_RAW//+/,}
@@ -332,11 +368,14 @@ fi
 exec "$PY" -B -u "$DRIVER" \
   "${BACKOFF_TRACE_ARGS[@]}" \
   --repo-head "$REPO_HEAD" \
+  --repo-clean 1 \
   --cells "$CELLS" \
   --workloads "$WORKLOADS" \
   --threads "$THREADS" \
   --rep-index "$REP_INDEX" \
   --stage "$STAGE" \
+  --prologue-elapsed-s "$PROLOGUE_ELAPSED_S" \
+  --prologue-cpu-s "$PROLOGUE_CPU_S" \
   --out "$OUT"
 fi
 
@@ -344,6 +383,7 @@ OUT="$OUT_DIR/certify-${WORKLOADS}-slot${REP_INDEX}-${ATTEMPT_ID}.json"
 exec "$PY" -B -u "$DRIVER" \
   --mode certify \
   --repo-head "$REPO_HEAD" \
+  --repo-clean 1 \
   --cells "$CELLS" \
   --workloads "$WORKLOADS" \
   --threads "$THREADS" \

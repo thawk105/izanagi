@@ -18,6 +18,7 @@ import os
 import sys
 import tempfile
 from collections.abc import Mapping, Sequence
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,7 @@ DIAGNOSTIC_KIND = "diagnostic-backoff-trace"
 NOT_CERTIFIED = "性能値は未認証"
 GENERATOR = Path(__file__).resolve()
 CCBENCH_COMMIT = "511c953"
+CCBENCH_HEAD = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A_SHA256 = "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
 
 WORKLOADS = ("write-heavy", "balanced", "read-heavy")
@@ -87,6 +89,10 @@ CONFIG_FIELDS = (
     "count_cap_us", "step_adapt", "step_min_us", "step_max_us",
     "dyn_ceiling", "is_stock_control",
 )
+CELL_FORMAT_FIELDS = {
+    "none": 5, "stock": 5, "tuned": 5, "tuned-u10240": 5,
+    "cw": 11, "cw-as": 11, "cw-as-dyn": 11,
+}
 
 # The ordering is the preregistered H1--H7 ordering.
 CONTRASTS = (
@@ -98,6 +104,15 @@ CONTRASTS = (
     ("H6", "stock", "tuned"),
     ("H7", "tuned-u10240", "tuned"),
 )
+ACCEPTANCE_CONDITIONS = {
+    "H1": "all 24 points noninferior; write-heavy/48 and balanced/48 superior",
+    "H2": "all 8 read-heavy points noninferior",
+    "H3": "all 24 points noninferior; write-heavy/48 and balanced/48 superior",
+    "H4": "all 24 points noninferior; write-heavy/48 and balanced/48 superior",
+    "H5": "all 24 points equivalent within +/-3%",
+    "H6": "all 3 workload points at 48 threads practically degraded",
+    "H7": "all 24 points equivalent within +/-3%",
+}
 PRACTICAL_PERCENT = 3.0
 MAX_TRAJECTORY_POINTS = 1024
 EVENLY_SPACED_POINTS = 512
@@ -124,6 +139,13 @@ def _string(value: object, label: str) -> str:
     if type(value) is not str or not value:
         _fail(f"{label} must be a non-empty string")
     return value
+
+
+def _string_list(value: object, label: str) -> list[str]:
+    rows = _require_list(value, label)
+    if not rows:
+        _fail(f"{label} must not be empty")
+    return [_string(row, f"{label}[{index}]") for index, row in enumerate(rows)]
 
 
 def _integer(value: object, label: str, *, minimum: int = 0) -> int:
@@ -197,6 +219,12 @@ def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
         "repo_head": _hex(document.get("repo_head"), f"{label}.repo_head", 40),
         "prereg_sha256": _hex(document.get("prereg_sha256"), f"{label}.prereg_sha256"),
         "ccbench_commit": _string(document.get("ccbench_commit"), f"{label}.ccbench_commit"),
+        "ccbench_head": _hex(document.get("ccbench_head"), f"{label}.ccbench_head", 40),
+        "driver_sha256": _hex(
+            document.get("driver_sha256"), f"{label}.driver_sha256"
+        ),
+        "pbs_sha256": _hex(document.get("pbs_sha256"), f"{label}.pbs_sha256"),
+        "repo_status_clean": document.get("repo_status_clean"),
         "patch_sha256": _hex(document.get("patch_sha256"), f"{label}.patch_sha256"),
         "dynamic_patch_sha256": _hex(
             document.get("dynamic_patch_sha256"), f"{label}.dynamic_patch_sha256"
@@ -217,6 +245,10 @@ def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
         _fail(f"{label}.extime_s must be exactly 3")
     if identity["ccbench_commit"] != CCBENCH_COMMIT:
         _fail(f"{label}.ccbench_commit differs from the preregistered pin")
+    if identity["ccbench_head"] != CCBENCH_HEAD:
+        _fail(f"{label}.ccbench_head differs from the preregistered full pin")
+    if identity["repo_status_clean"] is not True:
+        _fail(f"{label}.repo_status_clean must be true")
     if identity["patch_sha256"] != PATCH_A_SHA256:
         _fail(f"{label}.patch_sha256 differs from the preregistered patch A")
     expected_stack = [
@@ -234,6 +266,32 @@ def _common_identity(document: Mapping[str, Any], label: str) -> dict[str, Any]:
     return identity
 
 
+def _execution_provenance(
+    document: Mapping[str, Any], label: str,
+) -> dict[str, Any]:
+    prologue_elapsed = _number(
+        document.get("prologue_elapsed_s"), f"{label}.prologue_elapsed_s",
+        lower=0.0,
+    )
+    prologue_cpu = _number(
+        document.get("prologue_cpu_s"), f"{label}.prologue_cpu_s", lower=0.0,
+    )
+    job_total = _number(
+        document.get("job_total_seconds"), f"{label}.job_total_seconds",
+        lower=0.0,
+    )
+    if job_total < prologue_elapsed:
+        _fail(f"{label}.job_total_seconds must include prologue_elapsed_s")
+    return {
+        "driver_argv": _string_list(
+            document.get("driver_argv"), f"{label}.driver_argv"
+        ),
+        "prologue_elapsed_s": prologue_elapsed,
+        "prologue_cpu_s": prologue_cpu,
+        "job_total_seconds": job_total,
+    }
+
+
 def _validate_cell_configuration(row: Mapping[str, Any], cell: str, label: str) -> dict[str, Any]:
     expected = CELL_CONFIGS[cell]
     for field, wanted in zip(CONFIG_FIELDS, expected, strict=True):
@@ -243,7 +301,15 @@ def _validate_cell_configuration(row: Mapping[str, Any], cell: str, label: str) 
                 _fail(f"{label}.{field} does not match preregistered cell {cell}")
         elif not _same_number(observed, wanted):
             _fail(f"{label}.{field} does not match preregistered cell {cell}")
-    return {field: value for field, value in zip(CONFIG_FIELDS, expected, strict=True)}
+    format_fields = _integer(
+        row.get("cell_format_fields"), f"{label}.cell_format_fields", minimum=1,
+    )
+    if format_fields != CELL_FORMAT_FIELDS[cell]:
+        _fail(f"{label}.cell_format_fields does not match preregistered cell {cell}")
+    return {
+        **{field: value for field, value in zip(CONFIG_FIELDS, expected, strict=True)},
+        "cell_format_fields": format_fields,
+    }
 
 
 def _parse_performance_cell(
@@ -306,9 +372,10 @@ def _parse_performance(path: Path) -> dict[str, Any]:
     if order != expected_order:
         _fail(f"{path}.cell_order must be the preregistered rotation {expected_order!r}")
     identity = _common_identity(document, str(path))
+    execution = _execution_provenance(document, str(path))
     cells = _require_list(document.get("cells"), f"{path}.cells")
-    if len(cells) != len(CELLS) * len(WORKLOADS) * len(THREADS):
-        _fail(f"{path}.cells must contain exactly 168 rows")
+    if not 1 <= len(cells) <= len(CELLS) * len(WORKLOADS) * len(THREADS):
+        _fail(f"{path}.cells must contain between 1 and 168 rows")
     parsed: dict[tuple[str, str, int], dict[str, Any]] = {}
     for row_index, raw in enumerate(cells):
         key, value = _parse_performance_cell(
@@ -321,10 +388,8 @@ def _parse_performance(path: Path) -> dict[str, Any]:
         (cell, workload, threads)
         for cell in CELLS for workload in WORKLOADS for threads in THREADS
     }
-    if set(parsed) != expected:
-        missing = sorted(expected - set(parsed))
-        extra = sorted(set(parsed) - expected)
-        _fail(f"performance grid differs in {path}: missing={missing!r}, extra={extra!r}")
+    if not set(parsed) <= expected:
+        _fail(f"performance grid contains an unexpected coordinate in {path}")
     sha_after = _sha256(path)
     if sha_after != sha_before:
         _fail(f"input changed while it was being parsed: {path}")
@@ -336,6 +401,7 @@ def _parse_performance(path: Path) -> dict[str, Any]:
         "pbs_jobid": pbs_jobid,
         "cell_order": order,
         "identity": identity,
+        "execution": execution,
         "cells": parsed,
     }
 
@@ -346,18 +412,20 @@ def _parse_event(raw: object, label: str, expected_seq: int) -> dict[str, Any]:
     if seq != expected_seq:
         _fail(f"{label}.seq must be contiguous from zero")
     tsc = _integer(event.get("tsc"), f"{label}.tsc")
-    window_us = _number(event.get("window_us"), f"{label}.window_us", positive=True)
+    window_us = _integer(event.get("window_us"), f"{label}.window_us", minimum=1)
     window_commits = _integer(event.get("window_commits"), f"{label}.window_commits")
-    trigger = _integer(event.get("trigger"), f"{label}.trigger")
-    if trigger not in (0, 1, 2):
-        _fail(f"{label}.trigger must be 0, 1, or 2")
+    trigger = _string(event.get("trigger"), f"{label}.trigger")
+    if trigger not in ("time", "count", "cap"):
+        _fail(f"{label}.trigger must be time, count, or cap")
     gradient = _integer(event.get("gradient_sign"), f"{label}.gradient_sign", minimum=-1)
     if gradient not in (-1, 0, 1):
         _fail(f"{label}.gradient_sign must be -1, 0, or 1")
     ceiling_changed = _integer(event.get("ceiling_changed"), f"{label}.ceiling_changed")
-    parity_branch = _integer(event.get("parity_branch"), f"{label}.parity_branch")
-    if ceiling_changed not in (0, 1) or parity_branch not in (0, 1):
-        _fail(f"{label}.ceiling_changed and parity_branch must be 0 or 1")
+    parity_branch = _string(event.get("parity_branch"), f"{label}.parity_branch")
+    if ceiling_changed not in (0, 1):
+        _fail(f"{label}.ceiling_changed must be 0 or 1")
+    if parity_branch not in ("none", "decrement", "increment"):
+        _fail(f"{label}.parity_branch must be none, decrement, or increment")
     return {
         "seq": seq,
         "tsc": tsc,
@@ -380,18 +448,27 @@ def _parse_event(raw: object, label: str, expected_seq: int) -> dict[str, Any]:
     }
 
 
-def _directional_success(events: Sequence[Mapping[str, Any]]) -> tuple[int, int, float]:
-    scored = hits = 0
+def _directional_success(
+    events: Sequence[Mapping[str, Any]],
+) -> tuple[int, int, float | None]:
+    scored = successes = 0
     for current, following in zip(events, events[1:]):
-        action = _sign(current["backoff_after"] - current["backoff_before"])
+        action = _sign(float(
+            Decimal(str(current["backoff_after"]))
+            - Decimal(str(current["backoff_before"]))
+        ))
         if action == 0:
             continue
-        current_rate = current["window_commits"] / current["window_us"]
-        following_rate = following["window_commits"] / following["window_us"]
+        current_rate = Decimal(current["window_commits"]) / Decimal(
+            str(current["window_us"])
+        )
+        following_rate = Decimal(following["window_commits"]) / Decimal(
+            str(following["window_us"])
+        )
         scored += 1
         if action == _sign(following_rate - current_rate):
-            hits += 1
-    return scored, hits, hits / scored if scored else 0.0
+            successes += 1
+    return scored, successes, successes / scored if scored else None
 
 
 def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, str, int], dict[str, Any]]:
@@ -402,36 +479,56 @@ def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, st
     threads = _integer(row.get("threads"), f"{label}.threads", minimum=1)
     if cell not in TRACE_CELLS or workload not in WORKLOADS or threads not in TRACE_THREADS:
         _fail(f"{label} is outside the exact 3 x 3 x 2 diagnostic grid")
+    configuration = _validate_cell_configuration(row, cell, label)
     genome = _string(row.get("genome"), f"{label}.genome")
     binary_sha = _hex(row.get("binary_sha256"), f"{label}.binary_sha256")
-    diagnostic_tps = _number(
-        row.get("throughput_diagnostic_only"),
-        f"{label}.throughput_diagnostic_only",
-        positive=True,
-    )
-    raw_events = _require_list(row.get("events"), f"{label}.events")
+    if _integer(
+        row.get("backoff_trace_symbol_count"),
+        f"{label}.backoff_trace_symbol_count",
+    ) < 1:
+        _fail(f"{label}.backoff_trace_symbol_count must be positive")
+    if _integer(
+        row.get("backoff_trace_string_count"),
+        f"{label}.backoff_trace_string_count",
+    ) < 1:
+        _fail(f"{label}.backoff_trace_string_count must be positive")
+    throughputs = _require_list(row.get("throughputs"), f"{label}.throughputs")
+    if len(throughputs) != 1:
+        _fail(f"{label}.throughputs must contain exactly one raw repetition")
+    throughput = _number(throughputs[0], f"{label}.throughputs[0]", positive=True)
+    median_tps = _number(row.get("median_tps"), f"{label}.median_tps", positive=True)
+    if not math.isclose(median_tps, throughput, rel_tol=0.0, abs_tol=1e-9):
+        _fail(f"{label}.median_tps must equal the sole raw throughput")
+    raw_events = _require_list(row.get("trace_events"), f"{label}.trace_events")
     if not raw_events:
-        _fail(f"{label}.events must not be empty")
-    events = [_parse_event(event, f"{label}.events[{i}]", i) for i, event in enumerate(raw_events)]
-    if any(right["tsc"] <= left["tsc"] for left, right in zip(events, events[1:])):
-        _fail(f"{label}.events tsc values must be strictly increasing")
-    summary = _require_dict(row.get("summary"), f"{label}.summary")
-    updates = _integer(summary.get("updates"), f"{label}.summary.updates")
-    retained = _integer(summary.get("retained"), f"{label}.summary.retained")
-    dropped = _integer(summary.get("dropped"), f"{label}.summary.dropped")
+        _fail(f"{label}.trace_events must not be empty")
+    events = [
+        _parse_event(event, f"{label}.trace_events[{i}]", i)
+        for i, event in enumerate(raw_events)
+    ]
+    if any(right["tsc"] < left["tsc"] for left, right in zip(events, events[1:])):
+        _fail(f"{label}.trace_events tsc values must be monotonic")
+    summary = _require_dict(row.get("trace_summary"), f"{label}.trace_summary")
+    updates = _integer(summary.get("updates"), f"{label}.trace_summary.updates")
+    retained = _integer(summary.get("retained"), f"{label}.trace_summary.retained")
+    dropped = _integer(summary.get("dropped"), f"{label}.trace_summary.dropped")
     if updates != retained + dropped or retained != len(events) or dropped != 0:
-        _fail(f"{label}.summary must report all events retained and none dropped")
+        _fail(f"{label}.trace_summary must report all events retained and none dropped")
     directional = _require_dict(row.get("directional_success"), f"{label}.directional_success")
     scored = _integer(directional.get("scored"), f"{label}.directional_success.scored")
-    hits = _integer(directional.get("hits"), f"{label}.directional_success.hits")
-    rate = _number(
-        directional.get("rate"), f"{label}.directional_success.rate",
-        lower=0.0, upper=1.0,
+    successes = _integer(
+        directional.get("successes"), f"{label}.directional_success.successes"
     )
-    expected_scored, expected_hits, expected_rate = _directional_success(events)
-    if (scored, hits) != (expected_scored, expected_hits) or not math.isclose(
-        rate, expected_rate, rel_tol=0.0, abs_tol=1e-12,
-    ):
+    raw_rate = directional.get("rate")
+    rate = None if raw_rate is None else _number(
+        raw_rate, f"{label}.directional_success.rate", lower=0.0, upper=1.0,
+    )
+    expected_scored, expected_successes, expected_rate = _directional_success(events)
+    rates_match = rate is expected_rate if expected_rate is None else (
+        rate is not None
+        and math.isclose(rate, expected_rate, rel_tol=0.0, abs_tol=1e-12)
+    )
+    if (scored, successes) != (expected_scored, expected_successes) or not rates_match:
         _fail(f"{label}.directional_success does not match the event sequence")
     return (cell, workload, threads), {
         "cell": cell,
@@ -439,10 +536,16 @@ def _parse_trace_run(raw: object, path: Path, index: int) -> tuple[tuple[str, st
         "threads": threads,
         "genome": genome,
         "binary_sha256": binary_sha,
-        "throughput_diagnostic_only": diagnostic_tps,
-        "events": events,
-        "summary": {"updates": updates, "retained": retained, "dropped": dropped},
-        "directional_success": {"scored": scored, "hits": hits, "rate": rate},
+        "throughputs": [throughput],
+        "median_tps": median_tps,
+        "trace_events": events,
+        "trace_summary": {
+            "updates": updates, "retained": retained, "dropped": dropped,
+        },
+        "directional_success": {
+            "scored": scored, "successes": successes, "rate": rate,
+        },
+        **configuration,
     }
 
 
@@ -455,9 +558,13 @@ def _parse_diagnostic(path: Path) -> dict[str, Any]:
         _fail(f"kind must exactly equal {DIAGNOSTIC_KIND!r}: {path}")
     if document.get("headline_eligible") is not False:
         _fail(f"{path}.headline_eligible must be false")
+    rep_index = _integer(document.get("rep_index"), f"{path}.rep_index")
+    if rep_index != 0:
+        _fail(f"{path}.rep_index must be exactly 0 for the diagnostic job")
     hostname = _string(document.get("hostname"), f"{path}.hostname")
     pbs_jobid = _string(document.get("pbs_jobid"), f"{path}.pbs_jobid")
     identity = _common_identity(document, str(path))
+    execution = _execution_provenance(document, str(path))
     raw_runs = _require_list(document.get("trace_runs"), f"{path}.trace_runs")
     if len(raw_runs) != len(TRACE_CELLS) * len(WORKLOADS) * len(TRACE_THREADS):
         _fail(f"{path}.trace_runs must contain exactly 18 runs")
@@ -481,9 +588,19 @@ def _parse_diagnostic(path: Path) -> dict[str, Any]:
         "sha256": sha_after,
         "hostname": hostname,
         "pbs_jobid": pbs_jobid,
+        "rep_index": rep_index,
         "identity": identity,
+        "execution": execution,
         "runs": runs,
     }
+
+
+def _ci_summary(
+    samples: Sequence[float],
+) -> tuple[float | None, float | None, float | None]:
+    if not samples:
+        return None, None, None
+    return ci95(samples)
 
 
 def _aggregate_performance(performance: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -492,14 +609,21 @@ def _aggregate_performance(performance: Sequence[Mapping[str, Any]]) -> list[dic
         for threads in THREADS:
             for cell in CELLS:
                 key = (cell, workload, threads)
-                observations = [document["cells"][key] for document in performance]
+                observations = [
+                    document["cells"][key]
+                    for document in performance if key in document["cells"]
+                ]
                 throughput_samples = [row["throughput_tps"] for row in observations]
                 abort_samples = [row["abort_rate"] for row in observations]
-                throughput_mean, throughput_half, throughput_critical = ci95(throughput_samples)
-                abort_mean, abort_half, abort_critical = ci95(abort_samples)
+                throughput_mean, throughput_half, throughput_critical = _ci_summary(
+                    throughput_samples
+                )
+                abort_mean, abort_half, abort_critical = _ci_summary(abort_samples)
                 if throughput_critical != abort_critical:
                     _fail("throughput and abort-rate t critical values differ")
-                if throughput_critical != student_t_critical_975(len(observations) - 1):
+                if len(observations) > 1 and throughput_critical != student_t_critical_975(
+                    len(observations) - 1
+                ):
                     _fail("performance CI does not use the Student t critical value")
                 rows.append({
                     "cell": cell,
@@ -508,6 +632,7 @@ def _aggregate_performance(performance: Sequence[Mapping[str, Any]]) -> list[dic
                     **{field: value for field, value in zip(
                         CONFIG_FIELDS, CELL_CONFIGS[cell], strict=True,
                     )},
+                    "cell_format_fields": CELL_FORMAT_FIELDS[cell],
                     "rep_indices": [row["rep_index"] for row in observations],
                     "n": len(observations),
                     "throughput": {
@@ -554,35 +679,96 @@ def _contrast_points(performance: Sequence[Mapping[str, Any]]) -> list[dict[str,
         for workload in WORKLOADS:
             for threads in THREADS:
                 samples = []
+                rep_indices = []
                 for document in performance:
-                    top = document["cells"][(numerator, workload, threads)]["throughput_tps"]
-                    bottom = document["cells"][(denominator, workload, threads)]["throughput_tps"]
+                    top_key = (numerator, workload, threads)
+                    bottom_key = (denominator, workload, threads)
+                    if top_key not in document["cells"] or bottom_key not in document["cells"]:
+                        continue
+                    top = document["cells"][top_key]["throughput_tps"]
+                    bottom = document["cells"][bottom_key]["throughput_tps"]
                     samples.append(math.log(top / bottom))
-                center, half, critical = ci95(samples)
-                if critical != student_t_critical_975(len(samples) - 1):
+                    rep_indices.append(document["rep_index"])
+                center, half, critical = _ci_summary(samples)
+                if len(samples) > 1 and critical != student_t_critical_975(len(samples) - 1):
                     _fail("contrast CI does not use the Student t critical value")
                 if half is None:
                     lower_log = upper_log = None
                     lower_percent = upper_percent = None
                     verdict = "inconclusive"
+                    verdict_reason = "n-insufficient" if len(samples) < 6 else "ci-unavailable"
                 else:
                     lower_log, upper_log = center - half, center + half
                     lower_percent = 100.0 * math.expm1(lower_log)
                     upper_percent = 100.0 * math.expm1(upper_log)
-                    verdict = _point_verdict(lower_percent, upper_percent)
+                    if len(samples) < 6:
+                        verdict = "inconclusive"
+                        verdict_reason = "n-insufficient"
+                    else:
+                        verdict = _point_verdict(lower_percent, upper_percent)
+                        verdict_reason = "ci-classification"
                 points.append({
                     "workload": workload,
                     "threads": threads,
                     "n": len(samples),
+                    "rep_indices": rep_indices,
                     "log_ratio_samples": samples,
                     "mean_log_ratio": center,
                     "ci95_lower_log_ratio": lower_log,
                     "ci95_upper_log_ratio": upper_log,
-                    "mean_percent": 100.0 * math.expm1(center),
+                    "mean_percent": None if center is None else 100.0 * math.expm1(center),
                     "ci95_lower_percent": lower_percent,
                     "ci95_upper_percent": upper_percent,
                     "student_t_critical_975": critical,
                     "verdict": verdict,
+                    "verdict_reason": verdict_reason,
+                })
+        contrasts.append({
+            "hypothesis": hypothesis,
+            "numerator": numerator,
+            "denominator": denominator,
+            "points": points,
+        })
+    return contrasts
+
+
+def _abort_contrast_points(
+    performance: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    contrasts: list[dict[str, Any]] = []
+    for hypothesis, numerator, denominator in CONTRASTS:
+        points = []
+        for workload in WORKLOADS:
+            for threads in THREADS:
+                samples = []
+                rep_indices = []
+                for document in performance:
+                    top_key = (numerator, workload, threads)
+                    bottom_key = (denominator, workload, threads)
+                    if top_key not in document["cells"] or bottom_key not in document["cells"]:
+                        continue
+                    samples.append(100.0 * (
+                        document["cells"][top_key]["abort_rate"]
+                        - document["cells"][bottom_key]["abort_rate"]
+                    ))
+                    rep_indices.append(document["rep_index"])
+                center, half, critical = _ci_summary(samples)
+                if len(samples) > 1 and critical != student_t_critical_975(len(samples) - 1):
+                    _fail("abort contrast CI does not use the Student t critical value")
+                points.append({
+                    "workload": workload,
+                    "threads": threads,
+                    "n": len(samples),
+                    "rep_indices": rep_indices,
+                    "samples_percentage_points": samples,
+                    "mean_percentage_points": center,
+                    "ci95_lower_percentage_points": (
+                        None if half is None else center - half
+                    ),
+                    "ci95_upper_percentage_points": (
+                        None if half is None else center + half
+                    ),
+                    "student_t_critical_975": critical,
                 })
         contrasts.append({
             "hypothesis": hypothesis,
@@ -645,56 +831,161 @@ def _all_degraded(points: Sequence[Mapping[str, Any]]) -> str:
     return "inconclusive"
 
 
-def _hypotheses(contrasts: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+def _selected_points(
+    hypothesis: str, points: Sequence[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    if hypothesis == "H2":
+        return [point for point in points if point["workload"] == "read-heavy"]
+    if hypothesis == "H6":
+        return [point for point in points if point["threads"] == 48]
+    return list(points)
+
+
+def _acceptance_predicates(
+    hypothesis: str, points: Sequence[Mapping[str, Any]],
+) -> list[tuple[Mapping[str, Any], str]]:
+    selected = _selected_points(hypothesis, points)
+    if hypothesis in ("H1", "H3", "H4"):
+        endpoints = [
+            point for point in selected
+            if point["threads"] == 48
+            and point["workload"] in ("write-heavy", "balanced")
+        ]
+        return [
+            (point, "noninferiority") for point in selected
+        ] + [
+            (point, "superiority") for point in endpoints
+        ]
+    predicate = {
+        "H2": "noninferiority", "H5": "equivalence",
+        "H6": "practical-degradation", "H7": "equivalence",
+    }[hypothesis]
+    return [(point, predicate) for point in selected]
+
+
+def _predicate_met(point: Mapping[str, Any], predicate: str) -> bool:
+    lower = point["ci95_lower_percent"]
+    upper = point["ci95_upper_percent"]
+    if lower is None or upper is None:
+        return False
+    if predicate == "noninferiority":
+        return lower > -PRACTICAL_PERCENT
+    if predicate == "superiority":
+        return lower > PRACTICAL_PERCENT
+    if predicate == "equivalence":
+        return lower >= -PRACTICAL_PERCENT and upper <= PRACTICAL_PERCENT
+    if predicate == "practical-degradation":
+        return upper < -PRACTICAL_PERCENT
+    raise AssertionError(predicate)
+
+
+def _predicate_decisively_failed(point: Mapping[str, Any], predicate: str) -> bool:
+    lower = point["ci95_lower_percent"]
+    upper = point["ci95_upper_percent"]
+    if lower is None or upper is None:
+        return False
+    if predicate == "noninferiority":
+        return upper < -PRACTICAL_PERCENT
+    if predicate == "superiority":
+        return upper <= PRACTICAL_PERCENT
+    if predicate == "equivalence":
+        return lower > PRACTICAL_PERCENT or upper < -PRACTICAL_PERCENT
+    if predicate == "practical-degradation":
+        return lower > -PRACTICAL_PERCENT
+    raise AssertionError(predicate)
+
+
+def _failed_predicates(
+    hypothesis: str, points: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    failed = []
+    for point, predicate in _acceptance_predicates(hypothesis, points):
+        if point["n"] >= 6 and _predicate_met(point, predicate):
+            continue
+        reason = "n-insufficient" if point["n"] < 6 else (
+            "ci-excludes-acceptance"
+            if _predicate_decisively_failed(point, predicate)
+            else "ci-does-not-establish-acceptance"
+        )
+        failed.append({
+            "workload": point["workload"],
+            "threads": point["threads"],
+            "predicate": predicate,
+            "reason": reason,
+        })
+    return failed
+
+
+def _hypotheses(contrasts: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
     by_name = {row["hypothesis"]: row["points"] for row in contrasts}
-    return {
-        "H1": _robust_benefit(by_name["H1"]),
-        "H2": _all_noninferiority([
-            point for point in by_name["H2"] if point["workload"] == "read-heavy"
-        ]),
-        "H3": _robust_benefit(by_name["H3"]),
-        "H4": _robust_benefit(by_name["H4"]),
-        "H5": _all_equivalent(by_name["H5"]),
-        "H6": _all_degraded([
-            point for point in by_name["H6"] if point["threads"] == 48
-        ]),
-        "H7": _all_equivalent(by_name["H7"]),
+    evaluators = {
+        "H1": _robust_benefit,
+        "H2": _all_noninferiority,
+        "H3": _robust_benefit,
+        "H4": _robust_benefit,
+        "H5": _all_equivalent,
+        "H6": _all_degraded,
+        "H7": _all_equivalent,
     }
+    results = {}
+    for hypothesis in (f"H{index}" for index in range(1, 8)):
+        points = by_name[hypothesis]
+        selected = _selected_points(hypothesis, points)
+        status = (
+            "inconclusive"
+            if any(point["n"] < 6 for point in selected)
+            else evaluators[hypothesis](selected)
+        )
+        results[hypothesis] = {
+            "acceptance_condition": ACCEPTANCE_CONDITIONS[hypothesis],
+            "status": status,
+            "failed_predicates": _failed_predicates(hypothesis, points),
+        }
+    return results
 
 
 def load_inputs(
     performance_paths: Sequence[os.PathLike[str] | str],
     trace_path: os.PathLike[str] | str,
 ) -> dict[str, Any]:
-    """Validate the exact 7+1 contract and compute frozen aggregations."""
-    if len(performance_paths) != 7:
-        _fail("exactly seven performance JSON files are required")
+    """Validate six or seven complete receipts and compute frozen aggregations."""
+    if len(performance_paths) not in (6, 7):
+        _fail("six or seven performance JSON files are required")
     resolved_performance = [Path(value).resolve() for value in performance_paths]
     resolved_trace = Path(trace_path).resolve()
     all_paths = [*resolved_performance, resolved_trace]
-    if len(set(all_paths)) != 8:
-        _fail("all eight input paths must be distinct")
+    if len(set(all_paths)) != len(all_paths):
+        _fail("all input paths must be distinct")
     performance = [_parse_performance(path) for path in resolved_performance]
     performance.sort(key=lambda row: row["rep_index"])
-    if [row["rep_index"] for row in performance] != list(range(7)):
-        _fail("performance rep_index values must contain 0..6 exactly once")
-    if len({row["hostname"] for row in performance}) != 7:
-        _fail("the seven performance blocks must have distinct hostnames")
-    if len({row["pbs_jobid"] for row in performance}) != 7:
-        _fail("the seven performance blocks must have distinct pbs_jobid values")
+    rep_indices = [row["rep_index"] for row in performance]
+    if len(set(rep_indices)) != len(rep_indices):
+        _fail("performance rep_index values must be unique members of 0..6")
+    if len({row["pbs_jobid"] for row in performance}) != len(performance):
+        _fail("performance blocks must have distinct pbs_jobid values")
+    hostname_counts = {
+        hostname: sum(row["hostname"] == hostname for row in performance)
+        for hostname in {row["hostname"] for row in performance}
+    }
+    hostname_duplicates = sorted(
+        hostname for hostname, count in hostname_counts.items() if count > 1
+    )
     diagnostic = _parse_diagnostic(resolved_trace)
     identities = [row["identity"] for row in performance] + [diagnostic["identity"]]
     if any(identity != identities[0] for identity in identities[1:]):
-        _fail("identity fields must be identical across all eight inputs")
+        _fail("common identity fields must be identical across all inputs")
     aggregates = _aggregate_performance(performance)
     contrasts = _contrast_points(performance)
+    abort_contrasts = _abort_contrast_points(performance)
     return {
         "performance": performance,
         "diagnostic": diagnostic,
         "identity": identities[0],
         "aggregates": aggregates,
         "contrasts": contrasts,
+        "abort_contrasts": abort_contrasts,
         "hypotheses": _hypotheses(contrasts),
+        "hostname_duplicates": hostname_duplicates,
     }
 
 
@@ -702,7 +993,8 @@ def _measurement_subtitle(data: Mapping[str, Any]) -> str:
     identity = data["identity"]
     return (
         f"Silo/YCSB; threads 6-48; records {identity['records']:,}; "
-        f"extime {identity['extime_s']:g} s; 7 node blocks; zipf 0.9"
+        f"extime {identity['extime_s']:g} s; "
+        f"{len(data['performance'])} paired blocks; zipf 0.9"
     )
 
 
@@ -757,23 +1049,30 @@ def make_thread_figure(data: Mapping[str, Any]):
             linestyle, marker, linewidth = styles[cell]
             for row_index, metric in enumerate(("throughput", "abort_rate")):
                 axis = axes[row_index, column]
+                center_key = "mean_tps" if metric == "throughput" else "mean_fraction"
+                lower_key = (
+                    "ci95_lower_tps" if metric == "throughput"
+                    else "ci95_lower_fraction"
+                )
+                upper_key = (
+                    "ci95_upper_tps" if metric == "throughput"
+                    else "ci95_upper_fraction"
+                )
+                scale = 1e-6 if metric == "throughput" else 100.0
                 centers = [
-                    row[metric]["mean_tps"] / 1e6
-                    if metric == "throughput"
-                    else 100.0 * row[metric]["mean_fraction"]
+                    np.nan if row[metric][center_key] is None
+                    else scale * row[metric][center_key]
                     for row in rows
                 ]
                 lows = [
-                    row[metric]["ci95_lower_tps"] / 1e6
-                    if metric == "throughput"
-                    else 100.0 * row[metric]["ci95_lower_fraction"]
-                    for row in rows
+                    center if row[metric][lower_key] is None
+                    else scale * row[metric][lower_key]
+                    for row, center in zip(rows, centers, strict=True)
                 ]
                 highs = [
-                    row[metric]["ci95_upper_tps"] / 1e6
-                    if metric == "throughput"
-                    else 100.0 * row[metric]["ci95_upper_fraction"]
-                    for row in rows
+                    center if row[metric][upper_key] is None
+                    else scale * row[metric][upper_key]
+                    for row, center in zip(rows, centers, strict=True)
                 ]
                 line, = axis.plot(
                     THREADS, centers, color=colors[cell], linestyle=linestyle,
@@ -806,7 +1105,7 @@ def make_thread_figure(data: Mapping[str, Any]):
         "Cicada-style dynamic adaptive backoff on Silo: thread axis",
         _measurement_subtitle(data),
         "Student t 95% CI from paired node blocks; n=1: CI unavailable. "
-        "PERFORMANCE VALUES NOT CERTIFIED.",
+        "Raw abort series are descriptive only. PERFORMANCE VALUES NOT CERTIFIED.",
     )
     return fig, axes
 
@@ -821,29 +1120,46 @@ def make_contrasts_figure(data: Mapping[str, Any]):
     _style()
     fig, axes = plt.subplots(4, 2, figsize=(13.8, 16.5), squeeze=False)
     fig.subplots_adjust(left=0.105, right=0.98, top=0.925, bottom=0.055,
-                        wspace=0.27, hspace=0.31)
+                        wspace=0.27, hspace=0.38)
     flat = list(axes.flat)
     for index, contrast in enumerate(data["contrasts"]):
         axis = flat[index]
         points = contrast["points"]
         y = np.arange(len(points), dtype=float)
-        centers = np.asarray([point["mean_percent"] for point in points])
-        lows = np.asarray([point["ci95_lower_percent"] for point in points])
-        highs = np.asarray([point["ci95_upper_percent"] for point in points])
         axis.axvspan(-PRACTICAL_PERCENT, PRACTICAL_PERCENT, color="#d9ead3",
                      alpha=0.75, zorder=0)
         axis.axvline(0.0, color="#555555", linewidth=0.8, zorder=1)
-        axis.errorbar(
-            centers, y, xerr=np.vstack((centers - lows, highs - centers)),
-            fmt="o", color="#1f4e79", ecolor="#1f4e79", markersize=3.0,
-            elinewidth=0.8, capsize=1.8, zorder=2,
+        selected = set(
+            (point["workload"], point["threads"])
+            for point in _selected_points(contrast["hypothesis"], points)
         )
+        for row_index, point in enumerate(points):
+            center = point["mean_percent"]
+            if center is None:
+                continue
+            is_selected = (point["workload"], point["threads"]) in selected
+            color = "#1f4e79" if is_selected else "#aeb8c2"
+            alpha = 1.0 if is_selected else 0.28
+            lower = point["ci95_lower_percent"]
+            upper = point["ci95_upper_percent"]
+            if lower is None or upper is None:
+                axis.plot(center, y[row_index], "o", color=color, alpha=alpha,
+                          markersize=3.0, zorder=2)
+            else:
+                axis.errorbar(
+                    [center], [y[row_index]],
+                    xerr=np.asarray([[center - lower], [upper - center]]),
+                    fmt="o", color=color, ecolor=color, alpha=alpha,
+                    markersize=3.0, elinewidth=0.8, capsize=1.8, zorder=2,
+                )
         axis.set_yticks(y, [_point_label(point) for point in points], fontsize=5.4)
         axis.invert_yaxis()
         axis.set_xlabel("paired throughput difference (%)")
+        hypothesis = data["hypotheses"][contrast["hypothesis"]]
         axis.set_title(
-            f"{contrast['hypothesis']}  {contrast['numerator']} / {contrast['denominator']}",
-            fontsize=8.3,
+            f"{contrast['hypothesis']}  {contrast['numerator']} / {contrast['denominator']}"
+            f" — {hypothesis['status']}\n{hypothesis['acceptance_condition']}",
+            fontsize=7.0,
         )
         axis.margins(x=0.10, y=0.025)
         _freeze_ticks_inside_limits(axis)
@@ -901,9 +1217,9 @@ def _diagnostic_values(data: Mapping[str, Any]) -> list[dict[str, Any]]:
                     "cell": cell,
                     "workload": workload,
                     "threads": threads,
-                    "summary": run["summary"],
+                    "trace_summary": run["trace_summary"],
                     "directional_success": run["directional_success"],
-                    "trajectory": _decimate(run["events"], clocks),
+                    "trajectory": _decimate(run["trace_events"], clocks),
                 })
     return rows
 
@@ -936,7 +1252,12 @@ def make_diagnostic_figure(data: Mapping[str, Any]):
                     handles.append(line)
         for threads in TRACE_THREADS:
             rates = [
-                100.0 * by_key[(cell, workload, threads)]["directional_success"]["rate"]
+                (
+                    np.nan if by_key[(cell, workload, threads)]
+                    ["directional_success"]["rate"] is None
+                    else 100.0 * by_key[(cell, workload, threads)]
+                    ["directional_success"]["rate"]
+                )
                 for cell in TRACE_CELLS
             ]
             bottom.plot(
@@ -970,7 +1291,8 @@ def _captions() -> dict[str, str]:
     return {
         "thread_axis": (
             "Seven trace-disabled performance series; none and tuned are the two "
-            "baselines, stock is a positive control. Student t 95% CI; n=1 has no CI."
+            "baselines, stock is a positive control. Student t 95% CI; n=1 has no CI. "
+            "Raw abort series are descriptive only (記述用)."
         ),
         "contrasts": (
             "Within-node log throughput ratios with Student t 95% CI and the frozen "
@@ -989,6 +1311,14 @@ def _input_records(data: Mapping[str, Any]) -> list[dict[str, Any]]:
             "rep_index": document["rep_index"],
             "hostname": document["hostname"],
             "pbs_jobid": document["pbs_jobid"],
+            "driver_sha256": document["identity"]["driver_sha256"],
+            "pbs_sha256": document["identity"]["pbs_sha256"],
+            "driver_argv": document["execution"]["driver_argv"],
+            "repo_status_clean": document["identity"]["repo_status_clean"],
+            "ccbench_head": document["identity"]["ccbench_head"],
+            "prologue_elapsed_s": document["execution"]["prologue_elapsed_s"],
+            "prologue_cpu_s": document["execution"]["prologue_cpu_s"],
+            "job_total_seconds": document["execution"]["job_total_seconds"],
         }
         for document in data["performance"]
     ]
@@ -999,6 +1329,15 @@ def _input_records(data: Mapping[str, Any]) -> list[dict[str, Any]]:
         "sha256": diagnostic["sha256"],
         "hostname": diagnostic["hostname"],
         "pbs_jobid": diagnostic["pbs_jobid"],
+        "rep_index": diagnostic["rep_index"],
+        "driver_sha256": diagnostic["identity"]["driver_sha256"],
+        "pbs_sha256": diagnostic["identity"]["pbs_sha256"],
+        "driver_argv": diagnostic["execution"]["driver_argv"],
+        "repo_status_clean": diagnostic["identity"]["repo_status_clean"],
+        "ccbench_head": diagnostic["identity"]["ccbench_head"],
+        "prologue_elapsed_s": diagnostic["execution"]["prologue_elapsed_s"],
+        "prologue_cpu_s": diagnostic["execution"]["prologue_cpu_s"],
+        "job_total_seconds": diagnostic["execution"]["job_total_seconds"],
     })
     return rows
 
@@ -1017,7 +1356,10 @@ def _measurement_conditions(data: Mapping[str, Any]) -> dict[str, Any]:
         "zipf_skew": 0.9,
         "rmw": 0,
         "max_ope": 10,
-        "performance_blocks": 7,
+        "performance_blocks": len(data["performance"]),
+        "performance_rep_indices": [
+            document["rep_index"] for document in data["performance"]
+        ],
         "performance_repetitions_per_block": 1,
         "diagnostic_repetitions": 1,
     }
@@ -1048,6 +1390,10 @@ def build_provenance(
         "repo_head": identity["repo_head"],
         "prereg_sha256": identity["prereg_sha256"],
         "ccbench_commit": identity["ccbench_commit"],
+        "ccbench_head": identity["ccbench_head"],
+        "driver_sha256": identity["driver_sha256"],
+        "pbs_sha256": identity["pbs_sha256"],
+        "repo_status_clean": identity["repo_status_clean"],
         "patch_sha256": identity["patch_sha256"],
         "dynamic_patch_sha256": identity["dynamic_patch_sha256"],
         "patch_stack": identity["patch_stack"],
@@ -1060,6 +1406,7 @@ def build_provenance(
             {"path": row["path"], "hostname": row["hostname"]}
             for row in _input_records(data)
         ],
+        "hostname_duplicates": data["hostname_duplicates"],
         "measurement_conditions": _measurement_conditions(data),
         "ci95": {
             "center": "sample mean",
@@ -1072,6 +1419,7 @@ def build_provenance(
         "performance_certification_notice": NOT_CERTIFIED,
         "performance_aggregates": data["aggregates"],
         "contrasts": data["contrasts"],
+        "abort_contrasts": data["abort_contrasts"],
         "hypotheses": data["hypotheses"],
         "diagnostic": {
             "headline_eligible": False,

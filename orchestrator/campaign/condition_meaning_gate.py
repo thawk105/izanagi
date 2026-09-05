@@ -9,7 +9,7 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 25 patch-derived defines.  The
+Claim boundary: the supply domain contains the 32 patch-derived defines.  The
 legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Nine
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real

@@ -2516,6 +2516,10 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         G.MeaningCase(1, ("7ff0000000000000", "7ff0000000000000"))
 
 
+def test_module_claim_names_the_exact_32_define_supply_domain() -> None:
+    assert "supply domain contains the 32 patch-derived defines" in G.__doc__
+
+
 def test_captured_input_hash_drift_fails_closed():
     captured = G.capture_backoff_fixed_inputs(_SUPPLIED)
     assert [entry.relative_path for entry in captured.input_files] == [

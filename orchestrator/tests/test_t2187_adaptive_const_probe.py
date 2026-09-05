@@ -117,6 +117,8 @@ def _certify_argv(
             capture_output=True,
             text=True,
         ).stdout.strip(),
+        "--repo-clean",
+        "1",
         "--cells",
         CERT_CELL,
         "--workloads",
@@ -174,6 +176,7 @@ def _install_certification_runtime(
     monkeypatch.setattr(probe.site_policy, "current_site", lambda: "PEGASUS_COMPUTE")
     monkeypatch.setattr(probe.site_policy, "refuses_heavy_work", lambda _site: False)
     monkeypatch.setattr(probe, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(probe, "_validated_repo_clean", lambda value: value == "1")
     monkeypatch.setattr(
         probe.buildcache, "compilers_for_current_site", lambda: ("gcc", "g++")
     )
@@ -914,7 +917,9 @@ def test_group_receipt_requires_exact_24_terminal_request_set(
 ) -> None:
     _install_certification_runtime(monkeypatch, tmp_path)
     with monkeypatch.context() as source_run_patch:
-        source_run_patch.setattr(probe, "_try_finalize_group", lambda *_args: False)
+        source_run_patch.setattr(
+            probe, "_try_finalize_group", lambda *_args, **_kwargs: False
+        )
         source_argv = _certify_argv(tmp_path)
         assert probe.main(source_argv) == 0
     source_document = json.loads(Path(source_argv[-1]).read_text(encoding="utf-8"))
@@ -1558,6 +1563,13 @@ IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=3 retained=3 dropped=0
             probe._parse_backoff_trace(mutated)
 
 
+def test_trace_parser_rejects_summary_without_any_event() -> None:
+    with pytest.raises(ValueError, match="at least one event"):
+        probe._parse_backoff_trace(
+            "IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates=0 retained=0 dropped=0\n"
+        )
+
+
 def test_directional_success_does_not_score_zero_action() -> None:
     events = [
         {
@@ -1633,6 +1645,41 @@ def test_pbs_dynamic_output_and_plus_transport_are_fail_closed() -> None:
     assert '--repo-head "$REPO_HEAD"' in text
 
 
+def test_execution_identity_fields_have_exact_types_and_file_hashes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(probe, "_validated_repo_clean", lambda value: value == "1")
+    monkeypatch.setattr(sys, "argv", [str(DRIVER), "--repo-clean", "1"])
+    identity = probe._execution_identity("1")
+    assert identity == {
+        "driver_sha256": hashlib.sha256(DRIVER.read_bytes()).hexdigest(),
+        "pbs_sha256": hashlib.sha256(PBS.read_bytes()).hexdigest(),
+        "driver_argv": [str(DRIVER), "--repo-clean", "1"],
+        "repo_status_clean": True,
+    }
+
+
+def test_driver_repo_clean_attestation_is_rechecked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        probe.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=" M tracked.py\n"),
+    )
+    with pytest.raises(RuntimeError, match="not tracked-clean"):
+        probe._validated_repo_clean("1")
+
+
+def test_pbs_rechecks_repo_clean_and_passes_identity_and_prologue_args() -> None:
+    text = PBS.read_text(encoding="utf-8")
+    assert 'git -C "$REPO_ROOT" status --porcelain --untracked-files=no' in text
+    assert 'export IZANAGI_T2187_REPO_CLEAN=1' in text
+    assert text.count("--repo-clean 1") == 2
+    assert text.count('--prologue-elapsed-s "$PROLOGUE_ELAPSED_S"') == 2
+    assert text.count('--prologue-cpu-s "$PROLOGUE_CPU_S"') == 2
+
+
 def test_driver_rejects_dynamic_output_outside_dedicated_namespace(
     tmp_path: Path,
 ) -> None:
@@ -1641,6 +1688,89 @@ def test_driver_rejects_dynamic_output_outside_dedicated_namespace(
     probe._validate_dynamic_output_path(
         probe.DYNAMIC_OUT_PREFIX / "trace" / "result.json"
     )
+
+
+@pytest.mark.parametrize(
+    "binding",
+    ("receipt", "result-path", "performance-artifact"),
+)
+def test_dynamic_certification_rejects_each_foreign_namespace(
+    tmp_path: Path, binding: str
+) -> None:
+    certify_root = tmp_path / "certify"
+    performance_root = tmp_path / "perf"
+    result_paths = [certify_root / f"result-{index}.json" for index in range(24)]
+    args = SimpleNamespace(
+        group_receipt_out=certify_root / "group.json",
+        group_result_path=result_paths,
+        performance_artifact=performance_root / "performance.json",
+        out=str(result_paths[0]),
+    )
+    if binding == "receipt":
+        args.group_receipt_out = tmp_path / "foreign" / "group.json"
+    elif binding == "result-path":
+        args.group_result_path[0] = tmp_path / "foreign" / "result.json"
+    else:
+        args.performance_artifact = tmp_path / "foreign" / "performance.json"
+    old_certify = probe.DYNAMIC_CERTIFY_PREFIX
+    old_performance = probe.DYNAMIC_PERFORMANCE_PREFIX
+    try:
+        probe.DYNAMIC_CERTIFY_PREFIX = certify_root
+        probe.DYNAMIC_PERFORMANCE_PREFIX = performance_root
+        with pytest.raises(probe.CertificationReject) as caught:
+            probe._validate_dynamic_certification_namespaces(
+                args, probe.CERT_DYNAMIC_CELL
+            )
+    finally:
+        probe.DYNAMIC_CERTIFY_PREFIX = old_certify
+        probe.DYNAMIC_PERFORMANCE_PREFIX = old_performance
+    assert caught.value.reason == "dynamic-certification-namespace-invalid"
+
+
+def test_dynamic_performance_artifact_rejects_certify_identity_drift(
+    tmp_path: Path,
+) -> None:
+    patch_identity = probe._patch_stack_identity()
+    repo_head = "a" * 40
+    prereg_sha256 = "b" * 64
+    execution_identity = {
+        "driver_sha256": hashlib.sha256(DRIVER.read_bytes()).hexdigest(),
+        "pbs_sha256": hashlib.sha256(PBS.read_bytes()).hexdigest(),
+        "driver_argv": [str(DRIVER), "--mode", "performance"],
+        "repo_status_clean": True,
+    }
+    document = {
+        "schema_version": probe.SCHEMA_VERSION,
+        "kind": "performance-only-probe",
+        "not_certified": probe.NOT_CERTIFIED,
+        "repo_head": repo_head,
+        "prereg_sha256": prereg_sha256,
+        "patch_stack_sha256": patch_identity["patch_stack_sha256"],
+        "ccbench_head": probe.PIN_FULL,
+        **execution_identity,
+        "cells": [{**probe._cell_identity(probe.CERT_DYNAMIC_CELL)}],
+    }
+    performance = tmp_path / "performance.json"
+
+    def write_and_digest() -> str:
+        performance.write_text(json.dumps(document) + "\n", encoding="utf-8")
+        return hashlib.sha256(performance.read_bytes()).hexdigest()
+
+    expected = {
+        "expected_repo_head": repo_head,
+        "expected_prereg_sha256": prereg_sha256,
+        "expected_patch_stack_sha256": patch_identity["patch_stack_sha256"],
+        "required_cell": probe.CERT_DYNAMIC_CELL,
+    }
+    probe._performance_artifact_identity(
+        performance, write_and_digest(), **expected
+    )
+    document["repo_head"] = "c" * 40
+    with pytest.raises(probe.CertificationReject) as caught:
+        probe._performance_artifact_identity(
+            performance, write_and_digest(), **expected
+        )
+    assert caught.value.reason == "performance-artifact-identity-mismatch"
 
 
 def test_point_journal_is_append_only_jsonl(tmp_path: Path) -> None:
@@ -1701,6 +1831,36 @@ def test_backoff_trace_mode_requires_exact_diagnostic_axes(tmp_path: Path) -> No
             probe._validate_backoff_trace_contract(
                 args, cells, workloads, threads
             )
+
+
+def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> None:
+    parser = probe._argument_parser()
+    args = parser.parse_args(
+        [
+            "--backoff-trace",
+            "--cells",
+            TRACE_CELLS,
+            "--workloads",
+            "write-heavy,balanced,read-heavy",
+            "--threads",
+            "24,48",
+            "--rep-index",
+            "1",
+            "--reps-per-job",
+            "1",
+            "--extime",
+            "3",
+            "--out",
+            str(probe.DYNAMIC_OUT_PREFIX / "trace" / "test.json"),
+        ]
+    )
+    with pytest.raises(ValueError, match="rep index 0"):
+        probe._validate_backoff_trace_contract(
+            args,
+            probe.parse_cells(args.cells),
+            probe._parse_workloads(args.workloads),
+            probe._parse_threads(args.threads),
+        )
 
 
 def _run() -> int:

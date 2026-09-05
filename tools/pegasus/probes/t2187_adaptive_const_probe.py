@@ -66,9 +66,12 @@ EXPECTED_PATCH_A_SHA256 = (
     "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
 )
 PREREGISTRATION = ROOT / "docs" / "dynamic-backoff-preregistration.md"
+PBS_DRIVER = Path(__file__).with_suffix(".pbs").resolve()
 DYNAMIC_OUT_PREFIX = Path(
     "/work/1/SFC/tanab/izanagi-job-evidence/dynamic-backoff/"
 )
+DYNAMIC_CERTIFY_PREFIX = DYNAMIC_OUT_PREFIX / "certify"
+DYNAMIC_PERFORMANCE_PREFIX = DYNAMIC_OUT_PREFIX / "perf"
 
 CONTRACT = env_contract.lookup("pegasus")
 ENV_TAG = CONTRACT.env_tag
@@ -662,6 +665,64 @@ def _validated_repo_head(value: str | None) -> str:
     return value
 
 
+def _validated_repo_clean(value: str | None) -> bool:
+    if value != "1":
+        raise RuntimeError("--repo-clean must attest the PBS clean-repository check")
+    status = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(ROOT),
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    if status:
+        raise RuntimeError(
+            "driver repository is not tracked-clean despite the PBS attestation"
+        )
+    return True
+
+
+def _execution_identity(repo_clean: str | None) -> dict:
+    return {
+        "driver_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "pbs_sha256": hashlib.sha256(PBS_DRIVER.read_bytes()).hexdigest(),
+        "driver_argv": list(sys.argv),
+        "repo_status_clean": _validated_repo_clean(repo_clean),
+    }
+
+
+def _validate_recorded_execution_identity(
+    document: dict, *, reason: str
+) -> dict:
+    identity = {
+        key: document.get(key)
+        for key in (
+            "driver_sha256",
+            "pbs_sha256",
+            "driver_argv",
+            "repo_status_clean",
+        )
+    }
+    if (
+        type(identity["driver_sha256"]) is not str
+        or _SHA256_RE.fullmatch(identity["driver_sha256"]) is None
+        or type(identity["pbs_sha256"]) is not str
+        or _SHA256_RE.fullmatch(identity["pbs_sha256"]) is None
+        or type(identity["driver_argv"]) is not list
+        or not identity["driver_argv"]
+        or any(type(item) is not str for item in identity["driver_argv"])
+        or identity["repo_status_clean"] is not True
+    ):
+        raise CertificationReject(reason, "execution identity is missing or invalid")
+    return identity
+
+
 def _prereg_sha256() -> str:
     if not PREREGISTRATION.is_file():
         raise FileNotFoundError(f"preregistration is missing: {PREREGISTRATION}")
@@ -677,6 +738,49 @@ def _validate_dynamic_output_path(out: Path) -> None:
         raise ValueError(
             f"dynamic output must be below {str(DYNAMIC_OUT_PREFIX)!r}"
         ) from exc
+
+
+def _require_child_path(path: Path, root: Path, *, binding: str) -> None:
+    candidate = path.resolve(strict=False)
+    canonical_root = root.resolve(strict=False)
+    try:
+        relative = candidate.relative_to(canonical_root)
+    except ValueError as exc:
+        raise CertificationReject(
+            "dynamic-certification-namespace-invalid",
+            f"{binding} must be a canonical child of {canonical_root}",
+        ) from exc
+    if not relative.parts:
+        raise CertificationReject(
+            "dynamic-certification-namespace-invalid",
+            f"{binding} must be a child, not the namespace root",
+        )
+
+
+def _validate_dynamic_certification_namespaces(
+    args: argparse.Namespace, cell: Cell
+) -> None:
+    if cell != CERT_DYNAMIC_CELL:
+        return
+    assert args.group_receipt_out is not None
+    assert args.performance_artifact is not None
+    _require_child_path(
+        args.group_receipt_out,
+        DYNAMIC_CERTIFY_PREFIX,
+        binding="group receipt",
+    )
+    for path in args.group_result_path:
+        _require_child_path(
+            path, DYNAMIC_CERTIFY_PREFIX, binding="group result path"
+        )
+    _require_child_path(
+        Path(args.out), DYNAMIC_CERTIFY_PREFIX, binding="certification output"
+    )
+    _require_child_path(
+        args.performance_artifact,
+        DYNAMIC_PERFORMANCE_PREFIX,
+        binding="performance artifact",
+    )
 
 
 def _trace_binary_counts(binary: str) -> tuple[int, int]:
@@ -800,6 +904,8 @@ def _parse_backoff_trace(stdout: str) -> tuple[list[dict], dict, dict]:
             raise ValueError(f"malformed backoff trace line: {line!r}")
     if summary is None:
         raise ValueError("backoff trace summary is missing")
+    if not events:
+        raise ValueError("backoff trace must contain at least one event")
     if [event["seq"] for event in events] != list(range(len(events))):
         raise ValueError("backoff trace seq must be contiguous from zero")
     if any(
@@ -1439,7 +1545,15 @@ def _write_json_create_only(path: Path, payload: dict) -> None:
         stream.write("\n")
 
 
-def _performance_artifact_identity(path: Path, expected_sha256: str) -> dict:
+def _performance_artifact_identity(
+    path: Path,
+    expected_sha256: str,
+    *,
+    expected_repo_head: str | None = None,
+    expected_prereg_sha256: str | None = None,
+    expected_patch_stack_sha256: str | None = None,
+    required_cell: Cell | None = None,
+) -> dict:
     if type(expected_sha256) is not str or _SHA256_RE.fullmatch(expected_sha256) is None:
         raise CertificationReject(
             "performance-artifact-identity-mismatch",
@@ -1468,6 +1582,48 @@ def _performance_artifact_identity(path: Path, expected_sha256: str) -> dict:
             "performance-artifact-identity-mismatch",
             "performance artifact does not match the preregistered path/SHA",
         )
+    expected_values = (
+        expected_repo_head,
+        expected_prereg_sha256,
+        expected_patch_stack_sha256,
+        required_cell,
+    )
+    if any(value is not None for value in expected_values):
+        if any(value is None for value in expected_values):
+            raise CertificationReject(
+                "performance-artifact-identity-mismatch",
+                "dynamic performance identity expectations are incomplete",
+            )
+        assert required_cell is not None
+        cells = document.get("cells")
+        expected_cell_identity = _cell_identity(required_cell)
+        if (
+            document.get("repo_head") != expected_repo_head
+            or document.get("prereg_sha256") != expected_prereg_sha256
+            or document.get("patch_stack_sha256")
+            != expected_patch_stack_sha256
+            or type(cells) is not list
+            or not any(
+                type(row) is dict
+                and {
+                    key: row.get(key) for key in expected_cell_identity
+                }
+                == expected_cell_identity
+                for row in cells
+            )
+        ):
+            raise CertificationReject(
+                "performance-artifact-identity-mismatch",
+                "dynamic performance artifact identity/cell does not match certify",
+            )
+        _validate_recorded_execution_identity(
+            document, reason="performance-artifact-identity-mismatch"
+        )
+        if document.get("ccbench_head") != PIN_FULL:
+            raise CertificationReject(
+                "performance-artifact-identity-mismatch",
+                "dynamic performance artifact lacks the full ccbench pin",
+            )
     return {
         "path": str(path.resolve(strict=True)),
         "sha256": actual_sha256,
@@ -1655,6 +1811,9 @@ def _validated_certification_row(
             "result is not bound to the preregistered verifier manifest file",
         )
     expected_patch_identity = _patch_stack_identity()
+    execution_identity = _validate_recorded_execution_identity(
+        document, reason="group-build-identity-mismatch"
+    )
     expected_genome = genome_for(cell).canonical()
     expected_genome_sha256 = hashlib.sha256(
         expected_genome.encode("utf-8")
@@ -1670,6 +1829,7 @@ def _validated_certification_row(
             for key, value in expected_patch_identity.items()
         )
         or document.get("ccbench_commit") != PIN_FULL
+        or document.get("ccbench_head") != PIN_FULL
         or document.get("genome") != expected_genome
         or type(document.get("repo_head")) is not str
         or _COMMIT_RE.fullmatch(document["repo_head"]) is None
@@ -1804,9 +1964,11 @@ def _validated_certification_row(
             "patch_stack": document["patch_stack"],
             "patch_stack_sha256": document["patch_stack_sha256"],
             "ccbench_commit": document["ccbench_commit"],
+            "ccbench_head": document["ccbench_head"],
             "repo_head": document["repo_head"],
             "prereg_sha256": document["prereg_sha256"],
             "hostname": document["hostname"],
+            **execution_identity,
             "backoff_trace_symbol_count": document[
                 "backoff_trace_symbol_count"
             ],
@@ -1827,6 +1989,9 @@ def _group_receipt_payload(
     attempt_id: str,
     expected_verifier_identity: dict,
     expected_verifier_identity_file_sha256: str,
+    *,
+    performance_expectations: dict | None = None,
+    execution_identity: dict | None = None,
 ) -> dict:
     expected = {(workload, slot) for workload in CERT_WORKLOADS for slot in CERT_SLOTS}
     normalized_files = [path.resolve(strict=False) for path in result_files]
@@ -1843,7 +2008,9 @@ def _group_receipt_payload(
     rows = []
     actual = set()
     performance_identity = _performance_artifact_identity(
-        performance_artifact, performance_artifact_sha256
+        performance_artifact,
+        performance_artifact_sha256,
+        **(performance_expectations or {}),
     )
     for path in sorted(normalized_files):
         row, pair = _validated_certification_row(
@@ -1919,6 +2086,7 @@ def _group_receipt_payload(
             }
         ) != 1
         or len({row["ccbench_commit"] for row in rows}) != 1
+        or len({row["ccbench_head"] for row in rows}) != 1
         or len({row["repo_head"] for row in rows}) != 1
         or len({row["prereg_sha256"] for row in rows}) != 1
         or any(row["backoff_trace_symbol_count"] != 0 for row in rows)
@@ -1935,6 +2103,10 @@ def _group_receipt_payload(
             or re.fullmatch(r"[0-9a-f]{40}", row["ccbench_commit"]) is None
             for row in rows
         )
+        or any(row["ccbench_head"] != PIN_FULL for row in rows)
+        or len({row["driver_sha256"] for row in rows}) != 1
+        or len({row["pbs_sha256"] for row in rows}) != 1
+        or any(row["repo_status_clean"] is not True for row in rows)
     ):
         raise CertificationReject(
             "group-build-identity-mismatch",
@@ -1952,6 +2124,18 @@ def _group_receipt_payload(
             "group-cell-identity-mismatch",
             "group cell and claim are not one exact certification identity",
         )
+    group_execution_identity = execution_identity or {
+        key: rows[0][key]
+        for key in (
+            "driver_sha256",
+            "pbs_sha256",
+            "driver_argv",
+            "repo_status_clean",
+        )
+    }
+    _validate_recorded_execution_identity(
+        group_execution_identity, reason="group-build-identity-mismatch"
+    )
     return {
         "schema_version": GROUP_RECEIPT_SCHEMA_VERSION,
         "complete": True,
@@ -1980,6 +2164,8 @@ def _group_receipt_payload(
         "patch_stack": rows[0]["patch_stack"],
         "patch_stack_sha256": rows[0]["patch_stack_sha256"],
         "ccbench_commit": rows[0]["ccbench_commit"],
+        "ccbench_head": rows[0]["ccbench_head"],
+        **group_execution_identity,
         "genome": rows[0]["genome"],
         "source_evidence": rows[0]["source_evidence"],
         "proof_surface": proof_surface,
@@ -1995,6 +2181,8 @@ def _validate_published_group(
     attempt_id: str,
     expected_verifier_identity: dict,
     expected_verifier_identity_file_sha256: str,
+    *,
+    performance_expectations: dict | None = None,
 ) -> None:
     try:
         receipt = json.loads(group_out.read_text(encoding="utf-8"))
@@ -2011,6 +2199,9 @@ def _validate_published_group(
     proof_surface = receipt.get("proof_surface")
     cell = _cell_from_document(receipt)
     expected_patch_identity = _patch_stack_identity()
+    receipt_execution_identity = _validate_recorded_execution_identity(
+        receipt, reason="group-receipt-collision"
+    )
     if (
         receipt.get("schema_version") != GROUP_RECEIPT_SCHEMA_VERSION
         or receipt.get("complete") is not True
@@ -2021,7 +2212,9 @@ def _validate_published_group(
         != expected_verifier_identity_file_sha256
         or receipt.get("performance_artifact")
         != _performance_artifact_identity(
-            performance_artifact, performance_artifact_sha256
+            performance_artifact,
+            performance_artifact_sha256,
+            **(performance_expectations or {}),
         )
         or type(rows) is not list
         or len(rows) != 24
@@ -2039,6 +2232,7 @@ def _validate_published_group(
             for key, value in expected_patch_identity.items()
         )
         or receipt.get("ccbench_commit") != PIN_FULL
+        or receipt.get("ccbench_head") != PIN_FULL
         or type(receipt.get("genome")) is not str
         or type(receipt.get("source_evidence")) is not dict
         or receipt["source_evidence"]
@@ -2079,6 +2273,13 @@ def _validate_published_group(
         or row.get("repo_head") != receipt["repo_head"]
         or row.get("prereg_sha256") != receipt["prereg_sha256"]
         or row.get("ccbench_commit") != receipt["ccbench_commit"]
+        or row.get("ccbench_head") != receipt["ccbench_head"]
+        or row.get("driver_sha256") != receipt_execution_identity["driver_sha256"]
+        or row.get("pbs_sha256") != receipt_execution_identity["pbs_sha256"]
+        or row.get("repo_status_clean") is not True
+        or type(row.get("driver_argv")) is not list
+        or not row["driver_argv"]
+        or any(type(item) is not str for item in row["driver_argv"])
         or row.get("genome") != receipt["genome"]
         or row.get("source_evidence") != receipt["source_evidence"]
         or any(
@@ -2130,6 +2331,9 @@ def _try_finalize_group(
     attempt_id: str,
     expected_verifier_identity: dict,
     expected_verifier_identity_file_sha256: str,
+    *,
+    performance_expectations: dict | None = None,
+    execution_identity: dict | None = None,
 ) -> bool:
     if any(not path.is_file() for path in result_files):
         return False
@@ -2146,6 +2350,7 @@ def _try_finalize_group(
                 attempt_id,
                 expected_verifier_identity,
                 expected_verifier_identity_file_sha256,
+                performance_expectations=performance_expectations,
             )
             return True
         try:
@@ -2170,6 +2375,7 @@ def _try_finalize_group(
                 attempt_id,
                 expected_verifier_identity,
                 expected_verifier_identity_file_sha256,
+                performance_expectations=performance_expectations,
             )
             return True
         try:
@@ -2180,6 +2386,8 @@ def _try_finalize_group(
                 attempt_id,
                 expected_verifier_identity,
                 expected_verifier_identity_file_sha256,
+                performance_expectations=performance_expectations,
+                execution_identity=execution_identity,
             )
         except CertificationReject:
             return False
@@ -2233,6 +2441,11 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--backoff-trace", action="store_true")
     parser.add_argument(
         "--repo-head", default=os.environ.get("IZANAGI_T2187_REPO_HEAD")
+    )
+    parser.add_argument(
+        "--repo-clean",
+        choices=("1",),
+        default=os.environ.get("IZANAGI_T2187_REPO_CLEAN"),
     )
     parser.add_argument("--cells", required=True)
     parser.add_argument(
@@ -2292,12 +2505,13 @@ def _validate_backoff_trace_contract(
         or cells != TRACE_CELLS
         or workloads != TRACE_WORKLOADS
         or threads != TRACE_THREADS
+        or args.rep_index != 0
         or args.reps_per_job != 1
         or args.extime != 3
     ):
         raise ValueError(
             "--backoff-trace requires exact cw/cw-as/cw-as-dyn cells, "
-            "three workloads, threads 24,48, reps 1, and extime 3"
+            "three workloads, threads 24,48, rep index 0, reps 1, and extime 3"
         )
 
 
@@ -2306,6 +2520,7 @@ def _certify_main(args: argparse.Namespace) -> int:
     out = Path(args.out)
     _validate_output_path(out)
     cell, workload_id, threads = _certification_contract(args)
+    _validate_dynamic_certification_namespaces(args, cell)
     if cell.extended:
         _validate_dynamic_output_path(out)
     assert args.group_receipt_out is not None
@@ -2324,16 +2539,31 @@ def _certify_main(args: argparse.Namespace) -> int:
             args.expected_verifier_identity_sha256,
         )
     )
+    patch_identity = _patch_stack_identity()
+    repo_head = _validated_repo_head(args.repo_head)
+    prereg_sha256 = _prereg_sha256()
+    execution_identity = _execution_identity(args.repo_clean)
+    performance_expectations = (
+        {
+            "expected_repo_head": repo_head,
+            "expected_prereg_sha256": prereg_sha256,
+            "expected_patch_stack_sha256": patch_identity[
+                "patch_stack_sha256"
+            ],
+            "required_cell": cell,
+        }
+        if cell == CERT_DYNAMIC_CELL
+        else {}
+    )
     if not performance_artifact.is_file():
         raise FileNotFoundError(
             f"performance artifact is missing: {performance_artifact}"
         )
     performance_identity = _performance_artifact_identity(
-        performance_artifact, performance_artifact_sha256
+        performance_artifact,
+        performance_artifact_sha256,
+        **performance_expectations,
     )
-    patch_identity = _patch_stack_identity()
-    repo_head = _validated_repo_head(args.repo_head)
-    prereg_sha256 = _prereg_sha256()
 
     site = site_policy.current_site()
     if site_policy.refuses_heavy_work(site):
@@ -2380,6 +2610,8 @@ def _certify_main(args: argparse.Namespace) -> int:
         "cell_order": [cell.label],
         "backoff_trace": False,
         "ccbench_commit": PIN_FULL,
+        "ccbench_head": PIN_FULL,
+        **execution_identity,
         **patch_identity,
         "performance_artifact": performance_identity,
         "expected_verifier_identity": expected_verifier_identity,
@@ -2700,6 +2932,8 @@ def _certify_main(args: argparse.Namespace) -> int:
         args.attempt_id,
         expected_verifier_identity,
         expected_verifier_identity_file_sha256,
+        performance_expectations=performance_expectations,
+        execution_identity=execution_identity,
     )
     if group_complete:
         _remove_group_traces(group_out)
@@ -2738,6 +2972,14 @@ def main(argv: list[str] | None = None) -> int:
     patch_identity = _patch_stack_identity()
     repo_head = _validated_repo_head(args.repo_head)
     prereg_sha256 = _prereg_sha256()
+    execution_identity = _execution_identity(args.repo_clean)
+    if (
+        type(args.prologue_elapsed_s) is not float
+        or args.prologue_elapsed_s < 0
+        or type(args.prologue_cpu_s) is not float
+        or args.prologue_cpu_s < 0
+    ):
+        raise ValueError("prologue elapsed/CPU measurements must be nonnegative")
 
     site = site_policy.current_site()
     if site_policy.refuses_heavy_work(site):
@@ -2790,6 +3032,7 @@ def main(argv: list[str] | None = None) -> int:
         "use_perf": False,
         "ccbench_commit": CURRENT_PIN,
         "ccbench_head": head,
+        **execution_identity,
         "cc": cc,
         "cxx": cxx,
         **patch_identity,
@@ -2898,6 +3141,8 @@ def main(argv: list[str] | None = None) -> int:
                             "hostname": payload["hostname"],
                             "repo_head": repo_head,
                             "prereg_sha256": prereg_sha256,
+                            "ccbench_head": head,
+                            **execution_identity,
                             **patch_identity,
                             "rep_index": args.rep_index,
                             "cell_order": payload["cell_order"],
@@ -2948,6 +3193,9 @@ def main(argv: list[str] | None = None) -> int:
     payload["wall_seconds"] = wall_seconds
     payload["cpu_seconds"] = cpu_seconds
     payload["cpu_over_elapsed"] = cpu_seconds / wall_seconds
+    payload["prologue_elapsed_s"] = args.prologue_elapsed_s
+    payload["prologue_cpu_s"] = args.prologue_cpu_s
+    payload["job_total_seconds"] = args.prologue_elapsed_s + wall_seconds
 
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("x", encoding="utf-8") as stream:

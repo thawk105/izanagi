@@ -914,7 +914,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>._certify_main._build_trace_binary",
-        2486,
+        2718,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -926,7 +926,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>.main",
-        2831,
+        3074,
     ),
 )
 
@@ -2671,11 +2671,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
             "wave dynamic-backoff-mechanism", "buildcache",
-            "<module>._certify_main._build_trace_binary", 2486,
+            "<module>._certify_main._build_trace_binary", 2718,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 2831,
+            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 3074,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)

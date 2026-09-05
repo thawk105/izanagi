@@ -13,6 +13,7 @@ import sys
 
 import pytest
 
+from tools.pegasus.probes import t2187_adaptive_const_probe as producer
 from tools.plotting import plot_dynamic_backoff as plot
 from tools.plotting.plot_t2187_adaptive_consts import FigureLayoutError
 
@@ -28,8 +29,11 @@ CELLS = (
 )
 TRACE_CELLS = ("cw", "cw-as", "cw-as-dyn")
 PIN = "511c953"
+FULL_PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PATCH_A = "9b2153e0547e167888ba2616750951365c4a075a80f9a95be6000e60b6f8f54b"
 PATCH_B = "3" * 64
+DRIVER_SHA = "4" * 64
+PBS_SHA = "5" * 64
 PATCH_STACK = [
     {"path": "patches/cicada-adaptive-params.patch", "sha256": PATCH_A},
     {"path": "patches/cicada-adaptive-dynamic.patch", "sha256": PATCH_B},
@@ -63,6 +67,10 @@ def _identity() -> dict:
         "repo_head": "1" * 40,
         "prereg_sha256": "2" * 64,
         "ccbench_commit": PIN,
+        "ccbench_head": FULL_PIN,
+        "driver_sha256": DRIVER_SHA,
+        "pbs_sha256": PBS_SHA,
+        "repo_status_clean": True,
         "patch_sha256": PATCH_A,
         "dynamic_patch_sha256": PATCH_B,
         "patch_stack": PATCH_STACK,
@@ -70,6 +78,19 @@ def _identity() -> dict:
         "records": 1_000_000,
         "extime_s": 3,
         "clocks_per_us": 2100,
+    }
+
+
+def _execution(rep_index: int, *, diagnostic: bool = False) -> dict:
+    return {
+        "driver_argv": [
+            "python3", "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "--rep-index", str(rep_index),
+            *(["--backoff-trace"] if diagnostic else []),
+        ],
+        "prologue_elapsed_s": 10.0 + rep_index,
+        "prologue_cpu_s": 2.0 + rep_index / 10.0,
+        "job_total_seconds": 100.0 + rep_index,
     }
 
 
@@ -107,6 +128,7 @@ def _performance_cell(
         + rep_index / 10000.0,
         "backoff_trace_symbol_count": 0,
         "backoff_trace_string_count": 0,
+        "cell_format_fields": 11 if cell in TRACE_CELLS else 5,
     }
 
 
@@ -124,33 +146,41 @@ def _performance_document(rep_index: int) -> dict:
         "hostname": f"bnode{rep_index:03d}",
         "cell_order": order,
         **_identity(),
+        **_execution(rep_index),
         "pbs_jobid": f"0:{980000 + rep_index}.nqsv",
         "cells": cells,
     }
 
 
-def _events() -> list[dict]:
-    return [
-        {
-            "seq": seq,
-            "tsc": 1_000_000 + 210_000 * seq,
-            "window_us": 100,
-            "window_commits": 10_000 + 10 * seq,
-            "trigger": seq % 3,
-            "backoff_before": 100 + seq,
-            "backoff_after": 101 + seq,
-            "gradient_sign": 1,
-            "step_us": 1,
-            "ceiling_us": 1000,
-            "ceiling_changed": 0,
-            "parity_branch": seq % 2,
-        }
-        for seq in range(64)
+def _producer_trace(*, zero_scored: bool = False) -> tuple[list[dict], dict, dict]:
+    records = [
+        "IZANAGI_BACKOFF_TRACE v=1 seq=0 tsc=1000000 window_us=100 "
+        "window_commits=10000 trigger=0 backoff_before=100 backoff_after=101 "
+        "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 parity_branch=-1",
     ]
+    if not zero_scored:
+        records.extend([
+            "IZANAGI_BACKOFF_TRACE v=1 seq=1 tsc=1210000 window_us=100 "
+            "window_commits=10100 trigger=1 backoff_before=101 backoff_after=102 "
+            "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 parity_branch=0",
+            "IZANAGI_BACKOFF_TRACE v=1 seq=2 tsc=1420000 window_us=100 "
+            "window_commits=10000 trigger=2 backoff_before=102 backoff_after=102 "
+            "gradient_sign=-1 step_us=1 ceiling_us=1000 ceiling_changed=0 parity_branch=1",
+            "IZANAGI_BACKOFF_TRACE v=1 seq=3 tsc=1630000 window_us=100 "
+            "window_commits=10200 trigger=0 backoff_before=102 backoff_after=103 "
+            "gradient_sign=1 step_us=1 ceiling_us=1000 ceiling_changed=0 parity_branch=1",
+        ])
+    retained = len(records)
+    stdout = "\n".join([
+        "unrelated benchmark output", *records,
+        f"IZANAGI_BACKOFF_TRACE_SUMMARY v=1 updates={retained} "
+        f"retained={retained} dropped=0",
+    ])
+    return producer._parse_backoff_trace(stdout)
 
 
-def _diagnostic_document() -> dict:
-    events = _events()
+def _diagnostic_document(*, zero_scored: bool = False) -> dict:
+    events, summary, directional = _producer_trace(zero_scored=zero_scored)
     runs = []
     for cell in TRACE_CELLS:
         for workload in WORKLOADS:
@@ -159,20 +189,27 @@ def _diagnostic_document() -> dict:
                     "cell": cell,
                     "workload": workload,
                     "threads": threads,
+                    **dict(zip(CONFIG_FIELDS, CELL_CONFIGS[cell], strict=True)),
+                    "cell_format_fields": 11,
                     "genome": f"fixture:{cell}:{workload}:{threads}",
                     "binary_sha256": hashlib.sha256(cell.encode("utf-8")).hexdigest(),
-                    "throughput_diagnostic_only": 1_000_000.0 + 1000 * threads,
-                    "events": events,
-                    "summary": {"updates": 64, "retained": 64, "dropped": 0},
-                    "directional_success": {"scored": 63, "hits": 63, "rate": 1.0},
+                    "throughputs": [1_000_000.0 + 1000 * threads],
+                    "median_tps": 1_000_000.0 + 1000 * threads,
+                    "backoff_trace_symbol_count": 1,
+                    "backoff_trace_string_count": 2,
+                    "trace_events": events,
+                    "trace_summary": summary,
+                    "directional_success": directional,
                 })
     assert len(runs) == 18
     return {
         "schema_version": DIAGNOSTIC_SCHEMA,
         "kind": "diagnostic-backoff-trace",
         "headline_eligible": False,
+        "rep_index": 0,
         "hostname": "bnode099",
         **_identity(),
+        **_execution(0, diagnostic=True),
         "pbs_jobid": "0:980099.nqsv",
         "trace_runs": runs,
     }
@@ -236,11 +273,12 @@ def test_full_size_fixture_writes_three_figures_and_frozen_statistics(tmp_path: 
         "provenance_schema_version", "performance_schema_version",
         "diagnostic_schema_version", "generated_utc", "generator", "inputs",
         "outputs", "repo_head", "prereg_sha256", "ccbench_commit",
+        "ccbench_head", "driver_sha256", "pbs_sha256", "repo_status_clean",
         "patch_sha256", "dynamic_patch_sha256", "patch_stack",
-        "patch_stack_sha256", "pbs_jobids", "hostnames",
+        "patch_stack_sha256", "pbs_jobids", "hostnames", "hostname_duplicates",
         "measurement_conditions", "ci95", "performance_values_certified",
         "performance_certification_notice", "performance_aggregates", "contrasts",
-        "hypotheses", "diagnostic", "captions", "reproduction",
+        "abort_contrasts", "hypotheses", "diagnostic", "captions", "reproduction",
     }
     assert provenance["provenance_schema_version"] == (
         "izanagi-dynamic-backoff-figure-provenance/v1"
@@ -250,9 +288,21 @@ def test_full_size_fixture_writes_three_figures_and_frozen_statistics(tmp_path: 
     assert len(provenance["performance_aggregates"]) == 168
     assert len(provenance["contrasts"]) == 7
     assert all(len(contrast["points"]) == 24 for contrast in provenance["contrasts"])
-    assert {value for value in provenance["hypotheses"].values()} >= {
+    assert {value["status"] for value in provenance["hypotheses"].values()} >= {
         "accepted", "rejected", "inconclusive",
     }
+    assert all(
+        set(value) == {"acceptance_condition", "status", "failed_predicates"}
+        for value in provenance["hypotheses"].values()
+    )
+    assert all(value["acceptance_condition"] for value in provenance["hypotheses"].values())
+    assert len(provenance["abort_contrasts"]) == 7
+    abort_point = provenance["abort_contrasts"][0]["points"][0]
+    assert abort_point["n"] == 7
+    assert abort_point["samples_percentage_points"] == pytest.approx([0.8] * 7)
+    assert abort_point["mean_percentage_points"] == pytest.approx(0.8)
+    assert abort_point["ci95_lower_percentage_points"] == pytest.approx(0.8)
+    assert abort_point["ci95_upper_percentage_points"] == pytest.approx(0.8)
     assert provenance["diagnostic"]["throughput_plotted"] is False
     assert "診断 build 由来・計装系の軌跡・headline 不適格" in (
         provenance["captions"]["diagnostic"]
@@ -265,6 +315,17 @@ def test_full_size_fixture_writes_three_figures_and_frozen_statistics(tmp_path: 
     assert len(provenance["inputs"]) == 8
     assert {row["path"]: row["sha256"] for row in provenance["inputs"]} == expected_hashes
     assert len(provenance["outputs"]) == 6
+    assert provenance["ccbench_head"] == FULL_PIN
+    assert provenance["driver_sha256"] == DRIVER_SHA
+    assert provenance["pbs_sha256"] == PBS_SHA
+    assert provenance["repo_status_clean"] is True
+    assert provenance["hostname_duplicates"] == []
+    for row in provenance["inputs"]:
+        assert set((
+            "driver_sha256", "pbs_sha256", "driver_argv", "repo_status_clean",
+            "ccbench_head", "prologue_elapsed_s", "prologue_cpu_s",
+            "job_total_seconds",
+        )) <= set(row)
     assert all(
         row["sha256"] == hashlib.sha256(Path(row["path"]).read_bytes()).hexdigest()
         for row in provenance["outputs"]
@@ -280,23 +341,21 @@ def test_full_size_fixture_writes_three_figures_and_frozen_statistics(tmp_path: 
 
 
 @pytest.mark.parametrize(
-    "failure", ("missing-file", "missing-row", "duplicate-row", "duplicate-rep", "identity"),
+    "failure", ("insufficient-files", "duplicate-row", "duplicate-rep", "identity"),
 )
 def test_missing_duplicate_and_identity_mismatch_are_rejected(
     tmp_path: Path, failure: str,
 ):
     performance, diagnostic = _fixture_inputs(tmp_path)
-    if failure == "missing-file":
+    if failure == "insufficient-files":
         result, prefix = _run(
-            tmp_path, "reject-missing-file", performance[:-1], diagnostic,
+            tmp_path, "reject-insufficient-files", performance[:5], diagnostic,
         )
         assert result.returncode != 0
         assert not any(path.exists() for path in _output_paths(prefix))
         return
     changed = json.loads(performance[1].read_text(encoding="utf-8"))
-    if failure == "missing-row":
-        changed["cells"].pop()
-    elif failure == "duplicate-row":
+    if failure == "duplicate-row":
         changed["cells"][-1] = changed["cells"][0]
     elif failure == "duplicate-rep":
         changed["rep_index"] = 0
@@ -308,6 +367,107 @@ def test_missing_duplicate_and_identity_mismatch_are_rejected(
     result, prefix = _run(tmp_path, f"reject-{failure}", performance, diagnostic)
     assert result.returncode != 0
     assert not any(path.exists() for path in _output_paths(prefix))
+
+
+def _remove_coordinate(document: dict, coordinate: tuple[str, str, int]) -> None:
+    before = len(document["cells"])
+    document["cells"] = [
+        row for row in document["cells"]
+        if (row["cell"], row["workload"], row["threads"]) != coordinate
+    ]
+    assert len(document["cells"]) == before - 1
+
+
+def test_six_files_point_missing_and_n_insufficient_follow_preregistration(
+    tmp_path: Path,
+):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    six = plot.load_inputs(performance[:-1], diagnostic)
+    assert [row["rep_index"] for row in six["performance"]] == list(range(6))
+    assert all(point["n"] == 6 for row in six["contrasts"] for point in row["points"])
+
+    coordinate = ("cw-as-dyn", "write-heavy", 6)
+    changed = json.loads(performance[0].read_text(encoding="utf-8"))
+    _remove_coordinate(changed, coordinate)
+    performance[0] = _write(tmp_path / "missing-one.json", changed)
+    one_missing = plot.load_inputs(performance, diagnostic)
+    h1_point = next(
+        point for point in one_missing["contrasts"][0]["points"]
+        if (point["workload"], point["threads"]) == ("write-heavy", 6)
+    )
+    assert h1_point["n"] == 6
+    assert h1_point["rep_indices"] == list(range(1, 7))
+
+    changed = json.loads(performance[1].read_text(encoding="utf-8"))
+    _remove_coordinate(changed, coordinate)
+    performance[1] = _write(tmp_path / "missing-two.json", changed)
+    insufficient = plot.load_inputs(performance, diagnostic)
+    h1_point = next(
+        point for point in insufficient["contrasts"][0]["points"]
+        if (point["workload"], point["threads"]) == ("write-heavy", 6)
+    )
+    assert h1_point["n"] == 5
+    assert h1_point["verdict"] == "inconclusive"
+    assert h1_point["verdict_reason"] == "n-insufficient"
+    assert insufficient["hypotheses"]["H1"]["status"] == "inconclusive"
+    assert {
+        (row["workload"], row["threads"], row["reason"])
+        for row in insufficient["hypotheses"]["H1"]["failed_predicates"]
+    } >= {("write-heavy", 6, "n-insufficient")}
+
+
+def test_hostname_duplicates_are_recorded_not_rejected(tmp_path: Path):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    changed = json.loads(performance[1].read_text(encoding="utf-8"))
+    changed["hostname"] = "bnode000"
+    performance[1] = _write(tmp_path / "duplicate-host.json", changed)
+    data = plot.load_inputs(performance, diagnostic)
+    assert data["hostname_duplicates"] == ["bnode000"]
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    (
+        ("missing-identity", "driver_sha256"),
+        ("dirty-repo", "repo_status_clean must be true"),
+        ("diagnostic-rep", "rep_index must be exactly 0"),
+    ),
+)
+def test_execution_identity_and_diagnostic_rep_fail_closed(
+    tmp_path: Path, failure: str, message: str,
+):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    if failure == "diagnostic-rep":
+        document = json.loads(diagnostic.read_text(encoding="utf-8"))
+        document["rep_index"] = 1
+        diagnostic = _write(tmp_path / "bad-diagnostic-rep.json", document)
+    else:
+        document = json.loads(performance[0].read_text(encoding="utf-8"))
+        if failure == "missing-identity":
+            del document["driver_sha256"]
+        else:
+            document["repo_status_clean"] = False
+        performance[0] = _write(tmp_path / f"bad-{failure}.json", document)
+    with pytest.raises(plot.FigureDataError, match=message):
+        plot.load_inputs(performance, diagnostic)
+
+
+def test_diagnostic_fixture_round_trips_producer_schema_and_nullable_rate(
+    tmp_path: Path,
+):
+    performance, _diagnostic = _fixture_inputs(tmp_path)
+    diagnostic = _write(
+        tmp_path / "zero-scored-diagnostic.json",
+        _diagnostic_document(zero_scored=True),
+    )
+    data = plot.load_inputs(performance, diagnostic)
+    run = data["diagnostic"]["runs"][("cw", "write-heavy", 24)]
+    assert run["trace_events"][0]["trigger"] == "time"
+    assert run["trace_events"][0]["parity_branch"] == "none"
+    assert type(run["trace_events"][0]["window_us"]) is int
+    assert run["directional_success"] == {
+        "scored": 0, "successes": 0, "rate": None,
+    }
 
 
 def test_layout_failure_leaves_no_partial_outputs(tmp_path: Path, monkeypatch):

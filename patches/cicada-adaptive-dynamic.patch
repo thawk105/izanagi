@@ -1,5 +1,5 @@
 diff --git a/cmake/Options.cmake b/cmake/Options.cmake
-index 75403c0..4de9d23 100644
+index 75403c0c..4de9d23b 100644
 --- a/cmake/Options.cmake
 +++ b/cmake/Options.cmake
 @@ -24,6 +24,13 @@ set(CCBENCH_BACK_OFF      1 CACHE STRING "exponential backoff on abort")
@@ -33,7 +33,7 @@ index 75403c0..4de9d23 100644
      KEY_SIZE=${CCBENCH_KEY_SIZE}
      MASSTREE_USE=${CCBENCH_MASSTREE_USE}
 diff --git a/include/backoff.hh b/include/backoff.hh
-index 4b7e9f9..b6e1722 100644
+index 4b7e9f99..6acc20f8 100644
 --- a/include/backoff.hh
 +++ b/include/backoff.hh
 @@ -23,6 +23,27 @@
@@ -64,7 +64,7 @@ index 4b7e9f9..b6e1722 100644
  
  using namespace std;
  
-@@ -40,29 +61,190 @@ public:
+@@ -40,29 +61,195 @@ public:
    static_assert(BACKOFF_UPDATE_US > 0 &&
                      kUpdateBackoffUs == BACKOFF_UPDATE_US,
                  "update interval must be a positive whole number of us");
@@ -84,6 +84,9 @@ index 4b7e9f9..b6e1722 100644
 +  static_assert(BACKOFF_COUNT_CAP_US >= 0 &&
 +                    kCountCapUs == BACKOFF_COUNT_CAP_US,
 +                "count cap must be a nonnegative whole number of us");
++  static_assert(BACKOFF_COUNT_CAP_US == 0 ||
++                    BACKOFF_COUNT_CAP_US >= BACKOFF_UPDATE_US,
++                "count cap must be zero or at least the update interval");
 +  static_assert(BACKOFF_STEP_ADAPT == 0 || BACKOFF_STEP_ADAPT == 1,
 +                "step adaptation must be 0 or 1");
 +  static_assert(BACKOFF_STEP_MIN_MILLI >= 0 &&
@@ -96,6 +99,8 @@ index 4b7e9f9..b6e1722 100644
 +                "maximum step must be a nonnegative whole number of us");
 +  static_assert(kStepMin <= kStepMax,
 +                "adaptive step bounds must be ordered");
++  static_assert(!BACKOFF_STEP_ADAPT || kStepMin > 0,
++                "adaptive minimum step must be positive");
 +  static_assert(!BACKOFF_STEP_ADAPT ||
 +                    (kIncrBackoff ==
 +                         static_cast<uint64_t>(kIncrBackoff) &&
@@ -104,7 +109,7 @@ index 4b7e9f9..b6e1722 100644
 +                "initial adaptive step must be a whole us within its bounds");
 +  static_assert(BACKOFF_DYN_CEILING == 0 || BACKOFF_DYN_CEILING == 1,
 +                "dynamic ceiling must be 0 or 1");
-+  static_assert(!BACKOFF_DYN_CEILING || kStepMax * 4 <= 50,
++  static_assert(!BACKOFF_DYN_CEILING || kStepMax <= 50 / 4,
 +                "dynamic ceiling maximum step must fit below the 50us floor");
 +  static_assert(!BACKOFF_DYN_CEILING ||
 +                    (kMaxBackoff == static_cast<uint64_t>(kMaxBackoff) &&
@@ -258,7 +263,7 @@ index 4b7e9f9..b6e1722 100644
      uint64_t time_diff = now - last_time_;
      last_time_ = now;
  
-@@ -92,25 +274,173 @@ public:
+@@ -92,25 +279,173 @@ public:
      else
        gradient = 0;
  
@@ -432,7 +437,7 @@ index 4b7e9f9..b6e1722 100644
    static void backoff(size_t clocks_per_us) {
      uint64_t start(rdtscp()), stop;
      double now_backoff = Backoff_.load(std::memory_order_acquire);
-@@ -128,9 +458,25 @@ public:
+@@ -128,9 +463,26 @@ public:
    }
  };
  
@@ -445,20 +450,21 @@ index 4b7e9f9..b6e1722 100644
  leaderBackoffWork([[maybe_unused]] Backoff& backoff,
                    [[maybe_unused]] std::vector<Result>& res) {
 +#if BACKOFF_COUNT_WINDOW > 0
-+  const uint64_t now = rdtscp();
-+  if (!backoff.check_count_window_at(now))
++  const uint64_t gate_now = rdtscp();
++  if (!backoff.check_count_window_at(gate_now))
 +    return;
 +  uint64_t sum_committed_txs(0);
 +  for (auto& th : res) {
 +    sum_committed_txs += loadAcquire(th.local_commit_counts_);
 +  }
-+  if (backoff.check_update_backoff_at(now, sum_committed_txs))
-+    backoff.update_backoff_at(now, sum_committed_txs);
++  const uint64_t sample_now = rdtscp();
++  if (backoff.check_update_backoff_at(sample_now, sum_committed_txs))
++    backoff.update_backoff_at(sample_now, sum_committed_txs);
 +#else
    if (backoff.check_update_backoff()) {
      uint64_t sum_committed_txs(0);
      for (auto& th : res) {
-@@ -138,6 +484,7 @@ leaderBackoffWork([[maybe_unused]] Backoff& backoff,
+@@ -138,6 +490,7 @@ leaderBackoffWork([[maybe_unused]] Backoff& backoff,
      }
      backoff.update_backoff(sum_committed_txs);
    }
