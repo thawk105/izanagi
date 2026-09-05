@@ -1,0 +1,35 @@
+=== start 08:10:20
+NOTE: B also applies on pin+A? (expected yes, cc-a is pin+A)
+include lines identical A vs A+B
+built a 08:11:02 sha=df3a6a0e3370c33a
+build ab-tuned failed
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o
+In file included from /home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/transaction.hh:9,
+                 from /home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/ycsb_silo.cc:8:
+/home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/../../../include/backoff.hh: In member function ‘bool Backoff::check_update_backoff_at(uint64_t, uint64_t)’:
+/home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/../../../include/backoff.hh:209:55: error: unused parameter ‘committed_txs’ [-Werror=unused-parameter]
+  209 |   bool check_update_backoff_at(uint64_t now, uint64_t committed_txs) {
+      |                                              ~~~~~~~~~^~~~~~~~~~~~~
+In file included from /home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/transaction.hh:9,
+                 from /home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/transaction.cc:7:
+/home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/../../../include/backoff.hh: In member function ‘bool Backoff::check_update_backoff_at(uint64_t, uint64_t)’:
+/home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/../../../include/backoff.hh:209:55: error: unused parameter ‘committed_txs’ [-Werror=unused-parameter]
+  209 |   bool check_update_backoff_at(uint64_t now, uint64_t committed_txs) {
+      |                                              ~~~~~~~~~^~~~~~~~~~~~~
+In file included from /home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/transaction.hh:9,
+                 from /home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/util.cc:18:
+/home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/../../../include/backoff.hh: In member function ‘bool Backoff::check_update_backoff_at(uint64_t, uint64_t)’:
+/home/SFC/tanab/.claude/jobs/18acc08b/tmp/preliveness/cc-ab/cc/silo/include/../../../include/backoff.hh:209:55: error: unused parameter ‘committed_txs’ [-Werror=unused-parameter]
+  209 |   bool check_update_backoff_at(uint64_t now, uint64_t committed_txs) {
+      |                                              ~~~~~~~~~^~~~~~~~~~~~~
+cc1plus: all warnings being treated as errors
+gmake[3]: *** [cc/silo/CMakeFiles/ycsb_silo.exe.dir/build.make:104: cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o] エラー 1
+gmake[3]: *** 未完了のジョブを待っています....
+cc1plus: all warnings being treated as errors
+gmake[3]: *** [cc/silo/CMakeFiles/ycsb_silo.exe.dir/build.make:76: cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o] エラー 1
+cc1plus: all warnings being treated as errors
+gmake[3]: *** [cc/silo/CMakeFiles/ycsb_silo.exe.dir/build.make:90: cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o] エラー 1
+gmake[2]: *** [CMakeFiles/Makefile2:1140: cc/silo/CMakeFiles/ycsb_silo.exe.dir/all] エラー 2
+gmake[1]: *** [CMakeFiles/Makefile2:1147: cc/silo/CMakeFiles/ycsb_silo.exe.dir/rule] エラー 2
+gmake: *** [Makefile:533: ycsb_silo.exe] エラー 2

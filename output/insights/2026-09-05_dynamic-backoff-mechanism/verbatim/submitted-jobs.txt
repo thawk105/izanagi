@@ -1,0 +1,34 @@
+perf rep0 order=none:0:100:1000:10+stock:1:100:1000:10+tuned:1:1:1000:2560+tuned-u10240:1:1:1000:10240+cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1 :: Request 977999.nqsv submitted to queue: gen_S.
+diag :: Request 978000.nqsv submitted to queue: gen_S.
+perf rep0 order=none:0:100:1000:10+stock:1:100:1000:10+tuned:1:1:1000:2560+tuned-u10240:1:1:1000:10240+cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1 :: Request 978014.nqsv submitted to queue: gen_S.
+perf rep1 order=stock:1:100:1000:10+tuned:1:1:1000:2560+tuned-u10240:1:1:1000:10240+cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1+none:0:100:1000:10 :: Request 978015.nqsv submitted to queue: gen_S.
+perf rep2 order=tuned:1:1:1000:2560+tuned-u10240:1:1:1000:10240+cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1+none:0:100:1000:10+stock:1:100:1000:10 :: Request 978016.nqsv submitted to queue: gen_S.
+perf rep3 order=tuned-u10240:1:1:1000:10240+cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1+none:0:100:1000:10+stock:1:100:1000:10+tuned:1:1:1000:2560 :: Request 978017.nqsv submitted to queue: gen_S.
+perf rep4 order=cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1+none:0:100:1000:10+stock:1:100:1000:10+tuned:1:1:1000:2560+tuned-u10240:1:1:1000:10240 :: Request 978018.nqsv submitted to queue: gen_S.
+perf rep5 order=cw-as:1:1:1000:2560:10000:10240:1:1:4:0+cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1+none:0:100:1000:10+stock:1:100:1000:10+tuned:1:1:1000:2560+tuned-u10240:1:1:1000:10240+cw:1:1:1000:2560:10000:10240:0:100:100:0 :: Request 978019.nqsv submitted to queue: gen_S.
+perf rep6 order=cw-as-dyn:1:1:1000:2560:10000:10240:1:1:4:1+none:0:100:1000:10+stock:1:100:1000:10+tuned:1:1:1000:2560+tuned-u10240:1:1:1000:10240+cw:1:1:1000:2560:10000:10240:0:100:100:0+cw-as:1:1:1000:2560:10000:10240:1:1:4:0 :: Request 978020.nqsv submitted to queue: gen_S.
+diag :: Request 978021.nqsv submitted to queue: gen_S.
+cert read-heavy slot0 :: Request 978024.nqsv submitted to queue: gen_S.
+cert write-heavy slot0 :: Request 978044.nqsv submitted to queue: gen_S.
+cert write-heavy slot1 :: Request 978045.nqsv submitted to queue: gen_S.
+cert write-heavy slot2 :: Request 978046.nqsv submitted to queue: gen_S.
+cert write-heavy slot3 :: Request 978047.nqsv submitted to queue: gen_S.
+cert write-heavy slot4 :: Request 978048.nqsv submitted to queue: gen_S.
+cert write-heavy slot5 :: Request 978049.nqsv submitted to queue: gen_S.
+cert write-heavy slot6 :: Request 978050.nqsv submitted to queue: gen_S.
+cert write-heavy slot7 :: Request 978051.nqsv submitted to queue: gen_S.
+cert balanced slot0 :: Request 978052.nqsv submitted to queue: gen_S.
+cert balanced slot1 :: Request 978053.nqsv submitted to queue: gen_S.
+cert balanced slot2 :: Request 978054.nqsv submitted to queue: gen_S.
+cert balanced slot3 :: Request 978055.nqsv submitted to queue: gen_S.
+cert balanced slot4 :: Request 978056.nqsv submitted to queue: gen_S.
+cert balanced slot5 :: Request 978057.nqsv submitted to queue: gen_S.
+cert balanced slot6 :: Request 978058.nqsv submitted to queue: gen_S.
+cert balanced slot7 :: Request 978059.nqsv submitted to queue: gen_S.
+cert read-heavy slot1 :: Request 978060.nqsv submitted to queue: gen_S.
+cert read-heavy slot2 :: Request 978061.nqsv submitted to queue: gen_S.
+cert read-heavy slot3 :: Request 978062.nqsv submitted to queue: gen_S.
+cert read-heavy slot4 :: Request 978063.nqsv submitted to queue: gen_S.
+cert read-heavy slot5 :: Request 978064.nqsv submitted to queue: gen_S.
+cert read-heavy slot6 :: Request 978065.nqsv submitted to queue: gen_S.
+cert read-heavy slot7 :: Request 978066.nqsv submitted to queue: gen_S.

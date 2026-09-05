@@ -1,0 +1,195 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1-trace-ifdef",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "old": "+#if BACKOFF_TRACE\n+  struct izanagi_backoff_trace_record {\n",
+          "new": "+#ifdef BACKOFF_TRACE\n+  struct izanagi_backoff_trace_record {\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-count-boundary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "old": "+    if (committed_txs - last_committed_txs_ >= kCountWindow ||\n",
+          "new": "+    if (committed_txs - last_committed_txs_ > kCountWindow ||\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-cap-term-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "old": "+        elapsed >= clocks_per_us_ * cap_us)\n",
+          "new": "+        elapsed > clocks_per_us_ * cap_us * 4)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-step-max-clamp-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "old": "+        adaptive_step_ = adaptive_step_ * 2 > kStepMax\n+                             ? kStepMax\n",
+          "new": "+        adaptive_step_ = adaptive_step_ * 2 > kStepMax\n+                             ? adaptive_step_ * 2\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-ceiling-floor-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "old": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling;\n",
+          "new": "+        ceiling_ = halved_ceiling < 0 ? 0 : halved_ceiling;\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-ceiling-grows-on-negative",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "old": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling;\n",
+          "new": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling + ceiling_;\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-cap-without-window-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "            if count_window == 0 and count_cap_us != 0:\n",
+          "new": "            if count_window == 0 and count_cap_us != count_cap_us:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-certify-third-cell",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT}:\n",
+          "new": "    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT, \"cw:1:1:1000:2560:10000:10240:0:100:100:0\"}:\n"
+        },
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if len(cells) != 1 or cells[0] not in CERT_CELLS:\n",
+          "new": "    if len(cells) != 1:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-patch-a-sha-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if a_sha256 != EXPECTED_PATCH_A_SHA256:\n",
+          "new": "    if a_sha256 != a_sha256:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-registry-drops-trace-define",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"BACKOFF_TRACE\": DefineSpec(\n        ROUTE_CMAKE_CACHE, _SILO_OWNER, \"ycsb_silo.exe\",\n        \"patches/cicada-adaptive-dynamic.patch\",\n        inert_values=(\"0\",),\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11a-equivalence-threshold-widened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_dynamic_backoff.py",
+          "old": "PRACTICAL_PERCENT = 3.0\n",
+          "new": "PRACTICAL_PERCENT = 5.0\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11b-log-ratio-percent-linearized",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_dynamic_backoff.py",
+          "old": "                    lower_percent = 100.0 * math.expm1(lower_log)\n",
+          "new": "                    lower_percent = 100.0 * lower_log\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-equivalent-list-copy",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        f\"{entry['path']} {entry['sha256']}\\n\" for entry in stack\n",
+          "new": "        f\"{entry['path']} {entry['sha256']}\\n\" for entry in list(stack)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

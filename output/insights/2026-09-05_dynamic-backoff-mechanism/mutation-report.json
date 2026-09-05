@@ -1,0 +1,1252 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/519a3333d352622195fc075675c5f90a/izdw-519a3333d3.o978099",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/519a3333d352622195fc075675c5f90a/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n........................................................................ [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n318 passed in 49.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "3b90cd1047a9bdae1b15414b6ec3a687192b277e179c1583840c342ca2d7574c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+    "duration_s": 72.972,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "21b587edda5b23eb3725893863c9757b51013ef0942a5f9b67c2f9012ed62213",
+    "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+    "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+    "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+    "status": "PASSED",
+    "test_output_sha256": "3b90cd1047a9bdae1b15414b6ec3a687192b277e179c1583840c342ca2d7574c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+  },
+  "date": "2026-09-05T01:39:55.612998+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/a37e733254c087efbfffbabed61f5515/izdw-a37e733254.o978100",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/a37e733254c087efbfffbabed61f5515/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............F......................................................... [ 22%]\n..................F..................................................... [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n___________ test_trace_is_numeric_if_and_preprocesses_completely_out ___________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\npatched_sources = namespace(tree=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/dynamic-backoff-sources0'), after_a='#pragma once\\n...amic.patch'], returncode=0, stdout='checking file cmake/Options.cmake\\nchecking file include/backoff.hh\\n', stderr=''))\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_trace_is_numeric_if_and_p0')\n\n    def test_trace_is_numeric_if_and_preprocesses_completely_out(\n        patched_sources, tmp_path: Path\n    ) -> None:\n        patch_text = PATCH_B.read_text(encoding=\"utf-8\")\n        assert re.search(r\"^\\+#if BACKOFF_TRACE$\", patch_text, re.MULTILINE)\n>       assert re.search(r\"^\\+#ifdef BACKOFF_TRACE$\", patch_text, re.MULTILINE) is None\nE       AssertionError: assert <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> is None\nE        +  where <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> = <function search at 0x15346fa991b0>('^\\\\+#ifdef BACKOFF_TRACE$', 'diff --git a/cmake/Options.cmake b/cmake/Options.cmake\\nindex 75403c0c..4de9d23b 100644\\n--- a/cmake/Options.cmake\\n+...backoff,\\n     }\\n     backoff.update_backoff(sum_committed_txs);\\n   }\\n+#endif\\n }\\n \\n #ifdef GLOBAL_VALUE_DEFINE\\n', re.MULTILINE)\nE        +    where <function search at 0x15346fa991b0> = re.search\nE        +    and   re.MULTILINE = re.MULTILINE\n\norchestrator/tests/test_dynamic_backoff_transitions.py:689: AssertionError\n_____ test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if _____\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if() -> None:\n        assert PATCH_B.is_file()\n        patch = PATCH_B.read_text(encoding=\"utf-8\")\n        for name, value in {\n            \"COUNT_WINDOW\": 0,\n            \"COUNT_CAP_US\": 0,\n            \"STEP_ADAPT\": 0,\n            \"STEP_MIN_MILLI\": 100000,\n            \"STEP_MAX_MILLI\": 100000,\n            \"DYN_CEILING\": 0,\n            \"TRACE\": 0,\n        }.items():\n            assert re.search(\n                rf\"^\\+set\\(CCBENCH_BACKOFF_{name}[ ]+{value}\\b\",\n                patch,\n                flags=re.MULTILINE,\n            )\n        assert re.search(r\"^\\+#if BACKOFF_TRACE$\", patch, flags=re.MULTILINE)\n>       assert re.search(r\"^\\+#ifdef BACKOFF_TRACE$\", patch, flags=re.MULTILINE) is None\nE       AssertionError: assert <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> is None\nE        +  where <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> = <function search at 0x1477700791b0>('^\\\\+#ifdef BACKOFF_TRACE$', 'diff --git a/cmake/Options.cmake b/cmake/Options.cmake\\nindex 75403c0c..4de9d23b 100644\\n--- a/cmake/Options.cmake\\n+...backoff,\\n     }\\n     backoff.update_backoff(sum_committed_txs);\\n   }\\n+#endif\\n }\\n \\n #ifdef GLOBAL_VALUE_DEFINE\\n', flags=re.MULTILINE)\nE        +    where <function search at 0x1477700791b0> = re.search\nE        +    and   re.MULTILINE = re.MULTILINE\n\norchestrator/tests/test_t2187_adaptive_const_probe.py:1466: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_is_numeric_if_and_preprocesses_completely_out\nFAILED orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if\n2 failed, 316 passed in 49.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1538 retained_bytes=1538 omitted_bytes=0 rendered_excerpt_bytes=1647 sha256=3871309b588b153b9e18d6830a156a99419da6cbfcc9f42fcfb6d7cc217d4ab1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if() -> None:\n>         assert PATCH_B.is_file()\n>         patch = PATCH_B.read_text(encoding=\"utf-8\")\n>         for name, value in {\n>             \"COUNT_WINDOW\": 0,\n>             \"COUNT_CAP_US\": 0,\n>             \"STEP_ADAPT\": 0,\n>             \"STEP_MIN_MILLI\": 100000,\n>             \"STEP_MAX_MILLI\": 100000,\n>             \"DYN_CEILING\": 0,\n>             \"TRACE\": 0,\n>         }.items():\n>             assert re.search(\n>                 rf\"^\\x5c+set\\x5c(CCBENCH_BACKOFF_{name}[ ]+{value}\\x5cb\",\n>                 patch,\n>                 flags=re.MULTILINE,\n>             )\n>         assert re.search(r\"^\\x5c+#if BACKOFF_TRACE$\", patch, flags=re.MULTILINE)\n> >       assert re.search(r\"^\\x5c+#ifdef BACKOFF_TRACE$\", patch, flags=re.MULTILINE) is None\n> E       AssertionError: assert <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> is None\n> E        +  where <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> = <function search at 0x1477700791b0>('^\\x5c\\x5c+#ifdef BACKOFF_TRACE$', 'diff --git a/cmake/Options.cmake b/cmake/Options.cmake\\x5cnindex 75403c0c..4de9d23b 100644\\x5cn--- a/cmake/Options.cmake\\x5cn+...backoff,\\x5cn     }\\x5cn     backoff.update_backoff(sum_committed_txs);\\x5cn   }\\x5cn+#endif\\x5cn }\\x5cn \\x5cn #ifdef GLOBAL_VALUE_DEFINE\\x5cn', flags=re.MULTILINE)\n> E        +    where <function search at 0x1477700791b0> = re.search\n> E        +    and   re.MULTILINE = re.MULTILINE\n> \n> orchestrator/tests/test_t2187_adaptive_const_probe.py:1466: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_is_numeric_if_and_preprocesses_completely_out\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1455 retained_bytes=1455 omitted_bytes=0 rendered_excerpt_bytes=1544 sha256=2a99f05922dbf8fe863ae4e3d3b8a74fa76a2641f2f3c5d6050c0ae59910ceae\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> patched_sources = namespace(tree=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/dynamic-backoff-sources0'), after_a='#pragma once\\x5cn...amic.patch'], returncode=0, stdout='checking file cmake/Options.cmake\\x5cnchecking file include/backoff.hh\\x5cn', stderr=''))\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_trace_is_numeric_if_and_p0')\n> \n>     def test_trace_is_numeric_if_and_preprocesses_completely_out(\n>         patched_sources, tmp_path: Path\n>     ) -> None:\n>         patch_text = PATCH_B.read_text(encoding=\"utf-8\")\n>         assert re.search(r\"^\\x5c+#if BACKOFF_TRACE$\", patch_text, re.MULTILINE)\n> >       assert re.search(r\"^\\x5c+#ifdef BACKOFF_TRACE$\", patch_text, re.MULTILINE) is None\n> E       AssertionError: assert <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> is None\n> E        +  where <re.Match object; span=(6748, 6769), match='+#ifdef BACKOFF_TRACE'> = <function search at 0x15346fa991b0>('^\\x5c\\x5c+#ifdef BACKOFF_TRACE$', 'diff --git a/cmake/Options.cmake b/cmake/Options.cmake\\x5cnindex 75403c0c..4de9d23b 100644\\x5cn--- a/cmake/Options.cmake\\x5cn+...backoff,\\x5cn     }\\x5cn     backoff.update_backoff(sum_committed_txs);\\x5cn   }\\x5cn+#endif\\x5cn }\\x5cn \\x5cn #ifdef GLOBAL_VALUE_DEFINE\\x5cn', re.MULTILINE)\n> E        +    where <function search at 0x15346fa991b0> = re.search\n> E        +    and   re.MULTILINE = re.MULTILINE\n> \n> orchestrator/tests/test_dynamic_backoff_transitions.py:689: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2993 retained_bytes=2993 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4395 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f578b007efc8ef35989f7ebd5e325e9e75bed009543f1ac5f537e87d32aed6da"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 83.221,
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_is_numeric_if_and_preprocesses_completely_out",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_is_numeric_if_and_preprocesses_completely_out",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if"
+      ],
+      "hang_risk": false,
+      "id": "M1-trace-ifdef",
+      "injection_diff_sha256": "42cf8b9bcbed6053e53aa0514978f4fc99c532ba1d0607f27cafca4e1f639683",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "54b6123c7a32618d7d474bc3bd99fd70810f32f66acc3878d99a0d45f5be39a1",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "new": "+#ifdef BACKOFF_TRACE\n+  struct izanagi_backoff_trace_record {\n",
+          "old": "+#if BACKOFF_TRACE\n+  struct izanagi_backoff_trace_record {\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "f578b007efc8ef35989f7ebd5e325e9e75bed009543f1ac5f537e87d32aed6da",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/4437f6b96922636e9ebb92671d8419f4/izdw-4437f6b969.o978101",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/4437f6b96922636e9ebb92671d8419f4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n........................................................................ [ 45%]\n............F........................................................... [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n____________ test_count_window_fires_at_k_boundary_not_k_minus_one _____________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntransition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/dynamic-backoff-driver0/driver')\n\n    def test_count_window_fires_at_k_boundary_not_k_minus_one(transition_driver: Path) -> None:\n        k_minus_one, k_exact, _, _ = _driver_output(transition_driver, \"window\")[0].split()\n>       assert (k_minus_one, k_exact) == (\"0\", \"1\")\nE       AssertionError: assert ('0', '0') == ('0', '1')\nE         \nE         At index 1 diff: '0' != '1'\nE         Use -v to get more diff\n\norchestrator/tests/test_dynamic_backoff_transitions.py:586: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_fires_at_k_boundary_not_k_minus_one\n1 failed, 317 passed in 54.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_fires_at_k_boundary_not_k_minus_one\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=608 retained_bytes=608 omitted_bytes=0 rendered_excerpt_bytes=635 sha256=c8196801308d46488a35dff47e436a20854c8ecd36731f372cf4545f833a0e35\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> transition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/dynamic-backoff-driver0/driver')\n> \n>     def test_count_window_fires_at_k_boundary_not_k_minus_one(transition_driver: Path) -> None:\n>         k_minus_one, k_exact, _, _ = _driver_output(transition_driver, \"window\")[0].split()\n> >       assert (k_minus_one, k_exact) == (\"0\", \"1\")\n> E       AssertionError: assert ('0', '0') == ('0', '1')\n> E         \n> E         At index 1 diff: '0' != '1'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_dynamic_backoff_transitions.py:586: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=608 retained_bytes=608 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1367 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3ad3c29f2a08e563e8605d20a8f70afa2aee2428c992f06e9c07ba71f7349b31"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 88.331,
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_fires_at_k_boundary_not_k_minus_one"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_fires_at_k_boundary_not_k_minus_one"
+      ],
+      "hang_risk": false,
+      "id": "M2-count-boundary",
+      "injection_diff_sha256": "9cf97321c18925259e6d33fc66d2d2d323dfa263b4f6cac7d9aff25b0dfb38d2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fa8cc867b2875124870c64236709657a97f0669de37b1f3bb658bf2742b3f36f",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "new": "+    if (committed_txs - last_committed_txs_ > kCountWindow ||\n",
+          "old": "+    if (committed_txs - last_committed_txs_ >= kCountWindow ||\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "3ad3c29f2a08e563e8605d20a8f70afa2aee2428c992f06e9c07ba71f7349b31",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/d7c9dcf4e5d7728f10a68ae52c1d1df1/izdw-d7c9dcf4e5.o978103",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/d7c9dcf4e5d7728f10a68ae52c1d1df1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n...................................................................F.... [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n__________ test_count_window_cap_alone_fires_with_insufficient_count ___________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntransition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/dynamic-backoff-driver0/driver')\n\n    def test_count_window_cap_alone_fires_with_insufficient_count(transition_driver: Path) -> None:\n        _, _, cap_only, _ = _driver_output(transition_driver, \"window\")[0].split()\n>       assert cap_only == \"1\"\nE       AssertionError: assert '0' == '1'\nE         \nE         - 1\nE         + 0\n\norchestrator/tests/test_dynamic_backoff_transitions.py:591: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_alone_fires_with_insufficient_count\n1 failed, 317 passed in 51.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_alone_fires_with_insufficient_count\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=524 retained_bytes=524 omitted_bytes=0 rendered_excerpt_bytes=551 sha256=b7c9d6b68d20f88e88e0efc250047802124e4461fcc18f7437f874b0d58d9d51\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> transition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/dynamic-backoff-driver0/driver')\n> \n>     def test_count_window_cap_alone_fires_with_insufficient_count(transition_driver: Path) -> None:\n>         _, _, cap_only, _ = _driver_output(transition_driver, \"window\")[0].split()\n> >       assert cap_only == \"1\"\n> E       AssertionError: assert '0' == '1'\n> E         \n> E         - 1\n> E         + 0\n> \n> orchestrator/tests/test_dynamic_backoff_transitions.py:591: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=524 retained_bytes=524 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1287 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "408f645c106cb1cc7bba525123789ba80c0507516dc4336a8a3269cfaf2dcd97"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 83.33,
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_alone_fires_with_insufficient_count"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_alone_fires_with_insufficient_count"
+      ],
+      "hang_risk": false,
+      "id": "M3-cap-term-disabled",
+      "injection_diff_sha256": "11f1e918fb2d17a94489d94c9b1b4d9b05656f50257aa316643aa61305b6eed1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5da301071f96064dd54d5c1da6b70e0461323ad8553832016163c89b68c8a275",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "new": "+        elapsed > clocks_per_us_ * cap_us * 4)\n",
+          "old": "+        elapsed >= clocks_per_us_ * cap_us)\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "408f645c106cb1cc7bba525123789ba80c0507516dc4336a8a3269cfaf2dcd97",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/a51f9cc7592a50a2ef160582e295539c/izdw-a51f9cc759.o978104",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/a51f9cc7592a50a2ef160582e295539c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n........................................................................ [ 45%]\n.................F...................................................... [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n___________ test_adaptive_step_doubles_and_halves_with_exact_bounds ____________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\ntransition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/dynamic-backoff-driver0/driver')\n\n    def test_adaptive_step_doubles_and_halves_with_exact_bounds(transition_driver: Path) -> None:\n        values = tuple(float(item) for item in _driver_output(transition_driver, \"step\")[0].split(\",\"))\n>       assert values == (1.0, 2.0, 4.0, 4.0, 2.0, 1.0, 1.0)\nE       assert (1.0, 2.0, 4....4.0, 2.0, ...) == (1.0, 2.0, 4....2.0, 1.0, ...)\nE         \nE         At index 3 diff: 8.0 != 4.0\nE         Use -v to get more diff\n\norchestrator/tests/test_dynamic_backoff_transitions.py:633: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dynamic_backoff_transitions.py::test_adaptive_step_doubles_and_halves_with_exact_bounds\n1 failed, 317 passed in 48.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dynamic_backoff_transitions.py::test_adaptive_step_doubles_and_halves_with_exact_bounds\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=655 retained_bytes=655 omitted_bytes=0 rendered_excerpt_bytes=682 sha256=a02f57fa32d72d036e959ac76d26a59b22cd65a28d5db09a5c249953982815fc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n> transition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/dynamic-backoff-driver0/driver')\n> \n>     def test_adaptive_step_doubles_and_halves_with_exact_bounds(transition_driver: Path) -> None:\n>         values = tuple(float(item) for item in _driver_output(transition_driver, \"step\")[0].split(\",\"))\n> >       assert values == (1.0, 2.0, 4.0, 4.0, 2.0, 1.0, 1.0)\n> E       assert (1.0, 2.0, 4....4.0, 2.0, ...) == (1.0, 2.0, 4....2.0, 1.0, ...)\n> E         \n> E         At index 3 diff: 8.0 != 4.0\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_dynamic_backoff_transitions.py:633: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=655 retained_bytes=655 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1416 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2d7080ea4d2749019695130b8363942abca0a6f512dabba419029760d57c459d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 83.31,
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_adaptive_step_doubles_and_halves_with_exact_bounds"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_adaptive_step_doubles_and_halves_with_exact_bounds"
+      ],
+      "hang_risk": false,
+      "id": "M4-step-max-clamp-removed",
+      "injection_diff_sha256": "be925ef99ef0c67096d003db38d36e6d86c8fb2758641fb256bf753511885498",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "41f56a1550f26db2717cef8f050a13101cdbe7858f2b6c4eb6ccc947548912f8",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "new": "+        adaptive_step_ = adaptive_step_ * 2 > kStepMax\n+                             ? adaptive_step_ * 2\n",
+          "old": "+        adaptive_step_ = adaptive_step_ * 2 > kStepMax\n+                             ? kStepMax\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "2d7080ea4d2749019695130b8363942abca0a6f512dabba419029760d57c459d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/652f877629e332d7c486b62ef9c19254/izdw-652f877629.o978105",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/652f877629e332d7c486b62ef9c19254/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n.........................................F.............................. [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n____________ test_dynamic_ceiling_has_exact_fifty_microsecond_floor ____________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntransition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/dynamic-backoff-driver0/driver')\n\n    def test_dynamic_ceiling_has_exact_fifty_microsecond_floor(transition_driver: Path) -> None:\n        line = _driver_output(transition_driver, \"ceiling\")[1]\n>       assert line == \"floor_after=50\"\nE       AssertionError: assert 'floor_after=31' == 'floor_after=50'\nE         \nE         - floor_after=50\nE         ?             ^^\nE         + floor_after=31\nE         ?             ^^\n\norchestrator/tests/test_dynamic_backoff_transitions.py:648: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_has_exact_fifty_microsecond_floor\n1 failed, 317 passed in 50.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_has_exact_fifty_microsecond_floor\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=616 retained_bytes=616 omitted_bytes=0 rendered_excerpt_bytes=647 sha256=a3d2277180d033694c47de71cf774d3b1efdcabf82d0c15e14608f899fb38183\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> transition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/dynamic-backoff-driver0/driver')\n> \n>     def test_dynamic_ceiling_has_exact_fifty_microsecond_floor(transition_driver: Path) -> None:\n>         line = _driver_output(transition_driver, \"ceiling\")[1]\n> >       assert line == \"floor_after=50\"\n> E       AssertionError: assert 'floor_after=31' == 'floor_after=50'\n> E         \n> E         - floor_after=50\n> E         ?             ^^\n> E         + floor_after=31\n> E         ?             ^^\n> \n> orchestrator/tests/test_dynamic_backoff_transitions.py:648: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=616 retained_bytes=616 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1380 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1d58b526ac8ae1d94b72db7f31c5d5ddb9bfd69f4bac96a32f16ba3a669b34d3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 73.67,
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_has_exact_fifty_microsecond_floor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_has_exact_fifty_microsecond_floor"
+      ],
+      "hang_risk": false,
+      "id": "M5-ceiling-floor-25",
+      "injection_diff_sha256": "67ac1b588754eddfa0c754feeacc79119a7c74c2924df9c50df7f87da01d81c2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c04cc09adaf1840c20865dfc40da8c55c1b9f6a6931b033e8b73f966b62922e7",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "new": "+        ceiling_ = halved_ceiling < 25 ? 25 : halved_ceiling;\n",
+          "old": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling;\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "1d58b526ac8ae1d94b72db7f31c5d5ddb9bfd69f4bac96a32f16ba3a669b34d3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/227938380349d021c2f35443e0565fb7/izdw-2279383803.o978106",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/227938380349d021c2f35443e0565fb7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n.................................................F...................... [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n____________ test_negative_gradient_never_increases_dynamic_ceiling ____________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntransition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/dynamic-backoff-driver0/driver')\n\n    def test_negative_gradient_never_increases_dynamic_ceiling(transition_driver: Path) -> None:\n        match = re.fullmatch(\n            r\"mono_before=(\\d+) mono_after=(\\d+)\",\n            _driver_output(transition_driver, \"ceiling\")[0],\n        )\n        assert match is not None\n        before, after = (int(value) for value in match.groups())\n>       assert after < before\nE       assert 300 < 200\n\norchestrator/tests/test_dynamic_backoff_transitions.py:643: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dynamic_backoff_transitions.py::test_negative_gradient_never_increases_dynamic_ceiling\n1 failed, 317 passed in 48.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dynamic_backoff_transitions.py::test_negative_gradient_never_increases_dynamic_ceiling\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=631 retained_bytes=631 omitted_bytes=0 rendered_excerpt_bytes=668 sha256=9ec433f28af09dfc3076d91abbfad749c880357d323e4a9d02a3a3fd61d56582\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> transition_driver = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/dynamic-backoff-driver0/driver')\n> \n>     def test_negative_gradient_never_increases_dynamic_ceiling(transition_driver: Path) -> None:\n>         match = re.fullmatch(\n>             r\"mono_before=(\\x5cd+) mono_after=(\\x5cd+)\",\n>             _driver_output(transition_driver, \"ceiling\")[0],\n>         )\n>         assert match is not None\n>         before, after = (int(value) for value in match.groups())\n> >       assert after < before\n> E       assert 300 < 200\n> \n> orchestrator/tests/test_dynamic_backoff_transitions.py:643: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=631 retained_bytes=631 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1401 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "803cd0a5482e77a68e80ae13e9c07fdae17c6183f073441ed6dc009d6d5323ed"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 88.182,
+      "expected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_negative_gradient_never_increases_dynamic_ceiling"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_negative_gradient_never_increases_dynamic_ceiling"
+      ],
+      "hang_risk": false,
+      "id": "M6-ceiling-grows-on-negative",
+      "injection_diff_sha256": "a9ec4a4454329c87f51ea0d065bc08dbf07108a37c8b0d608c832e43c9d5c76b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "426e749a85dc6a938c52482631ce074c0aa81f663cb2c4ce1c49958c914a2ba8",
+      "replacements": [
+        {
+          "file": "patches/cicada-adaptive-dynamic.patch",
+          "new": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling + ceiling_;\n",
+          "old": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling;\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "803cd0a5482e77a68e80ae13e9c07fdae17c6183f073441ed6dc009d6d5323ed",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/56beeaf7d32549a52b4c660b615d2ba8/izdw-56beeaf7d3.o978107",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/56beeaf7d32549a52b4c660b615d2ba8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n........................................................................ [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n.......................F......                                           [100%]\n=================================== FAILURES ===================================\n_ test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero] _\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\ncell = 'bad:1:1:1000:2560:0:10240:0:100:100:0'\n\n    @pytest.mark.parametrize(\n        \"cell\",\n        (\n            \"bad:1:1:1000:2560:0\",\n            \"bad:1:1:1000:2560:0:10240:0:100:100:0\",\n            \"bad:1:1:1000:2560:-1:0:0:100:100:0\",\n            \"bad:1:1:1000:2560:1:10240:2:1:4:0\",\n            \"bad:1:1:1000:2560:1:10240:1:0.0001:4:0\",\n            \"bad:1:1:1000:2560:1:10240:1:4:1:0\",\n            \"bad:1:5:1000:2560:1:10240:1:1:4:0\",\n            \"bad:1:1:1000:2560:1:10240:1:1:13:1\",\n            \"bad:1:1:1000:2560:1:10240:1:1:4:2\",\n        ),\n        ids=(\n            \"six-fields\",\n            \"M7-k-zero-cap-nonzero\",\n            \"negative-window\",\n            \"step-toggle\",\n            \"lossy-step-bound\",\n            \"reversed-bounds\",\n            \"initial-step-outside-bounds\",\n            \"dynamic-floor-impossible\",\n            \"dynamic-toggle\",\n        ),\n    )\n    def test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations(\n        cell: str,\n    ) -> None:\n>       with pytest.raises(ValueError):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_t2187_adaptive_const_probe.py:1390: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]\n1 failed, 317 passed in 49.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]\" nodeid_bytes=155 nodeid_omitted_bytes=0 source_bytes=1198 retained_bytes=1198 omitted_bytes=0 rendered_excerpt_bytes=1271 sha256=1bdbe00d9dfc141187aa74602d86d66cacecdcd7950fb3f59e4f60ada06aacab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n> cell = 'bad:1:1:1000:2560:0:10240:0:100:100:0'\n> \n>     @pytest.mark.parametrize(\n>         \"cell\",\n>         (\n>             \"bad:1:1:1000:2560:0\",\n>             \"bad:1:1:1000:2560:0:10240:0:100:100:0\",\n>             \"bad:1:1:1000:2560:-1:0:0:100:100:0\",\n>             \"bad:1:1:1000:2560:1:10240:2:1:4:0\",\n>             \"bad:1:1:1000:2560:1:10240:1:0.0001:4:0\",\n>             \"bad:1:1:1000:2560:1:10240:1:4:1:0\",\n>             \"bad:1:5:1000:2560:1:10240:1:1:4:0\",\n>             \"bad:1:1:1000:2560:1:10240:1:1:13:1\",\n>             \"bad:1:1:1000:2560:1:10240:1:1:4:2\",\n>         ),\n>         ids=(\n>             \"six-fields\",\n>             \"M7-k-zero-cap-nonzero\",\n>             \"negative-window\",\n>             \"step-toggle\",\n>             \"lossy-step-bound\",\n>             \"reversed-bounds\",\n>             \"initial-step-outside-bounds\",\n>             \"dynamic-floor-impossible\",\n>             \"dynamic-toggle\",\n>         ),\n>     )\n>     def test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations(\n>         cell: str,\n>     ) -> None:\n> >       with pytest.raises(ValueError):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_t2187_adaptive_const_probe.py:1390: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1198 retained_bytes=1198 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2054 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "87d352d8ffac29a99986329ae189ffc9a45211ad60c3ddcbe6813691afc99538"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 83.622,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]"
+      ],
+      "hang_risk": false,
+      "id": "M7-cap-without-window-accepted",
+      "injection_diff_sha256": "ef774c2b729e1d02315d81bc17dfd7d09d49b54a67d68587d0e3ae083bcfa6a2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a69990a5cb91dbde48119b7c75377483ff156b7151d57da849a39c8682c2e3f4",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "            if count_window == 0 and count_cap_us != count_cap_us:\n",
+          "old": "            if count_window == 0 and count_cap_us != 0:\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "87d352d8ffac29a99986329ae189ffc9a45211ad60c3ddcbe6813691afc99538",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/a358f3657899ab5da8832afcc503bc6f/izdw-a358f36578.o978108",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/a358f3657899ab5da8832afcc503bc6f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n.....................................F.................................. [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n____ test_public_certification_accepts_each_exact_cell_and_rejects_widening ____\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_public_certification_acce0')\n\n    def test_public_certification_accepts_each_exact_cell_and_rejects_widening(\n        tmp_path: Path,\n    ) -> None:\n        parser = probe._argument_parser()\n        for exact in (CERT_CELL, DYNAMIC_CERT_CELL):\n            argv = _certify_argv(tmp_path)\n            argv[argv.index(CERT_CELL)] = exact\n            cell, workload, threads = probe._certification_contract(\n                parser.parse_args(argv)\n            )\n            assert cell in probe.CERT_CELLS\n            assert workload == \"balanced\"\n            assert threads == 48\n    \n        for invalid in (\n            f\"{CERT_CELL},{DYNAMIC_CERT_CELL}\",\n            \"cw:1:1:1000:2560:10000:10240:0:100:100:0\",\n            \"cw-as-dyn:1:1:1000:2560:10001:10240:1:1:4:1\",\n        ):\n            argv = _certify_argv(tmp_path)\n            argv[argv.index(CERT_CELL)] = invalid\n>           with pytest.raises(probe.CertificationReject) as caught:\nE           Failed: DID NOT RAISE CertificationReject\n\norchestrator/tests/test_t2187_adaptive_const_probe.py:1529: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening\n1 failed, 317 passed in 50.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1180 retained_bytes=1180 omitted_bytes=0 rendered_excerpt_bytes=1239 sha256=e8d09ac6477fd36ee77c6ff49c1c02b93d0178964a1a29476aac38e363709c3b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_public_certification_acce0')\n> \n>     def test_public_certification_accepts_each_exact_cell_and_rejects_widening(\n>         tmp_path: Path,\n>     ) -> None:\n>         parser = probe._argument_parser()\n>         for exact in (CERT_CELL, DYNAMIC_CERT_CELL):\n>             argv = _certify_argv(tmp_path)\n>             argv[argv.index(CERT_CELL)] = exact\n>             cell, workload, threads = probe._certification_contract(\n>                 parser.parse_args(argv)\n>             )\n>             assert cell in probe.CERT_CELLS\n>             assert workload == \"balanced\"\n>             assert threads == 48\n>     \n>         for invalid in (\n>             f\"{CERT_CELL},{DYNAMIC_CERT_CELL}\",\n>             \"cw:1:1:1000:2560:10000:10240:0:100:100:0\",\n>             \"cw-as-dyn:1:1:1000:2560:10001:10240:1:1:4:1\",\n>         ):\n>             argv = _certify_argv(tmp_path)\n>             argv[argv.index(CERT_CELL)] = invalid\n> >           with pytest.raises(probe.CertificationReject) as caught:\n> E           Failed: DID NOT RAISE CertificationReject\n> \n> orchestrator/tests/test_t2187_adaptive_const_probe.py:1529: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1180 retained_bytes=1180 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1992 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "aef078de606f2fd49c5368b7effba8594adf5c48505cf2cd77ece94ed7c10b77"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 88.276,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening"
+      ],
+      "hang_risk": false,
+      "id": "M8-certify-third-cell",
+      "injection_diff_sha256": "7ff56283d017af3dd32d94ba0bbde43d9ef7ef9965927684f48fe051ddd7ec6a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "668ae6152bc937a6edf741a55c480e56a693cca92ce17fc5983bc0fdac1ef28b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT, \"cw:1:1:1000:2560:10000:10240:0:100:100:0\"}:\n",
+          "old": "    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT}:\n"
+        },
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "    if len(cells) != 1:\n",
+          "old": "    if len(cells) != 1 or cells[0] not in CERT_CELLS:\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "aef078de606f2fd49c5368b7effba8594adf5c48505cf2cd77ece94ed7c10b77",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/14d583b49b9205fb71fbbdb9e91992ac/izdw-14d583b49b.o978115",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/14d583b49b9205fb71fbbdb9e91992ac/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n.............F.......................................................... [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n____________ test_expected_patch_a_sha256_is_checked_before_patch_b ____________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a58bebec50>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_expected_patch_a_sha256_i0')\n\n    def test_expected_patch_a_sha256_is_checked_before_patch_b(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path\n    ) -> None:\n        changed_a = tmp_path / \"changed-a.patch\"\n        changed_a.write_bytes(PATCH.read_bytes() + b\"\\n\")\n        monkeypatch.setattr(probe, \"PATCH_A\", changed_a)\n>       with pytest.raises(RuntimeError, match=\"immutable patch A SHA-256 mismatch\"):\nE       Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_t2187_adaptive_const_probe.py:1414: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b\n1 failed, 317 passed in 50.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=714 retained_bytes=714 omitted_bytes=0 rendered_excerpt_bytes=748 sha256=9de07de1900238d0bc029d3c0c225b49878cdcff92aa7d5036fc3fda2241b699\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a58bebec50>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_expected_patch_a_sha256_i0')\n> \n>     def test_expected_patch_a_sha256_is_checked_before_patch_b(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path\n>     ) -> None:\n>         changed_a = tmp_path / \"changed-a.patch\"\n>         changed_a.write_bytes(PATCH.read_bytes() + b\"\\x5cn\")\n>         monkeypatch.setattr(probe, \"PATCH_A\", changed_a)\n> >       with pytest.raises(RuntimeError, match=\"immutable patch A SHA-256 mismatch\"):\n> E       Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_t2187_adaptive_const_probe.py:1414: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=714 retained_bytes=714 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1480 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "23c54752489f78dd46fd2e023604d194a84b237686df23df86ed2a38e01f0893"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 88.383,
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b"
+      ],
+      "hang_risk": false,
+      "id": "M9-patch-a-sha-unchecked",
+      "injection_diff_sha256": "44e4b31a15df58c458ad8ac5d66f9913acfc291d69ee07eee3aab6a930e0501e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "de53a8d063f0a40a22e3e97baaa513de7740de07f38463c71832a17b3cfdd596",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "    if a_sha256 != a_sha256:\n",
+          "old": "    if a_sha256 != EXPECTED_PATCH_A_SHA256:\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "23c54752489f78dd46fd2e023604d194a84b237686df23df86ed2a38e01f0893",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/b9e57a0fa23ccaa0d65ab70ccc9df9a6/izdw-b9e57a0fa2.o978116",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/b9e57a0fa23ccaa0d65ab70ccc9df9a6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........F....................................................F......... [ 22%]\n........................................................................ [ 45%]\n.....................................................................F.. [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n_________ test_patch_define_inventory_matches_condition_gate_registry __________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_patch_define_inventory_matches_condition_gate_registry():\n        patch_sources, non_tu_interfaces = _patch_added_define_interfaces()\n>       assert frozenset(patch_sources) == frozenset(\n            condition_meaning_gate.DEFINE_SPECS\n        )\nE       AssertionError: assert frozenset({'B...MAX_US', ...}) == frozenset({'B...MAX_US', ...})\nE         \nE         Extra items in the left set:\nE         'BACKOFF_TRACE'\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2607: AssertionError\n________________ test_v1_domain_and_claim_boundaries_are_exact _________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v1_domain_and_claim_boundaries_are_exact():\n        supply_domain = {\n            \"BACKOFF_FIXED\", \"BACKOFF_INCR_MILLI\", \"BACKOFF_MAX_US\",\n            \"BACKOFF_COUNT_WINDOW\", \"BACKOFF_COUNT_CAP_US\", \"BACKOFF_STEP_ADAPT\",\n            \"BACKOFF_STEP_MIN_MILLI\", \"BACKOFF_STEP_MAX_MILLI\",\n            \"BACKOFF_DYN_CEILING\", \"BACKOFF_TRACE\",\n            \"BACKOFF_NOINLINE\", \"BACKOFF_REQUESTED_US\", \"BACKOFF_TRIGGER_GATING\",\n            \"BACKOFF_UPDATE_US\", \"SORT_VARIANT\", \"SS2PL_LOCK_IMPL\",\n            \"SS2PL_LOCK_KIND\", \"SS2PL_DLR\", \"SS2PL_WFG_DIAG\",\n            \"IZANAGI_BREAK_PERMUTATION\", \"IZANAGI_BREAK_PERMUTATION_SWAP\",\n            \"IZANAGI_BREAK_LOCK_COVERAGE\", \"IZANAGI_BREAK_EARLY_UNLOCK\",\n            \"IZANAGI_BREAK_NOREAD_VALIDATION\", \"IZANAGI_BREAK_HIGHKEY_VALIDATION\",\n            \"IZANAGI_BREAK_WRITE_INTENT_ERASE\", \"IZANAGI_BREAK_WRITE_INTENT_FORGE\",\n            \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\", \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\",\n            \"IZANAGI_BREAK_TRIGGER_MISATTR\", \"IZANAGI_SILO_LADDER_RUNG1\",\n            \"IZANAGI_SILO_LADDER_RUNG1_REPORT\",\n        }\n>       assert G.SUPPLY_DOMAIN_MACROS == supply_domain\nE       AssertionError: assert frozenset({'B...MAX_US', ...}) == {'BACKOFF_COU..._MAX_US', ...}\nE         \nE         Extra items in the right set:\nE         'BACKOFF_TRACE'\nE         Use -v to get more diff\n\norchestrator/tests/test_condition_meaning_gate.py:2410: AssertionError\n__________ test_screening_condition_requests_cover_exact_define_specs __________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_screening_condition_requests_cover_exact_define_specs():\n        flags = {\n            macro: screening_driver._CONDITION_DEFAULTS[macro] + 1\n            for macro in condition_meaning_gate.DEFINE_SPECS\n        }\n        requests = screening_driver._condition_requests_for_genome(\n            Genome(\"silo\", flags),\n        )\n    \n>       assert set(screening_driver._CONDITION_DEFAULTS) == set(\n            condition_meaning_gate.DEFINE_SPECS\n        )\nE       AssertionError: assert {'BACKOFF_COU..._MAX_US', ...} == {'BACKOFF_COU..._MAX_US', ...}\nE         \nE         Extra items in the left set:\nE         'BACKOFF_TRACE'\nE         Use -v to get more diff\n\norchestrator/tests/test_screening_driver.py:253: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact\nFAILED orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs\n3 failed, 315 passed in 48.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1477 retained_bytes=1477 omitted_bytes=0 rendered_excerpt_bytes=1532 sha256=e46057ba6931a1d41b3a561779b16e0d4975338dc752d6fa312d565e644b0735\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v1_domain_and_claim_boundaries_are_exact():\n>         supply_domain = {\n>             \"BACKOFF_FIXED\", \"BACKOFF_INCR_MILLI\", \"BACKOFF_MAX_US\",\n>             \"BACKOFF_COUNT_WINDOW\", \"BACKOFF_COUNT_CAP_US\", \"BACKOFF_STEP_ADAPT\",\n>             \"BACKOFF_STEP_MIN_MILLI\", \"BACKOFF_STEP_MAX_MILLI\",\n>             \"BACKOFF_DYN_CEILING\", \"BACKOFF_TRACE\",\n>             \"BACKOFF_NOINLINE\", \"BACKOFF_REQUESTED_US\", \"BACKOFF_TRIGGER_GATING\",\n>             \"BACKOFF_UPDATE_US\", \"SORT_VARIANT\", \"SS2PL_LOCK_IMPL\",\n>             \"SS2PL_LOCK_KIND\", \"SS2PL_DLR\", \"SS2PL_WFG_DIAG\",\n>             \"IZANAGI_BREAK_PERMUTATION\", \"IZANAGI_BREAK_PERMUTATION_SWAP\",\n>             \"IZANAGI_BREAK_LOCK_COVERAGE\", \"IZANAGI_BREAK_EARLY_UNLOCK\",\n>             \"IZANAGI_BREAK_NOREAD_VALIDATION\", \"IZANAGI_BREAK_HIGHKEY_VALIDATION\",\n>             \"IZANAGI_BREAK_WRITE_INTENT_ERASE\", \"IZANAGI_BREAK_WRITE_INTENT_FORGE\",\n>             \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\", \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\",\n>             \"IZANAGI_BREAK_TRIGGER_MISATTR\", \"IZANAGI_SILO_LADDER_RUNG1\",\n>             \"IZANAGI_SILO_LADDER_RUNG1_REPORT\",\n>         }\n> >       assert G.SUPPLY_DOMAIN_MACROS == supply_domain\n> E       AssertionError: assert frozenset({'B...MAX_US', ...}) == {'BACKOFF_COU..._MAX_US', ...}\n> E         \n> E         Extra items in the right set:\n> E         'BACKOFF_TRACE'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_condition_meaning_gate.py:2410: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=785 retained_bytes=785 omitted_bytes=0 rendered_excerpt_bytes=828 sha256=5374fd7a5503259e546491323b8a2152869f2e8e5c424cf835886876a6df3d92\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_screening_condition_requests_cover_exact_define_specs():\n>         flags = {\n>             macro: screening_driver._CONDITION_DEFAULTS[macro] + 1\n>             for macro in condition_meaning_gate.DEFINE_SPECS\n>         }\n>         requests = screening_driver._condition_requests_for_genome(\n>             Genome(\"silo\", flags),\n>         )\n>     \n> >       assert set(screening_driver._CONDITION_DEFAULTS) == set(\n>             condition_meaning_gate.DEFINE_SPECS\n>         )\n> E       AssertionError: assert {'BACKOFF_COU..._MAX_US', ...} == {'BACKOFF_COU..._MAX_US', ...}\n> E         \n> E         Extra items in the left set:\n> E         'BACKOFF_TRACE'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_screening_driver.py:253: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=581 retained_bytes=581 omitted_bytes=0 rendered_excerpt_bytes=610 sha256=7832101dbd71b01e632508378aab52dd02af9bbc0a8910113cb895bc0af7bdb2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_patch_define_inventory_matches_condition_gate_registry():\n>         patch_sources, non_tu_interfaces = _patch_added_define_interfaces()\n> >       assert frozenset(patch_sources) == frozenset(\n>             condition_meaning_gate.DEFINE_SPECS\n>         )\n> E       AssertionError: assert frozenset({'B...MAX_US', ...}) == frozenset({'B...MAX_US', ...})\n> E         \n> E         Extra items in the left set:\n> E         'BACKOFF_TRACE'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2607: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2843 retained_bytes=2843 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4579 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "63113dbc4705c999df66d1631d41d0b1a83037d5e5c2ed2eb8c513fb25480a27"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 78.151,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+      ],
+      "hang_risk": false,
+      "id": "M10-registry-drops-trace-define",
+      "injection_diff_sha256": "7aee9346dedf44b51d9248aec790c87913310b37c7d0a57172ef8b021ac27825",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "61087de391de7a6451edbe099c04d4e0b97ff3317d0b3ed0a9920e9810f67fcf",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "",
+          "old": "    \"BACKOFF_TRACE\": DefineSpec(\n        ROUTE_CMAKE_CACHE, _SILO_OWNER, \"ycsb_silo.exe\",\n        \"patches/cicada-adaptive-dynamic.patch\",\n        inert_values=(\"0\",),\n    ),\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "63113dbc4705c999df66d1631d41d0b1a83037d5e5c2ed2eb8c513fb25480a27",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/f647f29157260d170a34b200d8439158/izdw-f647f29157.o978117",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/f647f29157260d170a34b200d8439158/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F........................................................... [ 22%]\n........................................................................ [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n=================================== FAILURES ===================================\n_____ test_practical_margin_fixture_controls_verdicts_and_robust_endpoint ______\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_practical_margin_fixture_0')\n\n    def test_practical_margin_fixture_controls_verdicts_and_robust_endpoint(\n        tmp_path: Path,\n    ):\n        performance, diagnostic = _fixture_inputs(tmp_path)\n        data = plot.load_inputs(performance, diagnostic)\n        contrasts = {row[\"hypothesis\"]: row for row in data[\"contrasts\"]}\n    \n        positive = next(\n            point for point in contrasts[\"H1\"][\"points\"]\n            if (point[\"workload\"], point[\"threads\"]) == (\"write-heavy\", 48)\n        )\n        assert positive[\"mean_percent\"] == pytest.approx(4.25, abs=0.01)\n        assert 3.2 <= positive[\"ci95_lower_percent\"] <= 3.8\n        assert positive[\"ci95_upper_percent\"] > 5.0\n>       assert positive[\"verdict\"] == \"実用優越\"\nE       AssertionError: assert '非劣性' == '実用優越'\nE         \nE         - 実用優越\nE         + 非劣性\n\norchestrator/tests/test_plot_dynamic_backoff.py:372: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint\n1 failed, 317 passed in 48.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1043 retained_bytes=1043 omitted_bytes=0 rendered_excerpt_bytes=1148 sha256=e06a33f42daf2e5736d10a68dad8c2e8d3759a8342cdb6d7eebac3c2e5c99301\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_practical_margin_fixture_0')\n> \n>     def test_practical_margin_fixture_controls_verdicts_and_robust_endpoint(\n>         tmp_path: Path,\n>     ):\n>         performance, diagnostic = _fixture_inputs(tmp_path)\n>         data = plot.load_inputs(performance, diagnostic)\n>         contrasts = {row[\"hypothesis\"]: row for row in data[\"contrasts\"]}\n>     \n>         positive = next(\n>             point for point in contrasts[\"H1\"][\"points\"]\n>             if (point[\"workload\"], point[\"threads\"]) == (\"write-heavy\", 48)\n>         )\n>         assert positive[\"mean_percent\"] == pytest.approx(4.25, abs=0.01)\n>         assert 3.2 <= positive[\"ci95_lower_percent\"] <= 3.8\n>         assert positive[\"ci95_upper_percent\"] > 5.0\n> >       assert positive[\"verdict\"] == \"\\u5b9f\\u7528\\u512a\\u8d8a\"\n> E       AssertionError: assert '\\u975e\\u52a3\\u6027' == '\\u5b9f\\u7528\\u512a\\u8d8a'\n> E         \n> E         - \\u5b9f\\u7528\\u512a\\u8d8a\n> E         + \\u975e\\u52a3\\u6027\n> \n> orchestrator/tests/test_plot_dynamic_backoff.py:372: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1043 retained_bytes=1043 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1892 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "40a5d887625351fdb6e58af1b5f443403ec898e724683b37b52fd67bae3964a9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 83.215,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint"
+      ],
+      "hang_risk": false,
+      "id": "M11a-equivalence-threshold-widened",
+      "injection_diff_sha256": "1fbccd1c9b5be30103a201199e84bf02fc97e139a2633a7952201c2b393b98ed",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7622e99c2d8128f65050df25df71c86a4164c60b06e36399e861e58073a50b9f",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_dynamic_backoff.py",
+          "new": "PRACTICAL_PERCENT = 5.0\n",
+          "old": "PRACTICAL_PERCENT = 3.0\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "40a5d887625351fdb6e58af1b5f443403ec898e724683b37b52fd67bae3964a9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/b95844b293662434eeb2a4235d5810fa/izdw-b95844b293.o978118",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/b95844b293662434eeb2a4235d5810fa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n........................................................................ [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n......................F.......                                           [100%]\n=================================== FAILURES ===================================\n____ test_large_log_ratio_percentages_use_independent_exponential_transform ____\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_large_log_ratio_percentag0')\n\n    def test_large_log_ratio_percentages_use_independent_exponential_transform(\n        tmp_path: Path,\n    ):\n        performance, diagnostic = _fixture_inputs(tmp_path)\n        result, prefix = _run(tmp_path, \"large-ratio\", performance, diagnostic)\n        assert result.returncode == 0, result.stderr\n        provenance = json.loads(\n            Path(f\"{prefix}.provenance.json\").read_text(encoding=\"utf-8\")\n        )\n        h2 = next(\n            row for row in provenance[\"contrasts\"] if row[\"hypothesis\"] == \"H2\"\n        )\n        point = next(\n            candidate for candidate in h2[\"points\"]\n            if (candidate[\"workload\"], candidate[\"threads\"]) == (\"read-heavy\", 6)\n        )\n    \n        # Recompute from the fixture with math.exp, independently of generator helpers.\n        log_samples = [math.log(1.60)] * 7\n        mean_log = statistics.fmean(log_samples)\n        half_width = (\n            2.4469118511449692 * statistics.stdev(log_samples) / math.sqrt(7)\n        )\n        expected = {\n            \"mean_percent\": 100.0 * (math.exp(mean_log) - 1.0),\n            \"ci95_lower_percent\": 100.0 * (math.exp(mean_log - half_width) - 1.0),\n            \"ci95_upper_percent\": 100.0 * (math.exp(mean_log + half_width) - 1.0),\n        }\n        for key, value in expected.items():\n>           assert point[key] == pytest.approx(value, abs=1e-12)\nE           assert 47.000362924573565 == 60.00000000000001 ± 1.0e-12\nE             \nE             comparison failed\nE             Obtained: 47.000362924573565\nE             Expected: 60.00000000000001 ± 1.0e-12\n\norchestrator/tests/test_plot_dynamic_backoff.py:423: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform\n1 failed, 317 passed in 48.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1789 retained_bytes=1789 omitted_bytes=0 rendered_excerpt_bytes=1876 sha256=8f36a3626d0353ac12a9276deb6f903aa443e2fbde9b0c34c2ff91b3334b306b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_large_log_ratio_percentag0')\n> \n>     def test_large_log_ratio_percentages_use_independent_exponential_transform(\n>         tmp_path: Path,\n>     ):\n>         performance, diagnostic = _fixture_inputs(tmp_path)\n>         result, prefix = _run(tmp_path, \"large-ratio\", performance, diagnostic)\n>         assert result.returncode == 0, result.stderr\n>         provenance = json.loads(\n>             Path(f\"{prefix}.provenance.json\").read_text(encoding=\"utf-8\")\n>         )\n>         h2 = next(\n>             row for row in provenance[\"contrasts\"] if row[\"hypothesis\"] == \"H2\"\n>         )\n>         point = next(\n>             candidate for candidate in h2[\"points\"]\n>             if (candidate[\"workload\"], candidate[\"threads\"]) == (\"read-heavy\", 6)\n>         )\n>     \n>         # Recompute from the fixture with math.exp, independently of generator helpers.\n>         log_samples = [math.log(1.60)] * 7\n>         mean_log = statistics.fmean(log_samples)\n>         half_width = (\n>             2.4469118511449692 * statistics.stdev(log_samples) / math.sqrt(7)\n>         )\n>         expected = {\n>             \"mean_percent\": 100.0 * (math.exp(mean_log) - 1.0),\n>             \"ci95_lower_percent\": 100.0 * (math.exp(mean_log - half_width) - 1.0),\n>             \"ci95_upper_percent\": 100.0 * (math.exp(mean_log + half_width) - 1.0),\n>         }\n>         for key, value in expected.items():\n> >           assert point[key] == pytest.approx(value, abs=1e-12)\n> E           assert 47.000362924573565 == 60.00000000000001 \\xb1 1.0e-12\n> E             \n> E             comparison failed\n> E             Obtained: 47.000362924573565\n> E             Expected: 60.00000000000001 \\xb1 1.0e-12\n> \n> orchestrator/tests/test_plot_dynamic_backoff.py:423: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1789 retained_bytes=1789 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2623 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3dfaf4a328ea84d667bc2cbdf23f0705a8b6be66c3de98de65af59fbb433c9be"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 83.327,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform"
+      ],
+      "hang_risk": false,
+      "id": "M11b-log-ratio-percent-linearized",
+      "injection_diff_sha256": "4a5eb2a91995eba84dc96ff7ef0aa8bc371b39c0238a9c44760b42df9706576e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5ae5989bac7e057af55e450f2627844529ae04a93036b19fbc8144081a9c763c",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_dynamic_backoff.py",
+          "new": "                    lower_percent = 100.0 * lower_log\n",
+          "old": "                    lower_percent = 100.0 * math.expm1(lower_log)\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "KILLED",
+      "test_output_sha256": "3dfaf4a328ea84d667bc2cbdf23f0705a8b6be66c3de98de65af59fbb433c9be",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/14fefb0fe08f662c27ddb50f1b1a1e2c/izdw-14fefb0fe0.o978119",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/14fefb0fe08f662c27ddb50f1b1a1e2c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 22%]\n........................................................................ [ 45%]\n........................................................................ [ 67%]\n........................................................................ [ 90%]\n..............................                                           [100%]\n318 passed in 48.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2c0a34c25c872ed1dd5b7db3c1ed8f669d40509dd78a4c149a5eb7b68bf4371d"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "76320996347b7b3a1431071fd4ac9d7984df0a156913829c2375308a9107955f",
+      "duration_s": 72.987,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M13-equivalent-list-copy",
+      "injection_diff_sha256": "4447fcdaca6e12690a490bc6c5ca6a72e4f7d8ecacc9c594dded3311b8df48ba",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "e4a78fee87162455de056f0382e43651be937e6316d65fcb075447f8c6e44bb3",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "new": "        f\"{entry['path']} {entry['sha256']}\\n\" for entry in list(stack)\n",
+          "old": "        f\"{entry['path']} {entry['sha256']}\\n\" for entry in stack\n"
+        }
+      ],
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "SURVIVED",
+      "test_output_sha256": "2c0a34c25c872ed1dd5b7db3c1ed8f669d40509dd78a4c149a5eb7b68bf4371d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/4fb69d4d61e1e87e01618d242582e91b/izdw-4fb69d4d61.o978098",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/output/pegasus-dispatch/4fb69d4d61e1e87e01618d242582e91b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dynamic_backoff_transitions.py::test_ruling_variants_compile_with_ccbench_warning_flags\norchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_fires_at_k_boundary_not_k_minus_one\norchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_alone_fires_with_insufficient_count\norchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_never_fires_before_minimum_elapsed_time\norchestrator/tests/test_dynamic_backoff_transitions.py::test_count_scan_is_rate_limited_to_once_per_window\norchestrator/tests/test_dynamic_backoff_transitions.py::test_k_positive_leader_skips_counter_scan_before_minimum_elapsed\norchestrator/tests/test_dynamic_backoff_transitions.py::test_k_zero_leader_skips_counter_scan_before_stock_time_gate\norchestrator/tests/test_dynamic_backoff_transitions.py::test_k_positive_leader_samples_timestamp_after_counter_scan\norchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_window_uses_post_scan_sample_timestamp\norchestrator/tests/test_dynamic_backoff_transitions.py::test_adaptive_step_doubles_and_halves_with_exact_bounds\norchestrator/tests/test_dynamic_backoff_transitions.py::test_negative_gradient_never_increases_dynamic_ceiling\norchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_has_exact_fifty_microsecond_floor\norchestrator/tests/test_dynamic_backoff_transitions.py::test_positive_gradient_doubles_dynamic_ceiling_and_clamps_at_max\norchestrator/tests/test_dynamic_backoff_transitions.py::test_default_dynamic_path_matches_pin_plus_a_stock_transitions\norchestrator/tests/test_dynamic_backoff_transitions.py::test_default_dynamic_path_matches_stock_for_nonzero_gradients\norchestrator/tests/test_dynamic_backoff_transitions.py::test_public_define_relation_static_asserts_are_fail_closed\norchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_is_numeric_if_and_preprocesses_completely_out\norchestrator/tests/test_dynamic_backoff_transitions.py::test_patch_b_requires_a_and_preserves_include_lines\norchestrator/tests/test_plot_dynamic_backoff.py::test_full_size_fixture_writes_three_figures_and_frozen_statistics\norchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint\norchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform\norchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[insufficient-files]\norchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[duplicate-row]\norchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[duplicate-rep]\norchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[identity]\norchestrator/tests/test_plot_dynamic_backoff.py::test_six_files_point_missing_and_n_insufficient_follow_preregistration\norchestrator/tests/test_plot_dynamic_backoff.py::test_hostname_duplicates_are_recorded_not_rejected\norchestrator/tests/test_plot_dynamic_backoff.py::test_execution_identity_and_diagnostic_rep_fail_closed[missing-identity-driver_sha256]\norchestrator/tests/test_plot_dynamic_backoff.py::test_execution_identity_and_diagnostic_rep_fail_closed[dirty-repo-repo_status_clean must be true]\norchestrator/tests/test_plot_dynamic_backoff.py::test_execution_identity_and_diagnostic_rep_fail_closed[diagnostic-rep-rep_index must be exactly 0]\norchestrator/tests/test_plot_dynamic_backoff.py::test_diagnostic_fixture_round_trips_producer_schema_and_nullable_rate\norchestrator/tests/test_plot_dynamic_backoff.py::test_layout_failure_leaves_no_partial_outputs\norchestrator/tests/test_plot_dynamic_backoff.py::test_preregistered_threshold_has_no_cli_override\norchestrator/tests/test_plot_dynamic_backoff.py::test_dependency_backend_and_decimation_contract_are_explicit\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_accepts_three_cells_and_normalizes_milliunits\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-step]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-step]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-ceiling]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-ceiling]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-update]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-update]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[duplicate-label]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[missing-field]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[empty]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[rounding-loss]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_is_stock_control_requires_exact_three_constants_and_backoff\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_existing_out_is_rejected_before_site_or_measurement\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_applies_to_exact_pin_and_has_three_fail_closed_macros\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_restores_plus_lists_and_is_compute_only\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_rejects_legacy_semicolon_list_delimiter\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_contract_runs_full_real_verifier_path_and_saves_create_only\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_build_budget_is_a_hard_deadline\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_run_and_verify_phase_measurements_keep_distinct_meanings\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-none]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-zero]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-negative]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-non-int]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M2-edges]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_substituted_target_trace_only\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_target_exit_three_only\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_lenient_argv_only\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-positive]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-target]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-positive]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-target]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-positive]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-target]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-positive]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-target]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_non_silo_genome_before_verification\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_verifier_identity_drift_only\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_post_verifier_identity_drift_only\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_real_serial_fixture_with_positive_stdout_abort_satisfies_abort_gate\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_positive_control_real_fixture_accepts_wr_without_v_ver\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_default_mode_and_lazy_import_surface_remain_performance\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_default_path_never_dispatches_to_certify\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_performance_rejection_path_loads_without_pipeline\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[cell]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[workload-set]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[threads]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[extime]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[slot]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_certification_budget_includes_pbs_prologue\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_trace_disabled_cache_identity\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_performance_artifact_requires_preregistered_sha\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_verifier_identity_manifest_requires_preregistered_sha\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_group_receipt_requires_exact_24_terminal_request_set\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_group_receipt_rejects_status_only_certification_json\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_creates_group_only_after_all_24_requests\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_five_field_cells_preserve_legacy_cell_and_genome_bytes\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_parse_all_dynamic_fields\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[six-fields]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[negative-window]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[step-toggle]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[lossy-step-bound]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[reversed-bounds]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[initial-step-outside-bounds]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[dynamic-floor-impossible]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[dynamic-toggle]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_grid_contract_uses_all_dynamic_configuration_fields\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_requires_a_and_stack_reverts_cleanly\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_binary_counts_match_small_fixture_binaries_and_fail_closed\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_requires_exact_sequence_summary_and_computes_direction\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_rejects_summary_without_any_event\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_directional_success_does_not_score_zero_action\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_v2_schemas_and_cell_identity_fields_are_exact\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_perf_and_diagnostic_binary_trace_counts_fail_closed\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_dynamic_output_and_plus_transport_are_fail_closed\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_execution_identity_fields_have_exact_types_and_file_hashes\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_driver_repo_clean_attestation_is_rechecked\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_rechecks_repo_clean_and_passes_identity_and_prologue_args\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_driver_rejects_dynamic_output_outside_dedicated_namespace\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[receipt]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[result-path]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[performance-artifact]\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_performance_artifact_rejects_certify_identity_drift\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_point_journal_is_append_only_jsonl\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_and_certification_modes_are_disjoint\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_mode_requires_exact_diagnostic_axes\norchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_mode_rejects_nonzero_rep_index_only\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_nonnegative_endpoints_match_pointwise\norchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler\norchestrator/tests/test_condition_meaning_gate.py::test_meaning_arm_does_not_depend_on_supply_green\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches\norchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing\norchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero\norchestrator/tests/test_condition_meaning_gate.py::test_generic_f707_is_supply_red_and_meaning_green\norchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red\norchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command\norchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash\norchestrator/tests/test_condition_meaning_gate.py::test_supply_green_binds_real_cmake_identity_and_gate_configure_argv\norchestrator/tests/test_condition_meaning_gate.py::test_real_cmake_wrapper_replacement_during_configure_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_configure_compile_commands_rejects_real_cmake_replacement_before_return\norchestrator/tests/test_condition_meaning_gate.py::test_ignored_define_has_identical_preprocessed_bytes_and_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_FIXED=-1]\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_NOINLINE=0]\norchestrator/tests/test_condition_meaning_gate.py::test_inert_semantic_difference_on_root_line_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_shaped_literal_outside_closure_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_prefixed_by_path_byte_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_difference_without_code_owned_file_builtin_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_evidence_binds_configure_source_roots\norchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock\norchestrator/tests/test_condition_meaning_gate.py::test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green\norchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection\norchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red\norchestrator/tests/test_condition_meaning_gate.py::test_cli_accepts_inert_selected_branch_meaning_case\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_requested_one_supply_and_meaning_are_green\norchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_preserves_directory_symlinks_and_git_link\norchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure0]\norchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv\norchestrator/tests/test_condition_meaning_gate.py::test_real_compile_time_green_admits_certified_selection\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_NOINLINE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION_SWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_LOCK_COVERAGE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_EARLY_UNLOCK]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_ERASE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_FORGE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_OPSWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_PTRSWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_block_comment_prefix\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-None]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-0]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-1]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-0-True]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-0-True]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-1-False]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-1-False]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-None-False]\norchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_green_schema_rejects_nonbinary_and_same_value\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_rejects_different_requested_default_cmake_identity\norchestrator/tests/test_condition_meaning_gate.py::test_nonconfiguring_meaning_proofs_reject_unexpected_cmake_evidence\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_requires_stock_preprocess_identity\norchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons\norchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission\norchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning\norchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_non_green_supply_effectuation\norchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset\norchestrator/tests/test_condition_meaning_gate.py::test_empty_green_record_built_from_public_fields_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_missing_cmake_evidence\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_configure_argv_for_different_cmake_path\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm\norchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission\norchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance\norchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double\norchestrator/tests/test_condition_meaning_gate.py::test_duplicate_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_unknown_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_timeout_is_120_seconds_and_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_timeout_is_120_seconds_and_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_stderr_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_stderr_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored\norchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact\norchestrator/tests/test_condition_meaning_gate.py::test_module_claim_names_the_exact_32_define_supply_domain\norchestrator/tests/test_condition_meaning_gate.py::test_captured_input_hash_drift_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_parent_component_symlink_outside_root_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\norchestrator/tests/test_screening_driver.py::test_screening_condition_gate_accepts_real_runtime_genome_value\norchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_real_ignored_runtime_define\norchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_route_absent_from_real_build_args\norchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_missing_real_companion_define\norchestrator/tests/test_screening_driver.py::test_screening_condition_gate_is_before_real_evaluate_build_sink\norchestrator/tests/test_screening_driver.py::test_screening_condition_requests_reject_non_exact_domain_value\norchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs\norchestrator/tests/test_screening_driver.py::test_screening_condition_requests_accept_no_non_domain_substitute\norchestrator/tests/test_screening_driver.py::test_screening_condition_gate_preserves_real_non_domain_build_inputs\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_accepts_legacy_schema_without_version\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_accepts_current_schema_version\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_mismatched_schema_version\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_explicit_null_schema_version\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_explicit_empty_schema_version\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_non_dict_json_root\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_non_dict_between_run\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_selects_requested_protocol_among_same_workload\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_single_wrong_protocol_floor\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_duplicate_same_protocol\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[None]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[3]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[|BACK_OFF=0]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[mocc|garbage]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|B=x]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|Z=1,A=0]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|A=1,A=2]\norchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|]\norchestrator/tests/test_screening_driver.py::test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline\norchestrator/tests/test_screening_driver.py::test_prepare_screening_fails_closed_when_floor_json_missing\norchestrator/tests/test_screening_driver.py::test_prepare_screening_rejects_authorization_before_layout_or_wal\norchestrator/tests/test_screening_driver.py::test_prepare_screening_requires_complete_baseline_evidence[median]\norchestrator/tests/test_screening_driver.py::test_prepare_screening_requires_complete_baseline_evidence[abort_rate]\norchestrator/tests/test_screening_driver.py::test_prepare_screening_requires_complete_baseline_evidence[commit]\norchestrator/tests/test_screening_driver.py::test_prepare_repairs_tail_before_baseline_callback\norchestrator/tests/test_screening_driver.py::test_evaluate_candidate_repairs_tail_before_replay_and_evaluate\norchestrator/tests/test_screening_driver.py::test_evaluate_candidate_forwards_v2_contract_and_toolchain_binding\norchestrator/tests/test_screening_driver.py::test_evaluate_candidate_unavailable_perf_passes_degraded_kwargs_once\norchestrator/tests/test_screening_driver.py::test_evaluate_candidate_probe_error_refuses_before_evaluate\norchestrator/tests/test_screening_driver.py::test_evaluate_candidate_does_not_append_abort_after_wal_io_error[append]\norchestrator/tests/test_screening_driver.py::test_evaluate_candidate_does_not_append_abort_after_wal_io_error[framing]\n\n318 tests collected in 2.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "e8251ee5734b78c43b77c175d5bc5973630c3b48a15891ece1fca80594411268"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_ruling_variants_compile_with_ccbench_warning_flags",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_fires_at_k_boundary_not_k_minus_one",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_alone_fires_with_insufficient_count",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_never_fires_before_minimum_elapsed_time",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_scan_is_rate_limited_to_once_per_window",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_k_positive_leader_skips_counter_scan_before_minimum_elapsed",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_k_zero_leader_skips_counter_scan_before_stock_time_gate",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_k_positive_leader_samples_timestamp_after_counter_scan",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_window_uses_post_scan_sample_timestamp",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_adaptive_step_doubles_and_halves_with_exact_bounds",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_negative_gradient_never_increases_dynamic_ceiling",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_has_exact_fifty_microsecond_floor",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_positive_gradient_doubles_dynamic_ceiling_and_clamps_at_max",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_default_dynamic_path_matches_pin_plus_a_stock_transitions",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_default_dynamic_path_matches_stock_for_nonzero_gradients",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_public_define_relation_static_asserts_are_fail_closed",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_is_numeric_if_and_preprocesses_completely_out",
+        "orchestrator/tests/test_dynamic_backoff_transitions.py::test_patch_b_requires_a_and_preserves_include_lines",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_full_size_fixture_writes_three_figures_and_frozen_statistics",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[insufficient-files]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[duplicate-row]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[duplicate-rep]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_missing_duplicate_and_identity_mismatch_are_rejected[identity]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_six_files_point_missing_and_n_insufficient_follow_preregistration",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_hostname_duplicates_are_recorded_not_rejected",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_execution_identity_and_diagnostic_rep_fail_closed[missing-identity-driver_sha256]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_execution_identity_and_diagnostic_rep_fail_closed[dirty-repo-repo_status_clean must be true]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_execution_identity_and_diagnostic_rep_fail_closed[diagnostic-rep-rep_index must be exactly 0]",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_diagnostic_fixture_round_trips_producer_schema_and_nullable_rate",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_layout_failure_leaves_no_partial_outputs",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_preregistered_threshold_has_no_cli_override",
+        "orchestrator/tests/test_plot_dynamic_backoff.py::test_dependency_backend_and_decimation_contract_are_explicit",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_accepts_three_cells_and_normalizes_milliunits",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-step]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-step]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-ceiling]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-ceiling]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[zero-update]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_nonpositive_constants[negative-update]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[duplicate-label]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[missing-field]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[empty]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cells_parser_rejects_malformed_or_lossy_grids[rounding-loss]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_is_stock_control_requires_exact_three_constants_and_backoff",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_existing_out_is_rejected_before_site_or_measurement",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_applies_to_exact_pin_and_has_three_fail_closed_macros",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_restores_plus_lists_and_is_compute_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_rejects_legacy_semicolon_list_delimiter",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_contract_runs_full_real_verifier_path_and_saves_create_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_build_budget_is_a_hard_deadline",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_run_and_verify_phase_measurements_keep_distinct_meanings",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-none]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-zero]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-negative]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M17-non-int]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_nonexercising_target_for_one_reason[M2-edges]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_substituted_target_trace_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_target_exit_three_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_lenient_argv_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---protocol-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[missing---ccbench-root-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---protocol-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-positive]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_unbound_proof_surface_argv_for_one_reason[mismatch---ccbench-root-target]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_non_silo_genome_before_verification",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_verifier_identity_drift_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_post_verifier_identity_drift_only",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_real_serial_fixture_with_positive_stdout_abort_satisfies_abort_gate",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_positive_control_real_fixture_accepts_wr_without_v_ver",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_default_mode_and_lazy_import_surface_remain_performance",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_default_path_never_dispatches_to_certify",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_performance_rejection_path_loads_without_pipeline",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[cell]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[workload-set]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[threads]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[extime]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_exact_axes_reject_widening[slot]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_certification_budget_includes_pbs_prologue",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_rejects_trace_disabled_cache_identity",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_performance_artifact_requires_preregistered_sha",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_verifier_identity_manifest_requires_preregistered_sha",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_group_receipt_requires_exact_24_terminal_request_set",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_group_receipt_rejects_status_only_certification_json",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_creates_group_only_after_all_24_requests",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_certify_mode_preserves_literal_performance_exec_and_exact_axes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_five_field_cells_preserve_legacy_cell_and_genome_bytes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_parse_all_dynamic_fields",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[six-fields]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[negative-window]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[step-toggle]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[lossy-step-bound]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[reversed-bounds]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[initial-step-outside-bounds]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[dynamic-floor-impossible]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[dynamic-toggle]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_grid_contract_uses_all_dynamic_configuration_fields",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_requires_a_and_stack_reverts_cleanly",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_binary_counts_match_small_fixture_binaries_and_fail_closed",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_requires_exact_sequence_summary_and_computes_direction",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_trace_parser_rejects_summary_without_any_event",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_directional_success_does_not_score_zero_action",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_v2_schemas_and_cell_identity_fields_are_exact",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_perf_and_diagnostic_binary_trace_counts_fail_closed",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_dynamic_output_and_plus_transport_are_fail_closed",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_execution_identity_fields_have_exact_types_and_file_hashes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_driver_repo_clean_attestation_is_rechecked",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_pbs_rechecks_repo_clean_and_passes_identity_and_prologue_args",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_driver_rejects_dynamic_output_outside_dedicated_namespace",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[receipt]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[result-path]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_certification_rejects_each_foreign_namespace[performance-artifact]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_dynamic_performance_artifact_rejects_certify_identity_drift",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_point_journal_is_append_only_jsonl",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_and_certification_modes_are_disjoint",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_mode_requires_exact_diagnostic_axes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_mode_rejects_nonzero_rep_index_only",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_nonnegative_endpoints_match_pointwise",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_meaning_arm_does_not_depend_on_supply_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_generic_f707_is_supply_red_and_meaning_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_supply_green_binds_real_cmake_identity_and_gate_configure_argv",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_real_cmake_wrapper_replacement_during_configure_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_configure_compile_commands_rejects_real_cmake_replacement_before_return",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ignored_define_has_identical_preprocessed_bytes_and_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_FIXED=-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_NOINLINE=0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_semantic_difference_on_root_line_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_shaped_literal_outside_closure_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_prefixed_by_path_byte_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_difference_without_code_owned_file_builtin_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_evidence_binds_configure_source_roots",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_cli_accepts_inert_selected_branch_meaning_case",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_requested_one_supply_and_meaning_are_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_preserves_directory_symlinks_and_git_link",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_real_compile_time_green_admits_certified_selection",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_NOINLINE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION_SWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_LOCK_COVERAGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_EARLY_UNLOCK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_ERASE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_FORGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_OPSWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_PTRSWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_block_comment_prefix",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-None]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[1-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-0-True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-0-True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-1-False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-1-False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-None-False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_green_schema_rejects_nonbinary_and_same_value",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_rejects_different_requested_default_cmake_identity",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonconfiguring_meaning_proofs_reject_unexpected_cmake_evidence",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_requires_stock_preprocess_identity",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_non_green_supply_effectuation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_record_built_from_public_fields_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_missing_cmake_evidence",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_configure_argv_for_different_cmake_path",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unknown_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_timeout_is_120_seconds_and_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_timeout_is_120_seconds_and_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_stderr_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_stderr_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_module_claim_names_the_exact_32_define_supply_domain",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_captured_input_hash_drift_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_parent_component_symlink_outside_root_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_accepts_real_runtime_genome_value",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_real_ignored_runtime_define",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_route_absent_from_real_build_args",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_rejects_missing_real_companion_define",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_is_before_real_evaluate_build_sink",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_reject_non_exact_domain_value",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_accept_no_non_domain_substitute",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_gate_preserves_real_non_domain_build_inputs",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_accepts_legacy_schema_without_version",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_accepts_current_schema_version",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_mismatched_schema_version",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_explicit_null_schema_version",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_explicit_empty_schema_version",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_non_dict_json_root",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_non_dict_between_run",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_selects_requested_protocol_among_same_workload",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_single_wrong_protocol_floor",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_duplicate_same_protocol",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[None]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[3]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[|BACK_OFF=0]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[mocc|garbage]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|B=x]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|Z=1,A=0]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|A=1,A=2]",
+        "orchestrator/tests/test_screening_driver.py::test_load_between_run_floor_rejects_missing_or_malformed_genome[silo|]",
+        "orchestrator/tests/test_screening_driver.py::test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline",
+        "orchestrator/tests/test_screening_driver.py::test_prepare_screening_fails_closed_when_floor_json_missing",
+        "orchestrator/tests/test_screening_driver.py::test_prepare_screening_rejects_authorization_before_layout_or_wal",
+        "orchestrator/tests/test_screening_driver.py::test_prepare_screening_requires_complete_baseline_evidence[median]",
+        "orchestrator/tests/test_screening_driver.py::test_prepare_screening_requires_complete_baseline_evidence[abort_rate]",
+        "orchestrator/tests/test_screening_driver.py::test_prepare_screening_requires_complete_baseline_evidence[commit]",
+        "orchestrator/tests/test_screening_driver.py::test_prepare_repairs_tail_before_baseline_callback",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_repairs_tail_before_replay_and_evaluate",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_forwards_v2_contract_and_toolchain_binding",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_unavailable_perf_passes_degraded_kwargs_once",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_probe_error_refuses_before_evaluate",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_does_not_append_abort_after_wal_io_error[append]",
+        "orchestrator/tests/test_screening_driver.py::test_evaluate_candidate_does_not_append_abort_after_wal_io_error[framing]"
+      ],
+      "duration_s": 32.075,
+      "rc": 0,
+      "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+      "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+      "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+      "status": "PASSED",
+      "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-trace-ifdef": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dynamic_backoff_transitions.py::test_trace_is_numeric_if_and_preprocesses_completely_out",
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_patch_b_defaults_are_stock_equivalent_and_trace_uses_numeric_if"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "42cf8b9bcbed6053e53aa0514978f4fc99c532ba1d0607f27cafca4e1f639683",
+        "replacements": [
+          {
+            "file": "patches/cicada-adaptive-dynamic.patch",
+            "new": "+#ifdef BACKOFF_TRACE\n+  struct izanagi_backoff_trace_record {\n",
+            "old": "+#if BACKOFF_TRACE\n+  struct izanagi_backoff_trace_record {\n"
+          }
+        ]
+      },
+      "M10-registry-drops-trace-define": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+          "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7aee9346dedf44b51d9248aec790c87913310b37c7d0a57172ef8b021ac27825",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "",
+            "old": "    \"BACKOFF_TRACE\": DefineSpec(\n        ROUTE_CMAKE_CACHE, _SILO_OWNER, \"ycsb_silo.exe\",\n        \"patches/cicada-adaptive-dynamic.patch\",\n        inert_values=(\"0\",),\n    ),\n"
+          }
+        ]
+      },
+      "M11a-equivalence-threshold-widened": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_dynamic_backoff.py::test_practical_margin_fixture_controls_verdicts_and_robust_endpoint"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1fbccd1c9b5be30103a201199e84bf02fc97e139a2633a7952201c2b393b98ed",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_dynamic_backoff.py",
+            "new": "PRACTICAL_PERCENT = 5.0\n",
+            "old": "PRACTICAL_PERCENT = 3.0\n"
+          }
+        ]
+      },
+      "M11b-log-ratio-percent-linearized": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_dynamic_backoff.py::test_large_log_ratio_percentages_use_independent_exponential_transform"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4a5eb2a91995eba84dc96ff7ef0aa8bc371b39c0238a9c44760b42df9706576e",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_dynamic_backoff.py",
+            "new": "                    lower_percent = 100.0 * lower_log\n",
+            "old": "                    lower_percent = 100.0 * math.expm1(lower_log)\n"
+          }
+        ]
+      },
+      "M13-equivalent-list-copy": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4447fcdaca6e12690a490bc6c5ca6a72e4f7d8ecacc9c594dded3311b8df48ba",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "        f\"{entry['path']} {entry['sha256']}\\n\" for entry in list(stack)\n",
+            "old": "        f\"{entry['path']} {entry['sha256']}\\n\" for entry in stack\n"
+          }
+        ]
+      },
+      "M2-count-boundary": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_fires_at_k_boundary_not_k_minus_one"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9cf97321c18925259e6d33fc66d2d2d323dfa263b4f6cac7d9aff25b0dfb38d2",
+        "replacements": [
+          {
+            "file": "patches/cicada-adaptive-dynamic.patch",
+            "new": "+    if (committed_txs - last_committed_txs_ > kCountWindow ||\n",
+            "old": "+    if (committed_txs - last_committed_txs_ >= kCountWindow ||\n"
+          }
+        ]
+      },
+      "M3-cap-term-disabled": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dynamic_backoff_transitions.py::test_count_window_cap_alone_fires_with_insufficient_count"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "11f1e918fb2d17a94489d94c9b1b4d9b05656f50257aa316643aa61305b6eed1",
+        "replacements": [
+          {
+            "file": "patches/cicada-adaptive-dynamic.patch",
+            "new": "+        elapsed > clocks_per_us_ * cap_us * 4)\n",
+            "old": "+        elapsed >= clocks_per_us_ * cap_us)\n"
+          }
+        ]
+      },
+      "M4-step-max-clamp-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dynamic_backoff_transitions.py::test_adaptive_step_doubles_and_halves_with_exact_bounds"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "be925ef99ef0c67096d003db38d36e6d86c8fb2758641fb256bf753511885498",
+        "replacements": [
+          {
+            "file": "patches/cicada-adaptive-dynamic.patch",
+            "new": "+        adaptive_step_ = adaptive_step_ * 2 > kStepMax\n+                             ? adaptive_step_ * 2\n",
+            "old": "+        adaptive_step_ = adaptive_step_ * 2 > kStepMax\n+                             ? kStepMax\n"
+          }
+        ]
+      },
+      "M5-ceiling-floor-25": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dynamic_backoff_transitions.py::test_dynamic_ceiling_has_exact_fifty_microsecond_floor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "67ac1b588754eddfa0c754feeacc79119a7c74c2924df9c50df7f87da01d81c2",
+        "replacements": [
+          {
+            "file": "patches/cicada-adaptive-dynamic.patch",
+            "new": "+        ceiling_ = halved_ceiling < 25 ? 25 : halved_ceiling;\n",
+            "old": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling;\n"
+          }
+        ]
+      },
+      "M6-ceiling-grows-on-negative": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dynamic_backoff_transitions.py::test_negative_gradient_never_increases_dynamic_ceiling"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a9ec4a4454329c87f51ea0d065bc08dbf07108a37c8b0d608c832e43c9d5c76b",
+        "replacements": [
+          {
+            "file": "patches/cicada-adaptive-dynamic.patch",
+            "new": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling + ceiling_;\n",
+            "old": "+        ceiling_ = halved_ceiling < 50 ? 50 : halved_ceiling;\n"
+          }
+        ]
+      },
+      "M7-cap-without-window-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_extended_cells_reject_invalid_shape_and_inert_or_impossible_combinations[M7-k-zero-cap-nonzero]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ef774c2b729e1d02315d81bc17dfd7d09d49b54a67d68587d0e3ae083bcfa6a2",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "            if count_window == 0 and count_cap_us != count_cap_us:\n",
+            "old": "            if count_window == 0 and count_cap_us != 0:\n"
+          }
+        ]
+      },
+      "M8-certify-third-cell": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_certification_accepts_each_exact_cell_and_rejects_widening"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7ff56283d017af3dd32d94ba0bbde43d9ef7ef9965927684f48fe051ddd7ec6a",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT, \"cw:1:1:1000:2560:10000:10240:0:100:100:0\"}:\n",
+            "old": "    if args.cells not in {CERT_TUNED_CELL_TEXT, CERT_DYNAMIC_CELL_TEXT}:\n"
+          },
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "    if len(cells) != 1:\n",
+            "old": "    if len(cells) != 1 or cells[0] not in CERT_CELLS:\n"
+          }
+        ]
+      },
+      "M9-patch-a-sha-unchecked": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_expected_patch_a_sha256_is_checked_before_patch_b"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "44e4b31a15df58c458ad8ac5d66f9913acfc291d69ee07eee3aab6a930e0501e",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+            "new": "    if a_sha256 != a_sha256:\n",
+            "old": "    if a_sha256 != EXPECTED_PATCH_A_SHA256:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "21b587edda5b23eb3725893863c9757b51013ef0942a5f9b67c2f9012ed62213",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_dynamic_backoff_transitions.py",
+      "orchestrator/tests/test_plot_dynamic_backoff.py",
+      "orchestrator/tests/test_t2187_adaptive_const_probe.py",
+      "orchestrator/tests/test_condition_meaning_gate.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "orchestrator/tests/test_screening_driver.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1200.0
+  },
+  "repo_head": "dc0aa0bbdd4a2b7f1ad5a3e645736bd7138a913d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_dynamic_backoff_transitions.py",
+      "orchestrator/tests/test_plot_dynamic_backoff.py",
+      "orchestrator/tests/test_t2187_adaptive_const_probe.py",
+      "orchestrator/tests/test_condition_meaning_gate.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "orchestrator/tests/test_screening_driver.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ee925b726dc5b06476b18598b81b8c95c0f0fa7f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "180448d1a6898fbcf6383d6f3a6376f11f573dc38853985417e85d1eff6cee52",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "700824a43d20ff78649658a1e04d4f585f39c2887ee1c007e7ca3dcd2873c386",
+  "summary": {
+    "KILLED": 12,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 13,
+    "matching": 13,
+    "recorded": 13,
+    "registered": 13
+  },
+  "tool_identity": {
+    "head_blob_sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-dynamic-backoff-mechanism/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "900a6500b112faec9702a147242427d6cc2ebcad1029149a689ff5999d5f5ab9"
+  },
+  "tool_sha256": "7eed37f593bc36f64443109afb7a34b0f2529454c0ac37d865c57a21d544c806",
+  "updated_at": "2026-09-05T01:59:52.838929+00:00"
+}
