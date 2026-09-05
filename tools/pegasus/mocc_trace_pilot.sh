@@ -30,6 +30,10 @@ if [[ ! "${IZANAGI_MOCC_TRACE_MODE:-}" =~ ^[01]$ ]]; then
   echo "IZANAGI_MOCC_TRACE_MODE must be 0 or 1" >&2
   exit 2
 fi
+if [[ ! "${IZANAGI_MOCC_POLICY_RAW_SHA256:-}" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "IZANAGI_MOCC_POLICY_RAW_SHA256 must be 64 lowercase hex" >&2
+  exit 2
+fi
 if [[ ! "${IZANAGI_MOCC_G2_DISCRIMINATOR:-0}" =~ ^[01]$ ]]; then
   echo "IZANAGI_MOCC_G2_DISCRIMINATOR must be 0 or 1" >&2
   exit 2
@@ -109,6 +113,7 @@ WITNESS_MANIFEST_SHA=""
 DISCRIMINATOR_RESULT_SHA=""
 TRACE0_WATERMARK_ABSENCE_SHA=""
 SUBMIT_RECEIPT_SHA=""
+POLICY_RAW_SHA256=""
 RUN_RC="not-run"
 JUDGMENT_PRE_CAPTURE=""
 JUDGMENT_PRE_SHA=""
@@ -782,13 +787,17 @@ cleanup_worktree() {
 }
 trap cleanup_worktree EXIT
 
+# BEGIN T2195 POLICY PARSE
 if [[ ! -f "$POLICY" || -L "$POLICY" ]]; then
   write_failure 2 policy "Mocc trace policy is missing or is a symlink"
   exit 2
 fi
 
 readarray -t policy_values < <(python3 - "$POLICY" <<'PY'
+import hashlib
 import json
+import os
+import stat
 import sys
 
 
@@ -801,8 +810,20 @@ def reject_duplicate_keys(pairs):
     return document
 
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    policy = json.load(handle, object_pairs_hook=reject_duplicate_keys)
+policy_fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    policy_info = os.fstat(policy_fd)
+    if not stat.S_ISREG(policy_info.st_mode):
+        raise SystemExit("Mocc trace policy is not a regular file")
+    with os.fdopen(policy_fd, "rb") as handle:
+        policy_fd = -1
+        policy_bytes = handle.read()
+finally:
+    if policy_fd >= 0:
+        os.close(policy_fd)
+policy = json.loads(
+    policy_bytes.decode("utf-8"), object_pairs_hook=reject_duplicate_keys
+)
 trace = policy["mocc_trace"]
 workload = trace["workload"]
 expected_compilers = policy["expected_compiler_version_body_sha256"]
@@ -849,9 +870,10 @@ print(trace["base_oid"])
 print(trace["new_oid"])
 print(trace["cmake_target"])
 print(json.dumps(workload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+print(hashlib.sha256(policy_bytes).hexdigest())
 PY
 )
-if [[ ${#policy_values[@]} -ne 17 ]]; then
+if [[ ${#policy_values[@]} -ne 18 ]]; then
   write_failure 2 policy "Mocc trace policy parse failed"
   exit 2
 fi
@@ -872,6 +894,8 @@ BASE_OID=${policy_values[13]}
 NEW_OID=${policy_values[14]}
 CMAKE_TARGET=${policy_values[15]}
 WORKLOAD_JSON=${policy_values[16]}
+POLICY_PARSE_RAW_SHA256=${policy_values[17]}
+# END T2195 POLICY PARSE
 if [[ "$T1943_G2" -eq 1 ]]; then
   python3 - "$WORKLOAD_JSON" <<'PY_T1943_WORKLOAD'
 import json
@@ -897,6 +921,7 @@ if (
 PY_T1943_WORKLOAD
 fi
 
+# BEGIN T2195 SUBMIT RECEIPT PIN
 SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/$IZANAGI_SUBMISSION_NONCE"
 SUBMIT_SOURCE="$SUBMISSION_DIR/submit-receipt.json"
 ATTEMPT_RECEIPT="$ATTEMPT_DIR/submit-receipt.json"
@@ -954,6 +979,7 @@ if [[ ! "$SUBMIT_RECEIPT_SHA" =~ ^[0-9a-f]{64}$ ]]; then
   write_failure 2 submit_binding "submit receipt did not appear within 60 seconds"
   exit 2
 fi
+# END T2195 SUBMIT RECEIPT PIN
 
 if ! initialize_judgment_source_state; then
   exit 2
@@ -1059,6 +1085,178 @@ checks.update(
 if not all(checks.values()):
     raise SystemExit("submit binding mismatch: " + repr(checks))
 PY
+
+# BEGIN T2195 POLICY BINDING GATE
+if ! policy_binding_output=$(python3 - "$POLICY" "$ATTEMPT_RECEIPT" \
+    "$SUBMIT_RECEIPT_SHA" "$REPO_ROOT" \
+    "$EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON" \
+    "$POLICY_PARSE_RAW_SHA256" "$IZANAGI_MOCC_POLICY_RAW_SHA256" \
+    2>&1 <<'PY_T2195_POLICY_BINDING'
+import hashlib
+import json
+import os
+import stat
+import sys
+
+(
+    policy_path,
+    receipt_path,
+    pinned_receipt_sha,
+    repo_root,
+    shell_mapping_json,
+    parsed_policy_sha,
+    exported_policy_sha,
+) = sys.argv[1:]
+
+
+def reject_duplicate_keys(pairs):
+    document = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"duplicate JSON key: {key}")
+        document[key] = value
+    return document
+
+
+def read_policy_bytes(path):
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise ValueError("policy cannot be opened without following") from exc
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError("policy is not a regular file")
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            return handle.read()
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def read_receipt_bytes(path):
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise ValueError(
+            "pinned submit receipt cannot be opened without following"
+        ) from exc
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError("pinned submit receipt is not a regular file")
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            return handle.read()
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def parse_document(raw, label):
+    try:
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=reject_duplicate_keys
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"{label} is not strict duplicate-free JSON") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} top level is not an object")
+    return value
+
+
+def require_sha(value, label):
+    if (
+        type(value) is not str
+        or len(value) != 64
+        or any(char not in "0123456789abcdef" for char in value)
+    ):
+        raise ValueError(f"{label} is not 64 lowercase hex")
+    return value
+
+
+def require_mapping(value, label):
+    if type(value) is not dict or set(value) != {"gcc", "g++"}:
+        raise ValueError(f"{label} keys differ")
+    for role, digest in value.items():
+        require_sha(digest, f"{label}.{role}")
+    return value
+
+
+try:
+    policy_bytes = read_policy_bytes(policy_path)
+    receipt_bytes = read_receipt_bytes(receipt_path)
+    live_policy_sha = hashlib.sha256(policy_bytes).hexdigest()
+    if hashlib.sha256(receipt_bytes).hexdigest() != pinned_receipt_sha:
+        raise ValueError("pinned submit receipt digest differs")
+    policy = parse_document(policy_bytes, "policy")
+    receipt = parse_document(receipt_bytes, "pinned submit receipt")
+    live_mapping = require_mapping(
+        policy.get("expected_compiler_version_body_sha256"),
+        "live policy compiler mapping",
+    )
+    try:
+        shell_mapping = require_mapping(
+            json.loads(
+                shell_mapping_json, object_pairs_hook=reject_duplicate_keys
+            ),
+            "early policy compiler mapping",
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError("early policy compiler mapping is invalid") from exc
+    receipt_policy = receipt.get("policy")
+    if not isinstance(receipt_policy, dict):
+        raise ValueError("submit receipt policy is not an object")
+    receipt_policy_sha = require_sha(
+        receipt_policy.get("raw_sha256"), "submit receipt policy raw sha"
+    )
+    receipt_mapping = require_mapping(
+        receipt_policy.get("expected_compiler_version_body_sha256"),
+        "submit receipt compiler mapping",
+    )
+    require_sha(parsed_policy_sha, "early policy raw sha")
+    require_sha(exported_policy_sha, "exported policy raw sha")
+    if live_policy_sha != parsed_policy_sha:
+        raise ValueError("live policy raw sha differs from early parse")
+    if live_policy_sha != receipt_policy_sha:
+        raise ValueError("live policy raw sha differs from submit receipt")
+    if live_policy_sha != exported_policy_sha:
+        raise ValueError("live policy raw sha differs from qsub environment")
+    if live_mapping != shell_mapping:
+        raise ValueError("live policy compiler mapping differs from early parse")
+    if live_mapping != receipt_mapping:
+        raise ValueError("live policy compiler mapping differs from submit receipt")
+    if os.path.relpath(policy_path, repo_root) != (
+        "tools/pegasus/mocc_trace_v1_policy.json"
+    ):
+        raise ValueError("live policy repo path differs")
+    qsub = receipt.get("qsub")
+    if not isinstance(qsub, dict):
+        raise ValueError("submit receipt qsub is not an object")
+    argv = qsub.get("argv")
+    if not isinstance(argv, list) or argv.count("-v") != 1:
+        raise ValueError("submit receipt qsub -v differs")
+    export_index = argv.index("-v") + 1
+    if export_index >= len(argv) or not isinstance(argv[export_index], str):
+        raise ValueError("submit receipt qsub -v value differs")
+    prefix = "IZANAGI_MOCC_POLICY_RAW_SHA256="
+    raw_exports = [
+        item for item in argv[export_index].split(",") if item.startswith(prefix)
+    ]
+    if raw_exports != [prefix + exported_policy_sha]:
+        raise ValueError("submit receipt policy raw sha export differs")
+except (OSError, ValueError) as exc:
+    raise SystemExit(str(exc)) from exc
+
+print(live_policy_sha)
+PY_T2195_POLICY_BINDING
+); then
+  write_failure 2 policy_binding "$policy_binding_output"
+  exit 2
+fi
+POLICY_RAW_SHA256=$policy_binding_output
+# END T2195 POLICY BINDING GATE
 
 QSTAT_JOBID=${PBS_JOBID#0:}
 qstat_rc=0
@@ -2173,8 +2371,97 @@ if [[ "$T1943_G2" -eq 1 ]]; then
   fi
 fi
 
+# BEGIN T2195 POLICY FINALIZATION CHECK
+if ! policy_finalization_output=$(python3 - "$ATTEMPT_RECEIPT" \
+    "$SUBMIT_RECEIPT_SHA" "$POLICY_RAW_SHA256" \
+    "$EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON" \
+    2>&1 <<'PY_T2195_POLICY_FINALIZATION'
+import hashlib
+import json
+import os
+import stat
+import sys
+
+receipt_path, pinned_sha, policy_raw_sha, shell_mapping_json = sys.argv[1:]
+
+
+def reject_duplicate_keys(pairs):
+    document = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"duplicate JSON key: {key}")
+        document[key] = value
+    return document
+
+
+def require_sha(value, label):
+    if (
+        type(value) is not str
+        or len(value) != 64
+        or any(char not in "0123456789abcdef" for char in value)
+    ):
+        raise ValueError(f"{label} is not 64 lowercase hex")
+    return value
+
+
+def require_mapping(value, label):
+    if type(value) is not dict or set(value) != {"gcc", "g++"}:
+        raise ValueError(f"{label} keys differ")
+    for role, digest in value.items():
+        require_sha(digest, f"{label}.{role}")
+    return value
+
+
+try:
+    receipt_fd = os.open(receipt_path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        receipt_info = os.fstat(receipt_fd)
+        if not stat.S_ISREG(receipt_info.st_mode):
+            raise ValueError("pinned submit receipt is not a regular file")
+        with os.fdopen(receipt_fd, "rb") as handle:
+            receipt_fd = -1
+            receipt_bytes = handle.read()
+    finally:
+        if receipt_fd >= 0:
+            os.close(receipt_fd)
+    if hashlib.sha256(receipt_bytes).hexdigest() != pinned_sha:
+        raise ValueError("pinned submit receipt digest differs at finalization")
+    receipt = json.loads(
+        receipt_bytes.decode("utf-8"), object_pairs_hook=reject_duplicate_keys
+    )
+    if not isinstance(receipt, dict):
+        raise ValueError("pinned submit receipt top level is not an object")
+    receipt_policy = receipt.get("policy")
+    if not isinstance(receipt_policy, dict):
+        raise ValueError("submit receipt policy is not an object")
+    require_sha(policy_raw_sha, "bound policy raw sha")
+    if require_sha(
+        receipt_policy.get("raw_sha256"), "submit receipt policy raw sha"
+    ) != policy_raw_sha:
+        raise ValueError("bound policy raw sha differs at finalization")
+    shell_mapping = require_mapping(
+        json.loads(
+            shell_mapping_json, object_pairs_hook=reject_duplicate_keys
+        ),
+        "bound policy compiler mapping",
+    )
+    if require_mapping(
+        receipt_policy.get("expected_compiler_version_body_sha256"),
+        "submit receipt compiler mapping",
+    ) != shell_mapping:
+        raise ValueError("bound policy compiler mapping differs at finalization")
+except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+    raise SystemExit(str(exc)) from exc
+PY_T2195_POLICY_FINALIZATION
+); then
+  write_failure 2 policy_binding "$policy_finalization_output"
+  exit 2
+fi
+# END T2195 POLICY FINALIZATION CHECK
+
 RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$ATTEMPT_RECEIPT" \
   "$ATTEMPT_DIR/topology.json" "$SUBMIT_RECEIPT_SHA" \
+  "$POLICY_RAW_SHA256" "$EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON" \
   "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" \
   "$PBS_JOBID" "$HOSTNAME_SHORT" "$HOSTNAME_FQDN" "$CPU_MODEL" "$TRACE_MODE" \
   "$CXX_PATH" \
@@ -2207,6 +2494,7 @@ import time
 
 (
     output, submit_receipt_path, topology_path, pinned_submit_receipt_sha,
+    policy_raw_sha, expected_compiler_mapping_json,
     outer_commit, script_sha,
     job_id, host, host_fqdn, cpu_model, trace_mode, cxx_path, base_oid, new_oid,
     build_dir, binary, binary_sha, run_dir, trace_dir, run_argv_path,
@@ -2879,6 +3167,13 @@ payload = {
         },
         "trace0_preprocess_identity_checker_interpreter_path": checker_interpreter_path,
         "verifier_interpreter_path": verifier_interpreter_path,
+    },
+    "policy": {
+        "repo_path": "tools/pegasus/mocc_trace_v1_policy.json",
+        "raw_sha256": policy_raw_sha,
+        "expected_compiler_version_body_sha256": json.loads(
+            expected_compiler_mapping_json
+        ),
     },
     "source": {
         "outer_repo_commit": outer_commit,

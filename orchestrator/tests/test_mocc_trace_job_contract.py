@@ -56,10 +56,18 @@ def _fake_git(
     status_path: Path | None = None,
     gitlink_oid: str = BASE_OID,
     new_oid_available: bool = True,
+    status_restore: tuple[Path, Path] | None = None,
 ) -> None:
-    status_command = (
+    status_commands = []
+    if status_restore is not None:
+        source, target = status_restore
+        status_commands.append(
+            f"cp {shlex.quote(str(source))} {shlex.quote(str(target))}"
+        )
+    status_commands.append(
         f"cat {shlex.quote(str(status_path))}" if status_path is not None else ":"
     )
+    status_command = "\n".join(status_commands)
     new_oid_resolution = (
         f"printf '%s\\n' '{NEW_OID}'; exit 0"
         if new_oid_available
@@ -120,12 +128,12 @@ def test_mocc_trace_policy_compiler_mapping_is_exact() -> None:
     }
 
 
-def test_mocc_trace_policy_parser_emits_17_values_and_rejects_duplicates(
+def test_mocc_trace_policy_parser_emits_18_values_and_rejects_duplicates(
         tmp_path: Path,
 ) -> None:
     parser = tmp_path / "policy_parser.py"
     parser.write_text(_pilot_policy_parser_source(), encoding="utf-8")
-    assert "if [[ ${#policy_values[@]} -ne 17 ]]; then" in (
+    assert "if [[ ${#policy_values[@]} -ne 18 ]]; then" in (
         PILOT.read_text(encoding="utf-8")
     )
     accepted = subprocess.run(
@@ -134,11 +142,12 @@ def test_mocc_trace_policy_parser_emits_17_values_and_rejects_duplicates(
     )
     assert accepted.returncode == 0, accepted.stderr
     values = accepted.stdout.splitlines()
-    assert len(values) == 17
+    assert len(values) == 18
     assert json.loads(values[12]) == {
         "gcc": EXPECTED_COMPILER_BODY_SHA256,
         "g++": EXPECTED_COMPILER_BODY_SHA256,
     }
+    assert values[17] == hashlib.sha256(POLICY.read_bytes()).hexdigest()
 
     raw = POLICY.read_text(encoding="utf-8")
     duplicate = tmp_path / "duplicate-policy.json"
@@ -355,7 +364,10 @@ def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:
     submission = submissions[0]
     pre_submit = json.loads((submission / "pre-submit.json").read_text(encoding="utf-8"))
     receipt = json.loads((submission / "submit-receipt.json").read_text(encoding="utf-8"))
-    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    fixture_policy_path = repo_root / "tools/pegasus/mocc_trace_v1_policy.json"
+    policy_bytes = fixture_policy_path.read_bytes()
+    policy = json.loads(policy_bytes)
+    policy_sha = hashlib.sha256(policy_bytes).hexdigest()
 
     for document in (pre_submit, receipt):
         assert document["schema_version"] in {
@@ -371,6 +383,10 @@ def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:
         assert mocc_trace["workload_note"] == (
             "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
         )
+        assert document["policy"]["raw_sha256"] == policy_sha
+        assert document["policy"][
+            "expected_compiler_version_body_sha256"
+        ] == policy["expected_compiler_version_body_sha256"]
 
     assert pre_submit["source_commit"] == source_commit
     assert pre_submit["request"]["project"] == "SFC"
@@ -390,6 +406,7 @@ def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:
     assert f"IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT={attempts_root.resolve()}" in (
         export_spec.split(",")
     )
+    assert f"IZANAGI_MOCC_POLICY_RAW_SHA256={policy_sha}" in export_spec.split(",")
     assert qsub_argv[qsub_argv.index("-o") + 1] == str(
         submission / "pbs-job.stdout"
     )
@@ -399,6 +416,94 @@ def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:
     assert receipt["qsub"]["request_id"].startswith("dry-run-")
     assert receipt["qsub"]["argv"] == pre_submit["request"]["qsub_argv"]
     assert (submission / "qsub.rc").read_text(encoding="utf-8").strip() == "0"
+
+
+def test_mocc_trace_submit_rejects_policy_change_between_parse_and_clean_gate(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    policy_path = repo_root / "tools/pegasus/mocc_trace_v1_policy.json"
+    policy_path.parent.mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    pristine_policy = tmp_path / "pristine-policy.json"
+    pristine_policy.write_bytes(POLICY.read_bytes())
+    initial_policy = tmp_path / "initial-policy.json"
+    initial_policy.write_bytes(POLICY.read_bytes() + b"\n")
+    policy_path.write_bytes(initial_policy.read_bytes())
+    attempts_root = tmp_path / "attempts"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(
+        bin_dir,
+        "3" * 40,
+        status_restore=(pristine_policy, policy_path),
+    )
+    real_sha256sum = shutil.which("sha256sum")
+    assert real_sha256sum is not None
+    _make_executable(
+        bin_dir / "sha256sum",
+        f"""
+        #!/bin/bash
+        cp {shlex.quote(str(initial_policy))} {shlex.quote(str(policy_path))}
+        exec {shlex.quote(real_sha256sum)} "$@"
+        """,
+    )
+    qsub_marker = tmp_path / "qsub-called"
+    _make_executable(
+        bin_dir / "qsub",
+        f"#!/bin/sh\ntouch {shlex.quote(str(qsub_marker))}\nexit 99\n",
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(PILOT),
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        result.check_returncode()
+    assert result.returncode == 2
+    assert "changed between initial parse and clean-tree gate" in result.stderr
+    assert not (attempts_root / "submissions").exists()
+    assert not qsub_marker.exists()
+
+
+def test_mocc_trace_pilot_requires_policy_raw_sha256_env(tmp_path: Path) -> None:
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "PBS_JOBID": "fixture-job",
+            "PBS_O_WORKDIR": str(tmp_path),
+            "IZANAGI_SUBMISSION_NONCE": "fixture-nonce",
+            "IZANAGI_MOCC_TRACE_MODE": "0",
+        }
+    )
+    environment.pop("IZANAGI_MOCC_POLICY_RAW_SHA256", None)
+    result = subprocess.run(
+        ["bash", str(PILOT)],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "IZANAGI_MOCC_POLICY_RAW_SHA256 must be 64 lowercase hex" in result.stderr
 
 
 def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> None:
@@ -1916,6 +2021,501 @@ def _mocc_trace_judgment_source_fragment() -> str:
     return fragment
 
 
+def _mocc_trace_marked_fragment(begin: str, end: str) -> str:
+    source = PILOT.read_text(encoding="utf-8")
+    assert source.count(begin) == 1
+    assert source.count(end) == 1
+    start = source.index(begin)
+    finish = source.index(end, start) + len(end)
+    return source[start:finish]
+
+
+def _mocc_trace_policy_parse_fragment() -> str:
+    return _mocc_trace_marked_fragment(
+        "# BEGIN T2195 POLICY PARSE", "# END T2195 POLICY PARSE"
+    )
+
+
+def _mocc_trace_submit_receipt_pin_fragment() -> str:
+    return _mocc_trace_marked_fragment(
+        "# BEGIN T2195 SUBMIT RECEIPT PIN",
+        "# END T2195 SUBMIT RECEIPT PIN",
+    )
+
+
+def _mocc_trace_policy_binding_fragment() -> str:
+    return _mocc_trace_marked_fragment(
+        "# BEGIN T2195 POLICY BINDING GATE",
+        "# END T2195 POLICY BINDING GATE",
+    )
+
+
+def _policy_binding_receipt_bytes(
+    policy_sha: object,
+    mapping: object,
+    exported_sha: str,
+    *,
+    duplicate_policy_key: bool = False,
+) -> bytes:
+    policy = {
+        "raw_sha256": policy_sha,
+        "expected_compiler_version_body_sha256": mapping,
+    }
+    document = {
+        "schema_version": "pegasus-submit-receipt/v2",
+        "policy": policy,
+        "qsub": {
+            "argv": [
+                "qsub",
+                "-v",
+                f"IZANAGI_MOCC_POLICY_RAW_SHA256={exported_sha}",
+                "fixture-job.sh",
+            ]
+        },
+    }
+    if not duplicate_policy_key:
+        return (json.dumps(document, sort_keys=True) + "\n").encode("utf-8")
+    encoded_policy = json.dumps(policy, sort_keys=True)
+    return (
+        "{"
+        f'"policy":{encoded_policy},"policy":{encoded_policy},'
+        '"qsub":{"argv":["qsub","-v",'
+        f'"IZANAGI_MOCC_POLICY_RAW_SHA256={exported_sha}",'
+        '"fixture-job.sh"]},'
+        '"schema_version":"pegasus-submit-receipt/v2"}\n'
+    ).encode("utf-8")
+
+
+def _run_mocc_trace_policy_binding(
+    tmp_path: Path,
+    *,
+    initial_policy_bytes: bytes | None = None,
+    live_policy_bytes: bytes | None = None,
+    receipt_policy_sha: object | None = None,
+    receipt_mapping: object | None = None,
+    exported_policy_sha: str | None = None,
+    receipt_exported_sha: str | None = None,
+    receipt_bytes: bytes | None = None,
+    rebind_parsed_sha_to_live: bool = False,
+    policy_kind: str = "regular",
+    receipt_kind: str = "regular",
+    policy_relative_path: str = "tools/pegasus/mocc_trace_v1_policy.json",
+) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path]:
+    repo_root = tmp_path / "repo"
+    policy_path = repo_root / policy_relative_path
+    policy_path.parent.mkdir(parents=True)
+    if initial_policy_bytes is None:
+        initial_policy_bytes = POLICY.read_bytes()
+    if live_policy_bytes is None:
+        live_policy_bytes = initial_policy_bytes
+    policy_path.write_bytes(initial_policy_bytes)
+    live_policy_path = tmp_path / "live-policy.json"
+    live_policy_path.write_bytes(live_policy_bytes)
+    live_sha = hashlib.sha256(live_policy_bytes).hexdigest()
+    live_document = json.loads(live_policy_bytes)
+    if receipt_policy_sha is None:
+        receipt_policy_sha = live_sha
+    if receipt_mapping is None:
+        receipt_mapping = live_document[
+            "expected_compiler_version_body_sha256"
+        ]
+    if exported_policy_sha is None:
+        exported_policy_sha = live_sha
+    if receipt_exported_sha is None:
+        receipt_exported_sha = exported_policy_sha
+    if receipt_bytes is None:
+        receipt_bytes = _policy_binding_receipt_bytes(
+            receipt_policy_sha, receipt_mapping, receipt_exported_sha
+        )
+
+    attempts_root = tmp_path / "attempts"
+    submission_dir = attempts_root / "submissions/fixture-nonce"
+    submission_dir.mkdir(parents=True)
+    (submission_dir / "submit-receipt.json").write_bytes(receipt_bytes)
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    failure_path = attempt_dir / "failure.txt"
+    bound_sha_path = attempt_dir / "bound-policy-sha.txt"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_executable(
+        bin_dir / "git",
+        """
+        #!/bin/bash
+        set -eu
+        if [[ "$1" == "-C" ]]; then shift 2; fi
+        case "$1" in
+          rev-parse) printf '%s\n' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ;;
+          status) exit 0 ;;
+          *) exit 97 ;;
+        esac
+        """,
+    )
+
+    if policy_kind == "regular":
+        replace_policy = (
+            f"cp {shlex.quote(str(live_policy_path))} "
+            f"{shlex.quote(str(policy_path))}"
+        )
+    elif policy_kind == "symlink":
+        replace_policy = "\n".join(
+            (
+                f"rm {shlex.quote(str(policy_path))}",
+                f"ln -s {shlex.quote(str(live_policy_path))} "
+                f"{shlex.quote(str(policy_path))}",
+            )
+        )
+    elif policy_kind == "fifo":
+        replace_policy = "\n".join(
+            (
+                f"rm {shlex.quote(str(policy_path))}",
+                f"mkfifo {shlex.quote(str(policy_path))}",
+                f"(cat {shlex.quote(str(live_policy_path))} >"
+                f"{shlex.quote(str(policy_path))}) &",
+            )
+        )
+    else:
+        raise AssertionError(policy_kind)
+
+    if receipt_kind == "regular":
+        replace_receipt = ":"
+    else:
+        saved_receipt = attempt_dir / "submit-receipt.saved.json"
+        common = (
+            f"mv \"$ATTEMPT_RECEIPT\" {shlex.quote(str(saved_receipt))}"
+        )
+        if receipt_kind == "symlink":
+            replace_receipt = "\n".join(
+                (
+                    common,
+                    f"ln -s {shlex.quote(str(saved_receipt))} "
+                    '"$ATTEMPT_RECEIPT"',
+                )
+            )
+        elif receipt_kind == "fifo":
+            replace_receipt = "\n".join(
+                (
+                    common,
+                    'mkfifo "$ATTEMPT_RECEIPT"',
+                    f"(cat {shlex.quote(str(saved_receipt))} >"
+                    '"$ATTEMPT_RECEIPT") &',
+                )
+            )
+        else:
+            raise AssertionError(receipt_kind)
+
+    rebind_parse_sha = (
+        f"POLICY_PARSE_RAW_SHA256={shlex.quote(live_sha)}"
+        if rebind_parsed_sha_to_live
+        else ":"
+    )
+    variables = {
+        "REPO_ROOT": str(repo_root),
+        "POLICY": str(policy_path),
+        "ATTEMPTS_ROOT": str(attempts_root),
+        "IZANAGI_SUBMISSION_NONCE": "fixture-nonce",
+        "IZANAGI_MOCC_POLICY_RAW_SHA256": exported_policy_sha,
+        "ATTEMPT_DIR": str(attempt_dir),
+        "ATTEMPT_RECEIPT": "",
+        "SUBMIT_RECEIPT_SHA": "",
+        "POLICY_RAW_SHA256": "",
+        "CURRENT_COMMIT": "",
+        "JUDGMENT_PRE_CAPTURE": "",
+        "JUDGMENT_PRE_SHA": "",
+        "JUDGMENT_POST_CAPTURE": "",
+        "JUDGMENT_POST_SHA": "",
+        "FAILURE_PATH": str(failure_path),
+    }
+    prefix = ["set -Eeuo pipefail"]
+    prefix.extend(
+        f"{name}={shlex.quote(value)}" for name, value in variables.items()
+    )
+    prefix.extend(
+        (
+            "write_failure() {",
+            "  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" >\"$FAILURE_PATH\"",
+            "}",
+        )
+    )
+    script = "\n".join(
+        (
+            *prefix,
+            _mocc_trace_policy_parse_fragment(),
+            replace_policy,
+            rebind_parse_sha,
+            _mocc_trace_submit_receipt_pin_fragment(),
+            replace_receipt,
+            _mocc_trace_judgment_source_fragment(),
+            "if ! initialize_judgment_source_state; then exit 2; fi",
+            _mocc_trace_policy_binding_fragment(),
+            f"printf '%s\\n' \"$POLICY_RAW_SHA256\" >"
+            f"{shlex.quote(str(bound_sha_path))}",
+            "",
+        )
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    result = subprocess.run(
+        ["/bin/bash", "-c", script],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    return result, attempt_dir, failure_path, bound_sha_path
+
+
+def _assert_policy_binding_rejected(
+    result: subprocess.CompletedProcess[str], failure_path: Path
+) -> None:
+    assert result.returncode == 2, result.stderr
+    assert failure_path.read_text(encoding="utf-8").startswith(
+        "2|policy_binding|"
+    )
+
+
+def test_mocc_trace_policy_binding_accepts_unchanged_policy(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, failure_path, bound_sha_path = (
+        _run_mocc_trace_policy_binding(tmp_path)
+    )
+    assert result.returncode == 0, result.stderr
+    assert not failure_path.exists()
+    assert _load_json(attempt_dir / "judgment-source-pre.json")["clean"] is True
+    assert bound_sha_path.read_text(encoding="ascii").strip() == hashlib.sha256(
+        POLICY.read_bytes()
+    ).hexdigest()
+
+
+def test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack(
+    tmp_path: Path,
+) -> None:
+    mutated = json.loads(POLICY.read_text(encoding="utf-8"))
+    mutated["expected_compiler_version_body_sha256"]["gcc"] = "1" * 64
+    mutated_bytes = (
+        json.dumps(mutated, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    ).encode("utf-8")
+    for name, rebind_sha in (("attack", False), ("mapping-owner", True)):
+        result, attempt_dir, failure_path, _ = _run_mocc_trace_policy_binding(
+            tmp_path / name,
+            initial_policy_bytes=mutated_bytes,
+            live_policy_bytes=POLICY.read_bytes(),
+            rebind_parsed_sha_to_live=rebind_sha,
+        )
+        assert _load_json(attempt_dir / "judgment-source-pre.json")[
+            "clean"
+        ] is True
+        _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack_raw(
+    tmp_path: Path,
+) -> None:
+    canonical = json.dumps(
+        json.loads(POLICY.read_text(encoding="utf-8")),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    result, attempt_dir, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path,
+        initial_policy_bytes=b"\n" + canonical,
+        live_policy_bytes=canonical,
+    )
+    assert _load_json(attempt_dir / "judgment-source-pre.json")["clean"] is True
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_submit_raw_sha_mismatch(
+    tmp_path: Path,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, receipt_policy_sha="2" * 64
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_submit_mapping_tamper(
+    tmp_path: Path,
+) -> None:
+    mapping = dict(
+        json.loads(POLICY.read_text(encoding="utf-8"))[
+            "expected_compiler_version_body_sha256"
+        ]
+    )
+    mapping["g++"] = "3" * 64
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, receipt_mapping=mapping
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_requires_submit_raw_sha256(
+    tmp_path: Path,
+) -> None:
+    mapping = json.loads(POLICY.read_text(encoding="utf-8"))[
+        "expected_compiler_version_body_sha256"
+    ]
+    policy_sha = hashlib.sha256(POLICY.read_bytes()).hexdigest()
+    receipt = {
+        "schema_version": "pegasus-submit-receipt/v2",
+        "policy": {"expected_compiler_version_body_sha256": mapping},
+        "qsub": {
+            "argv": [
+                "qsub",
+                "-v",
+                f"IZANAGI_MOCC_POLICY_RAW_SHA256={policy_sha}",
+                "fixture-job.sh",
+            ]
+        },
+    }
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path,
+        receipt_bytes=(json.dumps(receipt, sort_keys=True) + "\n").encode(),
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_env_binding_mismatch(
+    tmp_path: Path,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, exported_policy_sha="4" * 64
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_submit_raw_sha_export_tamper(
+    tmp_path: Path,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, receipt_exported_sha="5" * 64
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_noncanonical_policy_repo_path(
+    tmp_path: Path,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, policy_relative_path="other/policy.json"
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_symlink_policy(
+    tmp_path: Path,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, policy_kind="symlink"
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_rejects_non_regular_policy(
+    tmp_path: Path,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, policy_kind="fifo"
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+@pytest.mark.parametrize("receipt_kind", ("symlink", "fifo"))
+def test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_pin(
+    tmp_path: Path, receipt_kind: str,
+) -> None:
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path, receipt_kind=receipt_kind
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+@pytest.mark.parametrize(
+    ("policy_sha", "mapping"),
+    (
+        (0, {"gcc": "5" * 64, "g++": "5" * 64}),
+        ("5" * 64, None),
+        ("5" * 64, {"gcc": "5" * 64}),
+        ("5" * 64, {"gcc": "A" * 64, "g++": "5" * 64}),
+    ),
+)
+def test_mocc_trace_policy_binding_rejects_malformed_receipt_policy(
+    tmp_path: Path, policy_sha: object, mapping: object,
+) -> None:
+    live_sha = hashlib.sha256(POLICY.read_bytes()).hexdigest()
+    result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+        tmp_path,
+        receipt_bytes=_policy_binding_receipt_bytes(
+            policy_sha, mapping, live_sha
+        ),
+    )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+@pytest.mark.parametrize("surface", ("policy", "receipt"))
+def test_mocc_trace_policy_binding_rejects_duplicate_keys(
+    tmp_path: Path, surface: str,
+) -> None:
+    live_sha = hashlib.sha256(POLICY.read_bytes()).hexdigest()
+    mapping = json.loads(POLICY.read_text(encoding="utf-8"))[
+        "expected_compiler_version_body_sha256"
+    ]
+    if surface == "receipt":
+        result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+            tmp_path,
+            receipt_bytes=_policy_binding_receipt_bytes(
+                live_sha,
+                mapping,
+                live_sha,
+                duplicate_policy_key=True,
+            ),
+        )
+    else:
+        duplicate = (
+            '{"expected_cpu_model":"duplicate",'
+            + POLICY.read_text(encoding="utf-8")[1:]
+        ).encode("utf-8")
+        duplicate_sha = hashlib.sha256(duplicate).hexdigest()
+        result, _, failure_path, _ = _run_mocc_trace_policy_binding(
+            tmp_path,
+            initial_policy_bytes=POLICY.read_bytes(),
+            live_policy_bytes=duplicate,
+            exported_policy_sha=duplicate_sha,
+            receipt_bytes=_policy_binding_receipt_bytes(
+                duplicate_sha, mapping, duplicate_sha
+            ),
+            rebind_parsed_sha_to_live=True,
+        )
+    _assert_policy_binding_rejected(result, failure_path)
+
+
+def test_mocc_trace_policy_binding_gate_order_and_markers() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    markers = (
+        "# BEGIN T2195 POLICY PARSE",
+        "# END T2195 POLICY PARSE",
+        "# BEGIN T2195 SUBMIT RECEIPT PIN",
+        "# END T2195 SUBMIT RECEIPT PIN",
+        "# BEGIN T2195 POLICY BINDING GATE",
+        "# END T2195 POLICY BINDING GATE",
+        "# BEGIN T2195 POLICY FINALIZATION CHECK",
+        "# END T2195 POLICY FINALIZATION CHECK",
+    )
+    assert {marker: source.count(marker) for marker in markers} == {
+        marker: 1 for marker in markers
+    }
+    receipt_pin = source.index("# END T2195 SUBMIT RECEIPT PIN")
+    judgment = source.index("if ! initialize_judgment_source_state; then")
+    binding_begin = source.index("# BEGIN T2195 POLICY BINDING GATE")
+    binding_end = source.index("# END T2195 POLICY BINDING GATE")
+    compiler = source.index("# BEGIN T1718 COMPILER VERSION BODY GATE")
+    assert receipt_pin < judgment < binding_begin < binding_end < compiler
+
+
 def _make_judgment_git_stub(
     bin_dir: Path,
     tmp_path: Path,
@@ -2109,19 +2709,22 @@ def test_mocc_trace_post_gate_precedes_mode_verdict_exit() -> None:
 
 def _mocc_trace_finalization_fragment() -> str:
     source = PILOT.read_text(encoding="utf-8")
-    start_marker = (
+    start_marker = "# BEGIN T2195 POLICY FINALIZATION CHECK"
+    writer_marker = (
         'RECEIPT_WRITER_SHA=$(python3 - '
         '"$ATTEMPT_DIR/mocc-trace-pilot-receipt.json"'
     )
     git_marker = '\ngit -C "$CCBENCH_BASE" worktree remove'
     end_marker = '\nBUILD_SOURCE=""'
     assert source.count(start_marker) == 1
+    assert source.count(writer_marker) == 1
     assert source.count(git_marker) == 1
     start = source.index(start_marker)
     git_start = source.index(git_marker, start)
     end = source.index(end_marker, git_start)
     assert start < git_start < end
     fragment = source[start:end]
+    assert writer_marker in fragment
     assert 'RECEIPT_SHA=$(sha256sum "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json"' in fragment
     assert 'python3 - "$ATTEMPT_DIR/job-result.json"' in fragment
     assert git_marker.lstrip("\n") in fragment
@@ -2291,6 +2894,7 @@ def _run_mocc_trace_finalization(
     tamper_trace0_binary_after_absence: bool = False,
     tamper_manifest_leaf_after_discriminator: str | None = None,
     current_script_sha: str = "fixture-script-sha",
+    post_gate_policy_state: str | None = None,
 ) -> tuple[subprocess.CompletedProcess[str], Path, bytes]:
     attempt_dir = tmp_path / "attempt"
     attempt_dir.mkdir(parents=True)
@@ -2339,6 +2943,11 @@ def _run_mocc_trace_finalization(
     current_commit = "a" * 40
     submission_nonce = "fixture-nonce"
     submit_epoch = 1234567890
+    fixture_policy_bytes = POLICY.read_bytes()
+    fixture_policy_sha = hashlib.sha256(fixture_policy_bytes).hexdigest()
+    fixture_policy_mapping = json.loads(fixture_policy_bytes)[
+        "expected_compiler_version_body_sha256"
+    ]
     fixture_workload = (
         {
             "extime_s": 3,
@@ -2367,9 +2976,24 @@ def _run_mocc_trace_finalization(
                 "schema_version": "pegasus-submit-receipt/v2",
                 "submission_nonce": submission_nonce,
                 "source_commit": current_commit,
-                "qsub": {"submit_epoch": submit_epoch},
+                "qsub": {
+                    "submit_epoch": submit_epoch,
+                    "argv": [
+                        "qsub",
+                        "-v",
+                        "IZANAGI_MOCC_POLICY_RAW_SHA256="
+                        + fixture_policy_sha,
+                        "fixture-job.sh",
+                    ],
+                },
                 "mocc_trace": submit_mocc_trace,
-                "policy": {"expected_cpu_model": "fixture cpu"},
+                "policy": {
+                    "expected_cpu_model": "fixture cpu",
+                    "raw_sha256": fixture_policy_sha,
+                    "expected_compiler_version_body_sha256": (
+                        fixture_policy_mapping
+                    ),
+                },
             }
         ),
         encoding="utf-8",
@@ -2599,13 +3223,27 @@ def _run_mocc_trace_finalization(
         elif tamper_manifest_leaf_after_discriminator is not None:
             raise AssertionError(tamper_manifest_leaf_after_discriminator)
     failure_path = attempt_dir / "fragment-failure.txt"
+    fixture_repo_root = tmp_path / "fixture-repo"
+    fixture_policy_path = (
+        fixture_repo_root / "tools/pegasus/mocc_trace_v1_policy.json"
+    )
+    fixture_policy_path.parent.mkdir(parents=True)
+    fixture_policy_path.write_bytes(fixture_policy_bytes)
 
     variables = {
+        "REPO_ROOT": str(fixture_repo_root),
+        "POLICY": str(fixture_policy_path),
         "ATTEMPT_DIR": str(attempt_dir),
         "ATTEMPT_RECEIPT": str(submit_receipt_path),
         "SUBMIT_RECEIPT_SHA": hashlib.sha256(
             submit_receipt_path.read_bytes()
         ).hexdigest(),
+        "POLICY_RAW_SHA256": fixture_policy_sha,
+        "POLICY_PARSE_RAW_SHA256": fixture_policy_sha,
+        "IZANAGI_MOCC_POLICY_RAW_SHA256": fixture_policy_sha,
+        "EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON": json.dumps(
+            fixture_policy_mapping, sort_keys=True, separators=(",", ":")
+        ),
         "CURRENT_COMMIT": current_commit,
         "CURRENT_SCRIPT_SHA": current_script_sha,
         "PBS_JOBID": "fixture-job",
@@ -2669,6 +3307,30 @@ def _run_mocc_trace_finalization(
         ]
     )
     fragment = _mocc_trace_finalization_fragment()
+    policy_gate_prefix = ""
+    if post_gate_policy_state is not None:
+        if post_gate_policy_state == "mapping":
+            changed_mapping = dict(fixture_policy_mapping)
+            changed_mapping["gcc"] = "6" * 64
+            mutation = (
+                "EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON="
+                + shlex.quote(
+                    json.dumps(
+                        changed_mapping, sort_keys=True, separators=(",", ":")
+                    )
+                )
+            )
+        elif post_gate_policy_state == "raw_sha":
+            mutation = "POLICY_RAW_SHA256=" + "6" * 64
+        else:
+            raise AssertionError(post_gate_policy_state)
+        policy_gate_prefix = (
+            "\n"
+            + _mocc_trace_policy_binding_fragment()
+            + "\n"
+            + mutation
+            + "\n"
+        )
     if swap_report_to_symlink_before_open:
         swapped_target = tmp_path / "swapped-report-target.json"
         swapped_target.write_bytes(report_bytes)
@@ -2721,7 +3383,11 @@ def _run_mocc_trace_finalization(
             1,
         )
     result = subprocess.run(
-        ["/bin/bash", "-c", "\n".join(prefix_lines) + fragment],
+        [
+            "/bin/bash",
+            "-c",
+            "\n".join(prefix_lines) + policy_gate_prefix + fragment,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -2734,6 +3400,46 @@ def _load_json(path: Path) -> dict[str, object]:
     value = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def test_mocc_trace_finalization_records_bound_policy(tmp_path: Path) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(tmp_path)
+    assert result.returncode == 0, result.stderr
+    receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    assert receipt["policy"] == {
+        "repo_path": "tools/pegasus/mocc_trace_v1_policy.json",
+        "raw_sha256": hashlib.sha256(POLICY.read_bytes()).hexdigest(),
+        "expected_compiler_version_body_sha256": policy[
+            "expected_compiler_version_body_sha256"
+        ],
+    }
+
+
+def test_mocc_trace_finalization_rejects_mapping_changed_after_gate(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, post_gate_policy_state="mapping"
+    )
+    assert result.returncode == 2, result.stderr
+    assert not (attempt_dir / "mocc-trace-pilot-receipt.json").exists()
+    failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
+    assert failure.startswith("2|policy_binding|")
+    assert "at finalization" in failure
+
+
+def test_mocc_trace_finalization_rejects_raw_sha_changed_after_gate(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, post_gate_policy_state="raw_sha"
+    )
+    assert result.returncode == 2, result.stderr
+    assert not (attempt_dir / "mocc-trace-pilot-receipt.json").exists()
+    failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
+    assert failure.startswith("2|policy_binding|")
+    assert "at finalization" in failure
 
 
 def _mocc_trace_artifact_manifest_fragment(*, write_manifest: bool) -> str:

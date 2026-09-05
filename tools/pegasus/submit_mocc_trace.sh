@@ -66,14 +66,45 @@ fi
 # The workload tuple is parent-selected pilot data; it is not a reproduction of
 # any historical T-816 measurement.  Keep that distinction in every receipt.
 readarray -t policy_values < <(python3 - "$POLICY" <<'PY'
+import hashlib
 import json
+import os
+import stat
 import sys
 
+
+def reject_duplicate_keys(pairs):
+    document = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"duplicate JSON key: {key}")
+        document[key] = value
+    return document
+
+
 path = sys.argv[1]
-with open(path, encoding="utf-8") as handle:
-    policy = json.load(handle)
+fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode):
+        raise SystemExit("Mocc trace policy is not a regular file")
+    with os.fdopen(fd, "rb") as handle:
+        fd = -1
+        raw = handle.read()
+finally:
+    if fd >= 0:
+        os.close(fd)
+policy = json.loads(raw.decode("utf-8"), object_pairs_hook=reject_duplicate_keys)
 trace = policy["mocc_trace"]
 workload = trace["workload"]
+expected_compilers = policy["expected_compiler_version_body_sha256"]
+if type(expected_compilers) is not dict or set(expected_compilers) != {"gcc", "g++"}:
+    raise SystemExit("expected compiler mapping keys differ")
+for role, digest in expected_compilers.items():
+    if type(digest) is not str or len(digest) != 64 or any(
+        char not in "0123456789abcdef" for char in digest
+    ):
+        raise SystemExit(f"expected compiler digest is invalid: {role}")
 required_workload = {
     "records", "threads", "zipf_skew", "ycsb_rratio", "ycsb_rmw",
     "ycsb_max_ope", "extime_s"
@@ -103,9 +134,12 @@ print(trace["cmake_target"])
 print(json.dumps(workload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
 print(policy["third_party_cache_env"])
 print(policy["pilot_walltime"])
+print(hashlib.sha256(raw).hexdigest())
+print(json.dumps(expected_compilers, sort_keys=True, separators=(",", ":")))
+print(json.dumps(trace, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
 PY
 )
-if [[ ${#policy_values[@]} -ne 13 ]]; then
+if [[ ${#policy_values[@]} -ne 16 ]]; then
   echo "Mocc trace policy parse failed" >&2
   exit 2
 fi
@@ -122,6 +156,9 @@ CMAKE_TARGET=${policy_values[9]}
 WORKLOAD_JSON=${policy_values[10]}
 THIRD_PARTY_CACHE_ENV=${policy_values[11]}
 PILOT_WALLTIME=${policy_values[12]}
+POLICY_RAW_SHA256=${policy_values[13]}
+EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON=${policy_values[14]}
+MOCC_TRACE_JSON=${policy_values[15]}
 if [[ "$T1943_G2" -eq 1 ]]; then
   python3 - "$WORKLOAD_JSON" <<'PY_T1943_WORKLOAD'
 import json
@@ -244,6 +281,33 @@ then
   echo "working tree is dirty; Mocc trace submission aborted" >&2
   exit 2
 fi
+POLICY_POST_CLEAN_SHA256=$(python3 - "$POLICY" <<'PY'
+import hashlib
+import os
+import stat
+import sys
+
+fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode):
+        raise SystemExit("Mocc trace policy is not a regular file")
+    with os.fdopen(fd, "rb") as handle:
+        fd = -1
+        raw = handle.read()
+finally:
+    if fd >= 0:
+        os.close(fd)
+print(hashlib.sha256(raw).hexdigest())
+PY
+) || {
+  echo "Mocc trace policy cannot be re-read after clean-tree gate" >&2
+  exit 2
+}
+if [[ "$POLICY_POST_CLEAN_SHA256" != "$POLICY_RAW_SHA256" ]]; then
+  echo "Mocc trace policy changed between initial parse and clean-tree gate" >&2
+  exit 2
+fi
 JOB_SCRIPT_SHA256=$(sha256sum "$JOB_SCRIPT" | awk '{print $1}')
 SUBMIT_EPOCH=$(date +%s)
 NONCE=$(python3 - <<'PY'
@@ -297,7 +361,7 @@ case "$THIRD_PARTY_CACHE_VALUE" in
     exit 2
     ;;
 esac
-EXPORT_SPEC="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_MOCC_TRACE_MODE=$TRACE_MODE,IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT=$ATTEMPTS_ROOT"
+EXPORT_SPEC="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_MOCC_TRACE_MODE=$TRACE_MODE,IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT=$ATTEMPTS_ROOT,IZANAGI_MOCC_POLICY_RAW_SHA256=$POLICY_RAW_SHA256"
 if [[ "$T1943_G2" -eq 1 ]]; then
   EXPORT_SPEC+=",IZANAGI_MOCC_G2_DISCRIMINATOR=1"
 fi
@@ -314,19 +378,38 @@ qsub_cmd=(
 python3 - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT" "$JOB_SCRIPT_SHA256" \
   "$SUBMIT_EPOCH" "$NONCE" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" \
   "$FINALIZE_RESERVE_S" "$EXPECTED_CPU" "$EXPECTED_CORES" "$BASE_OID" "$NEW_OID" \
-  "$CMAKE_TARGET" "$WORKLOAD_JSON" "$POLICY" "$TRACE_MODE" "$DRY_RUN" \
+  "$CMAKE_TARGET" "$WORKLOAD_JSON" "$POLICY" "$PILOT_WALLTIME" \
+  "$POLICY_RAW_SHA256" "$EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON" \
+  "$MOCC_TRACE_JSON" "$TRACE_MODE" "$DRY_RUN" \
   "$T1943_G2" "${qsub_cmd[@]}" <<'PY'
+import hashlib
 import json
 import os
+import stat
 import sys
 
 (root, source_commit, script, script_sha, submit_epoch, nonce, project, queue,
  nodes, walltime_s, reserve_s, expected_cpu, expected_cores, base_oid, new_oid,
- cmake_target, workload_json, policy_path, trace_mode, dry_run, t1943_g2,
- *qsub_argv) = sys.argv[1:]
-with open(policy_path, encoding="utf-8") as handle:
-    policy = json.load(handle)
+ cmake_target, workload_json, policy_path, pilot_walltime, policy_raw_sha,
+ expected_compilers_json, initial_mocc_trace_json, trace_mode, dry_run,
+ t1943_g2, *qsub_argv) = sys.argv[1:]
+policy_fd = os.open(policy_path, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    policy_info = os.fstat(policy_fd)
+    if not stat.S_ISREG(policy_info.st_mode):
+        raise SystemExit("Mocc trace policy is not a regular file")
+    with os.fdopen(policy_fd, "rb") as handle:
+        policy_fd = -1
+        policy_bytes = handle.read()
+finally:
+    if policy_fd >= 0:
+        os.close(policy_fd)
+if hashlib.sha256(policy_bytes).hexdigest() != policy_raw_sha:
+    raise SystemExit("Mocc trace policy changed before pre-submit receipt")
+policy = json.loads(policy_bytes.decode("utf-8"))
 mocc_trace = dict(policy["mocc_trace"])
+if mocc_trace != json.loads(initial_mocc_trace_json):
+    raise SystemExit("Mocc trace policy projection changed before pre-submit receipt")
 mocc_trace["trace_mode"] = int(trace_mode)
 if int(t1943_g2):
     mocc_trace["t1943_g2_discriminator"] = True
@@ -366,10 +449,14 @@ payload = {
     },
     "policy": {
         "path": os.path.relpath(policy_path, os.path.dirname(os.path.dirname(os.path.dirname(root)))),
-        "pilot_walltime": policy["pilot_walltime"],
+        "pilot_walltime": pilot_walltime,
         "pilot_walltime_s": int(policy["pilot_walltime_s"]),
         "expected_cpu_model": expected_cpu,
         "expected_physical_cores": int(expected_cores),
+        "raw_sha256": policy_raw_sha,
+        "expected_compiler_version_body_sha256": json.loads(
+            expected_compilers_json
+        ),
     },
     "mocc_trace": mocc_trace,
     "preflight": captures,
