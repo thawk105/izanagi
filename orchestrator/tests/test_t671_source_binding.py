@@ -34,8 +34,19 @@ _PRE_WAVE_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/verifier/model.py",
     "orchestrator/verifier/parse.py",
 )
-_EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
-    *_PRE_WAVE_ENFORCEMENT_SOURCE_PATHS,
+_PRE_T733_ENFORCEMENT_SOURCE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
     "orchestrator/verifier/__init__.py",
     "orchestrator/verifier/report.py",
     "orchestrator/campaign/s8c_preregistration.py",
@@ -49,10 +60,54 @@ _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/qualification/t126_driver.py",
     "orchestrator/verifier/commit_receipt.py",
 )
-_PRE_T1287_ENFORCEMENT_SOURCE_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[:14]
-_S8C_DECIDER_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[14:17]
-_SOURCE_BINDING_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[17:19]
-_RECEIPT_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[19:]
+_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX = (
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+)
+_EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
+    *_PRE_T733_ENFORCEMENT_SOURCE_PATHS,
+    *_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX,
+)
+_PRE_T1287_ENFORCEMENT_SOURCE_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[:14]
+_S8C_DECIDER_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[14:17]
+_SOURCE_BINDING_IMPLEMENTATION_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[17:19]
+_RECEIPT_IMPLEMENTATION_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[19:24]
 _GIT_ENV_ALLOWLIST = (
     "LANG",
     "LC_ALL",
@@ -184,6 +239,9 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_four_paths()
     assert campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS == (
         _EXPECTED_ENFORCEMENT_SOURCE_PATHS
     )
+    assert len(_PRE_T733_ENFORCEMENT_SOURCE_PATHS) == 24
+    assert len(_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 38
+    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 62
     assert (
         contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
         is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
@@ -699,6 +757,8 @@ def test_production_contract_loader_binding_call_sites_are_exact() -> None:
          "binding_from_authority"): 1,
         ("artifact_admission.py", "_verify_committed_loader_binding",
          "verify_committed_contract_loader_binding"): 1,
+        ("artifact_admission.py", "_verify_committed_loader_binding",
+         "verify_committed_contract_loader_blobs"): 1,
         ("artifact_admission.py", "_require_verifier_epoch_for_purpose",
          "capture_contract_loader_binding"): 1,
     })
