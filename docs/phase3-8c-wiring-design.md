@@ -621,7 +621,7 @@ dereference しない。物理実行を主張できるのは formal consumer が
 |---|---|---|---|
 | **V-6** | 末尾の全 tombstone batch を ledger 側でも拒否するか。(a) certifiable seal で「全 tombstone batch を含まない」を要求する (受理集合の変更) (b) consumer 側の条件だけで運用する | **(a)**。consumer だけに頼ると、raw `commit_event` を持つ将来の caller が同じ穴を再現する | (b) のままだと、試行台帳は tombstone を含む certifiable terminal を持ち、材料レポートは 33 行だけを参照して batch / counter 集合が食い違う |
 | **V-7** | production runtime の初期化経路をどう作るか。(a) authority provisioning と同じ人間承認手続で、entry 追加と runtime genesis を同時に書く一回限りの operation を**人間が**実行する (b) public な初期化 API を作る (c) 決めずに設計メモへ留める | **(a)**。(b) は `_initialize_locked` が production を拒否している防壁を公開面へ開く | 決めないと、発行 3 条件を満たしても最初の `read_origin` / reserve が「runtime 未初期化」で失敗し、試行台帳に origin 行が 1 件も作られない |
-| **V-8** | 物理実行の単位を「1 query ordinal = 1 campaign run」とするか。(a) そうする (実行費用が 33 倍) (b) 1 run 内で 33 行を回す (source と同 mask の validation 行が duplicate skip され、`sealed_queries ≤ 32` で floor を割る) | **(a)**。(b) は fail-closed なら常に aborted、既存 WAL を再利用すれば物理実行保証が破れる | (b) を選ぶと producer topology は原理的に certifiable にならず、P6 の 32 mask 主張が成立しない |
+| **V-8** | 物理実行の単位を「1 query ordinal = 1 campaign run」とするか。(a) そうする (実行費用が 33 倍) (b) 1 run 内で 33 行を回す (source と同 mask の validation 行が duplicate skip され、`sealed_queries ≤ 32` で floor を割る) | **(a)**。(b) は fail-closed なら常に aborted、既存 WAL を再利用すれば物理実行保証が破れる | (b) を選ぶと producer topology は原理的に certifiable にならず、P6 の 32 mask 主張が成立しない。**裁定済み (D1616、(a))。** 実行形を持たない原因 2 つの解消案は「追記 (2026-09-05)」節 |
 | **V-9** | `imax` / `qmax` の再批准。批准時の内訳 (探索 2 行 + P6 32 行をそれぞれ 1 回放棄) と本 topology (33 行 1 batch) は別物で、`4/68` が買う余裕は pre-commit abandon 1 回だけ。(a) 内訳だけ差し替えて `4/68` を維持 (b) post-commit crash を 1 回生き延びる余裕まで持たせて値を上げる (c) 現値のまま据置き再批准しない | **(a)**。(b) は §5.2 で禁じた post-commit 再試行を前提にするので、値を上げても certifiable recovery には使えない | (c) を選ぶと、批准値の根拠文書と実 topology が食い違ったまま authority が発行され、U-10 §7 の再計数義務に反する |
 | **V-10** | evidence writer の権限分離を作るか。(a) 作らない — 「evidence root へ書けるのは trusted harness だけ」を運用前提とし、保証限界として明記する (b) 別 UID / 別 namespace の writer を作る | **(a)**。(b) は D205 のプロトタイプ基準を超える投資である | (a) の場合、材料レポートは「物理実行 0 件の偽 evidence を排除できるのは運用前提の下だけ」と明記する義務を負う。書かなければ proof chain が実際より強い主張になる |
 
@@ -696,3 +696,209 @@ duplicate skip が起きるのは `query_ordinal = 1 + m_s` の行であり、`m
 
 なお generic な reservation は 33 run の連続実行を妨げない (`reservation.py:26-55`、`223-275`)。
 **scheduler へ 33 回投入する必要はない。** 止めているのは claim と capability の identity 設計である。
+
+---
+
+## 追記 (2026-09-05) — V-8 (a) の実行形: 論理 campaign と物理 campaign run の分離
+
+D1616 が V-8 を (a) 「1 query ordinal = 1 campaign run」と裁定した。本節は、追記訂正 (2026-09-03) が示した
+「(a) は現行コードで実行形が成立していない」原因 2 つ — campaign identity が候補の違いを含まず 33 run が
+同じ identity になる、identity を分けると capability が `campaign_id` を 1 つしか持てない — の**解消案の
+設計**である。**既存 bytes は書き換えず、§11 の V-8 行に裁定済みの印だけを足した。実装はしない。**
+設計の逐語 (plan・敵対レンズ 2 本・裁定) は `output/insights/2026-09-05_t2293-8c-wiring-v8-identity/README.md`。
+
+### A. 原因の再記述
+
+- 8c の各物理 run は `Genome("silo", _BASE)` 1 個で `run_campaign()` を呼び (`p3_s4_loop_trigger_gating.py`
+  `_run_one_iteration_resolved`)、33 行で変わるのは genome でなく `TriggerGateBinding` の mask / wire である。
+  「identity が genome を含まない」は「identity が候補の違いを含まない」と読み替える。
+- 同じ identity の 2 run 目を止めるのは claim だけではない。Pegasus (`allow_resume=False`) では
+  `_assert_resume_allowed` (`p3_s4_loop_trigger_gating.py`) が同 layout の lock / loop_state / WAL / provenance を
+  理由に、claim より先に拒否する。同 layout に WAL が残る限り `loop.run_campaign` の `done` seed が
+  2 回目の同 variant を skip する。したがって解消は claim だけでなく **layout と WAL も物理 run ごとに分ける**。
+- `campaign_claim.acquire_claim` は同一 `protocol_digest` (canonical preimage の full SHA-256) の LIVE owner と
+  同一 path を拒否する。`spec_slug` は identity 文字列には入るが preimage には入らないため、
+  「identity が違えば digest も違う」は一般則ではない。33 run は slug / search_tag が同じなので、
+  short identity の相異から digest の相異が従う。
+- `TopologyMember.planned_campaign_run_identity` (`reflux_origin_topology.py`) は既に存在し 33 member で相異を
+  要求するが、production の producer も consumer も参照しない (test は固定文字列を入れる)。**束縛先の無い
+  field** であり、本設計はこれを物理 run identity の正本にする。
+
+### B. 2 層の identity (D75 の完全修飾)
+
+| 層 | 表記 | 実体 | 個数 | 導出 |
+|---|---|---|---|---|
+| 論理 campaign | `binding.campaign_id` = `PreparedCampaignIdentity.campaign_id` = `OriginBindingCapability.campaign_id` = attempt slot の `campaign_id` = `trial_binding.campaign_id` = `execution_provenance.campaign_id` | registry / capability / slot / lifecycle / launch admission record が持つ**座標** | 1 trial に 1 つ | 現行どおり `ident.campaign_id(cfg)` |
+| 物理 campaign run | `run_plan.members[q].planned_campaign_run_identity` = `execution_provenance.campaign_run_identity` = `report.cells[i].campaign_runs[q].campaign_run_identity` | claim / layout / WAL / `done` 集合の**単位** | query ordinal ごとに 1 つ (33) | `str(ident.campaign_id(cfg_q))` |
+
+物理 cfg は次で作る。`CampaignConfig` に field を足さず、`trial` も変えない。
+
+```text
+cfg_q = replace(logical_cfg, search_config={
+    **logical_cfg.search_config,
+    "origin_campaign_run": {
+        "attempt_capability_sha256": <AttemptSlotCapability.capability_digest_sha256>,
+        "query_ordinal": q,            # exact int 0..32
+    },
+})
+campaign_run_identity[q] = str(ident.campaign_id(cfg_q))
+```
+
+- 物理成分を `search_config` の名前付き key に置くのは、`trial` 文字列の接尾辞では generic な
+  `CampaignConfig.trial` 名前空間と構文分離できないためである (別 caller の素の `trial="foo-q00"` と衝突しうる)。
+  `canonical_preimage` は `search_config` を含むので identity・`protocol_digest`・claim path・layout root・WAL が
+  すべて q 別になる。
+- 物理成分に **attempt slot capability digest** を入れるのは D1190 の同型 (座標 + 測定世代 + ordinal) を
+  保つためである。論理 cfg と q だけでは同じ trial の別 attempt (retry / 別 replicate / 別 prereg 世代) の
+  33 run が同じ identity になり、過去 attempt の WAL を流用できる。同一 slot への再入は同 identity になり
+  claim / resume gate で fail-closed、別 attempt は別 identity になる。resume を成功させるための決定性ではなく、
+  **同一 slot の二重実行を fail-closed にするための決定性**である。
+- 時刻・PID・乱数を含まない。33 identity と 33 preimage の相異は run plan 作成前に検査し、不一致・重複は
+  予約前に停止する (`cfg_hash` は SHA-256 先頭 8 hex で、33 個の衝突確率は約 1.2e-7。衝突しても claim の
+  `O_EXCL` と fresh check が拒否する)。
+- `trial` を identity 以外に読む箇所 (`ident.is_a1_non_certifying_config`、`p3_b4_protocol.driver_kind_from_identity`、
+  `p3_b4_closed_critic._driver_kind_from_cfg`) は 8c cfg では発火しない。`autonomous_trial_completeness.py` は
+  `search_config` の exact key 集合と素の `trial` を再導出するので、origin cell 用の分岐が要る (§E)。
+
+### C. 順序 — 予約より前に固定する
+
+```text
+capability 発行 (launch admission、論理 cfg)
+  → attempt slot 予約 (t524 の slot、campaign_id は論理値)
+  → 33 個の cfg_q / campaign_run_identity / preimage を導出し相異を検査
+  → recovery envelope を create-only で書く (planned_campaign_run_identity = 導出値、caller に自己申告させない)
+  → envelope digest を durable に束縛する (裁定 R1)
+  → begin_attempt_observation
+  → executor: q = 0..32
+```
+
+現行は envelope の write が `begin_attempt_observation()` より後にあり、observation 開始後・envelope 作成前の
+crash で事前登録済み bytes が無い。上記の順序へ改める。§8 の「run plan の digest を capability と lifecycle へ
+束縛する」のうち **capability への束縛は撤回する** — envelope が capability digest を含むため双方向にすると
+循環する。参照は envelope → capability の一方向とし、envelope digest の durable な束縛先を R1 で決める。
+
+registry 照合 (`trial_registry.assert_campaign_binding`) と capability 発行 (`issue_origin_binding_capability`) が
+受けるのは**物理成分を足す前の exact `PreparedCampaignIdentity`** に限る。物理 cfg を渡せば拒否されるが、
+それは呼出し順の帰結であって型の保証ではないので、実装 wave は受入要件と負例で固定する。
+
+### D. 証拠側の結線 — 自己申告でなく現物から再導出する
+
+- `execution-provenance` に `campaign_run_identity` を足す (schema 世代は R3)。`campaign_id` は論理値のまま残し、
+  FC03 の 3 項等式 (`execution_provenance.campaign_id == trial_binding.campaign_id == capability.campaign_id`) を
+  **残す**。
+- ただし provenance の文字列同士の比較だけでは、§10 が却下した「record 内の `issuer` 文字列を権限証明にする」
+  型の恒真化である (別 trial の 33 WAL を使い provenance だけ書き換えれば通る)。formal consumer は次を自ら行う。
+  1. 各 record が指す物理 run の **`campaign.lock`** を content-addressed ref (§3.7) で解決して decode し、
+     preimage から `campaign_run_identity` を再計算して `run_plan.members[q].planned_campaign_run_identity` と
+     `execution_provenance.campaign_run_identity` に一致させる。
+  2. 同じ preimage から `origin_campaign_run` を除いた論理 cfg を再構成し、`capability.campaign_id` と
+     `attempt_capability_sha256` (slot capability digest) に一致させる。
+  3. **envelope を evidence root の create-only file から再読**し、digest が R1 の束縛値と一致することを要求する。
+     in-memory の envelope object を受け取って検査するだけでは、別 object / 別 path の envelope を渡して
+     33 identity を宣言し直せる。
+  4. `evidence.ordered_wal_ref` の解決先がその物理 run の layout 配下であることを要求する。
+- §4.2 の双射 (`build_attempt_id` 相異 = FC05a、WAL 区間非重複 = FC05b) は「33 個の相異なる物理 attempt」を
+  保証するが「どの layout で実行されたか」は保証しない。物理 identity 検査が追加で拒否するのは、
+  **q10 と q11 の root / config を交換し provenance を整合的に再生成した入力**である。lock からの再導出が
+  無ければこの入力を拒否できず、文字列比較だけの gate は変異を帰属できない冗長 gate (F28 型) になる。
+- native WAL の trigger binding は `wal.log_trigger_binding` が `stage="trigger_binding"` / `payload` へ書くが、
+  現 formal consumer の `_wal_trigger()` は fixture 形 (root `kind == "TriggerGateBinding"`) を要求する
+  (D1555)。実装 wave は native decoder を足し、1 projection 内で shape family を 1 つに固定して mixed shape を
+  拒否する。
+
+### E. 実行器と report
+
+- origin topology mode は `_run_workload` (`p3_autonomous_workload_trial.py`) が**論理 campaign の単一 layout を
+  作るより前**で分岐し、`for generation in range(1, generations + 1)` に入らない。manifest の `generations == 2`
+  は論理 trial の admission metadata として残し、物理 run の反復数には使わない。
+- 各 q: `layout_q = exploration_campaign_layout(campaign_run_identity[q])`、`_assert_fresh_campaign_state(layout_q)`、
+  既存 `_assert_resume_allowed`、`cfg_q` から再導出した identity が plan と一致、`CampaignSummary.campaign_id`
+  (actual) が plan と一致 (plan からの複写を actual にしない)、前 q の evidence が fsync / read-back 済み。
+- 現行 `drive_iteration` は `TopologyMember` を取らず、rejected / aborted の後も CERTIFIED_ACCEPTANCE の
+  admission を呼ぶため P6 の qualifying rejection を戻り値で返せない。trigger module に origin 専用の sealed な
+  物理 entry point を置き、public caller の任意 callback 差替えを許さない。
+- 残時間: preflight の `ReservationCheck` を保持し、各 q の前に次 member の保守的上限で `ensure_remaining()` を
+  検査する (`run_campaign` 自身は 1 秒しか要求しない)。不足なら以降を tombstone suffix にする。`max_wall_s` の
+  既定 3600 s は 33 × 374〜908 s (T-2261 実測) に足りないので origin mode で別に決める。
+- 失敗: **同一 process で捕捉した失敗**だけ tombstone suffix (§5.2 / §7.2)。process crash で seal を失えば
+  §7.5 どおり非終端で、t524 の receipt v5 は成立しない。
+- report: origin-bound cell は論理 `campaign_id` と `campaign_runs` (exact 33 件、各 exact 3 key
+  `query_ordinal` / `campaign_run_identity` / `campaign_root`、q 昇順、相異、run plan と全件一致) を持ち、
+  単数 `campaign_root` を出さない。originless cell は現行のまま。
+- completeness (`autonomous_trial_completeness.py`) には `campaign_runs` を拒否する exact cell key gate は無く、
+  拒否点は単一 `campaign_root`・素の `trial`・`generations == 2` の履歴・Layer 3 chain の 4 点である。
+  `launch_admission.origin_binding` を発火条件に origin 分岐を置き、originless の受理集合は変えない。
+  `layer3_report.py` の campaign 解決と `trial_registry.py` の acceptance issuer (`cells[0].campaign_root` 必須) も
+  単一 campaign 前提なので origin-aware にする。origin cell の「complete」の権威は R2。
+
+### F. 既定経路の不変と稼働中 wave
+
+- すべての変更は origin capability 発行時だけ発火する。originless の run-start・report・`launch_admission_sha256`・
+  lifecycle の bytes と受理集合は不変 (§6.5)。
+- t524 (実験単位 = slot): attempt slot の `campaign_id` は論理値のまま。33 物理 run は 1 slot
+  (`replicate_index == 0`) の内側で、slot / acceptance receipt v5 / `prereg_generation` に物理 identity を足さない。
+  ただし `trial_registry.py` の report / measurement-target 部分は変わるので、実装 wave は t524 の着地後に着手する。
+- t1851 (s8b の `campaign_run_id` / 測定世代): 変更 0。命名を `campaign_run_identity` に保ち s8b の世代・claim へ
+  接続しない。
+
+### G. 受理集合が動く写像 (述語は不変)
+
+| 写像 | 旧 | 新 | 根拠 |
+|---|---|---|---|
+| cfg → claim path / layout | 同 trial の q ≥ 1 は q0 と同 identity で拒否 | q 別 identity で受理 | D1616 (a) の帰結そのもの。`acquire_claim` / `_assert_resume_allowed` の述語は不変 |
+| WAL trigger binding の shape | fixture 形のみ | native `stage/payload` も受理 | D1555 が「provisioning と独立に必要」と明記した修理 |
+| origin cell の report 形 | 単数 `campaign_root` | `campaign_runs[33]` | §6.5 の originless 不変規律の内側。originless は不変 |
+
+### H. 却下した案
+
+| 却下した案 | 理由 |
+|---|---|
+| claim に release / per-attempt key を足す | 拒否分岐の弱体化。release 不在は意図的設計 |
+| identity に trigger wire を入れる | source 行と `m == m_s` の validation 行が同 wire で衝突する。ordinal だけが衝突しない |
+| `generations` を 33 にする | manifest は `generations == 2` を exact 要求し、generation は LLM 探索の反復で物理 run の単位ではない。Pegasus の同 layout 再利用も解けない |
+| identity を時刻・PID・乱数で分ける | D1190 が却下した乱数発行と同型。run plan 時点で再導出できない |
+| `trial` 文字列の接尾辞で分ける (親 brief の当初案) | generic な `trial` 名前空間と構文分離できない。構造化 key と費用が同じ |
+| 論理 cfg と q だけから物理 identity を作る (段 2 plan) | 同 trial の別 attempt の 33 run が同 identity になり流用できる |
+| capability に 33 個の run identity を足す | capability は launch admission で発行され run plan より前。exact field・record・completeness の面が増え envelope と二重化する |
+| 33 capability を発行する | capability は origin binding。33 capability = 33 origin になり §5.1 の 1 batch と矛盾 |
+| FC03 の `execution_provenance.campaign_id` を物理値に置き換える | 3 項等式を崩し、別 trial の物理 run を流用する穴を開ける |
+| provenance の文字列同士の比較で物理束縛とする | §10 の issuer 文字列型の恒真化。lock からの再導出が要る |
+| completeness で lock を再読して防壁とする | formal terminal は completeness より先に ledger へ commit 済み。防壁は formal consumer に置く |
+| 「33 layout が実在する」だけで物理実行を認める | 実行後に都合のよい 33 directory を plan へ対応付けられ、事前登録が恒真になる |
+
+### I. 裁定パッケージ (ユーザーへ返す 4 件)
+
+| # | 択一 | 親の推奨 | 採らない場合の成果物影響 |
+|---|---|---|---|
+| **R1** | run plan (envelope) digest の durable な束縛先。(a) lifecycle `start` 行に origin-only optional key `origin_run_plan_sha256` を足す (§6.5 の projection 規律) (b) ledger `BatchReserved` payload に載せる (ledger 受理集合の変更、V-6 と同型) (c) in-process seal だけ | **(a)** | 束縛が無いと別 object / 別 path の envelope で 33 identity を宣言し直せる。(c) は process crash で消える |
+| **R2** | origin cell の「complete」の権威。(a) issued capability + formal-consumer receipt + 33 `campaign_runs` の lock / WAL 再検査からなる origin 専用 completion を、通常 cell の「全 campaign が admitted」と分けて置く (b) 33 物理 campaign すべてに通常 Layer 3 admission を要求する | **(a)**。(b) は P6 が qualifying rejection を必要とするため成立しない | 決めないと completeness と registry acceptance が単一 root 前提のまま origin cell を拒否し、結線実装 wave が受入条件を持てない |
+| **R3** | `execution-provenance` の schema 世代。(a) `execution-provenance/v2` を新設し v1 は historical decoder (origin consumer は v2 のみ受理) (b) v1 を in-place で 8 key に拡張 | **(a)** | (b) は同じ schema 名が異なる exact key 集合を表し、fixture と将来 artifact の世代判別ができない |
+| **R4** | (確認) §G の 3 写像を D1616 / D1555 / §6.5 の範囲内として実装 wave へ渡してよいか | **可** | 否なら V-8 (a) は実行形を持てず D1616 へ戻る |
+
+V-6 / V-9 / V-10 は未裁定のまま。**発行 3 条件は 0/3、本番 authority は 0 件、結線実装 wave の起票制限
+(2026-08-12) は本追記で変わらない。** 本節が閉じたのは「V-8 (a) の identity / capability 衝突の解消案」だけである。
+
+### J. 実装 wave への受入要件 (§12 への追加) と変異事前登録の候補
+
+| # | 受入要件 | 変異位置 / 無効化する述語 / 期待する赤 |
+|---|---|---|
+| 9 | 33 個の cfg_q / identity / preimage を決定的に導出し相異を検査する。入力は (論理 cfg, slot capability digest, q) | `p3_autonomous_workload_trial.py` の導出 helper。q を固定 0 へ。run plan 作成が重複 identity で赤 |
+| 10 | registry 照合と capability 発行は物理成分を足す前の exact `PreparedCampaignIdentity` だけを受ける | 同 preflight。cfg_q を渡す負例が `assert_campaign_binding` で赤 |
+| 11 | envelope は slot 予約後・observation 開始前に create-only で書き、planned identity は helper が計算し caller に自己申告させない | 同 envelope builder。順序を observation 後へ変異、または caller 値を通す変異で赤 |
+| 12 | executor は generation loop と排他で、各 q に fresh check・identity 一致・actual (`CampaignSummary.campaign_id`) 一致・残時間検査を掛ける | `_execute_origin_topology` (仮名)。全 q で q0 layout を再利用する変異、actual を plan から複写する変異で赤 |
+| 13 | provenance は `campaign_run_identity` を必須 key に持ち (R3 の世代)、consumer は FC03 の 3 項等式を維持する | `reflux_result_evidence.py` の exact key。必須を外す変異で欠落 provenance の受理が赤 |
+| 14 | formal consumer は各 record の `campaign.lock` を decode し、物理 identity と論理 campaign を再導出して plan / capability と照合する | `reflux_formal_consumer.py` の新検査。q10 / q11 の root と config を交換し provenance を整合再生成した負例が赤 (FC05a〜c は通る) |
+| 15 | formal consumer は envelope を disk から再読し R1 の束縛値と digest 一致を要求する | 同。別 path の envelope を渡す負例が赤 |
+| 16 | FC05a の `build_attempt_id` 相異は独立に維持する | `_validate_bijection`。identity 33 個が正しく attempt ID を 1 件重複させた負例が赤 |
+| 17 | native WAL の `stage/payload` shape を検証し、1 projection 内の shape family を 1 つに固定する | `_wal_trigger` / `_validate_wal_outcomes`。native decoder 無効化で `wal.log_trigger_binding` 相当の正例が FC05c / FC07 で赤、mixed shape の負例が赤 |
+| 18 | origin report の `campaign_runs` を exact 33 件で再検査し、originless の bytes と受理集合を変えない | completeness の origin 分岐。q8 / q9 入替えの負例が赤。分岐を常時発火へ変異すると originless の projection 比較が赤 |
+
+実装 wave が触れる予定の file: `p3_autonomous_workload_trial.py`、`p3_s4_loop_trigger_gating.py`、
+`reflux_result_evidence.py`、`reflux_formal_consumer.py`、`autonomous_trial_completeness.py`、`layer3_report.py`、
+`trial_registry.py` (report / measurement-target 部分、t524 着地後)、対応する test と fixture builder / baseline。
+`reflux_origin_topology.py`、`campaign_claim.py`、`loop.py`、`ident.py`、`model.py`、`s8c_acceptance_receipt.py`、
+`s8b_*` は変更しない。**「provenance 33 値の相異」単独の変異は登録しない** — planned 全件一致と envelope 側の
+相異検査が同じ入力を先に拒否し、単一理由にならない。
+
+ledger producer (reserve〜seal の状態機械)、qualifying rejection から witness class を導く normalizer、
+material report renderer は §9 の「未存在」のままで、本節は設計しない。
