@@ -43,8 +43,9 @@ class _EdgeTask:
 class _EdgeCandidateColumns:
     task_index: int
     worker_pid: int
-    src: array
-    dst: array
+    run_src: array
+    run_offsets: array
+    run_dst: array
     orphan_reads: int
 
 
@@ -116,13 +117,15 @@ def _edge_candidates_for_task(
     producer = worker_state.producer
     versions = worker_state.versions
     keys = worker_state.keys
-    sources = array("q")
-    destinations = array("q")
+    destinations_by_source: Dict[int, array] = {}
     orphan_reads = 0
 
     def add(src: int, dst: int) -> None:
         if src != dst:
-            sources.append(src)
+            destinations = destinations_by_source.get(src)
+            if destinations is None:
+                destinations = array("q")
+                destinations_by_source[src] = destinations
             destinations.append(dst)
 
     if task.kind == "read":
@@ -163,11 +166,20 @@ def _edge_candidates_for_task(
                     add(first, second)
     else:
         raise RuntimeError(f"unknown compact edge task: {task.kind}")
+
+    run_src = array("q")
+    run_offsets = array("q", [0])
+    run_dst = array("q")
+    for source, destinations in destinations_by_source.items():
+        run_src.append(source)
+        run_dst.extend(destinations)
+        run_offsets.append(len(run_dst))
     return _EdgeCandidateColumns(
         task_index=task.task_index,
         worker_pid=os.getpid(),
-        src=sources,
-        dst=destinations,
+        run_src=run_src,
+        run_offsets=run_offsets,
+        run_dst=run_dst,
         orphan_reads=orphan_reads,
     )
 
@@ -357,8 +369,13 @@ class DSG:
         # freezing their runtime iteration order for Tarjan/BFS.
         adjacency: Dict[int, Set[int]] = defaultdict(set)
         for outcome in outcomes:
-            for source, destination in zip(outcome.src, outcome.dst):
-                adjacency[source].add(destination)
+            for run_index, source in enumerate(outcome.run_src):
+                start = outcome.run_offsets[run_index]
+                end = outcome.run_offsets[run_index + 1]
+                # Keep the operand on array slice's generic iterable path.
+                # Passing a set/dict or pre-resizing the set can change set
+                # iteration order and therefore change the selected witness.
+                adjacency[source].update(outcome.run_dst[start:end])
         self.adj = {
             source: tuple(destinations)
             for source, destinations in adjacency.items()
@@ -412,61 +429,43 @@ class DSG:
     def _sccs(self) -> List[List[int]]:
         """非自明な (size>1) SCC のみ返す。自己ループは辺にしていないので
         singleton SCC は cycle ではない。"""
-        roots = list(self.adj.keys())
-        dense_by_txid: Dict[int, int] = {}
-        txid_by_dense: List[int] = []
-
-        def register(txid: int) -> None:
-            if txid not in dense_by_txid:
-                dense_by_txid[txid] = len(txid_by_dense)
-                txid_by_dense.append(txid)
-
-        for root in roots:
-            register(root)
-        for root in roots:
-            for destination in self.adj.get(root, ()):
-                register(destination)
-
-        index = array("q", [-1]) * len(txid_by_dense)
-        low = array("q", [-1]) * len(txid_by_dense)
-        on_stack = bytearray(len(txid_by_dense))
+        index: Dict[int, int] = {}
+        low: Dict[int, int] = {}
+        on_stack: Dict[int, bool] = {}
         stack: List[int] = []
         counter = 0
         out: List[List[int]] = []
 
-        for root in roots:
-            root_dense = dense_by_txid[root]
-            if index[root_dense] != -1:
+        for root in list(self.adj.keys()):
+            if root in index:
                 continue
             work: List[Tuple[int, "object"]] = [(root, iter(self.adj.get(root, ())))]
-            index[root_dense] = low[root_dense] = counter
+            index[root] = low[root] = counter
             counter += 1
             stack.append(root)
-            on_stack[root_dense] = True
+            on_stack[root] = True
             while work:
                 node, it = work[-1]
-                node_dense = dense_by_txid[node]
                 advanced = False
                 for w in it:
-                    w_dense = dense_by_txid[w]
-                    if index[w_dense] == -1:
-                        index[w_dense] = low[w_dense] = counter
+                    if w not in index:
+                        index[w] = low[w] = counter
                         counter += 1
                         stack.append(w)
-                        on_stack[w_dense] = True
+                        on_stack[w] = True
                         work.append((w, iter(self.adj.get(w, ()))))
                         advanced = True
                         break
-                    elif on_stack[w_dense]:
-                        if index[w_dense] < low[node_dense]:
-                            low[node_dense] = index[w_dense]
+                    elif on_stack.get(w):
+                        if index[w] < low[node]:
+                            low[node] = index[w]
                 if advanced:
                     continue
-                if low[node_dense] == index[node_dense]:
+                if low[node] == index[node]:
                     comp: List[int] = []
                     while True:
                         x = stack.pop()
-                        on_stack[dense_by_txid[x]] = False
+                        on_stack[x] = False
                         comp.append(x)
                         if x == node:
                             break
@@ -475,9 +474,8 @@ class DSG:
                 work.pop()
                 if work:
                     parent = work[-1][0]
-                    parent_dense = dense_by_txid[parent]
-                    if low[node_dense] < low[parent_dense]:
-                        low[parent_dense] = low[node_dense]
+                    if low[node] < low[parent]:
+                        low[parent] = low[node]
         return out
 
     def _shortest_cycle(self, scc: Set[int]) -> List[int]:

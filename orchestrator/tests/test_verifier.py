@@ -2516,6 +2516,43 @@ def test_serial_parent_optimizations_match_workers_and_pin_witness_order():
             {17, 24, 32}, {0, 8, 16},
         ]
 
+        # The workers=4 split puts ranks 8 and 16 in different tasks, so pin
+        # M2's structural premise with one fixed read task spanning both ranks
+        # while excluding rank 17 (which contributes the later 0->17 edge).
+        from array import array
+        edge_state = dsg_module._EdgeWorkerState(
+            trace=compact,
+            producer=compact_graph.producer,
+            versions=compact_graph.versions,
+            keys=tuple(compact_graph.versions),
+        )
+        edge_outcome = dsg_module._edge_candidates_for_task(
+            dsg_module._EdgeTask(0, "read", 0, 17), edge_state,
+        )
+        source_run = edge_outcome.run_src.index(0)
+        run_start = edge_outcome.run_offsets[source_run]
+        run_end = edge_outcome.run_offsets[source_run + 1]
+        assert edge_outcome.run_dst[run_start:run_end] == array("q", [8, 16])
+
+        source_order_dir = _ordinal_witness_trace()
+        try:
+            source_order_compact = parse_module._parse_trace_dir_compact(
+                source_order_dir, workers=1,
+            )
+            source_order_graph = DSG.from_compact(source_order_compact)
+            source_order_state = dsg_module._EdgeWorkerState(
+                trace=source_order_compact,
+                producer=source_order_graph.producer,
+                versions=source_order_graph.versions,
+                keys=tuple(source_order_graph.versions),
+            )
+            source_order_outcome = dsg_module._edge_candidates_for_task(
+                dsg_module._EdgeTask(0, "read", 0, 17), source_order_state,
+            )
+            assert source_order_outcome.run_src == array("q", [8, 16, 1])
+        finally:
+            shutil.rmtree(source_order_dir, ignore_errors=True)
+
         sequential = verify_trace_dir(d, workers=1)
         default = verify_trace_dir(d)
         parallel = verify_trace_dir(d, workers=4)
