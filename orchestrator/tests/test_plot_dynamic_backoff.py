@@ -94,9 +94,24 @@ def _execution(rep_index: int, *, diagnostic: bool = False) -> dict:
     }
 
 
-def _arm_ratio(cell: str, rep_index: int) -> float:
+def _near_margin_ratio(mean_ratio: float, rep_index: int) -> float:
+    """Return seven log-symmetric samples with a narrow CI around mean_ratio."""
+    return math.exp(math.log(mean_ratio) + (rep_index - 3) * 0.0045)
+
+
+def _arm_ratio(
+    cell: str, workload: str, threads: int, rep_index: int,
+) -> float:
     # The paired ratios deliberately produce accepted, rejected, and
     # inconclusive preregistered hypotheses in one full-size fixture.
+    if cell == "cw-as-dyn" and workload == "read-heavy" and threads == 6:
+        return 1.60
+    if cell == "cw-as-dyn" and workload == "write-heavy" and threads == 48:
+        return _near_margin_ratio(1.0425, rep_index)
+    if cell == "cw-as-dyn" and workload == "balanced" and threads == 48:
+        return 1.08
+    if cell == "stock" and workload == "write-heavy" and threads == 6:
+        return _near_margin_ratio(0.9575, rep_index)
     if cell in ("stock", "cw"):
         return 0.92 + rep_index * (0.04 / 6.0)
     if cell == "tuned-u10240":
@@ -114,7 +129,7 @@ def _performance_cell(
     }[workload]
     block_factor = 1.0 + 0.015 * rep_index
     tuned_tps = 900_000.0 * workload_factor * (threads / 6.0) * block_factor
-    throughput = tuned_tps * _arm_ratio(cell, rep_index)
+    throughput = tuned_tps * _arm_ratio(cell, workload, threads, rep_index)
     config = dict(zip(CONFIG_FIELDS, CELL_CONFIGS[cell], strict=True))
     return {
         "cell": cell,
@@ -338,6 +353,75 @@ def test_full_size_fixture_writes_three_figures_and_frozen_statistics(tmp_path: 
     assert math.isclose(actual_half, expected_half, rel_tol=0.0, abs_tol=1e-12)
     wrong_half = 1.96 * statistics.stdev(samples) / math.sqrt(7)
     assert not math.isclose(actual_half, wrong_half, rel_tol=0.0, abs_tol=1e-5)
+
+
+def test_practical_margin_fixture_controls_verdicts_and_robust_endpoint(
+    tmp_path: Path,
+):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    data = plot.load_inputs(performance, diagnostic)
+    contrasts = {row["hypothesis"]: row for row in data["contrasts"]}
+
+    positive = next(
+        point for point in contrasts["H1"]["points"]
+        if (point["workload"], point["threads"]) == ("write-heavy", 48)
+    )
+    assert positive["mean_percent"] == pytest.approx(4.25, abs=0.01)
+    assert 3.2 <= positive["ci95_lower_percent"] <= 3.8
+    assert positive["ci95_upper_percent"] > 5.0
+    assert positive["verdict"] == "実用優越"
+    assert data["hypotheses"]["H1"]["status"] == "accepted"
+
+    other_endpoint = next(
+        point for point in contrasts["H1"]["points"]
+        if (point["workload"], point["threads"]) == ("balanced", 48)
+    )
+    assert other_endpoint["ci95_lower_percent"] > 5.0
+
+    negative = next(
+        point for point in contrasts["H6"]["points"]
+        if (point["workload"], point["threads"]) == ("write-heavy", 6)
+    )
+    assert negative["mean_percent"] == pytest.approx(-4.25, abs=0.01)
+    assert -3.8 <= negative["ci95_upper_percent"] <= -3.2
+    assert negative["ci95_lower_percent"] < -5.0
+    assert negative["verdict"] == "実用劣化"
+
+    # Second M11a tooth: pin the preregistered literal as well as behavior above.
+    assert plot.PRACTICAL_PERCENT == 3.0
+
+
+def test_large_log_ratio_percentages_use_independent_exponential_transform(
+    tmp_path: Path,
+):
+    performance, diagnostic = _fixture_inputs(tmp_path)
+    result, prefix = _run(tmp_path, "large-ratio", performance, diagnostic)
+    assert result.returncode == 0, result.stderr
+    provenance = json.loads(
+        Path(f"{prefix}.provenance.json").read_text(encoding="utf-8")
+    )
+    h2 = next(
+        row for row in provenance["contrasts"] if row["hypothesis"] == "H2"
+    )
+    point = next(
+        candidate for candidate in h2["points"]
+        if (candidate["workload"], candidate["threads"]) == ("read-heavy", 6)
+    )
+
+    # Recompute from the fixture with math.exp, independently of generator helpers.
+    log_samples = [math.log(1.60)] * 7
+    mean_log = statistics.fmean(log_samples)
+    half_width = (
+        2.4469118511449692 * statistics.stdev(log_samples) / math.sqrt(7)
+    )
+    expected = {
+        "mean_percent": 100.0 * (math.exp(mean_log) - 1.0),
+        "ci95_lower_percent": 100.0 * (math.exp(mean_log - half_width) - 1.0),
+        "ci95_upper_percent": 100.0 * (math.exp(mean_log + half_width) - 1.0),
+    }
+    for key, value in expected.items():
+        assert point[key] == pytest.approx(value, abs=1e-12)
+        assert value == pytest.approx(60.0, abs=1e-12)
 
 
 @pytest.mark.parametrize(
