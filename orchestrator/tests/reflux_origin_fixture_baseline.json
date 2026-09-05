@@ -6,15 +6,15 @@
     },
     "build_execution_provenance": {
       "byte_length": 484,
-      "canonical_sha256": "5916e641dc7e183a13a910cd36307e89551efe061efa1fc6c980ea3111754283"
+      "canonical_sha256": "3691de16e9c1a749e62b5401736b7320a26777113ab89082b6678f38f48abad4"
     },
     "build_launch_admission_inputs": {
       "byte_length": 962,
       "canonical_sha256": "caece59c4092933460a7844f14430bd3a3957957747552bff90483c6eb676133"
     },
     "build_ordered_wal_projection": {
-      "byte_length": 700,
-      "canonical_sha256": "a389e665c493b73972565289e07dd5a657e58e9a712719fff181b0a484024732"
+      "byte_length": 909,
+      "canonical_sha256": "7d5ce12b170cf50335682719016708275a75aa262cca247345815cb93c9baaac"
     },
     "build_recovery_envelope_inputs": {
       "byte_length": 14909,
@@ -22,7 +22,7 @@
     },
     "build_result_evidence_record": {
       "byte_length": 1848,
-      "canonical_sha256": "c5566c7a4e83c9c63b5042b4af8388470d9332bef0919aecfb4e789c35d3b74d"
+      "canonical_sha256": "8fac4b360b17ffe862577565bc8d1a81e8e3d0a3552be7910b5c0b9fe1672ec0"
     },
     "build_source_closure_record": {
       "byte_length": 1697,
