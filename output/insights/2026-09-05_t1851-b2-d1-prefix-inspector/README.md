@@ -3,7 +3,7 @@
 2026-09-05。branch `worktree-dev-wave-t1851-unit-a`。**land していない (D1341)。**
 
 - 継承 tip: `fd814b2f0` (A2β の記録 + 追加裁定 3 件)
-- 本 wave の commit: `50dbf9158` (local main `61bc6ac69` の取り込み、integrator)、`a0ac63690` (実装)、記録 commit
+- 本 wave の commit: `50dbf9158` (local main `61bc6ac69` の取り込み、integrator)、`a0ac63690` (実装)、`b6c5b568d` (記録)、`b54836171` (受入の post-claim merge、local main `8c07ded74`)、受入結果と段 8 の追記 commit
 - 実装面の差分: 8 file、+1,749 / −11 (production 4 file +444 / −11、test 4 file +1,316)。codex 子: plan 1、レンズ 2、author 2、review 2、fix 2、再 review 1 = 10 本
 - 逐語: `verbatim/s2-plan.md`、`verbatim/s3-lens-a.md`、`verbatim/s3-lens-b.md`、`verbatim/s5-unit1.md`、`verbatim/s5-unit2.md`、
   `verbatim/s6-review-a.md`、`verbatim/s6-review-b.md`、`verbatim/s6-fix1.md`、`verbatim/s6-fix2.md`、`verbatim/s6-rereview.md`。
@@ -93,7 +93,7 @@ probe 第 1 走は M9 で dispatch の queue 待ち 900 s (rc=16) に当たり h
 
 ## 6. 検査の実測
 
-`parent-measurements.md` が一次資料。
+`parent-measurements.md` が一次資料。要点: 焦点走 20 file は fix2 統合後 2,267 passed / rc=0。受入全走 (tested_tip `b54836171`) は **child-green、20,699 passed / 68 skipped**、fingerprint 一致、lease は release 済み。全史 provenance は実装 commit 後 8,246 件・受入後 8,259 件とも新規違反なし。
 
 ## 7. 閉じていない窓
 

@@ -35,6 +35,7 @@
 - probe resume (M9〜M18、D612 上書き 3600/600、`--resume`、sidecar を attempt-2 へ複写、wrapper-attempt 2): 10 件すべて MISMATCH (赤)。17/17 に観測 node 集合が付き (計 93 node、M15 は v4 key set 変異なので 52 node)、各集合は段 4 で事前登録した観測 node を含む。M9 の再走は 69 s。
 - 本走 (`mutation-spec-final.json`、KILLED 期待 = 観測完全集合、D612 上書き、09:55〜10:07 JST): baseline PASSED (354 passed、27.4 s)、**17/17 KILLED、`matching=17`**、harness rc=0。各変異 32〜37 s (dispatch 込み)。
 
-## 受入全走
+## 受入全走 (checkout: `b54836171` = 記録 commit `b6c5b568d` + local main `8c07ded74`)
 
-(記録 commit 後に投入。実測前に欄を作らない)
+- 受入全走 attempt 1 (`tools/dev_wave_wait.py acceptance`、post-claim merge で local main `8c07ded74` を `b54836171` (merge main、integrator trailer は tool 生成) として取り込み、D612 上書き 3600/600、10:12〜10:19 JST): `classification=child-green`、`reason=child-verdict`、raw / normalized child rc=0、**20,699 passed / 68 skipped**、3 shard、tested_main `8c07ded74`、tested_tip `b54836171`、pre / post fingerprint 一致 (`diff_bytes=0`、`status_bytes=0`)、lease_holder `a089fc930b73`。走行後に `wave_land_window.py release` で release (`state=released`、`holder_self=true`)。
+- 全史 provenance (受入後、`b54836171` まで): rc=0、8,259 件、新規違反なし。
